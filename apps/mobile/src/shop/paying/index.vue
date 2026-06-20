@@ -1,11 +1,23 @@
 <template>
   <view class="paying">
     <!-- 顶部导航 -->
-    <view class="nav-bar" :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }">
-      <view class="nav-back" @tap="handleCancel">
-        <app-icon name="x" :size="44" color="#2C2C2C" />
+    <view
+      class="nav-bar"
+      :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }"
+    >
+      <view
+        class="nav-back"
+        @tap="handleCancel"
+      >
+        <app-icon
+          name="x"
+          :size="44"
+          color="#2C2C2C"
+        />
       </view>
-      <text class="nav-title">支付中</text>
+      <text class="nav-title">
+        支付中
+      </text>
       <view class="nav-placeholder" />
     </view>
 
@@ -13,74 +25,188 @@
       <!-- 加载中 -->
       <block v-if="status === 'loading'">
         <view class="spinner" />
-        <text class="sub">正在准备支付...</text>
+        <text class="sub">
+          正在准备支付...
+        </text>
       </block>
 
       <!-- 支付中 -->
       <block v-else-if="status === 'paying'">
         <view class="pay-logo">
-          <view class="ring r1" :style="{ background: methodColor + '15' }">
-            <view class="ring r2" :style="{ background: methodColor + '25' }">
-              <view class="ring r3" :style="{ background: methodColor }" />
+          <view
+            class="ring r1"
+            :style="{ background: methodColor + '15' }"
+          >
+            <view
+              class="ring r2"
+              :style="{ background: methodColor + '25' }"
+            >
+              <view
+                class="ring r3"
+                :style="{ background: methodColor }"
+              />
             </view>
           </view>
-          <view class="ping" :style="{ background: methodColor }" />
+          <view
+            class="ping"
+            :style="{ background: methodColor }"
+          />
         </view>
-        <text class="title">正在支付中...</text>
-        <text class="method-name">{{ methodName }}</text>
-        <text class="amount">¥{{ amount }}</text>
+        <text class="title">
+          正在支付中...
+        </text>
+        <text class="method-name">
+          {{ methodName }}
+        </text>
+        <text class="amount">
+          ¥{{ amount }}
+        </text>
         <view class="countdown-box">
-          <app-icon name="alert-circle" :size="30" color="#666666" />
-          <text class="cd-text">请在 <text class="cd-num">{{ countdown }}</text> 秒内完成支付</text>
+          <app-icon
+            name="alert-circle"
+            :size="30"
+            color="#666666"
+          />
+          <text class="cd-text">
+            请在 <text class="cd-num">
+              {{ countdown }}
+            </text> 秒内完成支付
+          </text>
         </view>
-        <text class="cancel-link" @tap="handleCancel">取消支付</text>
+        <text
+          class="cancel-link"
+          @tap="handleCancel"
+        >
+          取消支付
+        </text>
       </block>
 
       <!-- 成功 -->
       <block v-else-if="status === 'success'">
-        <view class="result-icon green"><app-icon name="check-circle" :size="72" color="#4CAF50" /></view>
-        <text class="title">支付成功</text>
-        <text class="sub">正在跳转...</text>
+        <view class="result-icon green">
+          <app-icon
+            name="check-circle"
+            :size="72"
+            color="#4CAF50"
+          />
+        </view>
+        <text class="title">
+          支付成功
+        </text>
+        <text class="sub">
+          正在跳转...
+        </text>
       </block>
 
       <!-- 失败 -->
       <block v-else-if="status === 'failed'">
-        <view class="result-icon red"><app-icon name="x-circle" :size="72" color="#E74C3C" /></view>
-        <text class="title">支付失败</text>
-        <text class="sub">{{ failReason || '请重新尝试' }}</text>
+        <view class="result-icon red">
+          <app-icon
+            name="x-circle"
+            :size="72"
+            color="#E74C3C"
+          />
+        </view>
+        <text class="title">
+          支付失败
+        </text>
+        <text class="sub">
+          {{ failReason || '请重新尝试' }}
+        </text>
         <view class="btn-row">
-          <view class="btn ghost" @tap="handleCancel"><text>返回订单</text></view>
-          <view class="btn primary" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>重新支付</text></view>
+          <view
+            class="btn ghost"
+            @tap="handleCancel"
+          >
+            <text>返回订单</text>
+          </view>
+          <view
+            class="btn primary"
+            @tap="handleRetry"
+          >
+            <app-icon
+              name="refresh-cw"
+              :size="30"
+              color="#fff"
+            /><text>重新支付</text>
+          </view>
         </view>
       </block>
 
       <!-- 超时 -->
       <block v-else-if="status === 'timeout'">
-        <view class="result-icon orange"><app-icon name="alert-circle" :size="72" color="#FF9800" /></view>
-        <text class="title">支付超时</text>
-        <text class="sub">未收到支付结果，请确认支付状态</text>
+        <view class="result-icon orange">
+          <app-icon
+            name="alert-circle"
+            :size="72"
+            color="#FF9800"
+          />
+        </view>
+        <text class="title">
+          支付超时
+        </text>
+        <text class="sub">
+          未收到支付结果，请确认支付状态
+        </text>
         <view class="btn-row">
-          <view class="btn ghost" @tap="goOrder"><text>查看订单</text></view>
-          <view class="btn primary" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>重新支付</text></view>
+          <view
+            class="btn ghost"
+            @tap="goOrder"
+          >
+            <text>查看订单</text>
+          </view>
+          <view
+            class="btn primary"
+            @tap="handleRetry"
+          >
+            <app-icon
+              name="refresh-cw"
+              :size="30"
+              color="#fff"
+            /><text>重新支付</text>
+          </view>
         </view>
       </block>
 
       <!-- 已取消 -->
       <block v-else-if="status === 'cancelled'">
-        <view class="result-icon gray"><app-icon name="x" :size="72" color="#999999" /></view>
-        <text class="title">支付已取消</text>
-        <text class="sub">您已取消本次支付</text>
-        <view class="btn primary single" @tap="goOrder"><text>查看订单</text></view>
+        <view class="result-icon gray">
+          <app-icon
+            name="x"
+            :size="72"
+            color="#999999"
+          />
+        </view>
+        <text class="title">
+          支付已取消
+        </text>
+        <text class="sub">
+          您已取消本次支付
+        </text>
+        <view
+          class="btn primary single"
+          @tap="goOrder"
+        >
+          <text>查看订单</text>
+        </view>
       </block>
     </view>
 
     <!-- 底部安全提示 -->
     <view class="footer">
       <view class="safe-row">
-        <app-icon name="shield" :size="30" color="#999999" />
-        <text class="safe-text">支付环境安全 · 资金加密保护</text>
+        <app-icon
+          name="shield"
+          :size="30"
+          color="#999999"
+        />
+        <text class="safe-text">
+          支付环境安全 · 资金加密保护
+        </text>
       </view>
-      <text class="brand-tip">热卜国学 提供安全支付保障</text>
+      <text class="brand-tip">
+        热卜国学 提供安全支付保障
+      </text>
     </view>
   </view>
 </template>

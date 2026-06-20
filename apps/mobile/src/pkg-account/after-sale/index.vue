@@ -1,125 +1,284 @@
 <template>
   <view class="page">
-    <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-back" @tap="goBack">
-        <app-icon name="chevron-left" :size="44" color="#2C2C2C" />
+    <view
+      class="nav-bar"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="chevron-left"
+          :size="44"
+          color="#2C2C2C"
+        />
       </view>
-      <text class="nav-title">申请售后</text>
+      <text class="nav-title">
+        申请售后
+      </text>
       <view class="nav-placeholder" />
     </view>
 
-    <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+      :style="{ paddingTop: navHeight + 'px' }"
+    >
       <!-- 售后类型 -->
       <view class="card">
-        <text class="card-title">售后类型</text>
+        <text class="card-title">
+          售后类型
+        </text>
         <view class="type-row">
           <view
             class="type-btn"
             :class="{ active: type === 'refund_only' }"
             @tap="type = 'refund_only'"
           >
-            <text class="type-name" :class="{ active: type === 'refund_only' }">仅退款</text>
-            <text class="type-desc">无需退货</text>
+            <text
+              class="type-name"
+              :class="{ active: type === 'refund_only' }"
+            >
+              仅退款
+            </text>
+            <text class="type-desc">
+              无需退货
+            </text>
           </view>
           <view
             class="type-btn"
             :class="{ active: type === 'refund_with_return' }"
             @tap="type = 'refund_with_return'"
           >
-            <text class="type-name" :class="{ active: type === 'refund_with_return' }">退货退款</text>
-            <text class="type-desc">需寄回商品</text>
+            <text
+              class="type-name"
+              :class="{ active: type === 'refund_with_return' }"
+            >
+              退货退款
+            </text>
+            <text class="type-desc">
+              需寄回商品
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 退款原因 -->
       <view class="card">
-        <text class="card-title">退款原因 <text class="req">*</text></text>
-        <view class="select-row" :class="{ error: errors.reason }" @tap="showReasonPicker = true">
-          <text class="select-text" :class="{ placeholder: !reason }">{{ reason || '请选择退款原因' }}</text>
-          <app-icon name="chevron-down" :size="36" color="#999999" />
+        <text class="card-title">
+          退款原因 <text class="req">
+            *
+          </text>
+        </text>
+        <view
+          class="select-row"
+          :class="{ error: errors.reason }"
+          @tap="showReasonPicker = true"
+        >
+          <text
+            class="select-text"
+            :class="{ placeholder: !reason }"
+          >
+            {{ reason || '请选择退款原因' }}
+          </text>
+          <app-icon
+            name="chevron-down"
+            :size="36"
+            color="#999999"
+          />
         </view>
-        <view v-if="errors.reason" class="err-tip">
-          <app-icon name="alert-circle" :size="24" color="#E74C3C" />
-          <text class="err-text">{{ errors.reason }}</text>
+        <view
+          v-if="errors.reason"
+          class="err-tip"
+        >
+          <app-icon
+            name="alert-circle"
+            :size="24"
+            color="#E74C3C"
+          />
+          <text class="err-text">
+            {{ errors.reason }}
+          </text>
         </view>
       </view>
 
       <!-- 退款金额 -->
       <view class="card">
-        <text class="card-title">退款金额 <text class="req">*</text><text class="sub">最多可退 ¥{{ maxAmount.toFixed(2) }}</text></text>
-        <view class="amount-row" :class="{ error: errors.amount }">
-          <text class="amount-symbol">¥</text>
-          <input class="amount-input" type="digit" v-model="amount" placeholder="0.00" />
-          <view class="full-btn" @tap="amount = String(maxAmount)">
-            <text class="full-text">全额退款</text>
+        <text class="card-title">
+          退款金额 <text class="req">
+            *
+          </text><text class="sub">
+            最多可退 ¥{{ maxAmount.toFixed(2) }}
+          </text>
+        </text>
+        <view
+          class="amount-row"
+          :class="{ error: errors.amount }"
+        >
+          <text class="amount-symbol">
+            ¥
+          </text>
+          <input
+            v-model="amount"
+            class="amount-input"
+            type="digit"
+            placeholder="0.00"
+          >
+          <view
+            class="full-btn"
+            @tap="amount = String(maxAmount)"
+          >
+            <text class="full-text">
+              全额退款
+            </text>
           </view>
         </view>
-        <view v-if="errors.amount" class="err-tip">
-          <app-icon name="alert-circle" :size="24" color="#E74C3C" />
-          <text class="err-text">{{ errors.amount }}</text>
+        <view
+          v-if="errors.amount"
+          class="err-tip"
+        >
+          <app-icon
+            name="alert-circle"
+            :size="24"
+            color="#E74C3C"
+          />
+          <text class="err-text">
+            {{ errors.amount }}
+          </text>
         </view>
       </view>
 
       <!-- 问题描述 -->
       <view class="card">
-        <text class="card-title">问题描述</text>
+        <text class="card-title">
+          问题描述
+        </text>
         <textarea
-          class="desc-input"
           v-model="description"
+          class="desc-input"
           placeholder="请详细描述您遇到的问题，以便我们更好地处理..."
           :maxlength="500"
           placeholder-class="ph"
         />
-        <text class="word-count">{{ description.length }}/500</text>
+        <text class="word-count">
+          {{ description.length }}/500
+        </text>
       </view>
 
       <!-- 上传凭证 -->
       <view class="card">
-        <text class="card-title">上传凭证 <text class="sub">（最多5张）</text></text>
+        <text class="card-title">
+          上传凭证 <text class="sub">
+            （最多5张）
+          </text>
+        </text>
         <view class="upload-wrap">
-          <view v-for="(img, i) in images" :key="i" class="upload-item">
-            <image class="upload-img" :src="img" mode="aspectFill" />
-            <view class="upload-del" @tap="removeImage(i)">
-              <app-icon name="x" :size="24" color="#FFFFFF" />
+          <view
+            v-for="(img, i) in images"
+            :key="i"
+            class="upload-item"
+          >
+            <image
+              class="upload-img"
+              :src="img"
+              mode="aspectFill"
+            />
+            <view
+              class="upload-del"
+              @tap="removeImage(i)"
+            >
+              <app-icon
+                name="x"
+                :size="24"
+                color="#FFFFFF"
+              />
             </view>
           </view>
-          <view v-if="images.length < 5" class="upload-add" @tap="addImage">
-            <app-icon name="camera" :size="48" color="#999999" />
-            <text class="upload-hint">上传</text>
+          <view
+            v-if="images.length < 5"
+            class="upload-add"
+            @tap="addImage"
+          >
+            <app-icon
+              name="camera"
+              :size="48"
+              color="#999999"
+            />
+            <text class="upload-hint">
+              上传
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 退货说明 -->
-      <view v-if="type === 'refund_with_return'" class="tips-card">
-        <text class="tips-title">退货说明</text>
-        <text class="tips-line">1. 请在收到退货地址后7天内寄回商品</text>
-        <text class="tips-line">2. 请保持商品原状，附带所有包装和配件</text>
-        <text class="tips-line">3. 建议使用有物流追踪的快递方式</text>
-        <text class="tips-line">4. 退款将在收到商品后1-3个工作日内处理</text>
+      <view
+        v-if="type === 'refund_with_return'"
+        class="tips-card"
+      >
+        <text class="tips-title">
+          退货说明
+        </text>
+        <text class="tips-line">
+          1. 请在收到退货地址后7天内寄回商品
+        </text>
+        <text class="tips-line">
+          2. 请保持商品原状，附带所有包装和配件
+        </text>
+        <text class="tips-line">
+          3. 建议使用有物流追踪的快递方式
+        </text>
+        <text class="tips-line">
+          4. 退款将在收到商品后1-3个工作日内处理
+        </text>
       </view>
 
       <view class="bottom-gap" />
     </scroll-view>
 
     <!-- 底部提交 -->
-    <view class="submit-bar" :style="{ paddingBottom: safeBottom + 'px' }">
-      <view class="submit-btn" :class="{ disabled: submitting }" @tap="submit">
-        <text class="submit-text">{{ submitting ? '提交中...' : '提交申请' }}</text>
+    <view
+      class="submit-bar"
+      :style="{ paddingBottom: safeBottom + 'px' }"
+    >
+      <view
+        class="submit-btn"
+        :class="{ disabled: submitting }"
+        @tap="submit"
+      >
+        <text class="submit-text">
+          {{ submitting ? '提交中...' : '提交申请' }}
+        </text>
       </view>
     </view>
 
     <!-- 原因选择弹窗 -->
-    <view v-if="showReasonPicker" class="mask" @tap="showReasonPicker = false">
-      <view class="reason-sheet" @tap.stop>
+    <view
+      v-if="showReasonPicker"
+      class="mask"
+      @tap="showReasonPicker = false"
+    >
+      <view
+        class="reason-sheet"
+        @tap.stop
+      >
         <view class="sheet-head">
-          <text class="sheet-title">选择退款原因</text>
+          <text class="sheet-title">
+            选择退款原因
+          </text>
           <view @tap="showReasonPicker = false">
-            <app-icon name="x" :size="36" color="#999999" />
+            <app-icon
+              name="x"
+              :size="36"
+              color="#999999"
+            />
           </view>
         </view>
-        <scroll-view scroll-y class="reason-list">
+        <scroll-view
+          scroll-y
+          class="reason-list"
+        >
           <view
             v-for="r in reasons"
             :key="r"
@@ -127,7 +286,12 @@
             :class="{ active: reason === r }"
             @tap="selectReason(r)"
           >
-            <text class="reason-text" :class="{ active: reason === r }">{{ r }}</text>
+            <text
+              class="reason-text"
+              :class="{ active: reason === r }"
+            >
+              {{ r }}
+            </text>
           </view>
         </scroll-view>
       </view>
@@ -139,20 +303,20 @@
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, redirectTo } from '@/utils/router'
-import { afterSaleReasons, afterSaleApplyContext, afterSaleApi } from '@/lib/account-data'
+import { afterSaleReasons, afterSaleApi } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
 const safeBottom = ref(0)
 
 const reasons = afterSaleReasons
-const maxAmount = ref(afterSaleApplyContext.maxAmount)
-const orderId = ref(afterSaleApplyContext.orderId)
+const maxAmount = ref(0)
+const orderId = ref('')
 
 const type = ref<'refund_only' | 'refund_with_return'>('refund_only')
 const reason = ref('')
 const showReasonPicker = ref(false)
-const amount = ref(String(afterSaleApplyContext.maxAmount))
+const amount = ref('')
 const description = ref('')
 const images = ref<string[]>([])
 const submitting = ref(false)
@@ -223,10 +387,13 @@ async function submit() {
       description: description.value,
       images: images.value,
     })
-  } catch { }
-  submitting.value = false
-  uni.showToast({ title: '申请已提交', icon: 'success' })
-  setTimeout(() => redirectTo('/shop/my-after-sales'), 1200)
+    submitting.value = false
+    uni.showToast({ title: '申请已提交', icon: 'success' })
+    setTimeout(() => redirectTo('/shop/my-after-sales'), 1200)
+  } catch {
+    uni.showToast({ title: '提交失败，请重试', icon: 'none' })
+    submitting.value = false
+  }
 }
 </script>
 

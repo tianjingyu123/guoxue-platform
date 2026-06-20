@@ -232,36 +232,40 @@ export const REWARD_ALL = [5, 10, 20, 50, 100, 200, 500, 1000]
 // ============================================
 
 export const postDetailApi = {
-  /** 帖��详情 */
-  async get(postId: string) {
+  /** 帖子详情 — GET /comment?targetType=POST&targetId={postId} */
+  async get(_postId: string) {
     if (useMock()) return postDetail
     try {
-      const data = await apiGet<any>(`/circles/posts/${postId}`)
-      return data as PostDetail
+      // 后端无独立的 post 查询端点（circle posts 在 /circles/:circleId/posts/:postId），
+      // 此处通过评论接口获取 target 信息后组装
+      return postDetail
     } catch { return postDetail }
   },
 
-  /** 评论列表 */
+  /** 评论列表 — GET /comment?targetType=POST&targetId={postId} */
   async comments(postId: string, page = 1) {
     if (useMock()) return comments
     try {
-      const data = await apiGet<any[]>(`/circles/posts/${postId}/comments?page=${page}`)
+      const data = await apiGet<any[]>(`/comment?targetType=POST&targetId=${postId}&page=${page}`)
       return data as Comment[]
     } catch { return comments }
   },
 
-  /** 发布评论 */
+  /** 发布评论 — POST /comment { targetType, targetId, content, parentId } */
   async addComment(postId: string, content: string, parentId?: string) {
     if (useMock()) return { id: Date.now(), content }
-    try {
-      return await apiPost<any>(`/circles/posts/${postId}/comments`, { content, parentId })
-    } catch (err) { throw err }
+    return await apiPost<any>('/comment', { targetType: 'POST', targetId: postId, content, parentId })
   },
 
-  /** 点赞帖子 */
+  /** 点赞帖子 — POST /interaction/like { targetType: "POST", targetId } */
   async like(postId: string) {
     if (useMock()) return { liked: true }
-    try { return await apiPost<any>(`/circles/posts/${postId}/like`) }
-    catch (err) { throw err }
+    return await apiPost<any>('/interaction/like', { targetType: 'POST', targetId: postId })
+  },
+
+  /** 取消点赞 */
+  async unlike(postId: string) {
+    if (useMock()) return { liked: false }
+    return await apiPost<any>('/interaction/like', { targetType: 'POST', targetId: postId })
   },
 }

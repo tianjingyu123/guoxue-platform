@@ -11,7 +11,7 @@ import PaipanGuideCard from '@/components/home/paipan-guide-card.vue'
 import MarketingCard from '@/components/home/marketing-card.vue'
 import FeedCard from '@/components/home/feed-card.vue'
 import BackTop from '@/components/home/back-top.vue'
-import { homeApi, defaultBanners, type RenderItem, type BannerItem } from '@/lib/home-data'
+import { homeApi, type RenderItem, type BannerItem } from '@/lib/home-data'
 
 // 后台可控显隐（原型同名常量）
 const SHOW_PAIPAN_CARD = true
@@ -26,7 +26,7 @@ const hasMore = computed(() => renderItems.value.length < total.value)
 const loadingMore = ref(false)
 
 // 数据
-const banners = ref<BannerItem[]>(defaultBanners)
+const banners = ref<BannerItem[]>([])
 const renderItems = ref<RenderItem[]>([])
 
 // 等效 react-masonry-css 轮询分列：偶数索引→左列，奇数索引→右列
@@ -98,28 +98,59 @@ onMounted(async () => {
     <app-header />
 
     <!-- 加载骨架屏 -->
-    <view v-if="loading" class="loading">
+    <view
+      v-if="loading"
+      class="loading"
+    >
       <view class="sk-banner" />
       <view class="sk-grid">
-        <view v-for="i in 10" :key="i" class="sk-icon" />
+        <view
+          v-for="i in 10"
+          :key="i"
+          class="sk-icon"
+        />
       </view>
       <view class="sk-card" />
       <view class="sk-card sk-card-sm" />
       <view class="sk-feed">
         <view class="sk-col">
-          <view v-for="i in 4" :key="'l'+i" class="sk-feed-item" :style="{ height: (280 + (i % 3) * 120) + 'rpx' }" />
+          <view
+            v-for="i in 4"
+            :key="'l'+i"
+            class="sk-feed-item"
+            :style="{ height: (280 + (i % 3) * 120) + 'rpx' }"
+          />
         </view>
         <view class="sk-col">
-          <view v-for="i in 4" :key="'r'+i" class="sk-feed-item" :style="{ height: (320 + (i % 3) * 80) + 'rpx' }" />
+          <view
+            v-for="i in 4"
+            :key="'r'+i"
+            class="sk-feed-item"
+            :style="{ height: (320 + (i % 3) * 80) + 'rpx' }"
+          />
         </view>
       </view>
     </view>
 
     <!-- 错误态 -->
-    <view v-else-if="error" class="error">
-      <text class="error-icon">!</text>
-      <text class="error-text">{{ error }}</text>
-      <view class="retry-btn" @tap="onRefresh"><text class="retry-text">点击重试</text></view>
+    <view
+      v-else-if="error"
+      class="error"
+    >
+      <text class="error-icon">
+        !
+      </text>
+      <text class="error-text">
+        {{ error }}
+      </text>
+      <view
+        class="retry-btn"
+        @tap="onRefresh"
+      >
+        <text class="retry-text">
+          点击重试
+        </text>
+      </view>
     </view>
 
     <!-- 正常内容 -->
@@ -149,30 +180,54 @@ onMounted(async () => {
       <marketing-card v-if="SHOW_MARKETING_CARD" />
 
       <!-- AI 推荐瀑布流 Feed（双列） -->
-      <view v-if="renderItems.length" class="feed">
+      <view
+        v-if="renderItems.length"
+        class="feed"
+      >
         <view class="col">
-          <feed-card v-for="ri in leftCol" :key="ri.key" :data="ri" />
+          <feed-card
+            v-for="ri in leftCol"
+            :key="ri.key"
+            :data="ri"
+          />
         </view>
         <view class="col">
-          <feed-card v-for="ri in rightCol" :key="ri.key" :data="ri" />
+          <feed-card
+            v-for="ri in rightCol"
+            :key="ri.key"
+            :data="ri"
+          />
         </view>
       </view>
 
       <!-- 加载更多 -->
-      <view v-if="loadingMore" class="loading-more">
-        <text class="loading-more-text">加载中...</text>
+      <view
+        v-if="loadingMore"
+        class="loading-more"
+      >
+        <text class="loading-more-text">
+          加载中...
+        </text>
       </view>
 
       <!-- 到底提示 -->
-      <view v-if="!hasMore && renderItems.length > 0" class="end">
-        <view class="end-line" /><text class="end-text">已经到底了</text><view class="end-line" />
+      <view
+        v-if="!hasMore && renderItems.length > 0"
+        class="end"
+      >
+        <view class="end-line" /><text class="end-text">
+          已经到底了
+        </text><view class="end-line" />
       </view>
 
       <!-- 底部安全距离 -->
       <view class="bottom-safe" />
     </scroll-view>
 
-    <back-top :visible="showBackTop" @tap="backToTop" />
+    <back-top
+      :visible="showBackTop"
+      @tap="backToTop"
+    />
     <bottom-nav active="home" />
   </view>
 </template>

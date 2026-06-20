@@ -21,12 +21,31 @@ const entries: Entry[] = [
 
 <template>
   <view class="grid">
-    <view v-for="e in entries" :key="e.id" class="cell" @tap="e.comingSoon || !e.url ? toastComingSoon() : navigateTo(e.url)">
-      <view class="icon-box" :style="{ background: e.bg }">
-        <app-icon :name="e.icon" :size="48" :color="e.color" />
-        <text v-if="e.badge" class="badge">{{ e.badge }}</text>
+    <view
+      v-for="e in entries"
+      :key="e.id"
+      class="cell"
+      @tap="e.comingSoon || !e.url ? toastComingSoon() : navigateTo(e.url)"
+    >
+      <view
+        class="icon-box"
+        :style="{ background: e.bg }"
+      >
+        <app-icon
+          :name="e.icon"
+          :size="48"
+          :color="e.color"
+        />
+        <text
+          v-if="e.badge"
+          class="badge"
+        >
+          {{ e.badge }}
+        </text>
       </view>
-      <text class="name">{{ e.name }}</text>
+      <text class="name">
+        {{ e.name }}
+      </text>
     </view>
   </view>
 </template>

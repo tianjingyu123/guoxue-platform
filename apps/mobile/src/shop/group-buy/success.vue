@@ -3,102 +3,238 @@
     <!-- 成功头部 -->
     <view class="header">
       <view class="success-icon">
-        <app-icon name="badge-check" :size="72" color="#2e8b57" />
+        <app-icon
+          name="badge-check"
+          :size="72"
+          color="#2e8b57"
+        />
       </view>
-      <text class="header-title">拼团成功</text>
-      <text class="header-sub">恭喜您，已成功拼团！</text>
+      <text class="header-title">
+        拼团成功
+      </text>
+      <text class="header-sub">
+        恭喜您，已成功拼团！
+      </text>
     </view>
 
-    <view class="content">
-      <!-- 商品卡片 -->
-      <view class="card">
-        <view class="prod">
-          <image class="prod-cover" :src="data.productCover" mode="aspectFill" />
-          <view class="prod-info">
-            <text class="prod-name">{{ data.productName }}</text>
-            <view class="prod-price">
-              <text class="price-now">¥{{ data.price }}</text>
-              <text class="price-old">¥{{ data.originalPrice }}</text>
-              <text class="save-tag">省¥{{ data.originalPrice - data.price }}</text>
-            </view>
-          </view>
-        </view>
-        <view class="row">
-          <text class="row-label">成团成员</text>
-          <view class="members">
+    <!-- Loading -->
+    <view
+      v-if="loading"
+      class="load-state"
+    >
+      <view class="load-spinner" />
+      <text class="load-text">
+        加载中...
+      </text>
+    </view>
+
+    <!-- Error -->
+    <view
+      v-else-if="error"
+      class="err-state"
+    >
+      <app-icon
+        name="alert-circle"
+        :size="80"
+        color="#CCCCCC"
+      />
+      <text class="err-text">
+        加载失败
+      </text>
+      <view
+        class="err-btn"
+        @tap="loadData"
+      >
+        重新加载
+      </view>
+    </view>
+
+    <!-- Content -->
+    <template v-else>
+      <view class="content">
+        <!-- 商品卡片 -->
+        <view class="card">
+          <view class="prod">
             <image
-              v-for="(m, i) in data.members"
-              :key="i"
-              class="member-avatar"
-              :src="m.avatar"
+              class="prod-cover"
+              :src="data.productCover"
               mode="aspectFill"
             />
-            <text class="member-count">共{{ data.members.length }}人</text>
+            <view class="prod-info">
+              <text class="prod-name">
+                {{ data.productName }}
+              </text>
+              <view class="prod-price">
+                <text class="price-now">
+                  ¥{{ data.price }}
+                </text>
+                <text class="price-old">
+                  ¥{{ data.originalPrice }}
+                </text>
+                <text class="save-tag">
+                  省¥{{ data.originalPrice - data.price }}
+                </text>
+              </view>
+            </view>
           </view>
-        </view>
-        <view class="row row--sub">
-          <text class="row-label">成团时间</text>
-          <text class="row-value">{{ data.completedAt }}</text>
-        </view>
-        <view class="row row--sub">
-          <text class="row-label">订单编号</text>
-          <view class="order-id">
-            <text class="row-value">{{ data.orderId }}</text>
-            <view class="copy-btn" @tap="copy(data.orderId)">
-              <app-icon :name="copied ? 'check' : 'copy'" :size="28" color="#c41e3a" />
+          <view class="row">
+            <text class="row-label">
+              成团成员
+            </text>
+            <view class="members">
+              <image
+                v-for="(m, i) in data.members"
+                :key="i"
+                class="member-avatar"
+                :src="m.avatar"
+                mode="aspectFill"
+              />
+              <text class="member-count">
+                共{{ data.members.length }}人
+              </text>
+            </view>
+          </view>
+          <view class="row row--sub">
+            <text class="row-label">
+              成团时间
+            </text>
+            <text class="row-value">
+              {{ data.completedAt }}
+            </text>
+          </view>
+          <view class="row row--sub">
+            <text class="row-label">
+              订单编号
+            </text>
+            <view class="order-id">
+              <text class="row-value">
+                {{ data.orderId }}
+              </text>
+              <view
+                class="copy-btn"
+                @tap="copy(data.orderId)"
+              >
+                <app-icon
+                  :name="copied ? 'check' : 'copy'"
+                  :size="28"
+                  color="#c41e3a"
+                />
+              </view>
             </view>
           </view>
         </view>
-      </view>
 
-      <!-- 发货信息 -->
-      <view class="ship-card">
-        <view class="ship-icon">
-          <app-icon name="package" :size="36" color="#4a90d9" />
-        </view>
-        <view class="ship-info">
-          <text class="ship-title">预计发货时间</text>
-          <text class="ship-sub">{{ data.estimatedShipDate }}（工作日）</text>
-        </view>
-      </view>
-
-      <!-- 分享得券 -->
-      <view class="share-card">
-        <view class="share-left">
-          <view class="share-icon">
-            <app-icon name="gift" :size="36" color="#fff" />
+        <!-- 发货信息 -->
+        <view class="ship-card">
+          <view class="ship-icon">
+            <app-icon
+              name="package"
+              :size="36"
+              color="#4a90d9"
+            />
           </view>
-          <view>
-            <text class="share-title">分享得优惠券</text>
-            <text class="share-sub">邀请好友拼团，获10元优惠券</text>
+          <view class="ship-info">
+            <text class="ship-title">
+              预计发货时间
+            </text>
+            <text class="ship-sub">
+              {{ data.estimatedShipDate }}（工作日）
+            </text>
           </view>
         </view>
-        <view class="share-btn" @tap="share">
-          <app-icon name="share-2" :size="28" color="#ff6b35" />
-          <text class="share-btn-text">分享</text>
-        </view>
-      </view>
 
-      <!-- 操作 -->
-      <view class="actions">
-        <view class="btn-primary" hover-class="btn-hover" @tap="viewOrder">
-          <text class="btn-primary-text">查看订单</text>
-          <app-icon name="chevron-right" :size="28" color="#fff" />
+        <!-- 分享得券 -->
+        <view class="share-card">
+          <view class="share-left">
+            <view class="share-icon">
+              <app-icon
+                name="gift"
+                :size="36"
+                color="#fff"
+              />
+            </view>
+            <view>
+              <text class="share-title">
+                分享得优惠券
+              </text>
+              <text class="share-sub">
+                邀请好友拼团，获10元优惠券
+              </text>
+            </view>
+          </view>
+          <view
+            class="share-btn"
+            @tap="share"
+          >
+            <app-icon
+              name="share-2"
+              :size="28"
+              color="#ff6b35"
+            />
+            <text class="share-btn-text">
+              分享
+            </text>
+          </view>
         </view>
-        <view class="btn-ghost" hover-class="btn-hover" @tap="goShop">
-          <text class="btn-ghost-text">继续逛逛</text>
+
+        <!-- 操作 -->
+        <view class="actions">
+          <view
+            class="btn-primary"
+            hover-class="btn-hover"
+            @tap="viewOrder"
+          >
+            <text class="btn-primary-text">
+              查看订单
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="28"
+              color="#fff"
+            />
+          </view>
+          <view
+            class="btn-ghost"
+            hover-class="btn-hover"
+            @tap="goShop"
+          >
+            <text class="btn-ghost-text">
+              继续逛逛
+            </text>
+          </view>
         </view>
       </view>
-    </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
-import { groupBuySuccess as data } from '@/lib/shop-data'
+import { shopApi } from '@/lib/shop-data'
 
+const loading = ref(true)
+const error = ref(false)
 const copied = ref(false)
+const data = ref<any>(null)
+
+onLoad(async () => {
+  await loadData()
+})
+
+async function loadData() {
+  loading.value = true
+  error.value = false
+  try {
+    const res = await shopApi.getGroupBuySuccessDetail('current')
+    data.value = res
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
 
 function copy(text: string) {
   uni.setClipboardData({
@@ -113,7 +249,8 @@ function share() {
   uni.showToast({ title: '已唤起分享', icon: 'none' })
 }
 function viewOrder() {
-  navigateTo(`/orders/${data.orderId}`)
+  if (!data.value) return
+  navigateTo(`/orders/${data.value.orderId}`)
 }
 function goShop() {
   navigateTo('/shop')
@@ -124,6 +261,33 @@ function goShop() {
 .gs-page {
   min-height: 100vh;
   background: #faf8f5;
+}
+.load-state, .err-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 20rpx;
+}
+.load-spinner {
+  width: 64rpx;
+  height: 64rpx;
+  border: 4rpx solid #E8E3DB;
+  border-top-color: #2e8b57;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.load-text { font-size: 28rpx; color: #999; }
+.err-text { font-size: 28rpx; color: #999; margin-top: 16rpx; }
+.err-btn {
+  margin-top: 24rpx;
+  padding: 16rpx 48rpx;
+  border: 1rpx solid #E8E3DB;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  color: #666;
 }
 .header {
   background: linear-gradient(135deg, #2e8b57, #3cb371);

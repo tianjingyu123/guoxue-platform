@@ -2,70 +2,161 @@
   <view class="cd-page">
     <!-- 导航 -->
     <view class="navbar">
-      <view class="nav-back" hover-class="nav-hover" @tap="goBack">
-        <app-icon name="chevron-left" :size="44" color="#2c2c2c" />
+      <view
+        class="nav-back"
+        hover-class="nav-hover"
+        @tap="goBack"
+      >
+        <app-icon
+          name="chevron-left"
+          :size="44"
+          color="#2c2c2c"
+        />
       </view>
-      <text class="nav-title">优惠券详情</text>
+      <text class="nav-title">
+        优惠券详情
+      </text>
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="body">
-      <view class="sk-big-card"><view class="sk-bc-val" /><view class="sk-bc-right"><view class="sk-line sk-w6" /><view class="sk-line sk-w4" /></view></view>
-      <view class="sk-card"><view class="sk-line sk-w3" /><view class="sk-line sk-w8" /></view>
+    <view
+      v-if="loading"
+      class="body"
+    >
+      <view class="sk-big-card">
+        <view class="sk-bc-val" /><view class="sk-bc-right">
+          <view class="sk-line sk-w6" /><view class="sk-line sk-w4" />
+        </view>
+      </view>
       <view class="sk-card">
-        <view class="sk-line sk-w4" />
-        <view v-for="i in 4" :key="i" class="sk-rule"><view class="sk-dot" /><view class="sk-line sk-w8" /></view>
+        <view class="sk-line sk-w3" /><view class="sk-line sk-w8" />
       </view>
       <view class="sk-card">
         <view class="sk-line sk-w4" />
-        <view v-for="i in 3" :key="i" class="sk-item"><view class="sk-img" /><view class="sk-info"><view class="sk-line" /><view class="sk-line sk-w6" /></view></view>
+        <view
+          v-for="i in 4"
+          :key="i"
+          class="sk-rule"
+        >
+          <view class="sk-dot" /><view class="sk-line sk-w8" />
+        </view>
+      </view>
+      <view class="sk-card">
+        <view class="sk-line sk-w4" />
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="sk-item"
+        >
+          <view class="sk-img" /><view class="sk-info">
+            <view class="sk-line" /><view class="sk-line sk-w6" />
+          </view>
+        </view>
       </view>
     </view>
 
-    <error-state v-else-if="error" :message="error" @retry="loadCoupon(coupon.id)" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadCoupon(coupon.id)"
+    />
 
-    <view v-else-if="!coupon.id" class="empty-body">
-      <view class="empty-icon"><app-icon name="ticket" :size="80" color="#CCCCCC" /></view>
-      <text class="empty-text">优惠券不存在或已过期</text>
-      <view class="empty-btn" @tap="goBack"><text class="empty-btn-text">返回</text></view>
+    <view
+      v-else-if="!coupon.id"
+      class="empty-body"
+    >
+      <view class="empty-icon">
+        <app-icon
+          name="ticket"
+          :size="80"
+          color="#CCCCCC"
+        />
+      </view>
+      <text class="empty-text">
+        优惠券不存在或已过期
+      </text>
+      <view
+        class="empty-btn"
+        @tap="goBack"
+      >
+        <text class="empty-btn-text">
+          返回
+        </text>
+      </view>
     </view>
 
-    <view v-else class="body">
+    <view
+      v-else
+      class="body"
+    >
       <!-- 大卡片 -->
       <view class="big-card">
         <view class="bc-head">
           <view class="bc-value">
-            <text class="bc-num">{{ coupon.value }}</text>
-            <text class="bc-unit">元</text>
+            <text class="bc-num">
+              {{ coupon.value }}
+            </text>
+            <text class="bc-unit">
+              元
+            </text>
           </view>
           <view class="bc-right">
-            <text class="bc-min">满{{ coupon.minAmount }}元可用</text>
-            <text class="bc-expire">至 {{ coupon.expireAt }}</text>
+            <text class="bc-min">
+              满{{ coupon.minAmount }}元可用
+            </text>
+            <text class="bc-expire">
+              至 {{ coupon.expireAt }}
+            </text>
           </view>
         </view>
         <view class="bc-divider" />
-        <text class="bc-desc">{{ coupon.description }}</text>
+        <text class="bc-desc">
+          {{ coupon.description }}
+        </text>
       </view>
 
       <!-- 券码 -->
       <view class="code-card">
         <view class="code-info">
-          <text class="code-label">优惠券代码</text>
-          <text class="code-value">{{ coupon.id }}</text>
+          <text class="code-label">
+            优惠券代码
+          </text>
+          <text class="code-value">
+            {{ coupon.id }}
+          </text>
         </view>
-        <view class="code-btn" @tap="copy">
-          <app-icon :name="copied ? 'check-circle' : 'copy'" :size="30" color="#fff" />
-          <text class="code-btn-text">{{ copied ? '已复制' : '复制' }}</text>
+        <view
+          class="code-btn"
+          @tap="copy"
+        >
+          <app-icon
+            :name="copied ? 'check-circle' : 'copy'"
+            :size="30"
+            color="#fff"
+          />
+          <text class="code-btn-text">
+            {{ copied ? '已复制' : '复制' }}
+          </text>
         </view>
       </view>
 
       <!-- 使用说明 -->
       <view class="rules-card">
-        <text class="rules-title">使用说明</text>
+        <text class="rules-title">
+          使用说明
+        </text>
         <view class="rules">
-          <view v-for="(r, i) in coupon.rules" :key="i" class="rule">
-            <text class="rule-dot">•</text>
-            <text class="rule-text">{{ r }}</text>
+          <view
+            v-for="(r, i) in coupon.rules"
+            :key="i"
+            class="rule"
+          >
+            <text class="rule-dot">
+              •
+            </text>
+            <text class="rule-text">
+              {{ r }}
+            </text>
           </view>
         </view>
       </view>
@@ -73,7 +164,9 @@
       <!-- 适用商品 -->
       <view class="apply-card">
         <view class="apply-head">
-          <text class="apply-title">适用商品/课程</text>
+          <text class="apply-title">
+            适用商品/课程
+          </text>
         </view>
         <view
           v-for="item in coupon.applicableItems"
@@ -82,21 +175,41 @@
           hover-class="item-hover"
           @tap="goItem(item)"
         >
-          <image class="apply-img" :src="item.image" mode="aspectFill" />
+          <image
+            class="apply-img"
+            :src="item.image"
+            mode="aspectFill"
+          />
           <view class="apply-info">
             <view class="apply-type">
-              <app-icon :name="item.type === 'product' ? 'shopping-bag' : 'book-open'" :size="24" :color="item.type === 'product' ? '#999' : '#c9a96e'" />
-              <text class="apply-type-text">{{ item.type === 'product' ? '商品' : '课程' }}</text>
+              <app-icon
+                :name="item.type === 'product' ? 'shopping-bag' : 'book-open'"
+                :size="24"
+                :color="item.type === 'product' ? '#999' : '#c9a96e'"
+              />
+              <text class="apply-type-text">
+                {{ item.type === 'product' ? '商品' : '课程' }}
+              </text>
             </view>
-            <text class="apply-name">{{ item.name }}</text>
-            <text class="apply-price">￥{{ item.price }}</text>
+            <text class="apply-name">
+              {{ item.name }}
+            </text>
+            <text class="apply-price">
+              ￥{{ item.price }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 立即使用 -->
-      <view class="use-btn" hover-class="btn-hover" @tap="goUse">
-        <text class="use-btn-text">立即使用</text>
+      <view
+        class="use-btn"
+        hover-class="btn-hover"
+        @tap="goUse"
+      >
+        <text class="use-btn-text">
+          立即使用
+        </text>
       </view>
     </view>
   </view>
@@ -107,9 +220,9 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
 import ErrorState from '@/components/common/error-state.vue'
-import { couponDetail, shopApi, type CouponApplicableItem } from '@/lib/shop-data'
+import { shopApi, type CouponApplicableItem } from '@/lib/shop-data'
 
-const coupon = ref({ ...couponDetail })
+const coupon = ref<any>({})
 const loading = ref(true)
 const error = ref('')
 const copied = ref(false)
@@ -119,7 +232,7 @@ async function loadCoupon(id: string) {
   error.value = ''
   try {
     const res = await shopApi.getCouponDetail(id)
-    coupon.value = (res as any) || couponDetail
+    coupon.value = (res as any) || {}
   } catch (e: any) { error.value = e?.message || '加载失败' } finally { loading.value = false }
 }
 

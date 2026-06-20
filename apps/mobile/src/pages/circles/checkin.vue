@@ -2,189 +2,620 @@
   <view class="ck-page">
     <!-- 顶部封面 -->
     <view class="ck-cover">
-      <image class="ck-cover-img" :src="activity.cover" mode="aspectFill" />
+      <image
+        class="ck-cover-img"
+        :src="activity.cover"
+        mode="aspectFill"
+      />
       <view class="ck-cover-mask" />
       <view class="ck-nav">
-        <view class="ck-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#ffffff" /></view>
-        <view class="ck-nav-btn" @tap="onShare"><app-icon name="share-2" :size="34" color="#ffffff" /></view>
+        <view
+          class="ck-nav-btn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="36"
+            color="#ffffff"
+          />
+        </view>
+        <view
+          class="ck-nav-btn"
+          @tap="onShare"
+        >
+          <app-icon
+            name="share-2"
+            :size="34"
+            color="#ffffff"
+          />
+        </view>
       </view>
       <view class="ck-cover-info">
         <view class="ck-cover-tags">
-          <text class="ck-badge-live">进行中</text>
-          <text class="ck-day-text">Day {{ activity.currentDay }}/{{ activity.totalDays }}</text>
+          <text class="ck-badge-live">
+            进行中
+          </text>
+          <text class="ck-day-text">
+            Day {{ activity.currentDay }}/{{ activity.totalDays }}
+          </text>
         </view>
-        <text class="ck-title">{{ activity.title }}</text>
-        <text class="ck-desc">{{ activity.description }}</text>
+        <text class="ck-title">
+          {{ activity.title }}
+        </text>
+        <text class="ck-desc">
+          {{ activity.description }}
+        </text>
       </view>
     </view>
 
-    <view v-if="loading" class="ck-skeleton">
-      <view v-for="i in 3" :key="i" class="ck-sk-row"><view class="ck-sk-block sk-anim" /></view>
+    <view
+      v-if="loading"
+      class="ck-skeleton"
+    >
+      <view
+        v-for="i in 3"
+        :key="i"
+        class="ck-sk-row"
+      >
+        <view class="ck-sk-block sk-anim" />
+      </view>
     </view>
-    <error-state v-else-if="error" :message="error" @retry="loadData" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadData"
+    />
     <template v-else>
-    <!-- 进度条 -->
-    <view class="ck-progress-bar">
-      <view class="ck-pb-head">
-        <text class="ck-pb-label">活动进度</text>
-        <text class="ck-pb-pct">{{ Math.round(progressPercent) }}%</text>
-      </view>
-      <view class="ck-pb-track"><view class="ck-pb-fill" :style="{ width: progressPercent + '%' }" /></view>
-    </view>
-
-    <!-- 数据统计 -->
-    <view class="ck-stats">
-      <view class="ck-stat"><text class="ck-stat-num">{{ activity.participants }}</text><text class="ck-stat-label">参与人数</text></view>
-      <view class="ck-stat"><text class="ck-stat-num c-green">{{ activity.todayCheckedIn }}</text><text class="ck-stat-label">今日已打卡</text></view>
-      <view class="ck-stat"><text class="ck-stat-num c-orange">{{ activity.myStreak }}</text><text class="ck-stat-label">我的连续</text></view>
-      <view class="ck-stat"><text class="ck-stat-num c-red">{{ activity.myTotalDays }}</text><text class="ck-stat-label">累计打卡</text></view>
-    </view>
-
-    <!-- 打卡日历 -->
-    <view class="ck-section">
-      <view class="ck-cal">
-        <view class="ck-cal-head">
-          <text class="ck-cal-title">打卡日历</text>
-          <text class="ck-cal-range">{{ activity.startDate }} - {{ activity.endDate }}</text>
+      <!-- 进度条 -->
+      <view class="ck-progress-bar">
+        <view class="ck-pb-head">
+          <text class="ck-pb-label">
+            活动进度
+          </text>
+          <text class="ck-pb-pct">
+            {{ Math.round(progressPercent) }}%
+          </text>
         </view>
-        <view class="ck-cal-grid">
-          <view v-for="d in calendarDays" :key="d.day" class="ck-cal-cell" :class="cellClass(d)">
-            <app-icon v-if="d.isCompleted" name="check-circle" :size="28" color="#ffffff" />
-            <text v-else>{{ d.day }}</text>
-          </view>
-        </view>
-        <view class="ck-cal-legend">
-          <view class="ck-legend-item"><view class="ck-dot" style="background:#52C41A" /><text class="ck-legend-t">已完成</text></view>
-          <view class="ck-legend-item"><view class="ck-dot" style="background:#FFE4E4" /><text class="ck-legend-t">已错过</text></view>
-          <view class="ck-legend-item"><view class="ck-dot" style="background:#F5F0E8" /><text class="ck-legend-t">未开始</text></view>
-        </view>
-      </view>
-    </view>
-
-    <!-- Tab -->
-    <view class="ck-tabs-wrap">
-      <view class="ck-tabs">
-        <view v-for="t in tabs" :key="t.id" class="ck-tab" :class="{ on: activeTab === t.id }" @tap="activeTab = t.id">{{ t.label }}</view>
-      </view>
-    </view>
-
-    <!-- 内容区 -->
-    <view class="ck-section">
-      <!-- 今日内容 -->
-      <view v-if="activeTab === 'today'" class="ck-col">
-        <view class="ck-card">
-          <view class="ck-card-head"><app-icon name="book-open" :size="36" color="#C9A96E" /><text class="ck-card-title">今日阅读</text></view>
-          <text class="ck-chapter">{{ todayContent.chapter }}</text>
-          <text class="ck-summary">{{ todayContent.summary }}</text>
-          <view class="ck-keypoints">
-            <text class="ck-kp-label">核心要点</text>
-            <view v-for="(p, i) in todayContent.keyPoints" :key="i" class="ck-kp-item"><view class="ck-kp-dot" /><text class="ck-kp-text">{{ p }}</text></view>
-          </view>
-        </view>
-        <view class="ck-card">
-          <view class="ck-card-head"><app-icon name="star" :size="36" color="#FF6B35" /><text class="ck-card-title">打卡规则</text></view>
-          <view v-for="(r, i) in activity.rules" :key="i" class="ck-rule"><text class="ck-rule-no">{{ i + 1 }}</text><text class="ck-rule-text">{{ r }}</text></view>
-        </view>
-        <view class="ck-reward">
-          <view class="ck-card-head"><app-icon name="trophy" :size="36" color="#C9A96E" /><text class="ck-card-title">完成奖励</text></view>
-          <view class="ck-reward-row">
-            <view class="ck-reward-item"><app-icon name="sparkles" :size="28" color="#C9A96E" /><text class="ck-reward-t">每日 +{{ activity.reward.xp }} 经验值</text></view>
-            <view class="ck-reward-item"><app-icon name="star" :size="28" color="#C9A96E" /><text class="ck-reward-t">获得「{{ activity.reward.badge }}」勋章</text></view>
-          </view>
+        <view class="ck-pb-track">
+          <view
+            class="ck-pb-fill"
+            :style="{ width: progressPercent + '%' }"
+          />
         </view>
       </view>
 
-      <!-- 打卡动态 -->
-      <view v-else-if="activeTab === 'feed'" class="ck-col">
-        <view v-for="item in checkinFeed" :key="item.id" class="ck-card">
-          <view class="ck-feed-head">
-            <image class="ck-avatar" :src="item.user.avatar" mode="aspectFill" />
-            <view class="ck-feed-meta"><text class="ck-feed-name">{{ item.user.name }}</text><text class="ck-feed-time">{{ item.time }}</text></view>
-            <text class="ck-feed-done">已打卡</text>
-          </view>
-          <text class="ck-feed-content">{{ item.content }}</text>
-          <image v-for="(img, i) in item.images" :key="i" class="ck-feed-img" :src="img" mode="widthFix" />
-          <view class="ck-feed-actions">
-            <view class="ck-fa"><app-icon name="heart" :size="28" color="#999999" /><text class="ck-fa-t">{{ item.likes }}</text></view>
-            <view class="ck-fa"><app-icon name="message-circle" :size="28" color="#999999" /><text class="ck-fa-t">{{ item.comments }}</text></view>
-          </view>
+      <!-- 数据统计 -->
+      <view class="ck-stats">
+        <view class="ck-stat">
+          <text class="ck-stat-num">
+            {{ activity.participants }}
+          </text><text class="ck-stat-label">
+            参与人数
+          </text>
+        </view>
+        <view class="ck-stat">
+          <text class="ck-stat-num c-green">
+            {{ activity.todayCheckedIn }}
+          </text><text class="ck-stat-label">
+            今日已打卡
+          </text>
+        </view>
+        <view class="ck-stat">
+          <text class="ck-stat-num c-orange">
+            {{ activity.myStreak }}
+          </text><text class="ck-stat-label">
+            我的连续
+          </text>
+        </view>
+        <view class="ck-stat">
+          <text class="ck-stat-num c-red">
+            {{ activity.myTotalDays }}
+          </text><text class="ck-stat-label">
+            累计打卡
+          </text>
         </view>
       </view>
 
-      <!-- 排行榜 -->
-      <view v-else-if="activeTab === 'rank'" class="ck-rank-card">
-        <view class="ck-rank-head"><app-icon name="trophy" :size="36" color="#C9A96E" /><text class="ck-card-title">连续打卡排行</text></view>
-        <view v-for="(item, idx) in leaderboard" :key="item.rank" class="ck-rank-row" :class="{ noborder: idx === leaderboard.length - 1 }">
-          <view class="ck-rank-no" :class="rankClass(item.rank)">{{ item.rank }}</view>
-          <image class="ck-avatar" :src="item.user.avatar" mode="aspectFill" />
-          <view class="ck-rank-info"><text class="ck-rank-name">{{ item.user.name }}</text><text class="ck-rank-total">累计{{ item.totalDays }}天</text></view>
-          <view class="ck-rank-streak">
-            <view class="ck-rank-flame"><app-icon name="flame" :size="28" color="#FF6B35" /><text class="ck-rank-num">{{ item.streak }}</text></view>
-            <text class="ck-rank-lbl">连续天数</text>
+      <!-- 打卡日历 -->
+      <view class="ck-section">
+        <view class="ck-cal">
+          <view class="ck-cal-head">
+            <text class="ck-cal-title">
+              打卡日历
+            </text>
+            <text class="ck-cal-range">
+              {{ activity.startDate }} - {{ activity.endDate }}
+            </text>
           </view>
-        </view>
-      </view>
-
-      <!-- 我的记录 -->
-      <view v-else class="ck-col">
-        <template v-if="myCheckins.length">
-          <view v-for="(item, idx) in myCheckins" :key="idx" class="ck-card">
-            <view class="ck-my-head"><app-icon name="check-circle" :size="28" color="#52C41A" /><text class="ck-my-date">{{ item.date }}</text></view>
-            <text class="ck-feed-content">{{ item.content }}</text>
-            <view v-if="item.images.length" class="ck-my-imgs">
-              <image v-for="(img, i) in item.images" :key="i" class="ck-my-img" :src="img" mode="aspectFill" />
-            </view>
-            <view class="ck-feed-actions noborder">
-              <view class="ck-fa"><app-icon name="heart" :size="26" color="#999999" /><text class="ck-fa-t">{{ item.likes }}</text></view>
-              <view class="ck-fa"><app-icon name="message-circle" :size="26" color="#999999" /><text class="ck-fa-t">{{ item.comments }}</text></view>
+          <view class="ck-cal-grid">
+            <view
+              v-for="d in calendarDays"
+              :key="d.day"
+              class="ck-cal-cell"
+              :class="cellClass(d)"
+            >
+              <app-icon
+                v-if="d.isCompleted"
+                name="check-circle"
+                :size="28"
+                color="#ffffff"
+              />
+              <text v-else>
+                {{ d.day }}
+              </text>
             </view>
           </view>
-        </template>
-        <view v-else class="ck-empty"><app-icon name="book-open" :size="80" color="#E8E3DB" /><text class="ck-empty-t">还没有打卡记录</text></view>
+          <view class="ck-cal-legend">
+            <view class="ck-legend-item">
+              <view
+                class="ck-dot"
+                style="background:#52C41A"
+              /><text class="ck-legend-t">
+                已完成
+              </text>
+            </view>
+            <view class="ck-legend-item">
+              <view
+                class="ck-dot"
+                style="background:#FFE4E4"
+              /><text class="ck-legend-t">
+                已错过
+              </text>
+            </view>
+            <view class="ck-legend-item">
+              <view
+                class="ck-dot"
+                style="background:#F5F0E8"
+              /><text class="ck-legend-t">
+                未开始
+              </text>
+            </view>
+          </view>
+        </view>
       </view>
-    </view>
 
+      <!-- Tab -->
+      <view class="ck-tabs-wrap">
+        <view class="ck-tabs">
+          <view
+            v-for="t in tabs"
+            :key="t.id"
+            class="ck-tab"
+            :class="{ on: activeTab === t.id }"
+            @tap="activeTab = t.id"
+          >
+            {{ t.label }}
+          </view>
+        </view>
+      </view>
+
+      <!-- 内容区 -->
+      <view class="ck-section">
+        <!-- 今日内容 -->
+        <view
+          v-if="activeTab === 'today'"
+          class="ck-col"
+        >
+          <view class="ck-card">
+            <view class="ck-card-head">
+              <app-icon
+                name="book-open"
+                :size="36"
+                color="#C9A96E"
+              /><text class="ck-card-title">
+                今日阅读
+              </text>
+            </view>
+            <text class="ck-chapter">
+              {{ todayContent.chapter }}
+            </text>
+            <text class="ck-summary">
+              {{ todayContent.summary }}
+            </text>
+            <view class="ck-keypoints">
+              <text class="ck-kp-label">
+                核心要点
+              </text>
+              <view
+                v-for="(p, i) in todayContent.keyPoints"
+                :key="i"
+                class="ck-kp-item"
+              >
+                <view class="ck-kp-dot" /><text class="ck-kp-text">
+                  {{ p }}
+                </text>
+              </view>
+            </view>
+          </view>
+          <view class="ck-card">
+            <view class="ck-card-head">
+              <app-icon
+                name="star"
+                :size="36"
+                color="#FF6B35"
+              /><text class="ck-card-title">
+                打卡规则
+              </text>
+            </view>
+            <view
+              v-for="(r, i) in activity.rules"
+              :key="i"
+              class="ck-rule"
+            >
+              <text class="ck-rule-no">
+                {{ i + 1 }}
+              </text><text class="ck-rule-text">
+                {{ r }}
+              </text>
+            </view>
+          </view>
+          <view class="ck-reward">
+            <view class="ck-card-head">
+              <app-icon
+                name="trophy"
+                :size="36"
+                color="#C9A96E"
+              /><text class="ck-card-title">
+                完成奖励
+              </text>
+            </view>
+            <view class="ck-reward-row">
+              <view class="ck-reward-item">
+                <app-icon
+                  name="sparkles"
+                  :size="28"
+                  color="#C9A96E"
+                /><text class="ck-reward-t">
+                  每日 +{{ activity.reward.xp }} 经验值
+                </text>
+              </view>
+              <view class="ck-reward-item">
+                <app-icon
+                  name="star"
+                  :size="28"
+                  color="#C9A96E"
+                /><text class="ck-reward-t">
+                  获得「{{ activity.reward.badge }}」勋章
+                </text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 打卡动态 -->
+        <view
+          v-else-if="activeTab === 'feed'"
+          class="ck-col"
+        >
+          <view
+            v-for="item in checkinFeed"
+            :key="item.id"
+            class="ck-card"
+          >
+            <view class="ck-feed-head">
+              <image
+                class="ck-avatar"
+                :src="item.user.avatar"
+                mode="aspectFill"
+              />
+              <view class="ck-feed-meta">
+                <text class="ck-feed-name">
+                  {{ item.user.name }}
+                </text><text class="ck-feed-time">
+                  {{ item.time }}
+                </text>
+              </view>
+              <text class="ck-feed-done">
+                已打卡
+              </text>
+            </view>
+            <text class="ck-feed-content">
+              {{ item.content }}
+            </text>
+            <image
+              v-for="(img, i) in item.images"
+              :key="i"
+              class="ck-feed-img"
+              :src="img"
+              mode="widthFix"
+            />
+            <view class="ck-feed-actions">
+              <view class="ck-fa">
+                <app-icon
+                  name="heart"
+                  :size="28"
+                  color="#999999"
+                /><text class="ck-fa-t">
+                  {{ item.likes }}
+                </text>
+              </view>
+              <view class="ck-fa">
+                <app-icon
+                  name="message-circle"
+                  :size="28"
+                  color="#999999"
+                /><text class="ck-fa-t">
+                  {{ item.comments }}
+                </text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 排行榜 -->
+        <view
+          v-else-if="activeTab === 'rank'"
+          class="ck-rank-card"
+        >
+          <view class="ck-rank-head">
+            <app-icon
+              name="trophy"
+              :size="36"
+              color="#C9A96E"
+            /><text class="ck-card-title">
+              连续打卡排行
+            </text>
+          </view>
+          <view
+            v-for="(item, idx) in leaderboard"
+            :key="item.rank"
+            class="ck-rank-row"
+            :class="{ noborder: idx === leaderboard.length - 1 }"
+          >
+            <view
+              class="ck-rank-no"
+              :class="rankClass(item.rank)"
+            >
+              {{ item.rank }}
+            </view>
+            <image
+              class="ck-avatar"
+              :src="item.user.avatar"
+              mode="aspectFill"
+            />
+            <view class="ck-rank-info">
+              <text class="ck-rank-name">
+                {{ item.user.name }}
+              </text><text class="ck-rank-total">
+                累计{{ item.totalDays }}天
+              </text>
+            </view>
+            <view class="ck-rank-streak">
+              <view class="ck-rank-flame">
+                <app-icon
+                  name="flame"
+                  :size="28"
+                  color="#FF6B35"
+                /><text class="ck-rank-num">
+                  {{ item.streak }}
+                </text>
+              </view>
+              <text class="ck-rank-lbl">
+                连续天数
+              </text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 我的记录 -->
+        <view
+          v-else
+          class="ck-col"
+        >
+          <template v-if="myCheckins.length">
+            <view
+              v-for="(item, idx) in myCheckins"
+              :key="idx"
+              class="ck-card"
+            >
+              <view class="ck-my-head">
+                <app-icon
+                  name="check-circle"
+                  :size="28"
+                  color="#52C41A"
+                /><text class="ck-my-date">
+                  {{ item.date }}
+                </text>
+              </view>
+              <text class="ck-feed-content">
+                {{ item.content }}
+              </text>
+              <view
+                v-if="item.images.length"
+                class="ck-my-imgs"
+              >
+                <image
+                  v-for="(img, i) in item.images"
+                  :key="i"
+                  class="ck-my-img"
+                  :src="img"
+                  mode="aspectFill"
+                />
+              </view>
+              <view class="ck-feed-actions noborder">
+                <view class="ck-fa">
+                  <app-icon
+                    name="heart"
+                    :size="26"
+                    color="#999999"
+                  /><text class="ck-fa-t">
+                    {{ item.likes }}
+                  </text>
+                </view>
+                <view class="ck-fa">
+                  <app-icon
+                    name="message-circle"
+                    :size="26"
+                    color="#999999"
+                  /><text class="ck-fa-t">
+                    {{ item.comments }}
+                  </text>
+                </view>
+              </view>
+            </view>
+          </template>
+          <view
+            v-else
+            class="ck-empty"
+          >
+            <app-icon
+              name="book-open"
+              :size="80"
+              color="#E8E3DB"
+            /><text class="ck-empty-t">
+              还没有打卡记录
+            </text>
+          </view>
+        </view>
+      </view>
     </template>
     <!-- 底部打卡按钮 -->
     <view class="ck-footer">
-      <view v-if="activity.hasCheckedToday" class="ck-done-bar"><app-icon name="check-circle" :size="36" color="#52C41A" /><text class="ck-done-t">今日已打卡</text></view>
-      <view v-else class="ck-checkin-btn" @tap="showCheckinModal = true"><app-icon name="check-circle" :size="36" color="#ffffff" /><text class="ck-checkin-t">立即打卡 (+{{ activity.reward.xp }}经验)</text></view>
+      <view
+        v-if="activity.hasCheckedToday"
+        class="ck-done-bar"
+      >
+        <app-icon
+          name="check-circle"
+          :size="36"
+          color="#52C41A"
+        /><text class="ck-done-t">
+          今日已打卡
+        </text>
+      </view>
+      <view
+        v-else
+        class="ck-checkin-btn"
+        @tap="showCheckinModal = true"
+      >
+        <app-icon
+          name="check-circle"
+          :size="36"
+          color="#ffffff"
+        /><text class="ck-checkin-t">
+          立即打卡 (+{{ activity.reward.xp }}经验)
+        </text>
+      </view>
     </view>
 
     <!-- 打卡弹窗 -->
-    <view v-if="showCheckinModal" class="ck-modal-mask" @tap="showCheckinModal = false">
-      <view class="ck-modal" @tap.stop>
+    <view
+      v-if="showCheckinModal"
+      class="ck-modal-mask"
+      @tap="showCheckinModal = false"
+    >
+      <view
+        class="ck-modal"
+        @tap.stop
+      >
         <view class="ck-modal-head">
-          <view @tap="showCheckinModal = false"><app-icon name="x" :size="44" color="#999999" /></view>
-          <text class="ck-modal-title">打卡</text>
+          <view @tap="showCheckinModal = false">
+            <app-icon
+              name="x"
+              :size="44"
+              color="#999999"
+            />
+          </view>
+          <text class="ck-modal-title">
+            打卡
+          </text>
           <view style="width: 44rpx" />
         </view>
-        <scroll-view scroll-y class="ck-modal-body">
-          <view class="ck-modal-tip"><text class="ck-mt-label">今日阅读内容</text><text class="ck-mt-chapter">{{ todayContent.chapter }}</text></view>
-          <view class="ck-field">
-            <text class="ck-field-label">写下你的心得 <text class="c-red">*</text></text>
-            <textarea v-model="checkinContent" class="ck-textarea" placeholder="记录今天的阅读收获，至少50字..." :maxlength="-1" />
-            <text class="ck-field-count">{{ checkinContent.length }}/50 {{ checkinContent.length < 50 ? '(至少50字)' : '' }}</text>
+        <scroll-view
+          scroll-y
+          class="ck-modal-body"
+        >
+          <view class="ck-modal-tip">
+            <text class="ck-mt-label">
+              今日阅读内容
+            </text><text class="ck-mt-chapter">
+              {{ todayContent.chapter }}
+            </text>
           </view>
           <view class="ck-field">
-            <text class="ck-field-label">添加图片 <text class="ck-field-sub">(选填)</text></text>
-            <view class="ck-img-add" @tap="chooseImg"><app-icon name="camera" :size="44" color="#999999" /><text class="ck-img-add-t">添加</text></view>
+            <text class="ck-field-label">
+              写下你的心得 <text class="c-red">
+                *
+              </text>
+            </text>
+            <textarea
+              v-model="checkinContent"
+              class="ck-textarea"
+              placeholder="记录今天的阅读收获，至少50字..."
+              :maxlength="-1"
+            />
+            <text class="ck-field-count">
+              {{ checkinContent.length }}/50 {{ checkinContent.length < 50 ? '(至少50字)' : '' }}
+            </text>
+          </view>
+          <view class="ck-field">
+            <text class="ck-field-label">
+              添加图片 <text class="ck-field-sub">
+                (选填)
+              </text>
+            </text>
+            <view
+              class="ck-img-add"
+              @tap="chooseImg"
+            >
+              <app-icon
+                name="camera"
+                :size="44"
+                color="#999999"
+              /><text class="ck-img-add-t">
+                添加
+              </text>
+            </view>
           </view>
         </scroll-view>
         <view class="ck-modal-foot">
-          <view class="ck-submit" :class="{ disabled: checkinContent.length < 50 || isSubmitting }" @tap="handleCheckin">{{ isSubmitting ? '提交中...' : '确认打卡' }}</view>
+          <view
+            class="ck-submit"
+            :class="{ disabled: checkinContent.length < 50 || isSubmitting }"
+            @tap="handleCheckin"
+          >
+            {{ isSubmitting ? '提交中...' : '确认打卡' }}
+          </view>
         </view>
       </view>
     </view>
 
     <!-- 成功弹窗 -->
-    <view v-if="showSuccess" class="ck-success-mask">
+    <view
+      v-if="showSuccess"
+      class="ck-success-mask"
+    >
       <view class="ck-success">
-        <view class="ck-success-icon"><app-icon name="check-circle" :size="56" color="#ffffff" /></view>
-        <text class="ck-success-title">打卡成功!</text>
-        <text class="ck-success-sub">连续打卡 <text class="c-orange ck-bold">{{ activity.myStreak }}</text> 天</text>
-        <view class="ck-success-reward"><app-icon name="sparkles" :size="28" color="#C9A96E" /><text class="ck-sr-t">+{{ activity.reward.xp }} 经验</text></view>
-        <view class="ck-success-btn" @tap="showSuccess = false">太棒了</view>
+        <view class="ck-success-icon">
+          <app-icon
+            name="check-circle"
+            :size="56"
+            color="#ffffff"
+          />
+        </view>
+        <text class="ck-success-title">
+          打卡成功!
+        </text>
+        <text class="ck-success-sub">
+          连续打卡 <text class="c-orange ck-bold">
+            {{ activity.myStreak }}
+          </text> 天
+        </text>
+        <view class="ck-success-reward">
+          <app-icon
+            name="sparkles"
+            :size="28"
+            color="#C9A96E"
+          /><text class="ck-sr-t">
+            +{{ activity.reward.xp }} 经验
+          </text>
+        </view>
+        <view
+          class="ck-success-btn"
+          @tap="showSuccess = false"
+        >
+          太棒了
+        </view>
       </view>
     </view>
   </view>
@@ -199,19 +630,21 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
 import ErrorState from '@/components/common/error-state.vue'
+import { circleManageApi } from '@/lib/circle-detail-data'
 
-const MOCK_ACTIVITY = {
-  id: '1', title: '《滴天髓》共读打卡', description: '每日阅读一章，记录心得体会，坚持21天养成阅读习惯',
-  cover: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800',
-  startDate: '2024-01-01', endDate: '2024-01-21', currentDay: 15, totalDays: 21,
-  participants: 328, todayCheckedIn: 186, reward: { xp: 10, badge: '阅读达人' },
-  isJoined: true, hasCheckedToday: false, myStreak: 12, myTotalDays: 12,
-  rules: ['每日阅读指定章节', '打卡需写下心得（至少50字）', '可配图分享精彩段落', '截止时间为每日23:59'],
+const defaultActivity = {
+  id: '', title: '', description: '',
+  cover: '',
+  startDate: '', endDate: '', currentDay: 1, totalDays: 1,
+  participants: 0, todayCheckedIn: 0, reward: { xp: 0, badge: '' },
+  isJoined: false, hasCheckedToday: false, myStreak: 0, myTotalDays: 0,
+  rules: [] as string[],
 }
 
 const loading = ref(true)
 const error = ref('')
-const activity = ref(MOCK_ACTIVITY)
+const circleId = ref('1')
+const activity = ref(defaultActivity)
 
 const todayContent = {
   chapter: '第十五章：论日主强弱',
@@ -258,7 +691,25 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    await new Promise(r => setTimeout(r, 500))
+    const pages = getCurrentPages()
+    const cur = pages[pages.length - 1]
+    const q = (cur as any).$page?.options || {}
+    if (q.circleId) circleId.value = q.circleId
+
+    const [actData, feedData, leadData, myData] = await Promise.allSettled([
+      circleManageApi.getCheckinData(circleId.value),
+      circleManageApi.getCheckinFeed(circleId.value),
+      circleManageApi.getCheckinLeaderboard(circleId.value),
+      circleManageApi.getMyCheckins(circleId.value),
+    ])
+    if (actData.status === 'fulfilled' && actData.value) {
+      const { todayContent: tc, ...rest } = actData.value
+      Object.assign(activity.value, rest)
+      if (tc) todayContent.value = tc
+    }
+    if (feedData.status === 'fulfilled') checkinFeed.value = Array.isArray(feedData.value) ? feedData.value : (feedData.value?.data || [])
+    if (leadData.status === 'fulfilled') leaderboard.value = Array.isArray(leadData.value) ? leadData.value : (leadData.value?.data || [])
+    if (myData.status === 'fulfilled') myCheckins.value = Array.isArray(myData.value) ? myData.value : (myData.value?.data || [])
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
@@ -299,14 +750,20 @@ function chooseImg() {
 }
 async function handleCheckin() {
   if (checkinContent.value.trim().length < 50) { uni.showToast({ title: '心得至少需要50字哦', icon: 'none' }); return }
+  if (isSubmitting.value) return
   isSubmitting.value = true
-  await new Promise((r) => setTimeout(r, 1500))
-  isSubmitting.value = false
-  showCheckinModal.value = false
-  showSuccess.value = true
-  activity.value.hasCheckedToday = true
-  activity.value.myStreak += 1
-  activity.value.myTotalDays += 1
+  try {
+    await circleManageApi.doCheckin(circleId.value, { content: checkinContent.value })
+    isSubmitting.value = false
+    showCheckinModal.value = false
+    showSuccess.value = true
+    activity.value.hasCheckedToday = true
+    activity.value.myStreak += 1
+    activity.value.myTotalDays += 1
+  } catch {
+    uni.showToast({ title: '打卡失败，请重试', icon: 'none' })
+    isSubmitting.value = false
+  }
 }
 </script>
 

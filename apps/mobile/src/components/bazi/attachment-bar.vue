@@ -16,38 +16,120 @@ function voiceList() { return props.media.voiceNotes[props.noteKey] || [] }
   <view class="ab">
     <!-- 操作按钮 -->
     <view class="ab-actions">
-      <view v-if="media.recordingKey.value === noteKey" class="btn rec" @tap="media.stopRecording()">
-        <app-icon name="square" :size="22" color="#c41e3a" />
-        <text class="rec-time">{{ media.formatSeconds(media.recordingTime.value) }}</text>
-        <text class="rec-label">停止</text>
+      <view
+        v-if="media.recordingKey.value === noteKey"
+        class="btn rec"
+        @tap="media.stopRecording()"
+      >
+        <app-icon
+          name="square"
+          :size="22"
+          color="#c41e3a"
+        />
+        <text class="rec-time">
+          {{ media.formatSeconds(media.recordingTime.value) }}
+        </text>
+        <text class="rec-label">
+          停止
+        </text>
       </view>
-      <view v-else class="btn ghost" @tap="media.startRecording(noteKey)">
-        <app-icon name="mic" :size="24" color="#9ca3af" />
-        <text class="ghost-text">语音</text>
+      <view
+        v-else
+        class="btn ghost"
+        @tap="media.startRecording(noteKey)"
+      >
+        <app-icon
+          name="mic"
+          :size="24"
+          color="#9ca3af"
+        />
+        <text class="ghost-text">
+          语音
+        </text>
       </view>
-      <view class="btn ghost" @tap="media.chooseImage(noteKey)">
-        <app-icon name="image" :size="24" color="#9ca3af" />
-        <text class="ghost-text">图片</text>
+      <view
+        class="btn ghost"
+        @tap="media.chooseImage(noteKey)"
+      >
+        <app-icon
+          name="image"
+          :size="24"
+          color="#9ca3af"
+        />
+        <text class="ghost-text">
+          图片
+        </text>
       </view>
     </view>
 
     <!-- 语音列表 -->
-    <view v-if="voiceList().length" class="voice-list">
-      <view v-for="(v, i) in voiceList()" :key="i" class="voice-item">
-        <view class="voice-play" @tap="media.playingId.value === noteKey + '-' + i ? media.stopVoice() : media.playVoice(v.url, noteKey + '-' + i)">
-          <app-icon :name="media.playingId.value === noteKey + '-' + i ? 'pause' : 'play'" :size="22" color="#c41e3a" />
+    <view
+      v-if="voiceList().length"
+      class="voice-list"
+    >
+      <view
+        v-for="(v, i) in voiceList()"
+        :key="i"
+        class="voice-item"
+      >
+        <view
+          class="voice-play"
+          @tap="media.playingId.value === noteKey + '-' + i ? media.stopVoice() : media.playVoice(v.url, noteKey + '-' + i)"
+        >
+          <app-icon
+            :name="media.playingId.value === noteKey + '-' + i ? 'pause' : 'play'"
+            :size="22"
+            color="#c41e3a"
+          />
         </view>
-        <view class="voice-bar"><view class="voice-bar-fill" :class="{ playing: media.playingId.value === noteKey + '-' + i }" /></view>
-        <text class="voice-dur">{{ media.formatSeconds(v.duration) }}</text>
-        <view class="voice-del" @tap="media.deleteVoice(noteKey, i)"><app-icon name="x" :size="22" color="#9ca3af" /></view>
+        <view class="voice-bar">
+          <view
+            class="voice-bar-fill"
+            :class="{ playing: media.playingId.value === noteKey + '-' + i }"
+          />
+        </view>
+        <text class="voice-dur">
+          {{ media.formatSeconds(v.duration) }}
+        </text>
+        <view
+          class="voice-del"
+          @tap="media.deleteVoice(noteKey, i)"
+        >
+          <app-icon
+            name="x"
+            :size="22"
+            color="#9ca3af"
+          />
+        </view>
       </view>
     </view>
 
     <!-- 图片网格 -->
-    <view v-if="imgList().length" class="img-grid">
-      <view v-for="(url, i) in imgList()" :key="i" class="img-cell">
-        <image :src="url" class="img" mode="aspectFill" @tap="media.previewImage(imgList(), url)" />
-        <view class="img-del" @tap.stop="media.deleteImage(noteKey, i)"><app-icon name="x" :size="18" color="#ffffff" /></view>
+    <view
+      v-if="imgList().length"
+      class="img-grid"
+    >
+      <view
+        v-for="(url, i) in imgList()"
+        :key="i"
+        class="img-cell"
+      >
+        <image
+          :src="url"
+          class="img"
+          mode="aspectFill"
+          @tap="media.previewImage(imgList(), url)"
+        />
+        <view
+          class="img-del"
+          @tap.stop="media.deleteImage(noteKey, i)"
+        >
+          <app-icon
+            name="x"
+            :size="18"
+            color="#ffffff"
+          />
+        </view>
       </view>
     </view>
   </view>

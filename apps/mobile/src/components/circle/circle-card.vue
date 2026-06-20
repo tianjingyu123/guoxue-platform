@@ -26,45 +26,96 @@ function onJoin() {
 </script>
 
 <template>
-  <view class="card" @tap="openDetail">
+  <view
+    class="card"
+    @tap="openDetail"
+  >
     <!-- 封面 -->
     <view class="cover-wrap">
-      <image :src="circle.cover" class="cover" mode="aspectFill" />
+      <image
+        :src="circle.cover"
+        class="cover"
+        mode="aspectFill"
+      />
       <!-- 排名角标（前三：金/银/铜） -->
       <view
         v-if="circle.rank && circle.rank <= 3"
         class="rank"
         :class="'rank-' + circle.rank"
-      >{{ circle.rank }}</view>
+      >
+        {{ circle.rank }}
+      </view>
       <!-- 付费标签 -->
-      <view v-if="isPaid" class="pay-tag">
-        <text class="pay-tag-t">{{ priceLabel }}</text>
+      <view
+        v-if="isPaid"
+        class="pay-tag"
+      >
+        <text class="pay-tag-t">
+          {{ priceLabel }}
+        </text>
       </view>
       <!-- 今日活跃 -->
-      <view v-if="circle.todayActive && circle.todayActive > 0 && !isPaid" class="active">
-        <app-icon name="flame" :size="20" color="#ffffff" />
-        <text class="active-num">{{ circle.todayActive }}</text>
+      <view
+        v-if="circle.todayActive && circle.todayActive > 0 && !isPaid"
+        class="active"
+      >
+        <app-icon
+          name="flame"
+          :size="20"
+          color="#ffffff"
+        />
+        <text class="active-num">
+          {{ circle.todayActive }}
+        </text>
       </view>
     </view>
 
     <!-- 信息 -->
     <view class="info">
-      <text class="name">{{ circle.name }}</text>
-      <text class="desc">{{ circle.description }}</text>
+      <text class="name">
+        {{ circle.name }}
+      </text>
+      <text class="desc">
+        {{ circle.description }}
+      </text>
       <view class="meta-row">
         <view class="stats">
           <view class="stat">
-            <app-icon name="users" :size="24" color="#666666" />
-            <text class="stat-num">{{ formatMembers(circle.members) }}</text>
+            <app-icon
+              name="users"
+              :size="24"
+              color="#666666"
+            />
+            <text class="stat-num">
+              {{ formatMembers(circle.members) }}
+            </text>
           </view>
           <view class="stat">
-            <app-icon name="message-square" :size="24" color="#666666" />
-            <text class="stat-num">{{ circle.posts }}</text>
+            <app-icon
+              name="message-square"
+              :size="24"
+              color="#666666"
+            />
+            <text class="stat-num">
+              {{ circle.posts }}
+            </text>
           </view>
         </view>
-        <text v-if="circle.isJoined" class="joined">已加入</text>
-        <view v-else class="join-btn" :class="{ paid: isPaid }" @tap.stop="onJoin">
-          <text class="join-text">{{ isPaid ? priceLabel : '加入' }}</text>
+        <text
+          v-if="circle.isJoined"
+          class="joined"
+        >
+          已加入
+        </text>
+        <view
+          v-else
+          class="join-btn"
+          :class="{ paid: isPaid }"
+          @tap.stop="onJoin"
+        >
+          <text class="join-text">
+            {{ isPaid ? priceLabel : '加入' }}
+          </text>
         </view>
       </view>
     </view>

@@ -44,10 +44,10 @@ function initFromProps() {
   if (p < 0) p = 0
   pIdx.value = p
   const cs = Object.keys(chinaData[all[p]] || {})
-  let c = init?.city ? cs.indexOf(init.city) : 0
+  const c = init?.city ? cs.indexOf(init.city) : 0
   cIdx.value = c < 0 ? 0 : c
   const ds = chinaData[all[p]]?.[cs[cIdx.value]] || []
-  let d = init?.district ? ds.indexOf(init.district) : 0
+  const d = init?.district ? ds.indexOf(init.district) : 0
   dIdx.value = d < 0 ? 0 : d
 }
 watch(() => props.open, (v) => { if (v) initFromProps() })
@@ -72,68 +72,192 @@ function confirm() {
 </script>
 
 <template>
-  <view v-if="open" class="lp-root">
-    <view class="lp-mask" @tap="emit('close')" />
+  <view
+    v-if="open"
+    class="lp-root"
+  >
+    <view
+      class="lp-mask"
+      @tap="emit('close')"
+    />
     <view class="lp-panel">
       <view class="lp-top">
         <view class="lp-region">
-          <view class="lp-rbtn" :class="{ 'lp-rbtn-on': region === 'domestic' }" @tap="region = 'domestic'"><text class="lp-rtext" :class="{ 'lp-rtext-on': region === 'domestic' }">国内</text></view>
-          <view class="lp-rbtn" :class="{ 'lp-rbtn-on': region === 'overseas' }" @tap="region = 'overseas'"><text class="lp-rtext" :class="{ 'lp-rtext-on': region === 'overseas' }">海外</text></view>
+          <view
+            class="lp-rbtn"
+            :class="{ 'lp-rbtn-on': region === 'domestic' }"
+            @tap="region = 'domestic'"
+          >
+            <text
+              class="lp-rtext"
+              :class="{ 'lp-rtext-on': region === 'domestic' }"
+            >
+              国内
+            </text>
+          </view>
+          <view
+            class="lp-rbtn"
+            :class="{ 'lp-rbtn-on': region === 'overseas' }"
+            @tap="region = 'overseas'"
+          >
+            <text
+              class="lp-rtext"
+              :class="{ 'lp-rtext-on': region === 'overseas' }"
+            >
+              海外
+            </text>
+          </view>
         </view>
-        <view class="lp-confirm" @tap="confirm"><text class="lp-confirm-text">确定</text></view>
+        <view
+          class="lp-confirm"
+          @tap="confirm"
+        >
+          <text class="lp-confirm-text">
+            确定
+          </text>
+        </view>
       </view>
 
       <view class="lp-search">
         <view class="lp-search-box">
-          <app-icon name="search" :size="28" color="#9ca3af" />
-          <input v-model="searchQuery" class="lp-input" :placeholder="region === 'domestic' ? '搜索全国城市及地区' : '搜索海外城市及地区'" />
+          <app-icon
+            name="search"
+            :size="28"
+            color="#9ca3af"
+          />
+          <input
+            v-model="searchQuery"
+            class="lp-input"
+            :placeholder="region === 'domestic' ? '搜索全国城市及地区' : '搜索海外城市及地区'"
+          >
         </view>
       </view>
 
       <view class="lp-current">
-        <text class="lp-cur-item">{{ province }}</text>
-        <text class="lp-cur-item">{{ city }}</text>
-        <text class="lp-cur-item">{{ district || '--' }}</text>
+        <text class="lp-cur-item">
+          {{ province }}
+        </text>
+        <text class="lp-cur-item">
+          {{ city }}
+        </text>
+        <text class="lp-cur-item">
+          {{ district || '--' }}
+        </text>
       </view>
 
       <view class="lp-wheel">
-        <picker-view class="lp-pv" :value="pvValue" :indicator-style="'height: 88rpx;'" @change="onChange">
+        <picker-view
+          class="lp-pv"
+          :value="pvValue"
+          :indicator-style="'height: 88rpx;'"
+          @change="onChange"
+        >
           <picker-view-column>
-            <view v-for="(p, i) in provinces" :key="i" class="lp-pv-item">{{ p }}</view>
+            <view
+              v-for="(p, i) in provinces"
+              :key="i"
+              class="lp-pv-item"
+            >
+              {{ p }}
+            </view>
           </picker-view-column>
           <picker-view-column>
-            <view v-for="(c, i) in cities" :key="i" class="lp-pv-item">{{ c }}</view>
+            <view
+              v-for="(c, i) in cities"
+              :key="i"
+              class="lp-pv-item"
+            >
+              {{ c }}
+            </view>
           </picker-view-column>
           <picker-view-column>
-            <view v-for="(d, i) in districts" :key="i" class="lp-pv-item">{{ d }}</view>
+            <view
+              v-for="(d, i) in districts"
+              :key="i"
+              class="lp-pv-item"
+            >
+              {{ d }}
+            </view>
           </picker-view-column>
         </picker-view>
       </view>
 
-      <view v-if="region === 'overseas'" class="lp-overseas">
+      <view
+        v-if="region === 'overseas'"
+        class="lp-overseas"
+      >
         <view class="lp-os-row">
           <view class="lp-os-l">
-            <text class="lp-os-label">换算北京时间</text>
-            <view class="lp-os-info" @tap="showExplain = true"><app-icon name="info" :size="28" color="#9ca3af" /></view>
+            <text class="lp-os-label">
+              换算北京时间
+            </text>
+            <view
+              class="lp-os-info"
+              @tap="showExplain = true"
+            >
+              <app-icon
+                name="info"
+                :size="28"
+                color="#9ca3af"
+              />
+            </view>
           </view>
-          <view class="lp-switch" :class="{ 'lp-switch-on': convertToBeijing }" @tap="convertToBeijing = !convertToBeijing">
-            <view class="lp-switch-dot" :class="{ 'lp-switch-dot-on': convertToBeijing }" />
+          <view
+            class="lp-switch"
+            :class="{ 'lp-switch-on': convertToBeijing }"
+            @tap="convertToBeijing = !convertToBeijing"
+          >
+            <view
+              class="lp-switch-dot"
+              :class="{ 'lp-switch-dot-on': convertToBeijing }"
+            />
           </view>
         </view>
         <view class="lp-os-tip">
-          <app-icon name="info" :size="22" color="#d97706" /><text class="lp-os-tip-text">仅支持北半球地区</text>
+          <app-icon
+            name="info"
+            :size="22"
+            color="#d97706"
+          /><text class="lp-os-tip-text">
+            仅支持北半球地区
+          </text>
         </view>
       </view>
 
-      <view class="lp-cancel" @tap="emit('close')"><text class="lp-cancel-text">取消</text></view>
+      <view
+        class="lp-cancel"
+        @tap="emit('close')"
+      >
+        <text class="lp-cancel-text">
+          取消
+        </text>
+      </view>
     </view>
 
     <!-- 北京时间说明 -->
-    <view v-if="showExplain" class="lp-explain" @tap="showExplain = false">
-      <view class="lp-explain-card" @tap.stop>
-        <text class="lp-explain-title">换算北京时间</text>
-        <text class="lp-explain-body">海外出生者排盘时，可选择将当地时间换算为北京时间。开启后系统按经度差自动折算，仅支持北半球地区。</text>
-        <view class="lp-explain-ok" @tap="showExplain = false"><text class="lp-explain-ok-text">我知道了</text></view>
+    <view
+      v-if="showExplain"
+      class="lp-explain"
+      @tap="showExplain = false"
+    >
+      <view
+        class="lp-explain-card"
+        @tap.stop
+      >
+        <text class="lp-explain-title">
+          换算北京时间
+        </text>
+        <text class="lp-explain-body">
+          海外出生者排盘时，可选择将当地时间换算为北京时间。开启后系统按经度差自动折算，仅支持北半球地区。
+        </text>
+        <view
+          class="lp-explain-ok"
+          @tap="showExplain = false"
+        >
+          <text class="lp-explain-ok-text">
+            我知道了
+          </text>
+        </view>
       </view>
     </view>
   </view>

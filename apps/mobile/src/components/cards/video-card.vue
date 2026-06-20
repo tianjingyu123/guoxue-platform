@@ -11,19 +11,57 @@ function open() { navigateTo(`/video/${props.data.id}`) }
 </script>
 
 <template>
-  <view class="card" hover-class="card-press" @tap="open">
-    <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
-      <text class="type-badge">视频</text>
+  <view
+    class="card"
+    hover-class="card-press"
+    @tap="open"
+  >
+    <view
+      class="cover"
+      :class="ratio === '1:1' ? 'r-sq' : 'r-34'"
+    >
+      <image
+        v-if="data.cover"
+        class="cover-img"
+        :src="data.cover"
+        mode="aspectFill"
+      />
+      <text class="type-badge">
+        视频
+      </text>
       <!-- 播放按钮 -->
-      <view class="play"><AppIcon name="play" :size="40" color="#ffffff" :fill="true" /></view>
-      <text v-if="data.duration" class="duration">{{ data.duration }}</text>
+      <view class="play">
+        <AppIcon
+          name="play"
+          :size="40"
+          color="#ffffff"
+          :fill="true"
+        />
+      </view>
+      <text
+        v-if="data.duration"
+        class="duration"
+      >
+        {{ data.duration }}
+      </text>
       <!-- 底部信息渐变层 -->
       <view class="info">
-        <text class="title">{{ data.title }}</text>
+        <text class="title">
+          {{ data.title }}
+        </text>
         <view class="meta">
-          <text class="author">@{{ data.author }}</text>
-          <view class="likes"><AppIcon name="heart" :size="20" color="rgba(255,255,255,0.8)" /><text class="likes-txt">{{ formatCount(data.likes) }}</text></view>
+          <text class="author">
+            @{{ data.author }}
+          </text>
+          <view class="likes">
+            <AppIcon
+              name="heart"
+              :size="20"
+              color="rgba(255,255,255,0.8)"
+            /><text class="likes-txt">
+              {{ formatCount(data.likes) }}
+            </text>
+          </view>
         </view>
       </view>
     </view>

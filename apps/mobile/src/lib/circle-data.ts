@@ -151,6 +151,12 @@ export const circleApi = {
   confirmJoin: (circleId: string, data: { payMethod?: string; orderNo?: string; referrerId?: string }) => useMock() ? { success: true } : apiPost(`/circles/${circleId}/join/confirm`, data),
   /** 续费 */
   renew: (circleId: string, payMethod?: string) => useMock() ? { success: true } : apiPost(`/circles/${circleId}/renew`, { payMethod }),
+
+  /** 获取我创建的圈子列表 */
+  myCreated: async (): Promise<Circle[]> => {
+    if (useMock()) return mockCircles.slice(0, 2).map(c => ({ ...c, isOwner: true }))
+    return apiGet('/circles/my/created')
+  },
 }
 
 /** 成员数格式化：>=1万显示「x.x万」（原型口径） */
@@ -180,14 +186,22 @@ export async function fetchUpcomingLives(): Promise<UpcomingLive[]> {
   } catch { return upcomingLives }
 }
 
-/** 获取今日活动（当前后端无对应接口，保留 mock） */
+/** 获取今日活动 */
 export async function fetchTodayActivities(): Promise<TodayActivity[]> {
-  return todayActivities
+  if (useMock()) return todayActivities
+  try {
+    const data = await apiGet<any[]>('/circles/activities?limit=5')
+    return data && data.length > 0 ? data : todayActivities
+  } catch { return todayActivities }
 }
 
-/** 获取热门帖子（当前后端无全局热帖接口，保留 mock；后续可走 /circles/:id/hot-content 聚合） */
+/** 获取热门帖子（跨圈子热度排序） */
 export async function fetchHotPosts(): Promise<HotPost[]> {
-  return hotPosts
+  if (useMock()) return hotPosts
+  try {
+    const data = await apiGet<any[]>('/circles/hot-posts?limit=10')
+    return data && data.length > 0 ? data : hotPosts
+  } catch { return hotPosts }
 }
 
 /** 格式化相对时间 */

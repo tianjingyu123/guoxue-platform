@@ -1,87 +1,207 @@
 <template>
   <view class="pay-timeout">
     <!-- 顶部导航 -->
-    <view class="nav-bar" :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }">
-      <view class="nav-back" @tap="goBack">
-        <app-icon name="chevron-left" :size="44" color="#2C2C2C" />
+    <view
+      class="nav-bar"
+      :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }"
+    >
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="chevron-left"
+          :size="44"
+          color="#2C2C2C"
+        />
       </view>
-      <text class="nav-title">支付结果</text>
+      <text class="nav-title">
+        支付结果
+      </text>
     </view>
 
-    <!-- 橙色渐变背景 -->
-    <view class="hero">
-      <view class="clock-wrap">
-        <view class="clock-bg"><app-icon name="clock" :size="56" color="#FB923C" /></view>
-        <view class="clock-ring" />
-      </view>
-      <text class="hero-title">支付超时</text>
-      <text class="hero-sub">订单已超时，请重新发起支付</text>
-      <view class="hero-amount">
-        <text class="amt-label">订单金额</text>
-        <text class="amt">¥{{ amount }}</text>
+    <!-- Loading -->
+    <view
+      v-if="loading"
+      class="load-state"
+    >
+      <view class="load-spinner" />
+      <text class="load-text">
+        加载中...
+      </text>
+    </view>
+
+    <!-- Error -->
+    <view
+      v-else-if="error"
+      class="err-state"
+    >
+      <app-icon
+        name="alert-circle"
+        :size="80"
+        color="#CCCCCC"
+      />
+      <text class="err-text">
+        加载失败
+      </text>
+      <view
+        class="err-btn"
+        @tap="loadData"
+      >
+        重新加载
       </view>
     </view>
 
-    <!-- 内容区 -->
-    <view class="content">
-      <!-- 可能原因 -->
-      <view class="card">
-        <view class="card-head">
-          <app-icon name="alert-circle" :size="34" color="#FB923C" />
-          <text class="card-title">可能的原因</text>
+    <!-- Content -->
+    <template v-else>
+      <!-- 橙色渐变背景 -->
+      <view class="hero">
+        <view class="clock-wrap">
+          <view class="clock-bg">
+            <app-icon
+              name="clock"
+              :size="56"
+              color="#FB923C"
+            />
+          </view>
+          <view class="clock-ring" />
         </view>
-        <view class="reasons">
-          <view v-for="(r, i) in reasons" :key="i" class="reason-item">
-            <view class="reason-icon"><app-icon :name="r.icon" :size="28" color="#EA580C" /></view>
-            <text class="reason-text">{{ r.text }}</text>
+        <text class="hero-title">
+          支付超时
+        </text>
+        <text class="hero-sub">
+          订单已超时，请重新发起支付
+        </text>
+        <view class="hero-amount">
+          <text class="amt-label">
+            订单金额
+          </text>
+          <text class="amt">
+            ¥{{ amount }}
+          </text>
+        </view>
+      </view>
+
+      <!-- 内容区 -->
+      <view class="content">
+        <!-- 可能原因 -->
+        <view class="card">
+          <view class="card-head">
+            <app-icon
+              name="alert-circle"
+              :size="34"
+              color="#FB923C"
+            />
+            <text class="card-title">
+              可能的原因
+            </text>
+          </view>
+          <view class="reasons">
+            <view
+              v-for="(r, i) in reasons"
+              :key="i"
+              class="reason-item"
+            >
+              <view class="reason-icon">
+                <app-icon
+                  :name="r.icon"
+                  :size="28"
+                  color="#EA580C"
+                />
+              </view>
+              <text class="reason-text">
+                {{ r.text }}
+              </text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 订单信息 -->
+        <view class="card">
+          <text class="card-title block">
+            订单信息
+          </text>
+          <view class="oi-row">
+            <text class="oi-label">
+              订单编号
+            </text>
+            <text class="oi-value mono">
+              {{ orderId }}
+            </text>
+          </view>
+          <view class="oi-row bordered">
+            <text class="oi-label">
+              超时时间
+            </text>
+            <text class="oi-value">
+              {{ timeoutTime }}
+            </text>
+          </view>
+          <view class="oi-row bordered">
+            <text class="oi-label">
+              订单状态
+            </text>
+            <text class="oi-value orange">
+              待支付
+            </text>
+          </view>
+        </view>
+
+        <!-- 温馨提示 -->
+        <view class="blue-tip">
+          <view class="blue-dot">
+            <text>!</text>
+          </view>
+          <view class="blue-content">
+            <text class="blue-title">
+              温馨提示
+            </text>
+            <text class="blue-text">
+              如您已完成支付但显示超时，资金会在1-3个工作日内原路退回。如有疑问请联系客服。
+            </text>
           </view>
         </view>
       </view>
 
-      <!-- 订单信息 -->
-      <view class="card">
-        <text class="card-title block">订单信息</text>
-        <view class="oi-row">
-          <text class="oi-label">订单编号</text>
-          <text class="oi-value mono">{{ orderId }}</text>
+      <!-- 底部固定按钮 -->
+      <view class="footer">
+        <view
+          class="btn primary"
+          @tap="goRePay"
+        >
+          <app-icon
+            name="refresh-cw"
+            :size="34"
+            color="#fff"
+          />
+          <text>重新支付</text>
         </view>
-        <view class="oi-row bordered">
-          <text class="oi-label">超时时间</text>
-          <text class="oi-value">{{ timeoutTime }}</text>
-        </view>
-        <view class="oi-row bordered">
-          <text class="oi-label">订单状态</text>
-          <text class="oi-value orange">待支付</text>
-        </view>
-      </view>
-
-      <!-- 温馨提示 -->
-      <view class="blue-tip">
-        <view class="blue-dot"><text>!</text></view>
-        <view class="blue-content">
-          <text class="blue-title">温馨提示</text>
-          <text class="blue-text">如您已完成支付但显示超时，资金会在1-3个工作日内原路退回。如有疑问请联系客服。</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 底部固定按钮 -->
-    <view class="footer">
-      <view class="btn primary" @tap="goRePay">
-        <app-icon name="refresh-cw" :size="34" color="#fff" />
-        <text>重新支付</text>
-      </view>
-      <view class="btn-row">
-        <view class="btn ghost" @tap="goChangeMethod">
-          <app-icon name="repeat" :size="30" color="#666666" />
-          <text>换个支付方式</text>
-        </view>
-        <view class="btn ghost" @tap="goOrder">
-          <app-icon name="file-text" :size="30" color="#666666" />
-          <text>查看订单</text>
+        <view class="btn-row">
+          <view
+            class="btn ghost"
+            @tap="goChangeMethod"
+          >
+            <app-icon
+              name="repeat"
+              :size="30"
+              color="#666666"
+            />
+            <text>换个支付方式</text>
+          </view>
+          <view
+            class="btn ghost"
+            @tap="goOrder"
+          >
+            <app-icon
+              name="file-text"
+              :size="30"
+              color="#666666"
+            />
+            <text>查看订单</text>
+          </view>
         </view>
       </view>
-    </view>
+    </template>
   </view>
 </template>
 
@@ -89,19 +209,32 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, redirectTo, goBack } from '@/utils/router'
-import { payTimeoutReasons } from '@/lib/shop-data'
+import { shopApi } from '@/lib/shop-data'
 
+const loading = ref(true)
+const error = ref(false)
 const orderId = ref('ORD20241201123456')
 const amount = ref('344.00')
 const timeoutTime = ref('')
-const reasons = payTimeoutReasons
+const reasons = ref<{ icon: string; text: string }[]>([])
 
-onLoad((q) => {
+onLoad(async (q) => {
   if (q?.orderId) orderId.value = q.orderId as string
   if (q?.amount) amount.value = q.amount as string
   const d = new Date()
   timeoutTime.value = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  await loadData()
 })
+
+async function loadData() {
+  loading.value = true
+  error.value = false
+  try {
+    const res = await shopApi.getPayTimeoutReasons()
+    reasons.value = res || []
+  } catch { error.value = true }
+  finally { loading.value = false }
+}
 
 function goRePay() { redirectTo(`/shop/paying?orderId=${orderId.value}`) }
 function goChangeMethod() { navigateTo(`/shop/checkout?orderId=${orderId.value}`) }
@@ -110,6 +243,33 @@ function goOrder() { navigateTo(`/shop/orders/${orderId.value}`) }
 
 <style lang="scss" scoped>
 .pay-timeout { min-height: 100vh; background: #FAF8F5; padding-bottom: 280rpx; }
+.load-state, .err-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 20rpx;
+}
+.load-spinner {
+  width: 64rpx;
+  height: 64rpx;
+  border: 4rpx solid #E8E3DB;
+  border-top-color: #FB923C;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.load-text { font-size: 28rpx; color: #999; }
+.err-text { font-size: 28rpx; color: #999; margin-top: 16rpx; }
+.err-btn {
+  margin-top: 24rpx;
+  padding: 16rpx 48rpx;
+  border: 1rpx solid #E8E3DB;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  color: #666;
+}
 .nav-bar {
   position: sticky;
   top: 0;

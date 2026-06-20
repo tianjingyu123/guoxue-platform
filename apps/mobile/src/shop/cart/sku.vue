@@ -1,16 +1,40 @@
 <template>
   <view class="sku-cart">
-    <view class="nav-bar" :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }">
-      <view class="nav-back" @tap="goBack">
-        <app-icon name="arrow-left" :size="40" color="#1A1A1A" />
+    <view
+      class="nav-bar"
+      :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }"
+    >
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="40"
+          color="#1A1A1A"
+        />
       </view>
-      <text class="nav-title">购物车</text>
-      <text class="nav-edit" @tap="editMode = !editMode">{{ editMode ? '完成' : '管理' }}</text>
+      <text class="nav-title">
+        购物车
+      </text>
+      <text
+        class="nav-edit"
+        @tap="editMode = !editMode"
+      >
+        {{ editMode ? '完成' : '管理' }}
+      </text>
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="sk-wrap">
-      <view v-for="i in 4" :key="i" class="sk-item">
+    <view
+      v-if="loading"
+      class="sk-wrap"
+    >
+      <view
+        v-for="i in 4"
+        :key="i"
+        class="sk-item"
+      >
         <view class="sk-img" />
         <view class="sk-info">
           <view class="sk-line" />
@@ -19,9 +43,17 @@
       </view>
     </view>
 
-    <error-state v-else-if="error" :message="error" @retry="loadCart" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadCart"
+    />
 
-    <scroll-view scroll-y class="content" v-else-if="validItems.length || invalidItems.length">
+    <scroll-view
+      v-else-if="validItems.length || invalidItems.length"
+      scroll-y
+      class="content"
+    >
       <!-- 有效商品 -->
       <view class="item-list">
         <view
@@ -29,29 +61,81 @@
           :key="item.id"
           class="swipe-wrap"
         >
-          <view class="swipe-inner" :style="{ transform: openId === item.id ? 'translateX(-160rpx)' : 'translateX(0)' }">
-            <view class="cart-item" @tap="onItemTap(item)">
-              <view class="item-check" :class="{ checked: item.selected }" @tap.stop="toggleItem(item)">
-                <app-icon v-if="item.selected" name="check" :size="28" color="#FFFFFF" />
+          <view
+            class="swipe-inner"
+            :style="{ transform: openId === item.id ? 'translateX(-160rpx)' : 'translateX(0)' }"
+          >
+            <view
+              class="cart-item"
+              @tap="onItemTap(item)"
+            >
+              <view
+                class="item-check"
+                :class="{ checked: item.selected }"
+                @tap.stop="toggleItem(item)"
+              >
+                <app-icon
+                  v-if="item.selected"
+                  name="check"
+                  :size="28"
+                  color="#FFFFFF"
+                />
               </view>
-              <image class="item-img" :src="item.productCover" mode="aspectFill" />
+              <image
+                class="item-img"
+                :src="item.productCover"
+                mode="aspectFill"
+              />
               <view class="item-info">
-                <text class="item-name">{{ item.productName }}</text>
-                <view class="sku-tag"><text>{{ item.skuName }}</text></view>
+                <text class="item-name">
+                  {{ item.productName }}
+                </text>
+                <view class="sku-tag">
+                  <text>{{ item.skuName }}</text>
+                </view>
                 <view class="item-bottom">
                   <view class="price-box">
-                    <text class="cur">¥{{ item.price }}</text>
-                    <text class="ori">¥{{ item.originalPrice }}</text>
+                    <text class="cur">
+                      ¥{{ item.price }}
+                    </text>
+                    <text class="ori">
+                      ¥{{ item.originalPrice }}
+                    </text>
                   </view>
                   <view class="stepper">
-                    <view class="step-btn" :class="{ disabled: item.quantity <= 1 }" @tap.stop="changeQty(item, -1)"><app-icon name="minus" :size="24" color="#666666" /></view>
-                    <text class="step-num">{{ item.quantity }}</text>
-                    <view class="step-btn" :class="{ disabled: item.quantity >= item.stock }" @tap.stop="changeQty(item, 1)"><app-icon name="plus" :size="24" color="#666666" /></view>
+                    <view
+                      class="step-btn"
+                      :class="{ disabled: item.quantity <= 1 }"
+                      @tap.stop="changeQty(item, -1)"
+                    >
+                      <app-icon
+                        name="minus"
+                        :size="24"
+                        color="#666666"
+                      />
+                    </view>
+                    <text class="step-num">
+                      {{ item.quantity }}
+                    </text>
+                    <view
+                      class="step-btn"
+                      :class="{ disabled: item.quantity >= item.stock }"
+                      @tap.stop="changeQty(item, 1)"
+                    >
+                      <app-icon
+                        name="plus"
+                        :size="24"
+                        color="#666666"
+                      />
+                    </view>
                   </view>
                 </view>
               </view>
             </view>
-            <view class="swipe-delete" @tap="removeItem(item.id)">
+            <view
+              class="swipe-delete"
+              @tap="removeItem(item.id)"
+            >
               <text>删除</text>
             </view>
           </view>
@@ -59,47 +143,123 @@
       </view>
 
       <!-- 失效区 -->
-      <view class="invalid-block" v-if="invalidItems.length">
+      <view
+        v-if="invalidItems.length"
+        class="invalid-block"
+      >
         <view class="invalid-header">
-          <text class="invalid-title">失效商品</text>
-          <view class="invalid-clear" @tap="clearInvalid"><app-icon name="trash-2" :size="26" color="#999999" /><text>清空失效</text></view>
+          <text class="invalid-title">
+            失效商品
+          </text>
+          <view
+            class="invalid-clear"
+            @tap="clearInvalid"
+          >
+            <app-icon
+              name="trash-2"
+              :size="26"
+              color="#999999"
+            /><text>清空失效</text>
+          </view>
         </view>
-        <view v-for="iv in invalidItems" :key="iv.id" class="cart-item invalid">
-          <view class="invalid-badge"><text>失效</text></view>
-          <image class="item-img gray" :src="iv.productCover" mode="aspectFill" />
+        <view
+          v-for="iv in invalidItems"
+          :key="iv.id"
+          class="cart-item invalid"
+        >
+          <view class="invalid-badge">
+            <text>失效</text>
+          </view>
+          <image
+            class="item-img gray"
+            :src="iv.productCover"
+            mode="aspectFill"
+          />
           <view class="item-info">
-            <text class="item-name gray">{{ iv.productName }}</text>
-            <text class="invalid-reason">{{ iv.invalidReason }}</text>
+            <text class="item-name gray">
+              {{ iv.productName }}
+            </text>
+            <text class="invalid-reason">
+              {{ iv.invalidReason }}
+            </text>
           </view>
         </view>
       </view>
       <view style="height: 160rpx;" />
     </scroll-view>
 
-    <view class="empty" v-else>
-      <app-icon name="shopping-cart" :size="120" color="#DDDDDD" />
-      <text class="empty-text">购物车是空的</text>
-      <view class="empty-btn" @tap="goShop"><text>去选购</text></view>
+    <view
+      v-else
+      class="empty"
+    >
+      <app-icon
+        name="shopping-cart"
+        :size="120"
+        color="#DDDDDD"
+      />
+      <text class="empty-text">
+        购物车是空的
+      </text>
+      <view
+        class="empty-btn"
+        @tap="goShop"
+      >
+        <text>去选购</text>
+      </view>
     </view>
 
     <!-- 底部渐变结算栏 -->
-    <view class="footer" v-if="validItems.length">
-      <view class="all-check" :class="{ checked: isAllChecked }" @tap="toggleAll">
-        <app-icon v-if="isAllChecked" name="check" :size="28" color="#FFFFFF" />
+    <view
+      v-if="validItems.length"
+      class="footer"
+    >
+      <view
+        class="all-check"
+        :class="{ checked: isAllChecked }"
+        @tap="toggleAll"
+      >
+        <app-icon
+          v-if="isAllChecked"
+          name="check"
+          :size="28"
+          color="#FFFFFF"
+        />
       </view>
-      <text class="all-label">全选</text>
-      <view class="footer-info" v-if="!editMode">
+      <text class="all-label">
+        全选
+      </text>
+      <view
+        v-if="!editMode"
+        class="footer-info"
+      >
         <view class="total-row">
-          <text class="total-label">合计</text>
-          <text class="total-amount">¥{{ totalAmount }}</text>
+          <text class="total-label">
+            合计
+          </text>
+          <text class="total-amount">
+            ¥{{ totalAmount }}
+          </text>
         </view>
-        <text class="saved">已优惠 ¥{{ savedAmount }}</text>
+        <text class="saved">
+          已优惠 ¥{{ savedAmount }}
+        </text>
       </view>
-      <view class="footer-spacer" v-else />
-      <view class="checkout-btn" v-if="!editMode" @tap="goCheckout">
+      <view
+        v-else
+        class="footer-spacer"
+      />
+      <view
+        v-if="!editMode"
+        class="checkout-btn"
+        @tap="goCheckout"
+      >
         <text>结算({{ selectedCount }})</text>
       </view>
-      <view class="checkout-btn danger" v-else @tap="removeSelected">
+      <view
+        v-else
+        class="checkout-btn danger"
+        @tap="removeSelected"
+      >
         <text>删除</text>
       </view>
     </view>

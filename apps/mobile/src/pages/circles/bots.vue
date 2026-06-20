@@ -3,15 +3,16 @@
  * 圈子智能体（从原型 app/circles/bots/page.tsx 高保真迁移）
  * 红色渐变头(圈子信息摘要) + 搜索/排序 + 管理员创建入口 + Bot 两列网格卡片。
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
-import { circleSummary, queryBots, formatUsageCount, type SortBy, type CircleBotItem } from '@/lib/circle-bots-data'
+import { circleBotsApi, formatUsageCount, type SortBy, type CircleBotItem } from '@/lib/circle-bots-data'
+import { circleDetailApi } from '@/lib/circle-detail-data'
 import ErrorState from '@/components/common/error-state.vue'
 
 const circleId = ref(1)
-const circle = circleSummary
+const circle = ref<any>({})
 const keyword = ref('')
 const inputVal = ref('')
 const sortBy = ref<SortBy>('hot')
@@ -22,7 +23,7 @@ const sortOptions: { value: SortBy; label: string }[] = [
   { value: 'usage', label: '使用量' },
 ]
 
-const bots = computed<CircleBotItem[]>(() => queryBots(keyword.value, sortBy.value))
+const bots = ref<CircleBotItem[]>([])
 
 const loading = ref(true)
 const error = ref('')
@@ -35,7 +36,17 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    await new Promise(r => setTimeout(r, 500))
+    const [detail, data] = await Promise.all([
+      circleDetailApi.detail(String(circleId.value)),
+      circleBotsApi.list(circleId.value, keyword.value, sortBy.value),
+    ])
+    circle.value = {
+      ...detail,
+      icon: (detail as any).avatar || detail.cover || '',
+      isAdmin: detail.myRole === 'owner' || detail.myRole === 'admin',
+      isOwner: detail.myRole === 'owner',
+    } as any
+    bots.value = data
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
@@ -53,97 +64,292 @@ function openBot(bot: CircleBotItem) {
   <view class="cb">
     <!-- 红色渐变头 -->
     <view class="cb-top">
-      <view class="cb-top-nav" :style="{ paddingTop: 'calc(24rpx + var(--status-bar-height, 0px))' }">
-        <view class="cb-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#ffffff" /></view>
-        <text class="cb-top-title">圈子智能体</text>
-        <view v-if="circle.isAdmin" class="cb-nav-btn" @tap="toastComingSoon"><app-icon name="settings" :size="36" color="#ffffff" /></view>
-        <view v-else class="cb-nav-btn" />
+      <view
+        class="cb-top-nav"
+        :style="{ paddingTop: 'calc(24rpx + var(--status-bar-height, 0px))' }"
+      >
+        <view
+          class="cb-nav-btn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="36"
+            color="#ffffff"
+          />
+        </view>
+        <text class="cb-top-title">
+          圈子智能体
+        </text>
+        <view
+          v-if="circle.isAdmin"
+          class="cb-nav-btn"
+          @tap="toastComingSoon"
+        >
+          <app-icon
+            name="settings"
+            :size="36"
+            color="#ffffff"
+          />
+        </view>
+        <view
+          v-else
+          class="cb-nav-btn"
+        />
       </view>
       <!-- 圈子信息摘要 -->
       <view class="cb-summary">
-        <image :src="circle.icon" class="cb-summary-icon" mode="aspectFill" />
+        <image
+          :src="circle.icon"
+          class="cb-summary-icon"
+          mode="aspectFill"
+        />
         <view class="cb-summary-main">
           <view class="cb-summary-name-row">
-            <text class="cb-summary-name">{{ circle.name }}</text>
-            <text v-if="circle.isOwner" class="cb-summary-badge gold">圈主</text>
-            <text v-else-if="circle.isAdmin" class="cb-summary-badge ghost">管理员</text>
+            <text class="cb-summary-name">
+              {{ circle.name }}
+            </text>
+            <text
+              v-if="circle.isOwner"
+              class="cb-summary-badge gold"
+            >
+              圈主
+            </text>
+            <text
+              v-else-if="circle.isAdmin"
+              class="cb-summary-badge ghost"
+            >
+              管理员
+            </text>
           </view>
-          <text class="cb-summary-desc">{{ circle.description }}</text>
+          <text class="cb-summary-desc">
+            {{ circle.description }}
+          </text>
         </view>
         <view class="cb-summary-total">
-          <text class="cb-summary-total-n">{{ bots.length }}</text>
-          <text class="cb-summary-total-l">智能体</text>
+          <text class="cb-summary-total-n">
+            {{ bots.length }}
+          </text>
+          <text class="cb-summary-total-l">
+            智能体
+          </text>
         </view>
       </view>
     </view>
 
-    <scroll-view scroll-y class="cb-body">
-      <view v-if="loading" class="bt-skeleton">
-        <view v-for="i in 3" :key="i" class="bt-sk-row"><view class="bt-sk-block sk-anim" /></view>
+    <scroll-view
+      scroll-y
+      class="cb-body"
+    >
+      <view
+        v-if="loading"
+        class="bt-skeleton"
+      >
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="bt-sk-row"
+        >
+          <view class="bt-sk-block sk-anim" />
+        </view>
       </view>
-      <error-state v-else-if="error" :message="error" @retry="loadData" />
+      <error-state
+        v-else-if="error"
+        :message="error"
+        @retry="loadData"
+      />
       <template v-else>
-      <!-- 搜索 + 排序 -->
-      <view class="cb-filter">
-        <view class="cb-search-row">
-          <view class="cb-search">
-            <app-icon name="search" :size="30" color="#999999" />
-            <input v-model="inputVal" class="cb-search-input" placeholder="搜索智能体" placeholder-class="cb-ph" confirm-type="search" @confirm="doSearch" />
-          </view>
-          <view class="cb-search-btn" @tap="doSearch"><text class="cb-search-btn-t">搜索</text></view>
-        </view>
-        <view class="cb-sorts">
-          <view v-for="opt in sortOptions" :key="opt.value" class="cb-sort" :class="{ on: sortBy === opt.value }" @tap="sortBy = opt.value">
-            <text class="cb-sort-t" :class="{ on: sortBy === opt.value }">{{ opt.label }}</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 管理员创建入口 -->
-      <view v-if="circle.isAdmin" class="cb-create-wrap">
-        <view class="cb-create" @tap="toastComingSoon">
-          <view class="cb-create-icon"><app-icon name="plus" :size="36" color="#ffffff" /></view>
-          <view class="cb-create-main">
-            <text class="cb-create-title">创建圈子专属智能体</text>
-            <text class="cb-create-desc">为圈友打造定制化AI助手</text>
-          </view>
-          <app-icon name="chevron-right" :size="32" color="#999999" />
-        </view>
-      </view>
-
-      <!-- Bot 网格 -->
-      <view class="cb-grid">
-        <view v-for="bot in bots" :key="bot.id" class="cb-card" @tap="openBot(bot)">
-          <!-- 头部标签 -->
-          <view class="cb-card-head">
-            <view class="cb-card-tags">
-              <view v-if="bot.isPinned" class="cb-tag-badge red"><app-icon name="pin" :size="18" color="#ffffff" /><text class="cb-tag-badge-t">置顶</text></view>
-              <view v-if="bot.isOfficial" class="cb-tag-badge gold"><app-icon name="crown" :size="18" color="#ffffff" /><text class="cb-tag-badge-t">官方</text></view>
-              <view v-if="bot.isNew && !bot.isPinned && !bot.isOfficial" class="cb-tag-badge green"><text class="cb-tag-badge-t">NEW</text></view>
+        <!-- 搜索 + 排序 -->
+        <view class="cb-filter">
+          <view class="cb-search-row">
+            <view class="cb-search">
+              <app-icon
+                name="search"
+                :size="30"
+                color="#999999"
+              />
+              <input
+                v-model="inputVal"
+                class="cb-search-input"
+                placeholder="搜索智能体"
+                placeholder-class="cb-ph"
+                confirm-type="search"
+                @confirm="doSearch"
+              >
             </view>
-            <image :src="bot.avatar" class="cb-card-avatar" mode="aspectFill" />
-            <text class="cb-card-name">{{ bot.name }}</text>
+            <view
+              class="cb-search-btn"
+              @tap="doSearch"
+            >
+              <text class="cb-search-btn-t">
+                搜索
+              </text>
+            </view>
           </view>
-          <!-- 描述 -->
-          <text class="cb-card-desc">{{ bot.description }}</text>
-          <!-- 标签 -->
-          <view class="cb-card-taglist">
-            <text v-for="t in bot.tags.slice(0, 3)" :key="t" class="cb-card-tag">{{ t }}</text>
-          </view>
-          <!-- 底部信息 -->
-          <view class="cb-card-foot">
-            <view class="cb-card-stat"><app-icon name="star" :size="20" color="#C9A96E" :fill="true" /><text class="cb-card-stat-t">{{ bot.rating }}</text></view>
-            <view class="cb-card-stat"><app-icon name="zap" :size="20" color="#999999" /><text class="cb-card-stat-t">{{ formatUsageCount(bot.usageCount) }}</text></view>
-            <text v-if="bot.price > 0" class="cb-card-price">{{ bot.price }}币/次</text>
-            <text v-else class="cb-card-free">免费</text>
-          </view>
-          <!-- 创建者 -->
-          <view class="cb-card-creator">
-            <image :src="bot.creator.avatar" class="cb-card-creator-avatar" mode="aspectFill" />
-            <text class="cb-card-creator-name">{{ bot.creator.nickname }}</text>
+          <view class="cb-sorts">
+            <view
+              v-for="opt in sortOptions"
+              :key="opt.value"
+              class="cb-sort"
+              :class="{ on: sortBy === opt.value }"
+              @tap="sortBy = opt.value"
+            >
+              <text
+                class="cb-sort-t"
+                :class="{ on: sortBy === opt.value }"
+              >
+                {{ opt.label }}
+              </text>
+            </view>
           </view>
         </view>
-      </view>
+
+        <!-- 管理员创建入口 -->
+        <view
+          v-if="circle.isAdmin"
+          class="cb-create-wrap"
+        >
+          <view
+            class="cb-create"
+            @tap="toastComingSoon"
+          >
+            <view class="cb-create-icon">
+              <app-icon
+                name="plus"
+                :size="36"
+                color="#ffffff"
+              />
+            </view>
+            <view class="cb-create-main">
+              <text class="cb-create-title">
+                创建圈子专属智能体
+              </text>
+              <text class="cb-create-desc">
+                为圈友打造定制化AI助手
+              </text>
+            </view>
+            <app-icon
+              name="chevron-right"
+              :size="32"
+              color="#999999"
+            />
+          </view>
+        </view>
+
+        <!-- Bot 网格 -->
+        <view class="cb-grid">
+          <view
+            v-for="bot in bots"
+            :key="bot.id"
+            class="cb-card"
+            @tap="openBot(bot)"
+          >
+            <!-- 头部标签 -->
+            <view class="cb-card-head">
+              <view class="cb-card-tags">
+                <view
+                  v-if="bot.isPinned"
+                  class="cb-tag-badge red"
+                >
+                  <app-icon
+                    name="pin"
+                    :size="18"
+                    color="#ffffff"
+                  /><text class="cb-tag-badge-t">
+                    置顶
+                  </text>
+                </view>
+                <view
+                  v-if="bot.isOfficial"
+                  class="cb-tag-badge gold"
+                >
+                  <app-icon
+                    name="crown"
+                    :size="18"
+                    color="#ffffff"
+                  /><text class="cb-tag-badge-t">
+                    官方
+                  </text>
+                </view>
+                <view
+                  v-if="bot.isNew && !bot.isPinned && !bot.isOfficial"
+                  class="cb-tag-badge green"
+                >
+                  <text class="cb-tag-badge-t">
+                    NEW
+                  </text>
+                </view>
+              </view>
+              <image
+                :src="bot.avatar"
+                class="cb-card-avatar"
+                mode="aspectFill"
+              />
+              <text class="cb-card-name">
+                {{ bot.name }}
+              </text>
+            </view>
+            <!-- 描述 -->
+            <text class="cb-card-desc">
+              {{ bot.description }}
+            </text>
+            <!-- 标签 -->
+            <view class="cb-card-taglist">
+              <text
+                v-for="t in bot.tags.slice(0, 3)"
+                :key="t"
+                class="cb-card-tag"
+              >
+                {{ t }}
+              </text>
+            </view>
+            <!-- 底部信息 -->
+            <view class="cb-card-foot">
+              <view class="cb-card-stat">
+                <app-icon
+                  name="star"
+                  :size="20"
+                  color="#C9A96E"
+                  :fill="true"
+                /><text class="cb-card-stat-t">
+                  {{ bot.rating }}
+                </text>
+              </view>
+              <view class="cb-card-stat">
+                <app-icon
+                  name="zap"
+                  :size="20"
+                  color="#999999"
+                /><text class="cb-card-stat-t">
+                  {{ formatUsageCount(bot.usageCount) }}
+                </text>
+              </view>
+              <text
+                v-if="bot.price > 0"
+                class="cb-card-price"
+              >
+                {{ bot.price }}币/次
+              </text>
+              <text
+                v-else
+                class="cb-card-free"
+              >
+                免费
+              </text>
+            </view>
+            <!-- 创建者 -->
+            <view class="cb-card-creator">
+              <image
+                :src="bot.creator.avatar"
+                class="cb-card-creator-avatar"
+                mode="aspectFill"
+              />
+              <text class="cb-card-creator-name">
+                {{ bot.creator.nickname }}
+              </text>
+            </view>
+          </view>
+        </view>
       </template>
     </scroll-view>
   </view>

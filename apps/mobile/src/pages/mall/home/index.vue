@@ -48,56 +48,146 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
   <view class="page">
     <!-- 顶部搜索栏 -->
     <view class="topbar">
-      <view class="search-bar" @tap="goSearch">
-        <AppIcon name="search" :size="28" color="#999999" />
+      <view
+        class="search-bar"
+        @tap="goSearch"
+      >
+        <AppIcon
+          name="search"
+          :size="28"
+          color="#999999"
+        />
         <view class="ai-badge">
-          <AppIcon name="sparkles" :size="18" color="#c41e3a" />
-          <text class="ai-txt">AI</text>
+          <AppIcon
+            name="sparkles"
+            :size="18"
+            color="#c41e3a"
+          />
+          <text class="ai-txt">
+            AI
+          </text>
         </view>
-        <text class="search-ph">搜索商品...</text>
+        <text class="search-ph">
+          搜索商品...
+        </text>
       </view>
-      <view class="cart-btn" @tap="goCart">
-        <AppIcon name="shopping-cart" :size="36" color="#666666" />
-        <text v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</text>
+      <view
+        class="cart-btn"
+        @tap="goCart"
+      >
+        <AppIcon
+          name="shopping-cart"
+          :size="36"
+          color="#666666"
+        />
+        <text
+          v-if="cartCount > 0"
+          class="cart-badge"
+        >
+          {{ cartCount }}
+        </text>
       </view>
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="body">
+    <view
+      v-if="loading"
+      class="body"
+    >
       <view class="sk-quick-grid">
-        <view v-for="i in 4" :key="i" class="sk-quick-item"><view class="sk-circle" /><view class="sk-line sk-w3" /></view>
+        <view
+          v-for="i in 4"
+          :key="i"
+          class="sk-quick-item"
+        >
+          <view class="sk-circle" /><view class="sk-line sk-w3" />
+        </view>
       </view>
       <view class="sk-section">
-        <view class="sk-sec-head"><view class="sk-line sk-w4" /></view>
+        <view class="sk-sec-head">
+          <view class="sk-line sk-w4" />
+        </view>
         <view class="sk-live-rail">
-          <view v-for="i in 3" :key="i" class="sk-live-card"><view class="sk-img" /></view>
+          <view
+            v-for="i in 3"
+            :key="i"
+            class="sk-live-card"
+          >
+            <view class="sk-img" />
+          </view>
         </view>
       </view>
       <view class="sk-banner" />
       <view class="sk-section">
-        <view class="sk-sec-head"><view class="sk-line sk-w4" /></view>
+        <view class="sk-sec-head">
+          <view class="sk-line sk-w4" />
+        </view>
         <view class="sk-cat-grid">
-          <view v-for="i in 8" :key="i" class="sk-cat-item"><view class="sk-circle sk-sm" /><view class="sk-line sk-w3" /></view>
+          <view
+            v-for="i in 8"
+            :key="i"
+            class="sk-cat-item"
+          >
+            <view class="sk-circle sk-sm" /><view class="sk-line sk-w3" />
+          </view>
         </view>
       </view>
       <view class="sk-section">
-        <view class="sk-guess-head"><view class="sk-line sk-w4" /></view>
+        <view class="sk-guess-head">
+          <view class="sk-line sk-w4" />
+        </view>
         <view class="sk-prod-grid">
-          <view v-for="i in 4" :key="i" class="sk-prod-card"><view class="sk-img" /><view class="sk-line" /><view class="sk-line sk-w6" /></view>
+          <view
+            v-for="i in 4"
+            :key="i"
+            class="sk-prod-card"
+          >
+            <view class="sk-img" /><view class="sk-line" /><view class="sk-line sk-w6" />
+          </view>
         </view>
       </view>
     </view>
 
-    <error-state v-else-if="error" :message="error" @retry="loadHome" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadHome"
+    />
 
-    <view v-else class="body">
+    <view
+      v-else
+      class="body"
+    >
       <!-- 核心功能快捷入口 -->
       <view class="quick-grid">
-        <view v-for="entry in mallQuickEntries" :key="entry.id" class="quick-item" @tap="navigateTo(entry.href)">
-          <view class="quick-icon"><AppIcon :name="entry.icon" :size="36" color="#c41e3a" /></view>
-          <text class="quick-label">{{ entry.label }}</text>
-          <text v-if="entry.state" class="quick-state">{{ entry.state }}</text>
-          <text v-if="entry.badge" class="quick-bdg">{{ entry.badge }}</text>
+        <view
+          v-for="entry in mallQuickEntries"
+          :key="entry.id"
+          class="quick-item"
+          @tap="navigateTo(entry.href)"
+        >
+          <view class="quick-icon">
+            <AppIcon
+              :name="entry.icon"
+              :size="36"
+              color="#c41e3a"
+            />
+          </view>
+          <text class="quick-label">
+            {{ entry.label }}
+          </text>
+          <text
+            v-if="entry.state"
+            class="quick-state"
+          >
+            {{ entry.state }}
+          </text>
+          <text
+            v-if="entry.badge"
+            class="quick-bdg"
+          >
+            {{ entry.badge }}
+          </text>
         </view>
       </view>
 
@@ -105,23 +195,48 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
       <view class="section">
         <view class="sec-head">
           <view class="sec-head-l">
-            <AppIcon name="radio" :size="28" color="#ef4444" />
-            <text class="sec-title">直播带货</text>
+            <AppIcon
+              name="radio"
+              :size="28"
+              color="#ef4444"
+            />
+            <text class="sec-title">
+              直播带货
+            </text>
             <view class="live-dot" />
           </view>
-          <view class="sec-more" @tap="toastComingSoon">
-            <text class="sec-more-txt">更多</text>
-            <AppIcon name="chevron-right" :size="24" color="#999999" />
+          <view
+            class="sec-more"
+            @tap="toastComingSoon"
+          >
+            <text class="sec-more-txt">
+              更多
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="24"
+              color="#999999"
+            />
           </view>
         </view>
-        <scroll-view class="live-rail" scroll-x :show-scrollbar="false">
+        <scroll-view
+          class="live-rail"
+          scroll-x
+          :show-scrollbar="false"
+        >
           <view class="live-rail-inner">
-            <view v-for="live in mallCommerceLives" :key="live.id" class="live-cell">
-              <LiveCard :data="{
-                id: live.id, title: live.title, host: live.host, viewers: live.viewers,
-                reservations: live.reservations, status: live.status,
-                scheduledTime: live.scheduledTime, liveType: 'commerce',
-              }" />
+            <view
+              v-for="live in mallCommerceLives"
+              :key="live.id"
+              class="live-cell"
+            >
+              <LiveCard
+                :data="{
+                  id: live.id, title: live.title, host: live.host, viewers: live.viewers,
+                  reservations: live.reservations, status: live.status,
+                  scheduledTime: live.scheduledTime, liveType: 'commerce',
+                }"
+              />
             </view>
           </view>
         </scroll-view>
@@ -129,16 +244,39 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
 
       <!-- Banner 轮播 -->
       <view class="banner">
-        <swiper class="banner-swiper" circular autoplay :interval="4000" :duration="500" @change="onBannerChange">
-          <swiper-item v-for="b in mallBanners" :key="b.id">
-            <view class="banner-slide" :style="{ background: `linear-gradient(90deg, ${b.from}, ${b.to})` }" @tap="navigateTo(b.href)">
-              <text class="banner-title">{{ b.title }}</text>
-              <text class="banner-sub">{{ b.subtitle }}</text>
+        <swiper
+          class="banner-swiper"
+          circular
+          autoplay
+          :interval="4000"
+          :duration="500"
+          @change="onBannerChange"
+        >
+          <swiper-item
+            v-for="b in mallBanners"
+            :key="b.id"
+          >
+            <view
+              class="banner-slide"
+              :style="{ background: `linear-gradient(90deg, ${b.from}, ${b.to})` }"
+              @tap="navigateTo(b.href)"
+            >
+              <text class="banner-title">
+                {{ b.title }}
+              </text>
+              <text class="banner-sub">
+                {{ b.subtitle }}
+              </text>
             </view>
           </swiper-item>
         </swiper>
         <view class="dots">
-          <view v-for="(b, i) in mallBanners" :key="b.id" class="dot" :class="i === bannerIndex ? 'dot-on' : ''" />
+          <view
+            v-for="(b, i) in mallBanners"
+            :key="b.id"
+            class="dot"
+            :class="i === bannerIndex ? 'dot-on' : ''"
+          />
         </view>
       </view>
 
@@ -148,16 +286,36 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
       <!-- 商品分类 -->
       <view class="section">
         <view class="sec-head">
-          <text class="sec-title">商品分类</text>
-          <view class="sec-more" @tap="navigateTo('/mall/category')">
-            <text class="sec-more-txt">全部分类</text>
-            <AppIcon name="chevron-right" :size="24" color="#999999" />
+          <text class="sec-title">
+            商品分类
+          </text>
+          <view
+            class="sec-more"
+            @tap="navigateTo('/mall/category')"
+          >
+            <text class="sec-more-txt">
+              全部分类
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="24"
+              color="#999999"
+            />
           </view>
         </view>
         <view class="cat-grid">
-          <view v-for="cat in categories" :key="cat.id" class="cat-item" @tap="goCategory(cat.id)">
-            <text class="cat-emoji">{{ cat.icon }}</text>
-            <text class="cat-name">{{ cat.name }}</text>
+          <view
+            v-for="cat in categories"
+            :key="cat.id"
+            class="cat-item"
+            @tap="goCategory(cat.id)"
+          >
+            <text class="cat-emoji">
+              {{ cat.icon }}
+            </text>
+            <text class="cat-name">
+              {{ cat.name }}
+            </text>
           </view>
         </view>
       </view>
@@ -166,19 +324,48 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
       <view class="section">
         <view class="guess-head">
           <view class="guess-line" />
-          <AppIcon name="sparkles" :size="26" color="#c41e3a" />
-          <text class="guess-title">猜你喜欢</text>
+          <AppIcon
+            name="sparkles"
+            :size="26"
+            color="#c41e3a"
+          />
+          <text class="guess-title">
+            猜你喜欢
+          </text>
           <view class="guess-line" />
         </view>
-        <view v-if="!products.length" class="empty-guess">
-          <view class="empty-guess-icon"><app-icon name="sparkles" :size="80" color="#CCCCCC" /></view>
-          <text class="empty-guess-text">暂无推荐商品</text>
-          <view class="empty-guess-btn" @tap="navigateTo('/mall/category')">
-            <text class="empty-guess-btn-text">浏览分类</text>
+        <view
+          v-if="!products.length"
+          class="empty-guess"
+        >
+          <view class="empty-guess-icon">
+            <app-icon
+              name="sparkles"
+              :size="80"
+              color="#CCCCCC"
+            />
+          </view>
+          <text class="empty-guess-text">
+            暂无推荐商品
+          </text>
+          <view
+            class="empty-guess-btn"
+            @tap="navigateTo('/mall/category')"
+          >
+            <text class="empty-guess-btn-text">
+              浏览分类
+            </text>
           </view>
         </view>
-        <view v-else class="prod-grid">
-          <view v-for="p in products" :key="p.id" class="prod-cell">
+        <view
+          v-else
+          class="prod-grid"
+        >
+          <view
+            v-for="p in products"
+            :key="p.id"
+            class="prod-cell"
+          >
             <ProductCard :data="p" />
           </view>
         </view>

@@ -7,15 +7,21 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
+import { circleManageApi } from '@/lib/circle-detail-data'
 
 const loading = ref(true)
 const error = ref('')
+const circleId = ref('1')
 
 onMounted(() => { loadData() })
 async function loadData() {
   loading.value = true
   error.value = ''
-  try { await new Promise(r => setTimeout(r, 400)) } catch (e: any) { error.value = e?.message || '加载失败' }
+  try {
+    const res: any = await circleManageApi.getDashboard(circleId.value)
+    // 活动数据保持初始 mock，API 就绪后可对接实际活动接口
+    console.log('[activities] dashboard loaded', res.stats)
+  } catch (e: any) { error.value = e?.message || '加载失败' }
   finally { loading.value = false }
 }
 
@@ -58,14 +64,33 @@ function pct(a: Activity) { return Math.min(100, (a.participants / a.maxParticip
 <template>
   <view class="ac">
     <view class="ac-header">
-      <view @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
-      <text class="ac-title">圈子活动</text>
-      <app-icon name="calendar" :size="40" color="#999999" />
+      <view @tap="goBack">
+        <app-icon
+          name="arrow-left"
+          :size="40"
+          color="#2C2C2C"
+        />
+      </view>
+      <text class="ac-title">
+        圈子活动
+      </text>
+      <app-icon
+        name="calendar"
+        :size="40"
+        color="#999999"
+      />
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="ac-skeleton">
-      <view v-for="i in 3" :key="i" class="ac-sk-card">
+    <view
+      v-if="loading"
+      class="ac-skeleton"
+    >
+      <view
+        v-for="i in 3"
+        :key="i"
+        class="ac-sk-card"
+      >
         <view class="ac-sk-cover sk-anim" />
         <view class="ac-sk-body">
           <view class="ac-sk-line ac-sk-line--long sk-anim" />
@@ -75,40 +100,128 @@ function pct(a: Activity) { return Math.min(100, (a.participants / a.maxParticip
       </view>
     </view>
 
-    <error-state v-else-if="error" :message="error" @retry="loadData" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadData"
+    />
 
     <template v-else>
-      <scroll-view scroll-x class="ac-filters">
+      <scroll-view
+        scroll-x
+        class="ac-filters"
+      >
         <view class="ac-filters-row">
-          <view v-for="f in filters" :key="f.value" class="ac-filter" :class="{ on: filter === f.value }" @tap="filter = f.value">
-            <text class="ac-filter-txt" :class="{ on: filter === f.value }">{{ f.label }}</text>
+          <view
+            v-for="f in filters"
+            :key="f.value"
+            class="ac-filter"
+            :class="{ on: filter === f.value }"
+            @tap="filter = f.value"
+          >
+            <text
+              class="ac-filter-txt"
+              :class="{ on: filter === f.value }"
+            >
+              {{ f.label }}
+            </text>
           </view>
         </view>
       </scroll-view>
 
       <view class="ac-list">
-        <view v-if="filtered.length === 0" class="ac-empty"><text class="ac-empty-txt">暂无活动</text></view>
-        <view v-for="act in filtered" :key="act.id" class="ac-card">
+        <view
+          v-if="filtered.length === 0"
+          class="ac-empty"
+        >
+          <text class="ac-empty-txt">
+            暂无活动
+          </text>
+        </view>
+        <view
+          v-for="act in filtered"
+          :key="act.id"
+          class="ac-card"
+        >
           <view class="ac-cover-wrap">
-            <image :src="act.cover" class="ac-cover" mode="aspectFill" />
-            <view class="ac-status" :class="STATUS_CFG[act.status].cls"><text class="ac-status-txt" :class="STATUS_CFG[act.status].cls">{{ STATUS_CFG[act.status].label }}</text></view>
+            <image
+              :src="act.cover"
+              class="ac-cover"
+              mode="aspectFill"
+            />
+            <view
+              class="ac-status"
+              :class="STATUS_CFG[act.status].cls"
+            >
+              <text
+                class="ac-status-txt"
+                :class="STATUS_CFG[act.status].cls"
+              >
+                {{ STATUS_CFG[act.status].label }}
+              </text>
+            </view>
           </view>
           <view class="ac-body">
-            <text class="ac-card-title">{{ act.title }}</text>
-            <text class="ac-card-circle">{{ act.circleName }}</text>
+            <text class="ac-card-title">
+              {{ act.title }}
+            </text>
+            <text class="ac-card-circle">
+              {{ act.circleName }}
+            </text>
             <view class="ac-meta">
-              <view class="ac-meta-row"><app-icon name="clock" :size="26" color="#999999" /><text class="ac-meta-txt">{{ act.startTime }} – {{ endTimeOnly(act.endTime) }}</text></view>
-              <view class="ac-meta-row"><app-icon name="map-pin" :size="26" color="#999999" /><text class="ac-meta-txt">{{ act.location }}</text></view>
               <view class="ac-meta-row">
-                <app-icon name="users" :size="26" color="#999999" />
-                <text class="ac-meta-txt">{{ act.participants }} / {{ act.maxParticipants }} 人参与</text>
-                <view class="ac-progress"><view class="ac-progress-bar" :style="{ width: pct(act) + '%' }" /></view>
+                <app-icon
+                  name="clock"
+                  :size="26"
+                  color="#999999"
+                /><text class="ac-meta-txt">
+                  {{ act.startTime }} – {{ endTimeOnly(act.endTime) }}
+                </text>
+              </view>
+              <view class="ac-meta-row">
+                <app-icon
+                  name="map-pin"
+                  :size="26"
+                  color="#999999"
+                /><text class="ac-meta-txt">
+                  {{ act.location }}
+                </text>
+              </view>
+              <view class="ac-meta-row">
+                <app-icon
+                  name="users"
+                  :size="26"
+                  color="#999999"
+                />
+                <text class="ac-meta-txt">
+                  {{ act.participants }} / {{ act.maxParticipants }} 人参与
+                </text>
+                <view class="ac-progress">
+                  <view
+                    class="ac-progress-bar"
+                    :style="{ width: pct(act) + '%' }"
+                  />
+                </view>
               </view>
             </view>
             <view v-if="act.status !== 'ended'">
-              <view v-if="act.joined" class="ac-joined"><text class="ac-joined-txt">已报名</text></view>
-              <view v-else class="ac-btn" :class="{ disabled: act.participants >= act.maxParticipants }" @tap="act.participants < act.maxParticipants && join(act.id)">
-                <text class="ac-btn-txt">{{ act.participants >= act.maxParticipants ? '名额已满' : '立即报名' }}</text>
+              <view
+                v-if="act.joined"
+                class="ac-joined"
+              >
+                <text class="ac-joined-txt">
+                  已报名
+                </text>
+              </view>
+              <view
+                v-else
+                class="ac-btn"
+                :class="{ disabled: act.participants >= act.maxParticipants }"
+                @tap="act.participants < act.maxParticipants && join(act.id)"
+              >
+                <text class="ac-btn-txt">
+                  {{ act.participants >= act.maxParticipants ? '名额已满' : '立即报名' }}
+                </text>
               </view>
             </view>
           </view>

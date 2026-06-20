@@ -61,58 +61,173 @@ async function postQuestion() {
 <template>
   <view class="ca-page">
     <view class="ca-nav">
-      <view class="ca-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#2C2C2C" /></view>
-      <text class="ca-nav-title">咨询问答</text>
+      <view
+        class="ca-nav-btn"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="36"
+          color="#2C2C2C"
+        />
+      </view>
+      <text class="ca-nav-title">
+        咨询问答
+      </text>
       <view class="ca-nav-btn" />
     </view>
 
     <view class="ca-body">
-      <view class="ca-ask-btn" @tap="showNew = true">
-        <app-icon name="message-square" :size="28" color="#ffffff" />
-        <text class="ca-ask-btn-t">提出问题</text>
+      <view
+        class="ca-ask-btn"
+        @tap="showNew = true"
+      >
+        <app-icon
+          name="message-square"
+          :size="28"
+          color="#ffffff"
+        />
+        <text class="ca-ask-btn-t">
+          提出问题
+        </text>
       </view>
 
-      <view v-if="showNew" class="ca-form">
-        <input v-model="newTitle" class="ca-input" placeholder="问题标题" placeholder-class="ca-ph" />
-        <textarea v-model="newContent" class="ca-textarea" placeholder="详细描述您的问题..." placeholder-class="ca-ph" />
+      <view
+        v-if="showNew"
+        class="ca-form"
+      >
+        <input
+          v-model="newTitle"
+          class="ca-input"
+          placeholder="问题标题"
+          placeholder-class="ca-ph"
+        >
+        <textarea
+          v-model="newContent"
+          class="ca-textarea"
+          placeholder="详细描述您的问题..."
+          placeholder-class="ca-ph"
+        />
         <view class="ca-form-actions">
-          <view class="ca-form-cancel" @tap="showNew = false"><text class="ca-form-cancel-t">取消</text></view>
-          <view class="ca-form-send" :class="{ 'is-disabled': !newTitle.trim() || !newContent.trim() || submitting }" @tap="postQuestion">
-            <app-icon name="send" :size="26" color="#ffffff" />
-            <text class="ca-form-send-t">{{ submitting ? '提交中...' : '发送' }}</text>
+          <view
+            class="ca-form-cancel"
+            @tap="showNew = false"
+          >
+            <text class="ca-form-cancel-t">
+              取消
+            </text>
+          </view>
+          <view
+            class="ca-form-send"
+            :class="{ 'is-disabled': !newTitle.trim() || !newContent.trim() || submitting }"
+            @tap="postQuestion"
+          >
+            <app-icon
+              name="send"
+              :size="26"
+              color="#ffffff"
+            />
+            <text class="ca-form-send-t">
+              {{ submitting ? '提交中...' : '发送' }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 骨架 -->
-      <view v-if="loading" class="ca-skel">
-        <view v-for="i in 3" :key="i" class="ca-skel-card">
-          <view class="ca-skel-top"><view class="ca-skel-avatar" /><view class="ca-skel-lines"><view class="ca-skel-line w80" /><view class="ca-skel-line w60" /></view></view>
-          <view class="ca-skel-meta"><view class="ca-skel-line w40" /></view>
+      <view
+        v-if="loading"
+        class="ca-skel"
+      >
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="ca-skel-card"
+        >
+          <view class="ca-skel-top">
+            <view class="ca-skel-avatar" /><view class="ca-skel-lines">
+              <view class="ca-skel-line w80" /><view class="ca-skel-line w60" />
+            </view>
+          </view>
+          <view class="ca-skel-meta">
+            <view class="ca-skel-line w40" />
+          </view>
         </view>
       </view>
 
       <!-- 错误 -->
-      <error-state v-else-if="error" :message="error" @retry="loadData" />
+      <error-state
+        v-else-if="error"
+        :message="error"
+        @retry="loadData"
+      />
 
       <template v-else>
-        <text class="ca-section">热门问题</text>
+        <text class="ca-section">
+          热门问题
+        </text>
         <view class="ca-list">
-          <view v-for="q in questions" :key="q.id" class="ca-card" @tap="toastComingSoon">
+          <view
+            v-for="q in questions"
+            :key="q.id"
+            class="ca-card"
+            @tap="toastComingSoon"
+          >
             <view class="ca-card-top">
-              <image class="ca-avatar" :src="q.avatar" mode="aspectFill" />
+              <image
+                class="ca-avatar"
+                :src="q.avatar"
+                mode="aspectFill"
+              />
               <view class="ca-card-info">
-                <text class="ca-card-title">{{ q.title }}</text>
-                <text class="ca-card-desc">{{ q.content }}</text>
+                <text class="ca-card-title">
+                  {{ q.title }}
+                </text>
+                <text class="ca-card-desc">
+                  {{ q.content }}
+                </text>
               </view>
-              <view v-if="q.status === 'unanswered'" class="ca-badge"><text class="ca-badge-t">待答</text></view>
+              <view
+                v-if="q.status === 'unanswered'"
+                class="ca-badge"
+              >
+                <text class="ca-badge-t">
+                  待答
+                </text>
+              </view>
             </view>
             <view class="ca-card-meta">
-              <text class="ca-meta-asker">{{ q.asker }} · {{ q.time }}</text>
+              <text class="ca-meta-asker">
+                {{ q.asker }} · {{ q.time }}
+              </text>
               <view class="ca-meta-stats">
-                <view class="ca-stat"><app-icon name="eye" :size="22" color="#999999" /><text class="ca-stat-t">{{ q.views }}</text></view>
-                <view class="ca-stat"><app-icon name="thumbs-up" :size="22" color="#999999" /><text class="ca-stat-t">{{ q.likes }}</text></view>
-                <view class="ca-stat"><app-icon name="message-square" :size="22" color="#999999" /><text class="ca-stat-t">{{ q.answers }}</text></view>
+                <view class="ca-stat">
+                  <app-icon
+                    name="eye"
+                    :size="22"
+                    color="#999999"
+                  /><text class="ca-stat-t">
+                    {{ q.views }}
+                  </text>
+                </view>
+                <view class="ca-stat">
+                  <app-icon
+                    name="thumbs-up"
+                    :size="22"
+                    color="#999999"
+                  /><text class="ca-stat-t">
+                    {{ q.likes }}
+                  </text>
+                </view>
+                <view class="ca-stat">
+                  <app-icon
+                    name="message-square"
+                    :size="22"
+                    color="#999999"
+                  /><text class="ca-stat-t">
+                    {{ q.answers }}
+                  </text>
+                </view>
               </view>
             </view>
           </view>

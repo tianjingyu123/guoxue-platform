@@ -5,12 +5,17 @@
  * 数据/退款计算复用 lib/circle-exit.ts
  */
 import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
-import { mockExitRequests, getExitStageDisplay, type ExitApplication } from '@/lib/circle-exit'
+import { getExitStageDisplay, type ExitApplication } from '@/lib/circle-exit'
+import { circleManageApi } from '@/lib/circle-detail-data'
 
-const MOCK_DATA = mockExitRequests
+const circleId = ref('1')
+
+onLoad((q) => { if (q?.id) circleId.value = q.id })
+
 const loading = ref(true)
 const error = ref('')
 const requests = ref<ExitApplication[]>([])
@@ -21,8 +26,7 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    await new Promise(r => setTimeout(r, 800))
-    requests.value = MOCK_DATA
+    requests.value = await circleManageApi.getExitRequests(circleId.value) as any
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
@@ -66,41 +70,86 @@ function confirmReject() {
     <!-- 顶部导航 -->
     <view class="er-nav">
       <view class="er-nav-bar">
-        <view class="er-back" @tap="goBack"><app-icon name="chevron-left" :size="44" color="#2C2C2C" /></view>
-        <text class="er-title">退出申请审核</text>
+        <view
+          class="er-back"
+          @tap="goBack"
+        >
+          <app-icon
+            name="chevron-left"
+            :size="44"
+            color="#2C2C2C"
+          />
+        </view>
+        <text class="er-title">
+          退出申请审核
+        </text>
         <view class="er-nav-ph" />
       </view>
       <view class="er-stats">
         <view class="er-stat">
-          <view class="er-stat-icon"><app-icon name="log-out" :size="28" color="#C41E3A" /></view>
+          <view class="er-stat-icon">
+            <app-icon
+              name="log-out"
+              :size="28"
+              color="#C41E3A"
+            />
+          </view>
           <view>
-            <text class="er-stat-num er-red">{{ pending.length }}</text>
-            <text class="er-stat-label">待审核</text>
+            <text class="er-stat-num er-red">
+              {{ pending.length }}
+            </text>
+            <text class="er-stat-label">
+              待审核
+            </text>
           </view>
         </view>
         <view class="er-divider" />
         <view>
-          <text class="er-stat-num">{{ processed.length }}</text>
-          <text class="er-stat-label">已处理</text>
+          <text class="er-stat-num">
+            {{ processed.length }}
+          </text>
+          <text class="er-stat-label">
+            已处理
+          </text>
         </view>
       </view>
       <view class="er-tabs">
-        <view v-for="t in [{ key: 'pending', label: '待审核' }, { key: 'processed', label: '已处理' }]" :key="t.key"
-          class="er-tab" :class="{ 'er-tab-on': filter === t.key }" @tap="filter = t.key as any">
+        <view
+          v-for="t in [{ key: 'pending', label: '待审核' }, { key: 'processed', label: '已处理' }]"
+          :key="t.key"
+          class="er-tab"
+          :class="{ 'er-tab-on': filter === t.key }"
+          @tap="filter = t.key as any"
+        >
           <text>{{ t.label }}</text>
-          <view v-if="filter === t.key" class="er-tab-line" />
+          <view
+            v-if="filter === t.key"
+            class="er-tab-line"
+          />
         </view>
       </view>
     </view>
 
     <!-- 圈主审核说明 -->
-    <view v-if="filter === 'pending' && pending.length > 0" class="er-note">
-      <text class="er-note-text">请核对成员身份与圈内行为记录后审核。同意后将进入平台审核与退款处理；退款金额由系统按使用天数自动核算。</text>
+    <view
+      v-if="filter === 'pending' && pending.length > 0"
+      class="er-note"
+    >
+      <text class="er-note-text">
+        请核对成员身份与圈内行为记录后审核。同意后将进入平台审核与退款处理；退款金额由系统按使用天数自动核算。
+      </text>
     </view>
 
     <!-- 骨架屏 -->
-    <view v-if="loading" class="er-skeleton">
-      <view v-for="i in 3" :key="i" class="er-sk-card">
+    <view
+      v-if="loading"
+      class="er-skeleton"
+    >
+      <view
+        v-for="i in 3"
+        :key="i"
+        class="er-sk-card"
+      >
         <view class="er-sk-row">
           <view class="er-sk-avatar sk-anim" />
           <view class="er-sk-lines">
@@ -108,70 +157,200 @@ function confirmReject() {
             <view class="er-sk-line er-sk-line--mid sk-anim" />
           </view>
         </view>
-        <view class="er-sk-line er-sk-line--long sk-anim" style="margin-top:18rpx;" />
-        <view class="er-sk-line er-sk-line--mid sk-anim" style="margin-top:14rpx;" />
+        <view
+          class="er-sk-line er-sk-line--long sk-anim"
+          style="margin-top:18rpx;"
+        />
+        <view
+          class="er-sk-line er-sk-line--mid sk-anim"
+          style="margin-top:14rpx;"
+        />
       </view>
     </view>
 
-    <error-state v-else-if="error" :message="error" @retry="loadData" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadData"
+    />
 
     <!-- 空态 -->
-    <view v-else-if="display.length === 0" class="er-empty">
-      <view class="er-empty-icon"><app-icon name="log-out" :size="56" color="#CCCCCC" /></view>
-      <text class="er-empty-text">{{ filter === 'pending' ? '暂无待审核申请' : '暂无已处理记录' }}</text>
+    <view
+      v-else-if="display.length === 0"
+      class="er-empty"
+    >
+      <view class="er-empty-icon">
+        <app-icon
+          name="log-out"
+          :size="56"
+          color="#CCCCCC"
+        />
+      </view>
+      <text class="er-empty-text">
+        {{ filter === 'pending' ? '暂无待审核申请' : '暂无已处理记录' }}
+      </text>
     </view>
 
     <!-- 列表 -->
-    <view v-else class="er-list">
-      <view v-for="req in display" :key="req.id" class="er-card" :class="{ 'er-card-done': req.stage !== 'owner_reviewing' }">
+    <view
+      v-else
+      class="er-list"
+    >
+      <view
+        v-for="req in display"
+        :key="req.id"
+        class="er-card"
+        :class="{ 'er-card-done': req.stage !== 'owner_reviewing' }"
+      >
         <view class="er-card-body">
           <view class="er-card-head">
-            <image class="er-avatar" :src="req.user.avatar || '/static/avatars/me.png'" mode="aspectFill" />
+            <image
+              class="er-avatar"
+              :src="req.user.avatar || '/static/avatars/me.png'"
+              mode="aspectFill"
+            />
             <view class="er-userinfo">
               <view class="er-name-row">
-                <text class="er-name">{{ req.user.name }}</text>
-                <text class="er-badge" :class="toneCls(getExitStageDisplay(req.stage).tone)">{{ getExitStageDisplay(req.stage).label }}</text>
+                <text class="er-name">
+                  {{ req.user.name }}
+                </text>
+                <text
+                  class="er-badge"
+                  :class="toneCls(getExitStageDisplay(req.stage).tone)"
+                >
+                  {{ getExitStageDisplay(req.stage).label }}
+                </text>
               </view>
               <view class="er-meta">
-                <view class="er-meta-item"><app-icon name="calendar" :size="22" color="#999999" /><text>加入 {{ req.joinDate }}</text></view>
-                <view class="er-meta-item"><app-icon name="clock" :size="22" color="#999999" /><text>已用 {{ req.breakdown.usedDays }} 天</text></view>
+                <view class="er-meta-item">
+                  <app-icon
+                    name="calendar"
+                    :size="22"
+                    color="#999999"
+                  /><text>加入 {{ req.joinDate }}</text>
+                </view>
+                <view class="er-meta-item">
+                  <app-icon
+                    name="clock"
+                    :size="22"
+                    color="#999999"
+                  /><text>已用 {{ req.breakdown.usedDays }} 天</text>
+                </view>
               </view>
             </view>
           </view>
 
-          <text v-if="req.reason" class="er-reason"><text class="er-reason-label">退出原因：</text>{{ req.reason }}</text>
+          <text
+            v-if="req.reason"
+            class="er-reason"
+          >
+            <text class="er-reason-label">
+              退出原因：
+            </text>{{ req.reason }}
+          </text>
 
           <!-- 退款核算 -->
           <view class="er-refund">
-            <view class="er-refund-head"><app-icon name="coins" :size="26" color="#C41E3A" /><text>退款核算</text></view>
-            <text class="er-refund-detail">已付 ¥{{ req.breakdown.paidAmount }} · 扣 ¥{{ req.breakdown.deduction }}（{{ req.breakdown.usedDays }}天 × ¥{{ req.breakdown.dailyRate }}）</text>
+            <view class="er-refund-head">
+              <app-icon
+                name="coins"
+                :size="26"
+                color="#C41E3A"
+              /><text>退款核算</text>
+            </view>
+            <text class="er-refund-detail">
+              已付 ¥{{ req.breakdown.paidAmount }} · 扣 ¥{{ req.breakdown.deduction }}（{{ req.breakdown.usedDays }}天 × ¥{{ req.breakdown.dailyRate }}）
+            </text>
             <view class="er-refund-total">
-              <text class="er-refund-label">应退金额</text>
-              <text class="er-refund-amount">¥{{ req.breakdown.refundAmount }}</text>
+              <text class="er-refund-label">
+                应退金额
+              </text>
+              <text class="er-refund-amount">
+                ¥{{ req.breakdown.refundAmount }}
+              </text>
             </view>
           </view>
 
-          <text v-if="req.stage === 'rejected' && req.rejectReason" class="er-rej">{{ req.rejectBy === 'owner' ? '圈主驳回：' : '平台驳回：' }}{{ req.rejectReason }}</text>
-          <text v-if="req.stage === 'platform_reviewing'" class="er-flow">已同意，等待平台审核与退款处理</text>
-          <text v-if="req.stage === 'refunded'" class="er-flow-ok">退款 ¥{{ req.breakdown.refundAmount }} 已于 {{ req.refundedAt }} 到账</text>
+          <text
+            v-if="req.stage === 'rejected' && req.rejectReason"
+            class="er-rej"
+          >
+            {{ req.rejectBy === 'owner' ? '圈主驳回：' : '平台驳回：' }}{{ req.rejectReason }}
+          </text>
+          <text
+            v-if="req.stage === 'platform_reviewing'"
+            class="er-flow"
+          >
+            已同意，等待平台审核与退款处理
+          </text>
+          <text
+            v-if="req.stage === 'refunded'"
+            class="er-flow-ok"
+          >
+            退款 ¥{{ req.breakdown.refundAmount }} 已于 {{ req.refundedAt }} 到账
+          </text>
         </view>
 
-        <view v-if="req.stage === 'owner_reviewing'" class="er-actions">
-          <view class="er-act" @tap="openReject(req.id)"><app-icon name="x-circle" :size="28" color="#666666" /><text>拒绝</text></view>
+        <view
+          v-if="req.stage === 'owner_reviewing'"
+          class="er-actions"
+        >
+          <view
+            class="er-act"
+            @tap="openReject(req.id)"
+          >
+            <app-icon
+              name="x-circle"
+              :size="28"
+              color="#666666"
+            /><text>拒绝</text>
+          </view>
           <view class="er-act-divider" />
-          <view class="er-act er-act-ok" @tap="approve(req.id)"><app-icon name="check-circle" :size="28" color="#C41E3A" /><text>同意退出</text></view>
+          <view
+            class="er-act er-act-ok"
+            @tap="approve(req.id)"
+          >
+            <app-icon
+              name="check-circle"
+              :size="28"
+              color="#C41E3A"
+            /><text>同意退出</text>
+          </view>
         </view>
       </view>
     </view>
 
     <!-- 拒绝原因弹窗 -->
-    <view v-if="rejectingId" class="er-modal-mask" @tap="rejectingId = null">
-      <view class="er-modal" @tap.stop>
-        <text class="er-modal-title">拒绝退出申请</text>
-        <textarea v-model="rejectReason" class="er-modal-input" placeholder="请填写拒绝原因，便于成员了解情况（选填）" />
+    <view
+      v-if="rejectingId"
+      class="er-modal-mask"
+      @tap="rejectingId = null"
+    >
+      <view
+        class="er-modal"
+        @tap.stop
+      >
+        <text class="er-modal-title">
+          拒绝退出申请
+        </text>
+        <textarea
+          v-model="rejectReason"
+          class="er-modal-input"
+          placeholder="请填写拒绝原因，便于成员了解情况（选填）"
+        />
         <view class="er-modal-btns">
-          <view class="er-modal-cancel" @tap="rejectingId = null">取消</view>
-          <view class="er-modal-ok" @tap="confirmReject">确认拒绝</view>
+          <view
+            class="er-modal-cancel"
+            @tap="rejectingId = null"
+          >
+            取消
+          </view>
+          <view
+            class="er-modal-ok"
+            @tap="confirmReject"
+          >
+            确认拒绝
+          </view>
         </view>
       </view>
     </view>

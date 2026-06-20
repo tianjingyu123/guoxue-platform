@@ -2,10 +2,20 @@
   <view class="cp-page">
     <!-- 导航 -->
     <view class="navbar">
-      <view class="nav-back" hover-class="nav-hover" @tap="goBack">
-        <app-icon name="chevron-left" :size="44" color="#fff" />
+      <view
+        class="nav-back"
+        hover-class="nav-hover"
+        @tap="goBack"
+      >
+        <app-icon
+          name="chevron-left"
+          :size="44"
+          color="#fff"
+        />
       </view>
-      <text class="nav-title">我的优惠券</text>
+      <text class="nav-title">
+        我的优惠券
+      </text>
     </view>
 
     <!-- Tab -->
@@ -16,20 +26,44 @@
         class="tab"
         @tap="activeTab = t.key"
       >
-        <text class="tab-text" :class="{ 'tab-text--on': activeTab === t.key }">{{ t.label }}</text>
-        <text v-if="t.key === 'unused' && unusedCount" class="tab-badge">{{ unusedCount }}</text>
-        <view v-if="activeTab === t.key" class="tab-line" />
+        <text
+          class="tab-text"
+          :class="{ 'tab-text--on': activeTab === t.key }"
+        >
+          {{ t.label }}
+        </text>
+        <text
+          v-if="t.key === 'unused' && unusedCount"
+          class="tab-badge"
+        >
+          {{ unusedCount }}
+        </text>
+        <view
+          v-if="activeTab === t.key"
+          class="tab-line"
+        />
       </view>
     </view>
 
     <!-- 领券中心 -->
-    <view v-if="activeTab === 'center'" class="body">
+    <view
+      v-if="activeTab === 'center'"
+      class="body"
+    >
       <view class="center-banner">
         <view class="cb-head">
-          <app-icon name="gift" :size="36" color="#fff" />
-          <text class="cb-title">限时领券</text>
+          <app-icon
+            name="gift"
+            :size="36"
+            color="#fff"
+          />
+          <text class="cb-title">
+            限时领券
+          </text>
         </view>
-        <text class="cb-sub">精选优惠券，领取后可在结算时使用</text>
+        <text class="cb-sub">
+          精选优惠券，领取后可在结算时使用
+        </text>
       </view>
       <view
         v-for="c in centerList"
@@ -39,36 +73,68 @@
       >
         <view class="coupon-value coupon-value--active">
           <view class="cv-top" />
-          <text class="cv-amount">{{ formatCouponValue(c) }}</text>
-          <text class="cv-min">满{{ c.minAmount }}可用</text>
+          <text class="cv-amount">
+            {{ formatCouponValue(c) }}
+          </text>
+          <text class="cv-min">
+            满{{ c.minAmount }}可用
+          </text>
         </view>
         <view class="coupon-info">
           <view class="ci-main">
-            <text class="ci-name">{{ c.name }}</text>
+            <text class="ci-name">
+              {{ c.name }}
+            </text>
             <view class="ci-scopes">
-              <text v-for="s in c.scope" :key="s" class="ci-scope">{{ s }}</text>
+              <text
+                v-for="s in c.scope"
+                :key="s"
+                class="ci-scope"
+              >
+                {{ s }}
+              </text>
             </view>
             <view class="ci-meta">
-              <app-icon name="clock" :size="22" color="#999" />
-              <text class="ci-meta-text">有效期至 {{ c.expireAt }}</text>
+              <app-icon
+                name="clock"
+                :size="22"
+                color="#999"
+              />
+              <text class="ci-meta-text">
+                有效期至 {{ c.expireAt }}
+              </text>
             </view>
-            <text class="ci-claimed">已领 {{ c.claimed }}/{{ c.stock }}</text>
+            <text class="ci-claimed">
+              已领 {{ c.claimed }}/{{ c.stock }}
+            </text>
           </view>
           <view
             class="claim-btn"
             :class="{ 'claim-btn--done': c.isClaimed }"
             @tap="claim(c)"
           >
-            <text class="claim-text">{{ claimingId === c.id ? '领取中...' : c.isClaimed ? '已领取' : '立即领取' }}</text>
+            <text class="claim-text">
+              {{ claimingId === c.id ? '领取中...' : c.isClaimed ? '已领取' : '立即领取' }}
+            </text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 我的券列表 -->
-    <view v-else class="body">
-      <view v-if="loading" class="sk-wrap">
-        <view v-for="i in 3" :key="i" class="sk-coupon">
+    <view
+      v-else
+      class="body"
+    >
+      <view
+        v-if="loading"
+        class="sk-wrap"
+      >
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="sk-coupon"
+        >
           <view class="sk-left" />
           <view class="sk-right">
             <view class="sk-line" />
@@ -76,13 +142,32 @@
           </view>
         </view>
       </view>
-      <error-state v-else-if="error" :message="error" @retry="loadCoupons" />
+      <error-state
+        v-else-if="error"
+        :message="error"
+        @retry="loadCoupons"
+      />
       <view v-else>
-        <view v-if="!filtered.length" class="empty">
-          <app-icon name="ticket" :size="72" color="#e8e3db" />
-          <text class="empty-text">{{ emptyText }}</text>
-          <view v-if="activeTab === 'unused'" class="empty-btn" @tap="activeTab = 'center'">
-            <text class="empty-btn-text">去领券</text>
+        <view
+          v-if="!filtered.length"
+          class="empty"
+        >
+          <app-icon
+            name="ticket"
+            :size="72"
+            color="#e8e3db"
+          />
+          <text class="empty-text">
+            {{ emptyText }}
+          </text>
+          <view
+            v-if="activeTab === 'unused'"
+            class="empty-btn"
+            @tap="activeTab = 'center'"
+          >
+            <text class="empty-btn-text">
+              去领券
+            </text>
           </view>
         </view>
         <view
@@ -91,34 +176,77 @@
           class="coupon"
           :class="{ 'coupon--disabled': c.status !== 'unused' }"
         >
-          <view class="coupon-value" :class="c.status === 'unused' ? 'coupon-value--active' : 'coupon-value--gray'">
-            <view v-if="c.status === 'unused'" class="cv-top" />
-            <text class="cv-amount" :class="{ 'cv-amount--gray': c.status !== 'unused' }">{{ formatCouponValue(c) }}</text>
-            <text class="cv-min">满{{ c.minAmount }}可用</text>
+          <view
+            class="coupon-value"
+            :class="c.status === 'unused' ? 'coupon-value--active' : 'coupon-value--gray'"
+          >
+            <view
+              v-if="c.status === 'unused'"
+              class="cv-top"
+            />
+            <text
+              class="cv-amount"
+              :class="{ 'cv-amount--gray': c.status !== 'unused' }"
+            >
+              {{ formatCouponValue(c) }}
+            </text>
+            <text class="cv-min">
+              满{{ c.minAmount }}可用
+            </text>
           </view>
           <view class="coupon-info">
             <view class="ci-main">
-              <text class="ci-name">{{ c.name }}</text>
+              <text class="ci-name">
+                {{ c.name }}
+              </text>
               <view class="ci-scopes">
                 <text
                   v-for="s in c.scope"
                   :key="s"
                   class="ci-scope"
                   :class="{ 'ci-scope--gray': c.status !== 'unused' }"
-                >{{ s }}</text>
+                >
+                  {{ s }}
+                </text>
               </view>
               <view class="ci-meta">
-                <app-icon name="clock" :size="22" color="#999" />
-                <text class="ci-meta-text">有效期至 {{ c.expireAt }}</text>
+                <app-icon
+                  name="clock"
+                  :size="22"
+                  color="#999"
+                />
+                <text class="ci-meta-text">
+                  有效期至 {{ c.expireAt }}
+                </text>
               </view>
             </view>
-            <view v-if="c.status === 'unused'" class="use-link" @tap="goUse">
-              <text class="use-text">去使用</text>
-              <app-icon name="chevron-right" :size="26" color="#c41e3a" />
+            <view
+              v-if="c.status === 'unused'"
+              class="use-link"
+              @tap="goUse"
+            >
+              <text class="use-text">
+                去使用
+              </text>
+              <app-icon
+                name="chevron-right"
+                :size="26"
+                color="#c41e3a"
+              />
             </view>
-            <view v-else class="status-link">
-              <app-icon v-if="c.status === 'used'" name="check" :size="26" color="#999" />
-              <text class="status-text">{{ c.status === 'used' ? '已使用' : '已过期' }}</text>
+            <view
+              v-else
+              class="status-link"
+            >
+              <app-icon
+                v-if="c.status === 'used'"
+                name="check"
+                :size="26"
+                color="#999"
+              />
+              <text class="status-text">
+                {{ c.status === 'used' ? '已使用' : '已过期' }}
+              </text>
             </view>
           </view>
         </view>
@@ -131,11 +259,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
 import ErrorState from '@/components/common/error-state.vue'
-import { myCoupons, centerCoupons, couponTabs, formatCouponValue, shopApi, type CenterCoupon } from '@/lib/shop-data'
+import { couponTabs, formatCouponValue, shopApi, type CenterCoupon } from '@/lib/shop-data'
 
 const activeTab = ref('unused')
-const myList = ref([...myCoupons])
-const centerList = ref([...centerCoupons])
+const myList = ref<any[]>([])
+const centerList = ref<any[]>([])
 const claimingId = ref<string | null>(null)
 const loading = ref(true)
 const error = ref('')
@@ -144,8 +272,12 @@ async function loadCoupons() {
   loading.value = true
   error.value = ''
   try {
-    const res = await shopApi.getMyCoupons()
-    myList.value = res.items || []
+    const [myRes, centerRes] = await Promise.all([
+      shopApi.getMyCoupons(),
+      shopApi.getCenterCoupons(),
+    ])
+    myList.value = myRes?.items || []
+    centerList.value = centerRes?.items || []
   } catch (e: any) { error.value = e?.message || '加载失败' } finally { loading.value = false }
 }
 

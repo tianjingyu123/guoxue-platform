@@ -65,59 +65,165 @@ function pickOption(v: string) {
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
-      <view class="nav-btn" @tap="goBack">
-        <AppIcon name="chevron-left" :size="22" color="#2C2C2C" />
+      <view
+        class="nav-btn"
+        @tap="goBack"
+      >
+        <AppIcon
+          name="chevron-left"
+          :size="22"
+          color="#2C2C2C"
+        />
       </view>
-      <text class="nav-title">设置</text>
+      <text class="nav-title">
+        设置
+      </text>
       <view class="nav-btn" />
     </view>
 
-    <scroll-view scroll-y class="scroll">
+    <scroll-view
+      scroll-y
+      class="scroll"
+    >
       <!-- 账号安全 -->
       <view class="group">
-        <text class="group-title">账号安全</text>
+        <text class="group-title">
+          账号安全
+        </text>
         <view class="card">
-          <view class="row" @tap="navigateTo('/mine/security')">
-            <AppIcon name="shield" :size="18" color="#C41E3A" />
-            <text class="row-label">账号安全中心</text>
-            <text class="row-badge">安全分 82</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          <view
+            class="row"
+            @tap="navigateTo('/mine/security')"
+          >
+            <AppIcon
+              name="shield"
+              :size="18"
+              color="#C41E3A"
+            />
+            <text class="row-label">
+              账号安全中心
+            </text>
+            <text class="row-badge">
+              安全分 82
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#C9A96E"
+            />
           </view>
-          <view class="row" @tap="navigateTo('/mine/change-password')">
-            <AppIcon name="lock" :size="18" color="#666" />
-            <text class="row-label">修改密码</text>
-            <text class="row-sub">上次修改：30天前</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          <view
+            class="row"
+            @tap="navigateTo('/mine/change-password')"
+          >
+            <AppIcon
+              name="lock"
+              :size="18"
+              color="#666"
+            />
+            <text class="row-label">
+              修改密码
+            </text>
+            <text class="row-sub">
+              上次修改：30天前
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#C9A96E"
+            />
           </view>
-          <view class="row" @tap="navigateTo('/mine/change-phone')">
-            <AppIcon name="phone" :size="18" color="#666" />
-            <text class="row-label">修改手机号</text>
-            <text class="row-sub">138****8888</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          <view
+            class="row"
+            @tap="navigateTo('/mine/change-phone')"
+          >
+            <AppIcon
+              name="phone"
+              :size="18"
+              color="#666"
+            />
+            <text class="row-label">
+              修改手机号
+            </text>
+            <text class="row-sub">
+              138****8888
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#C9A96E"
+            />
           </view>
-          <view class="row" @tap="navigateTo('/mine/payment-password')">
-            <AppIcon name="credit-card" :size="18" color="#666" />
-            <text class="row-label">支付密码</text>
-            <text class="row-sub">已设置</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          <view
+            class="row"
+            @tap="navigateTo('/mine/payment-password')"
+          >
+            <AppIcon
+              name="credit-card"
+              :size="18"
+              color="#666"
+            />
+            <text class="row-label">
+              支付密码
+            </text>
+            <text class="row-sub">
+              已设置
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#C9A96E"
+            />
           </view>
-          <view class="row" @tap="navigateTo('/mine/bind-accounts')">
-            <AppIcon name="smartphone" :size="18" color="#666" />
-            <text class="row-label">第三方账号</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          <view
+            class="row"
+            @tap="navigateTo('/mine/bind-accounts')"
+          >
+            <AppIcon
+              name="smartphone"
+              :size="18"
+              color="#666"
+            />
+            <text class="row-label">
+              第三方账号
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#C9A96E"
+            />
           </view>
         </view>
       </view>
 
       <!-- 通知设置 -->
       <view class="group">
-        <text class="group-title">通知设置</text>
+        <text class="group-title">
+          通知设置
+        </text>
         <view class="card">
-          <view v-for="item in settingNotifyItems" :key="item.key" class="row">
-            <AppIcon :name="item.icon" :size="18" color="#999" />
-            <text class="row-label">{{ item.label }}</text>
-            <view class="switch" :class="{ on: notifications[item.key] }" @tap="toggleNotify(item.key)">
-              <view class="switch-dot" :class="{ on: notifications[item.key] }" />
+          <view
+            v-for="item in settingNotifyItems"
+            :key="item.key"
+            class="row"
+          >
+            <AppIcon
+              :name="item.icon"
+              :size="18"
+              color="#999"
+            />
+            <text class="row-label">
+              {{ item.label }}
+            </text>
+            <view
+              class="switch"
+              :class="{ on: notifications[item.key] }"
+              @tap="toggleNotify(item.key)"
+            >
+              <view
+                class="switch-dot"
+                :class="{ on: notifications[item.key] }"
+              />
             </view>
           </view>
         </view>
@@ -125,125 +231,346 @@ function pickOption(v: string) {
 
       <!-- 隐私设置 -->
       <view class="group">
-        <text class="group-title">隐私设置</text>
+        <text class="group-title">
+          隐私设置
+        </text>
         <view class="card">
-          <view class="row" @tap="navigateTo('/mine/blacklist')">
-            <AppIcon name="user-x" :size="18" color="#666" />
-            <text class="row-label">黑名单管理</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          <view
+            class="row"
+            @tap="navigateTo('/mine/blacklist')"
+          >
+            <AppIcon
+              name="user-x"
+              :size="18"
+              color="#666"
+            />
+            <text class="row-label">
+              黑名单管理
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#C9A96E"
+            />
           </view>
-          <view class="row" @tap="openCollect">
-            <AppIcon name="eye" :size="18" color="#666" />
-            <text class="row-label">谁可以看我的收藏</text>
-            <text class="row-sub">{{ labelOf(settingCollectOptions, collectVisible) }}</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          <view
+            class="row"
+            @tap="openCollect"
+          >
+            <AppIcon
+              name="eye"
+              :size="18"
+              color="#666"
+            />
+            <text class="row-label">
+              谁可以看我的收藏
+            </text>
+            <text class="row-sub">
+              {{ labelOf(settingCollectOptions, collectVisible) }}
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#C9A96E"
+            />
           </view>
           <view class="row">
-            <AppIcon name="eye-off" :size="18" color="#999" />
-            <text class="row-label">浏览记录可见</text>
-            <view class="switch" :class="{ on: historyVisible }" @tap="historyVisible = !historyVisible">
-              <view class="switch-dot" :class="{ on: historyVisible }" />
+            <AppIcon
+              name="eye-off"
+              :size="18"
+              color="#999"
+            />
+            <text class="row-label">
+              浏览记录可见
+            </text>
+            <view
+              class="switch"
+              :class="{ on: historyVisible }"
+              @tap="historyVisible = !historyVisible"
+            >
+              <view
+                class="switch-dot"
+                :class="{ on: historyVisible }"
+              />
             </view>
           </view>
-          <view class="row" @tap="toastComingSoon">
-            <AppIcon name="history" :size="18" color="#666" />
-            <text class="row-label">清除浏览历史</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          <view
+            class="row"
+            @tap="toastComingSoon"
+          >
+            <AppIcon
+              name="history"
+              :size="18"
+              color="#666"
+            />
+            <text class="row-label">
+              清除浏览历史
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#C9A96E"
+            />
           </view>
         </view>
       </view>
 
       <!-- 通用 -->
       <view class="group">
-        <text class="group-title">通用</text>
+        <text class="group-title">
+          通用
+        </text>
         <view class="card">
-          <view class="row" @tap="showClearCache = true">
-            <AppIcon name="hard-drive" :size="18" color="#666" />
-            <text class="row-label">清除缓存</text>
-            <text class="row-sub" :style="{ color: cacheCleared ? '#22c55e' : '#999' }">{{ cacheCleared ? '已清除' : settingCacheSize }}</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          <view
+            class="row"
+            @tap="showClearCache = true"
+          >
+            <AppIcon
+              name="hard-drive"
+              :size="18"
+              color="#666"
+            />
+            <text class="row-label">
+              清除缓存
+            </text>
+            <text
+              class="row-sub"
+              :style="{ color: cacheCleared ? '#22c55e' : '#999' }"
+            >
+              {{ cacheCleared ? '已清除' : settingCacheSize }}
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#C9A96E"
+            />
           </view>
-          <view class="row" @tap="openFont">
-            <AppIcon name="type" :size="18" color="#666" />
-            <text class="row-label">字体大小</text>
-            <text class="row-sub">{{ labelOf(settingFontOptions, fontSize) }}</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          <view
+            class="row"
+            @tap="openFont"
+          >
+            <AppIcon
+              name="type"
+              :size="18"
+              color="#666"
+            />
+            <text class="row-label">
+              字体大小
+            </text>
+            <text class="row-sub">
+              {{ labelOf(settingFontOptions, fontSize) }}
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#C9A96E"
+            />
           </view>
-          <view class="row" @tap="openDark">
-            <AppIcon name="moon" :size="18" color="#666" />
-            <text class="row-label">深色模式</text>
-            <text class="row-sub">{{ labelOf(settingDarkOptions, darkMode) }}</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          <view
+            class="row"
+            @tap="openDark"
+          >
+            <AppIcon
+              name="moon"
+              :size="18"
+              color="#666"
+            />
+            <text class="row-label">
+              深色模式
+            </text>
+            <text class="row-sub">
+              {{ labelOf(settingDarkOptions, darkMode) }}
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#C9A96E"
+            />
           </view>
         </view>
       </view>
 
       <!-- 其他 -->
       <view class="group">
-        <text class="group-title">其他</text>
+        <text class="group-title">
+          其他
+        </text>
         <view class="card">
-          <view class="row" @tap="toastComingSoon">
-            <AppIcon name="help-circle" :size="18" color="#666" />
-            <text class="row-label">帮助与反馈</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          <view
+            class="row"
+            @tap="toastComingSoon"
+          >
+            <AppIcon
+              name="help-circle"
+              :size="18"
+              color="#666"
+            />
+            <text class="row-label">
+              帮助与反馈
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#C9A96E"
+            />
           </view>
-          <view class="row" @tap="toastComingSoon">
-            <AppIcon name="info" :size="18" color="#666" />
-            <text class="row-label">关于我们</text>
-            <text class="row-sub">v3.2.1</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          <view
+            class="row"
+            @tap="toastComingSoon"
+          >
+            <AppIcon
+              name="info"
+              :size="18"
+              color="#666"
+            />
+            <text class="row-label">
+              关于我们
+            </text>
+            <text class="row-sub">
+              v3.2.1
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#C9A96E"
+            />
           </view>
         </view>
       </view>
 
       <!-- 退出登录 -->
       <view class="logout-wrap">
-        <view class="logout-btn" @tap="showLogout = true">
-          <text class="logout-text">退出登录</text>
+        <view
+          class="logout-btn"
+          @tap="showLogout = true"
+        >
+          <text class="logout-text">
+            退出登录
+          </text>
         </view>
       </view>
       <view class="safe-bottom" />
     </scroll-view>
 
     <!-- 退出登录弹窗 -->
-    <view v-if="showLogout" class="mask" @tap="showLogout = false">
-      <view class="dialog" @tap.stop>
-        <text class="dialog-title">确认退出登录？</text>
-        <text class="dialog-desc">退出后需重新登录才能使用完整功能</text>
+    <view
+      v-if="showLogout"
+      class="mask"
+      @tap="showLogout = false"
+    >
+      <view
+        class="dialog"
+        @tap.stop
+      >
+        <text class="dialog-title">
+          确认退出登录？
+        </text>
+        <text class="dialog-desc">
+          退出后需重新登录才能使用完整功能
+        </text>
         <view class="dialog-actions">
-          <view class="dlg-btn ghost" @tap="showLogout = false"><text class="dlg-btn-text ghost-text">取消</text></view>
-          <view class="dlg-btn danger" @tap="handleLogout"><text class="dlg-btn-text danger-text">退出登录</text></view>
+          <view
+            class="dlg-btn ghost"
+            @tap="showLogout = false"
+          >
+            <text class="dlg-btn-text ghost-text">
+              取消
+            </text>
+          </view>
+          <view
+            class="dlg-btn danger"
+            @tap="handleLogout"
+          >
+            <text class="dlg-btn-text danger-text">
+              退出登录
+            </text>
+          </view>
         </view>
       </view>
     </view>
 
     <!-- 清除缓存弹窗 -->
-    <view v-if="showClearCache" class="mask" @tap="showClearCache = false">
-      <view class="dialog" @tap.stop>
-        <text class="dialog-title">清除缓存</text>
-        <text class="dialog-desc">将清除 <text class="hl">{{ settingCacheSize }}</text> 的缓存数据</text>
-        <text class="dialog-desc sm">不影响账号数据和下载内容</text>
+    <view
+      v-if="showClearCache"
+      class="mask"
+      @tap="showClearCache = false"
+    >
+      <view
+        class="dialog"
+        @tap.stop
+      >
+        <text class="dialog-title">
+          清除缓存
+        </text>
+        <text class="dialog-desc">
+          将清除 <text class="hl">
+            {{ settingCacheSize }}
+          </text> 的缓存数据
+        </text>
+        <text class="dialog-desc sm">
+          不影响账号数据和下载内容
+        </text>
         <view class="dialog-actions">
-          <view class="dlg-btn ghost" @tap="showClearCache = false"><text class="dlg-btn-text ghost-text">取消</text></view>
-          <view class="dlg-btn primary" @tap="handleClearCache"><text class="dlg-btn-text primary-text">确认清除</text></view>
+          <view
+            class="dlg-btn ghost"
+            @tap="showClearCache = false"
+          >
+            <text class="dlg-btn-text ghost-text">
+              取消
+            </text>
+          </view>
+          <view
+            class="dlg-btn primary"
+            @tap="handleClearCache"
+          >
+            <text class="dlg-btn-text primary-text">
+              确认清除
+            </text>
+          </view>
         </view>
       </view>
     </view>
 
     <!-- 选项弹窗（字体/深色/收藏可见性） -->
-    <view v-if="optionDialog" class="mask end" @tap="optionDialog = null">
-      <view class="sheet" @tap.stop>
-        <text class="sheet-title">{{ optionDialog.title }}</text>
+    <view
+      v-if="optionDialog"
+      class="mask end"
+      @tap="optionDialog = null"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
+        <text class="sheet-title">
+          {{ optionDialog.title }}
+        </text>
         <view
           v-for="opt in optionDialog.options"
           :key="opt.value"
           class="sheet-opt"
           @tap="pickOption(opt.value)"
         >
-          <text class="sheet-opt-text" :class="{ active: optionDialog.current === opt.value }">{{ opt.label }}</text>
-          <AppIcon v-if="optionDialog.current === opt.value" name="check" :size="16" color="#C41E3A" />
+          <text
+            class="sheet-opt-text"
+            :class="{ active: optionDialog.current === opt.value }"
+          >
+            {{ opt.label }}
+          </text>
+          <AppIcon
+            v-if="optionDialog.current === opt.value"
+            name="check"
+            :size="16"
+            color="#C41E3A"
+          />
         </view>
-        <view class="sheet-cancel" @tap="optionDialog = null"><text class="sheet-cancel-text">取消</text></view>
+        <view
+          class="sheet-cancel"
+          @tap="optionDialog = null"
+        >
+          <text class="sheet-cancel-text">
+            取消
+          </text>
+        </view>
       </view>
     </view>
   </view>

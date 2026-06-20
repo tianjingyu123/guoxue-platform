@@ -3,6 +3,7 @@
  * 含 CircleDetail / CirclePost / CircleMember / 专栏 / 活动 / 会员权益。
  */
 import { apiGet, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
+import { mockMembership } from './circle-exit'
 
 export interface CircleOwner { id: string; name: string; avatar: string }
 
@@ -16,6 +17,9 @@ export interface CircleDetail {
   posts: number
   isJoined: boolean
   todayActive?: number
+  memberCount?: number
+  myRole?: string
+  avatar?: string
   createdAt: string
   owner: CircleOwner
   rules?: string[]
@@ -243,6 +247,30 @@ export const circleDetailApi = {
   // —— 加入/退出 ——
   join: (id: string) => useMock() ? { success: true } : apiPost<{ success: boolean }>(`/circles/${id}/join`),
   leave: (id: string) => useMock() ? { success: true } : apiPost<{ success: boolean }>(`/circles/${id}/leave`),
+
+  // —— 会员信息 ——
+  getMembership: async (circleId: string) => {
+    if (useMock()) return { ...mockMembership }
+    return apiGet(`/circles/${circleId}/membership`)
+  },
+
+  // —— 专栏 ——
+  getColumns: async (circleId: string): Promise<CircleColumn[]> => {
+    if (useMock()) return [...mockColumns]
+    return apiGet(`/circles/${circleId}/columns`)
+  },
+
+  // —— 文章 ——
+  getArticles: async (circleId: string): Promise<CircleArticle[]> => {
+    if (useMock()) return [...mockCircleArticles]
+    return apiGet(`/circles/${circleId}/articles`)
+  },
+
+  // —— 活动 ——
+  getActivities: async (circleId: string): Promise<CircleActivity[]> => {
+    if (useMock()) return [...mockActivities]
+    return apiGet(`/circles/${circleId}/activities`)
+  },
 }
 
 // ─── 咨询 mock 数据 ───
@@ -334,9 +362,16 @@ export const circleManageApi = {
     if (useMock()) return [...mockGuests]
     return apiGet('/circle-backend/guests')
   },
-  // 后端暂无活动日历 API，当前仅 mock
-  listCalendarEvents: async (_circleId: string, _year?: number, _month?: number) => {
-    return [...mockCalEvents]
+  listCalendarEvents: async (circleId: string, year?: number, month?: number) => {
+    if (useMock()) return [...mockCalEvents]
+    try {
+      const params = new URLSearchParams()
+      params.set('circleId', circleId)
+      if (year) params.set('year', String(year))
+      if (month) params.set('month', String(month))
+      const data = await apiGet<CalEvent[]>(`/circle-backend/calendar-events?${params.toString()}`)
+      return data && data.length > 0 ? data : []
+    } catch { return [] }
   },
   // 后端: GET /call?status&page&pageSize
   listMyCalls: async (params?: { status?: string; page?: number; pageSize?: number }) => {
@@ -357,8 +392,80 @@ export const circleManageApi = {
   },
   // 后端: GET /circles/:id/invite-codes
   listInviteCodes: async (circleId: string) => {
-    if (useMock()) return { stats: { totalInvited: 156, usedCodes: 12, pendingCodes: 5, thisWeek: 23 }, codes: [] as any[] }
+    if (useMock()) return { stats: { totalInvited: 156, usedCodes: 12, pendingCodes: 5, thisWeek: 23 }, codes: mockInviteCodeList }
     return apiGet(`/circles/${circleId}/invite-codes`)
+  },
+  // 后端: GET /circles/:id/stats
+  getStats: async (_circleId: string) => {
+    if (useMock()) return { weeklyData: mockWeeklyData, kpis: mockStatsKpis }
+    return apiGet(`/circles/${_circleId}/stats`)
+  },
+  // 后端: GET /circles/:id/earnings
+  getEarnings: async (_circleId: string) => {
+    if (useMock()) return mockEarningsData
+    return apiGet(`/circles/${_circleId}/earnings`)
+  },
+  // 后端: GET /circles/:id/distribution
+  getDistribution: async (_circleId: string) => {
+    if (useMock()) return { plans: mockDistPlans, guestOverrides: mockGuestOverrides }
+    return apiGet(`/circles/${_circleId}/distribution`)
+  },
+  // 后端: GET /circles/:id/join-requests
+  getJoinRequests: async (_circleId: string) => {
+    if (useMock()) return [...mockJoinRequestList]
+    return apiGet(`/circles/${_circleId}/join-requests`)
+  },
+  // 后端: GET /circles/:id/exit-requests
+  getExitRequests: async (_circleId: string) => {
+    if (useMock()) return [...mockExitRequestList]
+    return apiGet(`/circles/${_circleId}/exit-requests`)
+  },
+  // 后端: GET /circles/:id/knowledge
+  getKnowledgeItems: async (_circleId: string) => {
+    if (useMock()) return [...mockKnowledgeItemList]
+    return apiGet(`/circles/${_circleId}/knowledge`)
+  },
+  // 后端: GET /circles/:id/checkin
+  getCheckinData: async (_circleId: string) => {
+    if (useMock()) return { ...mockCheckinActivity, todayContent: { chapter: '第十五章：论日主强弱', summary: '本章讲述如何判断日主的强弱，包括得令、得地、得生、得助等要点...', keyPoints: ['得令为重', '得地次之', '得生得助为辅'] } }
+    return apiGet(`/circles/${_circleId}/checkin`)
+  },
+  getCheckinFeed: async (_circleId: string) => {
+    if (useMock()) return _mockCheckinFeed
+    return apiGet(`/circles/${_circleId}/checkin/feed`)
+  },
+  getCheckinLeaderboard: async (_circleId: string) => {
+    if (useMock()) return _mockCheckinLeaderboard
+    return apiGet(`/circles/${_circleId}/checkin/leaderboard`)
+  },
+  getMyCheckins: async (_circleId: string) => {
+    if (useMock()) return _mockMyCheckins
+    return apiGet(`/circles/${_circleId}/checkin/my`)
+  },
+  // 后端: GET /circles/:id/level
+  getLevelData: async (_circleId: string) => {
+    if (useMock()) return { user: { ...mockLevelUser }, badges: [...mockLevelBadges] }
+    return apiGet(`/circles/${_circleId}/level`)
+  },
+  // 后端: GET /circles/:id/badges
+  getBadges: async (_circleId: string) => {
+    if (useMock()) return [...mockBadgeList]
+    return apiGet(`/circles/${_circleId}/badges`)
+  },
+  // 后端: GET /circles/:id/recommend-ebooks
+  getRecommendEbooks: async (_circleId: string) => {
+    if (useMock()) return { circleInfo: mockEbookCircleInfo, books: [...mockEbookList] }
+    return apiGet(`/circles/${_circleId}/recommend-ebooks`)
+  },
+  // 后端: POST /circles/:id/checkin
+  doCheckin: async (circleId: string, data: { content: string; images?: string[] }) => {
+    if (useMock()) return { success: true, streak: 7, totalDays: 30 }
+    return apiPost(`/circles/${circleId}/checkin`, data)
+  },
+  // 后端: POST /circles/:id/recommend-ebooks
+  saveRecommendEbooks: async (circleId: string, ebookIds: string[]) => {
+    if (useMock()) return { success: true }
+    return apiPost(`/circles/${circleId}/recommend-ebooks`, { ebookIds })
   },
 }
 
@@ -368,4 +475,138 @@ const mockHotContent = [
   { id: '3', title: '2024年甲辰年各生肖运势完整版', author: '李玄机', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=60', views: 8720, likes: 512, comments: 89 },
   { id: '4', title: '风水布局实战：客厅财位的正确摆放', author: '王德华', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=60', views: 7350, likes: 430, comments: 67 },
   { id: '5', title: '奇门遁甲基础：九宫八卦布局详解', author: '林奇门', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=60', views: 6200, likes: 398, comments: 54 },
+]
+
+// ─── 管理页扩展 mock（从各页面迁移到数据层） ───
+
+const mockInviteCodeList = [
+  { id: '1', code: 'GUOXUE2024A', maxUses: 10, usedCount: 8, status: 'active' as const, createdAt: '2024-01-15T10:00:00Z' },
+  { id: '2', code: 'GUOXUE2024B', maxUses: 5, usedCount: 5, status: 'expired' as const, createdAt: '2024-01-10T10:00:00Z', expiresAt: '2024-01-20T10:00:00Z' },
+  { id: '3', code: 'VIP888', maxUses: 100, usedCount: 45, status: 'active' as const, createdAt: '2024-01-01T10:00:00Z' },
+  { id: '4', code: 'TEST123', maxUses: 3, usedCount: 1, status: 'disabled' as const, createdAt: '2024-01-05T10:00:00Z' },
+]
+
+const mockWeeklyData = [
+  { day: '周一', members: 12420, posts: 285, views: 18500 },
+  { day: '周二', members: 12580, posts: 312, views: 21200 },
+  { day: '周三', members: 12630, posts: 298, views: 19800 },
+  { day: '周四', members: 12800, posts: 356, views: 24600 },
+  { day: '周五', members: 12950, posts: 401, views: 28300 },
+  { day: '周六', members: 13120, posts: 520, views: 35000 },
+  { day: '周日', members: 13280, posts: 486, views: 32100 },
+]
+
+const mockStatsKpis = [
+  { label: '总成员', value: '13,280', trend: 12, icon: 'users', color: '#2563eb', bg: 'rgba(37,99,235,0.1)' },
+  { label: '总帖子', value: '45,620', trend: 8, icon: 'file-text', color: '#16a34a', bg: 'rgba(22,163,74,0.1)' },
+  { label: '本周回复', value: '8,956', trend: -3, icon: 'message-circle', color: '#ea580c', bg: 'rgba(234,88,12,0.1)' },
+  { label: '本周浏览', value: '179,500', trend: 22, icon: 'eye', color: '#C9A96E', bg: 'rgba(201,169,110,0.15)' },
+]
+
+const mockEarningsData = {
+  monthEarnings: 12680.50, totalEarnings: 89650.00, memberCount: 12580,
+  earningsList: [
+    { id: '1', source: '入圈费', description: '新成员加入付费', amount: 8960, percentage: 70.7, trend: 'up' as const },
+    { id: '2', source: '打赏收入', description: '帖子/回答打赏', amount: 2150.5, percentage: 17, trend: 'up' as const },
+    { id: '3', source: '咨询费', description: '专家咨询收入', amount: 1120, percentage: 8.8, trend: 'down' as const },
+    { id: '4', source: '广告分红', description: '平台广告收益', amount: 450, percentage: 3.5, trend: 'up' as const },
+  ],
+  history: [
+    { month: '2024年6月', members: 12580, earnings: 12680.50 },
+    { month: '2024年5月', members: 12100, earnings: 11890.00 },
+    { month: '2024年4月', members: 11650, earnings: 10560.00 },
+    { month: '2024年3月', members: 11200, earnings: 9820.00 },
+  ],
+}
+
+const mockDistPlans = [
+  { id: 'default', name: '默认分配方案', isDefault: true, description: '适用于所有内容类型的通用分配方案', rules: { platform: 10, circle: 20, creator: 70 }, contentTypes: ['article', 'course', 'live', 'qa'], createdAt: '2024-01-01' },
+  { id: 'course-special', name: '课程专属方案', isDefault: false, description: '针对付费课程的特殊分配比例', rules: { platform: 15, circle: 15, creator: 70 }, contentTypes: ['course'], createdAt: '2024-02-15' },
+  { id: 'live-tips', name: '直播打赏方案', isDefault: false, description: '直播打赏收益的分配规则', rules: { platform: 20, circle: 10, creator: 70 }, contentTypes: ['live'], createdAt: '2024-03-01' },
+]
+
+const mockGuestOverrides = [
+  { guestId: '1', guestName: '张玄风', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang', sharePercent: 75, contentTypes: ['article', 'course'] },
+  { guestId: '2', guestName: '李易安', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=li', sharePercent: 65, contentTypes: ['course'] },
+]
+
+const mockJoinRequestList = [
+  { id: '1', user: { id: 'u1', name: '张三', avatar: '/static/avatars/u1.png', bio: '命理爱好者，学习八字3年' }, reason: '对八字命理非常感兴趣，希望能加入圈子与各位老师交流学习，提升自己的命理水平。', status: 'pending' as const, createdAt: '2024-01-15T10:30:00Z' },
+  { id: '2', user: { id: 'u2', name: '李四', avatar: '/static/avatars/u2.png', bio: '风水师，从业5年' }, reason: '想与圈内同好交流风水心得，分享实战经验。', status: 'pending' as const, createdAt: '2024-01-15T09:20:00Z' },
+  { id: '3', user: { id: 'u3', name: '王五', avatar: '/static/avatars/u3.png' }, reason: '朋友推荐的圈子，想来学习。', status: 'pending' as const, createdAt: '2024-01-14T18:45:00Z' },
+  { id: '4', user: { id: 'u4', name: '赵六', avatar: '/static/avatars/u4.png', bio: '国学爱好者' }, reason: '希望学习传统文化知识', status: 'approved' as const, createdAt: '2024-01-13T14:00:00Z', processedAt: '2024-01-13T16:30:00Z' },
+  { id: '5', user: { id: 'u5', name: '钱七', avatar: '/static/avatars/me.png' }, reason: '...', status: 'rejected' as const, createdAt: '2024-01-12T11:00:00Z', processedAt: '2024-01-12T15:00:00Z', rejectReason: '申请理由过于简单' },
+]
+
+const mockExitRequestList = [
+  { id: 'e1', circleId: '1', circleName: '八字命理研习社', user: { id: 'u1', name: '林清远', avatar: '/static/avatars/u1.png' }, joinDate: '2024-05-15', applyDate: '2024-06-14', reason: '最近工作繁忙，暂时没有时间深入学习，希望先退出。', breakdown: { paidAmount: 365, usedDays: 30, totalDays: 365, dailyRate: 1, deduction: 30, refundAmount: 335 }, stage: 'owner_reviewing' as const },
+  { id: 'e2', circleId: '1', circleName: '八字命理研习社', user: { id: 'u2', name: '苏晚晴', avatar: '/static/avatars/u2.png' }, joinDate: '2024-03-01', applyDate: '2024-06-10', reason: '内容与预期不符。', breakdown: { paidAmount: 365, usedDays: 101, totalDays: 365, dailyRate: 1, deduction: 101, refundAmount: 264 }, stage: 'owner_reviewing' as const },
+  { id: 'e3', circleId: '1', circleName: '八字命理研习社', user: { id: 'u3', name: '陈墨白', avatar: '/static/avatars/u3.png' }, joinDate: '2024-01-10', applyDate: '2024-05-20', breakdown: { paidAmount: 365, usedDays: 131, totalDays: 365, dailyRate: 1, deduction: 131, refundAmount: 234 }, stage: 'refunded' as const, ownerReviewedAt: '2024-05-20', platformReviewedAt: '2024-05-21', refundedAt: '2024-05-23' },
+]
+
+const mockKnowledgeItemList = [
+  { id: '1', title: '八字命理中的天干地支基础知识', summary: '天干地支是中国古代记录时间的系统，由十天干和十二地支组成。', content: '天干地支是中国古代记录时间的系统...', source: { type: 'post' as const, id: 'p1', name: '周易大师的帖子' }, status: 'confirmed' as const, tags: ['八字', '基础'], createdAt: '2024-01-15' },
+  { id: '2', title: '紫微斗数十四主星详解', summary: '紫微斗数十四主星的特征、五行属性及代表意义。', content: '紫微斗数中十四主星包括...', source: { type: 'article' as const, id: 'a1', name: '紫微入门' }, status: 'confirmed' as const, tags: ['紫微', '主星'], createdAt: '2024-01-20' },
+  { id: '3', title: '风水罗盘使用方法', summary: '详细讲解风水罗盘的结构和使用技巧。', content: '罗盘是风水师必备工具...', source: { type: 'manual' as const, name: '手动录入' }, status: 'pending' as const, tags: ['风水', '罗盘'], createdAt: '2024-02-01' },
+]
+
+const mockCheckinActivity = {
+  id: 'ck1', title: '《易经》共读打卡', description: '每日阅读易经，交流心得感悟', cover: '/static/checkin/cover.jpg',
+  currentDay: 15, totalDays: 30, participants: 328, todayCheckedIn: 186, myStreak: 7, myTotalDays: 15,
+  startDate: '2024-06-01', endDate: '2024-06-30',
+  calendarDays: Array.from({ length: 30 }, (_, i) => ({ day: i + 1, isCompleted: i < 15, isMissed: false })),
+}
+
+const mockLevelUser = { name: '命理学习者', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user', level: 5, currentXp: 1280, totalXp: 1500, joinedDays: 128, posts: 156, likes: 2800, badges: 3, rank: 28 }
+
+const mockLevelBadges = [
+  { id: 'b1', name: '阅读达人', desc: '完成阅读打卡21天', icon: 'book-open', color: '#52C41A', obtained: true, obtainedAt: '2024-01-15' },
+  { id: 'b2', name: '热心助人', desc: '回答问题获得100赞', icon: 'heart', color: '#FF6B6B', obtained: true, obtainedAt: '2024-01-10' },
+  { id: 'b3', name: '笔耕不辍', desc: '发布帖子50篇', icon: 'message-circle', color: '#1890FF', obtained: true, obtainedAt: '2024-01-08' },
+  { id: 'b4', name: '知识分享者', desc: '原创内容被加精10次', icon: 'star', color: '#C9A96E', obtained: false, progress: 7, total: 10 },
+  { id: 'b5', name: '问答之星', desc: '付费问答获得好评50次', icon: 'trophy', color: '#722ED1', obtained: false, progress: 32, total: 50 },
+  { id: 'b6', name: '圈子达人', desc: '加入10个圈子', icon: 'crown', color: '#FF6B35', obtained: false, progress: 5, total: 10 },
+]
+
+const mockBadgeList = [
+  { id: '1', name: '初入门径', desc: '加入第一个圈子', image: '/static/badges/badge-1.png', rarity: 'common' as const, earned: true, earnedAt: '2023-10-01' },
+  { id: '2', name: '活跃探索', desc: '连续7天发帖', image: '/static/badges/badge-2.png', rarity: 'common' as const, earned: true, earnedAt: '2023-10-15' },
+  { id: '3', name: '知识布道', desc: '发布10篇精华内容', image: '/static/badges/badge-3.png', rarity: 'rare' as const, earned: true, earnedAt: '2023-11-05' },
+  { id: '4', name: '百人追随', desc: '获得100个粉丝', image: '/static/badges/badge-4.png', rarity: 'rare' as const, earned: true, earnedAt: '2023-12-01' },
+  { id: '5', name: '命理宗师', desc: '回答500个命理问题', image: '/static/badges/badge-5.png', rarity: 'epic' as const, earned: false, progress: 342, total: 500 },
+  { id: '6', name: '圈主传奇', desc: '圈子成员突破10000', image: '/static/badges/badge-6.png', rarity: 'legendary' as const, earned: false, progress: 1280, total: 10000 },
+  { id: '7', name: '月度达人', desc: '单月获赞超500', image: '/static/badges/badge-7.png', rarity: 'epic' as const, earned: false, progress: 210, total: 500 },
+  { id: '8', name: '古籍守护', desc: '收藏50部古籍', image: '/static/badges/badge-8.png', rarity: 'rare' as const, earned: false, progress: 28, total: 50 },
+]
+
+const mockEbookCircleInfo = { id: '1', name: '八字命理研习社' }
+
+const mockEbookList = [
+  { id: '1', title: '滴天髓', author: '刘伯温', cover: '', price: 0, isMemberFree: true, rating: 4.9, readers: 12800, category: '八字' },
+  { id: '2', title: '三命通会', author: '万民英', cover: '', price: 29.9, isMemberFree: false, rating: 4.8, readers: 9600, category: '八字' },
+  { id: '3', title: '子平真诠', author: '沈孝瞻', cover: '', price: 0, isMemberFree: true, rating: 4.7, readers: 8500, category: '八字' },
+  { id: '4', title: '穷通宝鉴', author: '余春台', cover: '', price: 19.9, isMemberFree: false, rating: 4.6, readers: 7200, category: '八字' },
+  { id: '5', title: '周易', author: '周文王', cover: '', price: 0, isMemberFree: true, rating: 4.9, readers: 25000, category: '易经' },
+  { id: '6', title: '渊海子平', author: '徐大升', cover: '', price: 25.0, isMemberFree: false, rating: 4.5, readers: 5600, category: '八字' },
+]
+
+
+const _mockCheckinFeed = [
+  { id: 'f1', user: { name: '命理大师', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=1' }, content: '今天深入研究了日主强弱的判断方法，收获满满！', images: [], time: '10分钟前', likes: 28, comments: 6 },
+  { id: 'f2', user: { name: '易学研究者', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=2' }, content: '分享一段经典论述', images: ['https://picsum.photos/400/300?random=10'], time: '30分钟前', likes: 15, comments: 3 },
+  { id: 'f3', user: { name: '古籍爱好者', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=3' }, content: '坚持打卡第13天！感觉自己对八字的理解越来越深入了', images: [], time: '1小时前', likes: 22, comments: 8 },
+]
+
+const _mockCheckinLeaderboard = [
+  { rank: 1, user: { name: '命理大师', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=1' }, streak: 15, totalDays: 15 },
+  { rank: 2, user: { name: '易学研究者', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=2' }, streak: 14, totalDays: 14 },
+  { rank: 3, user: { name: '古籍爱好者', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=3' }, streak: 13, totalDays: 14 },
+  { rank: 4, user: { name: '学习达人', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=4' }, streak: 12, totalDays: 13 },
+  { rank: 5, user: { name: '国学新手', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=5' }, streak: 11, totalDays: 12 },
+]
+
+const _mockMyCheckins = [
+  { date: '2024-01-14', content: '今天阅读了论十神的章节，对于正财和偏财的区别有了更深的理解...', images: [], likes: 12, comments: 3 },
+  { date: '2024-01-13', content: '格局篇真是精彩，八格的分类方法让我豁然开朗...', images: ['https://picsum.photos/200/200?random=1'], likes: 8, comments: 2 },
+  { date: '2024-01-12', content: '开始学习用神的概念，这是八字命理的核心所在...', images: [], likes: 15, comments: 5 },
 ]

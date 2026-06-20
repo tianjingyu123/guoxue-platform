@@ -1,73 +1,166 @@
 <template>
   <view class="pay-success">
     <!-- 成功动画区域 -->
-    <view class="hero" :style="{ paddingTop: 'calc(120rpx + var(--status-bar-height, 0px))' }">
-      <view class="check-wrap" :class="{ show: showAnim }">
+    <view
+      class="hero"
+      :style="{ paddingTop: 'calc(120rpx + var(--status-bar-height, 0px))' }"
+    >
+      <view
+        class="check-wrap"
+        :class="{ show: showAnim }"
+      >
         <view class="check-bg" />
-        <view class="check-icon" :class="{ show: showAnim }">
-          <app-icon name="check-circle" :size="96" color="#4CAF50" />
+        <view
+          class="check-icon"
+          :class="{ show: showAnim }"
+        >
+          <app-icon
+            name="check-circle"
+            :size="96"
+            color="#4CAF50"
+          />
         </view>
-        <view class="check-ripple" :class="{ show: showAnim }" />
+        <view
+          class="check-ripple"
+          :class="{ show: showAnim }"
+        />
       </view>
-      <text class="hero-title" :class="{ show: showAnim }">支付成功</text>
-      <view class="hero-amount" :class="{ show: showAnim }">
-        <text class="amt">¥{{ orderInfo.amount.toFixed(2) }}</text>
-        <text class="amt-desc">{{ orderInfo.payMethod }} · {{ orderInfo.itemCount }}件商品</text>
+      <text
+        class="hero-title"
+        :class="{ show: showAnim }"
+      >
+        支付成功
+      </text>
+      <view
+        class="hero-amount"
+        :class="{ show: showAnim }"
+      >
+        <text class="amt">
+          ¥{{ orderInfo.amount.toFixed(2) }}
+        </text>
+        <text class="amt-desc">
+          {{ orderInfo.payMethod }} · {{ orderInfo.itemCount }}件商品
+        </text>
       </view>
     </view>
 
     <!-- 白色卡片区域 -->
     <view class="sheet">
       <!-- 订单信息卡片 -->
-      <view class="info-card" :class="{ show: showAnim }">
+      <view
+        class="info-card"
+        :class="{ show: showAnim }"
+      >
         <view class="info-row bordered">
-          <text class="info-label">订单编号</text>
+          <text class="info-label">
+            订单编号
+          </text>
           <view class="info-right">
-            <text class="info-value">{{ orderInfo.orderId }}</text>
-            <view class="copy-btn" @tap="handleCopy">
-              <app-icon name="copy" :size="28" color="#C41E3A" />
-              <text class="copy-text">{{ copied ? '已复制' : '复制' }}</text>
+            <text class="info-value">
+              {{ orderInfo.orderId }}
+            </text>
+            <view
+              class="copy-btn"
+              @tap="handleCopy"
+            >
+              <app-icon
+                name="copy"
+                :size="28"
+                color="#C41E3A"
+              />
+              <text class="copy-text">
+                {{ copied ? '已复制' : '复制' }}
+              </text>
             </view>
           </view>
         </view>
         <view class="info-row bordered">
-          <text class="info-label">支付方式</text>
-          <text class="info-value">{{ orderInfo.payMethod }}</text>
+          <text class="info-label">
+            支付方式
+          </text>
+          <text class="info-value">
+            {{ orderInfo.payMethod }}
+          </text>
         </view>
         <view class="info-row">
-          <text class="info-label">支付时间</text>
-          <text class="info-value">{{ orderInfo.paidAt }}</text>
+          <text class="info-label">
+            支付时间
+          </text>
+          <text class="info-value">
+            {{ orderInfo.paidAt }}
+          </text>
         </view>
       </view>
 
       <!-- 操作按钮 -->
-      <view class="actions" :class="{ show: showAnim }">
-        <view class="action-btn primary" @tap="goOrder">
-          <app-icon name="shopping-bag" :size="36" color="#fff" />
+      <view
+        class="actions"
+        :class="{ show: showAnim }"
+      >
+        <view
+          class="action-btn primary"
+          @tap="goOrder"
+        >
+          <app-icon
+            name="shopping-bag"
+            :size="36"
+            color="#fff"
+          />
           <text>查看订单</text>
         </view>
-        <view class="action-btn ghost" @tap="goHome">
-          <app-icon name="home" :size="36" color="#2C2C2C" />
+        <view
+          class="action-btn ghost"
+          @tap="goHome"
+        >
+          <app-icon
+            name="home"
+            :size="36"
+            color="#2C2C2C"
+          />
           <text>返回首页</text>
         </view>
       </view>
 
       <!-- 推荐入口 -->
-      <view class="recommend" :class="{ show: showAnim }">
-        <text class="rec-title">猜你喜欢</text>
-        <view class="rec-card" @tap="goShop">
-          <view class="rec-icon"><app-icon name="gift" :size="36" color="#fff" /></view>
-          <view class="rec-info">
-            <text class="rec-name">更多好物</text>
-            <text class="rec-desc">发现更多国学精品</text>
+      <view
+        class="recommend"
+        :class="{ show: showAnim }"
+      >
+        <text class="rec-title">
+          猜你喜欢
+        </text>
+        <view
+          class="rec-card"
+          @tap="goShop"
+        >
+          <view class="rec-icon">
+            <app-icon
+              name="gift"
+              :size="36"
+              color="#fff"
+            />
           </view>
-          <app-icon name="chevron-right" :size="36" color="#999999" />
+          <view class="rec-info">
+            <text class="rec-name">
+              更多好物
+            </text>
+            <text class="rec-desc">
+              发现更多国学精品
+            </text>
+          </view>
+          <app-icon
+            name="chevron-right"
+            :size="36"
+            color="#999999"
+          />
         </view>
       </view>
 
       <view class="bottom-tip">
         <text>如有问题请联系客服</text>
-        <text class="tip2">感谢您的支持，祝您学习愉快！</text>
+        <text class="tip2">
+          感谢您的支持，祝您学习愉快！
+        </text>
       </view>
     </view>
   </view>

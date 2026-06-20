@@ -1,13 +1,27 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { boundAccounts, bindBenefits, type BoundAccount } from '@/lib/mine-data'
+import { mineSettingsApi, bindBenefits, type BoundAccount } from '@/lib/mine-data'
 
-const accounts = ref<BoundAccount[]>(boundAccounts.map((a) => ({ ...a })))
+const accounts = ref<BoundAccount[]>([])
+const loading = ref(true)
+const error = ref(false)
 const unbindTarget = ref<BoundAccount | null>(null)
 const processing = ref(false)
 const toast = ref('')
+
+async function loadAccounts() {
+  loading.value = true
+  error.value = false
+  try {
+    accounts.value = await mineSettingsApi.getBoundAccounts()
+  } catch { error.value = true }
+  finally { loading.value = false }
+}
+function reload() { loadAccounts() }
+
+onMounted(loadAccounts)
 
 const providerIcon: Record<string, string> = {
   wechat: 'message-circle',
@@ -43,102 +57,282 @@ async function handleUnbind() {
   <view class="page">
     <!-- 导航 -->
     <view class="nav">
-      <view class="nav-btn" @tap="goBack">
-        <AppIcon name="chevron-left" :size="22" color="#2C2C2C" />
+      <view
+        class="nav-btn"
+        @tap="goBack"
+      >
+        <AppIcon
+          name="chevron-left"
+          :size="22"
+          color="#2C2C2C"
+        />
       </view>
-      <text class="nav-title">第三方账号</text>
+      <text class="nav-title">
+        第三方账号
+      </text>
       <view class="nav-btn" />
     </view>
 
-    <scroll-view scroll-y class="scroll">
-      <!-- 提示卡片 -->
-      <view class="tip-wrap">
-        <view class="tip-card">
-          <view class="tip-icon"><AppIcon name="alert-triangle" :size="16" color="#d97706" /></view>
-          <view class="tip-body">
-            <text class="tip-title">绑定提示</text>
-            <text class="tip-text">绑定第三方账号后，可使用该账号快速登录。解绑后将无法使用该方式登录，请确保已绑定其他登录方式。</text>
-          </view>
+    <scroll-view
+      scroll-y
+      class="scroll"
+    >
+      <!-- 加载中 -->
+      <view
+        v-if="loading"
+        class="loading-wrap"
+      >
+        <text class="loading-text">
+          加载中...
+        </text>
+      </view>
+
+      <!-- 加载失败 -->
+      <view
+        v-else-if="error"
+        class="loading-wrap"
+      >
+        <text class="loading-text">
+          加载失败
+        </text>
+        <view
+          class="retry-btn"
+          @tap="reload"
+        >
+          <text class="retry-btn-text">
+            重试
+          </text>
         </view>
       </view>
 
-      <!-- 统计 -->
-      <view class="stats">
-        <text class="stats-text">已绑定 {{ boundCount }}/3 个账号</text>
-        <view v-if="boundCount >= 2" class="stats-badge"><text class="stats-badge-text">账号安全</text></view>
-      </view>
-
-      <!-- 账号列表 -->
-      <view class="list">
-        <view v-for="acc in accounts" :key="acc.provider" class="acc-card">
-          <view class="acc-icon" :style="{ background: acc.color }">
-            <AppIcon :name="providerIcon[acc.provider]" :size="24" color="#fff" />
-          </view>
-          <view class="acc-info">
-            <view class="acc-name-row">
-              <text class="acc-name">{{ acc.name }}</text>
-              <view v-if="acc.isBound" class="bound-tag">
-                <AppIcon name="check-circle" :size="12" color="#16a34a" />
-                <text class="bound-tag-text">已绑定</text>
-              </view>
+      <template v-else>
+        <!-- 提示卡片 -->
+        <view class="tip-wrap">
+          <view class="tip-card">
+            <view class="tip-icon">
+              <AppIcon
+                name="alert-triangle"
+                :size="16"
+                color="#d97706"
+              />
             </view>
-            <text v-if="acc.isBound" class="acc-sub">{{ acc.accountInfo }} · 绑定于 {{ acc.boundAt }}</text>
-            <text v-else class="acc-sub">未绑定，绑定后可快速登录</text>
-          </view>
-          <view v-if="acc.isBound" class="unbind-btn" @tap="unbindTarget = acc">
-            <text class="unbind-btn-text">解绑</text>
-          </view>
-          <view v-else class="bind-btn" :style="{ background: acc.color }" @tap="handleBind(acc)">
-            <AppIcon name="plus" :size="16" color="#fff" />
-            <text class="bind-btn-text">绑定</text>
+            <view class="tip-body">
+              <text class="tip-title">
+                绑定提示
+              </text>
+              <text class="tip-text">
+                绑定第三方账号后，可使用该账号快速登录。解绑后将无法使用该方式登录，请确保已绑定其他登录方式。
+              </text>
+            </view>
           </view>
         </view>
-      </view>
 
-      <!-- 权益 -->
-      <view class="benefits">
-        <text class="benefits-title">绑定后可享受</text>
-        <view class="benefits-grid">
-          <view v-for="(b, i) in bindBenefits" :key="i" class="benefit-cell">
-            <view class="benefit-icon"><AppIcon :name="b.icon" :size="20" color="#C41E3A" /></view>
-            <text class="benefit-name">{{ b.title }}</text>
-            <text class="benefit-desc">{{ b.desc }}</text>
+        <!-- 统计 -->
+        <view class="stats">
+          <text class="stats-text">
+            已绑定 {{ boundCount }}/3 个账号
+          </text>
+          <view
+            v-if="boundCount >= 2"
+            class="stats-badge"
+          >
+            <text class="stats-badge-text">
+              账号安全
+            </text>
           </view>
         </view>
-      </view>
-      <view class="safe-bottom" />
+
+        <!-- 账号列表 -->
+        <view class="list">
+          <view
+            v-for="acc in accounts"
+            :key="acc.provider"
+            class="acc-card"
+          >
+            <view
+              class="acc-icon"
+              :style="{ background: acc.color }"
+            >
+              <AppIcon
+                :name="providerIcon[acc.provider]"
+                :size="24"
+                color="#fff"
+              />
+            </view>
+            <view class="acc-info">
+              <view class="acc-name-row">
+                <text class="acc-name">
+                  {{ acc.name }}
+                </text>
+                <view
+                  v-if="acc.isBound"
+                  class="bound-tag"
+                >
+                  <AppIcon
+                    name="check-circle"
+                    :size="12"
+                    color="#16a34a"
+                  />
+                  <text class="bound-tag-text">
+                    已绑定
+                  </text>
+                </view>
+              </view>
+              <text
+                v-if="acc.isBound"
+                class="acc-sub"
+              >
+                {{ acc.accountInfo }} · 绑定于 {{ acc.boundAt }}
+              </text>
+              <text
+                v-else
+                class="acc-sub"
+              >
+                未绑定，绑定后可快速登录
+              </text>
+            </view>
+            <view
+              v-if="acc.isBound"
+              class="unbind-btn"
+              @tap="unbindTarget = acc"
+            >
+              <text class="unbind-btn-text">
+                解绑
+              </text>
+            </view>
+            <view
+              v-else
+              class="bind-btn"
+              :style="{ background: acc.color }"
+              @tap="handleBind(acc)"
+            >
+              <AppIcon
+                name="plus"
+                :size="16"
+                color="#fff"
+              />
+              <text class="bind-btn-text">
+                绑定
+              </text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 权益 -->
+        <view class="benefits">
+          <text class="benefits-title">
+            绑定后可享受
+          </text>
+          <view class="benefits-grid">
+            <view
+              v-for="(b, i) in bindBenefits"
+              :key="i"
+              class="benefit-cell"
+            >
+              <view class="benefit-icon">
+                <AppIcon
+                  :name="b.icon"
+                  :size="20"
+                  color="#C41E3A"
+                />
+              </view>
+              <text class="benefit-name">
+                {{ b.title }}
+              </text>
+              <text class="benefit-desc">
+                {{ b.desc }}
+              </text>
+            </view>
+          </view>
+        </view>
+        <view class="safe-bottom" />
+      </template>
     </scroll-view>
 
     <!-- 解绑确认弹窗 -->
-    <view v-if="unbindTarget" class="mask" @tap="unbindTarget = null">
-      <view class="sheet" @tap.stop>
-        <text class="sheet-title">确认解绑</text>
+    <view
+      v-if="unbindTarget"
+      class="mask"
+      @tap="unbindTarget = null"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
+        <text class="sheet-title">
+          确认解绑
+        </text>
         <view class="sheet-acc">
-          <view class="sheet-acc-icon" :style="{ background: unbindTarget.color }">
-            <AppIcon :name="providerIcon[unbindTarget.provider]" :size="20" color="#fff" />
+          <view
+            class="sheet-acc-icon"
+            :style="{ background: unbindTarget.color }"
+          >
+            <AppIcon
+              :name="providerIcon[unbindTarget.provider]"
+              :size="20"
+              color="#fff"
+            />
           </view>
           <view>
-            <text class="sheet-acc-name">{{ unbindTarget.name }}</text>
-            <text class="sheet-acc-sub">{{ unbindTarget.accountInfo }}</text>
+            <text class="sheet-acc-name">
+              {{ unbindTarget.name }}
+            </text>
+            <text class="sheet-acc-sub">
+              {{ unbindTarget.accountInfo }}
+            </text>
           </view>
         </view>
-        <text class="sheet-label">解绑后：</text>
+        <text class="sheet-label">
+          解绑后：
+        </text>
         <view class="sheet-list">
-          <view class="sheet-li"><view class="li-dot" /><text class="li-text">无法使用该账号登录</text></view>
-          <view class="sheet-li"><view class="li-dot" /><text class="li-text">请确保已绑定手机号或其他账号</text></view>
-          <view class="sheet-li"><view class="li-dot" /><text class="li-text">解绑后可重新绑定</text></view>
+          <view class="sheet-li">
+            <view class="li-dot" /><text class="li-text">
+              无法使用该账号登录
+            </text>
+          </view>
+          <view class="sheet-li">
+            <view class="li-dot" /><text class="li-text">
+              请确保已绑定手机号或其他账号
+            </text>
+          </view>
+          <view class="sheet-li">
+            <view class="li-dot" /><text class="li-text">
+              解绑后可重新绑定
+            </text>
+          </view>
         </view>
         <view class="sheet-actions">
-          <view class="sheet-btn ghost" @tap="unbindTarget = null"><text class="sheet-btn-text ghost-text">取消</text></view>
-          <view class="sheet-btn danger" :class="{ disabled: processing }" @tap="handleUnbind">
-            <text class="sheet-btn-text danger-text">{{ processing ? '解绑中...' : '确认解绑' }}</text>
+          <view
+            class="sheet-btn ghost"
+            @tap="unbindTarget = null"
+          >
+            <text class="sheet-btn-text ghost-text">
+              取消
+            </text>
+          </view>
+          <view
+            class="sheet-btn danger"
+            :class="{ disabled: processing }"
+            @tap="handleUnbind"
+          >
+            <text class="sheet-btn-text danger-text">
+              {{ processing ? '解绑中...' : '确认解绑' }}
+            </text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- toast -->
-    <view v-if="toast" class="toast"><text class="toast-text">{{ toast }}</text></view>
+    <view
+      v-if="toast"
+      class="toast"
+    >
+      <text class="toast-text">
+        {{ toast }}
+      </text>
+    </view>
   </view>
 </template>
 
@@ -354,6 +548,11 @@ async function handleUnbind() {
 .safe-bottom {
   height: calc(40rpx + env(safe-area-inset-bottom));
 }
+.loading-wrap { padding: 200rpx 0; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
+.loading-text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; border: 1rpx solid #C41E3A; border-radius: 999rpx; }
+.retry-btn-text { font-size: 26rpx; color: #C41E3A; }
+
 .mask {
   position: fixed;
   inset: 0;

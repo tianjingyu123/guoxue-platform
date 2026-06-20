@@ -36,64 +36,215 @@ function onPriceInput(e: any) {
   <view class="vs">
     <!-- 可见范围 -->
     <view class="vs-block">
-      <text class="vs-label">可见范围</text>
+      <text class="vs-label">
+        可见范围
+      </text>
       <view class="vs-grid2">
-        <view class="vs-card" :class="{ on: visibility === 'circle_only' }" @tap="emit('update:visibility', 'circle_only')">
-          <view class="vs-card-icon" :class="{ on: visibility === 'circle_only' }"><app-icon name="lock" :size="28" :color="visibility === 'circle_only' ? '#ffffff' : 'rgba(255,255,255,0.6)'" /></view>
-          <text class="vs-card-title" :class="{ on: visibility === 'circle_only' }">仅圈内可见</text>
-          <text class="vs-card-desc">仅圈子成员可查看</text>
+        <view
+          class="vs-card"
+          :class="{ on: visibility === 'circle_only' }"
+          @tap="emit('update:visibility', 'circle_only')"
+        >
+          <view
+            class="vs-card-icon"
+            :class="{ on: visibility === 'circle_only' }"
+          >
+            <app-icon
+              name="lock"
+              :size="28"
+              :color="visibility === 'circle_only' ? '#ffffff' : 'rgba(255,255,255,0.6)'"
+            />
+          </view>
+          <text
+            class="vs-card-title"
+            :class="{ on: visibility === 'circle_only' }"
+          >
+            仅圈内可见
+          </text>
+          <text class="vs-card-desc">
+            仅圈子成员可查看
+          </text>
         </view>
-        <view class="vs-card" :class="{ on: visibility === 'platform_wide' }" @tap="emit('update:visibility', 'platform_wide')">
-          <view class="vs-card-icon" :class="{ on: visibility === 'platform_wide' }"><app-icon name="globe" :size="28" :color="visibility === 'platform_wide' ? '#ffffff' : 'rgba(255,255,255,0.6)'" /></view>
-          <text class="vs-card-title" :class="{ on: visibility === 'platform_wide' }">全平台可见</text>
-          <text class="vs-card-desc">所有用户可发现查看</text>
+        <view
+          class="vs-card"
+          :class="{ on: visibility === 'platform_wide' }"
+          @tap="emit('update:visibility', 'platform_wide')"
+        >
+          <view
+            class="vs-card-icon"
+            :class="{ on: visibility === 'platform_wide' }"
+          >
+            <app-icon
+              name="globe"
+              :size="28"
+              :color="visibility === 'platform_wide' ? '#ffffff' : 'rgba(255,255,255,0.6)'"
+            />
+          </view>
+          <text
+            class="vs-card-title"
+            :class="{ on: visibility === 'platform_wide' }"
+          >
+            全平台可见
+          </text>
+          <text class="vs-card-desc">
+            所有用户可发现查看
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 付费设置 -->
     <view class="vs-block">
-      <text class="vs-label">付费设置</text>
+      <text class="vs-label">
+        付费设置
+      </text>
       <view class="vs-pay-list">
         <!-- 免费 -->
-        <view class="vs-pay" :class="{ on: paymentType === 'free' }" @tap="emit('update:paymentType', 'free')">
-          <view class="vs-pay-icon free" :class="{ on: paymentType === 'free' }"><text class="vs-pay-icon-t">免</text></view>
-          <view class="vs-pay-main">
-            <text class="vs-pay-title" :class="{ on: paymentType === 'free' }">免费</text>
-            <text class="vs-pay-desc">所有人免费{{ contentLabel() }}</text>
+        <view
+          class="vs-pay"
+          :class="{ on: paymentType === 'free' }"
+          @tap="emit('update:paymentType', 'free')"
+        >
+          <view
+            class="vs-pay-icon free"
+            :class="{ on: paymentType === 'free' }"
+          >
+            <text class="vs-pay-icon-t">
+              免
+            </text>
           </view>
-          <view v-if="paymentType === 'free'" class="vs-check"><app-icon name="check" :size="20" color="#ffffff" /></view>
+          <view class="vs-pay-main">
+            <text
+              class="vs-pay-title"
+              :class="{ on: paymentType === 'free' }"
+            >
+              免费
+            </text>
+            <text class="vs-pay-desc">
+              所有人免费{{ contentLabel() }}
+            </text>
+          </view>
+          <view
+            v-if="paymentType === 'free'"
+            class="vs-check"
+          >
+            <app-icon
+              name="check"
+              :size="20"
+              color="#ffffff"
+            />
+          </view>
         </view>
 
         <!-- 付费（仅全平台可见） -->
-        <view v-if="visibility === 'platform_wide'" class="vs-pay" :class="{ on: paymentType === 'paid' }" @tap="emit('update:paymentType', 'paid')">
-          <view class="vs-pay-icon paid" :class="{ on: paymentType === 'paid' }"><app-icon name="coins" :size="26" :color="paymentType === 'paid' ? '#ffffff' : 'rgba(255,255,255,0.6)'" /></view>
-          <view class="vs-pay-main">
-            <text class="vs-pay-title" :class="{ on: paymentType === 'paid' }">付费</text>
-            <text class="vs-pay-desc">所有人需付费{{ contentLabel() }}</text>
+        <view
+          v-if="visibility === 'platform_wide'"
+          class="vs-pay"
+          :class="{ on: paymentType === 'paid' }"
+          @tap="emit('update:paymentType', 'paid')"
+        >
+          <view
+            class="vs-pay-icon paid"
+            :class="{ on: paymentType === 'paid' }"
+          >
+            <app-icon
+              name="coins"
+              :size="26"
+              :color="paymentType === 'paid' ? '#ffffff' : 'rgba(255,255,255,0.6)'"
+            />
           </view>
-          <view v-if="paymentType === 'paid'" class="vs-check"><app-icon name="check" :size="20" color="#ffffff" /></view>
+          <view class="vs-pay-main">
+            <text
+              class="vs-pay-title"
+              :class="{ on: paymentType === 'paid' }"
+            >
+              付费
+            </text>
+            <text class="vs-pay-desc">
+              所有人需付费{{ contentLabel() }}
+            </text>
+          </view>
+          <view
+            v-if="paymentType === 'paid'"
+            class="vs-check"
+          >
+            <app-icon
+              name="check"
+              :size="20"
+              color="#ffffff"
+            />
+          </view>
         </view>
 
         <!-- 圈内免费（仅全平台可见） -->
-        <view v-if="visibility === 'platform_wide'" class="vs-pay" :class="{ on: paymentType === 'member_free' }" @tap="emit('update:paymentType', 'member_free')">
-          <view class="vs-pay-icon member" :class="{ on: paymentType === 'member_free' }"><app-icon name="users" :size="26" :color="paymentType === 'member_free' ? '#ffffff' : 'rgba(255,255,255,0.6)'" /></view>
-          <view class="vs-pay-main">
-            <text class="vs-pay-title" :class="{ on: paymentType === 'member_free' }">圈内免费</text>
-            <text class="vs-pay-desc">圈子成员免费，非成员付费</text>
+        <view
+          v-if="visibility === 'platform_wide'"
+          class="vs-pay"
+          :class="{ on: paymentType === 'member_free' }"
+          @tap="emit('update:paymentType', 'member_free')"
+        >
+          <view
+            class="vs-pay-icon member"
+            :class="{ on: paymentType === 'member_free' }"
+          >
+            <app-icon
+              name="users"
+              :size="26"
+              :color="paymentType === 'member_free' ? '#ffffff' : 'rgba(255,255,255,0.6)'"
+            />
           </view>
-          <view v-if="paymentType === 'member_free'" class="vs-check"><app-icon name="check" :size="20" color="#ffffff" /></view>
+          <view class="vs-pay-main">
+            <text
+              class="vs-pay-title"
+              :class="{ on: paymentType === 'member_free' }"
+            >
+              圈内免费
+            </text>
+            <text class="vs-pay-desc">
+              圈子成员免费，非成员付费
+            </text>
+          </view>
+          <view
+            v-if="paymentType === 'member_free'"
+            class="vs-check"
+          >
+            <app-icon
+              name="check"
+              :size="20"
+              color="#ffffff"
+            />
+          </view>
         </view>
 
         <!-- 价格输入 -->
-        <view v-if="paymentType === 'paid' || paymentType === 'member_free'" class="vs-price">
-          <text class="vs-price-label">{{ paymentType === 'member_free' ? '非圈子成员价格' : '价格' }}</text>
+        <view
+          v-if="paymentType === 'paid' || paymentType === 'member_free'"
+          class="vs-price"
+        >
+          <text class="vs-price-label">
+            {{ paymentType === 'member_free' ? '非圈子成员价格' : '价格' }}
+          </text>
           <view class="vs-price-row">
-            <text class="vs-price-symbol">¥</text>
-            <input class="vs-price-input" type="digit" :value="price || ''" placeholder="0.00" @input="onPriceInput" />
+            <text class="vs-price-symbol">
+              ¥
+            </text>
+            <input
+              class="vs-price-input"
+              type="digit"
+              :value="price || ''"
+              placeholder="0.00"
+              @input="onPriceInput"
+            >
           </view>
-          <text v-if="priceError" class="vs-price-err">{{ priceError }}</text>
-          <text class="vs-price-tip">{{ contentType === 'course' ? '建议定价：9.9-999元' : '建议定价：0.1-99元' }}</text>
+          <text
+            v-if="priceError"
+            class="vs-price-err"
+          >
+            {{ priceError }}
+          </text>
+          <text class="vs-price-tip">
+            {{ contentType === 'course' ? '建议定价：9.9-999元' : '建议定价：0.1-99元' }}
+          </text>
         </view>
       </view>
     </view>

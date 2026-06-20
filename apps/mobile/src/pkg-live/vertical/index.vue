@@ -1,146 +1,623 @@
 <template>
-  <view class="page" @dblclick="onDoubleTap">
-    <app-nav-bar title="直播间" background="rgba(15,15,15,0.95)" color="#ffffff" :back-size="40" />
-
-    <view v-if="loading" class="xx-skeleton">
-      <view v-for="i in 3" :key="i" class="sk-card" />
+  <view
+    class="page"
+    @dblclick="onDoubleTap"
+  >
+    <view
+      v-if="loading"
+      class="loading"
+    >
+      <text>加载中...</text>
     </view>
-    <app-error v-else-if="error" :desc="error" @retry="loadData" />
-    <template v-else>
-    <!-- 视频背景 -->
-    <view class="video-bg">
-      <image class="video-img" :src="room.hostAvatar" mode="aspectFill" />
-      <view class="video-mask" />
+    <view
+      v-else-if="error"
+      class="err-msg"
+    >
+      <text>{{ error }}</text>
+      <view
+        class="retry-btn"
+        @tap="loadData"
+      >
+        重试
+      </view>
     </view>
+    <template v-else-if="room">
+      <!-- 视频背景 -->
+      <view class="video-bg">
+        <image
+          class="video-img"
+          :src="room.hostAvatar"
+          mode="aspectFill"
+        />
+        <view class="video-mask" />
+      </view>
 
-    <!-- 顶部信息栏 -->
-    <view class="top-bar">
-      <view class="top-row">
-        <!-- 主播信息 -->
-        <view class="host-pill">
-          <view class="host-avatar-wrap">
-            <image class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
-            <view class="live-tag">LIVE</view>
-          </view>
-          <view class="host-text">
-            <view class="host-name-row">
-              <text class="host-name">{{ room.hostName }}</text>
-              <view class="host-level">
-                <AppIcon name="crown" :size="10" color="#fff" />
-                <text class="host-level-txt">Lv.{{ room.hostLevel }}</text>
+      <!-- 顶部信息栏 -->
+      <view class="top-bar">
+        <view class="top-row">
+          <!-- 主播信息 -->
+          <view class="host-pill">
+            <view class="host-avatar-wrap">
+              <image
+                class="host-avatar"
+                :src="room.hostAvatar"
+                mode="aspectFill"
+              />
+              <view class="live-tag">
+                LIVE
               </view>
             </view>
-            <text class="host-fans">{{ formatCount(room.followers) }} 粉丝</text>
+            <view class="host-text">
+              <view class="host-name-row">
+                <text class="host-name">
+                  {{ room.hostName }}
+                </text>
+                <view class="host-level">
+                  <AppIcon
+                    name="crown"
+                    :size="20"
+                    color="#fff"
+                  />
+                  <text class="host-level-txt">
+                    Lv.{{ room.hostLevel }}
+                  </text>
+                </view>
+              </view>
+              <text class="host-fans">
+                {{ formatCount(room.followers) }} 粉丝
+              </text>
+            </view>
+            <view
+              class="follow-btn"
+              :class="{ 'follow-btn--on': isFollowing }"
+              @tap="onToggleFollow"
+            >
+              {{ isFollowing ? '已关注' : '关注' }}
+            </view>
           </view>
-          <view class="follow-btn">关注</view>
+
+          <!-- 右侧 -->
+          <view class="top-right">
+            <view class="viewer-pill">
+              <AppIcon
+                name="users"
+                :size="28"
+                color="rgba(255,255,255,0.7)"
+              />
+              <text class="viewer-num">
+                {{ formatCount(viewerCount) }}
+              </text>
+            </view>
+            <view
+              class="close-btn"
+              @tap="goBack"
+            >
+              <AppIcon
+                name="x"
+                :size="40"
+                color="#fff"
+              />
+            </view>
+          </view>
         </view>
 
-        <!-- 右侧 -->
-        <view class="top-right">
-          <view class="viewer-pill">
-            <AppIcon name="users" :size="14" color="rgba(255,255,255,0.7)" />
-            <text class="viewer-num">{{ formatCount(room.viewerCount) }}</text>
+        <!-- 在线观众头像 -->
+        <view class="online-row">
+          <view
+            v-for="(avatar, i) in room.onlineAvatars"
+            :key="i"
+            class="online-avatar"
+            :class="{ 'online-avatar-first': i === 0 }"
+          >
+            <image
+              class="online-img"
+              :src="avatar"
+              mode="aspectFill"
+            />
+          </view>
+          <text class="online-more">
+            +{{ formatCount(viewerCount - 3) }}
+          </text>
+        </view>
+      </view>
+
+      <!-- 礼物动画 overlay（左侧滑入） -->
+      <view class="gift-anim-layer">
+        <view
+          v-for="anim in giftAnimations"
+          :key="anim.id"
+          class="gift-anim"
+        >
+          <view class="gift-anim__icon">
+            <image
+              class="gift-anim__img"
+              :src="anim.gift.icon"
+              mode="aspectFit"
+            />
+          </view>
+          <view class="gift-anim__info">
+            <text class="gift-anim__user">
+              {{ anim.user }}
+            </text>
+            <text class="gift-anim__txt">
+              送出 {{ anim.gift.name }}
+            </text>
           </view>
         </view>
       </view>
 
-      <!-- 在线观众头像 -->
-      <view class="online-row">
-        <view v-for="(avatar, i) in room.onlineAvatars" :key="i" class="online-avatar" :class="{ 'online-avatar-first': i === 0 }">
-          <image class="online-img" :src="avatar" mode="aspectFill" />
-        </view>
-        <text class="online-more">+{{ formatCount(room.viewerCount - 3) }}</text>
-      </view>
-    </view>
-
-    <!-- 弹幕区域 -->
-    <view class="danmaku">
-      <view v-for="c in comments" :key="c.id" class="dm-item">
-        <view v-if="c.type === 'system'" class="dm-system">
-          <text class="dm-system-txt">{{ c.content }}</text>
-        </view>
-        <view v-else class="dm-text">
-          <text class="dm-name">{{ c.userName }}:</text>
-          <text class="dm-content">{{ c.content }}</text>
+      <!-- 飘心动画区域（右侧底部上方） -->
+      <view class="hearts-layer">
+        <view
+          v-for="heart in floatingHearts"
+          :key="heart.id"
+          class="float-heart"
+          :style="{ transform: `translateX(${heart.x}px) scale(${heart.scale})` }"
+        >
+          <AppIcon
+            name="heart"
+            :size="56"
+            color="#C41E3A"
+            :fill="true"
+          />
         </view>
       </view>
-    </view>
 
-    <!-- 商品浮窗 -->
-    <view v-if="currentProduct" class="product-float">
-      <view class="pf-card">
-        <view class="pf-img-wrap">
-          <image class="pf-img" :src="currentProduct.cover" mode="aspectFill" />
-          <view class="pf-badge">讲解中</view>
-        </view>
-        <view class="pf-info">
-          <text class="pf-name">{{ currentProduct.name }}</text>
-          <view class="pf-price-row">
-            <text class="pf-price">¥{{ currentProduct.price }}</text>
-            <text class="pf-origin">¥{{ currentProduct.originalPrice }}</text>
+      <!-- 弹幕区域 -->
+      <view class="danmaku">
+        <view
+          v-for="c in comments"
+          :key="c.id"
+          class="dm-item"
+        >
+          <!-- 系统 -->
+          <view
+            v-if="c.type === 'system'"
+            class="dm-system"
+          >
+            <text class="dm-system-txt">
+              {{ c.content }}
+            </text>
+          </view>
+          <!-- 进入直播间（紫色高亮） -->
+          <view
+            v-else-if="c.type === 'enter'"
+            class="dm-enter"
+          >
+            <text class="dm-enter-name">
+              {{ c.userName }}
+            </text>
+            <text class="dm-enter-txt">
+              {{ c.content }}
+            </text>
+          </view>
+          <!-- 礼物（金色背景+礼物图标） -->
+          <view
+            v-else-if="c.type === 'gift'"
+            class="dm-gift"
+          >
+            <text class="dm-gift-name">
+              {{ c.userName }}
+            </text>
+            <text class="dm-gift-txt">
+              送出 {{ c.giftInfo?.name }} × {{ c.giftInfo?.count }}
+            </text>
+          </view>
+          <!-- 普通文本 -->
+          <view
+            v-else
+            class="dm-text"
+          >
+            <text
+              class="dm-name"
+              :class="{ 'dm-name--host': c.isHost }"
+            >
+              {{ c.userName }}:
+            </text>
+            <text class="dm-content">
+              {{ c.content }}
+            </text>
           </view>
         </view>
-        <view class="pf-buy">立即购买</view>
       </view>
-    </view>
 
-    <!-- 底部操作栏 -->
-    <view class="bottom-bar">
-      <view class="bottom-inner">
-        <view class="dm-input">说点什么...</view>
-        <view class="action-btn action-cart">
-          <AppIcon name="shopping-cart" :size="20" color="#fff" />
-          <view class="cart-badge">{{ products.length }}</view>
-        </view>
-        <view class="action-btn action-gift">
-          <AppIcon name="gift" :size="20" color="#fff" />
-        </view>
-        <view class="action-btn action-glass">
-          <AppIcon name="heart" :size="20" color="#C41E3A" :fill="true" />
-        </view>
-        <view class="action-btn action-glass">
-          <AppIcon name="share-2" :size="20" color="#fff" />
+      <!-- 商品浮窗 -->
+      <view
+        v-if="currentProduct"
+        class="product-float"
+        @tap="onOpenProductDetail(currentProduct)"
+      >
+        <view class="pf-card">
+          <view class="pf-img-wrap">
+            <image
+              class="pf-img"
+              :src="currentProduct.cover"
+              mode="aspectFill"
+            />
+            <view class="pf-badge">
+              讲解中
+            </view>
+          </view>
+          <view class="pf-info">
+            <text class="pf-name">
+              {{ currentProduct.name }}
+            </text>
+            <view class="pf-price-row">
+              <text class="pf-price">
+                ¥{{ currentProduct.price }}
+              </text>
+              <text class="pf-origin">
+                ¥{{ currentProduct.originalPrice }}
+              </text>
+            </view>
+          </view>
+          <view class="pf-buy">
+            立即购买
+          </view>
         </view>
       </view>
-    </view>
+
+      <!-- 底部操作栏 -->
+      <view class="bottom-bar">
+        <view class="bottom-inner">
+          <view
+            class="dm-input"
+            @tap="onOpenCommentInput"
+          >
+            说点什么...
+          </view>
+          <view
+            class="action-btn action-cart"
+            @tap="onOpenProductList"
+          >
+            <AppIcon
+              name="shopping-cart"
+              :size="40"
+              color="#fff"
+            />
+            <view class="cart-badge">
+              {{ products.length }}
+            </view>
+          </view>
+          <view
+            class="action-btn action-gift"
+            @tap="onOpenGiftPanel"
+          >
+            <AppIcon
+              name="gift"
+              :size="40"
+              color="#fff"
+            />
+          </view>
+          <view
+            class="action-btn action-glass"
+            @tap="onDoubleTap"
+          >
+            <AppIcon
+              name="heart"
+              :size="40"
+              color="#C41E3A"
+              :fill="true"
+            />
+          </view>
+          <view
+            class="action-btn action-glass"
+            @tap="onShare"
+          >
+            <AppIcon
+              name="share-2"
+              :size="40"
+              color="#fff"
+            />
+          </view>
+        </view>
+      </view>
+
+      <!-- ========== 弹幕输入框弹窗 ========== -->
+      <view
+        v-if="showCommentInput"
+        class="ci-mask"
+        @tap="onCloseCommentInput"
+      >
+        <view
+          class="ci-bar"
+          @tap.stop
+        >
+          <input
+            v-model="commentInput"
+            class="ci-field"
+            placeholder="发送弹幕..."
+            placeholder-class="ci-ph"
+            :focus="showCommentInput"
+            confirm-type="send"
+            @confirm="onSendComment"
+          >
+          <view
+            class="ci-send"
+            :class="{ 'ci-send--off': !commentInput.trim() }"
+            @tap="onSendComment"
+          >
+            <AppIcon
+              name="chevron-right"
+              :size="40"
+              color="#fff"
+            />
+          </view>
+        </view>
+      </view>
+
+      <!-- ========== 礼物面板 ========== -->
+      <view
+        v-if="showGiftPanel"
+        class="gp-mask"
+        @tap="onCloseGiftPanel"
+      >
+        <view
+          class="gp-sheet"
+          @tap.stop
+        >
+          <view class="gp-head">
+            <text class="gp-title">
+              送礼物
+            </text>
+            <view @tap="onCloseGiftPanel">
+              <AppIcon
+                name="x"
+                :size="40"
+                color="rgba(255,255,255,0.6)"
+              />
+            </view>
+          </view>
+          <view class="gp-grid">
+            <view
+              v-for="g in gifts"
+              :key="g.id"
+              class="gp-cell"
+              @tap="onSendGift(g)"
+            >
+              <text class="gp-cell__emoji">
+                {{ g.icon }}
+              </text>
+              <text class="gp-cell__name">
+                {{ g.name }}
+              </text>
+              <text class="gp-cell__price">
+                {{ g.price }}国学币
+              </text>
+            </view>
+          </view>
+          <view class="gp-foot">
+            <text class="gp-balance">
+              余额：{{ coinBalance }} 国学币
+            </text>
+            <text
+              class="gp-recharge"
+              @tap="onRecharge"
+            >
+              充值
+            </text>
+          </view>
+        </view>
+      </view>
+
+      <!-- ========== 商品列表弹窗 ========== -->
+      <view
+        v-if="showProductList"
+        class="pl-mask"
+        @tap="onCloseProductList"
+      >
+        <view
+          class="pl-sheet"
+          @tap.stop
+        >
+          <view class="pl-head">
+            <text class="pl-title">
+              直播间好物
+            </text>
+            <view @tap="onCloseProductList">
+              <AppIcon
+                name="x"
+                :size="40"
+                color="rgba(255,255,255,0.6)"
+              />
+            </view>
+          </view>
+          <scroll-view
+            scroll-y
+            class="pl-body"
+          >
+            <view
+              v-for="(product, idx) in products"
+              :key="product.id"
+              class="pl-row"
+              @tap="onOpenProductDetail(product)"
+            >
+              <view class="pl-img-wrap">
+                <view class="pl-idx">
+                  {{ idx + 1 }}
+                </view>
+                <image
+                  class="pl-img"
+                  :src="product.cover"
+                  mode="aspectFill"
+                />
+                <view
+                  v-if="product.isExplaining"
+                  class="pl-explaining"
+                >
+                  讲解中
+                </view>
+              </view>
+              <view class="pl-info">
+                <text class="pl-name">
+                  {{ product.name }}
+                </text>
+                <view class="pl-price-row">
+                  <text class="pl-price">
+                    ¥{{ product.price }}
+                  </text>
+                  <text class="pl-origin">
+                    ¥{{ product.originalPrice }}
+                  </text>
+                </view>
+                <text class="pl-sold">
+                  已售 {{ product.sold }}
+                </text>
+              </view>
+              <view class="pl-buy">
+                立即购买
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+      </view>
+
+      <!-- ========== 半屏确认订单 ========== -->
+      <QuickBuySheet
+        :open="showProductDetail && !!selectedProduct"
+        :product="quickBuyProduct"
+        @close="onCloseProductDetail"
+        @paid="onPaid"
+      />
     </template>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppNavBar from '@/components/common/app-nav-bar.vue'
-import AppError from '@/components/common/app-error.vue'
-import { verticalLiveRoom, verticalLiveComments, verticalLiveProducts } from '@/lib/live-data'
+import QuickBuySheet, { type QuickBuyProduct } from '@/components/live/quick-buy-sheet.vue'
+import { goBack } from '@/utils/router'
+import { LIVE_GIFTS, type LiveGift } from '@/lib/live-gifts'
+import {
+  liveApi,
+  type VerticalLiveProduct,
+  type VerticalLiveComment,
+} from '@/lib/live-data'
 
-const loading = ref(true)
+const roomId = ref('')
+const room = ref<any>(null)
+const comments = ref<VerticalLiveComment[]>([])
+const products = ref<VerticalLiveProduct[]>([])
+const gifts = ref(LIVE_GIFTS)
+const coinBalance = ref(0)
+const loading = ref(false)
 const error = ref('')
 
-const room = ref(verticalLiveRoom)
-const comments = ref(verticalLiveComments)
-const products = ref(verticalLiveProducts)
-
-const currentProduct = computed(() => products.value.find((p) => p.isExplaining) || products.value[0])
-
-function formatCount(count: number) {
-  if (count >= 10000) return `${(count / 10000).toFixed(1)}万`
-  return count.toString()
-}
-function onDoubleTap() {}
-
 async function loadData() {
+  if (!roomId.value) return
   loading.value = true
   error.value = ''
   try {
-    await new Promise(r => setTimeout(r, 300))
+    const res = await liveApi.verticalRoom(roomId.value)
+    room.value = res.room
+    comments.value = res.comments
+    products.value = res.products
+    viewerCount.value = res.room.viewerCount ?? 0
+    likeCount.value = res.room.likeCount ?? 0
+    coinBalance.value = 2680
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
-onMounted(() => loadData())
+
+onLoad((opts) => {
+  if (opts?.id) roomId.value = opts.id
+  loadData()
+})
+
+// ===== UI 状态 ref =====
+const isFollowing = ref(false)
+const viewerCount = ref(0)
+const likeCount = ref(0)
+const floatingHearts = ref<{ id: number; x: number; scale: number }[]>([])
+const giftAnimations = ref<{ id: number; gift: LiveGift; user: string }[]>([])
+const commentInput = ref('')
+const showCommentInput = ref(false)
+const showGiftPanel = ref(false)
+const showProductList = ref(false)
+const showProductDetail = ref(false)
+const selectedProduct = ref<VerticalLiveProduct | null>(null)
+
+const currentProduct = computed(() => products.value.find((p) => p.isExplaining) || products.value[0])
+
+// 当前选中商品 → QuickBuySheet 入参（附带规格）
+const quickBuyProduct = computed<QuickBuyProduct | null>(() => {
+  const p = selectedProduct.value
+  if (!p) return null
+  return {
+    id: p.id,
+    name: p.name,
+    cover: p.cover,
+    price: p.price,
+    originalPrice: p.originalPrice,
+    stock: p.stock,
+    sold: p.sold,
+    skus: ['标准装', '豪华装', '套装'],
+  }
+})
+
+function formatCount(count: number) {
+  if (count >= 10000) return `${(count / 10000).toFixed(1)}万`
+  return count.toString()
+}
+
+// ===== 交互（UI 占位，业务逻辑由 Claude Code 对接）=====
+// @data-needs: 关注/取关主播接口
+function onToggleFollow() { isFollowing.value = !isFollowing.value }
+// @data-needs: 分享直播间
+function onShare() {}
+// 双击点赞 + 飘心动画（@data-needs: 上报点赞数）
+function onDoubleTap() {
+  likeCount.value++
+  const id = Date.now() + Math.random()
+  floatingHearts.value.push({ id, x: Math.random() * 60 - 30, scale: 0.8 + Math.random() * 0.4 })
+  setTimeout(() => {
+    floatingHearts.value = floatingHearts.value.filter((h) => h.id !== id)
+  }, 1500)
+}
+function onOpenCommentInput() { showCommentInput.value = true }
+function onCloseCommentInput() { showCommentInput.value = false }
+// @data-needs: 发送弹幕接口，入参 content
+function onSendComment() {
+  if (!commentInput.value.trim()) return
+  comments.value.push({ id: Date.now().toString(), userName: '我', content: commentInput.value, type: 'text' })
+  commentInput.value = ''
+  showCommentInput.value = false
+}
+function onOpenGiftPanel() { showGiftPanel.value = true }
+function onCloseGiftPanel() { showGiftPanel.value = false }
+// @data-needs: 送礼接口，入参 giftId，扣减 coinBalance
+function onSendGift(gift: LiveGift) {
+  const id = Date.now() + Math.random()
+  giftAnimations.value.push({ id, gift, user: '我' })
+  comments.value.push({
+    id: Date.now().toString(),
+    userName: '我',
+    content: '',
+    type: 'gift',
+    giftInfo: { name: gift.name, icon: gift.icon, count: 1 },
+  })
+  setTimeout(() => {
+    giftAnimations.value = giftAnimations.value.filter((g) => g.id !== id)
+  }, 3000)
+  showGiftPanel.value = false
+}
+// @data-needs: 跳转充值页/充值弹窗
+function onRecharge() {}
+function onOpenProductList() { showProductList.value = true }
+function onCloseProductList() { showProductList.value = false }
+function onOpenProductDetail(product: VerticalLiveProduct) {
+  selectedProduct.value = product
+  showProductDetail.value = true
+  showProductList.value = false
+}
+function onCloseProductDetail() { showProductDetail.value = false }
+// @data-needs: 支付成功回调，返回直播间继续观看
+function onPaid() { showProductDetail.value = false }
 </script>
 
 <style scoped>
@@ -149,6 +626,9 @@ onMounted(() => loadData())
   inset: 0;
   background: #000;
 }
+.loading { display: flex; align-items: center; justify-content: center; padding: 200rpx 0; font-size: 28rpx; color: #999; background: #000; color: #fff; }
+.err-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; gap: 24rpx; font-size: 28rpx; background: #000; color: #ef4444; }
+.retry-btn { padding: 12rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 999rpx; font-size: 28rpx; }
 
 /* 视频背景 */
 .video-bg {
@@ -244,6 +724,10 @@ onMounted(() => loadData())
   background: #C41E3A;
   color: #fff;
 }
+.follow-btn--on {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+}
 .top-right {
   display: flex;
   align-items: center;
@@ -296,6 +780,75 @@ onMounted(() => loadData())
   margin-left: 8rpx;
 }
 
+/* 礼物动画 overlay */
+.gift-anim-layer {
+  position: absolute;
+  left: 32rpx;
+  top: 33%;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+.gift-anim {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  background: linear-gradient(to right, rgba(196, 30, 58, 0.9), rgba(201, 169, 110, 0.9));
+  border-radius: 999rpx;
+  padding: 16rpx 32rpx;
+}
+.gift-anim__icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gift-anim__img {
+  width: 56rpx;
+  height: 56rpx;
+}
+.gift-anim__user {
+  color: #fff;
+  font-size: 28rpx;
+  font-weight: 500;
+  display: block;
+}
+.gift-anim__txt {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 22rpx;
+}
+
+/* 飘心动画 */
+.hearts-layer {
+  position: absolute;
+  right: 32rpx;
+  bottom: 352rpx;
+  width: 128rpx;
+  height: 256rpx;
+  pointer-events: none;
+  z-index: 20;
+}
+.float-heart {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  animation: floatUp 1.5s ease-out forwards;
+}
+@keyframes floatUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-240rpx) scale(0.5);
+  }
+}
+
 /* 弹幕 */
 .danmaku {
   position: absolute;
@@ -320,6 +873,34 @@ onMounted(() => loadData())
   color: #fff;
   font-size: 22rpx;
 }
+.dm-enter {
+  display: inline-block;
+  background: rgba(139, 92, 246, 0.35);
+  border-radius: 16rpx;
+  padding: 8rpx 20rpx;
+}
+.dm-enter-name {
+  color: #C9A96E;
+  font-size: 22rpx;
+}
+.dm-enter-txt {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 22rpx;
+}
+.dm-gift {
+  display: inline-block;
+  background: linear-gradient(to right, rgba(196, 30, 58, 0.5), rgba(201, 169, 110, 0.5));
+  border-radius: 16rpx;
+  padding: 8rpx 20rpx;
+}
+.dm-gift-name {
+  color: #FFD700;
+  font-size: 22rpx;
+}
+.dm-gift-txt {
+  color: #fff;
+  font-size: 22rpx;
+}
 .dm-text {
   display: inline-block;
   background: rgba(0, 0, 0, 0.3);
@@ -329,6 +910,9 @@ onMounted(() => loadData())
 .dm-name {
   color: #C9A96E;
   font-size: 22rpx;
+}
+.dm-name--host {
+  color: #C41E3A;
 }
 .dm-content {
   color: #fff;
@@ -470,7 +1054,232 @@ onMounted(() => loadData())
   background: rgba(255, 255, 255, 0.1);
 }
 
-.xx-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 24rpx; padding-top: 120rpx; }
-.sk-card { height: 200rpx; border-radius: 20rpx; background: rgba(255,255,255,0.05); animation: sk-pulse 1.5s infinite; }
-@keyframes sk-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
+/* ===== 弹幕输入框弹窗 ===== */
+.ci-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+.ci-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #1a1a1a;
+  padding: 32rpx 32rpx 64rpx;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+.ci-field {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999rpx;
+  padding: 24rpx 32rpx;
+  color: #fff;
+  font-size: 28rpx;
+}
+.ci-ph {
+  color: rgba(255, 255, 255, 0.4);
+}
+.ci-send {
+  width: 88rpx;
+  height: 88rpx;
+  background: #C41E3A;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ci-send--off {
+  background: #555;
+}
+
+/* ===== 礼物面板 ===== */
+.gp-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.gp-sheet {
+  background: #1a1a1a;
+  border-radius: 48rpx 48rpx 0 0;
+  padding: 32rpx 32rpx 64rpx;
+}
+.gp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32rpx;
+}
+.gp-title {
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 500;
+}
+.gp-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24rpx;
+}
+.gp-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  padding: 24rpx 0;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 24rpx;
+}
+.gp-cell__emoji {
+  font-size: 56rpx;
+  line-height: 1;
+}
+.gp-cell__name {
+  color: #fff;
+  font-size: 22rpx;
+}
+.gp-cell__price {
+  color: #C9A96E;
+  font-size: 20rpx;
+}
+.gp-foot {
+  margin-top: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.gp-balance {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 22rpx;
+}
+.gp-recharge {
+  color: #C41E3A;
+  font-size: 22rpx;
+}
+
+/* ===== 商品列表弹窗 ===== */
+.pl-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.pl-sheet {
+  background: #1a1a1a;
+  border-radius: 48rpx 48rpx 0 0;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+.pl-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.pl-title {
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 500;
+}
+.pl-body {
+  flex: 1;
+  padding: 32rpx;
+}
+.pl-row {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 24rpx;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 24rpx;
+  margin-bottom: 24rpx;
+}
+.pl-img-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.pl-idx {
+  position: absolute;
+  left: -8rpx;
+  top: -8rpx;
+  width: 40rpx;
+  height: 40rpx;
+  background: #C41E3A;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: 700;
+  z-index: 10;
+}
+.pl-img {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 16rpx;
+}
+.pl-explaining {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #C41E3A;
+  color: #fff;
+  font-size: 16rpx;
+  text-align: center;
+  padding: 2rpx 0;
+  border-radius: 0 0 16rpx 16rpx;
+}
+.pl-info {
+  flex: 1;
+  min-width: 0;
+}
+.pl-name {
+  color: #fff;
+  font-size: 28rpx;
+  line-height: 1.4;
+  display: block;
+}
+.pl-price-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 8rpx;
+}
+.pl-price {
+  color: #C41E3A;
+  font-weight: 700;
+  font-size: 30rpx;
+}
+.pl-origin {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 22rpx;
+  text-decoration: line-through;
+}
+.pl-sold {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 22rpx;
+  margin-top: 4rpx;
+  display: block;
+}
+.pl-buy {
+  background: #C41E3A;
+  color: #fff;
+  font-size: 22rpx;
+  padding: 16rpx 32rpx;
+  border-radius: 999rpx;
+  font-weight: 500;
+  flex-shrink: 0;
+}
 </style>

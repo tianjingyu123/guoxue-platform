@@ -9,23 +9,73 @@ function open() { navigateTo(`/pages/agent/chat?id=${props.data.id}${props.conte
 </script>
 
 <template>
-  <view class="card" hover-class="card-press" @tap="open">
+  <view
+    class="card"
+    hover-class="card-press"
+    @tap="open"
+  >
     <view class="inner">
       <view class="head">
-        <image v-if="data.avatar" class="avatar" :src="data.avatar" mode="aspectFill" />
+        <image
+          v-if="data.avatar"
+          class="avatar"
+          :src="data.avatar"
+          mode="aspectFill"
+        />
         <view class="head-info">
           <view class="name-row">
-            <text class="name">{{ data.name }}</text>
-            <text v-if="data.tag" class="tag">{{ data.tag }}</text>
+            <text class="name">
+              {{ data.name }}
+            </text>
+            <text
+              v-if="data.tag"
+              class="tag"
+            >
+              {{ data.tag }}
+            </text>
           </view>
           <view class="stats">
-            <text v-if="data.useCount" class="stat">{{ formatCount(data.useCount) }}使用</text>
-            <view v-if="data.rating != null" class="rating"><AppIcon name="star" :size="20" color="#ffffff" :fill="true" /><text class="stat">{{ data.rating }}</text></view>
+            <text
+              v-if="data.useCount"
+              class="stat"
+            >
+              {{ formatCount(data.useCount) }}使用
+            </text>
+            <view
+              v-if="data.rating != null"
+              class="rating"
+            >
+              <AppIcon
+                name="star"
+                :size="20"
+                color="#ffffff"
+                :fill="true"
+              /><text class="stat">
+                {{ data.rating }}
+              </text>
+            </view>
           </view>
         </view>
       </view>
-      <text v-if="data.description" class="desc">{{ data.description }}</text>
-      <view class="cta"><AppIcon name="message-circle" :size="28" color="#ffffff" /><text class="cta-txt">立即对话</text><AppIcon name="chevron-right" :size="24" color="#ffffff" /></view>
+      <text
+        v-if="data.description"
+        class="desc"
+      >
+        {{ data.description }}
+      </text>
+      <view class="cta">
+        <AppIcon
+          name="message-circle"
+          :size="28"
+          color="#ffffff"
+        /><text class="cta-txt">
+          立即对话
+        </text><AppIcon
+          name="chevron-right"
+          :size="24"
+          color="#ffffff"
+        />
+      </view>
     </view>
   </view>
 </template>

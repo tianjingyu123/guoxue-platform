@@ -121,90 +121,221 @@ onMounted(loadData)
     <!-- 自定义顶栏 -->
     <view class="topbar">
       <view class="topbar-head">
-        <text class="title">圈子</text>
+        <text class="title">
+          圈子
+        </text>
         <view class="actions">
-          <view class="icon-btn" @tap="go('/pages/circles/search')"><app-icon name="search" :size="36" color="#666666" /></view>
-          <view class="ai-search-btn" @tap="navigateTo('/pages/agent/chat')">
-            <app-icon name="zap" :size="32" color="#ffffff" />
-            <text class="ai-search-text">AI搜</text>
+          <view
+            class="icon-btn"
+            @tap="go('/pages/circles/search')"
+          >
+            <app-icon
+              name="search"
+              :size="36"
+              color="#666666"
+            />
           </view>
-          <view class="icon-btn" @tap="go('/pages/circles/calendar')"><app-icon name="calendar" :size="36" color="#666666" /></view>
+          <view
+            class="ai-search-btn"
+            @tap="navigateTo('/pages/agent/chat')"
+          >
+            <app-icon
+              name="zap"
+              :size="32"
+              color="#ffffff"
+            />
+            <text class="ai-search-text">
+              AI搜
+            </text>
+          </view>
+          <view
+            class="icon-btn"
+            @tap="go('/pages/circles/calendar')"
+          >
+            <app-icon
+              name="calendar"
+              :size="36"
+              color="#666666"
+            />
+          </view>
         </view>
       </view>
       <!-- 主Tab -->
       <view class="main-tabs">
         <view
-          v-for="t in mainTabs" :key="t.id"
-          class="main-tab" @tap="activeTab = t.id"
+          v-for="t in mainTabs"
+          :key="t.id"
+          class="main-tab"
+          @tap="activeTab = t.id"
         >
-          <text class="main-tab-text" :class="{ on: activeTab === t.id }">{{ t.label }}</text>
-          <view v-if="activeTab === t.id" class="main-tab-underline" />
+          <text
+            class="main-tab-text"
+            :class="{ on: activeTab === t.id }"
+          >
+            {{ t.label }}
+          </text>
+          <view
+            v-if="activeTab === t.id"
+            class="main-tab-underline"
+          />
         </view>
       </view>
     </view>
 
-    <app-error v-if="error" :desc="error" @retry="loadData" />
-    <scroll-view v-else scroll-y class="body">
+    <app-error
+      v-if="error"
+      :desc="error"
+      @retry="loadData"
+    />
+    <scroll-view
+      v-else
+      scroll-y
+      class="body"
+    >
       <!-- ════ 发现 Tab ════ -->
       <template v-if="activeTab === 'discover'">
         <!-- 直播预告横幅 -->
-        <view v-if="lives.length" class="section">
+        <view
+          v-if="lives.length"
+          class="section"
+        >
           <view class="live-banner">
             <view class="live-badge">
-              <app-icon name="radio" :size="20" color="#ffffff" />
-              <text class="live-badge-text">直播预告</text>
+              <app-icon
+                name="radio"
+                :size="20"
+                color="#ffffff"
+              />
+              <text class="live-badge-text">
+                直播预告
+              </text>
             </view>
             <view class="live-row">
-              <image :src="lives[0].avatar" class="live-avatar" mode="aspectFill" />
+              <image
+                :src="lives[0].avatar"
+                class="live-avatar"
+                mode="aspectFill"
+              />
               <view class="live-info">
-                <text class="live-title">{{ lives[0].title }}</text>
-                <text class="live-sub">{{ lives[0].host }} · {{ lives[0].circleName }}</text>
+                <text class="live-title">
+                  {{ lives[0].title }}
+                </text>
+                <text class="live-sub">
+                  {{ lives[0].host }} · {{ lives[0].circleName }}
+                </text>
                 <view class="live-meta">
-                  <view class="live-time"><app-icon name="clock" :size="20" color="#FFD700" /><text class="live-time-text">{{ lives[0].startTime }}</text></view>
-                  <text class="live-viewers">{{ lives[0].viewers }}人预约</text>
+                  <view class="live-time">
+                    <app-icon
+                      name="clock"
+                      :size="20"
+                      color="#FFD700"
+                    /><text class="live-time-text">
+                      {{ lives[0].startTime }}
+                    </text>
+                  </view>
+                  <text class="live-viewers">
+                    {{ lives[0].viewers }}人预约
+                  </text>
                 </view>
               </view>
-              <view class="live-btn"><app-icon name="bell" :size="24" color="#ffffff" /><text class="live-btn-text">预约</text></view>
+              <view class="live-btn">
+                <app-icon
+                  name="bell"
+                  :size="24"
+                  color="#ffffff"
+                /><text class="live-btn-text">
+                  预约
+                </text>
+              </view>
             </view>
           </view>
         </view>
 
         <!-- 我的圈子（发现页顶部） -->
-        <view v-if="myCircles.length" class="section">
+        <view
+          v-if="myCircles.length"
+          class="section"
+        >
           <view class="sec-head">
             <view class="mycircle-tabs">
               <view
                 class="mycircle-tab"
                 :class="{ on: myCircleTab === 'joined' }"
                 @tap="myCircleTab = 'joined'"
-              ><text class="mycircle-tab-text" :class="{ on: myCircleTab === 'joined' }">我加入的</text></view>
+              >
+                <text
+                  class="mycircle-tab-text"
+                  :class="{ on: myCircleTab === 'joined' }"
+                >
+                  我加入的
+                </text>
+              </view>
               <view
                 class="mycircle-tab"
                 :class="{ on: myCircleTab === 'created' }"
                 @tap="myCircleTab = 'created'"
-              ><text class="mycircle-tab-text" :class="{ on: myCircleTab === 'created' }">我创建的</text></view>
+              >
+                <text
+                  class="mycircle-tab-text"
+                  :class="{ on: myCircleTab === 'created' }"
+                >
+                  我创建的
+                </text>
+              </view>
             </view>
-            <view class="sec-more" @tap="go('/pages/circles/mine')">
-              <text class="sec-more-text">全部</text>
-              <app-icon name="chevron-right" :size="28" color="#999999" />
+            <view
+              class="sec-more"
+              @tap="go('/pages/circles/mine')"
+            >
+              <text class="sec-more-text">
+                全部
+              </text>
+              <app-icon
+                name="chevron-right"
+                :size="28"
+                color="#999999"
+              />
             </view>
           </view>
-          <scroll-view scroll-x class="mycircle-scroll">
+          <scroll-view
+            scroll-x
+            class="mycircle-scroll"
+          >
             <view class="mycircle-row">
               <view
-                v-for="c in filteredMyCircles" :key="c.id"
-                class="mycircle-card" @tap="go(`/pages/circles/detail?id=${c.id}`)"
+                v-for="c in filteredMyCircles"
+                :key="c.id"
+                class="mycircle-card"
+                @tap="go(`/pages/circles/detail?id=${c.id}`)"
               >
                 <view class="mycircle-cover-wrap">
-                  <image :src="c.cover" class="mycircle-cover" mode="aspectFill" />
-                  <view v-if="c.unread && c.unread > 0" class="mycircle-badge">
-                    <text class="mycircle-badge-text">{{ c.unread > 99 ? '99+' : c.unread }}</text>
+                  <image
+                    :src="c.cover"
+                    class="mycircle-cover"
+                    mode="aspectFill"
+                  />
+                  <view
+                    v-if="c.unread && c.unread > 0"
+                    class="mycircle-badge"
+                  >
+                    <text class="mycircle-badge-text">
+                      {{ c.unread > 99 ? '99+' : c.unread }}
+                    </text>
                   </view>
                 </view>
                 <view class="mycircle-info">
-                  <text class="mycircle-name">{{ c.name }}</text>
-                  <text class="mycircle-meta">{{ formatMembers(c.members) }}成员</text>
-                  <text v-if="c.lastPost" class="mycircle-last">{{ c.lastPost }}</text>
+                  <text class="mycircle-name">
+                    {{ c.name }}
+                  </text>
+                  <text class="mycircle-meta">
+                    {{ formatMembers(c.members) }}成员
+                  </text>
+                  <text
+                    v-if="c.lastPost"
+                    class="mycircle-last"
+                  >
+                    {{ c.lastPost }}
+                  </text>
                 </view>
               </view>
             </view>
@@ -213,15 +344,30 @@ onMounted(loadData)
 
         <!-- 创建圈子推广卡片 -->
         <view class="section">
-          <view class="create-promo" @tap="go('/pages/circles/create')">
+          <view
+            class="create-promo"
+            @tap="go('/pages/circles/create')"
+          >
             <view class="create-promo-icon">
-              <app-icon name="plus" :size="40" color="#ffffff" />
+              <app-icon
+                name="plus"
+                :size="40"
+                color="#ffffff"
+              />
             </view>
             <view class="create-promo-body">
-              <text class="create-promo-title">创建你的圈子</text>
-              <text class="create-promo-sub">打造专属国学交流社区，聚集志同道合的朋友</text>
+              <text class="create-promo-title">
+                创建你的圈子
+              </text>
+              <text class="create-promo-sub">
+                打造专属国学交流社区，聚集志同道合的朋友
+              </text>
             </view>
-            <app-icon name="chevron-right" :size="32" color="#c41e3a" />
+            <app-icon
+              name="chevron-right"
+              :size="32"
+              color="#c41e3a"
+            />
           </view>
         </view>
 
@@ -229,30 +375,69 @@ onMounted(loadData)
         <view class="section">
           <view class="sec-head">
             <view class="sec-title">
-              <app-icon name="zap" :size="32" color="#FF6B35" />
-              <text class="sec-title-text">今日活动</text>
+              <app-icon
+                name="zap"
+                :size="32"
+                color="#FF6B35"
+              />
+              <text class="sec-title-text">
+                今日活动
+              </text>
             </view>
-            <view class="sec-more" @tap="go('/pages/circles/activities')">
-              <text class="sec-more-text">全部</text>
-              <app-icon name="chevron-right" :size="28" color="#999999" />
+            <view
+              class="sec-more"
+              @tap="go('/pages/circles/activities')"
+            >
+              <text class="sec-more-text">
+                全部
+              </text>
+              <app-icon
+                name="chevron-right"
+                :size="28"
+                color="#999999"
+              />
             </view>
           </view>
-          <scroll-view scroll-x class="act-scroll">
+          <scroll-view
+            scroll-x
+            class="act-scroll"
+          >
             <view class="act-row">
               <view
-                v-for="act in activities" :key="act.id"
-                class="act-card" @tap="navigateTo(`/pages/circles/activities?activityId=${act.id}`)"
+                v-for="act in activities"
+                :key="act.id"
+                class="act-card"
+                @tap="navigateTo(`/pages/circles/activities?activityId=${act.id}`)"
               >
                 <view class="act-top">
-                  <app-icon :name="activityTypeIcon(act.type)" :size="28" :color="activityTypeColor(act.type)" />
-                  <text class="act-tag" :style="{ color: activityTypeColor(act.type), background: activityTypeColor(act.type) + '1a' }">{{ activityTypeLabel(act.type) }}</text>
+                  <app-icon
+                    :name="activityTypeIcon(act.type)"
+                    :size="28"
+                    :color="activityTypeColor(act.type)"
+                  />
+                  <text
+                    class="act-tag"
+                    :style="{ color: activityTypeColor(act.type), background: activityTypeColor(act.type) + '1a' }"
+                  >
+                    {{ activityTypeLabel(act.type) }}
+                  </text>
                 </view>
-                <text class="act-title">{{ act.title }}</text>
+                <text class="act-title">
+                  {{ act.title }}
+                </text>
                 <view class="act-meta">
-                  <text class="act-part">{{ act.participants }}人参与</text>
-                  <text class="act-reward">{{ act.reward }}</text>
+                  <text class="act-part">
+                    {{ act.participants }}人参与
+                  </text>
+                  <text class="act-reward">
+                    {{ act.reward }}
+                  </text>
                 </view>
-                <view class="act-deadline"><text class="act-deadline-text">截止: {{ act.deadline }}</text></view>
+                <view class="act-deadline">
+                  <text class="act-deadline-text">
+                    截止: {{ act.deadline }}
+                  </text>
+                </view>
               </view>
             </view>
           </scroll-view>
@@ -260,115 +445,297 @@ onMounted(loadData)
 
         <!-- 分类 Tab -->
         <view class="cat-section">
-          <scroll-view scroll-x class="cat-scroll">
+          <scroll-view
+            scroll-x
+            class="cat-scroll"
+          >
             <view class="cat-row">
               <view
-                v-for="cat in circleCategories" :key="cat.id"
-                class="cat-chip" :class="{ on: category === cat.id }"
+                v-for="cat in circleCategories"
+                :key="cat.id"
+                class="cat-chip"
+                :class="{ on: category === cat.id }"
                 @tap="selectCategory(cat.id)"
               >
-                <text class="cat-text" :class="{ on: category === cat.id }">{{ cat.name }}</text>
+                <text
+                  class="cat-text"
+                  :class="{ on: category === cat.id }"
+                >
+                  {{ cat.name }}
+                </text>
               </view>
             </view>
           </scroll-view>
         </view>
 
         <!-- 热门圈子排行 -->
-        <view v-if="ranking.length" class="section">
+        <view
+          v-if="ranking.length"
+          class="section"
+        >
           <view class="sec-head">
             <view class="sec-title">
-              <app-icon name="flame" :size="32" color="#c41e3a" />
-              <text class="sec-title-text">热门圈子</text>
+              <app-icon
+                name="flame"
+                :size="32"
+                color="#c41e3a"
+              />
+              <text class="sec-title-text">
+                热门圈子
+              </text>
             </view>
-            <text class="hot-badge">精选优质社群</text>
+            <text class="hot-badge">
+              精选优质社群
+            </text>
           </view>
           <view class="hot-grid">
             <view
-              v-for="(c, i) in displayedRanking" :key="c.id"
-              class="hot-card" @tap="go(`/pages/circles/detail?id=${c.id}`)"
+              v-for="(c, i) in displayedRanking"
+              :key="c.id"
+              class="hot-card"
+              @tap="go(`/pages/circles/detail?id=${c.id}`)"
             >
-              <image :src="c.cover" class="hot-cover" mode="aspectFill" />
-              <view v-if="i < 3" class="hot-rank-badge" :class="'hot-rank-' + (i + 1)">{{ i + 1 }}</view>
+              <image
+                :src="c.cover"
+                class="hot-cover"
+                mode="aspectFill"
+              />
+              <view
+                v-if="i < 3"
+                class="hot-rank-badge"
+                :class="'hot-rank-' + (i + 1)"
+              >
+                {{ i + 1 }}
+              </view>
               <view class="hot-body">
                 <view class="hot-head-row">
-                  <text class="hot-name">{{ c.name }}</text>
-                  <view v-if="c.tags && c.tags.length" class="hot-tags">
-                    <text v-for="t in c.tags" :key="t" class="hot-tag">{{ t }}</text>
+                  <text class="hot-name">
+                    {{ c.name }}
+                  </text>
+                  <view
+                    v-if="c.tags && c.tags.length"
+                    class="hot-tags"
+                  >
+                    <text
+                      v-for="t in c.tags"
+                      :key="t"
+                      class="hot-tag"
+                    >
+                      {{ t }}
+                    </text>
                   </view>
                 </view>
-                <text v-if="c.description" class="hot-desc">{{ c.description }}</text>
+                <text
+                  v-if="c.description"
+                  class="hot-desc"
+                >
+                  {{ c.description }}
+                </text>
                 <view class="hot-footer">
-                  <text class="hot-members">{{ formatMembers(c.members) }}成员 · {{ c.posts || 0 }}帖</text>
-                  <text v-if="c.price" class="hot-price">¥{{ c.price }}</text>
-                  <text v-else class="hot-price free">免费</text>
+                  <text class="hot-members">
+                    {{ formatMembers(c.members) }}成员 · {{ c.posts || 0 }}帖
+                  </text>
+                  <text
+                    v-if="c.price"
+                    class="hot-price"
+                  >
+                    ¥{{ c.price }}
+                  </text>
+                  <text
+                    v-else
+                    class="hot-price free"
+                  >
+                    免费
+                  </text>
                 </view>
               </view>
             </view>
           </view>
-          <view v-if="ranking.length > 5" class="expand-btn" @tap="hotExpanded = !hotExpanded">
-            <text class="expand-btn-text">{{ hotExpanded ? '收起' : '查看更多热门圈子 (' + (ranking.length - 5) + ')' }}</text>
-            <app-icon :name="hotExpanded ? 'chevron-up' : 'chevron-down'" :size="24" color="#c41e3a" />
+          <view
+            v-if="ranking.length > 5"
+            class="expand-btn"
+            @tap="hotExpanded = !hotExpanded"
+          >
+            <text class="expand-btn-text">
+              {{ hotExpanded ? '收起' : '查看更多热门圈子 (' + (ranking.length - 5) + ')' }}
+            </text>
+            <app-icon
+              :name="hotExpanded ? 'chevron-up' : 'chevron-down'"
+              :size="24"
+              color="#c41e3a"
+            />
           </view>
-          <view class="rank-footer-link" @tap="go('/pages/circles/ranking')">
-            <text class="rank-footer-text">查看完整排行</text>
-            <app-icon name="chevron-right" :size="24" color="#999999" />
+          <view
+            class="rank-footer-link"
+            @tap="go('/pages/circles/ranking')"
+          >
+            <text class="rank-footer-text">
+              查看完整排行
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="24"
+              color="#999999"
+            />
           </view>
         </view>
 
         <!-- 圈子网格 -->
-        <view v-if="loading" class="grid">
-          <view v-for="i in 6" :key="i" class="skeleton">
+        <view
+          v-if="loading"
+          class="grid"
+        >
+          <view
+            v-for="i in 6"
+            :key="i"
+            class="skeleton"
+          >
             <view class="sk-cover" />
             <view class="sk-line w3" />
             <view class="sk-line w2" />
           </view>
         </view>
-        <view v-else-if="circles.length" class="grid">
-          <circle-card v-for="c in circles" :key="c.id" :circle="c" @join="handleJoin" />
+        <view
+          v-else-if="circles.length"
+          class="grid"
+        >
+          <circle-card
+            v-for="c in circles"
+            :key="c.id"
+            :circle="c"
+            @join="handleJoin"
+          />
         </view>
-        <view v-else class="empty">
-          <view class="empty-icon"><app-icon name="users" :size="56" color="#999999" /></view>
-          <text class="empty-text">暂无相关圈子</text>
+        <view
+          v-else
+          class="empty"
+        >
+          <view class="empty-icon">
+            <app-icon
+              name="users"
+              :size="56"
+              color="#999999"
+            />
+          </view>
+          <text class="empty-text">
+            暂无相关圈子
+          </text>
         </view>
       </template>
 
       <!-- ════ 动态 Tab ════ -->
       <template v-else-if="activeTab === 'feed'">
-        <view v-if="myCircles.length === 0" class="feed-empty">
-          <view class="empty-icon big"><app-icon name="users" :size="64" color="#999999" /></view>
-          <text class="empty-title">还没有加入任何圈子</text>
-          <text class="empty-sub">加入圈子后，这里会显示最新动态</text>
-          <view class="go-btn" @tap="activeTab = 'discover'"><text class="go-btn-text">去发现圈子</text></view>
-        </view>
-        <view v-else class="feed">
+        <view
+          v-if="myCircles.length === 0"
+          class="feed-empty"
+        >
+          <view class="empty-icon big">
+            <app-icon
+              name="users"
+              :size="64"
+              color="#999999"
+            />
+          </view>
+          <text class="empty-title">
+            还没有加入任何圈子
+          </text>
+          <text class="empty-sub">
+            加入圈子后，这里会显示最新动态
+          </text>
           <view
-            v-for="post in hotPostsData" :key="post.id"
-            class="post" @tap="go(`/pages/circles/post?id=${post.id}&circleId=${post.circleId}`)"
+            class="go-btn"
+            @tap="activeTab = 'discover'"
+          >
+            <text class="go-btn-text">
+              去发现圈子
+            </text>
+          </view>
+        </view>
+        <view
+          v-else
+          class="feed"
+        >
+          <view
+            v-for="post in hotPostsData"
+            :key="post.id"
+            class="post"
+            @tap="go(`/pages/circles/post?id=${post.id}&circleId=${post.circleId}`)"
           >
             <view class="post-source">
-              <view class="post-source-left" @tap.stop="go(`/pages/circles/detail?id=${post.circleId}`)">
-                <text class="post-circle">#{{ post.circleName }}</text>
-                <text v-if="post.isPinned" class="post-pin">置顶</text>
+              <view
+                class="post-source-left"
+                @tap.stop="go(`/pages/circles/detail?id=${post.circleId}`)"
+              >
+                <text class="post-circle">
+                  #{{ post.circleName }}
+                </text>
+                <text
+                  v-if="post.isPinned"
+                  class="post-pin"
+                >
+                  置顶
+                </text>
               </view>
-              <text class="post-time">{{ post.time }}</text>
+              <text class="post-time">
+                {{ post.time }}
+              </text>
             </view>
             <view class="post-author">
-              <image :src="post.author.avatar" class="post-avatar" mode="aspectFill" />
+              <image
+                :src="post.author.avatar"
+                class="post-avatar"
+                mode="aspectFill"
+              />
               <view class="post-author-info">
-                <text class="post-author-name">{{ post.author.name }}</text>
-                <text v-if="post.author.title" class="post-author-title">{{ post.author.title }}</text>
+                <text class="post-author-name">
+                  {{ post.author.name }}
+                </text>
+                <text
+                  v-if="post.author.title"
+                  class="post-author-title"
+                >
+                  {{ post.author.title }}
+                </text>
               </view>
             </view>
-            <view class="post-content"><text class="post-text">{{ post.content }}</text></view>
-            <view v-if="post.images.length" class="post-imgs" :class="post.images.length === 1 ? 'one' : 'multi'">
+            <view class="post-content">
+              <text class="post-text">
+                {{ post.content }}
+              </text>
+            </view>
+            <view
+              v-if="post.images.length"
+              class="post-imgs"
+              :class="post.images.length === 1 ? 'one' : 'multi'"
+            >
               <image
-                v-for="(img, idx) in post.images" :key="idx" :src="img"
-                class="post-img" :class="post.images.length === 1 ? 'single' : 'grid-img'" mode="aspectFill"
+                v-for="(img, idx) in post.images"
+                :key="idx"
+                :src="img"
+                class="post-img"
+                :class="post.images.length === 1 ? 'single' : 'grid-img'"
+                mode="aspectFill"
               />
             </view>
             <view class="post-actions">
-              <view class="post-act"><app-icon name="message-square" :size="28" color="#666666" /><text class="post-act-num">{{ post.comments }}</text></view>
-              <view class="post-act"><app-icon name="trending-up" :size="28" color="#666666" /><text class="post-act-num">{{ post.likes }}</text></view>
+              <view class="post-act">
+                <app-icon
+                  name="message-square"
+                  :size="28"
+                  color="#666666"
+                /><text class="post-act-num">
+                  {{ post.comments }}
+                </text>
+              </view>
+              <view class="post-act">
+                <app-icon
+                  name="trending-up"
+                  :size="28"
+                  color="#666666"
+                /><text class="post-act-num">
+                  {{ post.likes }}
+                </text>
+              </view>
             </view>
           </view>
         </view>
@@ -380,48 +747,138 @@ onMounted(loadData)
           <!-- 数据卡片 -->
           <view class="mine-stats">
             <view class="mine-stats-head">
-              <text class="mine-stats-title">我的圈子数据</text>
-              <view class="mine-stats-more" @tap="go('/pages/circles/stats')">
-                <text class="mine-stats-more-text">详情</text>
-                <app-icon name="chevron-right" :size="28" color="#ffffff" />
+              <text class="mine-stats-title">
+                我的圈子数据
+              </text>
+              <view
+                class="mine-stats-more"
+                @tap="go('/pages/circles/stats')"
+              >
+                <text class="mine-stats-more-text">
+                  详情
+                </text>
+                <app-icon
+                  name="chevron-right"
+                  :size="28"
+                  color="#ffffff"
+                />
               </view>
             </view>
             <view class="mine-stats-grid">
-              <view class="mine-stat"><text class="mine-stat-num">{{ totalStats.joined }}</text><text class="mine-stat-label">已加入</text></view>
-              <view class="mine-stat"><text class="mine-stat-num">156</text><text class="mine-stat-label">发帖数</text></view>
-              <view class="mine-stat"><text class="mine-stat-num">2.8k</text><text class="mine-stat-label">获赞数</text></view>
-              <view class="mine-stat"><text class="mine-stat-num">Lv.5</text><text class="mine-stat-label">等级</text></view>
+              <view class="mine-stat">
+                <text class="mine-stat-num">
+                  {{ totalStats.joined }}
+                </text><text class="mine-stat-label">
+                  已加入
+                </text>
+              </view>
+              <view class="mine-stat">
+                <text class="mine-stat-num">
+                  156
+                </text><text class="mine-stat-label">
+                  发帖数
+                </text>
+              </view>
+              <view class="mine-stat">
+                <text class="mine-stat-num">
+                  2.8k
+                </text><text class="mine-stat-label">
+                  获赞数
+                </text>
+              </view>
+              <view class="mine-stat">
+                <text class="mine-stat-num">
+                  Lv.5
+                </text><text class="mine-stat-label">
+                  等级
+                </text>
+              </view>
             </view>
           </view>
 
           <!-- 我加入的圈子 -->
-          <view class="mine-list-head" @tap="go('/pages/circles/mine')">
-            <text class="mine-list-title">我加入的圈子</text>
+          <view
+            class="mine-list-head"
+            @tap="go('/pages/circles/mine')"
+          >
+            <text class="mine-list-title">
+              我加入的圈子
+            </text>
             <view class="mine-list-more">
-              <text class="mine-list-count">{{ myCircles.length }}个</text>
-              <app-icon name="chevron-right" :size="28" color="#999999" />
+              <text class="mine-list-count">
+                {{ myCircles.length }}个
+              </text>
+              <app-icon
+                name="chevron-right"
+                :size="28"
+                color="#999999"
+              />
             </view>
           </view>
-          <view v-if="myCircles.length === 0" class="mine-empty">
-            <view class="empty-icon"><app-icon name="users" :size="48" color="#999999" /></view>
-            <text class="empty-text">还没有加入任何圈子</text>
-            <view class="go-btn" @tap="activeTab = 'discover'"><text class="go-btn-text">去发现圈子</text></view>
-          </view>
-          <view v-else class="mine-list">
+          <view
+            v-if="myCircles.length === 0"
+            class="mine-empty"
+          >
+            <view class="empty-icon">
+              <app-icon
+                name="users"
+                :size="48"
+                color="#999999"
+              />
+            </view>
+            <text class="empty-text">
+              还没有加入任何圈子
+            </text>
             <view
-              v-for="c in myCircles" :key="c.id"
-              class="mine-item" @tap="go(`/pages/circles/detail?id=${c.id}`)"
+              class="go-btn"
+              @tap="activeTab = 'discover'"
             >
-              <image :src="c.cover" class="mine-cover" mode="aspectFill" />
+              <text class="go-btn-text">
+                去发现圈子
+              </text>
+            </view>
+          </view>
+          <view
+            v-else
+            class="mine-list"
+          >
+            <view
+              v-for="c in myCircles"
+              :key="c.id"
+              class="mine-item"
+              @tap="go(`/pages/circles/detail?id=${c.id}`)"
+            >
+              <image
+                :src="c.cover"
+                class="mine-cover"
+                mode="aspectFill"
+              />
               <view class="mine-item-info">
-                <text class="mine-item-name">{{ c.name }}</text>
-                <text class="mine-item-meta">{{ formatMembers(c.members) }}成员 · {{ c.posts }}帖子</text>
-                <view v-if="c.todayActive && c.todayActive > 0" class="mine-item-active">
-                  <app-icon name="flame" :size="22" color="#FF6B35" />
-                  <text class="mine-item-active-text">今日{{ c.todayActive }}条新动态</text>
+                <text class="mine-item-name">
+                  {{ c.name }}
+                </text>
+                <text class="mine-item-meta">
+                  {{ formatMembers(c.members) }}成员 · {{ c.posts }}帖子
+                </text>
+                <view
+                  v-if="c.todayActive && c.todayActive > 0"
+                  class="mine-item-active"
+                >
+                  <app-icon
+                    name="flame"
+                    :size="22"
+                    color="#FF6B35"
+                  />
+                  <text class="mine-item-active-text">
+                    今日{{ c.todayActive }}条新动态
+                  </text>
                 </view>
               </view>
-              <app-icon name="chevron-right" :size="32" color="#cccccc" />
+              <app-icon
+                name="chevron-right"
+                :size="32"
+                color="#cccccc"
+              />
             </view>
           </view>
         </view>

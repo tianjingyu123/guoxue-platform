@@ -19,21 +19,57 @@ function open() { navigateTo(`/mall/product/${props.data.id}`) }
 </script>
 
 <template>
-  <view class="card" hover-class="card-press" @tap="open">
-    <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
-      <text class="type-badge">好物</text>
-      <text v-if="kind" class="hot-badge" :class="kind === 'new' ? 'hot-new' : 'hot-red'">{{ hotText }}</text>
+  <view
+    class="card"
+    hover-class="card-press"
+    @tap="open"
+  >
+    <view
+      class="cover"
+      :class="ratio === '1:1' ? 'r-sq' : 'r-34'"
+    >
+      <image
+        v-if="data.cover"
+        class="cover-img"
+        :src="data.cover"
+        mode="aspectFill"
+      />
+      <text class="type-badge">
+        好物
+      </text>
+      <text
+        v-if="kind"
+        class="hot-badge"
+        :class="kind === 'new' ? 'hot-new' : 'hot-red'"
+      >
+        {{ hotText }}
+      </text>
     </view>
     <view class="body">
-      <text class="title">{{ data.title }}</text>
+      <text class="title">
+        {{ data.title }}
+      </text>
       <view class="foot">
         <view class="price">
-          <text class="price-cny">¥</text>
-          <text class="price-num">{{ data.price }}</text>
-          <text v-if="data.originalPrice" class="price-orig">¥{{ data.originalPrice }}</text>
+          <text class="price-cny">
+            ¥
+          </text>
+          <text class="price-num">
+            {{ data.price }}
+          </text>
+          <text
+            v-if="data.originalPrice"
+            class="price-orig"
+          >
+            ¥{{ data.originalPrice }}
+          </text>
         </view>
-        <text v-if="data.sales" class="sales">已售{{ formatCount(data.sales) }}</text>
+        <text
+          v-if="data.sales"
+          class="sales"
+        >
+          已售{{ formatCount(data.sales) }}
+        </text>
       </view>
     </view>
   </view>

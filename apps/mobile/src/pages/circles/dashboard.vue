@@ -9,6 +9,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import ErrorState from '@/components/common/error-state.vue'
+import { circleManageApi } from '@/lib/circle-detail-data'
 
 type TrendType = 'members' | 'posts' | 'active' | 'revenue'
 
@@ -26,7 +27,8 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    await new Promise(r => setTimeout(r, 500))
+    const data: any = await circleManageApi.getDashboard(circleId.value)
+    hotPosts.value = data.topPosts as any
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
@@ -34,44 +36,44 @@ async function loadData() {
   }
 }
 
-const overview = {
+const overview = ref({
   totalMembers: 12580, membersGrowth: 8.5,
   activeMembers: 3240, activeGrowth: 12.3,
   totalPosts: 8960, postsGrowth: -2.1,
   totalRevenue: 156800, revenueGrowth: 15.8,
-}
+})
 
-const trends = Array.from({ length: 30 }, (_, i) => ({
+const trends = ref(Array.from({ length: 30 }, (_, i) => ({
   date: new Date(Date.now() - (29 - i) * 86400000).toISOString().split('T')[0],
   members: 12000 + Math.floor(Math.random() * 600),
   posts: 200 + Math.floor(Math.random() * 100),
   active: 2800 + Math.floor(Math.random() * 500),
   revenue: 4000 + Math.floor(Math.random() * 2000),
-}))
+})))
 
-const contributors = [
+const contributors = ref([
   { id: '1', name: '易学大师', posts: 128, likes: 3560 },
   { id: '2', name: '命理研究者', posts: 96, likes: 2840 },
   { id: '3', name: '周易爱好者', posts: 85, likes: 2120 },
   { id: '4', name: '风水学徒', posts: 72, likes: 1890 },
   { id: '5', name: '国学传承', posts: 68, likes: 1650 },
-]
+])
 
-const hotPosts = [
+const hotPosts = ref([
   { id: '1', title: '八字入门：如何看懂自己的命盘', author: '易学大师', views: 12580, likes: 896, comments: 234 },
   { id: '2', title: '紫微斗数与八字的区别详解', author: '命理研究者', views: 9860, likes: 756, comments: 189 },
   { id: '3', title: '2024年流年运势预测方法', author: '周易爱好者', views: 8420, likes: 623, comments: 156 },
   { id: '4', title: '风水布局的基本原则', author: '风水学徒', views: 7650, likes: 542, comments: 128 },
   { id: '5', title: '易经六十四卦快速记忆法', author: '国学传承', views: 6890, likes: 489, comments: 98 },
-]
+])
 
-const churnWarning = [
+const churnWarning = ref([
   { id: '1', name: '沉默用户A', daysSilent: 28 },
   { id: '2', name: '流失风险B', daysSilent: 25 },
   { id: '3', name: '待唤醒C', daysSilent: 23 },
-]
+])
 
-const revenue = {
+const revenue = ref({
   total: 156800,
   items: [
     { name: '入圈费', value: 89600, percent: 57.1, color: '#C41E3A' },
@@ -79,20 +81,20 @@ const revenue = {
     { name: '连麦咨询', value: 23400, percent: 14.9, color: '#4A90D9' },
     { name: '知识付费', value: 9600, percent: 6.2, color: '#52C41A' },
   ],
-}
+})
 
 const kpis = computed(() => [
-  { icon: 'users', label: '总成员', value: overview.totalMembers, growth: overview.membersGrowth, color: '#C41E3A' },
-  { icon: 'activity', label: '活跃成员', value: overview.activeMembers, growth: overview.activeGrowth, color: '#4A90D9' },
-  { icon: 'file-text', label: '总帖子', value: overview.totalPosts, growth: overview.postsGrowth, color: '#C9A96E' },
-  { icon: 'dollar-sign', label: '总收益', value: overview.totalRevenue, growth: overview.revenueGrowth, color: '#52C41A', isPrice: true },
+  { icon: 'users', label: '总成员', value: overview.value.totalMembers, growth: overview.value.membersGrowth, color: '#C41E3A' },
+  { icon: 'activity', label: '活跃成员', value: overview.value.activeMembers, growth: overview.value.activeGrowth, color: '#4A90D9' },
+  { icon: 'file-text', label: '总帖子', value: overview.value.totalPosts, growth: overview.value.postsGrowth, color: '#C9A96E' },
+  { icon: 'dollar-sign', label: '总收益', value: overview.value.totalRevenue, growth: overview.value.revenueGrowth, color: '#52C41A', isPrice: true },
 ])
 
 const TREND_LABEL: Record<TrendType, string> = { members: '成员', posts: '帖子', active: '活跃', revenue: '收益' }
 const trendTypes: TrendType[] = ['members', 'posts', 'active', 'revenue']
 
-const trendMax = computed(() => Math.max(...trends.map((t) => t[trendType.value])))
-const trendMin = computed(() => Math.min(...trends.map((t) => t[trendType.value])))
+const trendMax = computed(() => Math.max(...trends.value.map((t) => t[trendType.value])))
+const trendMin = computed(() => Math.min(...trends.value.map((t) => t[trendType.value])))
 
 function barHeight(v: number) {
   const range = trendMax.value - trendMin.value
@@ -120,137 +122,336 @@ function openPost(id: string) { navigateTo(`/pages/circles/post?id=${id}&circleI
     <!-- 顶栏 -->
     <view class="db-hdr">
       <view class="db-hdr-l">
-        <view class="db-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
-        <text class="db-hdr-title">数据看板</text>
+        <view
+          class="db-hdr-btn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="34"
+            color="#2C2C2C"
+          />
+        </view>
+        <text class="db-hdr-title">
+          数据看板
+        </text>
       </view>
-      <view class="db-hdr-btn" @tap="refresh">
-        <app-icon name="refresh-cw" :size="34" color="#666666" :class="{ spin: refreshing }" />
+      <view
+        class="db-hdr-btn"
+        @tap="refresh"
+      >
+        <app-icon
+          name="refresh-cw"
+          :size="34"
+          color="#666666"
+          :class="{ spin: refreshing }"
+        />
       </view>
     </view>
 
-    <scroll-view scroll-y class="db-body">
-      <view v-if="loading" class="db-skeleton">
-        <view v-for="i in 3" :key="i" class="db-sk-row"><view class="db-sk-block sk-anim" /></view>
+    <scroll-view
+      scroll-y
+      class="db-body"
+    >
+      <view
+        v-if="loading"
+        class="db-skeleton"
+      >
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="db-sk-row"
+        >
+          <view class="db-sk-block sk-anim" />
+        </view>
       </view>
-      <error-state v-else-if="error" :message="error" @retry="loadData" />
+      <error-state
+        v-else-if="error"
+        :message="error"
+        @retry="loadData"
+      />
       <template v-else>
-      <!-- 概览卡片 -->
-      <view class="db-kpis">
-        <view v-for="k in kpis" :key="k.label" class="db-kpi">
-          <view class="db-kpi-top">
-            <view class="db-kpi-icon" :style="{ background: k.color + '15' }"><app-icon :name="k.icon" :size="26" :color="k.color" /></view>
-            <text class="db-kpi-label">{{ k.label }}</text>
-          </view>
-          <view class="db-kpi-bot">
-            <text class="db-kpi-value">{{ k.isPrice ? '¥' : '' }}{{ fmtNum(k.value) }}</text>
-            <view class="db-kpi-growth">
-              <app-icon :name="k.growth >= 0 ? 'trending-up' : 'trending-down'" :size="22" :color="k.growth >= 0 ? '#52C41A' : '#FF4D4F'" />
-              <text class="db-kpi-growth-t" :style="{ color: k.growth >= 0 ? '#52C41A' : '#FF4D4F' }">{{ Math.abs(k.growth) }}%</text>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 趋势图 -->
-      <view class="db-card">
-        <view class="db-card-head">
-          <text class="db-card-title">近30天趋势</text>
-          <view class="db-trend-tabs">
-            <view v-for="t in trendTypes" :key="t" class="db-trend-tab" :class="{ on: trendType === t }" @tap="trendType = t">
-              <text class="db-trend-tab-t" :class="{ on: trendType === t }">{{ TREND_LABEL[t] }}</text>
-            </view>
-          </view>
-        </view>
-        <view class="db-chart">
+        <!-- 概览卡片 -->
+        <view class="db-kpis">
           <view
-            v-for="(t, i) in trends" :key="i" class="db-bar"
-            :class="{ last: i === trends.length - 1 }"
-            :style="{ height: barHeight(t[trendType]) + '%' }"
-          />
-        </view>
-        <view class="db-chart-axis"><text class="db-axis-t">30天前</text><text class="db-axis-t">今日</text></view>
-      </view>
-
-      <!-- 活跃贡献者 -->
-      <view class="db-card">
-        <text class="db-card-title">活跃贡献者 TOP5</text>
-        <view class="db-list">
-          <view v-for="(c, i) in contributors" :key="c.id" class="db-contrib">
-            <view class="db-contrib-avatar-wrap">
-              <view class="db-contrib-avatar"><text class="db-contrib-avatar-t">{{ c.name[0] }}</text></view>
-              <view v-if="i < 3" class="db-contrib-rank" :style="{ background: rankColor(i) }"><text class="db-contrib-rank-t">{{ i + 1 }}</text></view>
+            v-for="k in kpis"
+            :key="k.label"
+            class="db-kpi"
+          >
+            <view class="db-kpi-top">
+              <view
+                class="db-kpi-icon"
+                :style="{ background: k.color + '15' }"
+              >
+                <app-icon
+                  :name="k.icon"
+                  :size="26"
+                  :color="k.color"
+                />
+              </view>
+              <text class="db-kpi-label">
+                {{ k.label }}
+              </text>
             </view>
-            <view class="db-contrib-info">
-              <text class="db-contrib-name">{{ c.name }}</text>
-              <text class="db-contrib-posts">{{ c.posts }}篇帖子</text>
-            </view>
-            <view class="db-contrib-likes">
-              <app-icon name="heart" :size="22" color="#C41E3A" :fill="true" />
-              <text class="db-contrib-likes-t">{{ fmtNum(c.likes) }}</text>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 热门内容 -->
-      <view class="db-card">
-        <text class="db-card-title">热门内容 TOP5</text>
-        <view class="db-list">
-          <view v-for="(p, i) in hotPosts" :key="p.id" class="db-hot" @tap="openPost(p.id)">
-            <view class="db-hot-rank" :style="{ background: hotBg(i), color: hotColor(i) }"><text class="db-hot-rank-t" :style="{ color: hotColor(i) }">{{ i + 1 }}</text></view>
-            <view class="db-hot-info">
-              <text class="db-hot-title">{{ p.title }}</text>
-              <view class="db-hot-meta">
-                <view class="db-hot-stat"><app-icon name="eye" :size="20" color="#999999" /><text class="db-hot-stat-t">{{ fmtNum(p.views) }}</text></view>
-                <view class="db-hot-stat"><app-icon name="heart" :size="20" color="#999999" /><text class="db-hot-stat-t">{{ fmtNum(p.likes) }}</text></view>
-                <view class="db-hot-stat"><app-icon name="message-circle" :size="20" color="#999999" /><text class="db-hot-stat-t">{{ p.comments }}</text></view>
+            <view class="db-kpi-bot">
+              <text class="db-kpi-value">
+                {{ k.isPrice ? '¥' : '' }}{{ fmtNum(k.value) }}
+              </text>
+              <view class="db-kpi-growth">
+                <app-icon
+                  :name="k.growth >= 0 ? 'trending-up' : 'trending-down'"
+                  :size="22"
+                  :color="k.growth >= 0 ? '#52C41A' : '#FF4D4F'"
+                />
+                <text
+                  class="db-kpi-growth-t"
+                  :style="{ color: k.growth >= 0 ? '#52C41A' : '#FF4D4F' }"
+                >
+                  {{ Math.abs(k.growth) }}%
+                </text>
               </view>
             </view>
           </view>
         </view>
-      </view>
 
-      <!-- 流失预警 -->
-      <view v-if="churnWarning.length" class="db-churn">
-        <view class="db-churn-head">
-          <app-icon name="alert-triangle" :size="26" color="#FA8C16" />
-          <text class="db-churn-title">流失预警</text>
-          <view class="db-churn-count"><text class="db-churn-count-t">{{ churnWarning.length }}人</text></view>
-        </view>
-        <view class="db-churn-list">
-          <view v-for="u in churnWarning" :key="u.id" class="db-churn-item">
-            <view class="db-churn-avatar"><text class="db-churn-avatar-t">{{ u.name[0] }}</text></view>
-            <view class="db-churn-info">
-              <text class="db-churn-name">{{ u.name }}</text>
-              <text class="db-churn-days">已沉默{{ u.daysSilent }}天</text>
-            </view>
-            <text class="db-churn-wake">唤醒</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 收益构成 -->
-      <view class="db-card">
-        <view class="db-card-head">
-          <text class="db-card-title">收益构成</text>
-          <text class="db-revenue-total">¥{{ fmtNum(revenue.total) }}</text>
-        </view>
-        <view class="db-revenue-list">
-          <view v-for="(item, i) in revenue.items" :key="i" class="db-revenue-item">
-            <view class="db-revenue-row">
-              <view class="db-revenue-name-wrap">
-                <view class="db-revenue-dot" :style="{ background: item.color }" />
-                <text class="db-revenue-name">{{ item.name }}</text>
+        <!-- 趋势图 -->
+        <view class="db-card">
+          <view class="db-card-head">
+            <text class="db-card-title">
+              近30天趋势
+            </text>
+            <view class="db-trend-tabs">
+              <view
+                v-for="t in trendTypes"
+                :key="t"
+                class="db-trend-tab"
+                :class="{ on: trendType === t }"
+                @tap="trendType = t"
+              >
+                <text
+                  class="db-trend-tab-t"
+                  :class="{ on: trendType === t }"
+                >
+                  {{ TREND_LABEL[t] }}
+                </text>
               </view>
-              <text class="db-revenue-value">¥{{ fmtNum(item.value) }}</text>
             </view>
-            <view class="db-revenue-track">
-              <view class="db-revenue-fill" :style="{ width: item.percent + '%', background: item.color }" />
+          </view>
+          <view class="db-chart">
+            <view
+              v-for="(t, i) in trends"
+              :key="i"
+              class="db-bar"
+              :class="{ last: i === trends.length - 1 }"
+              :style="{ height: barHeight(t[trendType]) + '%' }"
+            />
+          </view>
+          <view class="db-chart-axis">
+            <text class="db-axis-t">
+              30天前
+            </text><text class="db-axis-t">
+              今日
+            </text>
+          </view>
+        </view>
+
+        <!-- 活跃贡献者 -->
+        <view class="db-card">
+          <text class="db-card-title">
+            活跃贡献者 TOP5
+          </text>
+          <view class="db-list">
+            <view
+              v-for="(c, i) in contributors"
+              :key="c.id"
+              class="db-contrib"
+            >
+              <view class="db-contrib-avatar-wrap">
+                <view class="db-contrib-avatar">
+                  <text class="db-contrib-avatar-t">
+                    {{ c.name[0] }}
+                  </text>
+                </view>
+                <view
+                  v-if="i < 3"
+                  class="db-contrib-rank"
+                  :style="{ background: rankColor(i) }"
+                >
+                  <text class="db-contrib-rank-t">
+                    {{ i + 1 }}
+                  </text>
+                </view>
+              </view>
+              <view class="db-contrib-info">
+                <text class="db-contrib-name">
+                  {{ c.name }}
+                </text>
+                <text class="db-contrib-posts">
+                  {{ c.posts }}篇帖子
+                </text>
+              </view>
+              <view class="db-contrib-likes">
+                <app-icon
+                  name="heart"
+                  :size="22"
+                  color="#C41E3A"
+                  :fill="true"
+                />
+                <text class="db-contrib-likes-t">
+                  {{ fmtNum(c.likes) }}
+                </text>
+              </view>
             </view>
           </view>
         </view>
-      </view>
-      <view class="db-spacer" />
+
+        <!-- 热门内容 -->
+        <view class="db-card">
+          <text class="db-card-title">
+            热门内容 TOP5
+          </text>
+          <view class="db-list">
+            <view
+              v-for="(p, i) in hotPosts"
+              :key="p.id"
+              class="db-hot"
+              @tap="openPost(p.id)"
+            >
+              <view
+                class="db-hot-rank"
+                :style="{ background: hotBg(i), color: hotColor(i) }"
+              >
+                <text
+                  class="db-hot-rank-t"
+                  :style="{ color: hotColor(i) }"
+                >
+                  {{ i + 1 }}
+                </text>
+              </view>
+              <view class="db-hot-info">
+                <text class="db-hot-title">
+                  {{ p.title }}
+                </text>
+                <view class="db-hot-meta">
+                  <view class="db-hot-stat">
+                    <app-icon
+                      name="eye"
+                      :size="20"
+                      color="#999999"
+                    /><text class="db-hot-stat-t">
+                      {{ fmtNum(p.views) }}
+                    </text>
+                  </view>
+                  <view class="db-hot-stat">
+                    <app-icon
+                      name="heart"
+                      :size="20"
+                      color="#999999"
+                    /><text class="db-hot-stat-t">
+                      {{ fmtNum(p.likes) }}
+                    </text>
+                  </view>
+                  <view class="db-hot-stat">
+                    <app-icon
+                      name="message-circle"
+                      :size="20"
+                      color="#999999"
+                    /><text class="db-hot-stat-t">
+                      {{ p.comments }}
+                    </text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 流失预警 -->
+        <view
+          v-if="churnWarning.length"
+          class="db-churn"
+        >
+          <view class="db-churn-head">
+            <app-icon
+              name="alert-triangle"
+              :size="26"
+              color="#FA8C16"
+            />
+            <text class="db-churn-title">
+              流失预警
+            </text>
+            <view class="db-churn-count">
+              <text class="db-churn-count-t">
+                {{ churnWarning.length }}人
+              </text>
+            </view>
+          </view>
+          <view class="db-churn-list">
+            <view
+              v-for="u in churnWarning"
+              :key="u.id"
+              class="db-churn-item"
+            >
+              <view class="db-churn-avatar">
+                <text class="db-churn-avatar-t">
+                  {{ u.name[0] }}
+                </text>
+              </view>
+              <view class="db-churn-info">
+                <text class="db-churn-name">
+                  {{ u.name }}
+                </text>
+                <text class="db-churn-days">
+                  已沉默{{ u.daysSilent }}天
+                </text>
+              </view>
+              <text class="db-churn-wake">
+                唤醒
+              </text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 收益构成 -->
+        <view class="db-card">
+          <view class="db-card-head">
+            <text class="db-card-title">
+              收益构成
+            </text>
+            <text class="db-revenue-total">
+              ¥{{ fmtNum(revenue.total) }}
+            </text>
+          </view>
+          <view class="db-revenue-list">
+            <view
+              v-for="(item, i) in revenue.items"
+              :key="i"
+              class="db-revenue-item"
+            >
+              <view class="db-revenue-row">
+                <view class="db-revenue-name-wrap">
+                  <view
+                    class="db-revenue-dot"
+                    :style="{ background: item.color }"
+                  />
+                  <text class="db-revenue-name">
+                    {{ item.name }}
+                  </text>
+                </view>
+                <text class="db-revenue-value">
+                  ¥{{ fmtNum(item.value) }}
+                </text>
+              </view>
+              <view class="db-revenue-track">
+                <view
+                  class="db-revenue-fill"
+                  :style="{ width: item.percent + '%', background: item.color }"
+                />
+              </view>
+            </view>
+          </view>
+        </view>
+        <view class="db-spacer" />
       </template>
     </scroll-view>
   </view>

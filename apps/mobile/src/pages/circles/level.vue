@@ -5,42 +5,128 @@
 <template>
   <view class="page">
     <!-- 顶部深色区 -->
-    <view class="top" :style="{ paddingTop: statusBarH + 'px' }">
+    <view
+      class="top"
+      :style="{ paddingTop: statusBarH + 'px' }"
+    >
       <view class="nav">
-        <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#ffffff" /></view>
-        <text class="nav-title">我的等级</text>
-        <view class="nav-rank" @tap="goRanking"><text class="nav-rank-t">排行</text><app-icon name="chevron-right" :size="28" color="rgba(255,255,255,0.7)" /></view>
+        <view
+          class="nav-btn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="34"
+            color="#ffffff"
+          />
+        </view>
+        <text class="nav-title">
+          我的等级
+        </text>
+        <view
+          class="nav-rank"
+          @tap="goRanking"
+        >
+          <text class="nav-rank-t">
+            排行
+          </text><app-icon
+            name="chevron-right"
+            :size="28"
+            color="rgba(255,255,255,0.7)"
+          />
+        </view>
       </view>
 
       <!-- 用户等级卡片 -->
       <view class="ucard">
         <view class="ucard-top">
           <view class="avatar-wrap">
-            <image class="avatar" :src="userData.avatar" mode="aspectFill" :style="{ borderColor: currentLevel.color }" />
-            <view class="avatar-badge" :style="{ background: currentLevel.color }"><text class="avatar-badge-t">{{ currentLevel.level }}</text></view>
+            <image
+              class="avatar"
+              :src="userData.avatar"
+              mode="aspectFill"
+              :style="{ borderColor: currentLevel.color }"
+            />
+            <view
+              class="avatar-badge"
+              :style="{ background: currentLevel.color }"
+            >
+              <text class="avatar-badge-t">
+                {{ currentLevel.level }}
+              </text>
+            </view>
           </view>
           <view class="uinfo">
             <view class="uname-row">
-              <text class="uname">{{ userData.name }}</text>
-              <text class="ulevel" :style="{ background: currentLevel.color }">Lv.{{ currentLevel.level }} {{ currentLevel.name }}</text>
+              <text class="uname">
+                {{ userData.name }}
+              </text>
+              <text
+                class="ulevel"
+                :style="{ background: currentLevel.color }"
+              >
+                Lv.{{ currentLevel.level }} {{ currentLevel.name }}
+              </text>
             </view>
-            <text class="usub">圈内排名 #{{ userData.rank }} · 已加入{{ userData.joinedDays }}天</text>
+            <text class="usub">
+              圈内排名 #{{ userData.rank }} · 已加入{{ userData.joinedDays }}天
+            </text>
           </view>
         </view>
 
         <!-- 经验进度 -->
         <view class="xp-box">
-          <view class="xp-head"><text class="xp-label">经验值</text><text class="xp-val">{{ userData.currentXp }} / {{ nextLevel ? nextLevel.minXp : 'MAX' }}</text></view>
-          <view class="xp-track"><view class="xp-fill" :style="{ width: progressToNext + '%', background: currentLevel.color }" /></view>
-          <text v-if="nextLevel" class="xp-hint">距离 Lv.{{ nextLevel.level }} {{ nextLevel.name }} 还需 {{ nextLevel.minXp - userData.currentXp }} 经验</text>
+          <view class="xp-head">
+            <text class="xp-label">
+              经验值
+            </text><text class="xp-val">
+              {{ userData.currentXp }} / {{ nextLevel ? nextLevel.minXp : 'MAX' }}
+            </text>
+          </view>
+          <view class="xp-track">
+            <view
+              class="xp-fill"
+              :style="{ width: progressToNext + '%', background: currentLevel.color }"
+            />
+          </view>
+          <text
+            v-if="nextLevel"
+            class="xp-hint"
+          >
+            距离 Lv.{{ nextLevel.level }} {{ nextLevel.name }} 还需 {{ nextLevel.minXp - userData.currentXp }} 经验
+          </text>
         </view>
 
         <!-- 数据统计 -->
         <view class="ustats">
-          <view class="ustat"><text class="ustat-n">{{ userData.posts }}</text><text class="ustat-l">发帖</text></view>
-          <view class="ustat"><text class="ustat-n">{{ userData.likes }}</text><text class="ustat-l">获赞</text></view>
-          <view class="ustat"><text class="ustat-n">{{ userData.badges }}</text><text class="ustat-l">勋章</text></view>
-          <view class="ustat"><text class="ustat-n">{{ userData.totalXp }}</text><text class="ustat-l">总经验</text></view>
+          <view class="ustat">
+            <text class="ustat-n">
+              {{ userData.posts }}
+            </text><text class="ustat-l">
+              发帖
+            </text>
+          </view>
+          <view class="ustat">
+            <text class="ustat-n">
+              {{ userData.likes }}
+            </text><text class="ustat-l">
+              获赞
+            </text>
+          </view>
+          <view class="ustat">
+            <text class="ustat-n">
+              {{ userData.badges }}
+            </text><text class="ustat-l">
+              勋章
+            </text>
+          </view>
+          <view class="ustat">
+            <text class="ustat-n">
+              {{ userData.totalXp }}
+            </text><text class="ustat-l">
+              总经验
+            </text>
+          </view>
         </view>
       </view>
     </view>
@@ -48,77 +134,272 @@
     <!-- Tab -->
     <view class="tabs-wrap">
       <view class="tabs">
-        <view v-for="t in tabs" :key="t.id" class="tab" :class="{ on: activeTab === t.id }" @tap="activeTab = t.id">{{ t.label }}</view>
+        <view
+          v-for="t in tabs"
+          :key="t.id"
+          class="tab"
+          :class="{ on: activeTab === t.id }"
+          @tap="activeTab = t.id"
+        >
+          {{ t.label }}
+        </view>
       </view>
     </view>
 
     <!-- 骨架屏 -->
-    <view v-if="loading" class="lvl-skeleton">
-      <view v-for="i in 3" :key="i" class="lvl-sk-row"><view class="lvl-sk-block sk-anim" /></view>
+    <view
+      v-if="loading"
+      class="lvl-skeleton"
+    >
+      <view
+        v-for="i in 3"
+        :key="i"
+        class="lvl-sk-row"
+      >
+        <view class="lvl-sk-block sk-anim" />
+      </view>
     </view>
-    <error-state v-else-if="error" :message="error" @retry="loadData" />
-    <view v-else class="content">
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadData"
+    />
+    <view
+      v-else
+      class="content"
+    >
       <!-- 等级详情 -->
-      <view v-if="activeTab === 'level'" class="sec-group">
+      <view
+        v-if="activeTab === 'level'"
+        class="sec-group"
+      >
         <view class="card">
-          <view class="card-head"><app-icon name="trending-up" :size="32" color="#C41E3A" /><text class="card-title">等级体系</text></view>
+          <view class="card-head">
+            <app-icon
+              name="trending-up"
+              :size="32"
+              color="#C41E3A"
+            /><text class="card-title">
+              等级体系
+            </text>
+          </view>
           <view class="lv-list">
-            <view v-for="lv in levels" :key="lv.level" class="lv-row" :class="{ cur: lv.level === currentLevel.level, passed: lv.level < currentLevel.level }" :style="lv.level === currentLevel.level ? { boxShadow: `0 0 0 4rpx ${lv.color}30` } : {}">
-              <view class="lv-icon" :style="lv.level <= currentLevel.level ? { background: lv.color } : { background: '#E8E3DB' }">
-                <app-icon v-if="lv.level > currentLevel.level" name="lock" :size="24" color="#999999" />
-                <text v-else class="lv-icon-t">{{ lv.level }}</text>
+            <view
+              v-for="lv in levels"
+              :key="lv.level"
+              class="lv-row"
+              :class="{ cur: lv.level === currentLevel.level, passed: lv.level < currentLevel.level }"
+              :style="lv.level === currentLevel.level ? { boxShadow: `0 0 0 4rpx ${lv.color}30` } : {}"
+            >
+              <view
+                class="lv-icon"
+                :style="lv.level <= currentLevel.level ? { background: lv.color } : { background: '#E8E3DB' }"
+              >
+                <app-icon
+                  v-if="lv.level > currentLevel.level"
+                  name="lock"
+                  :size="24"
+                  color="#999999"
+                />
+                <text
+                  v-else
+                  class="lv-icon-t"
+                >
+                  {{ lv.level }}
+                </text>
               </view>
               <view class="lv-info">
                 <view class="lv-name-row">
-                  <text class="lv-name" :class="{ locked: lv.level > currentLevel.level }">Lv.{{ lv.level }} {{ lv.name }}</text>
-                  <text v-if="lv.level === currentLevel.level" class="lv-cur-tag">当前</text>
-                  <app-icon v-else-if="lv.level < currentLevel.level" name="check-circle" :size="24" color="#52C41A" />
+                  <text
+                    class="lv-name"
+                    :class="{ locked: lv.level > currentLevel.level }"
+                  >
+                    Lv.{{ lv.level }} {{ lv.name }}
+                  </text>
+                  <text
+                    v-if="lv.level === currentLevel.level"
+                    class="lv-cur-tag"
+                  >
+                    当前
+                  </text>
+                  <app-icon
+                    v-else-if="lv.level < currentLevel.level"
+                    name="check-circle"
+                    :size="24"
+                    color="#52C41A"
+                  />
                 </view>
-                <text class="lv-xp">{{ lv.minXp }} - {{ lv.maxXp === 999999 ? '∞' : lv.maxXp }} 经验</text>
+                <text class="lv-xp">
+                  {{ lv.minXp }} - {{ lv.maxXp === 999999 ? '∞' : lv.maxXp }} 经验
+                </text>
               </view>
             </view>
           </view>
         </view>
 
         <view class="card">
-          <view class="card-head"><app-icon name="gift" :size="32" color="#C9A96E" /><text class="card-title">当前等级特权</text></view>
+          <view class="card-head">
+            <app-icon
+              name="gift"
+              :size="32"
+              color="#C9A96E"
+            /><text class="card-title">
+              当前等级特权
+            </text>
+          </view>
           <view class="priv-grid">
-            <view v-for="(p, i) in currentPrivileges" :key="i" class="priv"><app-icon name="check-circle" :size="24" color="#52C41A" /><text class="priv-t">{{ p }}</text></view>
+            <view
+              v-for="(p, i) in currentPrivileges"
+              :key="i"
+              class="priv"
+            >
+              <app-icon
+                name="check-circle"
+                :size="24"
+                color="#52C41A"
+              /><text class="priv-t">
+                {{ p }}
+              </text>
+            </view>
           </view>
         </view>
 
-        <view v-if="nextLevel" class="next-card">
-          <view class="card-head"><app-icon name="sparkles" :size="32" color="#C9A96E" /><text class="card-title">Lv.{{ nextLevel.level }} {{ nextLevel.name }} 解锁特权</text></view>
+        <view
+          v-if="nextLevel"
+          class="next-card"
+        >
+          <view class="card-head">
+            <app-icon
+              name="sparkles"
+              :size="32"
+              color="#C9A96E"
+            /><text class="card-title">
+              Lv.{{ nextLevel.level }} {{ nextLevel.name }} 解锁特权
+            </text>
+          </view>
           <view class="next-chips">
-            <view v-for="(p, i) in nextPrivileges" :key="i" class="next-chip"><app-icon name="lock" :size="20" color="#C9A96E" /><text class="next-chip-t">{{ p }}</text></view>
+            <view
+              v-for="(p, i) in nextPrivileges"
+              :key="i"
+              class="next-chip"
+            >
+              <app-icon
+                name="lock"
+                :size="20"
+                color="#C9A96E"
+              /><text class="next-chip-t">
+                {{ p }}
+              </text>
+            </view>
           </view>
         </view>
       </view>
 
       <!-- 我的勋章 -->
-      <view v-else-if="activeTab === 'badges'" class="sec-group">
+      <view
+        v-else-if="activeTab === 'badges'"
+        class="sec-group"
+      >
         <view class="card">
-          <view class="card-head between"><view class="card-head-l"><app-icon name="award" :size="32" color="#C9A96E" /><text class="card-title">已获得勋章</text></view><text class="card-count">{{ obtainedBadges.length }}个</text></view>
+          <view class="card-head between">
+            <view class="card-head-l">
+              <app-icon
+                name="award"
+                :size="32"
+                color="#C9A96E"
+              /><text class="card-title">
+                已获得勋章
+              </text>
+            </view><text class="card-count">
+              {{ obtainedBadges.length }}个
+            </text>
+          </view>
           <view class="badge-grid">
-            <view v-for="b in obtainedBadges" :key="b.id" class="badge-obt">
-              <view class="badge-ic" :style="{ background: b.color + '26' }"><app-icon :name="b.icon" :size="32" :color="b.color" /></view>
-              <text class="badge-name">{{ b.name }}</text>
-              <text class="badge-date">{{ b.obtainedAt }}</text>
+            <view
+              v-for="b in obtainedBadges"
+              :key="b.id"
+              class="badge-obt"
+            >
+              <view
+                class="badge-ic"
+                :style="{ background: b.color + '26' }"
+              >
+                <app-icon
+                  :name="b.icon"
+                  :size="32"
+                  :color="b.color"
+                />
+              </view>
+              <text class="badge-name">
+                {{ b.name }}
+              </text>
+              <text class="badge-date">
+                {{ b.obtainedAt }}
+              </text>
             </view>
           </view>
         </view>
 
         <view class="card">
-          <view class="card-head between"><view class="card-head-l"><app-icon name="target" :size="32" color="#999999" /><text class="card-title">待解锁勋章</text></view><text class="card-count">{{ lockedBadges.length }}个</text></view>
+          <view class="card-head between">
+            <view class="card-head-l">
+              <app-icon
+                name="target"
+                :size="32"
+                color="#999999"
+              /><text class="card-title">
+                待解锁勋章
+              </text>
+            </view><text class="card-count">
+              {{ lockedBadges.length }}个
+            </text>
+          </view>
           <view class="locked-list">
-            <view v-for="b in lockedBadges" :key="b.id" class="locked-row">
-              <view class="badge-ic dim" :style="{ background: b.color + '26' }"><app-icon :name="b.icon" :size="32" :color="b.color" /></view>
+            <view
+              v-for="b in lockedBadges"
+              :key="b.id"
+              class="locked-row"
+            >
+              <view
+                class="badge-ic dim"
+                :style="{ background: b.color + '26' }"
+              >
+                <app-icon
+                  :name="b.icon"
+                  :size="32"
+                  :color="b.color"
+                />
+              </view>
               <view class="locked-info">
-                <view class="locked-name-row"><text class="locked-name">{{ b.name }}</text><app-icon name="lock" :size="20" color="#999999" /></view>
-                <text class="locked-desc">{{ b.desc }}</text>
-                <view v-if="b.progress !== undefined && b.total" class="prog">
-                  <view class="prog-head"><text class="prog-l">进度</text><text class="prog-l">{{ b.progress }}/{{ b.total }}</text></view>
-                  <view class="prog-track"><view class="prog-fill" :style="{ width: (b.progress / b.total * 100) + '%', background: b.color }" /></view>
+                <view class="locked-name-row">
+                  <text class="locked-name">
+                    {{ b.name }}
+                  </text><app-icon
+                    name="lock"
+                    :size="20"
+                    color="#999999"
+                  />
+                </view>
+                <text class="locked-desc">
+                  {{ b.desc }}
+                </text>
+                <view
+                  v-if="b.progress !== undefined && b.total"
+                  class="prog"
+                >
+                  <view class="prog-head">
+                    <text class="prog-l">
+                      进度
+                    </text><text class="prog-l">
+                      {{ b.progress }}/{{ b.total }}
+                    </text>
+                  </view>
+                  <view class="prog-track">
+                    <view
+                      class="prog-fill"
+                      :style="{ width: (b.progress / b.total * 100) + '%', background: b.color }"
+                    />
+                  </view>
                 </view>
               </view>
             </view>
@@ -127,40 +408,135 @@
       </view>
 
       <!-- 获取经验 -->
-      <view v-else class="sec-group">
+      <view
+        v-else
+        class="sec-group"
+      >
         <view class="card">
-          <view class="card-head"><app-icon name="zap" :size="32" color="#FF6B35" /><text class="card-title">经验获取途径</text></view>
+          <view class="card-head">
+            <app-icon
+              name="zap"
+              :size="32"
+              color="#FF6B35"
+            /><text class="card-title">
+              经验获取途径
+            </text>
+          </view>
           <view class="xp-src-list">
-            <view v-for="(s, i) in xpSources" :key="i" class="xp-src">
-              <view class="xp-src-ic" :style="{ background: s.color + '26' }"><app-icon :name="s.icon" :size="28" :color="s.color" /></view>
-              <view class="xp-src-info"><text class="xp-src-title">{{ s.title }}</text><text class="xp-src-desc">{{ s.desc }}</text></view>
-              <text class="xp-src-val" :style="{ color: s.color }">{{ s.xp }}</text>
+            <view
+              v-for="(s, i) in xpSources"
+              :key="i"
+              class="xp-src"
+            >
+              <view
+                class="xp-src-ic"
+                :style="{ background: s.color + '26' }"
+              >
+                <app-icon
+                  :name="s.icon"
+                  :size="28"
+                  :color="s.color"
+                />
+              </view>
+              <view class="xp-src-info">
+                <text class="xp-src-title">
+                  {{ s.title }}
+                </text><text class="xp-src-desc">
+                  {{ s.desc }}
+                </text>
+              </view>
+              <text
+                class="xp-src-val"
+                :style="{ color: s.color }"
+              >
+                {{ s.xp }}
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 每日签到 -->
         <view class="signin-card">
-          <view class="signin-head"><view class="card-head-l"><app-icon name="calendar" :size="30" color="#ffffff" /><text class="signin-title">每日签到</text></view><text class="signin-sub">已连续签到 7 天</text></view>
+          <view class="signin-head">
+            <view class="card-head-l">
+              <app-icon
+                name="calendar"
+                :size="30"
+                color="#ffffff"
+              /><text class="signin-title">
+                每日签到
+              </text>
+            </view><text class="signin-sub">
+              已连续签到 7 天
+            </text>
+          </view>
           <view class="signin-grid">
-            <view v-for="(xp, idx) in signinXp" :key="idx" class="signin-day" :class="signinCls(idx)">
-              <app-icon v-if="idx < 3" name="check-circle" :size="24" color="#ffffff" />
+            <view
+              v-for="(xp, idx) in signinXp"
+              :key="idx"
+              class="signin-day"
+              :class="signinCls(idx)"
+            >
+              <app-icon
+                v-if="idx < 3"
+                name="check-circle"
+                :size="24"
+                color="#ffffff"
+              />
               <template v-else>
-                <text class="signin-xp" :class="{ today: idx === 3 }">+{{ xp }}</text>
-                <text class="signin-d" :class="{ today: idx === 3 }">Day{{ idx + 1 }}</text>
+                <text
+                  class="signin-xp"
+                  :class="{ today: idx === 3 }"
+                >
+                  +{{ xp }}
+                </text>
+                <text
+                  class="signin-d"
+                  :class="{ today: idx === 3 }"
+                >
+                  Day{{ idx + 1 }}
+                </text>
               </template>
             </view>
           </view>
-          <view class="signin-btn" @tap="goSignIn"><text class="signin-btn-t">立即签到 (+10经验)</text></view>
+          <view
+            class="signin-btn"
+            @tap="goSignIn"
+          >
+            <text class="signin-btn-t">
+              立即签到 (+10经验)
+            </text>
+          </view>
         </view>
 
         <!-- 经验记录 -->
         <view class="card">
-          <view class="card-head between"><text class="card-title">最近获得</text><text class="card-link" @tap="navigateTo('/pages/circles/badges')">全部记录</text></view>
+          <view class="card-head between">
+            <text class="card-title">
+              最近获得
+            </text><text
+              class="card-link"
+              @tap="navigateTo('/pages/circles/badges')"
+            >
+              全部记录
+            </text>
+          </view>
           <view class="rec-list">
-            <view v-for="(r, i) in recentXp" :key="i" class="rec-row">
-              <view><text class="rec-title">{{ r.title }}</text><text class="rec-time">{{ r.time }}</text></view>
-              <text class="rec-xp">{{ r.xp }}</text>
+            <view
+              v-for="(r, i) in recentXp"
+              :key="i"
+              class="rec-row"
+            >
+              <view>
+                <text class="rec-title">
+                  {{ r.title }}
+                </text><text class="rec-time">
+                  {{ r.time }}
+                </text>
+              </view>
+              <text class="rec-xp">
+                {{ r.xp }}
+              </text>
             </view>
           </view>
         </view>
@@ -177,10 +553,12 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import ErrorState from '@/components/common/error-state.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
+import { circleManageApi } from '@/lib/circle-detail-data'
 
 const loading = ref(true)
 const error = ref('')
 const statusBarH = uni.getSystemInfoSync().statusBarHeight || 20
+const circleId = ref('1')
 
 onMounted(() => { loadData() })
 
@@ -191,7 +569,9 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    await new Promise(r => setTimeout(r, 500))
+    const res: any = await circleManageApi.getLevelData(circleId.value)
+    Object.assign(userData, res.user)
+    badges.splice(0, badges.length, ...res.badges)
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {

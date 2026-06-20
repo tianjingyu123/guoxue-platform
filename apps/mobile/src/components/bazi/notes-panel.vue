@@ -99,89 +99,269 @@ function onSave() { uni.showToast({ title: '已保存', icon: 'success' }) }
 </script>
 
 <template>
-  <view v-if="open" class="np">
+  <view
+    v-if="open"
+    class="np"
+  >
     <!-- 顶栏 -->
     <view class="np-hdr">
-      <view class="np-icon" @tap="emit('close')"><app-icon name="x" :size="34" color="#666666" /></view>
-      <text class="np-title">断事笔记</text>
-      <view class="np-icon" @tap="showSettings = true"><app-icon name="settings" :size="34" color="#666666" /></view>
+      <view
+        class="np-icon"
+        @tap="emit('close')"
+      >
+        <app-icon
+          name="x"
+          :size="34"
+          color="#666666"
+        />
+      </view>
+      <text class="np-title">
+        断事笔记
+      </text>
+      <view
+        class="np-icon"
+        @tap="showSettings = true"
+      >
+        <app-icon
+          name="settings"
+          :size="34"
+          color="#666666"
+        />
+      </view>
     </view>
 
     <!-- 角色 Tab -->
     <view class="np-tabs">
-      <view v-for="t in ([{ key: 'client', label: '命主反馈' }, { key: 'master', label: '师傅点评' }] as const)" :key="t.key"
-        class="np-tab" :class="{ on: activeTab === t.key }" @tap="switchTab(t.key)">
-        <text class="np-tab-text" :class="{ on: activeTab === t.key }">{{ t.label }}</text>
+      <view
+        v-for="t in ([{ key: 'client', label: '命主反馈' }, { key: 'master', label: '师傅点评' }] as const)"
+        :key="t.key"
+        class="np-tab"
+        :class="{ on: activeTab === t.key }"
+        @tap="switchTab(t.key)"
+      >
+        <text
+          class="np-tab-text"
+          :class="{ on: activeTab === t.key }"
+        >
+          {{ t.label }}
+        </text>
       </view>
     </view>
 
     <!-- 内容区 -->
-    <scroll-view scroll-y class="np-body">
+    <scroll-view
+      scroll-y
+      class="np-body"
+    >
       <!-- 命主反馈 -->
       <template v-if="activeTab === 'client'">
-        <view v-for="item in visibleClientItems" :key="item.key" class="np-row">
+        <view
+          v-for="item in visibleClientItems"
+          :key="item.key"
+          class="np-row"
+        >
           <template v-if="item.type === 'expand'">
-            <view class="np-row-head" @tap="expandedItem = expandedItem === item.key ? null : item.key">
-              <text class="np-row-label">{{ item.label }}</text>
-              <view class="np-chev" :class="{ rot: expandedItem === item.key }"><app-icon name="chevron-right" :size="28" color="#9ca3af" /></view>
+            <view
+              class="np-row-head"
+              @tap="expandedItem = expandedItem === item.key ? null : item.key"
+            >
+              <text class="np-row-label">
+                {{ item.label }}
+              </text>
+              <view
+                class="np-chev"
+                :class="{ rot: expandedItem === item.key }"
+              >
+                <app-icon
+                  name="chevron-right"
+                  :size="28"
+                  color="#9ca3af"
+                />
+              </view>
             </view>
-            <view v-if="expandedItem === item.key" class="np-row-body">
-              <textarea v-model="notes[item.key]" class="np-textarea" placeholder="请输入" :auto-height="false" />
-              <attachment-bar :note-key="item.key" :media="media" />
+            <view
+              v-if="expandedItem === item.key"
+              class="np-row-body"
+            >
+              <textarea
+                v-model="notes[item.key]"
+                class="np-textarea"
+                placeholder="请输入"
+                :auto-height="false"
+              />
+              <attachment-bar
+                :note-key="item.key"
+                :media="media"
+              />
             </view>
           </template>
-          <view v-else class="np-input-block">
-            <text class="np-row-label sm">{{ item.label }}:</text>
-            <input v-model="notes[item.key]" class="np-input" placeholder="请输入" />
-            <attachment-bar :note-key="item.key" :media="media" />
+          <view
+            v-else
+            class="np-input-block"
+          >
+            <text class="np-row-label sm">
+              {{ item.label }}:
+            </text>
+            <input
+              v-model="notes[item.key]"
+              class="np-input"
+              placeholder="请输入"
+            >
+            <attachment-bar
+              :note-key="item.key"
+              :media="media"
+            />
           </view>
         </view>
 
         <!-- 关键事件时间轴 -->
         <view class="np-events">
           <view class="np-events-head">
-            <text class="np-events-title">关键事件反馈记录</text>
-            <view class="np-add-btn" @tap="openAddEvent"><app-icon name="plus" :size="24" color="#c41e3a" /><text class="np-add-text">添加事件</text></view>
+            <text class="np-events-title">
+              关键事件反馈记录
+            </text>
+            <view
+              class="np-add-btn"
+              @tap="openAddEvent"
+            >
+              <app-icon
+                name="plus"
+                :size="24"
+                color="#c41e3a"
+              /><text class="np-add-text">
+                添加事件
+              </text>
+            </view>
           </view>
 
           <!-- 添加事件表单 -->
-          <view v-if="showAddEvent" class="np-add-form">
-            <text class="np-form-label">选择时间精度</text>
+          <view
+            v-if="showAddEvent"
+            class="np-add-form"
+          >
+            <text class="np-form-label">
+              选择时间精度
+            </text>
             <view class="np-type-row">
-              <view v-for="t in dateTypes" :key="t.key" class="np-type" :class="{ on: newEventDateType === t.key }" @tap="newEventDateType = t.key; newEventDate = ''">
-                <text class="np-type-text" :class="{ on: newEventDateType === t.key }">{{ t.label }}</text>
+              <view
+                v-for="t in dateTypes"
+                :key="t.key"
+                class="np-type"
+                :class="{ on: newEventDateType === t.key }"
+                @tap="newEventDateType = t.key; newEventDate = ''"
+              >
+                <text
+                  class="np-type-text"
+                  :class="{ on: newEventDateType === t.key }"
+                >
+                  {{ t.label }}
+                </text>
               </view>
             </view>
             <view class="np-date-input">
-              <app-icon name="calendar" :size="28" color="#9ca3af" />
-              <input v-model="newEventDate" class="np-input-fill"
-                :placeholder="newEventDateType === 'year' ? '2024' : newEventDateType === 'month' ? '2024-06' : '2024-06-15'" />
+              <app-icon
+                name="calendar"
+                :size="28"
+                color="#9ca3af"
+              />
+              <input
+                v-model="newEventDate"
+                class="np-input-fill"
+                :placeholder="newEventDateType === 'year' ? '2024' : newEventDateType === 'month' ? '2024-06' : '2024-06-15'"
+              >
             </view>
-            <textarea v-model="newEventContent" class="np-textarea" placeholder="描述发生的关键事件..." />
-            <attachment-bar note-key="new-event" :media="media" />
+            <textarea
+              v-model="newEventContent"
+              class="np-textarea"
+              placeholder="描述发生的关键事件..."
+            />
+            <attachment-bar
+              note-key="new-event"
+              :media="media"
+            />
             <view class="np-form-actions">
-              <view class="np-btn cancel" @tap="showAddEvent = false"><text class="np-btn-text soft">取消</text></view>
-              <view class="np-btn confirm" :class="{ disabled: !newEventDate || !newEventContent.trim() }" @tap="confirmAddEvent"><text class="np-btn-text light">确认添加</text></view>
+              <view
+                class="np-btn cancel"
+                @tap="showAddEvent = false"
+              >
+                <text class="np-btn-text soft">
+                  取消
+                </text>
+              </view>
+              <view
+                class="np-btn confirm"
+                :class="{ disabled: !newEventDate || !newEventContent.trim() }"
+                @tap="confirmAddEvent"
+              >
+                <text class="np-btn-text light">
+                  确认添加
+                </text>
+              </view>
             </view>
           </view>
 
           <!-- 时间轴 -->
-          <view v-if="!events.length" class="np-empty"><text class="np-empty-text">暂无记录，点击上方按钮添加关键事件</text></view>
-          <view v-else class="np-timeline">
+          <view
+            v-if="!events.length"
+            class="np-empty"
+          >
+            <text class="np-empty-text">
+              暂无记录，点击上方按钮添加关键事件
+            </text>
+          </view>
+          <view
+            v-else
+            class="np-timeline"
+          >
             <view class="np-tl-line" />
-            <view v-for="evt in events" :key="evt.id" class="np-tl-item">
+            <view
+              v-for="evt in events"
+              :key="evt.id"
+              class="np-tl-item"
+            >
               <view class="np-tl-dot" />
-              <view v-if="editingEventId === evt.id" class="np-tl-edit">
-                <input v-model="evt.date" class="np-input-fill sm" />
-                <textarea v-model="evt.content" class="np-textarea sm" />
+              <view
+                v-if="editingEventId === evt.id"
+                class="np-tl-edit"
+              >
+                <input
+                  v-model="evt.date"
+                  class="np-input-fill sm"
+                >
+                <textarea
+                  v-model="evt.content"
+                  class="np-textarea sm"
+                />
                 <view class="np-form-actions">
-                  <view class="np-btn del" @tap="deleteEvent(evt.id)"><text class="np-btn-text brand">删除</text></view>
-                  <view class="np-btn confirm" @tap="finishEdit"><text class="np-btn-text light">完成</text></view>
+                  <view
+                    class="np-btn del"
+                    @tap="deleteEvent(evt.id)"
+                  >
+                    <text class="np-btn-text brand">
+                      删除
+                    </text>
+                  </view>
+                  <view
+                    class="np-btn confirm"
+                    @tap="finishEdit"
+                  >
+                    <text class="np-btn-text light">
+                      完成
+                    </text>
+                  </view>
                 </view>
               </view>
-              <view v-else class="np-tl-view" @tap="editingEventId = evt.id">
-                <text class="np-tl-date">{{ formatEventDate(evt.date) }}</text>
-                <text class="np-tl-content">{{ evt.content }}</text>
+              <view
+                v-else
+                class="np-tl-view"
+                @tap="editingEventId = evt.id"
+              >
+                <text class="np-tl-date">
+                  {{ formatEventDate(evt.date) }}
+                </text>
+                <text class="np-tl-content">
+                  {{ evt.content }}
+                </text>
               </view>
             </view>
           </view>
@@ -190,53 +370,165 @@ function onSave() { uni.showToast({ title: '已保存', icon: 'success' }) }
 
       <!-- 师傅点评 -->
       <template v-else>
-        <view v-for="group in masterGroups" :key="group.key" class="np-row">
-          <view class="np-row-head" @tap="expandedItem = expandedItem === group.key ? null : group.key">
-            <text class="np-row-label">{{ group.label }}</text>
-            <view class="np-chev" :class="{ rot: expandedItem === group.key }"><app-icon name="chevron-right" :size="28" color="#9ca3af" /></view>
+        <view
+          v-for="group in masterGroups"
+          :key="group.key"
+          class="np-row"
+        >
+          <view
+            class="np-row-head"
+            @tap="expandedItem = expandedItem === group.key ? null : group.key"
+          >
+            <text class="np-row-label">
+              {{ group.label }}
+            </text>
+            <view
+              class="np-chev"
+              :class="{ rot: expandedItem === group.key }"
+            >
+              <app-icon
+                name="chevron-right"
+                :size="28"
+                color="#9ca3af"
+              />
+            </view>
           </view>
-          <view v-if="expandedItem === group.key" class="np-row-body">
-            <view v-for="sub in group.subItems" :key="sub.key" class="np-sub">
-              <text v-if="group.subItems.length > 1" class="np-sub-label">{{ sub.label }}</text>
-              <textarea v-model="notes[sub.key]" class="np-textarea sm" placeholder="请输入" />
-              <attachment-bar :note-key="sub.key" :media="media" />
+          <view
+            v-if="expandedItem === group.key"
+            class="np-row-body"
+          >
+            <view
+              v-for="sub in group.subItems"
+              :key="sub.key"
+              class="np-sub"
+            >
+              <text
+                v-if="group.subItems.length > 1"
+                class="np-sub-label"
+              >
+                {{ sub.label }}
+              </text>
+              <textarea
+                v-model="notes[sub.key]"
+                class="np-textarea sm"
+                placeholder="请输入"
+              />
+              <attachment-bar
+                :note-key="sub.key"
+                :media="media"
+              />
             </view>
           </view>
         </view>
         <view class="np-summary">
-          <text class="np-summary-title">总结:</text>
-          <textarea v-model="notes['summary']" class="np-textarea lg" placeholder="请输入" />
-          <attachment-bar note-key="summary" :media="media" />
+          <text class="np-summary-title">
+            总结:
+          </text>
+          <textarea
+            v-model="notes['summary']"
+            class="np-textarea lg"
+            placeholder="请输入"
+          />
+          <attachment-bar
+            note-key="summary"
+            :media="media"
+          />
         </view>
       </template>
     </scroll-view>
 
     <!-- 底部保存栏 -->
     <view class="np-foot">
-      <view class="np-save" @tap="onSave"><text class="np-save-text">保存</text></view>
-      <view class="np-foot-set" @tap="showSettings = true"><app-icon name="settings" :size="34" color="#666666" /></view>
+      <view
+        class="np-save"
+        @tap="onSave"
+      >
+        <text class="np-save-text">
+          保存
+        </text>
+      </view>
+      <view
+        class="np-foot-set"
+        @tap="showSettings = true"
+      >
+        <app-icon
+          name="settings"
+          :size="34"
+          color="#666666"
+        />
+      </view>
     </view>
 
     <!-- 显示设置弹窗 -->
-    <view v-if="showSettings" class="np-mask" @tap="showSettings = false">
-      <view class="np-sheet" @tap.stop>
+    <view
+      v-if="showSettings"
+      class="np-mask"
+      @tap="showSettings = false"
+    >
+      <view
+        class="np-sheet"
+        @tap.stop
+      >
         <view class="np-sheet-head">
-          <text class="np-sheet-title">显示设置</text>
-          <view class="np-sheet-done" @tap="showSettings = false"><text class="np-sheet-done-text">完成</text></view>
+          <text class="np-sheet-title">
+            显示设置
+          </text>
+          <view
+            class="np-sheet-done"
+            @tap="showSettings = false"
+          >
+            <text class="np-sheet-done-text">
+              完成
+            </text>
+          </view>
         </view>
         <view class="np-set-grid">
           <view class="np-set-col bd">
-            <text class="np-set-col-h">命主反馈</text>
-            <view v-for="item in CLIENT_ITEMS" :key="item.key" class="np-set-row">
-              <text class="np-set-label">{{ item.label }}</text>
-              <view class="np-switch" :class="{ on: clientVisible[item.key] }" @tap="toggleVisibility(item.key, 'client')"><view class="np-knob" :class="{ on: clientVisible[item.key] }" /></view>
+            <text class="np-set-col-h">
+              命主反馈
+            </text>
+            <view
+              v-for="item in CLIENT_ITEMS"
+              :key="item.key"
+              class="np-set-row"
+            >
+              <text class="np-set-label">
+                {{ item.label }}
+              </text>
+              <view
+                class="np-switch"
+                :class="{ on: clientVisible[item.key] }"
+                @tap="toggleVisibility(item.key, 'client')"
+              >
+                <view
+                  class="np-knob"
+                  :class="{ on: clientVisible[item.key] }"
+                />
+              </view>
             </view>
           </view>
           <view class="np-set-col">
-            <text class="np-set-col-h">师傅点评</text>
-            <view v-for="item in MASTER_ITEMS" :key="item.key" class="np-set-row">
-              <text class="np-set-label">{{ item.label }}</text>
-              <view class="np-switch" :class="{ on: masterVisible[item.key] }" @tap="toggleVisibility(item.key, 'master')"><view class="np-knob" :class="{ on: masterVisible[item.key] }" /></view>
+            <text class="np-set-col-h">
+              师傅点评
+            </text>
+            <view
+              v-for="item in MASTER_ITEMS"
+              :key="item.key"
+              class="np-set-row"
+            >
+              <text class="np-set-label">
+                {{ item.label }}
+              </text>
+              <view
+                class="np-switch"
+                :class="{ on: masterVisible[item.key] }"
+                @tap="toggleVisibility(item.key, 'master')"
+              >
+                <view
+                  class="np-knob"
+                  :class="{ on: masterVisible[item.key] }"
+                />
+              </view>
             </view>
           </view>
         </view>

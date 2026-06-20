@@ -30,19 +30,46 @@ const content = computed(() => (props.variant === 'custom' ? props.text ?? '' : 
 <template>
   <text v-if="!content" />
   <!-- 行内徽标 -->
-  <view v-else-if="tone === 'inline'" class="dc-inline">
-    <app-icon :name="iconName" :size="24" color="#ffffff" />
-    <text class="dc-inline-text">{{ content }}</text>
+  <view
+    v-else-if="tone === 'inline'"
+    class="dc-inline"
+  >
+    <app-icon
+      :name="iconName"
+      :size="24"
+      color="#ffffff"
+    />
+    <text class="dc-inline-text">
+      {{ content }}
+    </text>
   </view>
   <!-- 卡片式 -->
-  <view v-else-if="tone === 'card'" class="dc-card">
-    <app-icon :name="iconName" :size="28" color="#f59e0b" />
-    <text class="dc-card-text">{{ content }}</text>
+  <view
+    v-else-if="tone === 'card'"
+    class="dc-card"
+  >
+    <app-icon
+      :name="iconName"
+      :size="28"
+      color="#f59e0b"
+    />
+    <text class="dc-card-text">
+      {{ content }}
+    </text>
   </view>
   <!-- 极弱化（默认） -->
-  <view v-else class="dc-subtle">
-    <app-icon :name="iconName" :size="24" color="#999999" />
-    <text class="dc-subtle-text">{{ content }}</text>
+  <view
+    v-else
+    class="dc-subtle"
+  >
+    <app-icon
+      :name="iconName"
+      :size="24"
+      color="#999999"
+    />
+    <text class="dc-subtle-text">
+      {{ content }}
+    </text>
   </view>
 </template>
 

@@ -12,30 +12,89 @@ function open() { navigateTo(`/course/${props.data.id}`) }
 </script>
 
 <template>
-  <view class="card" hover-class="card-press" @tap="open">
-    <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
-      <text class="type-badge">课程</text>
-      <text v-if="kind" class="hot-badge" :class="kind === 'new' ? 'hot-new' : 'hot-red'">{{ hotText }}</text>
+  <view
+    class="card"
+    hover-class="card-press"
+    @tap="open"
+  >
+    <view
+      class="cover"
+      :class="ratio === '1:1' ? 'r-sq' : 'r-34'"
+    >
+      <image
+        v-if="data.cover"
+        class="cover-img"
+        :src="data.cover"
+        mode="aspectFill"
+      />
+      <text class="type-badge">
+        课程
+      </text>
+      <text
+        v-if="kind"
+        class="hot-badge"
+        :class="kind === 'new' ? 'hot-new' : 'hot-red'"
+      >
+        {{ hotText }}
+      </text>
     </view>
     <view class="body">
-      <text class="title">{{ data.title }}</text>
+      <text class="title">
+        {{ data.title }}
+      </text>
       <view class="price-row">
-        <view v-if="data.free" class="price-free">免费</view>
-        <view v-else class="price">
-          <text class="price-cny">¥</text>
-          <text class="price-num">{{ data.price }}</text>
-          <text v-if="data.originalPrice" class="price-orig">¥{{ data.originalPrice }}</text>
+        <view
+          v-if="data.free"
+          class="price-free"
+        >
+          免费
+        </view>
+        <view
+          v-else
+          class="price"
+        >
+          <text class="price-cny">
+            ¥
+          </text>
+          <text class="price-num">
+            {{ data.price }}
+          </text>
+          <text
+            v-if="data.originalPrice"
+            class="price-orig"
+          >
+            ¥{{ data.originalPrice }}
+          </text>
         </view>
       </view>
       <!-- 作者行 -->
-      <view v-if="data.teacher" class="author">
+      <view
+        v-if="data.teacher"
+        class="author"
+      >
         <view class="avatar">
-          <image v-if="data.teacherAvatar" class="avatar-img" :src="data.teacherAvatar" mode="aspectFill" />
-          <text v-else class="avatar-ph">{{ data.teacher.charAt(0) }}</text>
+          <image
+            v-if="data.teacherAvatar"
+            class="avatar-img"
+            :src="data.teacherAvatar"
+            mode="aspectFill"
+          />
+          <text
+            v-else
+            class="avatar-ph"
+          >
+            {{ data.teacher.charAt(0) }}
+          </text>
         </view>
-        <text class="author-name">{{ data.teacher }}</text>
-        <text v-if="data.students" class="author-trail">{{ formatCount(data.students) }}人学</text>
+        <text class="author-name">
+          {{ data.teacher }}
+        </text>
+        <text
+          v-if="data.students"
+          class="author-trail"
+        >
+          {{ formatCount(data.students) }}人学
+        </text>
       </view>
     </view>
   </view>

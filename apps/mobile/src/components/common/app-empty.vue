@@ -19,12 +19,29 @@ const emit = defineEmits<{ (e: 'action'): void }>()
 <template>
   <view class="app-empty">
     <view class="app-empty__icon">
-      <AppIcon :name="icon" :size="56" color="#D9CFC2" />
+      <AppIcon
+        :name="icon"
+        :size="56"
+        color="#D9CFC2"
+      />
     </view>
-    <text class="app-empty__title">{{ title }}</text>
-    <text v-if="desc" class="app-empty__desc">{{ desc }}</text>
-    <view v-if="actionText" class="app-empty__action" @tap="emit('action')">
-      <text class="app-empty__action-text">{{ actionText }}</text>
+    <text class="app-empty__title">
+      {{ title }}
+    </text>
+    <text
+      v-if="desc"
+      class="app-empty__desc"
+    >
+      {{ desc }}
+    </text>
+    <view
+      v-if="actionText"
+      class="app-empty__action"
+      @tap="emit('action')"
+    >
+      <text class="app-empty__action-text">
+        {{ actionText }}
+      </text>
     </view>
   </view>
 </template>

@@ -99,15 +99,16 @@ export const AGENT_AVATAR_GRADIENT: Record<string, [string, string]> = {
 export const toolsApi = {
   /** 获取工具目录 */
   async directory() {
-    if (useMock()) return { tools, medicalTools, agents }
+    if (useMock()) return { tools, medicalTools, agents, agentGradients: AGENT_AVATAR_GRADIENT }
     try {
       const data = await apiGet<any>('/tools/directory')
       return {
         tools: data.tools || tools,
         medicalTools: data.medicalTools || medicalTools,
         agents: data.agents || agents,
+        agentGradients: data.agentGradients || AGENT_AVATAR_GRADIENT,
       }
-    } catch { return { tools, medicalTools, agents } }
+    } catch { return { tools, medicalTools, agents, agentGradients: AGENT_AVATAR_GRADIENT } }
   },
 
   /** 获取工具列表（可按分类筛选） */

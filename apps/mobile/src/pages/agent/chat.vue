@@ -186,90 +186,323 @@ onUnmounted(() => {
     <!-- 顶部导航 -->
     <view class="header safe-pt">
       <view class="head-bar">
-        <view class="back" @tap="goBack()"><AppIcon name="arrow-left" :size="40" color="#1a1a1a" /></view>
+        <view
+          class="back"
+          @tap="goBack()"
+        >
+          <AppIcon
+            name="arrow-left"
+            :size="40"
+            color="#1a1a1a"
+          />
+        </view>
         <view class="head-center">
           <view class="head-avatar agent-gradient-cool">
-            <AppIcon name="bot" :size="28" color="#ffffff" />
+            <AppIcon
+              name="bot"
+              :size="28"
+              color="#ffffff"
+            />
             <view class="online-dot" />
           </view>
           <view class="head-text">
-            <text class="head-name">{{ agentDetail.name }}</text>
-            <view class="head-status"><view class="status-dot" /><text class="status-txt">在线</text></view>
+            <text class="head-name">
+              {{ agentDetail.name }}
+            </text>
+            <view class="head-status">
+              <view class="status-dot" /><text class="status-txt">
+                在线
+              </text>
+            </view>
           </view>
         </view>
         <view class="head-actions">
-          <view class="act" @tap="isMuted = !isMuted"><AppIcon :name="isMuted ? 'volume-x' : 'volume-2'" :size="34" :color="isMuted ? '#999' : '#c9a96e'" /></view>
-          <view class="act" @tap="toggleCall()"><AppIcon name="phone" :size="34" color="#c41e3a" /></view>
+          <view
+            class="act"
+            @tap="isMuted = !isMuted"
+          >
+            <AppIcon
+              :name="isMuted ? 'volume-x' : 'volume-2'"
+              :size="34"
+              :color="isMuted ? '#999' : '#c9a96e'"
+            />
+          </view>
+          <view
+            class="act"
+            @tap="toggleCall()"
+          >
+            <AppIcon
+              name="phone"
+              :size="34"
+              color="#c41e3a"
+            />
+          </view>
           <view class="menu-wrap">
-            <view class="act" @tap="showMenu = !showMenu"><AppIcon name="more-horizontal" :size="34" color="#999" /></view>
-            <view v-if="showMenu" class="menu-mask" @tap="showMenu = false" />
-            <view v-if="showMenu" class="menu">
-              <view class="menu-item" @tap="handleGenerateSummary"><AppIcon name="lightbulb" :size="28" color="#1a1a1a" /><text class="menu-txt">生成对话总结</text></view>
-              <view class="menu-item bordered" @tap="handleClearContext"><AppIcon name="trash-2" :size="28" color="#1a1a1a" /><text class="menu-txt">清除上下文</text></view>
+            <view
+              class="act"
+              @tap="showMenu = !showMenu"
+            >
+              <AppIcon
+                name="more-horizontal"
+                :size="34"
+                color="#999"
+              />
+            </view>
+            <view
+              v-if="showMenu"
+              class="menu-mask"
+              @tap="showMenu = false"
+            />
+            <view
+              v-if="showMenu"
+              class="menu"
+            >
+              <view
+                class="menu-item"
+                @tap="handleGenerateSummary"
+              >
+                <AppIcon
+                  name="lightbulb"
+                  :size="28"
+                  color="#1a1a1a"
+                /><text class="menu-txt">
+                  生成对话总结
+                </text>
+              </view>
+              <view
+                class="menu-item bordered"
+                @tap="handleClearContext"
+              >
+                <AppIcon
+                  name="trash-2"
+                  :size="28"
+                  color="#1a1a1a"
+                /><text class="menu-txt">
+                  清除上下文
+                </text>
+              </view>
             </view>
           </view>
         </view>
       </view>
       <!-- 消耗提示 -->
       <view class="usage-bar">
-        <view class="usage-left"><AppIcon name="zap" :size="26" color="#c9a96e" /><text class="usage-txt">剩余免费次数：<text class="usage-num">{{ freeRemaining }}</text> 次</text></view>
+        <view class="usage-left">
+          <AppIcon
+            name="zap"
+            :size="26"
+            color="#c9a96e"
+          /><text class="usage-txt">
+            剩余免费次数：<text class="usage-num">
+              {{ freeRemaining }}
+            </text> 次
+          </text>
+        </view>
         <view class="usage-right">
-          <text class="usage-price"><AppIcon name="message-square" :size="22" color="#999" />{{ agentDetail.pricePerChat }}元/次</text>
-          <text class="usage-price"><AppIcon name="phone" :size="22" color="#999" />{{ agentDetail.callPrice }}元/分钟</text>
+          <text class="usage-price">
+            <AppIcon
+              name="message-square"
+              :size="22"
+              color="#999"
+            />{{ agentDetail.pricePerChat }}元/次
+          </text>
+          <text class="usage-price">
+            <AppIcon
+              name="phone"
+              :size="22"
+              color="#999"
+            />{{ agentDetail.callPrice }}元/分钟
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 对话区 -->
-    <scroll-view scroll-y class="msg-area" :scroll-into-view="scrollId" :scroll-with-animation="true">
+    <scroll-view
+      scroll-y
+      class="msg-area"
+      :scroll-into-view="scrollId"
+      :scroll-with-animation="true"
+    >
       <view class="msg-list">
-        <view v-for="msg in messages" :key="msg.id" class="msg-row" :class="{ 'msg-row-user': msg.role === 'user' }">
-          <view v-if="msg.role === 'assistant'" class="msg-avatar agent-gradient-cool"><AppIcon name="bot" :size="24" color="#ffffff" /></view>
-          <view class="msg-content" :class="{ 'content-user': msg.role === 'user' }">
-            <view class="bubble" :class="msg.role === 'user' ? 'bubble-user' : 'bubble-ai'">
-              <text class="bubble-text" :class="{ 'streaming-cursor': msg.isStreaming }">{{ msg.content }}</text>
+        <view
+          v-for="msg in messages"
+          :key="msg.id"
+          class="msg-row"
+          :class="{ 'msg-row-user': msg.role === 'user' }"
+        >
+          <view
+            v-if="msg.role === 'assistant'"
+            class="msg-avatar agent-gradient-cool"
+          >
+            <AppIcon
+              name="bot"
+              :size="24"
+              color="#ffffff"
+            />
+          </view>
+          <view
+            class="msg-content"
+            :class="{ 'content-user': msg.role === 'user' }"
+          >
+            <view
+              class="bubble"
+              :class="msg.role === 'user' ? 'bubble-user' : 'bubble-ai'"
+            >
+              <text
+                class="bubble-text"
+                :class="{ 'streaming-cursor': msg.isStreaming }"
+              >
+                {{ msg.content }}
+              </text>
             </view>
             <!-- 推荐卡片 -->
-            <view v-if="msg.role === 'assistant' && msg.recommendations && !msg.isStreaming" class="recommend-block">
-              <view class="recommend-head"><AppIcon name="sparkles" :size="24" color="#c9a96e" /><text class="recommend-label">为您推荐</text></view>
-              <view v-for="(rec, i) in msg.recommendations" :key="i" class="rec-card" :class="`rec-${rec.type}`" @tap="openRecommend(rec)">
+            <view
+              v-if="msg.role === 'assistant' && msg.recommendations && !msg.isStreaming"
+              class="recommend-block"
+            >
+              <view class="recommend-head">
+                <AppIcon
+                  name="sparkles"
+                  :size="24"
+                  color="#c9a96e"
+                /><text class="recommend-label">
+                  为您推荐
+                </text>
+              </view>
+              <view
+                v-for="(rec, i) in msg.recommendations"
+                :key="i"
+                class="rec-card"
+                :class="`rec-${rec.type}`"
+                @tap="openRecommend(rec)"
+              >
                 <!-- 课程 -->
                 <template v-if="rec.type === 'course'">
-                  <view class="rec-icon rec-icon-course"><AppIcon name="play" :size="28" color="#c41e3a" /></view>
+                  <view class="rec-icon rec-icon-course">
+                    <AppIcon
+                      name="play"
+                      :size="28"
+                      color="#c41e3a"
+                    />
+                  </view>
                   <view class="rec-info">
-                    <view class="rec-top"><text class="rec-title">{{ rec.data.title }}</text><text class="rec-badge">推荐</text></view>
-                    <text class="rec-sub">{{ rec.data.instructor }} · {{ rec.data.students }}人已学</text>
+                    <view class="rec-top">
+                      <text class="rec-title">
+                        {{ rec.data.title }}
+                      </text><text class="rec-badge">
+                        推荐
+                      </text>
+                    </view>
+                    <text class="rec-sub">
+                      {{ rec.data.instructor }} · {{ rec.data.students }}人已学
+                    </text>
                     <view class="rec-price-row">
-                      <text class="rec-price">¥{{ rec.data.price }}</text>
-                      <text class="rec-origin">¥{{ rec.data.originalPrice }}</text>
-                      <view class="rec-rating"><AppIcon name="star" :size="22" color="#f59e0b" :fill="true" /><text class="rating-txt">{{ rec.data.rating }}</text></view>
+                      <text class="rec-price">
+                        ¥{{ rec.data.price }}
+                      </text>
+                      <text class="rec-origin">
+                        ¥{{ rec.data.originalPrice }}
+                      </text>
+                      <view class="rec-rating">
+                        <AppIcon
+                          name="star"
+                          :size="22"
+                          color="#f59e0b"
+                          :fill="true"
+                        /><text class="rating-txt">
+                          {{ rec.data.rating }}
+                        </text>
+                      </view>
                     </view>
                   </view>
                 </template>
                 <!-- 圈子 -->
                 <template v-else-if="rec.type === 'circle'">
-                  <view class="rec-icon rec-icon-circle"><AppIcon name="users" :size="26" color="#059669" /></view>
-                  <view class="rec-info">
-                    <view class="rec-top"><text class="rec-title">{{ rec.data.name }}</text><text v-if="rec.data.price === 0" class="rec-free">免费</text></view>
-                    <text class="rec-sub">{{ rec.data.description }}</text>
-                    <view class="rec-price-row"><text class="rec-members">{{ rec.data.members }}成员</text><text v-if="rec.data.price > 0" class="rec-price">¥{{ rec.data.price }}</text></view>
+                  <view class="rec-icon rec-icon-circle">
+                    <AppIcon
+                      name="users"
+                      :size="26"
+                      color="#059669"
+                    />
                   </view>
-                  <AppIcon name="chevron-right" :size="28" color="#999" />
+                  <view class="rec-info">
+                    <view class="rec-top">
+                      <text class="rec-title">
+                        {{ rec.data.name }}
+                      </text><text
+                        v-if="rec.data.price === 0"
+                        class="rec-free"
+                      >
+                        免费
+                      </text>
+                    </view>
+                    <text class="rec-sub">
+                      {{ rec.data.description }}
+                    </text>
+                    <view class="rec-price-row">
+                      <text class="rec-members">
+                        {{ rec.data.members }}成员
+                      </text><text
+                        v-if="rec.data.price > 0"
+                        class="rec-price"
+                      >
+                        ¥{{ rec.data.price }}
+                      </text>
+                    </view>
+                  </view>
+                  <AppIcon
+                    name="chevron-right"
+                    :size="28"
+                    color="#999"
+                  />
                 </template>
                 <!-- 商品 -->
                 <template v-else-if="rec.type === 'product'">
-                  <view class="rec-icon rec-icon-product"><AppIcon name="shopping-bag" :size="26" color="#d97706" /></view>
+                  <view class="rec-icon rec-icon-product">
+                    <AppIcon
+                      name="shopping-bag"
+                      :size="26"
+                      color="#d97706"
+                    />
+                  </view>
                   <view class="rec-info">
-                    <text class="rec-title">{{ rec.data.name }}</text>
-                    <text class="rec-sub">{{ rec.data.type }} · 已售{{ rec.data.sales }}</text>
-                    <view class="rec-price-row"><text class="rec-price">¥{{ rec.data.price }}</text><text class="rec-origin">¥{{ rec.data.originalPrice }}</text></view>
+                    <text class="rec-title">
+                      {{ rec.data.name }}
+                    </text>
+                    <text class="rec-sub">
+                      {{ rec.data.type }} · 已售{{ rec.data.sales }}
+                    </text>
+                    <view class="rec-price-row">
+                      <text class="rec-price">
+                        ¥{{ rec.data.price }}
+                      </text><text class="rec-origin">
+                        ¥{{ rec.data.originalPrice }}
+                      </text>
+                    </view>
                   </view>
                 </template>
                 <!-- 排盘工具 -->
                 <template v-else>
-                  <view class="rec-icon rec-icon-paipan"><AppIcon name="compass" :size="26" color="#ffffff" /></view>
-                  <view class="rec-info"><text class="rec-title">立即排盘</text><text class="rec-sub">使用八字排盘工具生成命盘</text></view>
-                  <AppIcon name="chevron-right" :size="28" color="#999" />
+                  <view class="rec-icon rec-icon-paipan">
+                    <AppIcon
+                      name="compass"
+                      :size="26"
+                      color="#ffffff"
+                    />
+                  </view>
+                  <view class="rec-info">
+                    <text class="rec-title">
+                      立即排盘
+                    </text><text class="rec-sub">
+                      使用八字排盘工具生成命盘
+                    </text>
+                  </view>
+                  <AppIcon
+                    name="chevron-right"
+                    :size="28"
+                    color="#999"
+                  />
                 </template>
               </view>
             </view>
@@ -277,90 +510,279 @@ onUnmounted(() => {
         </view>
 
         <!-- 正在输入 -->
-        <view v-if="isTyping && messages[messages.length - 1]?.role === 'user'" class="msg-row">
-          <view class="msg-avatar agent-gradient-cool"><AppIcon name="bot" :size="24" color="#ffffff" /></view>
+        <view
+          v-if="isTyping && messages[messages.length - 1]?.role === 'user'"
+          class="msg-row"
+        >
+          <view class="msg-avatar agent-gradient-cool">
+            <AppIcon
+              name="bot"
+              :size="24"
+              color="#ffffff"
+            />
+          </view>
           <view class="bubble bubble-ai typing">
-            <view class="dots"><view class="dot typing-dot" style="animation-delay:0s" /><view class="dot typing-dot" style="animation-delay:0.15s" /><view class="dot typing-dot" style="animation-delay:0.3s" /></view>
+            <view class="dots">
+              <view
+                class="dot typing-dot"
+                style="animation-delay:0s"
+              /><view
+                class="dot typing-dot"
+                style="animation-delay:0.15s"
+              /><view
+                class="dot typing-dot"
+                style="animation-delay:0.3s"
+              />
+            </view>
           </view>
         </view>
 
         <!-- 对话总结 -->
-        <view v-if="showSummary && messages.length > 3" class="summary-card">
-          <view class="summary-head"><AppIcon name="lightbulb" :size="28" color="#c9a96e" /><text class="summary-title">对话总结</text></view>
-          <text class="summary-text">本次对话共{{ userCount }}个问题，涉及：</text>
-          <view class="summary-tags"><text class="summary-tag">运势分析</text><text class="summary-tag">事业规划</text></view>
+        <view
+          v-if="showSummary && messages.length > 3"
+          class="summary-card"
+        >
+          <view class="summary-head">
+            <AppIcon
+              name="lightbulb"
+              :size="28"
+              color="#c9a96e"
+            /><text class="summary-title">
+              对话总结
+            </text>
+          </view>
+          <text class="summary-text">
+            本次对话共{{ userCount }}个问题，涉及：
+          </text>
+          <view class="summary-tags">
+            <text class="summary-tag">
+              运势分析
+            </text><text class="summary-tag">
+              事业规划
+            </text>
+          </view>
           <view class="summary-divider" />
-          <text class="summary-sub">相关推荐</text>
-          <scroll-view scroll-x class="summary-rec">
+          <text class="summary-sub">
+            相关推荐
+          </text>
+          <scroll-view
+            scroll-x
+            class="summary-rec"
+          >
             <view class="summary-rec-row">
-              <view v-for="c in recommendedCourses.slice(0, 2)" :key="c.id" class="summary-rec-item" @tap="toastComingSoon()">
-                <text class="summary-rec-title">{{ c.title }}</text>
-                <text class="summary-rec-price">¥{{ c.price }}</text>
+              <view
+                v-for="c in recommendedCourses.slice(0, 2)"
+                :key="c.id"
+                class="summary-rec-item"
+                @tap="toastComingSoon()"
+              >
+                <text class="summary-rec-title">
+                  {{ c.title }}
+                </text>
+                <text class="summary-rec-price">
+                  ¥{{ c.price }}
+                </text>
               </view>
             </view>
           </scroll-view>
         </view>
 
-        <view :id="scrollId" class="anchor" />
+        <view
+          :id="scrollId"
+          class="anchor"
+        />
       </view>
     </scroll-view>
 
     <!-- 快捷提问 -->
-    <view v-if="showQuick" class="quick-zone">
-      <view class="quick-head"><AppIcon name="sparkles" :size="24" color="#c9a96e" /><text class="quick-label">快捷提问</text></view>
+    <view
+      v-if="showQuick"
+      class="quick-zone"
+    >
+      <view class="quick-head">
+        <AppIcon
+          name="sparkles"
+          :size="24"
+          color="#c9a96e"
+        /><text class="quick-label">
+          快捷提问
+        </text>
+      </view>
       <view class="quick-list">
-        <view v-for="(q, i) in quickQuestions" :key="i" class="quick-chip" @tap="handleQuick(q)">{{ q }}</view>
+        <view
+          v-for="(q, i) in quickQuestions"
+          :key="i"
+          class="quick-chip"
+          @tap="handleQuick(q)"
+        >
+          {{ q }}
+        </view>
       </view>
     </view>
 
     <!-- 底部输入 -->
     <view class="input-bar safe-pb">
-      <textarea class="input" v-model="inputValue" placeholder="输入您的问题..." :maxlength="-1" auto-height :show-confirm-bar="false" />
-      <view class="send-btn" :class="{ disabled: !inputValue.trim() || isTyping }" @tap="handleSend()"><AppIcon name="send" :size="34" color="#ffffff" /></view>
+      <textarea
+        v-model="inputValue"
+        class="input"
+        placeholder="输入您的问题..."
+        :maxlength="-1"
+        auto-height
+        :show-confirm-bar="false"
+      />
+      <view
+        class="send-btn"
+        :class="{ disabled: !inputValue.trim() || isTyping }"
+        @tap="handleSend()"
+      >
+        <AppIcon
+          name="send"
+          :size="34"
+          color="#ffffff"
+        />
+      </view>
     </view>
-    <view class="disclaimer safe-pb">此内容由AI生成，仅供参考，不构成专业建议</view>
+    <view class="disclaimer safe-pb">
+      此内容由AI生成，仅供参考，不构成专业建议
+    </view>
 
     <!-- 语音通话浮层 -->
-    <view v-if="isInCall" class="call-overlay">
-      <view class="call-bg"><view class="bg-blob blob-1" /><view class="bg-blob blob-2" /></view>
+    <view
+      v-if="isInCall"
+      class="call-overlay"
+    >
+      <view class="call-bg">
+        <view class="bg-blob blob-1" /><view class="bg-blob blob-2" />
+      </view>
       <view class="call-main">
         <view class="call-avatar-wrap">
           <view class="call-ring ring-spin-slow" />
-          <view class="call-avatar agent-gradient-cool"><AppIcon name="bot" :size="56" color="#ffffff" /></view>
+          <view class="call-avatar agent-gradient-cool">
+            <AppIcon
+              name="bot"
+              :size="56"
+              color="#ffffff"
+            />
+          </view>
           <view class="call-online" />
         </view>
-        <text class="call-name">{{ agentDetail.name }}</text>
-        <view class="call-status"><view class="call-status-dot" /><text class="call-status-txt">通话中</text></view>
+        <text class="call-name">
+          {{ agentDetail.name }}
+        </text>
+        <view class="call-status">
+          <view class="call-status-dot" /><text class="call-status-txt">
+            通话中
+          </text>
+        </view>
         <view class="call-timer">
-          <text class="timer-num">{{ formatDuration(callDuration) }}</text>
-          <text class="timer-cost">¥{{ agentDetail.callPrice }}/分钟 · 已消费 ¥{{ callCost }}</text>
+          <text class="timer-num">
+            {{ formatDuration(callDuration) }}
+          </text>
+          <text class="timer-cost">
+            ¥{{ agentDetail.callPrice }}/分钟 · 已消费 ¥{{ callCost }}
+          </text>
         </view>
         <view class="soundwave">
-          <view v-for="(h, i) in soundbars" :key="i" class="wave-bar animate-soundwave" :style="{ height: h + 'rpx', animationDelay: (i * 0.05) + 's' }" />
+          <view
+            v-for="(h, i) in soundbars"
+            :key="i"
+            class="wave-bar animate-soundwave"
+            :style="{ height: h + 'rpx', animationDelay: (i * 0.05) + 's' }"
+          />
         </view>
       </view>
 
       <!-- 通话中推荐卡片（V0：每30秒弹出，8秒自动消失） -->
-      <view v-if="callRecommendation" class="call-rec-card">
-        <text class="call-rec-hint"><AppIcon name="sparkles" :size="22" color="rgba(255,255,255,0.8)" /> 为您推荐</text>
-        <view class="call-rec-row" @tap="openRecommend(callRecommendation)">
-          <view class="call-rec-icon"><AppIcon name="play" :size="28" color="rgba(255,255,255,0.8)" /></view>
-          <view class="call-rec-info">
-            <text class="call-rec-title">{{ callRecommendation.data.title }}</text>
-            <text class="call-rec-price">¥{{ callRecommendation.data.price }}</text>
+      <view
+        v-if="callRecommendation"
+        class="call-rec-card"
+      >
+        <text class="call-rec-hint">
+          <AppIcon
+            name="sparkles"
+            :size="22"
+            color="rgba(255,255,255,0.8)"
+          /> 为您推荐
+        </text>
+        <view
+          class="call-rec-row"
+          @tap="openRecommend(callRecommendation)"
+        >
+          <view class="call-rec-icon">
+            <AppIcon
+              name="play"
+              :size="28"
+              color="rgba(255,255,255,0.8)"
+            />
           </view>
-          <AppIcon name="chevron-right" :size="28" color="rgba(255,255,255,0.4)" />
+          <view class="call-rec-info">
+            <text class="call-rec-title">
+              {{ callRecommendation.data.title }}
+            </text>
+            <text class="call-rec-price">
+              ¥{{ callRecommendation.data.price }}
+            </text>
+          </view>
+          <AppIcon
+            name="chevron-right"
+            :size="28"
+            color="rgba(255,255,255,0.4)"
+          />
         </view>
       </view>
       <view class="call-controls safe-pb">
         <view class="call-ctrl-row">
-          <view class="ctrl-btn" :class="{ active: isMicMuted }" @tap="isMicMuted = !isMicMuted"><AppIcon :name="isMicMuted ? 'mic-off' : 'mic'" :size="40" color="#ffffff" /></view>
-          <view class="ctrl-btn hangup" @tap="toggleCall()"><AppIcon name="phone-off" :size="44" color="#ffffff" /></view>
-          <view class="ctrl-btn" :class="{ active: isMuted }" @tap="isMuted = !isMuted"><AppIcon :name="isMuted ? 'volume-x' : 'volume-2'" :size="40" color="#ffffff" /></view>
+          <view
+            class="ctrl-btn"
+            :class="{ active: isMicMuted }"
+            @tap="isMicMuted = !isMicMuted"
+          >
+            <AppIcon
+              :name="isMicMuted ? 'mic-off' : 'mic'"
+              :size="40"
+              color="#ffffff"
+            />
+          </view>
+          <view
+            class="ctrl-btn hangup"
+            @tap="toggleCall()"
+          >
+            <AppIcon
+              name="phone-off"
+              :size="44"
+              color="#ffffff"
+            />
+          </view>
+          <view
+            class="ctrl-btn"
+            :class="{ active: isMuted }"
+            @tap="isMuted = !isMuted"
+          >
+            <AppIcon
+              :name="isMuted ? 'volume-x' : 'volume-2'"
+              :size="40"
+              color="#ffffff"
+            />
+          </view>
         </view>
-        <view class="net-status" @tap="onReconnecting()"><AppIcon name="phone" :size="26" color="rgba(255,255,255,0.4)" /><text class="net-txt">网络正常 · 点此模拟断连</text></view>
+        <view
+          class="net-status"
+          @tap="onReconnecting()"
+        >
+          <AppIcon
+            name="phone"
+            :size="26"
+            color="rgba(255,255,255,0.4)"
+          /><text class="net-txt">
+            网络正常 · 点此模拟断连
+          </text>
+        </view>
       </view>
-      <ReconnectingOverlay :open="isReconnecting" @reconnected="onReconnected" @end-call="onEndCallFromOverlay" />
+      <ReconnectingOverlay
+        :open="isReconnecting"
+        @reconnected="onReconnected"
+        @end-call="onEndCallFromOverlay"
+      />
     </view>
   </view>
 </template>

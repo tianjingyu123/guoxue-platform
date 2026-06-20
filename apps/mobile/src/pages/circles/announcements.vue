@@ -57,10 +57,6 @@ const defaultContent = `亲爱的圈友们：
 
 感谢大家的支持与配合，我们共同维护一个高质量的国学学习社区！`
 
-const mockRelated: Announcement[] = [
-  { id: '2', circleId: 'c1', circleName: '八字命理研习社', title: '关于圈子积分系统升级的公告', content: '', isPinned: false, isRead: true, readCount: 215, publishedAt: '2024-01-10T09:00:00Z', author: { id: 'u1', name: '圈子管理员', avatar: '' } },
-  { id: '3', circleId: 'c1', circleName: '八字命理研习社', title: '新年活动：八字2024年运势公益解读报名开始', content: '', isPinned: false, isRead: true, readCount: 487, publishedAt: '2024-01-05T09:00:00Z', author: { id: 'u1', name: '圈子管理员', avatar: '' } },
-]
 
 onMounted(() => {
   const pages = getCurrentPages()
@@ -81,10 +77,10 @@ async function loadData() {
       const list = await circleDetailApi.listAnnouncements(circleId.value)
       const listData = (list as any).data || list || []
       related.value = Array.isArray(listData) ? listData.filter((a: any) => a.id !== annoId.value) : []
-    } catch { related.value = mockRelated }
+    } catch (e: any) { related.value = []; if (!error.value) error.value = '加载相关公告失败' }
   } catch (e: any) {
     announcement.value = { ...announcement.value, circleName: '八字命理研习社', title: '圈子重要规则更新', content: defaultContent, isPinned: true, readCount: 328, publishedAt: '2024-01-15T09:00:00Z', author: { id: 'u1', name: '圈子管理员', avatar: '' } }
-    related.value = mockRelated
+    related.value = []
   } finally { loading.value = false }
 }
 
@@ -103,7 +99,7 @@ const blocks = computed<ContentBlock[]>(() =>
 function fmtDate(s: string) { const d = new Date(s); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}` }
 async function markRead() {
   if (isRead.value) return
-  try { await circleDetailApi.markAnnouncementRead(circleId.value, annoId.value) } catch {}
+  try { await circleDetailApi.markAnnouncementRead(circleId.value, annoId.value) } catch (e: any) { uni.showToast({ title: e?.message || '操作失败', icon: 'none' }); return }
   isRead.value = true
   uni.showToast({ title: '已标记为已读', icon: 'success' })
 }
@@ -115,72 +111,237 @@ function share() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
 <template>
   <view class="an">
     <view class="an-hdr">
-      <view class="an-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#ffffff" /></view>
-      <text class="an-hdr-title">圈子公告</text>
-      <view class="an-hdr-btn" @tap="share"><app-icon name="share-2" :size="36" color="#ffffff" /></view>
+      <view
+        class="an-hdr-btn"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="36"
+          color="#ffffff"
+        />
+      </view>
+      <text class="an-hdr-title">
+        圈子公告
+      </text>
+      <view
+        class="an-hdr-btn"
+        @tap="share"
+      >
+        <app-icon
+          name="share-2"
+          :size="36"
+          color="#ffffff"
+        />
+      </view>
     </view>
 
     <!-- 骨架 -->
-    <view v-if="loading" class="an-skel">
+    <view
+      v-if="loading"
+      class="an-skel"
+    >
       <view class="an-skel-source" />
-      <view class="an-skel-card"><view class="an-skel-line w80" /><view class="an-skel-line w50" /><view class="an-skel-line w90" /><view class="an-skel-line w70" /><view class="an-skel-line w60" /></view>
+      <view class="an-skel-card">
+        <view class="an-skel-line w80" /><view class="an-skel-line w50" /><view class="an-skel-line w90" /><view class="an-skel-line w70" /><view class="an-skel-line w60" />
+      </view>
     </view>
 
     <!-- 错误 -->
-    <error-state v-else-if="error" :message="error" @retry="loadData" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadData"
+    />
 
-    <scroll-view v-else scroll-y class="an-body">
-      <view class="an-source" @tap="openCircle">
-        <app-icon name="bell" :size="28" color="#C41E3A" />
-        <text class="an-source-t">来自圈子：<text class="an-source-name">{{ announcement.circleName }}</text></text>
-        <app-icon name="chevron-right" :size="28" color="#999999" />
+    <scroll-view
+      v-else
+      scroll-y
+      class="an-body"
+    >
+      <view
+        class="an-source"
+        @tap="openCircle"
+      >
+        <app-icon
+          name="bell"
+          :size="28"
+          color="#C41E3A"
+        />
+        <text class="an-source-t">
+          来自圈子：<text class="an-source-name">
+            {{ announcement.circleName }}
+          </text>
+        </text>
+        <app-icon
+          name="chevron-right"
+          :size="28"
+          color="#999999"
+        />
       </view>
 
       <view class="an-card">
-        <view v-if="announcement.isPinned" class="an-pin">
-          <app-icon name="pin" :size="24" color="#C9A96E" /><text class="an-pin-t">置顶公告</text>
+        <view
+          v-if="announcement.isPinned"
+          class="an-pin"
+        >
+          <app-icon
+            name="pin"
+            :size="24"
+            color="#C9A96E"
+          /><text class="an-pin-t">
+            置顶公告
+          </text>
         </view>
         <view class="an-card-body">
-          <text class="an-title">{{ announcement.title }}</text>
+          <text class="an-title">
+            {{ announcement.title }}
+          </text>
           <view class="an-meta">
-            <view class="an-meta-author"><view class="an-avatar"><text class="an-avatar-t">管</text></view><text class="an-meta-t">{{ announcement.author.name }}</text></view>
-            <view class="an-meta-item"><app-icon name="clock" :size="26" color="#999999" /><text class="an-meta-t">{{ fmtDate(announcement.publishedAt) }}</text></view>
-            <view class="an-meta-item right"><app-icon name="eye" :size="26" color="#999999" /><text class="an-meta-t">{{ announcement.readCount }} 已读</text></view>
+            <view class="an-meta-author">
+              <view class="an-avatar">
+                <text class="an-avatar-t">
+                  管
+                </text>
+              </view><text class="an-meta-t">
+                {{ announcement.author.name }}
+              </text>
+            </view>
+            <view class="an-meta-item">
+              <app-icon
+                name="clock"
+                :size="26"
+                color="#999999"
+              /><text class="an-meta-t">
+                {{ fmtDate(announcement.publishedAt) }}
+              </text>
+            </view>
+            <view class="an-meta-item right">
+              <app-icon
+                name="eye"
+                :size="26"
+                color="#999999"
+              /><text class="an-meta-t">
+                {{ announcement.readCount }} 已读
+              </text>
+            </view>
           </view>
           <view class="an-content">
-            <template v-for="(b, i) in blocks" :key="i">
-              <view v-if="b.type === 'space'" class="an-c-space" />
-              <text v-else-if="b.type === 'bold'" class="an-c-bold">{{ b.text }}</text>
-              <text v-else-if="b.type === 'ordered'" class="an-c-ordered">{{ b.text }}</text>
-              <view v-else-if="b.type === 'bullet'" class="an-c-bullet"><text class="an-c-bullet-dot">•</text><text class="an-c-bullet-t">{{ b.text }}</text></view>
-              <view v-else-if="b.type === 'divider'" class="an-c-divider" />
-              <text v-else class="an-c-text">{{ b.text }}</text>
+            <template
+              v-for="(b, i) in blocks"
+              :key="i"
+            >
+              <view
+                v-if="b.type === 'space'"
+                class="an-c-space"
+              />
+              <text
+                v-else-if="b.type === 'bold'"
+                class="an-c-bold"
+              >
+                {{ b.text }}
+              </text>
+              <text
+                v-else-if="b.type === 'ordered'"
+                class="an-c-ordered"
+              >
+                {{ b.text }}
+              </text>
+              <view
+                v-else-if="b.type === 'bullet'"
+                class="an-c-bullet"
+              >
+                <text class="an-c-bullet-dot">
+                  •
+                </text><text class="an-c-bullet-t">
+                  {{ b.text }}
+                </text>
+              </view>
+              <view
+                v-else-if="b.type === 'divider'"
+                class="an-c-divider"
+              />
+              <text
+                v-else
+                class="an-c-text"
+              >
+                {{ b.text }}
+              </text>
             </template>
           </view>
         </view>
       </view>
 
-      <view v-if="related.length" class="an-related">
-        <text class="an-related-title">其他公告</text>
+      <view
+        v-if="related.length"
+        class="an-related"
+      >
+        <text class="an-related-title">
+          其他公告
+        </text>
         <view class="an-related-list">
-          <view v-for="item in related" :key="item.id" class="an-related-item" @tap="openRelated(item.id)">
-            <view class="an-related-icon"><app-icon :name="item.isPinned ? 'pin' : 'bell'" :size="26" :color="item.isPinned ? '#C9A96E' : '#C41E3A'" /></view>
-            <view class="an-related-info">
-              <text class="an-related-t" :class="{ read: item.isRead }">{{ item.title }}</text>
-              <text class="an-related-date">{{ fmtDate(item.publishedAt) }}</text>
+          <view
+            v-for="item in related"
+            :key="item.id"
+            class="an-related-item"
+            @tap="openRelated(item.id)"
+          >
+            <view class="an-related-icon">
+              <app-icon
+                :name="item.isPinned ? 'pin' : 'bell'"
+                :size="26"
+                :color="item.isPinned ? '#C9A96E' : '#C41E3A'"
+              />
             </view>
-            <view v-if="!item.isRead" class="an-related-dot" />
+            <view class="an-related-info">
+              <text
+                class="an-related-t"
+                :class="{ read: item.isRead }"
+              >
+                {{ item.title }}
+              </text>
+              <text class="an-related-date">
+                {{ fmtDate(item.publishedAt) }}
+              </text>
+            </view>
+            <view
+              v-if="!item.isRead"
+              class="an-related-dot"
+            />
           </view>
         </view>
       </view>
       <view class="an-spacer" />
     </scroll-view>
 
-    <view v-if="!loading && !error" class="an-foot">
-      <view class="an-foot-back" @tap="openCircle"><text class="an-foot-back-t">返回圈子</text></view>
-      <view class="an-foot-read" :class="{ done: isRead }" @tap="markRead">
-        <app-icon name="check" :size="28" :color="isRead ? '#999999' : '#ffffff'" />
-        <text class="an-foot-read-t" :class="{ done: isRead }">{{ isRead ? '已确认阅读' : '确认已读' }}</text>
+    <view
+      v-if="!loading && !error"
+      class="an-foot"
+    >
+      <view
+        class="an-foot-back"
+        @tap="openCircle"
+      >
+        <text class="an-foot-back-t">
+          返回圈子
+        </text>
+      </view>
+      <view
+        class="an-foot-read"
+        :class="{ done: isRead }"
+        @tap="markRead"
+      >
+        <app-icon
+          name="check"
+          :size="28"
+          :color="isRead ? '#999999' : '#ffffff'"
+        />
+        <text
+          class="an-foot-read-t"
+          :class="{ done: isRead }"
+        >
+          {{ isRead ? '已确认阅读' : '确认已读' }}
+        </text>
       </view>
     </view>
   </view>

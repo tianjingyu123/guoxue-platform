@@ -1,12 +1,22 @@
 <script setup lang="ts">
 /** 课程详情页 - 从原型 app/courses/[id]/page.tsx 迁移 */
 import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppError from '@/components/common/app-error.vue'
-// @data-needs: 课程详情聚合, 参数 courseId, 返回 { detail:CourseDetail, chapters:CourseChapter[], reviews:CourseReview[], hasAccess:boolean }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { courseDetail as course, courseChapters as chapters, courseReviews as reviews } from '@/lib/course-data'
+import {
+  courseApi, type CourseDetail, type CourseChapter, type CourseReview,
+} from '@/lib/course-data'
+
+const courseId = ref('1')
+onLoad((opts?: Record<string, any>) => {
+  if (opts?.id) courseId.value = opts.id
+})
+
+const course = ref<CourseDetail>(null as any)
+const chapters = ref<CourseChapter[]>([])
+const reviews = ref<CourseReview[]>([])
 
 // 纯 UI 状态
 const activeTab = ref<'intro' | 'chapters' | 'reviews'>('intro')
@@ -17,13 +27,13 @@ const showConsultPanel = ref(false)
 const showGroupPanel = ref(false)
 const hasAccess = ref(false)
 
-const totalLessons = computed(() => chapters.reduce((s, c) => s + c.lessons.length, 0))
-const totalDuration = computed(() => chapters.reduce((s, c) => s + c.duration, 0))
+const totalLessons = computed(() => chapters.value.reduce((s, c) => s + c.lessons.length, 0))
+const totalDuration = computed(() => chapters.value.reduce((s, c) => s + c.duration, 0))
 
 const tabs = computed(() => [
   { key: 'intro', label: '简介' },
   { key: 'chapters', label: `目录(${totalLessons.value})` },
-  { key: 'reviews', label: `评价(${reviews.length})` },
+  { key: 'reviews', label: `评价(${reviews.value.length})` },
 ])
 
 function toggleChapter(id: string) { expanded.value[id] = !expanded.value[id] }
@@ -33,13 +43,13 @@ function fmtDuration(min: number) {
 }
 function fmtStudents(n: number) { return n.toLocaleString() }
 function onLessonClick(chapterId: string, lessonId: string) {
-  navigateTo(`/courses/${course.id}/learn?chapter=${chapterId}&lesson=${lessonId}`)
+  navigateTo(`/courses/${course.value.id}/learn?chapter=${chapterId}&lesson=${lessonId}`)
 }
-function onPurchase() { navigateTo(`/courses/${course.id}/purchase`) }
-function onStartLearning() { navigateTo(`/courses/${course.id}/learn`) }
+function onPurchase() { navigateTo(`/courses/${course.value.id}/purchase`) }
+function onStartLearning() { navigateTo(`/courses/${course.value.id}/learn`) }
 const ratingBars = computed(() => [5, 4, 3, 2, 1].map((star) => {
-  const count = reviews.filter((r) => r.rating === star).length
-  return { star, percent: reviews.length ? (count / reviews.length) * 100 : 0 }
+  const count = reviews.value.filter((r) => r.rating === star).length
+  return { star, percent: reviews.value.length ? (count / reviews.value.length) * 100 : 0 }
 }))
 
 const loading = ref(false)
@@ -50,7 +60,14 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    await new Promise(r => setTimeout(r, 300))
+    const [detail, chs, revs] = await Promise.all([
+      courseApi.detail(courseId.value),
+      courseApi.chapters(courseId.value),
+      courseApi.reviews(courseId.value),
+    ])
+    course.value = detail
+    chapters.value = chs
+    reviews.value = revs
     dataReady.value = true
   } catch (e: any) {
     error.value = e?.message || '加载失败'
@@ -66,24 +83,50 @@ onMounted(() => { loadData() })
   <view class="page">
     <!-- 封面区域 -->
     <view class="cover">
-      <image class="cover-img" :src="course.cover" mode="aspectFill" />
+      <image
+        class="cover-img"
+        :src="course.cover"
+        mode="aspectFill"
+      />
       <view class="cover-mask" />
       <!-- 顶部导航 -->
       <view class="cover-nav">
-        <view class="nav-btn" @tap="goBack">
-          <app-icon name="arrow-left" :size="40" color="#ffffff" />
+        <view
+          class="nav-btn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="40"
+            color="#ffffff"
+          />
         </view>
         <view class="nav-right">
-          <view class="nav-btn" @tap="isLiked = !isLiked">
-            <app-icon name="heart" :size="40" :color="isLiked ? '#C41E3A' : '#ffffff'" :fill="isLiked" />
+          <view
+            class="nav-btn"
+            @tap="isLiked = !isLiked"
+          >
+            <app-icon
+              name="heart"
+              :size="40"
+              :color="isLiked ? '#C41E3A' : '#ffffff'"
+              :fill="isLiked"
+            />
           </view>
           <view class="nav-btn">
-            <app-icon name="share-2" :size="40" color="#ffffff" />
+            <app-icon
+              name="share-2"
+              :size="40"
+              color="#ffffff"
+            />
           </view>
         </view>
       </view>
       <!-- 课程基本信息（三态） -->
-      <view v-if="loading" class="cover-info sk-cover-info">
+      <view
+        v-if="loading"
+        class="cover-info sk-cover-info"
+      >
         <view class="sk-ci-tag" />
         <view class="sk-ci-title" />
         <view class="sk-ci-meta">
@@ -93,267 +136,583 @@ onMounted(() => { loadData() })
         </view>
       </view>
       <view v-else-if="error" />
-      <view v-else class="cover-info">
-        <text v-if="course.tag" class="ci-tag">{{ course.tag }}</text>
-        <text class="ci-title">{{ course.title }}</text>
+      <view
+        v-else
+        class="cover-info"
+      >
+        <text
+          v-if="course.tag"
+          class="ci-tag"
+        >
+          {{ course.tag }}
+        </text>
+        <text class="ci-title">
+          {{ course.title }}
+        </text>
         <view class="ci-meta">
           <view class="ci-meta-item">
-            <app-icon name="users" :size="28" color="rgba(255,255,255,0.8)" />
-            <text class="ci-meta-txt">{{ fmtStudents(course.students) }}人学习</text>
+            <app-icon
+              name="users"
+              :size="28"
+              color="rgba(255,255,255,0.8)"
+            />
+            <text class="ci-meta-txt">
+              {{ fmtStudents(course.students) }}人学习
+            </text>
           </view>
           <view class="ci-meta-item">
-            <app-icon name="star" :size="28" color="#FAAD14" :fill="true" />
-            <text class="ci-meta-txt">{{ course.rating }}分</text>
+            <app-icon
+              name="star"
+              :size="28"
+              color="#FAAD14"
+              :fill="true"
+            />
+            <text class="ci-meta-txt">
+              {{ course.rating }}分
+            </text>
           </view>
           <view class="ci-meta-item">
-            <app-icon name="book-open" :size="28" color="rgba(255,255,255,0.8)" />
-            <text class="ci-meta-txt">{{ totalLessons }}节课</text>
+            <app-icon
+              name="book-open"
+              :size="28"
+              color="rgba(255,255,255,0.8)"
+            />
+            <text class="ci-meta-txt">
+              {{ totalLessons }}节课
+            </text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 三态模式：骨架屏 / 错误 / 内容 -->
-    <view v-if="loading" class="pl-skeleton">
+    <view
+      v-if="loading"
+      class="pl-skeleton"
+    >
       <view class="sk-cover-block" />
-      <view class="sk-inst-card"><view class="sk-inst-left" /></view>
-      <view class="sk-tabs"><view class="sk-tab" /><view class="sk-tab" /><view class="sk-tab" /></view>
+      <view class="sk-inst-card">
+        <view class="sk-inst-left" />
+      </view>
+      <view class="sk-tabs">
+        <view class="sk-tab" /><view class="sk-tab" /><view class="sk-tab" />
+      </view>
     </view>
-    <app-error v-else-if="error" :desc="error" @retry="loadData" />
+    <app-error
+      v-else-if="error"
+      :desc="error"
+      @retry="loadData"
+    />
     <view v-else>
-
-    <!-- 讲师信息 -->
-    <view class="inst-wrap">
-      <view class="inst-card" @tap="navigateTo(`/instructor/${course.instructor.id}`)">
-        <image class="inst-avatar" :src="course.instructor.avatar" mode="aspectFill" />
-        <view class="inst-info">
-          <text class="inst-name">{{ course.instructor.name }}</text>
-          <text class="inst-title">{{ course.instructor.title }}</text>
-        </view>
-        <text class="inst-link">查看主页 &gt;</text>
-      </view>
-    </view>
-
-    <!-- Tab 切换 -->
-    <view class="tabs">
-      <view
-        v-for="tab in tabs" :key="tab.key"
-        class="tab-item" :class="{ active: activeTab === tab.key }"
-        @tap="activeTab = (tab.key as any)"
-      >
-        <text class="tab-txt">{{ tab.label }}</text>
-        <view v-if="activeTab === tab.key" class="tab-underline" />
-      </view>
-    </view>
-
-    <!-- Tab 内容 -->
-    <view class="tab-content">
-      <!-- 简介 -->
-      <view v-if="activeTab === 'intro'" class="intro">
-        <view class="sec">
-          <text class="sec-title">课程简介</text>
-          <text class="sec-desc">{{ course.description }}</text>
-        </view>
-        <view class="sec">
-          <text class="sec-title">学完你将收获</text>
-          <view class="obj-list">
-            <view v-for="(obj, i) in course.objectives" :key="i" class="obj-item">
-              <app-icon name="check-circle" :size="32" color="#52C41A" />
-              <text class="obj-txt">{{ obj }}</text>
-            </view>
+      <!-- 讲师信息 -->
+      <view class="inst-wrap">
+        <view
+          class="inst-card"
+          @tap="navigateTo(`/instructor/${course.instructor.id}`)"
+        >
+          <image
+            class="inst-avatar"
+            :src="course.instructor.avatar"
+            mode="aspectFill"
+          />
+          <view class="inst-info">
+            <text class="inst-name">
+              {{ course.instructor.name }}
+            </text>
+            <text class="inst-title">
+              {{ course.instructor.title }}
+            </text>
           </view>
-        </view>
-        <view class="sec">
-          <text class="sec-title">适合人群</text>
-          <view class="suit-list">
-            <text v-for="(item, i) in course.suitable" :key="i" class="suit-chip">{{ item }}</text>
-          </view>
-        </view>
-        <view class="stat-grid">
-          <view class="stat-card">
-            <text class="stat-num">{{ totalLessons }}</text>
-            <text class="stat-label">课时</text>
-          </view>
-          <view class="stat-card">
-            <text class="stat-num">{{ Math.floor(totalDuration / 60) }}+</text>
-            <text class="stat-label">小时</text>
-          </view>
-          <view class="stat-card">
-            <text class="stat-num">{{ fmtStudents(course.students) }}</text>
-            <text class="stat-label">学员</text>
-          </view>
+          <text class="inst-link">
+            查看主页 &gt;
+          </text>
         </view>
       </view>
 
-      <!-- 目录 -->
-      <view v-else-if="activeTab === 'chapters'" class="chapters">
-        <view v-for="(chapter, index) in chapters" :key="chapter.id" class="chapter-card">
-          <view class="chapter-hdr" @tap="toggleChapter(chapter.id)">
-            <view class="chapter-hdr-left">
-              <text class="chapter-idx">{{ index + 1 }}</text>
-              <view class="chapter-meta">
-                <text class="chapter-title">{{ chapter.title }}</text>
-                <view class="chapter-sub">
-                  <text class="chapter-sub-txt">{{ chapter.lessons.length }}节 · {{ fmtDuration(chapter.duration) }}</text>
-                  <text v-if="chapter.isFree" class="chapter-free">免费试看</text>
-                </view>
+      <!-- Tab 切换 -->
+      <view class="tabs">
+        <view
+          v-for="tab in tabs"
+          :key="tab.key"
+          class="tab-item"
+          :class="{ active: activeTab === tab.key }"
+          @tap="activeTab = (tab.key as any)"
+        >
+          <text class="tab-txt">
+            {{ tab.label }}
+          </text>
+          <view
+            v-if="activeTab === tab.key"
+            class="tab-underline"
+          />
+        </view>
+      </view>
+
+      <!-- Tab 内容 -->
+      <view class="tab-content">
+        <!-- 简介 -->
+        <view
+          v-if="activeTab === 'intro'"
+          class="intro"
+        >
+          <view class="sec">
+            <text class="sec-title">
+              课程简介
+            </text>
+            <text class="sec-desc">
+              {{ course.description }}
+            </text>
+          </view>
+          <view class="sec">
+            <text class="sec-title">
+              学完你将收获
+            </text>
+            <view class="obj-list">
+              <view
+                v-for="(obj, i) in course.objectives"
+                :key="i"
+                class="obj-item"
+              >
+                <app-icon
+                  name="check-circle"
+                  :size="32"
+                  color="#52C41A"
+                />
+                <text class="obj-txt">
+                  {{ obj }}
+                </text>
               </view>
             </view>
-            <app-icon :name="expanded[chapter.id] ? 'chevron-up' : 'chevron-down'" :size="40" color="#999999" />
           </view>
-          <view v-if="expanded[chapter.id]" class="lesson-list">
+          <view class="sec">
+            <text class="sec-title">
+              适合人群
+            </text>
+            <view class="suit-list">
+              <text
+                v-for="(item, i) in course.suitable"
+                :key="i"
+                class="suit-chip"
+              >
+                {{ item }}
+              </text>
+            </view>
+          </view>
+          <view class="stat-grid">
+            <view class="stat-card">
+              <text class="stat-num">
+                {{ totalLessons }}
+              </text>
+              <text class="stat-label">
+                课时
+              </text>
+            </view>
+            <view class="stat-card">
+              <text class="stat-num">
+                {{ Math.floor(totalDuration / 60) }}+
+              </text>
+              <text class="stat-label">
+                小时
+              </text>
+            </view>
+            <view class="stat-card">
+              <text class="stat-num">
+                {{ fmtStudents(course.students) }}
+              </text>
+              <text class="stat-label">
+                学员
+              </text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 目录 -->
+        <view
+          v-else-if="activeTab === 'chapters'"
+          class="chapters"
+        >
+          <view
+            v-for="(chapter, index) in chapters"
+            :key="chapter.id"
+            class="chapter-card"
+          >
             <view
-              v-for="lesson in chapter.lessons" :key="lesson.id"
-              class="lesson-item" :class="{ locked: !hasAccess && !lesson.isFree }"
-              @tap="(hasAccess || lesson.isFree) && onLessonClick(chapter.id, lesson.id)"
+              class="chapter-hdr"
+              @tap="toggleChapter(chapter.id)"
             >
-              <view class="lesson-left">
-                <view class="lesson-ico" :class="lesson.isFree ? 'free' : 'paid'">
-                  <app-icon v-if="hasAccess || lesson.isFree" name="play" :size="28" :color="lesson.isFree ? '#52C41A' : '#666666'" />
-                  <app-icon v-else name="lock" :size="28" color="#999999" />
-                </view>
-                <view class="lesson-meta">
-                  <text class="lesson-title">{{ lesson.title }}</text>
-                  <text class="lesson-dur">{{ lesson.duration }}分钟</text>
+              <view class="chapter-hdr-left">
+                <text class="chapter-idx">
+                  {{ index + 1 }}
+                </text>
+                <view class="chapter-meta">
+                  <text class="chapter-title">
+                    {{ chapter.title }}
+                  </text>
+                  <view class="chapter-sub">
+                    <text class="chapter-sub-txt">
+                      {{ chapter.lessons.length }}节 · {{ fmtDuration(chapter.duration) }}
+                    </text>
+                    <text
+                      v-if="chapter.isFree"
+                      class="chapter-free"
+                    >
+                      免费试看
+                    </text>
+                  </view>
                 </view>
               </view>
-              <text v-if="lesson.isFree && !hasAccess" class="lesson-trial">试看</text>
-              <app-icon v-if="lesson.isCompleted" name="check-circle" :size="28" color="#52C41A" />
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 评价 -->
-      <view v-else class="reviews">
-        <view class="rating-overview">
-          <view class="rating-score">
-            <text class="rating-num">{{ course.rating }}</text>
-            <view class="rating-stars">
               <app-icon
-                v-for="i in 5" :key="i" name="star" :size="24"
-                :color="i <= Math.floor(course.rating) ? '#FAAD14' : '#E8E3DB'" :fill="i <= Math.floor(course.rating)"
+                :name="expanded[chapter.id] ? 'chevron-up' : 'chevron-down'"
+                :size="40"
+                color="#999999"
               />
             </view>
-            <text class="rating-count">{{ reviews.length }}条评价</text>
-          </view>
-          <view class="rating-bars">
-            <view v-for="b in ratingBars" :key="b.star" class="rating-bar-row">
-              <text class="rating-bar-label">{{ b.star }}星</text>
-              <view class="rating-bar-track">
-                <view class="rating-bar-fill" :style="{ width: b.percent + '%' }" />
+            <view
+              v-if="expanded[chapter.id]"
+              class="lesson-list"
+            >
+              <view
+                v-for="lesson in chapter.lessons"
+                :key="lesson.id"
+                class="lesson-item"
+                :class="{ locked: !hasAccess && !lesson.isFree }"
+                @tap="(hasAccess || lesson.isFree) && onLessonClick(chapter.id, lesson.id)"
+              >
+                <view class="lesson-left">
+                  <view
+                    class="lesson-ico"
+                    :class="lesson.isFree ? 'free' : 'paid'"
+                  >
+                    <app-icon
+                      v-if="hasAccess || lesson.isFree"
+                      name="play"
+                      :size="28"
+                      :color="lesson.isFree ? '#52C41A' : '#666666'"
+                    />
+                    <app-icon
+                      v-else
+                      name="lock"
+                      :size="28"
+                      color="#999999"
+                    />
+                  </view>
+                  <view class="lesson-meta">
+                    <text class="lesson-title">
+                      {{ lesson.title }}
+                    </text>
+                    <text class="lesson-dur">
+                      {{ lesson.duration }}分钟
+                    </text>
+                  </view>
+                </view>
+                <text
+                  v-if="lesson.isFree && !hasAccess"
+                  class="lesson-trial"
+                >
+                  试看
+                </text>
+                <app-icon
+                  v-if="lesson.isCompleted"
+                  name="check-circle"
+                  :size="28"
+                  color="#52C41A"
+                />
               </view>
             </view>
           </view>
         </view>
-        <view class="review-list">
-          <view v-for="review in reviews" :key="review.id" class="review-card">
-            <view class="review-hdr">
-              <image class="review-avatar" :src="review.user.avatar" mode="aspectFill" />
-              <view class="review-user">
-                <text class="review-name">{{ review.user.name }}</text>
-                <view class="review-stars">
-                  <app-icon
-                    v-for="i in 5" :key="i" name="star" :size="20"
-                    :color="i <= review.rating ? '#FAAD14' : '#E8E3DB'" :fill="i <= review.rating"
+
+        <!-- 评价 -->
+        <view
+          v-else
+          class="reviews"
+        >
+          <view class="rating-overview">
+            <view class="rating-score">
+              <text class="rating-num">
+                {{ course.rating }}
+              </text>
+              <view class="rating-stars">
+                <app-icon
+                  v-for="i in 5"
+                  :key="i"
+                  name="star"
+                  :size="24"
+                  :color="i <= Math.floor(course.rating) ? '#FAAD14' : '#E8E3DB'"
+                  :fill="i <= Math.floor(course.rating)"
+                />
+              </view>
+              <text class="rating-count">
+                {{ reviews.length }}条评价
+              </text>
+            </view>
+            <view class="rating-bars">
+              <view
+                v-for="b in ratingBars"
+                :key="b.star"
+                class="rating-bar-row"
+              >
+                <text class="rating-bar-label">
+                  {{ b.star }}星
+                </text>
+                <view class="rating-bar-track">
+                  <view
+                    class="rating-bar-fill"
+                    :style="{ width: b.percent + '%' }"
                   />
-                  <text class="review-date">{{ review.createdAt }}</text>
                 </view>
               </view>
             </view>
-            <text class="review-content">{{ review.content }}</text>
           </view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 拼课优惠 Banner -->
-    <view v-if="showGroupBuyBanner && !hasAccess && !course.isFree" class="groupbuy-banner">
-      <view class="gb-inner">
-        <view class="gb-left">
-          <app-icon name="user-plus" :size="40" color="#ffffff" />
-          <view class="gb-text">
-            <text class="gb-title">邀请好友拼课，立省¥100</text>
-            <text class="gb-sub">2人成团，每人仅需¥{{ course.price - 50 }}</text>
-          </view>
-        </view>
-        <view class="gb-right">
-          <text class="gb-btn">发起拼课</text>
-          <view class="gb-close" @tap="showGroupBuyBanner = false">
-            <app-icon name="x" :size="32" color="rgba(255,255,255,0.7)" />
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 底部固定购买栏 -->
-    <view class="buy-bar">
-      <view class="buy-action" @tap="showConsultPanel = true">
-        <app-icon name="message-circle" :size="40" color="#666666" />
-        <text class="buy-action-txt">咨询</text>
-      </view>
-      <view class="buy-action" @tap="showGroupPanel = true">
-        <app-icon name="users" :size="40" color="#666666" />
-        <text class="buy-action-txt">学习群</text>
-      </view>
-      <view class="buy-price">
-        <text v-if="course.isFree" class="price-free">免费</text>
-        <view v-else class="price-row">
-          <text class="price-sym">¥</text>
-          <text class="price-now">{{ course.price }}</text>
-          <text class="price-old">¥{{ course.originalPrice }}</text>
-        </view>
-      </view>
-      <view class="buy-cta" @tap="hasAccess ? onStartLearning() : onPurchase()">
-        <text class="buy-cta-txt">{{ hasAccess ? '继续学习' : '立即购买' }}</text>
-      </view>
-    </view>
-
-    <!-- 课程咨询弹窗 -->
-    <view v-if="showConsultPanel" class="modal">
-      <view class="modal-mask" @tap="showConsultPanel = false" />
-      <view class="sheet">
-        <view class="sheet-hdr">
-          <text class="sheet-title">课程咨询</text>
-          <view @tap="showConsultPanel = false"><app-icon name="x" :size="40" color="#999999" /></view>
-        </view>
-        <view class="sheet-body">
-          <view class="consult-item">
-            <view class="consult-ico" style="background:#C41E3A"><app-icon name="message-circle" :size="40" color="#ffffff" /></view>
-            <view class="consult-meta">
-              <text class="consult-name">在线客服</text>
-              <text class="consult-sub">9:00-22:00 在线解答</text>
-            </view>
-          </view>
-          <view class="consult-item">
-            <view class="consult-ico" style="background:#07C160"><app-icon name="qr-code" :size="40" color="#ffffff" /></view>
-            <view class="consult-meta">
-              <text class="consult-name">微信咨询</text>
-              <text class="consult-sub">扫码添加课程顾问</text>
+          <view class="review-list">
+            <view
+              v-for="review in reviews"
+              :key="review.id"
+              class="review-card"
+            >
+              <view class="review-hdr">
+                <image
+                  class="review-avatar"
+                  :src="review.user.avatar"
+                  mode="aspectFill"
+                />
+                <view class="review-user">
+                  <text class="review-name">
+                    {{ review.user.name }}
+                  </text>
+                  <view class="review-stars">
+                    <app-icon
+                      v-for="i in 5"
+                      :key="i"
+                      name="star"
+                      :size="20"
+                      :color="i <= review.rating ? '#FAAD14' : '#E8E3DB'"
+                      :fill="i <= review.rating"
+                    />
+                    <text class="review-date">
+                      {{ review.createdAt }}
+                    </text>
+                  </view>
+                </view>
+              </view>
+              <text class="review-content">
+                {{ review.content }}
+              </text>
             </view>
           </view>
         </view>
       </view>
-    </view>
 
-    <!-- 学习群弹窗 -->
-    <view v-if="showGroupPanel" class="modal">
-      <view class="modal-mask" @tap="showGroupPanel = false" />
-      <view class="sheet">
-        <view class="sheet-hdr">
-          <text class="sheet-title">加入学习群</text>
-          <view @tap="showGroupPanel = false"><app-icon name="x" :size="40" color="#999999" /></view>
-        </view>
-        <view class="group-body">
-          <view class="group-qr"><app-icon name="qr-code" :size="160" color="#999999" /></view>
-          <text class="group-tip">扫码加入「{{ course.title }}」学习群</text>
-          <text class="group-sub">与{{ fmtStudents(course.students) }}位同学一起学习交流</text>
-        </view>
-        <view class="group-welfare">
-          <text class="group-welfare-txt">入群福利：课程答疑、学习资料、作业批改、结业证书</text>
+      <!-- 拼课优惠 Banner -->
+      <view
+        v-if="showGroupBuyBanner && !hasAccess && !course.isFree"
+        class="groupbuy-banner"
+      >
+        <view class="gb-inner">
+          <view class="gb-left">
+            <app-icon
+              name="user-plus"
+              :size="40"
+              color="#ffffff"
+            />
+            <view class="gb-text">
+              <text class="gb-title">
+                邀请好友拼课，立省¥100
+              </text>
+              <text class="gb-sub">
+                2人成团，每人仅需¥{{ course.price - 50 }}
+              </text>
+            </view>
+          </view>
+          <view class="gb-right">
+            <text class="gb-btn">
+              发起拼课
+            </text>
+            <view
+              class="gb-close"
+              @tap="showGroupBuyBanner = false"
+            >
+              <app-icon
+                name="x"
+                :size="32"
+                color="rgba(255,255,255,0.7)"
+              />
+            </view>
+          </view>
         </view>
       </view>
-    </view>
+
+      <!-- 底部固定购买栏 -->
+      <view class="buy-bar">
+        <view
+          class="buy-action"
+          @tap="showConsultPanel = true"
+        >
+          <app-icon
+            name="message-circle"
+            :size="40"
+            color="#666666"
+          />
+          <text class="buy-action-txt">
+            咨询
+          </text>
+        </view>
+        <view
+          class="buy-action"
+          @tap="showGroupPanel = true"
+        >
+          <app-icon
+            name="users"
+            :size="40"
+            color="#666666"
+          />
+          <text class="buy-action-txt">
+            学习群
+          </text>
+        </view>
+        <view class="buy-price">
+          <text
+            v-if="course.isFree"
+            class="price-free"
+          >
+            免费
+          </text>
+          <view
+            v-else
+            class="price-row"
+          >
+            <text class="price-sym">
+              ¥
+            </text>
+            <text class="price-now">
+              {{ course.price }}
+            </text>
+            <text class="price-old">
+              ¥{{ course.originalPrice }}
+            </text>
+          </view>
+        </view>
+        <view
+          class="buy-cta"
+          @tap="hasAccess ? onStartLearning() : onPurchase()"
+        >
+          <text class="buy-cta-txt">
+            {{ hasAccess ? '继续学习' : '立即购买' }}
+          </text>
+        </view>
+      </view>
+
+      <!-- 课程咨询弹窗 -->
+      <view
+        v-if="showConsultPanel"
+        class="modal"
+      >
+        <view
+          class="modal-mask"
+          @tap="showConsultPanel = false"
+        />
+        <view class="sheet">
+          <view class="sheet-hdr">
+            <text class="sheet-title">
+              课程咨询
+            </text>
+            <view @tap="showConsultPanel = false">
+              <app-icon
+                name="x"
+                :size="40"
+                color="#999999"
+              />
+            </view>
+          </view>
+          <view class="sheet-body">
+            <view class="consult-item">
+              <view
+                class="consult-ico"
+                style="background:#C41E3A"
+              >
+                <app-icon
+                  name="message-circle"
+                  :size="40"
+                  color="#ffffff"
+                />
+              </view>
+              <view class="consult-meta">
+                <text class="consult-name">
+                  在线客服
+                </text>
+                <text class="consult-sub">
+                  9:00-22:00 在线解答
+                </text>
+              </view>
+            </view>
+            <view class="consult-item">
+              <view
+                class="consult-ico"
+                style="background:#07C160"
+              >
+                <app-icon
+                  name="qr-code"
+                  :size="40"
+                  color="#ffffff"
+                />
+              </view>
+              <view class="consult-meta">
+                <text class="consult-name">
+                  微信咨询
+                </text>
+                <text class="consult-sub">
+                  扫码添加课程顾问
+                </text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 学习群弹窗 -->
+      <view
+        v-if="showGroupPanel"
+        class="modal"
+      >
+        <view
+          class="modal-mask"
+          @tap="showGroupPanel = false"
+        />
+        <view class="sheet">
+          <view class="sheet-hdr">
+            <text class="sheet-title">
+              加入学习群
+            </text>
+            <view @tap="showGroupPanel = false">
+              <app-icon
+                name="x"
+                :size="40"
+                color="#999999"
+              />
+            </view>
+          </view>
+          <view class="group-body">
+            <view class="group-qr">
+              <app-icon
+                name="qr-code"
+                :size="160"
+                color="#999999"
+              />
+            </view>
+            <text class="group-tip">
+              扫码加入「{{ course.title }}」学习群
+            </text>
+            <text class="group-sub">
+              与{{ fmtStudents(course.students) }}位同学一起学习交流
+            </text>
+          </view>
+          <view class="group-welfare">
+            <text class="group-welfare-txt">
+              入群福利：课程答疑、学习资料、作业批改、结业证书
+            </text>
+          </view>
+        </view>
+      </view>
     </view>
   </view>
 </template>

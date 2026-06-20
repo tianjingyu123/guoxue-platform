@@ -5,8 +5,10 @@
   "scripts": {
     "dev:app": "uni -p app",
     "dev:mp-weixin": "uni -p mp-weixin",
+    "dev:mp-harmony": "uni -p mp-harmony",
     "build:app": "uni build -p app",
     "build:mp-weixin": "uni build -p mp-weixin",
+    "build:mp-harmony": "uni build -p mp-harmony",
     "dev:h5": "uni -p h5",
     "build:h5": "uni build -p h5",
     "lint": "eslint src --ext .vue,.ts"
@@ -16,6 +18,7 @@
     "@dcloudio/uni-app-plus": "3.0.0-alpha-5000820260430001",
     "@dcloudio/uni-components": "3.0.0-alpha-5000820260430001",
     "@dcloudio/uni-h5": "3.0.0-alpha-5000820260430001",
+    "@dcloudio/uni-mp-harmony": "3.0.0-alpha-5000820260430001",
     "@dcloudio/uni-mp-weixin": "3.0.0-alpha-5000820260430001",
     "@guoxue/shared": "workspace:*",
     "pinia": "^2.2.0",

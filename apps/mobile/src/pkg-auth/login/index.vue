@@ -4,14 +4,27 @@
     <view class="top-decor" />
 
     <!-- 返回按钮 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="back-btn" @tap="goBack">
-        <AppIcon name="chevron-left" :size="24" color="#2c2c2c" />
+    <view
+      class="navbar"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view
+        class="back-btn"
+        @tap="goBack"
+      >
+        <AppIcon
+          name="chevron-left"
+          :size="24"
+          color="#2c2c2c"
+        />
       </view>
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="body">
+    <view
+      v-if="loading"
+      class="body"
+    >
       <view class="sk-logo" />
       <view class="sk-title" />
       <view class="sk-subtitle" />
@@ -20,30 +33,75 @@
     </view>
 
     <!-- 错误 -->
-    <view v-else-if="error" class="body center">
-      <AppIcon name="alert-circle" :size="80" color="#999" />
-      <text class="error-msg">{{ error }}</text>
-      <view class="btn" @tap="initPage"><text class="btn-text">重试</text></view>
+    <view
+      v-else-if="error"
+      class="body center"
+    >
+      <AppIcon
+        name="alert-circle"
+        :size="80"
+        color="#999"
+      />
+      <text class="error-msg">
+        {{ error }}
+      </text>
+      <view
+        class="btn"
+        @tap="initPage"
+      >
+        <text class="btn-text">
+          重试
+        </text>
+      </view>
     </view>
 
     <!-- 正常 -->
-    <view v-else class="body">
+    <view
+      v-else
+      class="body"
+    >
       <!-- Logo和标题 -->
       <view class="logo-section">
         <view class="logo-box">
-          <image class="logo-img" :src="logoSrc" mode="aspectFill" />
+          <image
+            class="logo-img"
+            :src="logoSrc"
+            mode="aspectFill"
+          />
         </view>
-        <text class="app-title">热卜国学</text>
-        <text class="app-subtitle">探寻东方智慧</text>
+        <text class="app-title">
+          热卜国学
+        </text>
+        <text class="app-subtitle">
+          探寻东方智慧
+        </text>
       </view>
 
       <!-- 登录方式切换 -->
       <view class="tabs">
-        <view class="tab" :class="{ active: loginType === 'phone' }" @tap="switchType('phone')">
-          <text class="tab-text" :class="{ 'tab-text-active': loginType === 'phone' }">验证码登录</text>
+        <view
+          class="tab"
+          :class="{ active: loginType === 'phone' }"
+          @tap="switchType('phone')"
+        >
+          <text
+            class="tab-text"
+            :class="{ 'tab-text-active': loginType === 'phone' }"
+          >
+            验证码登录
+          </text>
         </view>
-        <view class="tab" :class="{ active: loginType === 'password' }" @tap="switchType('password')">
-          <text class="tab-text" :class="{ 'tab-text-active': loginType === 'password' }">密码登录</text>
+        <view
+          class="tab"
+          :class="{ active: loginType === 'password' }"
+          @tap="switchType('password')"
+        >
+          <text
+            class="tab-text"
+            :class="{ 'tab-text-active': loginType === 'password' }"
+          >
+            密码登录
+          </text>
         </view>
       </view>
 
@@ -52,7 +110,11 @@
         <!-- 手机号 -->
         <view class="input-wrap">
           <view class="input-icon">
-            <AppIcon name="phone" :size="20" color="#999999" />
+            <AppIcon
+              name="phone"
+              :size="20"
+              color="#999999"
+            />
           </view>
           <input
             class="input"
@@ -62,13 +124,20 @@
             placeholder="请输入手机号"
             placeholder-class="input-ph"
             @input="onPhoneInput"
-          />
+          >
         </view>
 
         <!-- 验证码 -->
-        <view v-if="loginType === 'phone'" class="input-wrap">
+        <view
+          v-if="loginType === 'phone'"
+          class="input-wrap"
+        >
           <view class="input-icon">
-            <AppIcon name="message-circle" :size="20" color="#999999" />
+            <AppIcon
+              name="message-circle"
+              :size="20"
+              color="#999999"
+            />
           </view>
           <input
             class="input input-code"
@@ -78,23 +147,40 @@
             placeholder="请输入验证码"
             placeholder-class="input-ph"
             @input="onCodeInput"
-          />
+          >
           <view
             class="code-btn"
             :class="{ 'code-btn-disabled': countdown > 0 || !isPhoneValid || isSendingCode }"
             @tap="handleSendCode"
           >
-            <AppIcon v-if="isSendingCode" name="loader-2" :size="16" color="#999999" class="spin" />
-            <text v-else class="code-btn-text" :class="{ 'code-btn-text-disabled': countdown > 0 || !isPhoneValid }">
+            <AppIcon
+              v-if="isSendingCode"
+              name="loader-2"
+              :size="16"
+              color="#999999"
+              class="spin"
+            />
+            <text
+              v-else
+              class="code-btn-text"
+              :class="{ 'code-btn-text-disabled': countdown > 0 || !isPhoneValid }"
+            >
               {{ countdown > 0 ? countdown + 's' : '获取验证码' }}
             </text>
           </view>
         </view>
 
         <!-- 密码 -->
-        <view v-else class="input-wrap">
+        <view
+          v-else
+          class="input-wrap"
+        >
           <view class="input-icon">
-            <AppIcon name="lock" :size="20" color="#999999" />
+            <AppIcon
+              name="lock"
+              :size="20"
+              color="#999999"
+            />
           </view>
           <input
             class="input input-pwd"
@@ -103,43 +189,99 @@
             placeholder="请输入密码"
             placeholder-class="input-ph"
             @input="onPasswordInput"
-          />
-          <view class="eye-btn" @tap="showPassword = !showPassword">
-            <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="20" color="#999999" />
+          >
+          <view
+            class="eye-btn"
+            @tap="showPassword = !showPassword"
+          >
+            <AppIcon
+              :name="showPassword ? 'eye-off' : 'eye'"
+              :size="20"
+              color="#999999"
+            />
           </view>
         </view>
 
         <!-- 错误提示 -->
-        <text v-if="formError" class="error-text">{{ formError }}</text>
+        <text
+          v-if="formError"
+          class="error-text"
+        >
+          {{ formError }}
+        </text>
 
         <!-- 忘记密码 -->
-        <view v-if="loginType === 'password'" class="forgot-row">
-          <text class="forgot-link" @tap="goForgot">忘记密码？</text>
+        <view
+          v-if="loginType === 'password'"
+          class="forgot-row"
+        >
+          <text
+            class="forgot-link"
+            @tap="goForgot"
+          >
+            忘记密码？
+          </text>
         </view>
 
         <!-- 协议勾选 -->
         <view class="terms-row">
-          <view class="checkbox" :class="{ 'checkbox-checked': agreedTerms }" @tap="agreedTerms = !agreedTerms">
-            <AppIcon v-if="agreedTerms" name="check" :size="12" color="#ffffff" />
+          <view
+            class="checkbox"
+            :class="{ 'checkbox-checked': agreedTerms }"
+            @tap="agreedTerms = !agreedTerms"
+          >
+            <AppIcon
+              v-if="agreedTerms"
+              name="check"
+              :size="12"
+              color="#ffffff"
+            />
           </view>
           <view class="terms-text">
-            <text class="terms-normal">我已阅读并同意</text>
-            <text class="terms-link">《用户服务协议》</text>
-            <text class="terms-normal">和</text>
-            <text class="terms-link">《隐私政策》</text>
+            <text class="terms-normal">
+              我已阅读并同意
+            </text>
+            <text class="terms-link">
+              《用户服务协议》
+            </text>
+            <text class="terms-normal">
+              和
+            </text>
+            <text class="terms-link">
+              《隐私政策》
+            </text>
           </view>
         </view>
 
         <!-- 登录按钮 -->
-        <view class="submit-btn" :class="{ 'submit-btn-disabled': !canSubmit || isSubmitting }" @tap="handleLogin">
-          <AppIcon v-if="isSubmitting" name="loader-2" :size="16" color="#ffffff" class="spin" />
-          <text class="submit-text">{{ isSubmitting ? '登录中...' : '登录' }}</text>
+        <view
+          class="submit-btn"
+          :class="{ 'submit-btn-disabled': !canSubmit || isSubmitting }"
+          @tap="handleLogin"
+        >
+          <AppIcon
+            v-if="isSubmitting"
+            name="loader-2"
+            :size="16"
+            color="#ffffff"
+            class="spin"
+          />
+          <text class="submit-text">
+            {{ isSubmitting ? '登录中...' : '登录' }}
+          </text>
         </view>
 
         <!-- 注册入口 -->
         <view class="register-row">
-          <text class="register-normal">还没有账号？</text>
-          <text class="register-link" @tap="goRegister">立即注册</text>
+          <text class="register-normal">
+            还没有账号？
+          </text>
+          <text
+            class="register-link"
+            @tap="goRegister"
+          >
+            立即注册
+          </text>
         </view>
       </view>
 
@@ -147,21 +289,41 @@
       <view class="third-party">
         <view class="divider">
           <view class="divider-line" />
-          <text class="divider-text">其他登录方式</text>
+          <text class="divider-text">
+            其他登录方式
+          </text>
           <view class="divider-line" />
         </view>
         <view class="third-icons">
-          <view class="third-item" @tap="handleThirdParty('wechat')">
+          <view
+            class="third-item"
+            @tap="handleThirdParty('wechat')"
+          >
             <view class="third-circle wechat-circle">
-              <AppIcon name="wechat" :size="28" color="#07C160" />
+              <AppIcon
+                name="wechat"
+                :size="28"
+                color="#07C160"
+              />
             </view>
-            <text class="third-label">微信</text>
+            <text class="third-label">
+              微信
+            </text>
           </view>
-          <view class="third-item" @tap="handleThirdParty('apple')">
+          <view
+            class="third-item"
+            @tap="handleThirdParty('apple')"
+          >
             <view class="third-circle apple-circle">
-              <AppIcon name="apple" :size="28" color="#2c2c2c" />
+              <AppIcon
+                name="apple"
+                :size="28"
+                color="#2c2c2c"
+              />
             </view>
-            <text class="third-label">Apple</text>
+            <text class="third-label">
+              Apple
+            </text>
           </view>
         </view>
       </view>
@@ -169,7 +331,9 @@
 
     <!-- 底部安全提示 -->
     <view class="footer">
-      <text class="footer-text">登录即代表您同意遵守平台规则，共建和谐社区</text>
+      <text class="footer-text">
+        登录即代表您同意遵守平台规则，共建和谐社区
+      </text>
     </view>
   </view>
 </template>

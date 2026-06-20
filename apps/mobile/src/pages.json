@@ -2,7 +2,11 @@
   "easycom": {
     "autoscan": true,
     "custom": {
-      "^bn-(.*)": "@/components/bottom-nav/$1.vue"
+      "^bn-(.*)": "@/components/bottom-nav/$1.vue",
+      "^app-icon$": "@/components/common/app-icon.vue",
+      "^app-empty$": "@/components/common/app-empty.vue",
+      "^app-error$": "@/components/common/app-error.vue",
+      "^app-nav-bar$": "@/components/common/app-nav-bar.vue"
     }
   },
   "pages": [
@@ -41,14 +45,26 @@
       ]
     },
     {
-      "root": "pages/paipan",
+      "root": "pkg-paipan",
       "pages": [
         { "path": "bazi/index", "style": { "navigationStyle": "custom" } },
-        { "path": "bazi/result", "style": { "navigationStyle": "custom" } }
+        { "path": "bazi/result", "style": { "navigationStyle": "custom" } },
+        { "path": "bazi/history/index", "style": { "navigationStyle": "custom" } },
+        { "path": "bazi/history/celebrities", "style": { "navigationStyle": "custom" } },
+        { "path": "bazi/history/groups", "style": { "navigationStyle": "custom" } },
+        { "path": "qimen/index", "style": { "navigationStyle": "custom" } },
+        { "path": "qimen/result", "style": { "navigationStyle": "custom" } },
+        { "path": "qimen/history/index", "style": { "navigationStyle": "custom" } },
+        { "path": "qimen/history/groups", "style": { "navigationStyle": "custom" } },
+        { "path": "yangpan/index", "style": { "navigationStyle": "custom" } },
+        { "path": "yangpan/result", "style": { "navigationStyle": "custom" } },
+        { "path": "yangpan/history/index", "style": { "navigationStyle": "custom" } },
+        { "path": "yangpan/history/groups", "style": { "navigationStyle": "custom" } },
+        { "path": "tools/coming-soon", "style": { "navigationStyle": "custom" } }
       ]
     },
     {
-      "root": "pages/mall",
+      "root": "pkg-mall",
       "pages": [
         { "path": "home/index", "style": { "navigationStyle": "custom" } },
         { "path": "product/detail", "style": { "navigationStyle": "custom" } },
@@ -84,7 +100,7 @@
       ]
     },
     {
-      "root": "pages/order",
+      "root": "pkg-order",
       "pages": [
         { "path": "list/index", "style": { "navigationStyle": "custom" } },
         { "path": "center/index", "style": { "navigationStyle": "custom" } },
@@ -108,53 +124,60 @@
       ]
     },
     {
-      "root": "pages/circles",
+      "root": "pkg-circle",
       "pages": [
-        { "path": "detail", "style": { "navigationStyle": "custom" } },
-        { "path": "post", "style": { "navigationStyle": "custom" } },
-        { "path": "create", "style": { "navigationStyle": "custom" } },
-        { "path": "publish", "style": { "navigationStyle": "custom" } },
-        { "path": "manage", "style": { "navigationStyle": "custom" } },
-        { "path": "ranking", "style": { "navigationStyle": "custom" } },
-        { "path": "activities", "style": { "navigationStyle": "custom" } },
-        { "path": "calendar", "style": { "navigationStyle": "custom" } },
-        { "path": "badges", "style": { "navigationStyle": "custom" } },
-        { "path": "search", "style": { "navigationStyle": "custom" } },
-        { "path": "mine", "style": { "navigationStyle": "custom" } },
-        { "path": "bots", "style": { "navigationStyle": "custom" } },
-        { "path": "stats", "style": { "navigationStyle": "custom" } },
-        { "path": "knowledge", "style": { "navigationStyle": "custom" } },
-        { "path": "dashboard", "style": { "navigationStyle": "custom" } },
-        { "path": "announcements", "style": { "navigationStyle": "custom" } },
-        { "path": "join-requests", "style": { "navigationStyle": "custom" } },
-        { "path": "exit-requests", "style": { "navigationStyle": "custom" } },
-        { "path": "invite-codes", "style": { "navigationStyle": "custom" } },
-        { "path": "guests", "style": { "navigationStyle": "custom" } },
-        { "path": "distribution", "style": { "navigationStyle": "custom" } },
-        { "path": "earnings", "style": { "navigationStyle": "custom" } },
-        { "path": "level", "style": { "navigationStyle": "custom" } },
-        { "path": "analytics", "style": { "navigationStyle": "custom" } },
-        { "path": "settings-knowledge", "style": { "navigationStyle": "custom" } },
-        { "path": "consult-ask", "style": { "navigationStyle": "custom" } },
-        { "path": "consult-experts", "style": { "navigationStyle": "custom" } },
-        { "path": "consult-orders", "style": { "navigationStyle": "custom" } },
-        { "path": "my-calls", "style": { "navigationStyle": "custom" } },
-        { "path": "my-questions", "style": { "navigationStyle": "custom" } },
-        { "path": "exit", "style": { "navigationStyle": "custom" } },
-        { "path": "booking", "style": { "navigationStyle": "custom" } },
-        { "path": "checkin", "style": { "navigationStyle": "custom" } },
-        { "path": "recommend-ebook", "style": { "navigationStyle": "custom" } },
-        { "path": "circle-bots", "style": { "navigationStyle": "custom" } },
-        { "path": "preview", "style": { "navigationStyle": "custom" } }
+        { "path": "user/profile", "style": { "navigationStyle": "custom" } },
+        { "path": "common/share-poster/index", "style": { "navigationStyle": "custom" } },
+        { "path": "articles/detail", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/detail", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/post", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/create", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/publish", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/manage", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/ranking", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/activities", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/calendar", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/badges", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/search", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/mine", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/bots", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/stats", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/knowledge", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/dashboard", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/announcements", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/join-requests", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/exit-requests", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/invite-codes", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/guests", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/distribution", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/earnings", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/level", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/analytics", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/settings-knowledge", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/consult-ask", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/consult-experts", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/consult-orders", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/my-calls", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/my-questions", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/exit", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/booking", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/checkin", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/recommend-ebook", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/circle-bots", "style": { "navigationStyle": "custom" } },
+        { "path": "circles/preview", "style": { "navigationStyle": "custom" } }
       ]
     },
     {
-      "root": "pages/agent",
+      "root": "pkg-agent",
       "pages": [
-        { "path": "main", "style": { "navigationStyle": "custom" } },
-        { "path": "chat", "style": { "navigationStyle": "custom" } },
-        { "path": "customer-service", "style": { "navigationStyle": "custom" } },
-        { "path": "history", "style": { "navigationStyle": "custom" } }
+        { "path": "agent/main", "style": { "navigationStyle": "custom" } },
+        { "path": "agent/chat", "style": { "navigationStyle": "custom" } },
+        { "path": "agent/customer-service", "style": { "navigationStyle": "custom" } },
+        { "path": "agent/history", "style": { "navigationStyle": "custom" } },
+        { "path": "agents/index", "style": { "navigationStyle": "custom" } },
+        { "path": "agents/history", "style": { "navigationStyle": "custom" } },
+        { "path": "agents/questions", "style": { "navigationStyle": "custom" } },
+        { "path": "agents/ranking", "style": { "navigationStyle": "custom" } }
       ]
     },
     {
@@ -171,7 +194,9 @@
         { "path": "study-plan/index", "style": { "navigationStyle": "custom" } },
         { "path": "work-submit/index", "style": { "navigationStyle": "custom" } },
         { "path": "work-review/index", "style": { "navigationStyle": "custom" } },
-        { "path": "work-result/index", "style": { "navigationStyle": "custom" } }
+        { "path": "work-result/index", "style": { "navigationStyle": "custom" } },
+        { "path": "courses-list/index", "style": { "navigationStyle": "custom" } },
+        { "path": "instructor/index", "style": { "navigationStyle": "custom" } }
       ]
     },
     {
@@ -191,7 +216,95 @@
         { "path": "watch/index", "style": { "navigationStyle": "custom" } },
         { "path": "end/index", "style": { "navigationStyle": "custom" } },
         { "path": "replay-detail/index", "style": { "navigationStyle": "custom" } },
-        { "path": "replay-comment/index", "style": { "navigationStyle": "custom" } }
+        { "path": "replay-comment/index", "style": { "navigationStyle": "custom" } },
+        { "path": "console/index", "style": { "navigationStyle": "custom" } },
+        { "path": "obs/index", "style": { "navigationStyle": "custom" } },
+        { "path": "theme/index", "style": { "navigationStyle": "custom" } },
+        { "path": "schedule/index", "style": { "navigationStyle": "custom" } },
+        { "path": "team/index", "style": { "navigationStyle": "custom" } },
+        { "path": "analytics/index", "style": { "navigationStyle": "custom" } },
+        { "path": "reviews/index", "style": { "navigationStyle": "custom" } },
+        { "path": "settings/index", "style": { "navigationStyle": "custom" } },
+        { "path": "products/index", "style": { "navigationStyle": "custom" } },
+        { "path": "earnings/index", "style": { "navigationStyle": "custom" } },
+        { "path": "manage/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-classics",
+      "pages": [
+        { "path": "home/index", "style": { "navigationStyle": "custom" } },
+        { "path": "category/index", "style": { "navigationStyle": "custom" } },
+        { "path": "search/index", "style": { "navigationStyle": "custom" } },
+        { "path": "detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "bookshelf/index", "style": { "navigationStyle": "custom" } },
+        { "path": "audiobooks/index", "style": { "navigationStyle": "custom" } },
+        { "path": "audiobooks/player", "style": { "navigationStyle": "custom" } },
+        { "path": "ranking/index", "style": { "navigationStyle": "custom" } },
+        { "path": "lists/index", "style": { "navigationStyle": "custom" } },
+        { "path": "collections/index", "style": { "navigationStyle": "custom" } },
+        { "path": "collection/index", "style": { "navigationStyle": "custom" } },
+        { "path": "bookmarks/index", "style": { "navigationStyle": "custom" } },
+        { "path": "notes/index", "style": { "navigationStyle": "custom" } },
+        { "path": "ai-assistant/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-ebook",
+      "pages": [
+        { "path": "bookshelf/index", "style": { "navigationStyle": "custom" } },
+        { "path": "store/index", "style": { "navigationStyle": "custom" } },
+        { "path": "detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "bookmarks/index", "style": { "navigationStyle": "custom" } },
+        { "path": "notes/index", "style": { "navigationStyle": "custom" } },
+        { "path": "checkout/index", "style": { "navigationStyle": "custom" } },
+        { "path": "checkout/success", "style": { "navigationStyle": "custom" } },
+        { "path": "reader/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-im",
+      "pages": [
+        { "path": "im/conversations/index", "style": { "navigationStyle": "custom" } },
+        { "path": "im/messages/index", "style": { "navigationStyle": "custom" } },
+        { "path": "im/chat/index", "style": { "navigationStyle": "custom" } },
+        { "path": "im/group-chat/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-search",
+      "pages": [
+        { "path": "search/index", "style": { "navigationStyle": "custom" } },
+        { "path": "search/result", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-operator",
+      "pages": [
+        { "path": "agreement-operator/index", "style": { "navigationStyle": "custom" } },
+        { "path": "agreement-station/index", "style": { "navigationStyle": "custom" } },
+        { "path": "analysis/index", "style": { "navigationStyle": "custom" } },
+        { "path": "dashboard/index", "style": { "navigationStyle": "custom" } },
+        { "path": "dormant/index", "style": { "navigationStyle": "custom" } },
+        { "path": "invite/index", "style": { "navigationStyle": "custom" } },
+        { "path": "join-operator/index", "style": { "navigationStyle": "custom" } },
+        { "path": "join-station/index", "style": { "navigationStyle": "custom" } },
+        { "path": "operator-panel/index", "style": { "navigationStyle": "custom" } },
+        { "path": "quota/index", "style": { "navigationStyle": "custom" } },
+        { "path": "settings/index", "style": { "navigationStyle": "custom" } },
+        { "path": "station-assistant/index", "style": { "navigationStyle": "custom" } },
+        { "path": "station-config/index", "style": { "navigationStyle": "custom" } },
+        { "path": "station-detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "station-earnings/index", "style": { "navigationStyle": "custom" } },
+        { "path": "station-home/index", "style": { "navigationStyle": "custom" } },
+        { "path": "station-live/index", "style": { "navigationStyle": "custom" } },
+        { "path": "station-manage/index", "style": { "navigationStyle": "custom" } },
+        { "path": "station-master-panel/index", "style": { "navigationStyle": "custom" } },
+        { "path": "station-materials/index", "style": { "navigationStyle": "custom" } },
+        { "path": "station-poster/index", "style": { "navigationStyle": "custom" } },
+        { "path": "station-promote/index", "style": { "navigationStyle": "custom" } },
+        { "path": "station-teachers/index", "style": { "navigationStyle": "custom" } },
+        { "path": "team/index", "style": { "navigationStyle": "custom" } }
       ]
     },
     {
@@ -208,7 +321,62 @@
         { "path": "teen-mode/index", "style": { "navigationStyle": "custom" } },
         { "path": "data-export/index", "style": { "navigationStyle": "custom" } },
         { "path": "delete-account/index", "style": { "navigationStyle": "custom" } },
-        { "path": "delete-account-result/index", "style": { "navigationStyle": "custom" } }
+        { "path": "delete-account-result/index", "style": { "navigationStyle": "custom" } },
+        { "path": "about/index", "style": { "navigationStyle": "custom" } },
+        { "path": "feedback/index", "style": { "navigationStyle": "custom" } },
+        { "path": "history/index", "style": { "navigationStyle": "custom" } },
+        { "path": "my-comments/index", "style": { "navigationStyle": "custom" } },
+        { "path": "my-likes/index", "style": { "navigationStyle": "custom" } },
+        { "path": "points/index", "style": { "navigationStyle": "custom" } },
+        { "path": "received-comments/index", "style": { "navigationStyle": "custom" } },
+        { "path": "wallet/index", "style": { "navigationStyle": "custom" } },
+        { "path": "wallet/recharge", "style": { "navigationStyle": "custom" } },
+        { "path": "wallet/transactions", "style": { "navigationStyle": "custom" } },
+        { "path": "wallet/withdraw", "style": { "navigationStyle": "custom" } },
+        { "path": "applications/index", "style": { "navigationStyle": "custom" } },
+        { "path": "submissions/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-profile",
+      "pages": [
+        { "path": "downloads/index", "style": { "navigationStyle": "custom" } },
+        { "path": "follows/index", "style": { "navigationStyle": "custom" } },
+        { "path": "learning/index", "style": { "navigationStyle": "custom" } },
+        { "path": "invite/index", "style": { "navigationStyle": "custom" } },
+        { "path": "invite/history/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-settings",
+      "pages": [
+        { "path": "index/index", "style": { "navigationStyle": "custom" } },
+        { "path": "notifications/index", "style": { "navigationStyle": "custom" } },
+        { "path": "privacy/index", "style": { "navigationStyle": "custom" } },
+        { "path": "phone/index", "style": { "navigationStyle": "custom" } },
+        { "path": "password/index", "style": { "navigationStyle": "custom" } },
+        { "path": "payment-password/index", "style": { "navigationStyle": "custom" } },
+        { "path": "payment-methods/index", "style": { "navigationStyle": "custom" } },
+        { "path": "blacklist/index", "style": { "navigationStyle": "custom" } },
+        { "path": "bindaccount/index", "style": { "navigationStyle": "custom" } },
+        { "path": "delete-account/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-wallet",
+      "pages": [
+        { "path": "index/index", "style": { "navigationStyle": "custom" } },
+        { "path": "bank-cards/index", "style": { "navigationStyle": "custom" } },
+        { "path": "bill/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-poetry",
+      "pages": [
+        { "path": "index/index", "style": { "navigationStyle": "custom" } },
+        { "path": "categories/index", "style": { "navigationStyle": "custom" } },
+        { "path": "collections/index", "style": { "navigationStyle": "custom" } },
+        { "path": "detail/index", "style": { "navigationStyle": "custom" } }
       ]
     }
   ],

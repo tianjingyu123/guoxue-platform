@@ -1,34 +1,86 @@
 <template>
   <view class="page">
-    <app-nav-bar title="OBS 推流教程" background="rgba(255,255,255,0.95)" color="#2C2C2C" :back-size="40" />
+    <!-- 顶部导航 -->
+    <view
+      class="nav"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view class="nav-bar">
+        <view
+          class="nav-btn"
+          @tap="goBack"
+        >
+          <AppIcon
+            name="arrow-left"
+            :size="40"
+            color="#2C2C2C"
+          />
+        </view>
+        <text class="nav-title">
+          OBS 推流教程
+        </text>
+      </view>
+    </view>
 
     <view class="body">
       <!-- Hero -->
       <view class="hero">
         <view class="hero-icon">
-          <AppIcon name="monitor" :size="28" color="#fff" />
+          <AppIcon
+            name="monitor"
+            :size="56"
+            color="#fff"
+          />
         </view>
         <view class="hero-text">
-          <text class="hero-title">OBS Studio 直播推流</text>
-          <text class="hero-desc">适合知识授课类横屏直播，画质清晰稳定</text>
+          <text class="hero-title">
+            OBS Studio 直播推流
+          </text>
+          <text class="hero-desc">
+            适合知识授课类横屏直播，画质清晰稳定
+          </text>
         </view>
       </view>
 
       <!-- 配置步骤 -->
       <view class="section">
-        <text class="sec-title">配置步骤</text>
+        <text class="sec-title">
+          配置步骤
+        </text>
         <view class="step-list">
-          <view v-for="(s, i) in steps" :key="s.step" class="step-card">
+          <view
+            v-for="(s, i) in steps"
+            :key="s.step"
+            class="step-card"
+          >
             <view class="step-rail">
-              <view class="step-num">{{ s.step }}</view>
-              <view v-if="i < steps.length - 1" class="step-line" />
+              <view class="step-num">
+                {{ s.step }}
+              </view>
+              <view
+                v-if="i < steps.length - 1"
+                class="step-line"
+              />
             </view>
             <view class="step-main">
-              <text class="step-title">{{ s.title }}</text>
-              <text class="step-desc">{{ s.desc }}</text>
-              <view v-if="s.action" class="step-action">
-                <text class="step-action-txt">{{ s.action }}</text>
-                <AppIcon name="external-link" :size="12" color="#C41E3A" />
+              <text class="step-title">
+                {{ s.title }}
+              </text>
+              <text class="step-desc">
+                {{ s.desc }}
+              </text>
+              <view
+                v-if="s.action"
+                class="step-action"
+              >
+                <text class="step-action-txt">
+                  {{ s.action }}
+                </text>
+                <AppIcon
+                  name="external-link"
+                  :size="24"
+                  color="#C41E3A"
+                />
               </view>
             </view>
           </view>
@@ -37,46 +89,84 @@
 
       <!-- 推荐硬件配置 -->
       <view class="section">
-        <text class="sec-title">推荐硬件配置</text>
+        <text class="sec-title">
+          推荐硬件配置
+        </text>
         <view class="req-card">
-          <view v-for="(r, i) in requirements" :key="r.label" class="req-row" :class="{ 'req-border': i > 0 }">
-            <text class="req-label">{{ r.label }}</text>
-            <text class="req-value">{{ r.value }}</text>
+          <view
+            v-for="(r, i) in requirements"
+            :key="r.label"
+            class="req-row"
+            :class="{ 'req-border': i > 0 }"
+          >
+            <text class="req-label">
+              {{ r.label }}
+            </text>
+            <text class="req-value">
+              {{ r.value }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 常见问题 -->
       <view class="section">
-        <text class="sec-title">常见问题</text>
+        <text class="sec-title">
+          常见问题
+        </text>
         <view class="faq-list">
-          <view v-for="f in faq" :key="f.q" class="faq-card">
+          <view
+            v-for="f in faq"
+            :key="f.q"
+            class="faq-card"
+          >
             <view class="faq-q-row">
-              <text class="faq-badge q">Q</text>
-              <text class="faq-q">{{ f.q }}</text>
+              <text class="faq-badge q">
+                Q
+              </text>
+              <text class="faq-q">
+                {{ f.q }}
+              </text>
             </view>
             <view class="faq-a-row">
-              <text class="faq-badge a">A</text>
-              <text class="faq-a">{{ f.a }}</text>
+              <text class="faq-badge a">
+                A
+              </text>
+              <text class="faq-a">
+                {{ f.a }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
-      <view class="cta" @tap="goCreate">开始直播</view>
+      <view
+        class="cta"
+        @tap="goCreate"
+      >
+        开始直播
+      </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import AppNavBar from '@/components/common/app-nav-bar.vue'
+import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { obsGuideSteps, obsGuideRequirements, obsGuideFaq } from '@/lib/live-data'
+import { goBack } from '@/utils/router'
+import { liveApi } from '@/lib/live-data'
 
-const steps = ref(obsGuideSteps)
-const requirements = ref(obsGuideRequirements)
-const faq = ref(obsGuideFaq)
+const statusBarHeight = ref(0)
+const steps = ref<any[]>([])
+const requirements = ref<any[]>([])
+const faq = ref<any[]>([])
+
+onMounted(async () => {
+  const data = await liveApi.getObsGuide()
+  steps.value = data.steps
+  requirements.value = data.requirements
+  faq.value = data.faq
+})
 
 function goCreate() {
   uni.navigateTo({ url: '/pkg-live/create/index' })
@@ -87,6 +177,30 @@ function goCreate() {
 .page {
   min-height: 100vh;
   background: #faf8f5;
+}
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #faf8f5;
+  border-bottom: 1rpx solid #e8e0d5;
+}
+.nav-bar {
+  height: 96rpx;
+  display: flex;
+  align-items: center;
+  padding: 0 32rpx;
+  gap: 24rpx;
+}
+.nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #2C2C2C;
 }
 .body {
   padding: 32rpx 32rpx 160rpx;

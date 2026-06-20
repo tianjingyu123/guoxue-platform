@@ -73,81 +73,214 @@ function handleSubmit() {
     <view class="bf-card">
       <!-- 姓名 -->
       <view class="bf-row bf-bd">
-        <text class="bf-label">姓名</text>
-        <input v-model="name" class="bf-name-input" placeholder="请输入姓名（选填）" />
+        <text class="bf-label">
+          姓名
+        </text>
+        <input
+          v-model="name"
+          class="bf-name-input"
+          placeholder="请输入姓名（选填）"
+        >
       </view>
       <!-- 性别 -->
       <view class="bf-row bf-bd">
-        <text class="bf-label">性别</text>
+        <text class="bf-label">
+          性别
+        </text>
         <view class="bf-gender">
-          <view class="bf-gbtn" :class="{ 'bf-gbtn-on': gender === 'male' }" @tap="gender = 'male'"><text class="bf-gtext" :class="{ 'bf-gtext-on': gender === 'male' }">男</text></view>
-          <view class="bf-gbtn" :class="{ 'bf-gbtn-on': gender === 'female' }" @tap="gender = 'female'"><text class="bf-gtext" :class="{ 'bf-gtext-on': gender === 'female' }">女</text></view>
+          <view
+            class="bf-gbtn"
+            :class="{ 'bf-gbtn-on': gender === 'male' }"
+            @tap="gender = 'male'"
+          >
+            <text
+              class="bf-gtext"
+              :class="{ 'bf-gtext-on': gender === 'male' }"
+            >
+              男
+            </text>
+          </view>
+          <view
+            class="bf-gbtn"
+            :class="{ 'bf-gbtn-on': gender === 'female' }"
+            @tap="gender = 'female'"
+          >
+            <text
+              class="bf-gtext"
+              :class="{ 'bf-gtext-on': gender === 'female' }"
+            >
+              女
+            </text>
+          </view>
         </view>
       </view>
       <!-- 出生时间 -->
-      <view class="bf-link bf-bd" @tap="showDatePicker = true">
+      <view
+        class="bf-link bf-bd"
+        @tap="showDatePicker = true"
+      >
         <view class="bf-link-l">
-          <view class="bf-icon"><app-icon name="clock" :size="28" color="#2d5a87" /></view>
-          <text class="bf-label">出生时间<text class="bf-star">*</text></text>
+          <view class="bf-icon">
+            <app-icon
+              name="clock"
+              :size="28"
+              color="#2d5a87"
+            />
+          </view>
+          <text class="bf-label">
+            出生时间<text class="bf-star">
+              *
+            </text>
+          </text>
         </view>
         <view class="bf-link-r">
-          <text class="bf-value">{{ formatBirthDate }}</text>
-          <app-icon name="chevron-right" :size="28" color="#9ca3af" />
+          <text class="bf-value">
+            {{ formatBirthDate }}
+          </text>
+          <app-icon
+            name="chevron-right"
+            :size="28"
+            color="#9ca3af"
+          />
         </view>
       </view>
       <!-- 出生地区 -->
-      <view class="bf-link bf-bd" @tap="showLocationPicker = true">
+      <view
+        class="bf-link bf-bd"
+        @tap="showLocationPicker = true"
+      >
         <view class="bf-link-l">
-          <view class="bf-icon"><app-icon name="map-pin" :size="28" color="#2d5a87" /></view>
-          <text class="bf-label">出生地区</text>
+          <view class="bf-icon">
+            <app-icon
+              name="map-pin"
+              :size="28"
+              color="#2d5a87"
+            />
+          </view>
+          <text class="bf-label">
+            出生地区
+          </text>
         </view>
         <view class="bf-link-r">
-          <text class="bf-value">{{ formatBirthPlace }}</text>
-          <app-icon name="chevron-right" :size="28" color="#9ca3af" />
+          <text class="bf-value">
+            {{ formatBirthPlace }}
+          </text>
+          <app-icon
+            name="chevron-right"
+            :size="28"
+            color="#9ca3af"
+          />
         </view>
       </view>
       <!-- 分组 -->
-      <view class="bf-link bf-bd" @tap="showGroupPicker = true">
+      <view
+        class="bf-link bf-bd"
+        @tap="showGroupPicker = true"
+      >
         <view class="bf-link-l">
-          <view class="bf-icon"><app-icon name="folder" :size="28" color="#2d5a87" /></view>
-          <text class="bf-label">分组</text>
+          <view class="bf-icon">
+            <app-icon
+              name="folder"
+              :size="28"
+              color="#2d5a87"
+            />
+          </view>
+          <text class="bf-label">
+            分组
+          </text>
         </view>
         <view class="bf-link-r">
-          <text class="bf-value">{{ group }}</text>
-          <app-icon name="chevron-right" :size="28" color="#9ca3af" />
+          <text class="bf-value">
+            {{ group }}
+          </text>
+          <app-icon
+            name="chevron-right"
+            :size="28"
+            color="#9ca3af"
+          />
         </view>
       </view>
       <!-- 时间选项 -->
       <view class="bf-opts bf-bd">
-        <view v-for="o in options" :key="o.key" class="bf-opt" @tap="toggleOpt(o.key)">
-          <view class="bf-check" :class="{ 'bf-check-on': optState[o.key] }">
-            <app-icon v-if="optState[o.key]" name="check" :size="20" color="#ffffff" />
+        <view
+          v-for="o in options"
+          :key="o.key"
+          class="bf-opt"
+          @tap="toggleOpt(o.key)"
+        >
+          <view
+            class="bf-check"
+            :class="{ 'bf-check-on': optState[o.key] }"
+          >
+            <app-icon
+              v-if="optState[o.key]"
+              name="check"
+              :size="20"
+              color="#ffffff"
+            />
           </view>
-          <text class="bf-opt-label">{{ o.label }}</text>
+          <text class="bf-opt-label">
+            {{ o.label }}
+          </text>
         </view>
       </view>
       <!-- 真太阳时信息 + 保存 -->
       <view class="bf-solar bf-bd">
         <view class="bf-solar-info">
-          <text class="bf-solar-line">真太阳时：{{ formatBirthDate }}</text>
-          <text class="bf-solar-line">地址经纬：北纬39.93 东经116.42</text>
+          <text class="bf-solar-line">
+            真太阳时：{{ formatBirthDate }}
+          </text>
+          <text class="bf-solar-line">
+            地址经纬：北纬39.93 东经116.42
+          </text>
         </view>
         <view class="bf-save">
-          <text class="bf-save-label">保存</text>
-          <view class="bf-switch" :class="{ 'bf-switch-on': saveRecord }" @tap="saveRecord = !saveRecord">
-            <view class="bf-switch-dot" :class="{ 'bf-switch-dot-on': saveRecord }" />
+          <text class="bf-save-label">
+            保存
+          </text>
+          <view
+            class="bf-switch"
+            :class="{ 'bf-switch-on': saveRecord }"
+            @tap="saveRecord = !saveRecord"
+          >
+            <view
+              class="bf-switch-dot"
+              :class="{ 'bf-switch-dot-on': saveRecord }"
+            />
           </view>
         </view>
       </view>
       <!-- 开始排盘 -->
       <view class="bf-submit-wrap">
-        <view class="bf-submit" @tap="handleSubmit"><text class="bf-submit-text">开始排盘</text></view>
+        <view
+          class="bf-submit"
+          @tap="handleSubmit"
+        >
+          <text class="bf-submit-text">
+            开始排盘
+          </text>
+        </view>
       </view>
     </view>
 
-    <date-picker-modal :open="showDatePicker" :initial-date="{ year: birthDate.year, month: birthDate.month, day: birthDate.day, hour: birthDate.hour, minute: birthDate.minute }" @close="showDatePicker = false" @confirm="onDateConfirm" />
-    <location-picker-modal :open="showLocationPicker" :initial-location="birthPlace.province ? birthPlace : undefined" @close="showLocationPicker = false" @confirm="(v) => birthPlace = v" />
-    <group-picker-modal :open="showGroupPicker" :initial-group="group" @close="showGroupPicker = false" @confirm="(v) => group = v" />
+    <date-picker-modal
+      :open="showDatePicker"
+      :initial-date="{ year: birthDate.year, month: birthDate.month, day: birthDate.day, hour: birthDate.hour, minute: birthDate.minute }"
+      @close="showDatePicker = false"
+      @confirm="onDateConfirm"
+    />
+    <location-picker-modal
+      :open="showLocationPicker"
+      :initial-location="birthPlace.province ? birthPlace : undefined"
+      @close="showLocationPicker = false"
+      @confirm="(v) => birthPlace = v"
+    />
+    <group-picker-modal
+      :open="showGroupPicker"
+      :initial-group="group"
+      @close="showGroupPicker = false"
+      @confirm="(v) => group = v"
+    />
   </view>
 </template>
 

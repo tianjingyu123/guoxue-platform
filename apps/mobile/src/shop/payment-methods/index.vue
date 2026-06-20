@@ -1,87 +1,185 @@
 <template>
   <view class="payment-methods">
     <!-- 顶部导航 -->
-    <view class="nav-bar" :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }">
-      <view class="nav-back" @tap="goBack">
-        <app-icon name="arrow-left" :size="40" color="#1A1A1A" />
+    <view
+      class="nav-bar"
+      :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }"
+    >
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="40"
+          color="#1A1A1A"
+        />
       </view>
-      <text class="nav-title">支付方式</text>
+      <text class="nav-title">
+        支付方式
+      </text>
       <view class="nav-placeholder" />
     </view>
 
-    <scroll-view scroll-y class="content">
+    <scroll-view
+      scroll-y
+      class="content"
+    >
       <!-- 已绑定支付方式 -->
       <view class="section">
-        <text class="section-title">已绑定</text>
+        <text class="section-title">
+          已绑定
+        </text>
         <view
           v-for="m in methods"
           :key="m.id"
           class="method-card"
           @tap="openActions(m)"
         >
-          <view class="method-icon" :class="m.type">
-            <app-icon :name="iconOf(m.type)" :size="40" color="#FFFFFF" />
+          <view
+            class="method-icon"
+            :class="m.type"
+          >
+            <app-icon
+              :name="iconOf(m.type)"
+              :size="40"
+              color="#FFFFFF"
+            />
           </view>
           <view class="method-info">
             <view class="method-name-row">
-              <text class="method-name">{{ m.name }}</text>
-              <text v-if="m.isDefault" class="default-tag">默认</text>
+              <text class="method-name">
+                {{ m.name }}
+              </text>
+              <text
+                v-if="m.isDefault"
+                class="default-tag"
+              >
+                默认
+              </text>
             </view>
-            <text class="method-account">{{ m.account }}</text>
+            <text class="method-account">
+              {{ m.account }}
+            </text>
           </view>
-          <app-icon name="chevron-right" :size="36" color="#CCCCCC" />
+          <app-icon
+            name="chevron-right"
+            :size="36"
+            color="#CCCCCC"
+          />
         </view>
       </view>
 
       <!-- 添加支付方式 -->
       <view class="section">
-        <text class="section-title">添加支付方式</text>
+        <text class="section-title">
+          添加支付方式
+        </text>
         <view
           v-for="opt in addOptions"
           :key="opt.type"
           class="add-card"
           @tap="onAdd(opt)"
         >
-          <view class="method-icon" :class="opt.type">
-            <app-icon :name="iconOf(opt.type)" :size="40" color="#FFFFFF" />
+          <view
+            class="method-icon"
+            :class="opt.type"
+          >
+            <app-icon
+              :name="iconOf(opt.type)"
+              :size="40"
+              color="#FFFFFF"
+            />
           </view>
           <view class="method-info">
-            <text class="method-name">{{ opt.name }}</text>
-            <text class="method-account">{{ opt.desc }}</text>
+            <text class="method-name">
+              {{ opt.name }}
+            </text>
+            <text class="method-account">
+              {{ opt.desc }}
+            </text>
           </view>
-          <app-icon name="plus" :size="36" color="#9A2D2D" />
+          <app-icon
+            name="plus"
+            :size="36"
+            color="#9A2D2D"
+          />
         </view>
       </view>
 
       <view class="safe-tip">
-        <app-icon name="shield" :size="30" color="#999999" />
-        <text class="safe-text">您的支付信息已加密保护</text>
+        <app-icon
+          name="shield"
+          :size="30"
+          color="#999999"
+        />
+        <text class="safe-text">
+          您的支付信息已加密保护
+        </text>
       </view>
     </scroll-view>
 
     <!-- 操作菜单 -->
-    <view v-if="actionMethod" class="mask" @tap="actionMethod = null">
-      <view class="action-sheet" @tap.stop>
-        <view v-if="!actionMethod.isDefault" class="action-item" @tap="setDefault">
+    <view
+      v-if="actionMethod"
+      class="mask"
+      @tap="actionMethod = null"
+    >
+      <view
+        class="action-sheet"
+        @tap.stop
+      >
+        <view
+          v-if="!actionMethod.isDefault"
+          class="action-item"
+          @tap="setDefault"
+        >
           <text>设为默认</text>
         </view>
-        <view class="action-item danger" @tap="askDelete">
+        <view
+          class="action-item danger"
+          @tap="askDelete"
+        >
           <text>解除绑定</text>
         </view>
-        <view class="action-item cancel" @tap="actionMethod = null">
+        <view
+          class="action-item cancel"
+          @tap="actionMethod = null"
+        >
           <text>取消</text>
         </view>
       </view>
     </view>
 
     <!-- 删除确认 -->
-    <view v-if="showDelete" class="mask center" @tap="showDelete = false">
-      <view class="dialog" @tap.stop>
-        <text class="dialog-title">解除绑定</text>
-        <text class="dialog-desc">确定要解除「{{ pendingDelete?.name }}」的绑定吗？</text>
+    <view
+      v-if="showDelete"
+      class="mask center"
+      @tap="showDelete = false"
+    >
+      <view
+        class="dialog"
+        @tap.stop
+      >
+        <text class="dialog-title">
+          解除绑定
+        </text>
+        <text class="dialog-desc">
+          确定要解除「{{ pendingDelete?.name }}」的绑定吗？
+        </text>
         <view class="dialog-actions">
-          <view class="dialog-btn" @tap="showDelete = false"><text>取消</text></view>
-          <view class="dialog-btn confirm" @tap="confirmDelete"><text>确定</text></view>
+          <view
+            class="dialog-btn"
+            @tap="showDelete = false"
+          >
+            <text>取消</text>
+          </view>
+          <view
+            class="dialog-btn confirm"
+            @tap="confirmDelete"
+          >
+            <text>确定</text>
+          </view>
         </view>
       </view>
     </view>
@@ -89,15 +187,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { navigateBack } from '@/utils/router'
-import { boundPaymentMethods, addPaymentOptions, type BoundPaymentMethod } from '@/lib/shop-data'
+import { addPaymentOptions, shopApi, type BoundPaymentMethod } from '@/lib/shop-data'
 
-const methods = ref<BoundPaymentMethod[]>([...boundPaymentMethods])
+const methods = ref<BoundPaymentMethod[]>([])
 const addOptions = addPaymentOptions
 const actionMethod = ref<BoundPaymentMethod | null>(null)
 const showDelete = ref(false)
 const pendingDelete = ref<BoundPaymentMethod | null>(null)
+
+onMounted(async () => {
+  try {
+    const res = await shopApi.getPaymentMethods()
+    methods.value = Array.isArray(res) ? res : []
+  } catch { /* keep empty */ }
+})
 
 function goBack() {
   navigateBack()

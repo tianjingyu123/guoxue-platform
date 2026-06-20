@@ -5,94 +5,202 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view class="nav" :style="{ paddingTop: statusBarH + 'px' }">
+    <view
+      class="nav"
+      :style="{ paddingTop: statusBarH + 'px' }"
+    >
       <view class="nav-inner">
-        <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
-        <text class="nav-title">收益明细</text>
+        <view
+          class="nav-btn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="40"
+            color="#2C2C2C"
+          />
+        </view>
+        <text class="nav-title">
+          收益明细
+        </text>
         <view class="nav-btn" />
       </view>
     </view>
 
-    <scroll-view scroll-y class="scroll">
+    <scroll-view
+      scroll-y
+      class="scroll"
+    >
       <view class="body">
         <!-- 骨架屏 -->
-        <view v-if="loading" class="earn-skeleton">
-          <view v-for="i in 3" :key="i" class="earn-sk-row"><view class="earn-sk-block sk-anim" /></view>
+        <view
+          v-if="loading"
+          class="earn-skeleton"
+        >
+          <view
+            v-for="i in 3"
+            :key="i"
+            class="earn-sk-row"
+          >
+            <view class="earn-sk-block sk-anim" />
+          </view>
         </view>
-        <error-state v-else-if="error" :message="error" @retry="loadData" />
+        <error-state
+          v-else-if="error"
+          :message="error"
+          @retry="loadData"
+        />
         <template v-else>
           <!-- 收益概览 -->
-        <view class="overview">
-          <view class="ov-top">
-            <view>
-              <text class="ov-label">本月收益</text>
-              <text class="ov-month">¥{{ fmt(data.monthEarnings) }}</text>
+          <view class="overview">
+            <view class="ov-top">
+              <view>
+                <text class="ov-label">
+                  本月收益
+                </text>
+                <text class="ov-month">
+                  ¥{{ fmt(data.monthEarnings) }}
+                </text>
+              </view>
+              <view class="ov-total">
+                <text class="ov-label">
+                  累计收益
+                </text>
+                <text class="ov-total-num">
+                  ¥{{ fmt(data.totalEarnings) }}
+                </text>
+              </view>
             </view>
-            <view class="ov-total">
-              <text class="ov-label">累计收益</text>
-              <text class="ov-total-num">¥{{ fmt(data.totalEarnings) }}</text>
+            <view class="ov-stats">
+              <view class="ov-stat">
+                <app-icon
+                  name="users"
+                  :size="28"
+                  color="#ffffff"
+                /><text class="ov-stat-t">
+                  {{ data.memberCount }} 名成员
+                </text>
+              </view>
+              <view class="ov-stat">
+                <app-icon
+                  name="trending-up"
+                  :size="28"
+                  color="#ffffff"
+                /><text class="ov-stat-t">
+                  ↑ 15% 同比增长
+                </text>
+              </view>
             </view>
           </view>
-          <view class="ov-stats">
-            <view class="ov-stat"><app-icon name="users" :size="28" color="#ffffff" /><text class="ov-stat-t">{{ data.memberCount }} 名成员</text></view>
-            <view class="ov-stat"><app-icon name="trending-up" :size="28" color="#ffffff" /><text class="ov-stat-t">↑ 15% 同比增长</text></view>
-          </view>
-        </view>
 
-        <!-- 收入构成 -->
-        <view class="sec">
-          <text class="sec-title">收入构成</text>
-          <view class="list">
-            <view v-for="item in data.earningsList" :key="item.id" class="card">
-              <view class="card-head">
-                <view class="card-info">
-                  <text class="card-source">{{ item.source }}</text>
-                  <text class="card-desc">{{ item.description }}</text>
+          <!-- 收入构成 -->
+          <view class="sec">
+            <text class="sec-title">
+              收入构成
+            </text>
+            <view class="list">
+              <view
+                v-for="item in data.earningsList"
+                :key="item.id"
+                class="card"
+              >
+                <view class="card-head">
+                  <view class="card-info">
+                    <text class="card-source">
+                      {{ item.source }}
+                    </text>
+                    <text class="card-desc">
+                      {{ item.description }}
+                    </text>
+                  </view>
+                  <text
+                    class="card-trend"
+                    :class="item.trend === 'up' ? 'up' : 'down'"
+                  >
+                    {{ item.trend === 'up' ? '↑' : '↓' }}
+                  </text>
                 </view>
-                <text class="card-trend" :class="item.trend === 'up' ? 'up' : 'down'">{{ item.trend === 'up' ? '↑' : '↓' }}</text>
-              </view>
-              <view class="card-bar-row">
-                <view class="bar-track"><view class="bar-fill" :style="{ width: item.percentage + '%' }" /></view>
-                <view class="card-amount">
-                  <text class="card-amount-num">¥{{ fmt(item.amount) }}</text>
-                  <text class="card-amount-pct">{{ item.percentage }}%</text>
+                <view class="card-bar-row">
+                  <view class="bar-track">
+                    <view
+                      class="bar-fill"
+                      :style="{ width: item.percentage + '%' }"
+                    />
+                  </view>
+                  <view class="card-amount">
+                    <text class="card-amount-num">
+                      ¥{{ fmt(item.amount) }}
+                    </text>
+                    <text class="card-amount-pct">
+                      {{ item.percentage }}%
+                    </text>
+                  </view>
                 </view>
               </view>
             </view>
           </view>
-        </view>
 
-        <!-- 历史收益 -->
-        <view class="sec">
-          <text class="sec-title">历史收益</text>
-          <view class="list">
-            <view v-for="(item, idx) in data.history" :key="idx" class="card hist">
-              <view class="hist-left">
-                <app-icon name="calendar" :size="32" color="#999999" />
-                <view>
-                  <text class="hist-month">{{ item.month }}</text>
-                  <text class="hist-members">{{ item.members }} 名成员</text>
+          <!-- 历史收益 -->
+          <view class="sec">
+            <text class="sec-title">
+              历史收益
+            </text>
+            <view class="list">
+              <view
+                v-for="(item, idx) in data.history"
+                :key="idx"
+                class="card hist"
+              >
+                <view class="hist-left">
+                  <app-icon
+                    name="calendar"
+                    :size="32"
+                    color="#999999"
+                  />
+                  <view>
+                    <text class="hist-month">
+                      {{ item.month }}
+                    </text>
+                    <text class="hist-members">
+                      {{ item.members }} 名成员
+                    </text>
+                  </view>
                 </view>
-              </view>
-              <view class="hist-right">
-                <text class="hist-earn">¥{{ fmt(item.earnings) }}</text>
-                <text class="hist-badge">月均 ¥{{ Math.round(item.earnings / item.members) }}</text>
+                <view class="hist-right">
+                  <text class="hist-earn">
+                    ¥{{ fmt(item.earnings) }}
+                  </text>
+                  <text class="hist-badge">
+                    月均 ¥{{ Math.round(item.earnings / item.members) }}
+                  </text>
+                </view>
               </view>
             </view>
           </view>
-        </view>
 
-        <!-- 说明 -->
-        <view class="note">
-          <text class="note-title">收益说明</text>
-          <view class="note-list">
-            <text class="note-li">• 圈费：新成员加入圈子的费用</text>
-            <text class="note-li">• 课程销售：圈内付费课程的销售额</text>
-            <text class="note-li">• 咨询服务：一对一付费咨询费用</text>
-            <text class="note-li">• 商品销售：圈子内销售的相关商品</text>
-            <text class="note-li">• 收益结算：每月月底统一结算，次月1日可提现</text>
+          <!-- 说明 -->
+          <view class="note">
+            <text class="note-title">
+              收益说明
+            </text>
+            <view class="note-list">
+              <text class="note-li">
+                • 圈费：新成员加入圈子的费用
+              </text>
+              <text class="note-li">
+                • 课程销售：圈内付费课程的销售额
+              </text>
+              <text class="note-li">
+                • 咨询服务：一对一付费咨询费用
+              </text>
+              <text class="note-li">
+                • 商品销售：圈子内销售的相关商品
+              </text>
+              <text class="note-li">
+                • 收益结算：每月月底统一结算，次月1日可提现
+              </text>
+            </view>
           </view>
-        </view>
         </template>
       </view>
     </scroll-view>
@@ -104,9 +212,15 @@
  * 圈子收益明细页（纯展示）
  */
 import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
+import { circleManageApi } from '@/lib/circle-detail-data'
+
+const circleId = ref('1')
+
+onLoad((q) => { if (q?.id) circleId.value = q.id })
 
 const loading = ref(true)
 const error = ref('')
@@ -118,7 +232,8 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    await new Promise(r => setTimeout(r, 500))
+    const res: any = await circleManageApi.getEarnings(circleId.value)
+    data.value = res
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
@@ -126,7 +241,7 @@ async function loadData() {
   }
 }
 
-const data = {
+const data = ref({
   totalEarnings: 285400,
   monthEarnings: 28540,
   memberCount: 12800,
@@ -142,7 +257,7 @@ const data = {
     { month: '2023年11月', earnings: 24900, members: 11450, rate: 82 },
     { month: '2023年10月', earnings: 23200, members: 10800, rate: 76 },
   ],
-}
+})
 
 function fmt(n: number) {
   return n.toLocaleString('zh-CN', { minimumFractionDigits: 2 })

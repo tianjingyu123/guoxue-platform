@@ -1,133 +1,371 @@
 <template>
   <view class="checkout">
-    <view class="nav-bar" :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }">
-      <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#1A1A1A" /></view>
-      <text class="nav-title">确认订单</text>
+    <view
+      class="nav-bar"
+      :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }"
+    >
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="40"
+          color="#1A1A1A"
+        />
+      </view>
+      <text class="nav-title">
+        确认订单
+      </text>
       <view class="nav-placeholder" />
     </view>
 
-    <scroll-view scroll-y class="content">
+    <scroll-view
+      scroll-y
+      class="content"
+    >
       <!-- 加载骨架 -->
-      <view v-if="loading" class="sk-wrap">
-        <view class="sk-card"><view class="sk-line" /><view class="sk-line sk-short" /></view>
-        <view class="sk-card"><view class="sk-row" /><view class="sk-row" /></view>
-        <view class="sk-card"><view class="sk-line w4" /><view class="sk-line w6" /></view>
+      <view
+        v-if="loading"
+        class="sk-wrap"
+      >
+        <view class="sk-card">
+          <view class="sk-line" /><view class="sk-line sk-short" />
+        </view>
+        <view class="sk-card">
+          <view class="sk-row" /><view class="sk-row" />
+        </view>
+        <view class="sk-card">
+          <view class="sk-line w4" /><view class="sk-line w6" />
+        </view>
       </view>
 
-      <error-state v-else-if="error" :message="error" @retry="loadCheckout" />
+      <error-state
+        v-else-if="error"
+        :message="error"
+        @retry="loadCheckout"
+      />
 
       <view v-else>
-      <!-- 地址 -->
-      <view class="address-card" @tap="showAddress = true">
-        <app-icon name="map-pin" :size="40" color="#9A2D2D" />
-        <view class="address-info" v-if="currentAddress">
-          <view class="addr-top">
-            <text class="addr-name">{{ currentAddress.name }}</text>
-            <text class="addr-phone">{{ currentAddress.phone }}</text>
-            <view v-if="currentAddress.isDefault" class="default-tag"><text>默认</text></view>
+        <!-- 地址 -->
+        <view
+          class="address-card"
+          @tap="showAddress = true"
+        >
+          <app-icon
+            name="map-pin"
+            :size="40"
+            color="#9A2D2D"
+          />
+          <view
+            v-if="currentAddress"
+            class="address-info"
+          >
+            <view class="addr-top">
+              <text class="addr-name">
+                {{ currentAddress.name }}
+              </text>
+              <text class="addr-phone">
+                {{ currentAddress.phone }}
+              </text>
+              <view
+                v-if="currentAddress.isDefault"
+                class="default-tag"
+              >
+                <text>默认</text>
+              </view>
+            </view>
+            <text class="addr-detail">
+              {{ currentAddress.province }}{{ currentAddress.city }}{{ currentAddress.district }}{{ currentAddress.address }}
+            </text>
           </view>
-          <text class="addr-detail">{{ currentAddress.province }}{{ currentAddress.city }}{{ currentAddress.district }}{{ currentAddress.address }}</text>
+          <app-icon
+            name="chevron-right"
+            :size="32"
+            color="#CCCCCC"
+          />
         </view>
-        <app-icon name="chevron-right" :size="32" color="#CCCCCC" />
-      </view>
 
-      <!-- 商品 -->
-      <view class="goods-card">
-        <view v-for="g in items" :key="g.id" class="goods-item">
-          <image class="goods-img" :src="g.productCover" mode="aspectFill" />
-          <view class="goods-info">
-            <text class="goods-name">{{ g.productName }}</text>
-            <view class="sku-tag"><text>{{ g.skuName }}</text></view>
-            <view class="goods-bottom">
-              <text class="goods-price">¥{{ g.price }}</text>
-              <text class="goods-qty">x{{ g.quantity }}</text>
+        <!-- 商品 -->
+        <view class="goods-card">
+          <view
+            v-for="g in items"
+            :key="g.id"
+            class="goods-item"
+          >
+            <image
+              class="goods-img"
+              :src="g.productCover"
+              mode="aspectFill"
+            />
+            <view class="goods-info">
+              <text class="goods-name">
+                {{ g.productName }}
+              </text>
+              <view class="sku-tag">
+                <text>{{ g.skuName }}</text>
+              </view>
+              <view class="goods-bottom">
+                <text class="goods-price">
+                  ¥{{ g.price }}
+                </text>
+                <text class="goods-qty">
+                  x{{ g.quantity }}
+                </text>
+              </view>
             </view>
           </view>
         </view>
-      </view>
 
-      <!-- 优惠券 -->
-      <view class="cell" @tap="showCoupon = true">
-        <text class="cell-label">优惠券</text>
-        <text class="cell-value" :class="{ active: selectedCoupon }">{{ selectedCoupon ? '-¥' + selectedCoupon.value : '请选择' }}</text>
-        <app-icon name="chevron-right" :size="32" color="#CCCCCC" />
-      </view>
-
-      <!-- 发票 -->
-      <view class="invoice-card">
-        <view class="invoice-head" @tap="showInvoice = !showInvoice">
-          <text class="cell-label">发票</text>
-          <text class="cell-value active">{{ currentInvoice.label }}</text>
-          <app-icon :name="showInvoice ? 'chevron-down' : 'chevron-right'" :size="32" color="#CCCCCC" />
+        <!-- 优惠券 -->
+        <view
+          class="cell"
+          @tap="showCoupon = true"
+        >
+          <text class="cell-label">
+            优惠券
+          </text>
+          <text
+            class="cell-value"
+            :class="{ active: selectedCoupon }"
+          >
+            {{ selectedCoupon ? '-¥' + selectedCoupon.value : '请选择' }}
+          </text>
+          <app-icon
+            name="chevron-right"
+            :size="32"
+            color="#CCCCCC"
+          />
         </view>
-        <view v-if="showInvoice" class="invoice-options">
-          <view v-for="opt in invoiceOptions" :key="opt.value" class="invoice-option" @tap="selectInvoice(opt)">
-            <view class="invoice-info">
-              <text class="io-label">{{ opt.label }}</text>
-              <text class="io-desc">{{ opt.desc }}</text>
+
+        <!-- 发票 -->
+        <view class="invoice-card">
+          <view
+            class="invoice-head"
+            @tap="showInvoice = !showInvoice"
+          >
+            <text class="cell-label">
+              发票
+            </text>
+            <text class="cell-value active">
+              {{ currentInvoice.label }}
+            </text>
+            <app-icon
+              :name="showInvoice ? 'chevron-down' : 'chevron-right'"
+              :size="32"
+              color="#CCCCCC"
+            />
+          </view>
+          <view
+            v-if="showInvoice"
+            class="invoice-options"
+          >
+            <view
+              v-for="opt in invoiceOptions"
+              :key="opt.value"
+              class="invoice-option"
+              @tap="selectInvoice(opt)"
+            >
+              <view class="invoice-info">
+                <text class="io-label">
+                  {{ opt.label }}
+                </text>
+                <text class="io-desc">
+                  {{ opt.desc }}
+                </text>
+              </view>
+              <view
+                class="radio"
+                :class="{ checked: invoice === opt.value }"
+              >
+                <view
+                  v-if="invoice === opt.value"
+                  class="radio-dot"
+                />
+              </view>
             </view>
-            <view class="radio" :class="{ checked: invoice === opt.value }"><view v-if="invoice === opt.value" class="radio-dot" /></view>
           </view>
         </view>
-      </view>
 
-      <!-- 订单备注 -->
-      <view class="cell column">
-        <text class="cell-label">订单备注</text>
-        <input class="note-input" v-model="note" placeholder="选填，给商家留言" placeholder-class="ph" />
-      </view>
-
-      <!-- 支付方式 -->
-      <view class="pay-card">
-        <text class="pay-title">支付方式</text>
-        <view v-for="m in payMethods" :key="m.id" class="pay-item" @tap="payMethod = m.id">
-          <view class="pay-badge" :style="{ background: m.badgeColor }"><text>{{ m.badge }}</text></view>
-          <text class="pay-name">{{ m.name }}</text>
-          <view class="radio" :class="{ checked: payMethod === m.id }"><view v-if="payMethod === m.id" class="radio-dot" /></view>
+        <!-- 订单备注 -->
+        <view class="cell column">
+          <text class="cell-label">
+            订单备注
+          </text>
+          <input
+            v-model="note"
+            class="note-input"
+            placeholder="选填，给商家留言"
+            placeholder-class="ph"
+          >
         </view>
-      </view>
 
-      <!-- 金额明细 -->
-      <view class="amount-card">
-        <view class="amount-row"><text>商品金额</text><text>¥{{ goodsTotal }}</text></view>
-        <view class="amount-row"><text>运费</text><text>¥0</text></view>
-        <view class="amount-row" v-if="selectedCoupon"><text>优惠券</text><text class="discount">-¥{{ selectedCoupon.value }}</text></view>
-        <view class="amount-row total"><text>实付款</text><text class="pay-amount">¥{{ payTotal }}</text></view>
-      </view>
-      <view style="height: 140rpx;" />
+        <!-- 支付方式 -->
+        <view class="pay-card">
+          <text class="pay-title">
+            支付方式
+          </text>
+          <view
+            v-for="m in payMethods"
+            :key="m.id"
+            class="pay-item"
+            @tap="payMethod = m.id"
+          >
+            <view
+              class="pay-badge"
+              :style="{ background: m.badgeColor }"
+            >
+              <text>{{ m.badge }}</text>
+            </view>
+            <text class="pay-name">
+              {{ m.name }}
+            </text>
+            <view
+              class="radio"
+              :class="{ checked: payMethod === m.id }"
+            >
+              <view
+                v-if="payMethod === m.id"
+                class="radio-dot"
+              />
+            </view>
+          </view>
+        </view>
+
+        <!-- 金额明细 -->
+        <view class="amount-card">
+          <view class="amount-row">
+            <text>商品金额</text><text>¥{{ goodsTotal }}</text>
+          </view>
+          <view class="amount-row">
+            <text>运费</text><text>¥0</text>
+          </view>
+          <view
+            v-if="selectedCoupon"
+            class="amount-row"
+          >
+            <text>优惠券</text><text class="discount">
+              -¥{{ selectedCoupon.value }}
+            </text>
+          </view>
+          <view class="amount-row total">
+            <text>实付款</text><text class="pay-amount">
+              ¥{{ payTotal }}
+            </text>
+          </view>
+        </view>
+        <view style="height: 140rpx;" />
       </view>
     </scroll-view>
 
     <view class="footer">
-      <view class="footer-total"><text class="ft-label">实付</text><text class="ft-amount">¥{{ payTotal }}</text></view>
-      <view class="pay-btn" :class="{ 'pay-btn--disabled': submitting }" @tap="submitOrder"><text>{{ submitting ? '提交中...' : '提交订单' }}</text></view>
+      <view class="footer-total">
+        <text class="ft-label">
+          实付
+        </text><text class="ft-amount">
+          ¥{{ payTotal }}
+        </text>
+      </view>
+      <view
+        class="pay-btn"
+        :class="{ 'pay-btn--disabled': submitting }"
+        @tap="submitOrder"
+      >
+        <text>{{ submitting ? '提交中...' : '提交订单' }}</text>
+      </view>
     </view>
 
     <!-- 地址选择 -->
-    <view v-if="showAddress" class="mask" @tap="showAddress = false">
-      <view class="sheet" @tap.stop>
-        <text class="sheet-title">选择收货地址</text>
-        <view v-for="a in addresses" :key="a.id" class="addr-option" @tap="selectAddress(a)">
+    <view
+      v-if="showAddress"
+      class="mask"
+      @tap="showAddress = false"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
+        <text class="sheet-title">
+          选择收货地址
+        </text>
+        <view
+          v-for="a in addresses"
+          :key="a.id"
+          class="addr-option"
+          @tap="selectAddress(a)"
+        >
           <view class="addr-option-info">
-            <view class="addr-top"><text class="addr-name">{{ a.name }}</text><text class="addr-phone">{{ a.phone }}</text></view>
-            <text class="addr-detail">{{ a.province }}{{ a.city }}{{ a.district }}{{ a.address }}</text>
+            <view class="addr-top">
+              <text class="addr-name">
+                {{ a.name }}
+              </text><text class="addr-phone">
+                {{ a.phone }}
+              </text>
+            </view>
+            <text class="addr-detail">
+              {{ a.province }}{{ a.city }}{{ a.district }}{{ a.address }}
+            </text>
           </view>
-          <app-icon v-if="currentAddress && currentAddress.id === a.id" name="check" :size="36" color="#9A2D2D" />
+          <app-icon
+            v-if="currentAddress && currentAddress.id === a.id"
+            name="check"
+            :size="36"
+            color="#9A2D2D"
+          />
         </view>
       </view>
     </view>
 
     <!-- 优惠券选择 -->
-    <view v-if="showCoupon" class="mask" @tap="showCoupon = false">
-      <view class="sheet" @tap.stop>
-        <text class="sheet-title">选择优惠券</text>
-        <view class="coupon-option" @tap="selectCoupon(null)">
+    <view
+      v-if="showCoupon"
+      class="mask"
+      @tap="showCoupon = false"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
+        <text class="sheet-title">
+          选择优惠券
+        </text>
+        <view
+          class="coupon-option"
+          @tap="selectCoupon(null)"
+        >
           <text>不使用优惠券</text>
-          <view class="radio" :class="{ checked: !selectedCoupon }"><view v-if="!selectedCoupon" class="radio-dot" /></view>
+          <view
+            class="radio"
+            :class="{ checked: !selectedCoupon }"
+          >
+            <view
+              v-if="!selectedCoupon"
+              class="radio-dot"
+            />
+          </view>
         </view>
-        <view v-for="c in coupons" :key="c.id" class="coupon-option" @tap="selectCoupon(c)">
-          <view><text class="co-name">{{ c.name }} -¥{{ c.value }}</text><text class="co-min">满{{ c.minAmount }}可用</text></view>
-          <view class="radio" :class="{ checked: selectedCoupon && selectedCoupon.id === c.id }"><view v-if="selectedCoupon && selectedCoupon.id === c.id" class="radio-dot" /></view>
+        <view
+          v-for="c in coupons"
+          :key="c.id"
+          class="coupon-option"
+          @tap="selectCoupon(c)"
+        >
+          <view>
+            <text class="co-name">
+              {{ c.name }} -¥{{ c.value }}
+            </text><text class="co-min">
+              满{{ c.minAmount }}可用
+            </text>
+          </view>
+          <view
+            class="radio"
+            :class="{ checked: selectedCoupon && selectedCoupon.id === c.id }"
+          >
+            <view
+              v-if="selectedCoupon && selectedCoupon.id === c.id"
+              class="radio-dot"
+            />
+          </view>
         </view>
       </view>
     </view>
@@ -138,10 +376,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { navigateBack, redirectTo } from '@/utils/router'
 import ErrorState from '@/components/common/error-state.vue'
-import { checkoutItems, checkoutAddresses, payMethods, invoiceOptions, shopApi, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
+import { payMethods, invoiceOptions, shopApi, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
 
-const items = checkoutItems
-const addresses = ref<ShippingAddress[]>(checkoutAddresses)
+const items = ref<any[]>([])
+const addresses = ref<ShippingAddress[]>([])
 const coupons = ref<CheckoutCoupon[]>([])
 const currentAddress = ref<ShippingAddress | null>(null)
 const selectedCoupon = ref<CheckoutCoupon | null>(null)
@@ -156,7 +394,7 @@ const error = ref('')
 const submitting = ref(false)
 
 const currentInvoice = computed(() => invoiceOptions.find((o) => o.value === invoice.value) || invoiceOptions[0])
-const goodsTotal = computed(() => items.reduce((s, i) => s + i.price * i.quantity, 0))
+const goodsTotal = computed(() => items.value.reduce((s, i) => s + i.price * i.quantity, 0))
 const payTotal = computed(() => Math.max(0, goodsTotal.value - (selectedCoupon.value?.value || 0)))
 
 async function loadCheckout() {
@@ -167,7 +405,7 @@ async function loadCheckout() {
       shopApi.getAddresses(),
       shopApi.getMyCoupons(),
     ])
-    addresses.value = Array.isArray(addrRes) ? addrRes : (addrRes as any)?.items || checkoutAddresses
+    addresses.value = Array.isArray(addrRes) ? addrRes : (addrRes as any)?.items || []
     coupons.value = (couponRes as any)?.items || couponRes || []
     currentAddress.value = addresses.value.find((a) => a.isDefault) || addresses.value[0] || null
   } catch (e: any) { error.value = e?.message || '加载失败' } finally { loading.value = false }

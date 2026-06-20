@@ -1,13 +1,20 @@
 <script setup lang="ts">
 /** 课程章节列表页(学习进度) - 从原型 app/courses/[id]/chapters/page.tsx 迁移 */
 import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
-// @data-needs: 章节学习进度, 参数 courseId, 返回 { progress:CourseProgress, chapters:ProgressChapter[] }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { courseProgress as course, progressChapters as chapters, type LessonStatus, type ProgressLesson } from '@/lib/course-data'
+import { courseApi, type LessonStatus, type ProgressLesson } from '@/lib/course-data'
+
+const courseId = ref('1')
+onLoad((opts?: Record<string, any>) => {
+  if (opts?.id) courseId.value = opts.id
+})
+
+const course = ref<any>(null)
+const chapters = ref<any[]>([])
 
 const isRefreshing = ref(false)
 
@@ -19,12 +26,17 @@ function formatDuration(seconds: number) {
 function chapterDone(lessons: ProgressLesson[]) { return lessons.filter((l) => l.status === 'completed').length }
 function onLessonClick(lesson: ProgressLesson) {
   if (lesson.status === 'locked') { uni.showToast({ title: '请先完成前面的课程或购买完整课程以解锁', icon: 'none' }); return }
-  navigateTo(`/courses/${course.id}/player?lesson=${lesson.id}`)
+  navigateTo(`/courses/${course.value.id}/player?lesson=${lesson.id}`)
 }
-function onRefresh() {
+async function onRefresh() {
   if (isRefreshing.value) return
   isRefreshing.value = true
-  setTimeout(() => { isRefreshing.value = false }, 500)
+  try {
+    const res = await courseApi.progress(courseId.value)
+    course.value = res.courseProgress
+    chapters.value = res.progressChapters
+  } catch { /* ignore */ }
+  isRefreshing.value = false
 }
 
 const loading = ref(false)
@@ -35,7 +47,9 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    await new Promise(r => setTimeout(r, 300))
+    const res = await courseApi.progress(courseId.value)
+    course.value = res.courseProgress
+    chapters.value = res.progressChapters
     dataReady.value = true
   } catch (e: any) {
     error.value = e?.message || '加载失败'
@@ -50,79 +64,159 @@ onMounted(() => { loadData() })
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <app-nav-bar title="学习进度" background="#fff" color="#2C2C2C">
+    <app-nav-bar
+      title="学习进度"
+      background="#fff"
+      color="#2C2C2C"
+    >
       <template #right>
-        <view class="nav-btn" @tap="onRefresh">
-          <app-icon name="refresh-cw" :size="32" color="#666666" :class="{ spinning: isRefreshing }" />
+        <view
+          class="nav-btn"
+          @tap="onRefresh"
+        >
+          <app-icon
+            name="refresh-cw"
+            :size="32"
+            color="#666666"
+            :class="{ spinning: isRefreshing }"
+          />
         </view>
       </template>
     </app-nav-bar>
 
     <!-- 三态模式：骨架屏 / 错误 / 内容 -->
-    <view v-if="loading" class="pl-skeleton sk-chapters">
+    <view
+      v-if="loading"
+      class="pl-skeleton sk-chapters"
+    >
       <view class="sk-progress" />
-      <view class="sk-card"><view class="sk-card-title" /><view class="sk-card-line" /><view class="sk-card-line" /><view class="sk-card-line" /><view class="sk-card-line" /></view>
-      <view class="sk-card"><view class="sk-card-title" /><view class="sk-card-line" /><view class="sk-card-line" /><view class="sk-card-line" /><view class="sk-card-line" /></view>
-      <view class="sk-card"><view class="sk-card-title" /><view class="sk-card-line" /><view class="sk-card-line" /><view class="sk-card-line" /><view class="sk-card-line" /></view>
+      <view class="sk-card">
+        <view class="sk-card-title" /><view class="sk-card-line" /><view class="sk-card-line" /><view class="sk-card-line" /><view class="sk-card-line" />
+      </view>
+      <view class="sk-card">
+        <view class="sk-card-title" /><view class="sk-card-line" /><view class="sk-card-line" /><view class="sk-card-line" /><view class="sk-card-line" />
+      </view>
+      <view class="sk-card">
+        <view class="sk-card-title" /><view class="sk-card-line" /><view class="sk-card-line" /><view class="sk-card-line" /><view class="sk-card-line" />
+      </view>
     </view>
-    <app-error v-else-if="error" :desc="error" @retry="loadData" />
+    <app-error
+      v-else-if="error"
+      :desc="error"
+      @retry="loadData"
+    />
     <view v-else>
-
-    <view class="progress-wrap">
-      <view class="progress-hdr">
-        <text class="progress-label">学习进度 <text class="progress-done">{{ course.completedLessons }}</text>/{{ course.totalLessons }}课时</text>
-        <text class="progress-pct">{{ course.progressPercent }}%</text>
-      </view>
-      <view class="progress-track">
-        <view class="progress-fill" :style="{ width: course.progressPercent + '%' }" />
-      </view>
-    </view>
-
-    <!-- 章节列表 -->
-    <view class="list">
-      <view v-for="chapter in chapters" :key="chapter.id" class="chapter-card">
-        <view class="chapter-hdr">
-          <text class="chapter-title">{{ chapter.title }}</text>
-          <text
-            class="chapter-badge"
-            :class="chapterDone(chapter.lessons) === chapter.lessons.length ? 'done' : 'normal'"
-          >{{ chapterDone(chapter.lessons) }}/{{ chapter.lessons.length }}</text>
+      <view class="progress-wrap">
+        <view class="progress-hdr">
+          <text class="progress-label">
+            学习进度 <text class="progress-done">
+              {{ course.completedLessons }}
+            </text>/{{ course.totalLessons }}课时
+          </text>
+          <text class="progress-pct">
+            {{ course.progressPercent }}%
+          </text>
         </view>
-        <view class="lesson-list">
+        <view class="progress-track">
           <view
-            v-for="lesson in chapter.lessons" :key="lesson.id"
-            class="lesson-item" :class="{ locked: lesson.status === 'locked' }"
-            @tap="onLessonClick(lesson)"
-          >
-            <!-- 状态图标 -->
-            <view class="status-ico" :class="lesson.status">
-              <app-icon v-if="lesson.status === 'completed'" name="check-circle" :size="32" color="#16A34A" />
-              <view v-else-if="lesson.status === 'in-progress'" class="dot" />
-              <app-icon v-else-if="lesson.status === 'available'" name="play" :size="26" color="#C41E3A" :fill="true" />
-              <app-icon v-else name="lock" :size="26" color="#9CA3AF" />
-            </view>
-            <!-- 课时信息 -->
-            <view class="lesson-meta">
-              <text
-                class="lesson-title"
-                :class="{ completed: lesson.status === 'completed', active: lesson.status === 'in-progress' }"
-              >{{ lesson.title }}</text>
-              <view class="lesson-sub">
-                <app-icon name="clock" :size="22" color="#999999" />
-                <text class="lesson-dur">{{ formatDuration(lesson.duration) }}</text>
-                <text v-if="lesson.status === 'in-progress'" class="lesson-learning">学习中</text>
+            class="progress-fill"
+            :style="{ width: course.progressPercent + '%' }"
+          />
+        </view>
+      </view>
+
+      <!-- 章节列表 -->
+      <view class="list">
+        <view
+          v-for="chapter in chapters"
+          :key="chapter.id"
+          class="chapter-card"
+        >
+          <view class="chapter-hdr">
+            <text class="chapter-title">
+              {{ chapter.title }}
+            </text>
+            <text
+              class="chapter-badge"
+              :class="chapterDone(chapter.lessons) === chapter.lessons.length ? 'done' : 'normal'"
+            >
+              {{ chapterDone(chapter.lessons) }}/{{ chapter.lessons.length }}
+            </text>
+          </view>
+          <view class="lesson-list">
+            <view
+              v-for="lesson in chapter.lessons"
+              :key="lesson.id"
+              class="lesson-item"
+              :class="{ locked: lesson.status === 'locked' }"
+              @tap="onLessonClick(lesson)"
+            >
+              <!-- 状态图标 -->
+              <view
+                class="status-ico"
+                :class="lesson.status"
+              >
+                <app-icon
+                  v-if="lesson.status === 'completed'"
+                  name="check-circle"
+                  :size="32"
+                  color="#16A34A"
+                />
+                <view
+                  v-else-if="lesson.status === 'in-progress'"
+                  class="dot"
+                />
+                <app-icon
+                  v-else-if="lesson.status === 'available'"
+                  name="play"
+                  :size="26"
+                  color="#C41E3A"
+                  :fill="true"
+                />
+                <app-icon
+                  v-else
+                  name="lock"
+                  :size="26"
+                  color="#9CA3AF"
+                />
               </view>
+              <!-- 课时信息 -->
+              <view class="lesson-meta">
+                <text
+                  class="lesson-title"
+                  :class="{ completed: lesson.status === 'completed', active: lesson.status === 'in-progress' }"
+                >
+                  {{ lesson.title }}
+                </text>
+                <view class="lesson-sub">
+                  <app-icon
+                    name="clock"
+                    :size="22"
+                    color="#999999"
+                  />
+                  <text class="lesson-dur">
+                    {{ formatDuration(lesson.duration) }}
+                  </text>
+                  <text
+                    v-if="lesson.status === 'in-progress'"
+                    class="lesson-learning"
+                  >
+                    学习中
+                  </text>
+                </view>
+              </view>
+              <!-- 右侧播放图标 -->
+              <app-icon
+                v-if="lesson.status !== 'locked' && lesson.status !== 'completed'"
+                name="play"
+                :size="28"
+                color="#C41E3A"
+              />
             </view>
-            <!-- 右侧播放图标 -->
-            <app-icon
-              v-if="lesson.status !== 'locked' && lesson.status !== 'completed'"
-              name="play" :size="28" color="#C41E3A"
-            />
           </view>
         </view>
       </view>
-    </view>
-    <view class="safe-bottom" />
+      <view class="safe-bottom" />
     </view>
   </view>
 </template>

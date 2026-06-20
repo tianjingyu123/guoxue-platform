@@ -55,71 +55,178 @@ function tabLabel(f: OrderStatus) { return f === 'all' ? '全部' : STATUS_CFG[f
 <template>
   <view class="co-page">
     <view class="co-nav">
-      <view class="co-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
-      <text class="co-nav-title">咨询订单</text>
+      <view
+        class="co-nav-btn"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="34"
+          color="#2C2C2C"
+        />
+      </view>
+      <text class="co-nav-title">
+        咨询订单
+      </text>
     </view>
 
     <!-- 骨架 -->
     <template v-if="loading">
       <view class="co-summary skel-summary">
-        <view v-for="i in 3" :key="i" class="co-sum-item"><view class="skel-num" /><view class="skel-label" /></view>
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="co-sum-item"
+        >
+          <view class="skel-num" /><view class="skel-label" />
+        </view>
       </view>
       <view class="co-list">
-        <view v-for="i in 3" :key="i" class="co-card skel-card">
-          <view class="skel-line w50" style="margin-bottom:20rpx" />
-          <view style="display:flex;gap:16rpx"><view class="skel-avatar" /><view class="skel-lines"><view class="skel-line w60" /><view class="skel-line w40" /></view></view>
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="co-card skel-card"
+        >
+          <view
+            class="skel-line w50"
+            style="margin-bottom:20rpx"
+          />
+          <view style="display:flex;gap:16rpx">
+            <view class="skel-avatar" /><view class="skel-lines">
+              <view class="skel-line w60" /><view class="skel-line w40" />
+            </view>
+          </view>
         </view>
       </view>
     </template>
 
     <!-- 错误 -->
     <template v-else-if="error">
-      <error-state :message="error" @retry="loadData" />
+      <error-state
+        :message="error"
+        @retry="loadData"
+      />
     </template>
 
     <template v-else>
       <view class="co-summary">
-        <view class="co-sum-item"><text class="co-sum-num is-primary">¥{{ totalSpent.toFixed(2) }}</text><text class="co-sum-label">累计消费</text></view>
-        <view class="co-sum-item"><text class="co-sum-num">{{ completedCount }}</text><text class="co-sum-label">完成订单</text></view>
-        <view class="co-sum-item"><text class="co-sum-num">{{ callCount }}</text><text class="co-sum-label">通话次数</text></view>
+        <view class="co-sum-item">
+          <text class="co-sum-num is-primary">
+            ¥{{ totalSpent.toFixed(2) }}
+          </text><text class="co-sum-label">
+            累计消费
+          </text>
+        </view>
+        <view class="co-sum-item">
+          <text class="co-sum-num">
+            {{ completedCount }}
+          </text><text class="co-sum-label">
+            完成订单
+          </text>
+        </view>
+        <view class="co-sum-item">
+          <text class="co-sum-num">
+            {{ callCount }}
+          </text><text class="co-sum-label">
+            通话次数
+          </text>
+        </view>
       </view>
 
-      <scroll-view scroll-x class="co-filters" :show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="co-filters"
+        :show-scrollbar="false"
+      >
         <view class="co-filters-inner">
-          <view v-for="f in filterTabs" :key="f" class="co-filter" :class="{ 'is-active': filter === f }" @tap="switchFilter(f)">
-            <text class="co-filter-t" :class="{ 'is-active': filter === f }">{{ tabLabel(f) }}</text>
+          <view
+            v-for="f in filterTabs"
+            :key="f"
+            class="co-filter"
+            :class="{ 'is-active': filter === f }"
+            @tap="switchFilter(f)"
+          >
+            <text
+              class="co-filter-t"
+              :class="{ 'is-active': filter === f }"
+            >
+              {{ tabLabel(f) }}
+            </text>
           </view>
         </view>
       </scroll-view>
 
       <view class="co-list">
-        <view v-for="o in filtered" :key="o.id" class="co-card">
+        <view
+          v-for="o in filtered"
+          :key="o.id"
+          class="co-card"
+        >
           <view class="co-card-head">
-            <text class="co-order-no">订单号：{{ o.orderNo }}</text>
+            <text class="co-order-no">
+              订单号：{{ o.orderNo }}
+            </text>
             <view class="co-status">
-              <app-icon :name="STATUS_CFG[o.status].icon" :size="22" :color="STATUS_CFG[o.status].color" />
-              <text class="co-status-t" :style="{ color: STATUS_CFG[o.status].color }">{{ STATUS_CFG[o.status].label }}</text>
+              <app-icon
+                :name="STATUS_CFG[o.status].icon"
+                :size="22"
+                :color="STATUS_CFG[o.status].color"
+              />
+              <text
+                class="co-status-t"
+                :style="{ color: STATUS_CFG[o.status].color }"
+              >
+                {{ STATUS_CFG[o.status].label }}
+              </text>
             </view>
           </view>
           <view class="co-card-body">
-            <image class="co-avatar" :src="o.avatar" mode="aspectFill" />
+            <image
+              class="co-avatar"
+              :src="o.avatar"
+              mode="aspectFill"
+            />
             <view class="co-info">
               <view class="co-info-top">
-                <text class="co-expert">{{ o.expert }}</text>
+                <text class="co-expert">
+                  {{ o.expert }}
+                </text>
                 <view class="co-type">
-                  <app-icon :name="o.type === 'call' ? 'phone' : 'message-square'" :size="20" color="#999999" />
-                  <text class="co-type-t">{{ o.type === 'call' ? '电话' : '图文' }}</text>
+                  <app-icon
+                    :name="o.type === 'call' ? 'phone' : 'message-square'"
+                    :size="20"
+                    color="#999999"
+                  />
+                  <text class="co-type-t">
+                    {{ o.type === 'call' ? '电话' : '图文' }}
+                  </text>
                 </view>
               </view>
-              <text class="co-desc">{{ o.desc }}</text>
+              <text class="co-desc">
+                {{ o.desc }}
+              </text>
             </view>
             <view class="co-amount-wrap">
-              <text class="co-amount" :class="{ 'is-refunded': o.status === 'refunded' }">{{ o.amount }}</text>
-              <text class="co-date">{{ o.createdAt }}</text>
+              <text
+                class="co-amount"
+                :class="{ 'is-refunded': o.status === 'refunded' }"
+              >
+                {{ o.amount }}
+              </text>
+              <text class="co-date">
+                {{ o.createdAt }}
+              </text>
             </view>
           </view>
         </view>
-        <view v-if="filtered.length === 0" class="co-empty"><text class="co-empty-t">暂无订单</text></view>
+        <view
+          v-if="filtered.length === 0"
+          class="co-empty"
+        >
+          <text class="co-empty-t">
+            暂无订单
+          </text>
+        </view>
       </view>
     </template>
   </view>

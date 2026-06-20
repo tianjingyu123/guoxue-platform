@@ -106,12 +106,12 @@ export const baziApi = {
     } catch { return { list: classics, content: classicsContent } }
   },
 
-  /** 获取排盘历史 */
+  /** 获取排盘历史 — GET /tools/analysis/history/mine */
   async history(toolId?: string) {
     if (useMock()) return [baziData]
     try {
       const qs = toolId ? `?toolId=${toolId}` : ''
-      const data = await apiGet<any[]>(`/paipan/history${qs}`)
+      const data = await apiGet<any[]>(`/tools/analysis/history/mine${qs}`)
       return data.length ? data : [baziData]
     } catch { return [baziData] }
   },

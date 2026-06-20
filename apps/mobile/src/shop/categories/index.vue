@@ -1,20 +1,44 @@
 <template>
   <view class="cat-page">
     <!-- 顶部导航 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-btn" hover-class="nav-hover" @tap="goBack">
-        <app-icon name="arrow-left" :size="34" color="#2C2C2C" />
+    <view
+      class="navbar"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view
+        class="nav-btn"
+        hover-class="nav-hover"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="34"
+          color="#2C2C2C"
+        />
       </view>
-      <text class="nav-title">商品分类</text>
-      <view class="nav-btn" hover-class="nav-hover" @tap="goSearch">
-        <app-icon name="search" :size="34" color="#2C2C2C" />
+      <text class="nav-title">
+        商品分类
+      </text>
+      <view
+        class="nav-btn"
+        hover-class="nav-hover"
+        @tap="goSearch"
+      >
+        <app-icon
+          name="search"
+          :size="34"
+          color="#2C2C2C"
+        />
       </view>
     </view>
 
     <!-- 双栏布局 -->
     <view class="body">
       <!-- 左侧一级分类 -->
-      <scroll-view class="left-rail" scroll-y>
+      <scroll-view
+        class="left-rail"
+        scroll-y
+      >
         <view
           v-for="cat in categories"
           :key="cat.id"
@@ -23,16 +47,26 @@
           hover-class="rail-hover"
           @tap="handleCategoryClick(cat.id)"
         >
-          <view v-if="selectedCategory === cat.id" class="rail-bar" />
-          <text class="rail-icon">{{ cat.icon }}</text>
-          <text class="rail-name">{{ cat.name }}</text>
+          <view
+            v-if="selectedCategory === cat.id"
+            class="rail-bar"
+          />
+          <text class="rail-icon">
+            {{ cat.icon }}
+          </text>
+          <text class="rail-name">
+            {{ cat.name }}
+          </text>
         </view>
       </scroll-view>
 
       <!-- 右侧内容区 -->
       <view class="right-panel">
         <!-- 二级分类标签 -->
-        <view v-if="currentCategory && currentCategory.children.length" class="sub-tabs">
+        <view
+          v-if="currentCategory && currentCategory.children.length"
+          class="sub-tabs"
+        >
           <view
             v-for="sub in currentCategory.children"
             :key="sub.id"
@@ -46,8 +80,14 @@
         </view>
 
         <!-- 商品列表 -->
-        <scroll-view class="goods-scroll" scroll-y>
-          <view v-if="products.length" class="goods-grid">
+        <scroll-view
+          class="goods-scroll"
+          scroll-y
+        >
+          <view
+            v-if="products.length"
+            class="goods-grid"
+          >
             <view
               v-for="p in products"
               :key="p.id"
@@ -55,20 +95,44 @@
               hover-class="card-hover"
               @tap="goProduct(p.id)"
             >
-              <image class="goods-img" :src="p.cover" mode="aspectFill" />
-              <text class="goods-name">{{ p.name }}</text>
+              <image
+                class="goods-img"
+                :src="p.cover"
+                mode="aspectFill"
+              />
+              <text class="goods-name">
+                {{ p.name }}
+              </text>
               <view class="goods-price-row">
-                <text class="goods-price">¥{{ p.price }}</text>
-                <text v-if="p.originalPrice > p.price" class="goods-old">¥{{ p.originalPrice }}</text>
+                <text class="goods-price">
+                  ¥{{ p.price }}
+                </text>
+                <text
+                  v-if="p.originalPrice > p.price"
+                  class="goods-old"
+                >
+                  ¥{{ p.originalPrice }}
+                </text>
               </view>
-              <text class="goods-sales">已售 {{ p.sales }}</text>
+              <text class="goods-sales">
+                已售 {{ p.sales }}
+              </text>
             </view>
           </view>
-          <view v-else class="empty">
+          <view
+            v-else
+            class="empty"
+          >
             <view class="empty-icon">
-              <app-icon name="search" :size="56" color="#999999" />
+              <app-icon
+                name="search"
+                :size="56"
+                color="#999999"
+              />
             </view>
-            <text class="empty-text">暂无商品</text>
+            <text class="empty-text">
+              暂无商品
+            </text>
           </view>
         </scroll-view>
       </view>
@@ -80,15 +144,22 @@
 import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { shopCategoryTree, shopCategoryProducts, shopApi, type ShopCategoryNode } from '@/lib/shop-data'
+import { shopApi, type ShopCategoryNode } from '@/lib/shop-data'
 
 const statusBarHeight = ref(0)
 const categories = ref<ShopCategoryNode[]>([])
-const products = ref(shopCategoryProducts)
+const products = ref<any[]>([])
 const selectedCategory = ref('')
 const selectedSubCategory = ref('')
 
 const currentCategory = computed(() => categories.value.find((c) => c.id === selectedCategory.value))
+
+async function loadCategoryProducts(categoryId: string) {
+  try {
+    const res = await shopApi.getCategoryProducts(categoryId)
+    products.value = (res as any)?.items || []
+  } catch { products.value = [] }
+}
 
 onLoad(async () => {
   try {
@@ -99,15 +170,19 @@ onLoad(async () => {
   }
   try {
     categories.value = await shopApi.getCategoryTree()
-  } catch { categories.value = shopCategoryTree }
+  } catch { categories.value = [] }
   selectedCategory.value = categories.value[0]?.id || ''
   selectedSubCategory.value = categories.value[0]?.children[0]?.id || ''
+  if (selectedCategory.value) {
+    await loadCategoryProducts(selectedCategory.value)
+  }
 })
 
 function handleCategoryClick(id: string) {
   selectedCategory.value = id
   const cat = categories.value.find((c) => c.id === id)
   if (cat?.children.length) selectedSubCategory.value = cat.children[0].id
+  loadCategoryProducts(id)
 }
 function goProduct(id: string) {
   navigateTo(`/shop/${id}`)

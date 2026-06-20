@@ -1,15 +1,35 @@
 <template>
-  <view class="app-nav-bar" :class="{ 'no-border': noBorder, 'align-left': titleAlign === 'left' }" :style="barStyle">
+  <view
+    class="app-nav-bar"
+    :class="{ 'no-border': noBorder, 'align-left': titleAlign === 'left' }"
+    :style="barStyle"
+  >
     <view class="nav-status" />
-    <view class="nav-content" :style="{ height: barHeight + 'rpx' }">
+    <view
+      class="nav-content"
+      :style="{ height: barHeight + 'rpx' }"
+    >
       <view class="nav-side nav-left">
-        <view v-if="showBack" class="nav-back" @tap="onBack">
-          <app-icon :name="backIcon" :size="backSize" :color="color" />
+        <view
+          v-if="showBack"
+          class="nav-back"
+          @tap="onBack"
+        >
+          <app-icon
+            :name="backIcon"
+            :size="backSize"
+            :color="color"
+          />
         </view>
         <slot name="left" />
       </view>
       <slot name="center">
-        <text class="nav-title" :style="{ color, fontSize: titleSize + 'rpx', fontWeight: titleWeight, fontFamily: serifTitle ? 'var(--font-serif)' : '' }">{{ title }}</text>
+        <text
+          class="nav-title"
+          :style="{ color, fontSize: titleSize + 'rpx', fontWeight: titleWeight, fontFamily: serifTitle ? 'var(--font-serif)' : '' }"
+        >
+          {{ title }}
+        </text>
       </slot>
       <view class="nav-side nav-right">
         <slot name="right" />

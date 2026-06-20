@@ -45,99 +45,214 @@ const groupPct = Math.round((shopGroupBuy.currentMembers / shopGroupBuy.minMembe
 
 <template>
   <!-- 骨架屏 -->
-  <view v-if="loading" class="sk-page">
+  <view
+    v-if="loading"
+    class="sk-page"
+  >
     <view class="sk-bar" />
     <view class="sk-banner" />
     <view class="sk-grid">
-      <view v-for="i in 8" :key="i" class="sk-cat">
+      <view
+        v-for="i in 8"
+        :key="i"
+        class="sk-cat"
+      >
         <view class="sk-cat-icon" />
         <view class="sk-cat-txt" />
       </view>
     </view>
     <view class="sk-block" />
     <view class="sk-prod-grid">
-      <view v-for="i in 4" :key="i" class="sk-prod" />
+      <view
+        v-for="i in 4"
+        :key="i"
+        class="sk-prod"
+      />
     </view>
   </view>
 
-  <view v-else class="page">
+  <view
+    v-else
+    class="page"
+  >
     <!-- 顶部搜索栏 -->
     <view class="topbar">
-      <view class="search-bar" @tap="goSearch">
-        <AppIcon name="search" :size="28" color="#999999" />
-        <text class="search-ph">搜索商品</text>
+      <view
+        class="search-bar"
+        @tap="goSearch"
+      >
+        <AppIcon
+          name="search"
+          :size="28"
+          color="#999999"
+        />
+        <text class="search-ph">
+          搜索商品
+        </text>
       </view>
-      <view class="top-btn" @tap="navigateTo('/shop/cart')">
-        <AppIcon name="shopping-bag" :size="36" color="#666666" />
-        <text class="top-badge">3</text>
+      <view
+        class="top-btn"
+        @tap="navigateTo('/shop/cart')"
+      >
+        <AppIcon
+          name="shopping-bag"
+          :size="36"
+          color="#666666"
+        />
+        <text class="top-badge">
+          3
+        </text>
       </view>
-      <view class="top-btn" @tap="toastComingSoon">
-        <AppIcon name="bell" :size="36" color="#666666" />
+      <view
+        class="top-btn"
+        @tap="toastComingSoon"
+      >
+        <AppIcon
+          name="bell"
+          :size="36"
+          color="#666666"
+        />
         <view class="top-dot" />
       </view>
     </view>
 
     <!-- Banner 轮播 -->
     <view class="banner">
-      <swiper class="banner-swiper" circular autoplay :interval="4000" :duration="500" @change="onBannerChange">
-        <swiper-item v-for="b in shopBanners" :key="b.id">
-          <view class="banner-slide" @tap="navigateTo(b.link)">
-            <text class="banner-title">{{ b.title }}</text>
+      <swiper
+        class="banner-swiper"
+        circular
+        autoplay
+        :interval="4000"
+        :duration="500"
+        @change="onBannerChange"
+      >
+        <swiper-item
+          v-for="b in shopBanners"
+          :key="b.id"
+        >
+          <view
+            class="banner-slide"
+            @tap="navigateTo(b.link)"
+          >
+            <text class="banner-title">
+              {{ b.title }}
+            </text>
           </view>
         </swiper-item>
       </swiper>
       <view class="dots">
-        <view v-for="(b, i) in shopBanners" :key="b.id" class="dot" :class="i === bannerIndex ? 'dot-on' : ''" />
+        <view
+          v-for="(b, i) in shopBanners"
+          :key="b.id"
+          class="dot"
+          :class="i === bannerIndex ? 'dot-on' : ''"
+        />
       </view>
     </view>
 
     <!-- 快捷活动入口 -->
     <view class="quick-row">
       <view
-        v-for="action in shopQuickActions" :key="action.id"
-        class="quick-card" hover-class="quick-press"
+        v-for="action in shopQuickActions"
+        :key="action.id"
+        class="quick-card"
+        hover-class="quick-press"
         :style="{ background: `linear-gradient(135deg, ${action.from}, ${action.to})` }"
         @tap="navigateTo(action.link)"
       >
-        <AppIcon :name="action.icon" :size="36" color="#ffffff" />
-        <text class="quick-name">{{ action.name }}</text>
+        <AppIcon
+          :name="action.icon"
+          :size="36"
+          color="#ffffff"
+        />
+        <text class="quick-name">
+          {{ action.name }}
+        </text>
       </view>
     </view>
 
     <!-- 分类图标网格 -->
     <view class="cat-grid">
-      <view v-for="cat in shopCategories" :key="cat.id" class="cat-item" @tap="navigateTo(`/shop/category/${cat.id}`)">
-        <view class="cat-icon"><text class="cat-emoji">{{ cat.icon }}</text></view>
-        <text class="cat-name">{{ cat.name }}</text>
+      <view
+        v-for="cat in shopCategories"
+        :key="cat.id"
+        class="cat-item"
+        @tap="navigateTo(`/shop/category/${cat.id}`)"
+      >
+        <view class="cat-icon">
+          <text class="cat-emoji">
+            {{ cat.icon }}
+          </text>
+        </view>
+        <text class="cat-name">
+          {{ cat.name }}
+        </text>
       </view>
     </view>
 
     <!-- 秒杀专区 -->
     <view class="block">
-      <view class="seckill" @tap="navigateTo(`/shop/flash-sale/${shopFlashSale.id}`)">
+      <view
+        class="seckill"
+        @tap="navigateTo(`/shop/flash-sale/${shopFlashSale.id}`)"
+      >
         <view class="seckill-head">
           <view class="seckill-head-l">
-            <AppIcon name="flame" :size="32" color="#FFD700" />
-            <text class="seckill-title">{{ shopFlashSale.title }}</text>
+            <AppIcon
+              name="flame"
+              :size="32"
+              color="#FFD700"
+            />
+            <text class="seckill-title">
+              {{ shopFlashSale.title }}
+            </text>
           </view>
           <view class="seckill-cd">
-            <AppIcon name="clock" :size="26" color="#ffffff" />
-            <text class="cd-num">{{ cd.hours }}</text>
-            <text class="cd-colon">:</text>
-            <text class="cd-num">{{ cd.minutes }}</text>
-            <text class="cd-colon">:</text>
-            <text class="cd-num">{{ cd.seconds }}</text>
+            <AppIcon
+              name="clock"
+              :size="26"
+              color="#ffffff"
+            />
+            <text class="cd-num">
+              {{ cd.hours }}
+            </text>
+            <text class="cd-colon">
+              :
+            </text>
+            <text class="cd-num">
+              {{ cd.minutes }}
+            </text>
+            <text class="cd-colon">
+              :
+            </text>
+            <text class="cd-num">
+              {{ cd.seconds }}
+            </text>
           </view>
         </view>
-        <scroll-view class="seckill-rail" scroll-x :show-scrollbar="false">
+        <scroll-view
+          class="seckill-rail"
+          scroll-x
+          :show-scrollbar="false"
+        >
           <view class="seckill-rail-inner">
             <view
-              v-for="p in shopFlashSale.products" :key="p.id" class="seckill-item"
+              v-for="p in shopFlashSale.products"
+              :key="p.id"
+              class="seckill-item"
               @tap.stop="navigateTo(`/shop/product/${p.id}`)"
             >
-              <image class="seckill-img" :src="p.cover" mode="aspectFill" />
-              <text class="seckill-price">¥{{ p.price }}</text>
-              <text class="seckill-orig">¥{{ p.originalPrice }}</text>
+              <image
+                class="seckill-img"
+                :src="p.cover"
+                mode="aspectFill"
+              />
+              <text class="seckill-price">
+                ¥{{ p.price }}
+              </text>
+              <text class="seckill-orig">
+                ¥{{ p.originalPrice }}
+              </text>
             </view>
           </view>
         </scroll-view>
@@ -146,26 +261,58 @@ const groupPct = Math.round((shopGroupBuy.currentMembers / shopGroupBuy.minMembe
 
     <!-- 拼团专区 -->
     <view class="block">
-      <view class="group" @tap="navigateTo(`/shop/group-buy/${shopGroupBuy.id}`)">
+      <view
+        class="group"
+        @tap="navigateTo(`/shop/group-buy/${shopGroupBuy.id}`)"
+      >
         <view class="group-head">
           <view class="group-head-l">
-            <AppIcon name="users" :size="32" color="#c41e3a" />
-            <text class="group-title">拼团特惠</text>
-            <text class="group-tag">{{ shopGroupBuy.title }}</text>
+            <AppIcon
+              name="users"
+              :size="32"
+              color="#c41e3a"
+            />
+            <text class="group-title">
+              拼团特惠
+            </text>
+            <text class="group-tag">
+              {{ shopGroupBuy.title }}
+            </text>
           </view>
-          <AppIcon name="chevron-right" :size="28" color="#999999" />
+          <AppIcon
+            name="chevron-right"
+            :size="28"
+            color="#999999"
+          />
         </view>
         <view class="group-body">
-          <image class="group-cover" :src="shopGroupBuy.cover" mode="aspectFill" />
+          <image
+            class="group-cover"
+            :src="shopGroupBuy.cover"
+            mode="aspectFill"
+          />
           <view class="group-info">
-            <text class="group-name">{{ shopGroupBuy.productName }}</text>
+            <text class="group-name">
+              {{ shopGroupBuy.productName }}
+            </text>
             <view class="group-price">
-              <text class="group-now">¥{{ shopGroupBuy.price }}</text>
-              <text class="group-orig">¥{{ shopGroupBuy.originalPrice }}</text>
+              <text class="group-now">
+                ¥{{ shopGroupBuy.price }}
+              </text>
+              <text class="group-orig">
+                ¥{{ shopGroupBuy.originalPrice }}
+              </text>
             </view>
             <view class="group-progress">
-              <view class="group-bar"><view class="group-bar-fill" :style="{ width: groupPct + '%' }" /></view>
-              <text class="group-left">还差{{ shopGroupBuy.minMembers - shopGroupBuy.currentMembers }}人</text>
+              <view class="group-bar">
+                <view
+                  class="group-bar-fill"
+                  :style="{ width: groupPct + '%' }"
+                />
+              </view>
+              <text class="group-left">
+                还差{{ shopGroupBuy.minMembers - shopGroupBuy.currentMembers }}人
+              </text>
             </view>
           </view>
         </view>
@@ -175,32 +322,75 @@ const groupPct = Math.round((shopGroupBuy.currentMembers / shopGroupBuy.minMembe
     <!-- 商品推荐 -->
     <view class="block">
       <view class="rec-head">
-        <text class="rec-title">为你推荐</text>
-        <view class="rec-more" @tap="navigateTo('/shop/products')">
-          <text class="rec-more-txt">更多</text>
-          <AppIcon name="chevron-right" :size="22" color="#999999" />
+        <text class="rec-title">
+          为你推荐
+        </text>
+        <view
+          class="rec-more"
+          @tap="navigateTo('/shop/products')"
+        >
+          <text class="rec-more-txt">
+            更多
+          </text>
+          <AppIcon
+            name="chevron-right"
+            :size="22"
+            color="#999999"
+          />
         </view>
       </view>
       <view class="rec-grid">
         <view
-          v-for="p in recProducts" :key="p.id" class="rec-card" hover-class="rec-press"
+          v-for="p in recProducts"
+          :key="p.id"
+          class="rec-card"
+          hover-class="rec-press"
           @tap="navigateTo(`/shop/product/${p.id}`)"
         >
           <view class="rec-cover">
-            <image class="rec-img" :src="p.cover" mode="aspectFill" />
-            <text v-if="p.isNew" class="rec-badge rec-badge-new">新品</text>
-            <text v-else-if="p.isHot" class="rec-badge rec-badge-hot">热销</text>
+            <image
+              class="rec-img"
+              :src="p.cover"
+              mode="aspectFill"
+            />
+            <text
+              v-if="p.isNew"
+              class="rec-badge rec-badge-new"
+            >
+              新品
+            </text>
+            <text
+              v-else-if="p.isHot"
+              class="rec-badge rec-badge-hot"
+            >
+              热销
+            </text>
           </view>
           <view class="rec-body">
-            <text class="rec-name">{{ p.name }}</text>
+            <text class="rec-name">
+              {{ p.name }}
+            </text>
             <view class="rec-rating">
-              <AppIcon name="star" :size="22" color="#C9A96E" :fill="true" />
-              <text class="rec-rating-num">{{ p.rating }}</text>
-              <text class="rec-sales">{{ p.sales }}人付款</text>
+              <AppIcon
+                name="star"
+                :size="22"
+                color="#C9A96E"
+                :fill="true"
+              />
+              <text class="rec-rating-num">
+                {{ p.rating }}
+              </text>
+              <text class="rec-sales">
+                {{ p.sales }}人付款
+              </text>
             </view>
             <view class="rec-price">
-              <text class="rec-now">¥{{ p.price }}</text>
-              <text class="rec-orig">¥{{ p.originalPrice }}</text>
+              <text class="rec-now">
+                ¥{{ p.price }}
+              </text>
+              <text class="rec-orig">
+                ¥{{ p.originalPrice }}
+              </text>
             </view>
           </view>
         </view>

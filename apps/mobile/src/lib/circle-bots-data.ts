@@ -104,4 +104,12 @@ export const circleBotsApi = {
       return await apiGet<CircleBotItem>(`/bots/${botId}`)
     } catch { return circleBots.find(b => b.id === botId) || circleBots[0] }
   },
+
+  /** 获取圈子摘要信息 */
+  async summary(circleId: number): Promise<CircleSummary> {
+    if (useMock()) return { ...circleSummary }
+    try {
+      return await apiGet<CircleSummary>(`/circles/${circleId}/summary`)
+    } catch { return { ...circleSummary } }
+  },
 }

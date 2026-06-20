@@ -19,7 +19,11 @@ const src = computed(() => iconDataUri(props.name, props.color, props.strokeWidt
 </script>
 
 <template>
-  <image :src="src" :style="{ width: size + 'rpx', height: size + 'rpx' }" class="app-icon" />
+  <image
+    :src="src"
+    :style="{ width: size + 'rpx', height: size + 'rpx' }"
+    class="app-icon"
+  />
 </template>
 
 <style scoped>

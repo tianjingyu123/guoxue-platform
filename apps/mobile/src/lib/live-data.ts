@@ -1,6 +1,6 @@
 // ============ 直播板块(live) mock 数据（从原型 app/live 迁移） ============
 // 说明：原型封面/头像为 mock 配图，dev 下回退占位；此处统一用 /marketing 占位路径，比对时会被中和
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, useMock } from '@/utils/request'
 
 export type LiveStatus = 'live' | 'upcoming' | 'replay'
 export type LiveType = 'knowledge' | 'commerce'
@@ -290,6 +290,69 @@ export const liveCreateCategories: LiveCategory[] = [
   { id: '8', name: '其他' },
 ]
 
+// ============ 横屏直播间(live/horizontal) ============
+// @data-needs: 横屏直播间详情, 参数 id, 返回 HorizontalLiveRoom + 课件/问答/聊天/资料
+export interface HorizontalLiveRoom {
+  id: string
+  title: string
+  hostName: string
+  hostAvatar: string
+  hostTitle: string
+  followers: number
+  viewers: number
+  likes: number
+  duration: string
+  category: string
+}
+export interface HorizontalSlide { id: string; pageNum: number; title: string; thumbnail: string }
+export interface HorizontalQuestion {
+  id: string
+  userName: string
+  userAvatar: string
+  content: string
+  isPublic: boolean
+  status: 'pending' | 'answered'
+  answer?: string
+  time: string
+}
+export interface HorizontalMessage { id: string; userName: string; content: string; time: string }
+export interface HorizontalFile { id: string; name: string; size: string; type: 'pdf' | 'image' }
+
+export const horizontalLiveRoom: HorizontalLiveRoom = {
+  id: '1',
+  title: '《周易》六十四卦精讲 - 第12讲：泰卦与否卦',
+  hostName: '张明远',
+  hostAvatar: '/marketing/course.png',
+  hostTitle: '易学研究员',
+  followers: 12800,
+  viewers: 1856,
+  likes: 4520,
+  duration: '45:32',
+  category: '易经',
+}
+export const horizontalSlides: HorizontalSlide[] = [
+  { id: '1', pageNum: 1, title: '第一章：泰卦概述', thumbnail: '/marketing/course.png' },
+  { id: '2', pageNum: 2, title: '泰卦卦象解读', thumbnail: '/marketing/course.png' },
+  { id: '3', pageNum: 3, title: '泰卦六爻详解', thumbnail: '/marketing/course.png' },
+  { id: '4', pageNum: 4, title: '否卦概述', thumbnail: '/marketing/course.png' },
+  { id: '5', pageNum: 5, title: '泰否对比分析', thumbnail: '/marketing/course.png' },
+]
+export const horizontalQuestions: HorizontalQuestion[] = [
+  { id: '1', userName: '学员A', userAvatar: '/marketing/course.png', content: '泰卦和否卦的核心区别是什么？', isPublic: true, status: 'answered', answer: '泰卦象征天地交泰、上下沟通，否卦象征天地不交、闭塞不通。一通一塞，正是相反相成。', time: '12:35' },
+  { id: '2', userName: '学员B', userAvatar: '/marketing/course.png', content: '否极泰来这个成语和这两卦有关系吗？', isPublic: true, status: 'pending', time: '12:38' },
+  { id: '3', userName: '学员C', userAvatar: '/marketing/course.png', content: '请问老师，泰卦在占卜中一般代表什么含义？', isPublic: true, status: 'pending', time: '12:42' },
+]
+export const horizontalMessages: HorizontalMessage[] = [
+  { id: '1', userName: '易学爱好者', content: '老师讲得太清楚了', time: '12:30' },
+  { id: '2', userName: '国学小白', content: '终于理解了泰卦的含义', time: '12:32' },
+  { id: '3', userName: '命理研究', content: '这个课程质量真高', time: '12:34' },
+]
+export const horizontalFiles: HorizontalFile[] = [
+  { id: '1', name: '泰卦与否卦详解讲义.pdf', size: '2.3MB', type: 'pdf' },
+  { id: '2', name: '六十四卦速查表.pdf', size: '1.5MB', type: 'pdf' },
+  { id: '3', name: '本课思维导图.png', size: '890KB', type: 'image' },
+]
+
 // ============ 竖屏直播间(live/vertical) ============
 // @data-needs: 竖屏直播间数据, 返回 VerticalLiveRoom
 export interface VerticalLiveComment {
@@ -298,6 +361,7 @@ export interface VerticalLiveComment {
   content: string
   type: 'text' | 'gift' | 'system' | 'enter'
   isHost?: boolean
+  giftInfo?: { name: string; icon: string; count: number }
 }
 export interface VerticalLiveProduct {
   id: string
@@ -345,10 +409,28 @@ export const liveWatchRoom = {
   onlineAvatars: ['/marketing/course.png', '/marketing/course.png', '/marketing/course.png'],
 }
 export const liveWatchComments: VerticalLiveComment[] = [
-  { id: '1', userName: '系统', content: '欢迎来到直播间，请文明观看，理性学习', type: 'system' },
-  { id: '2', userName: '紫微爱好者', content: '老师讲得太透彻了！', type: 'text' },
-  { id: '3', userName: '易学小白', content: '请问命宫怎么看？', type: 'text' },
+  { id: '1', userName: '紫微爱好者', content: '老师讲得太透彻了！', type: 'text' },
+  { id: '2', userName: '易学小白', content: '请问命宫怎么看？', type: 'text' },
+  { id: '3', userName: '国学传承', content: '受益匪浅', type: 'text' },
 ]
+
+// 打赏榜
+export interface LiveWatchRankItem { rank: number; user: string; amount: number }
+export const liveWatchRankList: LiveWatchRankItem[] = [
+  { rank: 1, user: '易道传人', amount: 8888 },
+  { rank: 2, user: '国学守护', amount: 5666 },
+  { rank: 3, user: '玄学爱好', amount: 3288 },
+]
+
+// 直播间商品（复用 VerticalLiveProduct 结构）
+export const liveWatchProducts: VerticalLiveProduct[] = [
+  { id: 'p1', name: '开光招财貔貅摆件', cover: '/marketing/course.png', price: 299, originalPrice: 599, stock: 56, sold: 1280, isExplaining: true },
+  { id: 'p2', name: '天然黄水晶转运葫芦', cover: '/marketing/course.png', price: 168, originalPrice: 328, stock: 128, sold: 890 },
+  { id: 'p3', name: '紫檀木雕福禄寿三星', cover: '/marketing/course.png', price: 1680, originalPrice: 2999, stock: 23, sold: 156 },
+]
+
+// 用户国学币余额（mock）
+export const liveCoinBalance = 2680
 
 // ============ 直播预告(live/preview) ============
 // @data-needs: 直播预告详情, 参数 roomId, 返回 LivePreviewRoom
@@ -537,6 +619,215 @@ export const replayCommentTagsByRating: Record<number, string[]> = {
 }
 export const replayCommentLabels = ['', '很差', '较差', '一般', '不错', '非常好']
 
+// ============ 带货商品(live/products) ============
+export interface LiveProductFilter {
+  key: string
+  label: string
+}
+export interface LiveProductItem {
+  id: string
+  name: string
+  cover: string
+  price: number
+  stock: number
+  sold: number
+  status: 'on' | 'off'
+}
+export const liveProductFilters: LiveProductFilter[] = [
+  { key: 'all', label: '全部' },
+  { key: 'on', label: '已上架' },
+  { key: 'off', label: '已下架' },
+]
+export const liveProducts: LiveProductItem[] = [
+  { id: '1', name: '开光招财貔貅摆件 天然黑曜石', cover: '/marketing/course.png', price: 299, stock: 56, sold: 1280, status: 'on' },
+  { id: '2', name: '五帝钱挂件 真品铜钱招财镇宅', cover: '/marketing/course.png', price: 128, stock: 128, sold: 2350, status: 'on' },
+  { id: '3', name: '天然黄水晶转运葫芦', cover: '/marketing/course.png', price: 168, stock: 89, sold: 890, status: 'on' },
+  { id: '4', name: '紫檀木雕福禄寿三星摆件', cover: '/marketing/course.png', price: 1680, stock: 23, sold: 156, status: 'on' },
+  { id: '5', name: '手工铜制五路财神像', cover: '/marketing/course.png', price: 388, stock: 45, sold: 320, status: 'off' },
+  { id: '6', name: '纯铜太极八卦盘', cover: '/marketing/course.png', price: 258, stock: 0, sold: 680, status: 'on' },
+  { id: '7', name: '天然白水晶球 财运事业', cover: '/marketing/course.png', price: 398, stock: 12, sold: 420, status: 'on' },
+  { id: '8', name: '桃木剑镇宅辟邪挂件', cover: '/marketing/course.png', price: 88, stock: 200, sold: 1680, status: 'off' },
+]
+
+// ============ 直播评价(live/reviews) ============
+export interface LiveReviewFilter {
+  key: string
+  label: string
+}
+export interface LiveReviewDistItem {
+  star: number
+  count: number
+  pct: number
+}
+export interface LiveReviewItem {
+  id: string
+  user: string
+  rating: number
+  time: string
+  content: string
+  live: string
+  flagged: boolean
+  reply?: string
+}
+export const liveReviewFilters: LiveReviewFilter[] = [
+  { key: 'all', label: '全部评价' },
+  { key: '5', label: '5星' },
+  { key: '4', label: '4星' },
+  { key: '3', label: '3星' },
+  { key: '2', label: '2星' },
+  { key: '1', label: '1星' },
+  { key: 'pending', label: '未回复' },
+  { key: 'replied', label: '已回复' },
+]
+export const liveReviewDist: LiveReviewDistItem[] = [
+  { star: 5, count: 128, pct: 52 },
+  { star: 4, count: 68, pct: 28 },
+  { star: 3, count: 32, pct: 13 },
+  { star: 2, count: 12, pct: 5 },
+  { star: 1, count: 5, pct: 2 },
+]
+export const liveReviews: LiveReviewItem[] = [
+  { id: '1', user: '易学爱好者', rating: 5, time: '2小时前', content: '老师讲得太好了！内容丰富，深入浅出，非常适合初学者。', live: '八字命理入门精讲', flagged: false, reply: '感谢您的支持！' },
+  { id: '2', user: '国学传承者', rating: 5, time: '昨天', content: '第二次听这个系列了，每次都有新收获。老师的案例分析非常精彩。', live: '八字命理入门精讲', flagged: false, reply: '谢谢您的持续关注！' },
+  { id: '3', user: '玄学小白', rating: 4, time: '3天前', content: '讲得很清楚，建议老师下次可以多讲一些实战案例。', live: '紫微斗数实战分析', flagged: false },
+  { id: '4', user: '命理研究员', rating: 5, time: '5天前', content: '专业度很高，能够把复杂的概念讲得通俗易懂，强烈推荐！', live: '紫微斗数实战分析', flagged: false, reply: '感谢认可！' },
+  { id: '5', user: '风水爱好者', rating: 3, time: '1周前', content: '内容还可以，但是直播画面有时会卡顿，影响观看体验。', live: '家居风水布局入门', flagged: true },
+  { id: '6', user: '易经学生', rating: 4, time: '1周前', content: '干货很多，但是节奏稍微有点快，新手可能跟不上。', live: '周易六十四卦详解', flagged: false },
+  { id: '7', user: '六爻门徒', rating: 5, time: '2周前', content: '老师对易经的理解非常深刻，听完茅塞顿开！', live: '周易六十四卦详解', flagged: false, reply: '很高兴对您有帮助！' },
+  { id: '8', user: '国学爱好者', rating: 2, time: '2周前', content: '内容太浅了，适合完全没有基础的人，希望能有进阶课程。', live: '八字命理入门精讲', flagged: false },
+]
+
+// ============ 直播排期(live/schedule) ============
+export interface ScheduleItem {
+  id: number
+  title: string
+  date: string
+  startTime: string
+  endTime: string
+  status: 'scheduled' | 'live' | 'completed'
+  type: LiveType
+  hostName: string
+  hostAvatar: string
+  viewerCount: number
+  description?: string
+  tag?: string
+}
+export const scheduleStatusConfig = {
+  scheduled: { label: '待开播', color: '#2563eb', dot: '#2563eb' },
+  live: { label: '直播中', color: '#dc2626', dot: '#dc2626' },
+  completed: { label: '已结束', color: '#4b5563', dot: '#4b5563' },
+}
+export const scheduleList: ScheduleItem[] = [
+  { id: 1, title: '八字命理入门：如何快速解读四柱八字', date: '2026-05-10', startTime: '19:00', endTime: '21:00', status: 'live', type: 'knowledge', hostName: '易道先生', hostAvatar: '/marketing/course.png', viewerCount: 12580, tag: '热门' },
+  { id: 2, title: '开光吉祥物专场：招财貔貅、转运葫芦', date: '2026-05-10', startTime: '20:00', endTime: '22:00', status: 'live', type: 'commerce', hostName: '福缘阁主', hostAvatar: '/marketing/course.png', viewerCount: 8920, tag: '带货' },
+  { id: 3, title: '紫微斗数实战案例分析第三期', date: '2026-05-11', startTime: '19:30', endTime: '21:30', status: 'scheduled', type: 'knowledge', hostName: '紫微大师', hostAvatar: '/marketing/course.png', viewerCount: 3280, description: '本期分析三个真实命盘案例' },
+  { id: 4, title: '天然水晶手链专场直播', date: '2026-05-12', startTime: '18:00', endTime: '20:00', status: 'scheduled', type: 'commerce', hostName: '晶缘坊', hostAvatar: '/marketing/course.png', viewerCount: 0 },
+  { id: 5, title: '今晚8点：风水布局与家居旺财秘诀', date: '2026-05-10', startTime: '20:00', endTime: '21:30', status: 'live', type: 'knowledge', hostName: '风水堂主', hostAvatar: '/marketing/course.png', viewerCount: 3280, tag: '热门' },
+  { id: 6, title: '周易六十四卦精讲：乾卦的智慧', date: '2026-05-08', startTime: '19:00', endTime: '21:00', status: 'completed', type: 'knowledge', hostName: '张道长', hostAvatar: '/marketing/course.png', viewerCount: 5600 },
+  { id: 7, title: '手工罗盘制作工艺展示与售卖', date: '2026-05-07', startTime: '14:00', endTime: '16:00', status: 'completed', type: 'commerce', hostName: '匠心堂', hostAvatar: '/marketing/course.png', viewerCount: 1520 },
+  { id: 8, title: '道家符箓专场直播', date: '2026-05-09', startTime: '19:00', endTime: '21:00', status: 'completed', type: 'commerce', hostName: '玄真道人', hostAvatar: '/marketing/course.png', viewerCount: 980 },
+]
+
+// ============ B端直播控制台(live/console) ============
+export interface ConsoleDanmaku {
+  id: number
+  user: string
+  content: string
+  time: string
+  level: number
+  isVip: boolean
+}
+
+export interface ConsoleConnectRequest {
+  id: number
+  user: string
+  waitTime: string
+  reason: string
+}
+
+export interface ConsoleProductItem {
+  id: number
+  name: string
+  price: number
+  stock: number
+  sold: number
+  isLive: boolean
+  isHot?: boolean
+}
+
+export interface ConsoleScriptItem {
+  id: number
+  time: string
+  content: string
+  isCurrent: boolean
+  done: boolean
+}
+
+export interface ConsoleCouponItem {
+  name: string
+  count: number
+}
+
+export interface ConsoleStats {
+  onlineCount: number
+  totalViews: number
+  totalGift: number
+  totalSales: number
+  peakOnline: number
+  newFollowers: number
+  avgWatchTime: string
+  interactionRate: string
+}
+
+const _consoleStats: ConsoleStats = {
+  onlineCount: 3256, totalViews: 12850, totalGift: 5680, totalSales: 36800,
+  peakOnline: 5680, newFollowers: 486, avgWatchTime: '12分36秒', interactionRate: '68%',
+}
+
+const _consoleDanmaku: ConsoleDanmaku[] = [
+  { id: 1, user: '易学新人', content: '老师讲得太好了！', time: '19:35:12', level: 5, isVip: false },
+  { id: 2, user: '命理爱好者', content: '这个知识点很重要', time: '19:35:18', level: 8, isVip: true },
+  { id: 3, user: '国学小白', content: '请问八字用神怎么理解？', time: '19:35:25', level: 2, isVip: false },
+  { id: 4, user: '道法自然', content: '天干地支的关系讲得很透彻', time: '19:35:33', level: 7, isVip: true },
+  { id: 5, user: '玄学爱好者', content: '醍醐灌顶！', time: '19:35:40', level: 4, isVip: false },
+  { id: 6, user: '易经门徒', content: '老师能讲讲大运流年吗', time: '19:35:48', level: 6, isVip: false },
+  { id: 7, user: '五行缺金', content: '求老师讲一下五行相生', time: '19:35:55', level: 3, isVip: false },
+  { id: 8, user: '风水学徒', content: '感谢老师分享！', time: '19:36:02', level: 5, isVip: false },
+]
+
+const _consoleConnectRequests: ConsoleConnectRequest[] = [
+  { id: 1, user: '风水大师兄', waitTime: '约30秒', reason: '想和老师讨教风水问题' },
+  { id: 2, user: '命理研究者', waitTime: '约2分钟', reason: '有个八字案例想和老师探讨' },
+]
+
+const _consoleProducts: ConsoleProductItem[] = [
+  { id: 1, name: '开光招财貔貅 天然黑曜石', price: 299, stock: 56, sold: 1280, isLive: true },
+  { id: 2, name: '五帝钱挂件 真品铜钱', price: 128, stock: 5, sold: 2350, isLive: false, isHot: true },
+  { id: 3, name: '天然黄水晶转运葫芦', price: 168, stock: 89, sold: 890, isLive: false },
+  { id: 4, name: '纯铜太极八卦盘', price: 258, stock: 3, sold: 680, isLive: false, isHot: true },
+  { id: 5, name: '紫檀木福禄寿三星', price: 1680, stock: 23, sold: 156, isLive: false },
+  { id: 6, name: '桃木剑镇宅辟邪挂件', price: 88, stock: 200, sold: 1680, isLive: false },
+]
+
+const _consoleScript: ConsoleScriptItem[] = [
+  { id: 1, time: '19:30', content: '欢迎各位朋友来到直播间，今天的主题是八字命理入门精讲', isCurrent: false, done: true },
+  { id: 2, time: '19:35', content: '首先介绍什么是八字——生辰八字就是一个人出生的年月日时，用天干地支来表示', isCurrent: false, done: true },
+  { id: 3, time: '19:45', content: '现在正在讲解：四柱八字的排盘方法，年柱月柱日柱时柱如何推算', isCurrent: true, done: false },
+  { id: 4, time: '20:00', content: '下一步：八字十神的推导，看日主与其他干支的生克关系', isCurrent: false, done: false },
+  { id: 5, time: '20:15', content: '五行生克制化——旺相休囚死，五行的强弱判断', isCurrent: false, done: false },
+  { id: 6, time: '20:30', content: '大运流年怎么看：排大运的方法，流年对命局的影响', isCurrent: false, done: false },
+  { id: 7, time: '20:45', content: '实战案例分享：分析一个真实的八字命盘', isCurrent: false, done: false },
+  { id: 8, time: '20:55', content: '互动答疑环节，回答观众提出的问题', isCurrent: false, done: false },
+  { id: 9, time: '21:00', content: '课程总结与下期预告，感谢大家收看', isCurrent: false, done: false },
+]
+
+const _consoleCoupons: ConsoleCouponItem[] = [
+  { name: '满199减30', count: 120 },
+  { name: '满399减80', count: 80 },
+  { name: '新客立减20', count: 200 },
+  { name: '全场88折', count: 50 },
+]
+
 // ============================================
 // API 层：useMock 开关控制真实/模拟数据切换
 // ============================================
@@ -552,6 +843,114 @@ function mapLiveRoom(raw: any): LiveItem {
     price: raw.price, circleFree: raw.circleFree, productCount: raw.productCount,
   }
 }
+
+// ============================================
+// 直播数据后台 — B端运营仪表盘
+// ============================================
+
+const analyticsLiveInfo = {
+  id: '1', title: '易经入门基础讲座', startTime: '2024-06-15 19:30', duration: '1小时28分', type: 'knowledge' as const,
+}
+
+const analyticsCoreStats = {
+  totalViews: 12850, peakViewers: 3420, avgViewers: 2150, newFollowers: 486,
+  avgWatchTime: '12分36秒', retention: 68,
+}
+
+const analyticsTrafficData = [
+  { label: '19:00', value: 120 }, { label: '19:10', value: 850 }, { label: '19:20', value: 2100 },
+  { label: '19:30', value: 3200 }, { label: '19:40', value: 2850 }, { label: '19:50', value: 2600 },
+  { label: '20:00', value: 2400 }, { label: '20:10', value: 2200 }, { label: '20:20', value: 1950 },
+  { label: '20:30', value: 1800 }, { label: '20:40', value: 1650 }, { label: '20:50', value: 1500 },
+]
+
+const analyticsKeyMoments = [
+  { time: '19:32', label: '开播峰值', desc: '开场互动问答环节，观众参与度最高' },
+  { time: '19:45', label: '干货高峰', desc: '八字用神详解，弹幕互动最密集' },
+  { time: '20:05', label: '购物车曝光', desc: '推荐《穷通宝鉴》课程，转化率最高' },
+]
+
+const analyticsAudience = {
+  gender: [
+    { label: '男性', percent: 62 },
+    { label: '女性', percent: 38 },
+  ],
+  age: [
+    { label: '18-24岁', percent: 15 },
+    { label: '25-34岁', percent: 38 },
+    { label: '35-44岁', percent: 28 },
+    { label: '45岁以上', percent: 19 },
+  ],
+  region: [
+    { name: '广东', percent: 14 }, { name: '北京', percent: 11 }, { name: '上海', percent: 9 },
+    { name: '浙江', percent: 8 }, { name: '江苏', percent: 7 },
+  ],
+  source: [
+    { label: '搜索', percent: 35 }, { label: '推荐', percent: 28 },
+    { label: '关注', percent: 22 }, { label: '分享', percent: 15 },
+  ],
+}
+
+const analyticsInteraction = {
+  danmaku: 3256, likes: 12800, comments: 486, shares: 312,
+  gifts: [
+    { name: '国学书卷', count: 128, amount: 2560 },
+    { name: '智慧之光', count: 86, amount: 1720 },
+    { name: '桃李满园', count: 52, amount: 1040 },
+    { name: '一帆风顺', count: 38, amount: 760 },
+  ],
+}
+
+const analyticsWordCloud = [
+  { text: '八字', weight: 28 }, { text: '用神', weight: 22 }, { text: '五行', weight: 18 },
+  { text: '命理', weight: 16 }, { text: '大运', weight: 14 }, { text: '格局', weight: 12 },
+  { text: '流年', weight: 10 }, { text: '喜用', weight: 8 },
+]
+
+const analyticsProductStats = {
+  totalProducts: 8, soldCount: 245, revenue: 36800,
+}
+
+const analyticsReplay = {
+  isPublic: true, isPaid: false, playCount: 5680,
+  playDuration: '共86小时', revenue: 2860,
+}
+
+const obsStreamData = {
+  status: 'online' as const, duration: 0, fps: 30, bitrate: 4500,
+  resolution: '1920×1080', droppedFrames: 0, totalFrames: 0,
+  serverUrl: 'rtmp://live.rebugx.cn/live', streamKey: 'sk_live_abc123def456',
+}
+
+const obsQualityPresets = [
+  { label: '超清', resolution: '1920×1080', bitrate: 4500, fps: 30, recommended: true },
+  { label: '高清', resolution: '1280×720', bitrate: 2500, fps: 30, recommended: false },
+  { label: '标清', resolution: '854×480', bitrate: 1200, fps: 25, recommended: false },
+]
+
+const obsPageSteps = [
+  { step: 1, title: '下载OBS', desc: '前往 obsproject.com 下载对应系统版本' },
+  { step: 2, title: '添加来源', desc: '点击「来源」区域的 + 按钮，添加视频捕获设备或显示器采集' },
+  { step: 3, title: '配置推流', desc: '打开「设置→推流」，将服务选择为自定义，填入服务器地址和推流码' },
+  { step: 4, title: '开始推流', desc: '在OBS主界面右下角点击「开始推流」按钮即可上线直播' },
+]
+
+const obsOutputSettings = [
+  { key: '视频编码器', value: '硬件 (NVENC H.264)' },
+  { key: '码率控制', value: 'CBR' },
+  { key: '视频比特率', value: '4500 Kbps' },
+  { key: '关键帧间隔', value: '2 秒' },
+  { key: '预设', value: 'P5: 慢（高质量）' },
+  { key: '调节', value: '高质量' },
+  { key: '配置', value: 'high' },
+  { key: '最大B帧', value: '2' },
+]
+
+const obsPageFaq = [
+  { q: '推流失败怎么办？', a: '检查网络连接，确认服务器地址和推流码正确。防火墙可能阻止OBS连接，需添加OBS到防火墙白名单。' },
+  { q: '画面卡顿怎么优化？', a: '降低输出分辨率和码率，关闭不必要的后台程序，确保网络上行带宽充足（≥5Mbps）。' },
+  { q: '如何添加多个摄像头？', a: '在来源中添加多个「视频捕获设备」，每个对应一个摄像头，可在场景中自由切换。' },
+]
 
 export const liveApi = {
   /** 直播间列表 */
@@ -606,7 +1005,7 @@ export const liveApi = {
   async replays(params?: { sortBy?: string; page?: number }) {
     const sortBy = params?.sortBy || 'latest'
     if (useMock()) {
-      let sorted = [...liveReplays]
+      const sorted = [...liveReplays]
       if (sortBy === 'popular') sorted.sort((a, b) => b.viewers - a.viewers)
       else if (sortBy === 'duration') sorted.sort((a, b) => b.duration - a.duration)
       return sorted
@@ -646,5 +1045,158 @@ export const liveApi = {
       const data = await apiGet<any[]>('/live/categories')
       return data.map((c: any) => ({ id: c.id, name: c.name }))
     } catch { return liveCreateCategories }
+  },
+
+  /** 竖屏直播间完整数据 */
+  async verticalRoom(id: string) {
+    if (useMock()) return { room: verticalLiveRoom, comments: verticalLiveComments, products: verticalLiveProducts }
+    try {
+      const data = await apiGet<any>(`/live/rooms/${id}/vertical`)
+      return {
+        room: { id: data.id, title: data.title, hostName: data.hostName, hostAvatar: data.hostAvatar, hostLevel: data.hostLevel ?? 1, followers: data.followers ?? 0, viewerCount: data.viewerCount ?? 0, likeCount: data.likeCount ?? 0, onlineAvatars: data.onlineAvatars || [] },
+        comments: data.comments || [], products: data.products || [],
+      }
+    } catch { return { room: verticalLiveRoom, comments: verticalLiveComments, products: verticalLiveProducts } }
+  },
+
+  /** 横屏直播间完整数据 */
+  async horizontalRoom(id: string) {
+    if (useMock()) return { room: horizontalLiveRoom, slides: horizontalSlides, questions: horizontalQuestions, messages: horizontalMessages, files: horizontalFiles }
+    try {
+      const data = await apiGet<any>(`/live/rooms/${id}/horizontal`)
+      return {
+        room: data.room || horizontalLiveRoom, slides: data.slides || [], questions: data.questions || [],
+        messages: data.messages || [], files: data.files || [],
+      }
+    } catch { return { room: horizontalLiveRoom, slides: horizontalSlides, questions: horizontalQuestions, messages: horizontalMessages, files: horizontalFiles } }
+  },
+
+  /** 直播预告详情 */
+  async previewRoom(id: string) {
+    if (useMock()) return livePreviewRoom
+    try { return await apiGet<any>(`/live/rooms/${id}/preview`) }
+    catch { return livePreviewRoom }
+  },
+
+  /** 直播结束统计 */
+  async endStats(id: string) {
+    if (useMock()) return { room: liveEndRoom, recommends: liveEndRecommendLives, courses: liveEndRecommendCourses }
+    try {
+      const data = await apiGet<any>(`/live/rooms/${id}/end`)
+      return { room: data.room || liveEndRoom, recommends: data.recommendLives || [], courses: data.recommendCourses || [] }
+    } catch { return { room: liveEndRoom, recommends: liveEndRecommendLives, courses: liveEndRecommendCourses } }
+  },
+
+  /** 主播数据中心 */
+  async hostDashboard() {
+    if (useMock()) return { stats: hostLiveStats, rooms: hostLiveRooms, trend: hostLiveTrend }
+    try {
+      const data = await apiGet<any>('/live/host/dashboard')
+      return { stats: data.stats || hostLiveStats, rooms: data.rooms || [], trend: data.trend || [] }
+    } catch { return { stats: hostLiveStats, rooms: hostLiveRooms, trend: hostLiveTrend } }
+  },
+
+  /** 回放首页数据 */
+  async replayHome() {
+    if (useMock()) return { categories: replayCategories, hotItems: replayHotItems, list: replayHomeList, hotSearches: replayHotSearches }
+    try {
+      const data = await apiGet<any>('/live/replays/home')
+      return { categories: data.categories || replayCategories, hotItems: data.hotItems || [], list: data.list || [], hotSearches: data.hotSearches || [] }
+    } catch { return { categories: replayCategories, hotItems: replayHotItems, list: replayHomeList, hotSearches: replayHotSearches } }
+  },
+
+  /** 回放详情 */
+  async replayDetail(id: string) {
+    if (useMock()) return replayDetail
+    try { return await apiGet<any>(`/live/replays/${id}`) }
+    catch { return replayDetail }
+  },
+
+  /** 推流配置 */
+  async getStreamConfig() {
+    if (useMock()) return streamConfig
+    try { return await apiGet<any>('/live/stream-config') }
+    catch { return streamConfig }
+  },
+
+  /** 带货商品列表 */
+  async getProducts() {
+    if (useMock()) return { filters: liveProductFilters, items: liveProducts }
+    try {
+      const data = await apiGet<any[]>('/live/products')
+      return { filters: liveProductFilters, items: data }
+    } catch { return { filters: liveProductFilters, items: liveProducts } }
+  },
+
+  /** 直播评价列表 */
+  async getReviews() {
+    if (useMock()) return { filters: liveReviewFilters, dist: liveReviewDist, items: liveReviews }
+    try {
+      const data = await apiGet<any>('/live/reviews')
+      return { filters: data.filters || liveReviewFilters, dist: data.dist || liveReviewDist, items: data.items || liveReviews }
+    } catch { return { filters: liveReviewFilters, dist: liveReviewDist, items: liveReviews } }
+  },
+
+  /** 回放评价配置 */
+  async getReplayCommentConfig() {
+    if (useMock()) return { aspects: replayCommentAspects, tagsByRating: replayCommentTagsByRating, labels: replayCommentLabels }
+    try { return await apiGet<any>('/live/replay-comment/config') }
+    catch { return { aspects: replayCommentAspects, tagsByRating: replayCommentTagsByRating, labels: replayCommentLabels } }
+  },
+
+  /** 直播排期列表 */
+  async getScheduleList() {
+    if (useMock()) return scheduleList
+    try { return await apiGet<any[]>('/live/schedule') }
+    catch { return scheduleList }
+  },
+
+  /** OBS推流教程 */
+  async getObsGuide() {
+    if (useMock()) return { steps: obsGuideSteps, requirements: obsGuideRequirements, faq: obsGuideFaq }
+    try { return await apiGet<any>('/live/obs-guide') }
+    catch { return { steps: obsGuideSteps, requirements: obsGuideRequirements, faq: obsGuideFaq } }
+  },
+
+  /** OBS配置教程 + FAQ（用于推流配置页步骤指示器和常见问题） */
+  async getObsConfigGuide() {
+    if (useMock()) return { steps: obsConfigSteps, faq: streamConfigFaq }
+    try { return await apiGet<any>('/live/stream-config/guide') }
+    catch { return { steps: obsConfigSteps, faq: streamConfigFaq } }
+  },
+
+  /** 直播分析数据 */
+  async getAnalytics(id: string) {
+    if (useMock()) return {
+      liveInfo: analyticsLiveInfo, coreStats: analyticsCoreStats, trafficData: analyticsTrafficData,
+      keyMoments: analyticsKeyMoments, audience: analyticsAudience, interaction: analyticsInteraction,
+      wordCloud: analyticsWordCloud, productStats: analyticsProductStats, replay: analyticsReplay,
+    }
+    try { return await apiGet<any>(`/live/rooms/${id}/analytics`) }
+    catch { return {
+      liveInfo: analyticsLiveInfo, coreStats: analyticsCoreStats, trafficData: analyticsTrafficData,
+      keyMoments: analyticsKeyMoments, audience: analyticsAudience, interaction: analyticsInteraction,
+      wordCloud: analyticsWordCloud, productStats: analyticsProductStats, replay: analyticsReplay,
+    }}
+  },
+
+  /** OBS推流页面数据 */
+  async getObsPage() {
+    if (useMock()) return { stream: obsStreamData, qualityPresets: obsQualityPresets, steps: obsPageSteps, outputSettings: obsOutputSettings, faq: obsPageFaq }
+    try { return await apiGet<any>('/live/obs-page') }
+    catch { return { stream: obsStreamData, qualityPresets: obsQualityPresets, steps: obsPageSteps, outputSettings: obsOutputSettings, faq: obsPageFaq } }
+  },
+
+  /** B端直播控制台数据 */
+  async getConsoleData() {
+    if (useMock()) return {
+      stats: _consoleStats, danmaku: _consoleDanmaku, connectRequests: _consoleConnectRequests,
+      products: _consoleProducts, script: _consoleScript, coupons: _consoleCoupons,
+    }
+    try { return await apiGet<any>('/live/console') }
+    catch { return {
+      stats: _consoleStats, danmaku: _consoleDanmaku, connectRequests: _consoleConnectRequests,
+      products: _consoleProducts, script: _consoleScript, coupons: _consoleCoupons,
+    }}
   },
 }

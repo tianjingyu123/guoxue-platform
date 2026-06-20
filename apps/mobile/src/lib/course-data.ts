@@ -1,7 +1,7 @@
 // 课程模块数据(从原型 app/courses/page.tsx 迁移)
 import type { CourseCardData } from '@/lib/card-utils'
 import type { BannerItem } from '@/lib/home-data'
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, useMock } from '@/utils/request'
 
 // 课程首页 Banner
 export const courseBanners: BannerItem[] = [
@@ -439,8 +439,11 @@ export const courseApi = {
 
   /** 限时特惠场次 */
   async saleSessions() {
-    if (useMock()) return saleSessions
-    try { return await apiGet<any[]>('/courses/flash-sales') } catch { return saleSessions }
+    if (useMock()) return { sessions: saleSessions, courses: saleCourses }
+    try {
+      const data = await apiGet<any>('/courses/flash-sales')
+      return { sessions: data.sessions || data || saleSessions, courses: data.courses || saleCourses }
+    } catch { return { sessions: saleSessions, courses: saleCourses } }
   },
 
   /** 购买确认 */
@@ -450,5 +453,60 @@ export const courseApi = {
       const data = await apiGet<any>(`/courses/${courseId}/purchase`)
       return { course: data.course || purchaseCourse, coupons: data.coupons || purchaseCoupons }
     } catch { return { course: purchaseCourse, coupons: purchaseCoupons } }
+  },
+
+  /** 学习中心聚合数据 */
+  async learnData(courseId: string) {
+    if (useMock()) return { course: learnCourse, progress: learnProgress, chapters: learnChapters, notes: learnNotes, questions: learnQuestions }
+    try {
+      const data = await apiGet<any>(`/courses/${courseId}/learn`)
+      return { course: data.course || learnCourse, progress: data.progress || learnProgress, chapters: data.chapters || learnChapters, notes: data.notes || [], questions: data.questions || [] }
+    } catch { return { course: learnCourse, progress: learnProgress, chapters: learnChapters, notes: learnNotes, questions: learnQuestions } }
+  },
+
+  /** 播放器内容 + 章节目录 */
+  async player(lessonId: string) {
+    if (useMock()) return { content: playerContent, chapters: playerChapters }
+    try {
+      const data = await apiGet<any>(`/courses/lessons/${lessonId}/player`)
+      return { content: data.content || playerContent, chapters: data.chapters || playerChapters }
+    } catch { return { content: playerContent, chapters: playerChapters } }
+  },
+
+  /** 结业证书 */
+  async certificate(courseId: string) {
+    if (useMock()) return courseCertificate
+    try { return await apiGet<any>(`/courses/${courseId}/certificate`) }
+    catch { return courseCertificate }
+  },
+
+  /** 学习计划 */
+  async studyPlan() {
+    if (useMock()) return { goal: studyGoal, courses: plannedCourses, streak: studyStreak, checkInLevels }
+    try {
+      const data = await apiGet<any>('/courses/study-plan')
+      return { goal: data.goal || studyGoal, courses: data.courses || [], streak: data.streak ?? 0, checkInLevels: data.checkInLevels || [] }
+    } catch { return { goal: studyGoal, courses: plannedCourses, streak: studyStreak, checkInLevels } }
+  },
+
+  /** 作业要求 */
+  async workRequirement(chapterId: string) {
+    if (useMock()) return workRequirement
+    try { return await apiGet<any>(`/courses/chapters/${chapterId}/work`) }
+    catch { return workRequirement }
+  },
+
+  /** 作业提交列表 */
+  async workSubmissions(courseId: string) {
+    if (useMock()) return workSubmissions
+    try { return await apiGet<any[]>(`/courses/${courseId}/submissions`) }
+    catch { return workSubmissions }
+  },
+
+  /** 作业批改结果 */
+  async workResult(workId: string) {
+    if (useMock()) return workResult
+    try { return await apiGet<any>(`/courses/submissions/${workId}/result`) }
+    catch { return workResult }
   },
 }

@@ -41,57 +41,139 @@ function confirmDeactivate() {
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
-      <view class="nav-btn" @tap="goBack">
-        <AppIcon name="chevron-left" :size="22" color="#2C2C2C" />
+      <view
+        class="nav-btn"
+        @tap="goBack"
+      >
+        <AppIcon
+          name="chevron-left"
+          :size="22"
+          color="#2C2C2C"
+        />
       </view>
-      <text class="nav-title">账号安全</text>
+      <text class="nav-title">
+        账号安全
+      </text>
       <view class="nav-btn" />
     </view>
 
-    <scroll-view scroll-y class="scroll">
+    <scroll-view
+      scroll-y
+      class="scroll"
+    >
       <!-- 安全评分卡片 -->
       <view class="score-card">
         <view class="score-top">
           <view class="score-info">
-            <text class="score-label">账号安全评分</text>
+            <text class="score-label">
+              账号安全评分
+            </text>
             <view class="score-num-wrap">
-              <text class="score-num">{{ mineProfile.securityScore }}</text>
-              <text class="score-total">/ 100</text>
+              <text class="score-num">
+                {{ mineProfile.securityScore }}
+              </text>
+              <text class="score-total">
+                / 100
+              </text>
             </view>
-            <text class="score-tip">安全级别：良好，建议完善实名认证</text>
+            <text class="score-tip">
+              安全级别：良好，建议完善实名认证
+            </text>
           </view>
-          <view class="ring" :style="ringStyle">
+          <view
+            class="ring"
+            :style="ringStyle"
+          >
             <view class="ring-hole">
-              <AppIcon name="shield" :size="22" color="#C9A96E" />
+              <AppIcon
+                name="shield"
+                :size="22"
+                color="#C9A96E"
+              />
             </view>
           </view>
         </view>
         <view class="score-items">
-          <view v-for="it in securityScoreItems" :key="it.label" class="score-item">
-            <view class="score-dot" :class="it.done ? 'done' : 'todo'">
-              <AppIcon :name="it.done ? 'check-circle' : 'x-circle'" :size="12" :color="it.done ? '#4ade80' : '#fb923c'" />
+          <view
+            v-for="it in securityScoreItems"
+            :key="it.label"
+            class="score-item"
+          >
+            <view
+              class="score-dot"
+              :class="it.done ? 'done' : 'todo'"
+            >
+              <AppIcon
+                :name="it.done ? 'check-circle' : 'x-circle'"
+                :size="12"
+                :color="it.done ? '#4ade80' : '#fb923c'"
+              />
             </view>
-            <text class="score-item-label">{{ it.label }}</text>
+            <text class="score-item-label">
+              {{ it.label }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 安全项分组 -->
-      <view v-for="g in groups" :key="g.title" class="group">
-        <text class="group-title">{{ g.title }}</text>
+      <view
+        v-for="g in groups"
+        :key="g.title"
+        class="group"
+      >
+        <text class="group-title">
+          {{ g.title }}
+        </text>
         <view class="card">
-          <view v-for="item in g.items" :key="item.id" class="row" @tap="navigateTo(item.href)">
-            <view class="row-icon" :style="{ background: item.iconBg }">
-              <AppIcon :name="item.icon" :size="18" color="#fff" />
+          <view
+            v-for="item in g.items"
+            :key="item.id"
+            class="row"
+            @tap="navigateTo(item.href)"
+          >
+            <view
+              class="row-icon"
+              :style="{ background: item.iconBg }"
+            >
+              <AppIcon
+                :name="item.icon"
+                :size="18"
+                color="#fff"
+              />
             </view>
-            <text class="row-label">{{ item.label }}</text>
+            <text class="row-label">
+              {{ item.label }}
+            </text>
             <view class="row-right">
-              <text v-if="item.value" class="row-value">{{ item.value }}</text>
-              <view v-if="item.status" class="tag" :class="isPositive(item.status) ? 'tag-ok' : 'tag-warn'">
-                <AppIcon :name="isPositive(item.status) ? 'check-circle' : 'x-circle'" :size="10" :color="isPositive(item.status) ? '#16a34a' : '#ea580c'" />
-                <text class="tag-text" :class="isPositive(item.status) ? 'tag-ok-text' : 'tag-warn-text'">{{ statusText(item.status) }}</text>
+              <text
+                v-if="item.value"
+                class="row-value"
+              >
+                {{ item.value }}
+              </text>
+              <view
+                v-if="item.status"
+                class="tag"
+                :class="isPositive(item.status) ? 'tag-ok' : 'tag-warn'"
+              >
+                <AppIcon
+                  :name="isPositive(item.status) ? 'check-circle' : 'x-circle'"
+                  :size="10"
+                  :color="isPositive(item.status) ? '#16a34a' : '#ea580c'"
+                />
+                <text
+                  class="tag-text"
+                  :class="isPositive(item.status) ? 'tag-ok-text' : 'tag-warn-text'"
+                >
+                  {{ statusText(item.status) }}
+                </text>
               </view>
-              <AppIcon name="chevron-right" :size="16" color="#cbb" />
+              <AppIcon
+                name="chevron-right"
+                :size="16"
+                color="#cbb"
+              />
             </view>
           </view>
         </view>
@@ -99,54 +181,119 @@ function confirmDeactivate() {
 
       <!-- 账号管理 -->
       <view class="group">
-        <text class="group-title">账号管理</text>
+        <text class="group-title">
+          账号管理
+        </text>
         <view class="card">
-          <view class="row danger-row" @tap="showDeactivate = true">
-            <view class="row-icon" style="background: #fee2e2">
-              <AppIcon name="alert-triangle" :size="18" color="#ef4444" />
+          <view
+            class="row danger-row"
+            @tap="showDeactivate = true"
+          >
+            <view
+              class="row-icon"
+              style="background: #fee2e2"
+            >
+              <AppIcon
+                name="alert-triangle"
+                :size="18"
+                color="#ef4444"
+              />
             </view>
             <view class="row-main">
-              <text class="danger-title">注销账号</text>
-              <text class="danger-desc">注销后所有数据将被永久删除，不可恢复</text>
+              <text class="danger-title">
+                注销账号
+              </text>
+              <text class="danger-desc">
+                注销后所有数据将被永久删除，不可恢复
+              </text>
             </view>
-            <AppIcon name="chevron-right" :size="16" color="#cbb" />
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#cbb"
+            />
           </view>
         </view>
       </view>
 
       <!-- 安全提示 -->
       <view class="notice">
-        <AppIcon name="lock" :size="16" color="#d97706" />
+        <AppIcon
+          name="lock"
+          :size="16"
+          color="#d97706"
+        />
         <view class="notice-body">
-          <text class="notice-title">安全提示</text>
-          <text class="notice-text">平台工作人员绝不会索要您的账号密码或支付密码，请注意防范钓鱼欺诈，保护账号安全。</text>
+          <text class="notice-title">
+            安全提示
+          </text>
+          <text class="notice-text">
+            平台工作人员绝不会索要您的账号密码或支付密码，请注意防范钓鱼欺诈，保护账号安全。
+          </text>
         </view>
       </view>
       <view class="safe-bottom" />
     </scroll-view>
 
     <!-- 注销确认弹窗 -->
-    <view v-if="showDeactivate" class="mask" @tap="showDeactivate = false">
-      <view class="sheet" @tap.stop>
+    <view
+      v-if="showDeactivate"
+      class="mask"
+      @tap="showDeactivate = false"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
         <view class="sheet-handle" />
         <view class="sheet-head">
           <view class="sheet-icon">
-            <AppIcon name="alert-triangle" :size="28" color="#ef4444" />
+            <AppIcon
+              name="alert-triangle"
+              :size="28"
+              color="#ef4444"
+            />
           </view>
-          <text class="sheet-title">确认注销账号？</text>
-          <text class="sheet-sub">注销账号后，以下数据将被永久删除且无法恢复：</text>
+          <text class="sheet-title">
+            确认注销账号？
+          </text>
+          <text class="sheet-sub">
+            注销账号后，以下数据将被永久删除且无法恢复：
+          </text>
         </view>
         <view class="loss-list">
-          <view v-for="(item, i) in securityDeactivateLossList" :key="i" class="loss-item">
+          <view
+            v-for="(item, i) in securityDeactivateLossList"
+            :key="i"
+            class="loss-item"
+          >
             <view class="loss-dot" />
-            <text class="loss-text">{{ item }}</text>
+            <text class="loss-text">
+              {{ item }}
+            </text>
           </view>
         </view>
         <view class="sheet-actions">
-          <view class="sheet-btn ghost" @tap="showDeactivate = false"><text class="sheet-btn-text ghost-text">再想想</text></view>
-          <view class="sheet-btn danger" @tap="confirmDeactivate"><text class="sheet-btn-text danger-text">继续注销</text></view>
+          <view
+            class="sheet-btn ghost"
+            @tap="showDeactivate = false"
+          >
+            <text class="sheet-btn-text ghost-text">
+              再想想
+            </text>
+          </view>
+          <view
+            class="sheet-btn danger"
+            @tap="confirmDeactivate"
+          >
+            <text class="sheet-btn-text danger-text">
+              继续注销
+            </text>
+          </view>
         </view>
-        <text class="sheet-foot">注销流程需要验证身份并等待7天冷静期</text>
+        <text class="sheet-foot">
+          注销流程需要验证身份并等待7天冷静期
+        </text>
       </view>
     </view>
   </view>

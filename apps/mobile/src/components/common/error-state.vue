@@ -1,12 +1,27 @@
 <template>
   <view class="error-state">
     <view class="es-icon">
-      <app-icon name="wifi-off" :size="80" color="#c9c2b6" />
+      <app-icon
+        name="wifi-off"
+        :size="80"
+        color="#c9c2b6"
+      />
     </view>
-    <text class="es-text">{{ message }}</text>
-    <view class="es-btn" @tap="$emit('retry')">
-      <app-icon name="refresh-cw" :size="28" color="#c41e3a" />
-      <text class="es-btn-text">点击重试</text>
+    <text class="es-text">
+      {{ message }}
+    </text>
+    <view
+      class="es-btn"
+      @tap="$emit('retry')"
+    >
+      <app-icon
+        name="refresh-cw"
+        :size="28"
+        color="#c41e3a"
+      />
+      <text class="es-btn-text">
+        点击重试
+      </text>
     </view>
   </view>
 </template>

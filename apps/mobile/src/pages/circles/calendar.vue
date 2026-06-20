@@ -61,60 +61,162 @@ const selLabel = computed(() => `${selected.value.slice(5, 7)}月${selected.valu
 <template>
   <view class="cal">
     <view class="cal-header">
-      <view @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
-      <text class="cal-title">活动日历</text>
+      <view @tap="goBack">
+        <app-icon
+          name="arrow-left"
+          :size="40"
+          color="#2C2C2C"
+        />
+      </view>
+      <text class="cal-title">
+        活动日历
+      </text>
     </view>
 
     <view class="cal-body">
       <!-- 加载骨架 -->
-      <view v-if="loading" class="cal-skeleton">
+      <view
+        v-if="loading"
+        class="cal-skeleton"
+      >
         <view class="cal-sk-nav sk-anim" />
         <view class="cal-sk-grid">
-          <view v-for="i in 35" :key="i" class="cal-sk-cell sk-anim" />
+          <view
+            v-for="i in 35"
+            :key="i"
+            class="cal-sk-cell sk-anim"
+          />
         </view>
-        <view v-for="i in 2" :key="i" class="cal-sk-event sk-anim" />
+        <view
+          v-for="i in 2"
+          :key="i"
+          class="cal-sk-event sk-anim"
+        />
       </view>
 
-      <error-state v-else-if="error" :message="error" @retry="loadData" />
+      <error-state
+        v-else-if="error"
+        :message="error"
+        @retry="loadData"
+      />
 
       <template v-else>
         <!-- 月份导航 -->
         <view class="cal-nav">
-          <view class="cal-nav-btn" @tap="prevMonth"><app-icon name="chevron-left" :size="36" color="#2C2C2C" /></view>
-          <text class="cal-nav-label">{{ year }}年{{ month + 1 }}月</text>
-          <view class="cal-nav-btn" @tap="nextMonth"><app-icon name="chevron-right" :size="36" color="#2C2C2C" /></view>
+          <view
+            class="cal-nav-btn"
+            @tap="prevMonth"
+          >
+            <app-icon
+              name="chevron-left"
+              :size="36"
+              color="#2C2C2C"
+            />
+          </view>
+          <text class="cal-nav-label">
+            {{ year }}年{{ month + 1 }}月
+          </text>
+          <view
+            class="cal-nav-btn"
+            @tap="nextMonth"
+          >
+            <app-icon
+              name="chevron-right"
+              :size="36"
+              color="#2C2C2C"
+            />
+          </view>
         </view>
 
         <!-- 星期表头 -->
         <view class="cal-week">
-          <view v-for="(d, i) in WEEKDAYS" :key="d" class="cal-week-cell">
-            <text class="cal-week-txt" :class="{ weekend: i === 0 || i === 6 }">{{ d }}</text>
+          <view
+            v-for="(d, i) in WEEKDAYS"
+            :key="d"
+            class="cal-week-cell"
+          >
+            <text
+              class="cal-week-txt"
+              :class="{ weekend: i === 0 || i === 6 }"
+            >
+              {{ d }}
+            </text>
           </view>
         </view>
 
         <!-- 日历网格 -->
         <view class="cal-grid">
-          <view v-for="(day, i) in cells" :key="i" class="cal-cell">
-            <view v-if="day" class="cal-day" :class="{ sel: dateStr(day) === selected, today: dateStr(day) === todayStr && dateStr(day) !== selected }" @tap="selDay(day)">
-              <text class="cal-day-txt" :class="{ sel: dateStr(day) === selected, today: dateStr(day) === todayStr && dateStr(day) !== selected }">{{ day }}</text>
-              <view v-if="eventDates.has(dateStr(day))" class="cal-dot" :class="{ sel: dateStr(day) === selected }" />
+          <view
+            v-for="(day, i) in cells"
+            :key="i"
+            class="cal-cell"
+          >
+            <view
+              v-if="day"
+              class="cal-day"
+              :class="{ sel: dateStr(day) === selected, today: dateStr(day) === todayStr && dateStr(day) !== selected }"
+              @tap="selDay(day)"
+            >
+              <text
+                class="cal-day-txt"
+                :class="{ sel: dateStr(day) === selected, today: dateStr(day) === todayStr && dateStr(day) !== selected }"
+              >
+                {{ day }}
+              </text>
+              <view
+                v-if="eventDates.has(dateStr(day))"
+                class="cal-dot"
+                :class="{ sel: dateStr(day) === selected }"
+              />
             </view>
           </view>
         </view>
 
         <!-- 选中日活动 -->
         <view class="cal-events">
-          <text class="cal-events-title">{{ selLabel }} 的活动</text>
-          <view v-if="dayEvents.length === 0" class="cal-events-empty"><text class="cal-events-empty-txt">当日无活动</text></view>
-          <view v-else class="cal-events-list">
-            <view v-for="evt in dayEvents" :key="evt.id" class="cal-event">
-              <text class="cal-event-time">{{ evt.time }}</text>
+          <text class="cal-events-title">
+            {{ selLabel }} 的活动
+          </text>
+          <view
+            v-if="dayEvents.length === 0"
+            class="cal-events-empty"
+          >
+            <text class="cal-events-empty-txt">
+              当日无活动
+            </text>
+          </view>
+          <view
+            v-else
+            class="cal-events-list"
+          >
+            <view
+              v-for="evt in dayEvents"
+              :key="evt.id"
+              class="cal-event"
+            >
+              <text class="cal-event-time">
+                {{ evt.time }}
+              </text>
               <view class="cal-event-main">
                 <view class="cal-event-top">
-                  <text class="cal-event-title">{{ evt.title }}</text>
-                  <view class="cal-event-tag" :class="TYPE_CFG[evt.type].cls"><text class="cal-event-tag-txt" :class="TYPE_CFG[evt.type].cls">{{ TYPE_CFG[evt.type].label }}</text></view>
+                  <text class="cal-event-title">
+                    {{ evt.title }}
+                  </text>
+                  <view
+                    class="cal-event-tag"
+                    :class="TYPE_CFG[evt.type].cls"
+                  >
+                    <text
+                      class="cal-event-tag-txt"
+                      :class="TYPE_CFG[evt.type].cls"
+                    >
+                      {{ TYPE_CFG[evt.type].label }}
+                    </text>
+                  </view>
                 </view>
-                <text class="cal-event-circle">{{ evt.circle }}</text>
+                <text class="cal-event-circle">
+                  {{ evt.circle }}
+                </text>
               </view>
             </view>
           </view>

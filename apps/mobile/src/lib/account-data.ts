@@ -268,11 +268,17 @@ export const afterSaleApi = {
     } catch { return { items: afterSaleList, total: afterSaleList.length } }
   },
 
-  async getAfterSaleDetail(id: string) {
-    if (useMock()) return afterSaleDetail
+  async getAfterSaleDetail(id: string, status?: string) {
+    if (useMock()) {
+      if (status === 'rejected') return afterSaleRejectedDetail
+      return afterSaleDetail
+    }
     try {
       return await apiGet<any>(`/shop/after-sales/${id}`)
-    } catch { return afterSaleDetail }
+    } catch {
+      if (status === 'rejected') return afterSaleRejectedDetail
+      return afterSaleDetail
+    }
   },
 
   async submitAfterSale(params: { orderId: string; type: string; reason: string; amount: number; description?: string; images?: string[] }) {

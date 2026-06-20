@@ -17,16 +17,40 @@ function openMore() { if (props.moreLink) navigateTo(props.moreLink) }
 
 <template>
   <view class="sh">
-    <view class="sh-ico" :style="{ background: iconBg }">
-      <app-icon :name="icon" :size="28" :color="iconColor || 'var(--brand)'" />
+    <view
+      class="sh-ico"
+      :style="{ background: iconBg }"
+    >
+      <app-icon
+        :name="icon"
+        :size="28"
+        :color="iconColor || 'var(--brand)'"
+      />
     </view>
     <view class="sh-text">
-      <text class="sh-title">{{ title }}</text>
-      <text v-if="subtitle" class="sh-sub">{{ subtitle }}</text>
+      <text class="sh-title">
+        {{ title }}
+      </text>
+      <text
+        v-if="subtitle"
+        class="sh-sub"
+      >
+        {{ subtitle }}
+      </text>
     </view>
-    <view v-if="moreLink" class="sh-more" @tap="openMore">
-      <text class="sh-more-txt">全部</text>
-      <app-icon name="chevron-right" :size="28" color="var(--text-soft)" />
+    <view
+      v-if="moreLink"
+      class="sh-more"
+      @tap="openMore"
+    >
+      <text class="sh-more-txt">
+        全部
+      </text>
+      <app-icon
+        name="chevron-right"
+        :size="28"
+        color="var(--text-soft)"
+      />
     </view>
   </view>
 </template>

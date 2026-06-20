@@ -26,18 +26,38 @@ function claim() {
     <view class="cc-notch cc-notch-r" />
     <view class="cc-left">
       <view class="cc-amount">
-        <text class="cc-cny">¥</text>
-        <text class="cc-num">{{ amount }}</text>
-        <text class="cc-th">满{{ threshold }}可用</text>
+        <text class="cc-cny">
+          ¥
+        </text>
+        <text class="cc-num">
+          {{ amount }}
+        </text>
+        <text class="cc-th">
+          满{{ threshold }}可用
+        </text>
       </view>
       <view class="cc-divider" />
       <view>
-        <text class="cc-title">{{ title || '课程优惠券' }}</text>
-        <text class="cc-sub">{{ subtitle || '全场课程通用' }}</text>
+        <text class="cc-title">
+          {{ title || '课程优惠券' }}
+        </text>
+        <text class="cc-sub">
+          {{ subtitle || '全场课程通用' }}
+        </text>
       </view>
     </view>
-    <view class="cc-btn" :class="{ 'cc-btn-done': isClaimed }" hover-class="cc-btn-press" @tap="claim">
-      <text class="cc-btn-text" :class="{ 'cc-btn-text-done': isClaimed }">{{ isClaimed ? '已领取' : '立即领取' }}</text>
+    <view
+      class="cc-btn"
+      :class="{ 'cc-btn-done': isClaimed }"
+      hover-class="cc-btn-press"
+      @tap="claim"
+    >
+      <text
+        class="cc-btn-text"
+        :class="{ 'cc-btn-text-done': isClaimed }"
+      >
+        {{ isClaimed ? '已领取' : '立即领取' }}
+      </text>
     </view>
   </view>
 </template>

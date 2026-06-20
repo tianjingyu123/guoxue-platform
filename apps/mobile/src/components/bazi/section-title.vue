@@ -4,7 +4,11 @@ defineProps<{ title: string }>()
 </script>
 <template>
   <view class="st">
-    <view class="st-l"><view class="st-bar" /><text class="st-text">{{ title }}</text></view>
+    <view class="st-l">
+      <view class="st-bar" /><text class="st-text">
+        {{ title }}
+      </text>
+    </view>
     <slot name="extra" />
   </view>
 </template>

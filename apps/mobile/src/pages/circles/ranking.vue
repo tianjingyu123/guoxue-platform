@@ -60,24 +60,57 @@ onMounted(loadData)
     <!-- 渐变顶部 -->
     <view class="rk-top">
       <view class="rk-head">
-        <view @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
-        <text class="rk-title">圈子排行榜</text>
-        <app-icon name="trophy" :size="44" color="#FCD34D" />
+        <view @tap="goBack">
+          <app-icon
+            name="arrow-left"
+            :size="44"
+            color="#ffffff"
+          />
+        </view>
+        <text class="rk-title">
+          圈子排行榜
+        </text>
+        <app-icon
+          name="trophy"
+          :size="44"
+          color="#FCD34D"
+        />
       </view>
       <view class="rk-tabs">
-        <view v-for="tab in tabs" :key="tab.value" class="rk-tab" :class="{ on: activeTab === tab.value }" @tap="switchTab(tab.value)">
-          <text class="rk-tab-txt" :class="{ on: activeTab === tab.value }">{{ tab.label }}</text>
+        <view
+          v-for="tab in tabs"
+          :key="tab.value"
+          class="rk-tab"
+          :class="{ on: activeTab === tab.value }"
+          @tap="switchTab(tab.value)"
+        >
+          <text
+            class="rk-tab-txt"
+            :class="{ on: activeTab === tab.value }"
+          >
+            {{ tab.label }}
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="rk-skel">
-      <view class="sk-row"><view class="sk-box" /><view class="sk-box" /><view class="sk-box" /></view>
+    <view
+      v-if="loading"
+      class="rk-skel"
+    >
+      <view class="sk-row">
+        <view class="sk-box" /><view class="sk-box" /><view class="sk-box" />
+      </view>
     </view>
 
     <!-- 错误 -->
-    <error-state v-else-if="error" class="rk-err" :message="error" @retry="loadData" />
+    <error-state
+      v-else-if="error"
+      class="rk-err"
+      :message="error"
+      @retry="loadData"
+    />
 
     <!-- 内容 -->
     <template v-else>
@@ -85,49 +118,112 @@ onMounted(loadData)
       <view class="rk-podium">
         <view class="rk-pod rk-pod-2">
           <view class="rk-pod-avatar-wrap">
-            <image :src="top3[1]?.cover" class="rk-pod-avatar silver" mode="aspectFill" />
-            <view class="rk-pod-rank silver">2</view>
+            <image
+              :src="top3[1]?.cover"
+              class="rk-pod-avatar silver"
+              mode="aspectFill"
+            />
+            <view class="rk-pod-rank silver">
+              2
+            </view>
           </view>
-          <text class="rk-pod-name">{{ top3[1]?.name }}</text>
-          <text class="rk-pod-value">{{ top3[1]?.displayValue }}</text>
-          <text class="rk-pod-sub">{{ top3[1]?.subLabel }}</text>
+          <text class="rk-pod-name">
+            {{ top3[1]?.name }}
+          </text>
+          <text class="rk-pod-value">
+            {{ top3[1]?.displayValue }}
+          </text>
+          <text class="rk-pod-sub">
+            {{ top3[1]?.subLabel }}
+          </text>
         </view>
         <view class="rk-pod rk-pod-1">
-          <view class="rk-pod-crown"><app-icon name="crown" :size="32" color="#F59E0B" /></view>
-          <view class="rk-pod-avatar-wrap">
-            <image :src="top3[0]?.cover" class="rk-pod-avatar gold" mode="aspectFill" />
-            <view class="rk-pod-rank gold">1</view>
+          <view class="rk-pod-crown">
+            <app-icon
+              name="crown"
+              :size="32"
+              color="#F59E0B"
+            />
           </view>
-          <text class="rk-pod-name">{{ top3[0]?.name }}</text>
-          <text class="rk-pod-value gold">{{ top3[0]?.displayValue }}</text>
-          <text class="rk-pod-sub">{{ top3[0]?.subLabel }}</text>
+          <view class="rk-pod-avatar-wrap">
+            <image
+              :src="top3[0]?.cover"
+              class="rk-pod-avatar gold"
+              mode="aspectFill"
+            />
+            <view class="rk-pod-rank gold">
+              1
+            </view>
+          </view>
+          <text class="rk-pod-name">
+            {{ top3[0]?.name }}
+          </text>
+          <text class="rk-pod-value gold">
+            {{ top3[0]?.displayValue }}
+          </text>
+          <text class="rk-pod-sub">
+            {{ top3[0]?.subLabel }}
+          </text>
         </view>
         <view class="rk-pod rk-pod-2">
           <view class="rk-pod-avatar-wrap">
-            <image :src="top3[2]?.cover" class="rk-pod-avatar bronze" mode="aspectFill" />
-            <view class="rk-pod-rank bronze">3</view>
+            <image
+              :src="top3[2]?.cover"
+              class="rk-pod-avatar bronze"
+              mode="aspectFill"
+            />
+            <view class="rk-pod-rank bronze">
+              3
+            </view>
           </view>
-          <text class="rk-pod-name">{{ top3[2]?.name }}</text>
-          <text class="rk-pod-value">{{ top3[2]?.displayValue }}</text>
-          <text class="rk-pod-sub">{{ top3[2]?.subLabel }}</text>
+          <text class="rk-pod-name">
+            {{ top3[2]?.name }}
+          </text>
+          <text class="rk-pod-value">
+            {{ top3[2]?.displayValue }}
+          </text>
+          <text class="rk-pod-sub">
+            {{ top3[2]?.subLabel }}
+          </text>
         </view>
       </view>
 
       <!-- 4名后列表 -->
       <view class="rk-list">
-        <view v-for="c in rest" :key="c.id" class="rk-row" @tap="openCircle(c.id)">
-          <text class="rk-row-rank">{{ c.rank }}</text>
-          <image :src="c.cover" class="rk-row-avatar" mode="aspectFill" />
+        <view
+          v-for="c in rest"
+          :key="c.id"
+          class="rk-row"
+          @tap="openCircle(c.id)"
+        >
+          <text class="rk-row-rank">
+            {{ c.rank }}
+          </text>
+          <image
+            :src="c.cover"
+            class="rk-row-avatar"
+            mode="aspectFill"
+          />
           <view class="rk-row-main">
             <view class="rk-row-name-row">
-              <text class="rk-row-name">{{ c.name }}</text>
-              <text class="rk-row-cat">{{ c.category }}</text>
+              <text class="rk-row-name">
+                {{ c.name }}
+              </text>
+              <text class="rk-row-cat">
+                {{ c.category }}
+              </text>
             </view>
-            <text class="rk-row-owner">{{ c.description }}</text>
+            <text class="rk-row-owner">
+              {{ c.description }}
+            </text>
           </view>
           <view class="rk-row-val">
-            <text class="rk-row-value">{{ c.displayValue }}</text>
-            <text class="rk-row-sub">{{ c.subLabel }}</text>
+            <text class="rk-row-value">
+              {{ c.displayValue }}
+            </text>
+            <text class="rk-row-sub">
+              {{ c.subLabel }}
+            </text>
           </view>
         </view>
       </view>

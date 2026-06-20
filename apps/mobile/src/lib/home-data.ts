@@ -313,6 +313,15 @@ function mergeApiFeedWithAgents(
 }
 
 export const homeApi = {
+  /** 获取今日小语 */
+  async getDailyVerse() {
+    if (useMock()) return getTodayVerse()
+    try {
+      const data = await apiGet<any>('/home/daily-verse')
+      return data ? mapDailyVerse(data) : getTodayVerse()
+    } catch { return getTodayVerse() }
+  },
+
   /**
    * 获取首页聚合数据
    * mock 模式：返回内置 mock 数据
@@ -325,6 +334,7 @@ export const homeApi = {
     if (useMock()) {
       return {
         banners: defaultBanners,
+        marketing: marketingBanners,
         dailyVerse: getTodayVerse(),
         recommendedCircles: [] as any[],
         feed: buildFeedItems(),
@@ -338,6 +348,7 @@ export const homeApi = {
       const data = await apiGet<any>(`/home?page=${page}&pageSize=${pageSize}`)
       return {
         banners: (data.banners?.length ? data.banners : defaultBanners) as BannerItem[],
+        marketing: data.marketing || marketingBanners,
         dailyVerse: data.dailyVerse ? mapDailyVerse(data.dailyVerse) : getTodayVerse(),
         recommendedCircles: data.recommendedCircles || [],
         feed: mergeApiFeedWithAgents(data.feed || [], data.recommendedCircles || []),
@@ -349,6 +360,7 @@ export const homeApi = {
       // 网络异常时 fallback 到 mock
       return {
         banners: defaultBanners,
+        marketing: marketingBanners,
         dailyVerse: getTodayVerse(),
         recommendedCircles: [] as any[],
         feed: buildFeedItems(),

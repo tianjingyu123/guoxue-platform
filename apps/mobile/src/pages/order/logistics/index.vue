@@ -1,103 +1,217 @@
 <template>
   <view class="page">
-    <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-back" @tap="goBack">
-        <app-icon name="arrow-left" :size="40" color="#1A1A1A" />
+    <view
+      class="nav-bar"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="40"
+          color="#1A1A1A"
+        />
       </view>
-      <text class="nav-title">物流详情</text>
+      <text class="nav-title">
+        物流详情
+      </text>
       <view class="nav-placeholder" />
     </view>
 
-    <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+      :style="{ paddingTop: navHeight + 'px' }"
+    >
       <!-- 加载骨架 -->
-      <view v-if="loading" class="sk-wrap">
-        <view class="sk-card"><view class="sk-line w6" /><view class="sk-line w4" /><view class="sk-line w5" /></view>
-        <view class="sk-card"><view class="sk-line w4" /><view class="sk-line w7" /></view>
+      <view
+        v-if="loading"
+        class="sk-wrap"
+      >
+        <view class="sk-card">
+          <view class="sk-line w6" /><view class="sk-line w4" /><view class="sk-line w5" />
+        </view>
+        <view class="sk-card">
+          <view class="sk-line w4" /><view class="sk-line w7" />
+        </view>
         <view class="sk-card">
           <view class="sk-line w3" />
-          <view v-for="i in 4" :key="i" class="sk-track"><view class="sk-dot" /><view class="sk-info"><view class="sk-line" /><view class="sk-line w5" /></view></view>
+          <view
+            v-for="i in 4"
+            :key="i"
+            class="sk-track"
+          >
+            <view class="sk-dot" /><view class="sk-info">
+              <view class="sk-line" /><view class="sk-line w5" />
+            </view>
+          </view>
         </view>
       </view>
 
-      <error-state v-else-if="error" :message="error" @retry="loadLogistics" />
+      <error-state
+        v-else-if="error"
+        :message="error"
+        @retry="loadLogistics"
+      />
 
       <view v-else>
         <!-- 物流状态卡 -->
         <view class="status-card">
-        <view class="status-head">
-          <view class="status-icon">
-            <app-icon name="truck" :size="48" color="#FFFFFF" />
-          </view>
-          <view class="status-info">
-            <text class="status-name" :style="{ color: statusMeta.color }">{{ statusMeta.label }}</text>
-            <text class="status-est">预计 {{ data.estimatedDelivery }} 送达</text>
-          </view>
-        </view>
-        <view class="company-row">
-          <view class="company-item">
-            <text class="company-label">承运</text>
-            <text class="company-value">{{ data.company }}</text>
-          </view>
-          <view class="company-item">
-            <text class="company-label">单号</text>
-            <text class="company-value">{{ data.trackingNo }}</text>
-          </view>
-          <view class="copy-btn" @tap="copyNo">
-            <app-icon name="copy" :size="28" color="#9A2D2D" />
-            <text class="copy-text">复制</text>
-          </view>
-        </view>
-        <view class="action-row">
-          <view class="action-btn" @tap="callCompany">
-            <app-icon name="phone" :size="28" color="#666666" />
-            <text class="action-text">联系快递公司</text>
-          </view>
-          <view v-if="data.courierPhone" class="action-btn" @tap="callCourier">
-            <app-icon name="user" :size="28" color="#666666" />
-            <text class="action-text">联系快递员 {{ data.courierName }}</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 收货信息 -->
-      <view class="receiver-card">
-        <app-icon name="map-pin" :size="36" color="#9A2D2D" />
-        <view class="receiver-info">
-          <view class="receiver-head">
-            <text class="receiver-name">{{ data.receiver.name }}</text>
-            <text class="receiver-phone">{{ data.receiver.phone }}</text>
-          </view>
-          <text class="receiver-addr">{{ data.receiver.address }}</text>
-        </view>
-      </view>
-
-      <!-- 物流轨迹时间轴 -->
-      <view class="track-card">
-        <text class="track-title">物流轨迹</text>
-        <view class="timeline">
-          <view
-            v-for="(t, idx) in data.tracks"
-            :key="idx"
-            class="track-node"
-          >
-            <view class="track-line-col">
-              <view class="track-dot" :class="{ current: t.isCurrent }">
-                <app-icon v-if="t.isCurrent" name="truck" :size="24" color="#FFFFFF" />
-              </view>
-              <view v-if="idx < data.tracks.length - 1" class="track-line" />
+          <view class="status-head">
+            <view class="status-icon">
+              <app-icon
+                name="truck"
+                :size="48"
+                color="#FFFFFF"
+              />
             </view>
-            <view class="track-body">
-              <text class="track-desc" :class="{ current: t.isCurrent }">{{ t.description }}</text>
-              <view class="track-meta">
-                <text class="track-loc">{{ t.location }}</text>
-                <text class="track-time">{{ t.time }}</text>
-              </view>
+            <view class="status-info">
+              <text
+                class="status-name"
+                :style="{ color: statusMeta.color }"
+              >
+                {{ statusMeta.label }}
+              </text>
+              <text class="status-est">
+                预计 {{ data.estimatedDelivery }} 送达
+              </text>
             </view>
           </view>
+          <view class="company-row">
+            <view class="company-item">
+              <text class="company-label">
+                承运
+              </text>
+              <text class="company-value">
+                {{ data.company }}
+              </text>
+            </view>
+            <view class="company-item">
+              <text class="company-label">
+                单号
+              </text>
+              <text class="company-value">
+                {{ data.trackingNo }}
+              </text>
+            </view>
+            <view
+              class="copy-btn"
+              @tap="copyNo"
+            >
+              <app-icon
+                name="copy"
+                :size="28"
+                color="#9A2D2D"
+              />
+              <text class="copy-text">
+                复制
+              </text>
+            </view>
+          </view>
+          <view class="action-row">
+            <view
+              class="action-btn"
+              @tap="callCompany"
+            >
+              <app-icon
+                name="phone"
+                :size="28"
+                color="#666666"
+              />
+              <text class="action-text">
+                联系快递公司
+              </text>
+            </view>
+            <view
+              v-if="data.courierPhone"
+              class="action-btn"
+              @tap="callCourier"
+            >
+              <app-icon
+                name="user"
+                :size="28"
+                color="#666666"
+              />
+              <text class="action-text">
+                联系快递员 {{ data.courierName }}
+              </text>
+            </view>
+          </view>
         </view>
-      </view>
 
-      <view class="bottom-gap" />
+        <!-- 收货信息 -->
+        <view class="receiver-card">
+          <app-icon
+            name="map-pin"
+            :size="36"
+            color="#9A2D2D"
+          />
+          <view class="receiver-info">
+            <view class="receiver-head">
+              <text class="receiver-name">
+                {{ data.receiver.name }}
+              </text>
+              <text class="receiver-phone">
+                {{ data.receiver.phone }}
+              </text>
+            </view>
+            <text class="receiver-addr">
+              {{ data.receiver.address }}
+            </text>
+          </view>
+        </view>
+
+        <!-- 物流轨迹时间轴 -->
+        <view class="track-card">
+          <text class="track-title">
+            物流轨迹
+          </text>
+          <view class="timeline">
+            <view
+              v-for="(t, idx) in data.tracks"
+              :key="idx"
+              class="track-node"
+            >
+              <view class="track-line-col">
+                <view
+                  class="track-dot"
+                  :class="{ current: t.isCurrent }"
+                >
+                  <app-icon
+                    v-if="t.isCurrent"
+                    name="truck"
+                    :size="24"
+                    color="#FFFFFF"
+                  />
+                </view>
+                <view
+                  v-if="idx < data.tracks.length - 1"
+                  class="track-line"
+                />
+              </view>
+              <view class="track-body">
+                <text
+                  class="track-desc"
+                  :class="{ current: t.isCurrent }"
+                >
+                  {{ t.description }}
+                </text>
+                <view class="track-meta">
+                  <text class="track-loc">
+                    {{ t.location }}
+                  </text>
+                  <text class="track-time">
+                    {{ t.time }}
+                  </text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="bottom-gap" />
       </view>
     </scroll-view>
   </view>
@@ -108,7 +222,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import ErrorState from '@/components/common/error-state.vue'
-import { orderApi, logisticsDetail, logisticsStatusMap } from '@/lib/order-data'
+import { orderApi, logisticsStatusMap } from '@/lib/order-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
@@ -116,7 +230,7 @@ const loading = ref(true)
 const error = ref('')
 const orderId = ref('')
 
-const data = ref(logisticsDetail)
+const data = ref<any>({})
 const statusMeta = computed(
   () => logisticsStatusMap[data.value.status] || { label: '运输中', color: '#9A2D2D' },
 )

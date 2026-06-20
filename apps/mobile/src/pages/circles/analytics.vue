@@ -4,63 +4,188 @@
 -->
 <template>
   <view class="page">
-    <view class="hdr" :style="{ paddingTop: statusBarH + 'px' }">
-      <view class="hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#2C2C2C" /></view>
-      <text class="hdr-title">内容分析</text>
+    <view
+      class="hdr"
+      :style="{ paddingTop: statusBarH + 'px' }"
+    >
+      <view
+        class="hdr-btn"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="36"
+          color="#2C2C2C"
+        />
+      </view>
+      <text class="hdr-title">
+        内容分析
+      </text>
     </view>
 
-    <scroll-view scroll-y class="scroll">
+    <scroll-view
+      scroll-y
+      class="scroll"
+    >
       <!-- 加载骨架 -->
-      <view v-if="loading" class="an-skeleton">
+      <view
+        v-if="loading"
+        class="an-skeleton"
+      >
         <view class="an-sk-kpis">
-          <view v-for="i in 4" :key="i" class="an-sk-kpi sk-anim" />
+          <view
+            v-for="i in 4"
+            :key="i"
+            class="an-sk-kpi sk-anim"
+          />
         </view>
         <view class="an-sk-chart sk-anim" />
-        <view v-for="i in 5" :key="i" class="an-sk-post sk-anim" />
+        <view
+          v-for="i in 5"
+          :key="i"
+          class="an-sk-post sk-anim"
+        />
       </view>
 
-      <error-state v-else-if="error" :message="error" @retry="loadData" />
+      <error-state
+        v-else-if="error"
+        :message="error"
+        @retry="loadData"
+      />
 
-      <view v-else class="body">
+      <view
+        v-else
+        class="body"
+      >
         <!-- KPI -->
         <view class="kpis">
-          <view v-for="k in kpis" :key="k.label" class="kpi">
-            <view class="kpi-icon" :style="{ background: k.bg }"><app-icon :name="k.icon" :size="24" :color="k.color" /></view>
-            <text class="kpi-val">{{ k.value }}</text>
-            <text class="kpi-label">{{ k.label }}</text>
+          <view
+            v-for="k in kpis"
+            :key="k.label"
+            class="kpi"
+          >
+            <view
+              class="kpi-icon"
+              :style="{ background: k.bg }"
+            >
+              <app-icon
+                :name="k.icon"
+                :size="24"
+                :color="k.color"
+              />
+            </view>
+            <text class="kpi-val">
+              {{ k.value }}
+            </text>
+            <text class="kpi-label">
+              {{ k.label }}
+            </text>
           </view>
         </view>
 
         <!-- 趋势图 -->
-        <text class="sec-title">本周浏览 & 点赞趋势</text>
+        <text class="sec-title">
+          本周浏览 & 点赞趋势
+        </text>
         <view class="chart-card">
           <view class="chart">
-            <view v-for="d in chartData" :key="d.day" class="chart-col">
+            <view
+              v-for="d in chartData"
+              :key="d.day"
+              class="chart-col"
+            >
               <view class="bars">
-                <view class="bar views" :style="{ height: (d.views / maxVal * 100) + '%' }" />
-                <view class="bar likes" :style="{ height: (d.likes / maxVal * 100) + '%' }" />
+                <view
+                  class="bar views"
+                  :style="{ height: (d.views / maxVal * 100) + '%' }"
+                />
+                <view
+                  class="bar likes"
+                  :style="{ height: (d.likes / maxVal * 100) + '%' }"
+                />
               </view>
-              <text class="chart-x">{{ d.day }}</text>
+              <text class="chart-x">
+                {{ d.day }}
+              </text>
             </view>
           </view>
           <view class="legend">
-            <view class="lg"><view class="lg-dot views" /><text class="lg-t">浏览</text></view>
-            <view class="lg"><view class="lg-dot likes" /><text class="lg-t">点赞</text></view>
+            <view class="lg">
+              <view class="lg-dot views" /><text class="lg-t">
+                浏览
+              </text>
+            </view>
+            <view class="lg">
+              <view class="lg-dot likes" /><text class="lg-t">
+                点赞
+              </text>
+            </view>
           </view>
         </view>
 
         <!-- TOP5 -->
-        <view class="top-title"><app-icon name="trending-up" :size="28" color="#C41E3A" /><text class="top-title-t">热门内容 TOP 5</text></view>
+        <view class="top-title">
+          <app-icon
+            name="trending-up"
+            :size="28"
+            color="#C41E3A"
+          /><text class="top-title-t">
+            热门内容 TOP 5
+          </text>
+        </view>
         <view class="top-list">
-          <view v-for="(post, idx) in topPosts" :key="post.id" class="post">
-            <text class="post-rank" :class="rankCls(idx)">{{ idx + 1 }}</text>
+          <view
+            v-for="(post, idx) in topPosts"
+            :key="post.id"
+            class="post"
+          >
+            <text
+              class="post-rank"
+              :class="rankCls(idx)"
+            >
+              {{ idx + 1 }}
+            </text>
             <view class="post-main">
-              <text class="post-title">{{ post.title }}</text>
+              <text class="post-title">
+                {{ post.title }}
+              </text>
               <view class="post-meta">
-                <view class="post-author"><image class="post-avatar" :src="post.avatar" mode="aspectFill" /><text class="post-author-t">{{ post.author }}</text></view>
-                <view class="meta-item"><app-icon name="eye" :size="20" color="#999999" /><text class="meta-t">{{ post.views.toLocaleString() }}</text></view>
-                <view class="meta-item"><app-icon name="heart" :size="20" color="#999999" /><text class="meta-t">{{ post.likes }}</text></view>
-                <view class="meta-item"><app-icon name="message-circle" :size="20" color="#999999" /><text class="meta-t">{{ post.comments }}</text></view>
+                <view class="post-author">
+                  <image
+                    class="post-avatar"
+                    :src="post.avatar"
+                    mode="aspectFill"
+                  /><text class="post-author-t">
+                    {{ post.author }}
+                  </text>
+                </view>
+                <view class="meta-item">
+                  <app-icon
+                    name="eye"
+                    :size="20"
+                    color="#999999"
+                  /><text class="meta-t">
+                    {{ post.views.toLocaleString() }}
+                  </text>
+                </view>
+                <view class="meta-item">
+                  <app-icon
+                    name="heart"
+                    :size="20"
+                    color="#999999"
+                  /><text class="meta-t">
+                    {{ post.likes }}
+                  </text>
+                </view>
+                <view class="meta-item">
+                  <app-icon
+                    name="message-circle"
+                    :size="20"
+                    color="#999999"
+                  /><text class="meta-t">
+                    {{ post.comments }}
+                  </text>
+                </view>
               </view>
             </view>
           </view>
@@ -79,26 +204,38 @@ import { computed, ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
+import { circleManageApi } from '@/lib/circle-detail-data'
 
 const loading = ref(true)
 const error = ref('')
+const circleId = ref('1')
 
 onMounted(() => { loadData() })
 async function loadData() {
   loading.value = true
   error.value = ''
-  try { await new Promise(r => setTimeout(r, 400)) } catch (e: any) { error.value = e?.message || '加载失败' }
+  try {
+    const res: any = await circleManageApi.getDashboard(circleId.value)
+    const s = res.stats
+    kpis.value = [
+      { label: '总浏览', value: s.totalViews.toLocaleString(), icon: 'eye', color: '#2563EB', bg: '#EFF6FF' },
+      { label: '总点赞', value: s.totalLikes.toLocaleString(), icon: 'heart', color: '#EF4444', bg: '#FEF2F2' },
+      { label: '总评论', value: s.totalComments.toLocaleString(), icon: 'message-circle', color: '#16A34A', bg: '#F0FDF4' },
+      { label: '总分享', value: s.totalShares.toLocaleString(), icon: 'share-2', color: '#9333EA', bg: '#FAF5FF' },
+    ]
+    topPosts.value = res.topPosts
+  } catch (e: any) { error.value = e?.message || '加载失败' }
   finally { loading.value = false }
 }
 
 const statusBarH = uni.getSystemInfoSync().statusBarHeight || 20
 
-const kpis = [
+const kpis = ref([
   { label: '总浏览', value: '44,690', icon: 'eye', color: '#2563EB', bg: '#EFF6FF' },
   { label: '总点赞', value: '2,824', icon: 'heart', color: '#EF4444', bg: '#FEF2F2' },
   { label: '总评论', value: '558', icon: 'message-circle', color: '#16A34A', bg: '#F0FDF4' },
   { label: '总分享', value: '687', icon: 'share-2', color: '#9333EA', bg: '#FAF5FF' },
-]
+])
 
 const chartData = [
   { day: '周一', views: 4200, likes: 280 },
@@ -111,13 +248,13 @@ const chartData = [
 ]
 const maxVal = computed(() => Math.max(...chartData.flatMap(d => [d.views, d.likes])))
 
-const topPosts = [
+const topPosts = ref([
   { id: '1', title: '八字五行详解：从生克制化到格局分析', author: '周易大师', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60', views: 12580, likes: 864, comments: 203, shares: 156 },
   { id: '2', title: '紫微斗数十四主星性格分析全集', author: '张玄风', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=60', views: 9840, likes: 620, comments: 145, shares: 98 },
   { id: '3', title: '2024年甲辰年各生肖运势完整版', author: '李玄机', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=60', views: 8720, likes: 512, comments: 89, shares: 234 },
   { id: '4', title: '风水布局实战：客厅财位的正确摆放', author: '王德华', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=60', views: 7350, likes: 430, comments: 67, shares: 112 },
   { id: '5', title: '奇门遁甲基础：九宫八卦布局详解', author: '林奇门', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=60', views: 6200, likes: 398, comments: 54, shares: 87 },
-]
+])
 
 function rankCls(idx: number) { return idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : '' }
 </script>

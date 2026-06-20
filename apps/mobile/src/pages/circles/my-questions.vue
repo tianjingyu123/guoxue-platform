@@ -7,15 +7,28 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
+import { circleDetailApi } from '@/lib/circle-detail-data'
 
 const loading = ref(true)
 const error = ref('')
+const circleId = ref('1')
 
 onMounted(() => { loadData() })
 async function loadData() {
   loading.value = true
   error.value = ''
-  try { await new Promise(r => setTimeout(r, 400)) } catch (e: any) { error.value = e?.message || '加载失败' }
+  try {
+    const res: any = await circleDetailApi.listQuestions(circleId.value)
+    questions.value = res.data.map((q: any) => ({
+      id: q.id,
+      content: q.content,
+      expert: q.asker,
+      avatar: q.avatar,
+      status: (q.status === 'answered' ? 'answered' : 'pending') as 'answered' | 'pending',
+      askedAt: q.time,
+      cost: '待确认',
+    }))
+  } catch (e: any) { error.value = e?.message || '加载失败' }
   finally { loading.value = false }
 }
 
@@ -26,16 +39,12 @@ interface Question {
   status: 'answered' | 'pending'; askedAt: string; answeredAt?: string; cost: string; preview?: string
 }
 
-const mockQs: Question[] = [
-  { id: '1', content: '我是1985年10月15日午时生，想知道今年的财运走势和投资方向，是否适合做生意？', expert: '周易大师', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80', status: 'answered', askedAt: '2024-01-20', answeredAt: '2024-01-20', cost: '¥50.00', preview: '您的命局中财星得地，今年丙午流年走食伤生财之运…' },
-  { id: '2', content: '请问我的八字日主身强还是身弱？用神是什么？近两年感情方面有没有好的发展机会？', expert: '张玄风', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80', status: 'answered', askedAt: '2024-01-15', answeredAt: '2024-01-16', cost: '¥30.00', preview: '从您提供的生辰来看，日主甲木生于丑月，天气寒凉…' },
-  { id: '3', content: '想问一下我的事业宫，今年是否有升职加薪的机会，需要注意什么？', expert: '李玄机', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80', status: 'pending', askedAt: '2024-01-22', cost: '¥80.00' },
-]
+const questions = ref<Question[]>([])
 
 const filterTabs: QFilter[] = ['all', 'answered', 'pending']
 const filter = ref<QFilter>('all')
 const expanded = ref<string | null>(null)
-const filtered = computed(() => filter.value === 'all' ? mockQs : mockQs.filter(q => q.status === filter.value))
+const filtered = computed(() => filter.value === 'all' ? questions.value : questions.value.filter(q => q.status === filter.value))
 
 function tabLabel(f: QFilter) { return f === 'all' ? '全部' : f === 'answered' ? '已回答' : '待回答' }
 function toggle(id: string) { expanded.value = expanded.value === id ? null : id }
@@ -44,13 +53,31 @@ function toggle(id: string) { expanded.value = expanded.value === id ? null : id
 <template>
   <view class="mq-page">
     <view class="mq-nav">
-      <view class="mq-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
-      <text class="mq-nav-title">我的问答</text>
+      <view
+        class="mq-nav-btn"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="34"
+          color="#2C2C2C"
+        />
+      </view>
+      <text class="mq-nav-title">
+        我的问答
+      </text>
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="mq-skeleton">
-      <view v-for="i in 3" :key="i" class="mq-sk-card">
+    <view
+      v-if="loading"
+      class="mq-skeleton"
+    >
+      <view
+        v-for="i in 3"
+        :key="i"
+        class="mq-sk-card"
+      >
         <view class="mq-sk-avatar sk-anim" />
         <view class="mq-sk-info">
           <view class="mq-sk-line mq-sk-line--short sk-anim" />
@@ -60,42 +87,104 @@ function toggle(id: string) { expanded.value = expanded.value === id ? null : id
       </view>
     </view>
 
-    <error-state v-else-if="error" :message="error" @retry="loadData" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadData"
+    />
 
     <template v-else>
       <view class="mq-filters">
-        <view v-for="f in filterTabs" :key="f" class="mq-filter" :class="{ 'is-active': filter === f }" @tap="filter = f">
-          <text class="mq-filter-t" :class="{ 'is-active': filter === f }">{{ tabLabel(f) }}</text>
+        <view
+          v-for="f in filterTabs"
+          :key="f"
+          class="mq-filter"
+          :class="{ 'is-active': filter === f }"
+          @tap="filter = f"
+        >
+          <text
+            class="mq-filter-t"
+            :class="{ 'is-active': filter === f }"
+          >
+            {{ tabLabel(f) }}
+          </text>
         </view>
       </view>
 
       <view class="mq-list">
-        <view v-for="q in filtered" :key="q.id" class="mq-card">
-          <view class="mq-card-main" @tap="toggle(q.id)">
-            <image class="mq-avatar" :src="q.avatar" mode="aspectFill" />
+        <view
+          v-for="q in filtered"
+          :key="q.id"
+          class="mq-card"
+        >
+          <view
+            class="mq-card-main"
+            @tap="toggle(q.id)"
+          >
+            <image
+              class="mq-avatar"
+              :src="q.avatar"
+              mode="aspectFill"
+            />
             <view class="mq-info">
               <view class="mq-info-top">
-                <text class="mq-expert">{{ q.expert }}</text>
-                <view class="mq-status" :class="q.status === 'answered' ? 'is-answered' : 'is-pending'">
-                  <app-icon :name="q.status === 'answered' ? 'check-circle' : 'clock'" :size="22" :color="q.status === 'answered' ? '#16A34A' : '#F59E0B'" />
-                  <text class="mq-status-t" :class="q.status === 'answered' ? 'is-answered' : 'is-pending'">{{ q.status === 'answered' ? '已回答' : '待回答' }}</text>
+                <text class="mq-expert">
+                  {{ q.expert }}
+                </text>
+                <view
+                  class="mq-status"
+                  :class="q.status === 'answered' ? 'is-answered' : 'is-pending'"
+                >
+                  <app-icon
+                    :name="q.status === 'answered' ? 'check-circle' : 'clock'"
+                    :size="22"
+                    :color="q.status === 'answered' ? '#16A34A' : '#F59E0B'"
+                  />
+                  <text
+                    class="mq-status-t"
+                    :class="q.status === 'answered' ? 'is-answered' : 'is-pending'"
+                  >
+                    {{ q.status === 'answered' ? '已回答' : '待回答' }}
+                  </text>
                 </view>
               </view>
-              <text class="mq-content">{{ q.content }}</text>
+              <text class="mq-content">
+                {{ q.content }}
+              </text>
               <view class="mq-meta">
-                <text class="mq-date">{{ q.askedAt }}</text>
-                <text class="mq-cost">{{ q.cost }}</text>
+                <text class="mq-date">
+                  {{ q.askedAt }}
+                </text>
+                <text class="mq-cost">
+                  {{ q.cost }}
+                </text>
               </view>
             </view>
           </view>
 
-          <view v-if="expanded === q.id && q.preview" class="mq-answer">
-            <text class="mq-answer-label">专家回答：</text>
-            <text class="mq-answer-text">{{ q.preview }}</text>
-            <text class="mq-answer-time">回复于 {{ q.answeredAt }}</text>
+          <view
+            v-if="expanded === q.id && q.preview"
+            class="mq-answer"
+          >
+            <text class="mq-answer-label">
+              专家回答：
+            </text>
+            <text class="mq-answer-text">
+              {{ q.preview }}
+            </text>
+            <text class="mq-answer-time">
+              回复于 {{ q.answeredAt }}
+            </text>
           </view>
         </view>
-        <view v-if="filtered.length === 0" class="mq-empty"><text class="mq-empty-t">暂无问答记录</text></view>
+        <view
+          v-if="filtered.length === 0"
+          class="mq-empty"
+        >
+          <text class="mq-empty-t">
+            暂无问答记录
+          </text>
+        </view>
       </view>
     </template>
   </view>

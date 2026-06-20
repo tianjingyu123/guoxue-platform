@@ -1,71 +1,180 @@
 <template>
   <view class="page">
-    <app-nav-bar title="直播回放" background="#fff" color="#2c2c2c" :back-size="40">
-      <template #right>
-        <view class="nav-search" @tap="onSearch">
-          <AppIcon name="search" :size="20" color="#2c2c2c" />
+    <!-- 头部 -->
+    <view
+      class="nav"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view class="nav-bar">
+        <view
+          class="nav-btn"
+          @tap="goBack"
+        >
+          <AppIcon
+            name="chevron-left"
+            :size="44"
+            color="#2c2c2c"
+          />
         </view>
-      </template>
-    </app-nav-bar>
-
-    <view v-if="loading" class="rp-skeleton">
-      <view v-for="i in 4" :key="i" class="sk-card" />
-    </view>
-    <app-error v-else-if="error" :desc="error" @retry="loadData" />
-    <view v-else>
-    <!-- 排序栏 -->
-    <view class="sort-bar">
-      <text class="sort-count">全部回放 {{ replays.length }} 个</text>
-      <view class="sort-trigger" @tap="showSort = true">
-        <AppIcon name="sliders-horizontal" :size="14" color="#666" />
-        <text class="sort-label">{{ currentSortLabel }}</text>
+        <text class="nav-title">
+          直播回放
+        </text>
+        <view
+          class="nav-btn"
+          @tap="onSearch"
+        >
+          <AppIcon
+            name="search"
+            :size="40"
+            color="#2c2c2c"
+          />
+        </view>
       </view>
     </view>
 
+    <!-- 排序栏 -->
+    <view class="sort-bar">
+      <text class="sort-count">
+        全部回放 {{ replays.length }} 个
+      </text>
+      <view
+        class="sort-trigger"
+        @tap="showSort = true"
+      >
+        <AppIcon
+          name="sliders-horizontal"
+          :size="28"
+          color="#666"
+        />
+        <text class="sort-label">
+          {{ currentSortLabel }}
+        </text>
+      </view>
+    </view>
+
+    <view
+      v-if="loading"
+      class="loading"
+    >
+      <text>加载中...</text>
+    </view>
+    <view
+      v-else-if="error"
+      class="err-msg"
+    >
+      <text>{{ error }}</text>
+      <view
+        class="retry-btn"
+        @tap="loadData"
+      >
+        重试
+      </view>
+    </view>
+    <view
+      v-else-if="replays.length === 0"
+      class="empty"
+    >
+      <text>暂无回放</text>
+    </view>
     <!-- 回放列表(单列横向卡) -->
-    <view class="list">
-      <view v-for="item in replays" :key="item.id" class="card" @tap="openReplay(item)">
+    <view
+      v-else
+      class="list"
+    >
+      <view
+        v-for="item in replays"
+        :key="item.id"
+        class="card"
+        @tap="openReplay(item)"
+      >
         <view class="card-inner">
           <!-- 封面 -->
           <view class="cover">
-            <image class="cover-img" :src="item.cover" mode="aspectFill" />
+            <image
+              class="cover-img"
+              :src="item.cover"
+              mode="aspectFill"
+            />
             <view class="replay-tag">
-              <AppIcon name="play" :size="10" color="#fff" />
-              <text class="replay-txt">回放</text>
+              <AppIcon
+                name="play"
+                :size="20"
+                color="#fff"
+              />
+              <text class="replay-txt">
+                回放
+              </text>
             </view>
-            <view class="dur-tag">{{ formatLiveDuration(item.duration) }}</view>
+            <view class="dur-tag">
+              {{ formatLiveDuration(item.duration) }}
+            </view>
           </view>
           <!-- 信息 -->
           <view class="info">
-            <text class="title">{{ item.title }}</text>
+            <text class="title">
+              {{ item.title }}
+            </text>
             <view class="info-bottom">
               <view class="host-row">
-                <image class="host-avatar" :src="item.hostAvatar" mode="aspectFill" />
-                <text class="host-name">{{ item.hostName }}</text>
-                <text class="cat-tag">{{ item.category }}</text>
+                <image
+                  class="host-avatar"
+                  :src="item.hostAvatar"
+                  mode="aspectFill"
+                />
+                <text class="host-name">
+                  {{ item.hostName }}
+                </text>
+                <text class="cat-tag">
+                  {{ item.category }}
+                </text>
               </view>
               <view class="data-row">
                 <view class="data-views">
-                  <AppIcon name="eye" :size="12" color="#999" />
-                  <text class="data-txt">{{ formatLiveViews(item.viewers) }}次播放</text>
+                  <AppIcon
+                    name="eye"
+                    :size="24"
+                    color="#999"
+                  />
+                  <text class="data-txt">
+                    {{ formatLiveViews(item.viewers) }}次播放
+                  </text>
                 </view>
-                <text class="data-date">{{ item.dateText }}</text>
+                <text class="data-date">
+                  {{ item.dateText }}
+                </text>
               </view>
             </view>
           </view>
         </view>
       </view>
-      <text class="list-end">已显示全部回放</text>
-    </view>
+      <text class="list-end">
+        已显示全部回放
+      </text>
     </view>
 
     <!-- 排序弹层 -->
-    <view v-if="showSort" class="sheet-mask" @tap="showSort = false">
-      <view class="sheet" @tap.stop>
+    <view
+      v-if="showSort"
+      class="sheet-mask"
+      @tap="showSort = false"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
         <view class="sheet-header">
-          <text class="sheet-title">排序方式</text>
-          <view class="sheet-close" @tap="showSort = false">
-            <AppIcon name="x" :size="18" color="#999" />
+          <text class="sheet-title">
+            排序方式
+          </text>
+          <view
+            class="sheet-close"
+            @tap="showSort = false"
+          >
+            <AppIcon
+              name="x"
+              :size="36"
+              color="#999"
+            />
           </view>
         </view>
         <view class="sheet-options">
@@ -76,7 +185,9 @@
             :class="{ 'sheet-item-active': sortBy === opt.value }"
             @tap="selectSort(opt.value)"
           >
-            <text class="sheet-item-label">{{ opt.label }}</text>
+            <text class="sheet-item-label">
+              {{ opt.label }}
+            </text>
           </view>
         </view>
       </view>
@@ -87,31 +198,30 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppNavBar from '@/components/common/app-nav-bar.vue'
-import AppError from '@/components/common/app-error.vue'
-import { liveReplays, replaySortOptions, formatLiveDuration, formatLiveViews } from '@/lib/live-data'
+import { goBack } from '@/utils/router'
+import { liveApi, replaySortOptions, formatLiveDuration, formatLiveViews } from '@/lib/live-data'
 
-const loading = ref(true)
-const error = ref('')
+const statusBarHeight = ref(20)
 
 // UI 临时状态
-const replays = ref(liveReplays)
+const replays = ref<any[]>([])
 const sortBy = ref<string>('latest')
 const showSort = ref(false)
+const loading = ref(false)
+const error = ref('')
 
 async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    await new Promise(r => setTimeout(r, 300))
+    replays.value = await liveApi.replays({ sortBy: sortBy.value })
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
-
-onMounted(() => loadData())
+onMounted(() => { loadData() })
 
 const currentSortLabel = computed(
   () => replaySortOptions.find((o) => o.value === sortBy.value)?.label || '最新发布',
@@ -120,6 +230,7 @@ const currentSortLabel = computed(
 function selectSort(v: string) {
   sortBy.value = v
   showSort.value = false
+  loadData()
 }
 
 function onSearch() {}
@@ -133,12 +244,33 @@ function openReplay(_item: { id: string }) {}
   padding-bottom: 40rpx;
 }
 
-/* 骨架 */
-.rp-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 24rpx; padding-top: 120rpx; }
-.sk-card { height: 200rpx; border-radius: 20rpx; background: #f0ebe3; animation: sk-pulse 1.5s infinite; }
-@keyframes sk-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
-
-.nav-search { display: flex; align-items: center; justify-content: center; width: 56rpx; height: 56rpx; margin-right: -8rpx; }
+/* 头部 */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #fff;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+.nav-bar {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16rpx;
+}
+.nav-btn {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #2c2c2c;
+}
 
 /* 排序栏 */
 .sort-bar {
@@ -296,6 +428,10 @@ function openReplay(_item: { id: string }) {}
   color: #ccc;
   padding: 16rpx 0;
 }
+.loading { display: flex; align-items: center; justify-content: center; padding: 160rpx 0; font-size: 28rpx; color: #999; }
+.err-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; gap: 24rpx; font-size: 28rpx; color: #ef4444; }
+.retry-btn { padding: 12rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 999rpx; font-size: 28rpx; }
+.empty { display: flex; align-items: center; justify-content: center; padding: 160rpx 0; font-size: 28rpx; color: #999; }
 
 /* 排序弹层 */
 .sheet-mask {

@@ -95,16 +95,35 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <view v-if="open" class="overlay">
+  <view
+    v-if="open"
+    class="overlay"
+  >
     <view class="icon-wrap">
       <view class="icon-circle">
-        <AppIcon v-if="retrying" name="loader" :size="36" color="#ffffff" class="ring-spin-slow" />
-        <AppIcon v-else name="wifi-off" :size="36" color="rgba(255,255,255,0.8)" />
+        <AppIcon
+          v-if="retrying"
+          name="loader"
+          :size="36"
+          color="#ffffff"
+          class="ring-spin-slow"
+        />
+        <AppIcon
+          v-else
+          name="wifi-off"
+          :size="36"
+          color="rgba(255,255,255,0.8)"
+        />
       </view>
-      <view v-if="!retrying" class="ping-ring animate-ping-ring" />
+      <view
+        v-if="!retrying"
+        class="ping-ring animate-ping-ring"
+      />
     </view>
 
-    <text class="title">{{ retrying ? '正在重新连接…' : attempt > maxAutoRetries ? '网络连接已断开' : '网络不稳定，连接中断' }}</text>
+    <text class="title">
+      {{ retrying ? '正在重新连接…' : attempt > maxAutoRetries ? '网络连接已断开' : '网络不稳定，连接中断' }}
+    </text>
     <text class="desc">
       {{ retrying
         ? '请保持网络畅通'
@@ -114,13 +133,32 @@ onUnmounted(() => {
     </text>
 
     <view class="btn-group">
-      <view class="btn btn-primary" :class="{ disabled: retrying }" @tap="!retrying && doReconnect()">
-        <AppIcon name="wifi" :size="34" color="#ffffff" />
-        <text class="btn-txt">{{ retrying ? '连接中…' : '立即重连' }}</text>
+      <view
+        class="btn btn-primary"
+        :class="{ disabled: retrying }"
+        @tap="!retrying && doReconnect()"
+      >
+        <AppIcon
+          name="wifi"
+          :size="34"
+          color="#ffffff"
+        />
+        <text class="btn-txt">
+          {{ retrying ? '连接中…' : '立即重连' }}
+        </text>
       </view>
-      <view class="btn btn-ghost" @tap="emit('endCall')">
-        <AppIcon name="phone-off" :size="34" color="#ffffff" />
-        <text class="btn-txt">结束通话</text>
+      <view
+        class="btn btn-ghost"
+        @tap="emit('endCall')"
+      >
+        <AppIcon
+          name="phone-off"
+          :size="34"
+          color="#ffffff"
+        />
+        <text class="btn-txt">
+          结束通话
+        </text>
       </view>
     </view>
   </view>

@@ -1,165 +1,339 @@
 <template>
   <view class="page">
-    <app-nav-bar title="数据中心" background="linear-gradient(to right, #C41E3A, #E85A70)" color="#fff" :back-size="40">
-      <template #right>
-        <view class="nav-refresh" @tap="handleRefresh">
-          <AppIcon name="refresh-cw" :size="20" color="#fff" />
-        </view>
-      </template>
-    </app-nav-bar>
-
-    <view v-if="loading" class="hd-skeleton">
-      <view v-for="i in 4" :key="i" class="sk-card" />
-    </view>
-    <app-error v-else-if="error" :desc="error" @retry="loadData" />
-    <view v-else>
-    <!-- 概览卡片 2x2 -->
-    <view class="overview">
-      <view class="stat-card">
-        <view class="stat-head">
-          <AppIcon name="eye" :size="16" color="#666" />
-          <text class="stat-label">总观看</text>
-        </view>
-        <text class="stat-value">{{ formatHostNumber(stats.totalViews) }}</text>
-        <view class="stat-trend">
-          <AppIcon :name="stats.viewsGrowthRate >= 0 ? 'trending-up' : 'trending-down'" :size="12" :color="stats.viewsGrowthRate >= 0 ? '#22c55e' : '#ef4444'" />
-          <text class="trend-rate" :class="stats.viewsGrowthRate >= 0 ? 'up' : 'down'">{{ Math.abs(stats.viewsGrowthRate) }}%</text>
-          <text class="trend-note">较上月</text>
-        </view>
-      </view>
-
-      <view class="stat-card">
-        <view class="stat-head">
-          <AppIcon name="coins" :size="16" color="#C9A96E" />
-          <text class="stat-label">总收益</text>
-        </view>
-        <text class="stat-value gold">¥{{ formatHostNumber(stats.totalRevenue) }}</text>
-        <view class="stat-trend">
-          <AppIcon :name="stats.revenueGrowthRate >= 0 ? 'trending-up' : 'trending-down'" :size="12" :color="stats.revenueGrowthRate >= 0 ? '#22c55e' : '#ef4444'" />
-          <text class="trend-rate" :class="stats.revenueGrowthRate >= 0 ? 'up' : 'down'">{{ Math.abs(stats.revenueGrowthRate) }}%</text>
-          <text class="trend-note">较上月</text>
-        </view>
-      </view>
-
-      <view class="stat-card">
-        <view class="stat-head">
-          <AppIcon name="clock" :size="16" color="#666" />
-          <text class="stat-label">场均时长</text>
-        </view>
-        <text class="stat-value">{{ stats.avgDuration }}<text class="stat-unit">分钟</text></text>
-        <text class="stat-note">共{{ stats.totalRooms }}场直播</text>
-      </view>
-
-      <view class="stat-card">
-        <view class="stat-head">
-          <AppIcon name="users" :size="16" color="#666" />
-          <text class="stat-label">粉丝增长</text>
-        </view>
-        <text class="stat-value red">+{{ formatHostNumber(stats.fansGrowth) }}</text>
-        <text class="stat-note">本月新增</text>
-      </view>
-    </view>
-
-    <!-- 趋势图 -->
-    <view class="trend-wrap">
-      <view class="trend-card">
-        <view class="trend-head">
-          <text class="trend-title">近30天趋势</text>
-          <view class="trend-tabs">
-            <view class="trend-tab" :class="{ 'trend-tab-active': trendType === 'views' }" @tap="trendType = 'views'">观看</view>
-            <view class="trend-tab" :class="{ 'trend-tab-active': trendType === 'revenue' }" @tap="trendType = 'revenue'">收益</view>
-          </view>
-        </view>
-        <view class="chart">
+    <!-- 顶部导航(红色渐变) -->
+    <view
+      class="nav"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view class="nav-bar">
+        <view class="nav-left">
           <view
-            v-for="(t, i) in trend"
-            :key="i"
-            class="bar"
-            :style="{ height: barHeight(t) + '%' }"
+            class="nav-btn"
+            @tap="goBack"
+          >
+            <AppIcon
+              name="chevron-left"
+              :size="48"
+              color="#fff"
+            />
+          </view>
+          <text class="nav-title">
+            数据中心
+          </text>
+        </view>
+        <view
+          class="nav-btn"
+          @tap="handleRefresh"
+        >
+          <AppIcon
+            name="refresh-cw"
+            :size="40"
+            color="#fff"
           />
         </view>
-        <view class="chart-axis">
-          <text class="axis-label">{{ trend[0].dateLabel }}</text>
-          <text class="axis-label">{{ trend[14].dateLabel }}</text>
-          <text class="axis-label">{{ trend[29].dateLabel }}</text>
-        </view>
       </view>
     </view>
 
-    <!-- 直播记录 -->
-    <view class="records">
-      <view class="records-head">
-        <text class="records-title">直播记录</text>
-        <text class="records-count">共{{ rooms.length }}场</text>
+    <view
+      v-if="loading"
+      class="loading"
+    >
+      <text>加载中...</text>
+    </view>
+    <view
+      v-else-if="error"
+      class="err-msg"
+    >
+      <text>{{ error }}</text>
+      <view
+        class="retry-btn"
+        @tap="loadData"
+      >
+        重试
       </view>
-      <view class="record-list">
-        <view v-for="room in rooms" :key="room.id" class="record-card" @tap="openRoom(room)">
-          <view class="record-inner">
-            <view class="record-cover">
-              <image class="record-img" :src="room.cover" mode="aspectFill" />
-              <view v-if="room.status === 'preview'" class="rc-preview">预告</view>
-              <view v-else class="rc-dur">{{ formatHostDuration(room.duration) }}</view>
+    </view>
+    <template v-else-if="stats">
+      <!-- 概览卡片 2x2 -->
+      <view class="overview">
+        <view class="stat-card">
+          <view class="stat-head">
+            <AppIcon
+              name="eye"
+              :size="32"
+              color="#666"
+            />
+            <text class="stat-label">
+              总观看
+            </text>
+          </view>
+          <text class="stat-value">
+            {{ formatHostNumber(stats.totalViews) }}
+          </text>
+          <view class="stat-trend">
+            <AppIcon
+              :name="stats.viewsGrowthRate >= 0 ? 'trending-up' : 'trending-down'"
+              :size="24"
+              :color="stats.viewsGrowthRate >= 0 ? '#22c55e' : '#ef4444'"
+            />
+            <text
+              class="trend-rate"
+              :class="stats.viewsGrowthRate >= 0 ? 'up' : 'down'"
+            >
+              {{ Math.abs(stats.viewsGrowthRate) }}%
+            </text>
+            <text class="trend-note">
+              较上月
+            </text>
+          </view>
+        </view>
+
+        <view class="stat-card">
+          <view class="stat-head">
+            <AppIcon
+              name="coins"
+              :size="32"
+              color="#C9A96E"
+            />
+            <text class="stat-label">
+              总收益
+            </text>
+          </view>
+          <text class="stat-value gold">
+            ¥{{ formatHostNumber(stats.totalRevenue) }}
+          </text>
+          <view class="stat-trend">
+            <AppIcon
+              :name="stats.revenueGrowthRate >= 0 ? 'trending-up' : 'trending-down'"
+              :size="24"
+              :color="stats.revenueGrowthRate >= 0 ? '#22c55e' : '#ef4444'"
+            />
+            <text
+              class="trend-rate"
+              :class="stats.revenueGrowthRate >= 0 ? 'up' : 'down'"
+            >
+              {{ Math.abs(stats.revenueGrowthRate) }}%
+            </text>
+            <text class="trend-note">
+              较上月
+            </text>
+          </view>
+        </view>
+
+        <view class="stat-card">
+          <view class="stat-head">
+            <AppIcon
+              name="clock"
+              :size="32"
+              color="#666"
+            />
+            <text class="stat-label">
+              场均时长
+            </text>
+          </view>
+          <text class="stat-value">
+            {{ stats.avgDuration }}<text class="stat-unit">
+              分钟
+            </text>
+          </text>
+          <text class="stat-note">
+            共{{ stats.totalRooms }}场直播
+          </text>
+        </view>
+
+        <view class="stat-card">
+          <view class="stat-head">
+            <AppIcon
+              name="users"
+              :size="32"
+              color="#666"
+            />
+            <text class="stat-label">
+              粉丝增长
+            </text>
+          </view>
+          <text class="stat-value red">
+            +{{ formatHostNumber(stats.fansGrowth) }}
+          </text>
+          <text class="stat-note">
+            本月新增
+          </text>
+        </view>
+      </view>
+
+      <!-- 趋势图 -->
+      <view class="trend-wrap">
+        <view class="trend-card">
+          <view class="trend-head">
+            <text class="trend-title">
+              近30天趋势
+            </text>
+            <view class="trend-tabs">
+              <view
+                class="trend-tab"
+                :class="{ 'trend-tab-active': trendType === 'views' }"
+                @tap="trendType = 'views'"
+              >
+                观看
+              </view>
+              <view
+                class="trend-tab"
+                :class="{ 'trend-tab-active': trendType === 'revenue' }"
+                @tap="trendType = 'revenue'"
+              >
+                收益
+              </view>
             </view>
-            <view class="record-info">
-              <text class="record-title-txt">{{ room.title }}</text>
-              <text class="record-date">{{ room.dateText }}</text>
-              <view v-if="room.status === 'ended'" class="record-stats">
-                <view class="rs-item">
-                  <AppIcon name="eye" :size="12" color="#666" />
-                  <text class="rs-txt">{{ formatHostNumber(room.views) }}</text>
+          </view>
+          <view class="chart">
+            <view
+              v-for="(t, i) in trend"
+              :key="i"
+              class="bar"
+              :style="{ height: barHeight(t) + '%' }"
+            />
+          </view>
+          <view class="chart-axis">
+            <text class="axis-label">
+              {{ trend[0].dateLabel }}
+            </text>
+            <text class="axis-label">
+              {{ trend[14].dateLabel }}
+            </text>
+            <text class="axis-label">
+              {{ trend[29].dateLabel }}
+            </text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 直播记录 -->
+      <view class="records">
+        <view class="records-head">
+          <text class="records-title">
+            直播记录
+          </text>
+          <text class="records-count">
+            共{{ rooms.length }}场
+          </text>
+        </view>
+        <view
+          v-if="rooms.length === 0"
+          class="empty"
+        >
+          <text>暂无直播记录</text>
+        </view>
+        <view
+          v-else
+          class="record-list"
+        >
+          <view
+            v-for="room in rooms"
+            :key="room.id"
+            class="record-card"
+            @tap="openRoom(room)"
+          >
+            <view class="record-inner">
+              <view class="record-cover">
+                <image
+                  class="record-img"
+                  :src="room.cover"
+                  mode="aspectFill"
+                />
+                <view
+                  v-if="room.status === 'preview'"
+                  class="rc-preview"
+                >
+                  预告
                 </view>
-                <view class="rs-item">
-                  <AppIcon name="gift" :size="12" color="#C9A96E" />
-                  <text class="rs-txt">{{ room.gifts }}</text>
+                <view
+                  v-else
+                  class="rc-dur"
+                >
+                  {{ formatHostDuration(room.duration) }}
                 </view>
-                <text class="rs-revenue">¥{{ room.revenue }}</text>
+              </view>
+              <view class="record-info">
+                <text class="record-title-txt">
+                  {{ room.title }}
+                </text>
+                <text class="record-date">
+                  {{ room.dateText }}
+                </text>
+                <view
+                  v-if="room.status === 'ended'"
+                  class="record-stats"
+                >
+                  <view class="rs-item">
+                    <AppIcon
+                      name="eye"
+                      :size="24"
+                      color="#666"
+                    />
+                    <text class="rs-txt">
+                      {{ formatHostNumber(room.views) }}
+                    </text>
+                  </view>
+                  <view class="rs-item">
+                    <AppIcon
+                      name="gift"
+                      :size="24"
+                      color="#C9A96E"
+                    />
+                    <text class="rs-txt">
+                      {{ room.gifts }}
+                    </text>
+                  </view>
+                  <text class="rs-revenue">
+                    ¥{{ room.revenue }}
+                  </text>
+                </view>
               </view>
             </view>
           </view>
         </view>
       </view>
-    </view>
+    </template>
   </view>
-</view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppNavBar from '@/components/common/app-nav-bar.vue'
-import AppError from '@/components/common/app-error.vue'
+import { goBack } from '@/utils/router'
 import {
-  hostLiveStats,
-  hostLiveRooms,
-  hostLiveTrend,
+  liveApi,
   formatHostNumber,
   formatHostDuration,
   type HostLiveRoom,
   type HostLiveTrend,
+  type HostLiveStats,
 } from '@/lib/live-data'
 
-const loading = ref(true)
-const error = ref('')
+const statusBarHeight = ref(20)
 
 // UI 临时状态
-const stats = ref(hostLiveStats)
-const rooms = ref(hostLiveRooms)
-const trend = ref(hostLiveTrend)
+const stats = ref<HostLiveStats>(null as any)
+const rooms = ref<HostLiveRoom[]>([])
+const trend = ref<HostLiveTrend[]>([])
+const trendType = ref<'views' | 'revenue'>('views')
+const loading = ref(false)
+const error = ref('')
 
 async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    await new Promise(r => setTimeout(r, 300))
+    const res = await liveApi.hostDashboard()
+    stats.value = res.stats
+    rooms.value = res.rooms
+    trend.value = res.trend
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
-
-onMounted(() => loadData())
-const trendType = ref<'views' | 'revenue'>('views')
+onMounted(() => { loadData() })
 
 const maxTrendValue = computed(() =>
   Math.max(...trend.value.map((t) => (trendType.value === 'views' ? t.views : t.revenue))),
@@ -181,13 +355,41 @@ function openRoom(_room: HostLiveRoom) {}
   background: #faf8f5;
   padding-bottom: 40rpx;
 }
+.loading { display: flex; align-items: center; justify-content: center; padding: 160rpx 0; font-size: 28rpx; color: #999; }
+.err-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; gap: 24rpx; font-size: 28rpx; color: #ef4444; }
+.retry-btn { padding: 12rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 999rpx; font-size: 28rpx; }
 
-/* 骨架 */
-.hd-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 24rpx; padding-top: 120rpx; }
-.sk-card { height: 200rpx; border-radius: 20rpx; background: #f0ebe3; animation: sk-pulse 1.5s infinite; }
-@keyframes sk-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
-
-.nav-refresh { display: flex; align-items: center; justify-content: center; width: 56rpx; height: 56rpx; margin-right: -8rpx; }
+/* 导航(红色渐变) */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(to right, #C41E3A, #E85A70);
+}
+.nav-bar {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16rpx;
+}
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+.nav-btn {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-title {
+  font-size: 34rpx;
+  font-weight: 500;
+  color: #fff;
+}
 
 /* 概览卡片 */
 .overview {
@@ -339,6 +541,7 @@ function openRoom(_room: HostLiveRoom) {}
   flex-direction: column;
   gap: 24rpx;
 }
+.empty { display: flex; align-items: center; justify-content: center; padding: 80rpx 0; font-size: 26rpx; color: #999; }
 .record-card {
   background: #fff;
   border-radius: 24rpx;

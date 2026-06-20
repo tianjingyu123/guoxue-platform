@@ -6,5 +6,14 @@
   "versionCode": "100",
   "uni-app": {
     "compilerVersion": "4.0"
+  },
+  "mp-harmony": {
+    "appid": "",
+    "setting": {
+      "urlCheck": true,
+      "es6": true,
+      "postcss": true,
+      "minified": true
+    }
   }
 }

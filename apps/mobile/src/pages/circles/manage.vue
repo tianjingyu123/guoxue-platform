@@ -183,220 +183,761 @@ async function saveSettings() {
   <view class="mg">
     <view class="mg-hdr-wrap">
       <view class="mg-hdr">
-        <view class="mg-hdr-btn" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
-        <text class="mg-hdr-title">圈子管理</text>
+        <view
+          class="mg-hdr-btn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="chevron-left"
+            :size="40"
+            color="#2C2C2C"
+          />
+        </view>
+        <text class="mg-hdr-title">
+          圈子管理
+        </text>
         <view class="mg-hdr-btn" />
       </view>
       <view class="mg-tabs">
-        <view v-for="t in tabs" :key="t.key" class="mg-tab" @tap="activeTab = t.key">
-          <app-icon :name="t.icon" :size="40" :color="activeTab === t.key ? '#C41E3A' : '#666666'" />
-          <text class="mg-tab-t" :class="{ on: activeTab === t.key }">{{ t.label }}</text>
-          <view v-if="activeTab === t.key" class="mg-tab-bar" />
+        <view
+          v-for="t in tabs"
+          :key="t.key"
+          class="mg-tab"
+          @tap="activeTab = t.key"
+        >
+          <app-icon
+            :name="t.icon"
+            :size="40"
+            :color="activeTab === t.key ? '#C41E3A' : '#666666'"
+          />
+          <text
+            class="mg-tab-t"
+            :class="{ on: activeTab === t.key }"
+          >
+            {{ t.label }}
+          </text>
+          <view
+            v-if="activeTab === t.key"
+            class="mg-tab-bar"
+          />
         </view>
       </view>
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="mg-body-skel">
-      <view class="mg-skel-grid"><view v-for="i in 4" :key="i" class="mg-skel-stat" /></view>
+    <view
+      v-if="loading"
+      class="mg-body-skel"
+    >
+      <view class="mg-skel-grid">
+        <view
+          v-for="i in 4"
+          :key="i"
+          class="mg-skel-stat"
+        />
+      </view>
       <view class="mg-skel-card" />
-      <view class="mg-skel-entries"><view v-for="i in 5" :key="i" class="mg-skel-entry" /></view>
+      <view class="mg-skel-entries">
+        <view
+          v-for="i in 5"
+          :key="i"
+          class="mg-skel-entry"
+        />
+      </view>
     </view>
 
     <!-- 错误 -->
-    <error-state v-else-if="error" :message="error" @retry="loadData" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadData"
+    />
 
-    <scroll-view v-else scroll-y class="mg-body">
+    <scroll-view
+      v-else
+      scroll-y
+      class="mg-body"
+    >
       <!-- 概览 -->
-      <view v-if="activeTab === 'overview'" class="mg-section">
+      <view
+        v-if="activeTab === 'overview'"
+        class="mg-section"
+      >
         <view class="mg-stats">
           <view class="mg-stat">
-            <text class="mg-stat-num red">{{ fmt(stats.totalMembers) }}</text>
-            <text class="mg-stat-label">总成员数</text>
-            <text class="mg-stat-delta">+{{ stats.newMembersToday }} 今日新增</text>
+            <text class="mg-stat-num red">
+              {{ fmt(stats.totalMembers) }}
+            </text>
+            <text class="mg-stat-label">
+              总成员数
+            </text>
+            <text class="mg-stat-delta">
+              +{{ stats.newMembersToday }} 今日新增
+            </text>
           </view>
           <view class="mg-stat">
-            <text class="mg-stat-num gold">{{ fmt(stats.totalPosts) }}</text>
-            <text class="mg-stat-label">总帖子数</text>
-            <text class="mg-stat-delta">+{{ stats.newPostsToday }} 今日新增</text>
+            <text class="mg-stat-num gold">
+              {{ fmt(stats.totalPosts) }}
+            </text>
+            <text class="mg-stat-label">
+              总帖子数
+            </text>
+            <text class="mg-stat-delta">
+              +{{ stats.newPostsToday }} 今日新增
+            </text>
           </view>
           <view class="mg-stat">
-            <text class="mg-stat-num dark">{{ fmt(stats.activeMembers) }}</text>
-            <text class="mg-stat-label">活跃成员</text>
+            <text class="mg-stat-num dark">
+              {{ fmt(stats.activeMembers) }}
+            </text>
+            <text class="mg-stat-label">
+              活跃成员
+            </text>
           </view>
           <view class="mg-stat">
-            <text class="mg-stat-num dark">{{ stats.essencePosts }}</text>
-            <text class="mg-stat-label">精华帖子</text>
+            <text class="mg-stat-num dark">
+              {{ stats.essencePosts }}
+            </text>
+            <text class="mg-stat-label">
+              精华帖子
+            </text>
           </view>
         </view>
 
         <view class="mg-card">
           <view class="mg-card-head">
-            <view class="mg-card-title"><app-icon name="bell" :size="28" color="#C9A96E" /><text class="mg-card-title-t">圈子公告</text></view>
-            <view class="mg-save-btn" :class="{ saving }" @tap="saveAnnouncement">
-              <app-icon name="save" :size="22" color="#ffffff" /><text class="mg-save-t">{{ saving ? '保存中...' : '保存' }}</text>
+            <view class="mg-card-title">
+              <app-icon
+                name="bell"
+                :size="28"
+                color="#C9A96E"
+              /><text class="mg-card-title-t">
+                圈子公告
+              </text>
+            </view>
+            <view
+              class="mg-save-btn"
+              :class="{ saving }"
+              @tap="saveAnnouncement"
+            >
+              <app-icon
+                name="save"
+                :size="22"
+                color="#ffffff"
+              /><text class="mg-save-t">
+                {{ saving ? '保存中...' : '保存' }}
+              </text>
             </view>
           </view>
-          <textarea v-model="announcement" class="mg-textarea" placeholder="输入圈子公告..." :maxlength="-1" />
+          <textarea
+            v-model="announcement"
+            class="mg-textarea"
+            placeholder="输入圈子公告..."
+            :maxlength="-1"
+          />
         </view>
 
         <view class="mg-entries">
-          <view class="mg-entry" @tap="navigateTo(`/pages/circles/dashboard?id=${circleId}`)">
-            <view class="mg-entry-icon" style="background: #FCE8EB;"><app-icon name="bar-chart-3" :size="32" color="#C41E3A" /></view>
-            <view class="mg-entry-info"><text class="mg-entry-title">数据看板</text><text class="mg-entry-sub">成员增长 / 热门内容 / 收益构成</text></view>
-            <app-icon name="chevron-right" :size="30" color="#cccccc" />
+          <view
+            class="mg-entry"
+            @tap="navigateTo(`/pages/circles/dashboard?id=${circleId}`)"
+          >
+            <view
+              class="mg-entry-icon"
+              style="background: #FCE8EB;"
+            >
+              <app-icon
+                name="bar-chart-3"
+                :size="32"
+                color="#C41E3A"
+              />
+            </view>
+            <view class="mg-entry-info">
+              <text class="mg-entry-title">
+                数据看板
+              </text><text class="mg-entry-sub">
+                成员增长 / 热门内容 / 收益构成
+              </text>
+            </view>
+            <app-icon
+              name="chevron-right"
+              :size="30"
+              color="#cccccc"
+            />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pages/circles/knowledge?id=${circleId}`)">
-            <view class="mg-entry-icon" style="background: #FAF3E6;"><app-icon name="book-open" :size="32" color="#C9A96E" /></view>
-            <view class="mg-entry-info"><text class="mg-entry-title">知识库</text><text class="mg-entry-sub">沉淀优质内容 / 待确认入库</text></view>
-            <app-icon name="chevron-right" :size="30" color="#cccccc" />
+          <view
+            class="mg-entry"
+            @tap="navigateTo(`/pages/circles/knowledge?id=${circleId}`)"
+          >
+            <view
+              class="mg-entry-icon"
+              style="background: #FAF3E6;"
+            >
+              <app-icon
+                name="book-open"
+                :size="32"
+                color="#C9A96E"
+              />
+            </view>
+            <view class="mg-entry-info">
+              <text class="mg-entry-title">
+                知识库
+              </text><text class="mg-entry-sub">
+                沉淀优质内容 / 待确认入库
+              </text>
+            </view>
+            <app-icon
+              name="chevron-right"
+              :size="30"
+              color="#cccccc"
+            />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pages/circles/analytics?id=${circleId}`)">
-            <view class="mg-entry-icon" style="background: #FCE8EB;"><app-icon name="trending-up" :size="32" color="#C41E3A" /></view>
-            <view class="mg-entry-info"><text class="mg-entry-title">内容分析</text><text class="mg-entry-sub">浏览/点赞趋势 / 热门内容 TOP5</text></view>
-            <app-icon name="chevron-right" :size="30" color="#cccccc" />
+          <view
+            class="mg-entry"
+            @tap="navigateTo(`/pages/circles/analytics?id=${circleId}`)"
+          >
+            <view
+              class="mg-entry-icon"
+              style="background: #FCE8EB;"
+            >
+              <app-icon
+                name="trending-up"
+                :size="32"
+                color="#C41E3A"
+              />
+            </view>
+            <view class="mg-entry-info">
+              <text class="mg-entry-title">
+                内容分析
+              </text><text class="mg-entry-sub">
+                浏览/点赞趋势 / 热门内容 TOP5
+              </text>
+            </view>
+            <app-icon
+              name="chevron-right"
+              :size="30"
+              color="#cccccc"
+            />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pages/circles/settings-knowledge?id=${circleId}`)">
-            <view class="mg-entry-icon" style="background: #FAF3E6;"><app-icon name="file-text" :size="32" color="#C9A96E" /></view>
-            <view class="mg-entry-info"><text class="mg-entry-title">知识库设置</text><text class="mg-entry-sub">AI 助手文档/链接/问答启用</text></view>
-            <app-icon name="chevron-right" :size="30" color="#cccccc" />
+          <view
+            class="mg-entry"
+            @tap="navigateTo(`/pages/circles/settings-knowledge?id=${circleId}`)"
+          >
+            <view
+              class="mg-entry-icon"
+              style="background: #FAF3E6;"
+            >
+              <app-icon
+                name="file-text"
+                :size="32"
+                color="#C9A96E"
+              />
+            </view>
+            <view class="mg-entry-info">
+              <text class="mg-entry-title">
+                知识库设置
+              </text><text class="mg-entry-sub">
+                AI 助手文档/链接/问答启用
+              </text>
+            </view>
+            <app-icon
+              name="chevron-right"
+              :size="30"
+              color="#cccccc"
+            />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pages/circles/join-requests?id=${circleId}`)">
-            <view class="mg-entry-icon" style="background: #FCE8EB;"><app-icon name="users" :size="32" color="#C41E3A" /></view>
-            <view class="mg-entry-info"><text class="mg-entry-title">入圈申请</text><text class="mg-entry-sub">审核新成员加入申请</text></view>
-            <app-icon name="chevron-right" :size="30" color="#cccccc" />
+          <view
+            class="mg-entry"
+            @tap="navigateTo(`/pages/circles/join-requests?id=${circleId}`)"
+          >
+            <view
+              class="mg-entry-icon"
+              style="background: #FCE8EB;"
+            >
+              <app-icon
+                name="users"
+                :size="32"
+                color="#C41E3A"
+              />
+            </view>
+            <view class="mg-entry-info">
+              <text class="mg-entry-title">
+                入圈申请
+              </text><text class="mg-entry-sub">
+                审核新成员加入申请
+              </text>
+            </view>
+            <app-icon
+              name="chevron-right"
+              :size="30"
+              color="#cccccc"
+            />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pages/circles/exit-requests?id=${circleId}`)">
-            <view class="mg-entry-icon" style="background: #F2EFEA;"><app-icon name="log-out" :size="32" color="#666666" /></view>
-            <view class="mg-entry-info"><text class="mg-entry-title">退出申请</text><text class="mg-entry-sub">审核成员退出与退款核算</text></view>
-            <app-icon name="chevron-right" :size="30" color="#cccccc" />
+          <view
+            class="mg-entry"
+            @tap="navigateTo(`/pages/circles/exit-requests?id=${circleId}`)"
+          >
+            <view
+              class="mg-entry-icon"
+              style="background: #F2EFEA;"
+            >
+              <app-icon
+                name="log-out"
+                :size="32"
+                color="#666666"
+              />
+            </view>
+            <view class="mg-entry-info">
+              <text class="mg-entry-title">
+                退出申请
+              </text><text class="mg-entry-sub">
+                审核成员退出与退款核算
+              </text>
+            </view>
+            <app-icon
+              name="chevron-right"
+              :size="30"
+              color="#cccccc"
+            />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pages/circles/invite-codes?id=${circleId}`)">
-            <view class="mg-entry-icon" style="background: #FAF3E6;"><app-icon name="gift" :size="32" color="#C9A96E" /></view>
-            <view class="mg-entry-info"><text class="mg-entry-title">邀请码管理</text><text class="mg-entry-sub">生成 / 分享 / 统计邀请码</text></view>
-            <app-icon name="chevron-right" :size="30" color="#cccccc" />
+          <view
+            class="mg-entry"
+            @tap="navigateTo(`/pages/circles/invite-codes?id=${circleId}`)"
+          >
+            <view
+              class="mg-entry-icon"
+              style="background: #FAF3E6;"
+            >
+              <app-icon
+                name="gift"
+                :size="32"
+                color="#C9A96E"
+              />
+            </view>
+            <view class="mg-entry-info">
+              <text class="mg-entry-title">
+                邀请码管理
+              </text><text class="mg-entry-sub">
+                生成 / 分享 / 统计邀请码
+              </text>
+            </view>
+            <app-icon
+              name="chevron-right"
+              :size="30"
+              color="#cccccc"
+            />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pages/circles/guests?id=${circleId}`)">
-            <view class="mg-entry-icon" style="background: #FCE8EB;"><app-icon name="user-plus" :size="32" color="#C41E3A" /></view>
-            <view class="mg-entry-info"><text class="mg-entry-title">嘉宾/老师</text><text class="mg-entry-sub">邀请创作者 / 分成与权限管理</text></view>
-            <app-icon name="chevron-right" :size="30" color="#cccccc" />
+          <view
+            class="mg-entry"
+            @tap="navigateTo(`/pages/circles/guests?id=${circleId}`)"
+          >
+            <view
+              class="mg-entry-icon"
+              style="background: #FCE8EB;"
+            >
+              <app-icon
+                name="user-plus"
+                :size="32"
+                color="#C41E3A"
+              />
+            </view>
+            <view class="mg-entry-info">
+              <text class="mg-entry-title">
+                嘉宾/老师
+              </text><text class="mg-entry-sub">
+                邀请创作者 / 分成与权限管理
+              </text>
+            </view>
+            <app-icon
+              name="chevron-right"
+              :size="30"
+              color="#cccccc"
+            />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pages/circles/distribution?id=${circleId}`)">
-            <view class="mg-entry-icon" style="background: #FAF3E6;"><app-icon name="percent" :size="32" color="#C9A96E" /></view>
-            <view class="mg-entry-info"><text class="mg-entry-title">收益分配</text><text class="mg-entry-sub">平台/圈子/创作者分成方案</text></view>
-            <app-icon name="chevron-right" :size="30" color="#cccccc" />
+          <view
+            class="mg-entry"
+            @tap="navigateTo(`/pages/circles/distribution?id=${circleId}`)"
+          >
+            <view
+              class="mg-entry-icon"
+              style="background: #FAF3E6;"
+            >
+              <app-icon
+                name="percent"
+                :size="32"
+                color="#C9A96E"
+              />
+            </view>
+            <view class="mg-entry-info">
+              <text class="mg-entry-title">
+                收益分配
+              </text><text class="mg-entry-sub">
+                平台/圈子/创作者分成方案
+              </text>
+            </view>
+            <app-icon
+              name="chevron-right"
+              :size="30"
+              color="#cccccc"
+            />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pages/circles/earnings?id=${circleId}`)">
-            <view class="mg-entry-icon" style="background: #FCE8EB;"><app-icon name="dollar-sign" :size="32" color="#C41E3A" /></view>
-            <view class="mg-entry-info"><text class="mg-entry-title">收益明细</text><text class="mg-entry-sub">收入构成 / 历史收益 / 提现</text></view>
-            <app-icon name="chevron-right" :size="30" color="#cccccc" />
+          <view
+            class="mg-entry"
+            @tap="navigateTo(`/pages/circles/earnings?id=${circleId}`)"
+          >
+            <view
+              class="mg-entry-icon"
+              style="background: #FCE8EB;"
+            >
+              <app-icon
+                name="dollar-sign"
+                :size="32"
+                color="#C41E3A"
+              />
+            </view>
+            <view class="mg-entry-info">
+              <text class="mg-entry-title">
+                收益明细
+              </text><text class="mg-entry-sub">
+                收入构成 / 历史收益 / 提现
+              </text>
+            </view>
+            <app-icon
+              name="chevron-right"
+              :size="30"
+              color="#cccccc"
+            />
           </view>
         </view>
       </view>
 
       <!-- 成员 -->
-      <view v-else-if="activeTab === 'members'" class="mg-section">
+      <view
+        v-else-if="activeTab === 'members'"
+        class="mg-section"
+      >
         <view class="mg-search">
-          <app-icon name="search" :size="28" color="#999999" />
-          <input v-model="memberSearch" class="mg-search-input" placeholder="搜索成员" placeholder-class="mg-ph" />
+          <app-icon
+            name="search"
+            :size="28"
+            color="#999999"
+          />
+          <input
+            v-model="memberSearch"
+            class="mg-search-input"
+            placeholder="搜索成员"
+            placeholder-class="mg-ph"
+          >
         </view>
 
-        <view v-for="m in filteredMembers" :key="m.id" class="mg-member">
+        <view
+          v-for="m in filteredMembers"
+          :key="m.id"
+          class="mg-member"
+        >
           <view class="mg-member-avatar-wrap">
-            <image :src="m.avatar" class="mg-member-avatar" mode="aspectFill" />
-            <view v-if="m.role === 'owner'" class="mg-member-badge owner"><app-icon name="crown" :size="20" color="#ffffff" /></view>
-            <view v-else-if="m.role === 'admin'" class="mg-member-badge admin"><app-icon name="shield" :size="20" color="#ffffff" /></view>
+            <image
+              :src="m.avatar"
+              class="mg-member-avatar"
+              mode="aspectFill"
+            />
+            <view
+              v-if="m.role === 'owner'"
+              class="mg-member-badge owner"
+            >
+              <app-icon
+                name="crown"
+                :size="20"
+                color="#ffffff"
+              />
+            </view>
+            <view
+              v-else-if="m.role === 'admin'"
+              class="mg-member-badge admin"
+            >
+              <app-icon
+                name="shield"
+                :size="20"
+                color="#ffffff"
+              />
+            </view>
           </view>
           <view class="mg-member-info">
             <view class="mg-member-name-row">
-              <text class="mg-member-name">{{ m.name }}</text>
-              <text class="mg-member-role" :class="m.role">{{ m.role === 'owner' ? '圈主' : m.role === 'admin' ? '管理员' : '成员' }}</text>
+              <text class="mg-member-name">
+                {{ m.name }}
+              </text>
+              <text
+                class="mg-member-role"
+                :class="m.role"
+              >
+                {{ m.role === 'owner' ? '圈主' : m.role === 'admin' ? '管理员' : '成员' }}
+              </text>
             </view>
-            <text class="mg-member-meta">发帖 {{ m.posts }} · 加入于 {{ m.joinedAt }}</text>
+            <text class="mg-member-meta">
+              发帖 {{ m.posts }} · 加入于 {{ m.joinedAt }}
+            </text>
           </view>
-          <view v-if="m.role !== 'owner'" class="mg-member-action">
-            <view class="mg-member-more" @tap="toggleMenu(m.id)"><app-icon name="more-vertical" :size="28" color="#666666" /></view>
-            <view v-if="openMenuId === m.id" class="mg-menu">
-              <view v-if="m.role === 'member'" class="mg-menu-item" @tap="showConfirm = { type: 'setAdmin', id: m.id, name: m.name }"><text class="mg-menu-t">设为管理员</text></view>
-              <view v-else class="mg-menu-item" @tap="showConfirm = { type: 'removeAdmin', id: m.id, name: m.name }"><text class="mg-menu-t">取消管理员</text></view>
-              <view class="mg-menu-item" @tap="showConfirm = { type: 'remove', id: m.id, name: m.name }"><text class="mg-menu-t danger">移出圈子</text></view>
+          <view
+            v-if="m.role !== 'owner'"
+            class="mg-member-action"
+          >
+            <view
+              class="mg-member-more"
+              @tap="toggleMenu(m.id)"
+            >
+              <app-icon
+                name="more-vertical"
+                :size="28"
+                color="#666666"
+              />
+            </view>
+            <view
+              v-if="openMenuId === m.id"
+              class="mg-menu"
+            >
+              <view
+                v-if="m.role === 'member'"
+                class="mg-menu-item"
+                @tap="showConfirm = { type: 'setAdmin', id: m.id, name: m.name }"
+              >
+                <text class="mg-menu-t">
+                  设为管理员
+                </text>
+              </view>
+              <view
+                v-else
+                class="mg-menu-item"
+                @tap="showConfirm = { type: 'removeAdmin', id: m.id, name: m.name }"
+              >
+                <text class="mg-menu-t">
+                  取消管理员
+                </text>
+              </view>
+              <view
+                class="mg-menu-item"
+                @tap="showConfirm = { type: 'remove', id: m.id, name: m.name }"
+              >
+                <text class="mg-menu-t danger">
+                  移出圈子
+                </text>
+              </view>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 帖子 -->
-      <view v-else-if="activeTab === 'posts'" class="mg-section">
-        <view v-for="p in posts" :key="p.id" class="mg-post">
+      <view
+        v-else-if="activeTab === 'posts'"
+        class="mg-section"
+      >
+        <view
+          v-for="p in posts"
+          :key="p.id"
+          class="mg-post"
+        >
           <view class="mg-post-top">
-            <image :src="p.author.avatar" class="mg-post-avatar" mode="aspectFill" />
+            <image
+              :src="p.author.avatar"
+              class="mg-post-avatar"
+              mode="aspectFill"
+            />
             <view class="mg-post-main">
               <view class="mg-post-name-row">
-                <text class="mg-post-name">{{ p.author.name }}</text>
-                <text v-if="p.isPinned" class="mg-post-tag pin">置顶</text>
-                <text v-if="p.isEssence" class="mg-post-tag ess">精华</text>
+                <text class="mg-post-name">
+                  {{ p.author.name }}
+                </text>
+                <text
+                  v-if="p.isPinned"
+                  class="mg-post-tag pin"
+                >
+                  置顶
+                </text>
+                <text
+                  v-if="p.isEssence"
+                  class="mg-post-tag ess"
+                >
+                  精华
+                </text>
               </view>
-              <text class="mg-post-content">{{ p.content }}</text>
+              <text class="mg-post-content">
+                {{ p.content }}
+              </text>
               <view class="mg-post-meta">
-                <text class="mg-post-meta-t">{{ p.likes }} 赞</text>
-                <text class="mg-post-meta-t">{{ p.comments }} 评论</text>
-                <text class="mg-post-meta-t">{{ p.createdAt }}</text>
+                <text class="mg-post-meta-t">
+                  {{ p.likes }} 赞
+                </text>
+                <text class="mg-post-meta-t">
+                  {{ p.comments }} 评论
+                </text>
+                <text class="mg-post-meta-t">
+                  {{ p.createdAt }}
+                </text>
               </view>
             </view>
           </view>
           <view class="mg-post-actions">
-            <view class="mg-post-btn" :class="{ on: p.isPinned }" @tap="toggleTop(p)">
-              <app-icon name="pin" :size="22" :color="p.isPinned ? '#ffffff' : '#666666'" /><text class="mg-post-btn-t" :class="{ on: p.isPinned }">{{ p.isPinned ? '取消置顶' : '置顶' }}</text>
+            <view
+              class="mg-post-btn"
+              :class="{ on: p.isPinned }"
+              @tap="toggleTop(p)"
+            >
+              <app-icon
+                name="pin"
+                :size="22"
+                :color="p.isPinned ? '#ffffff' : '#666666'"
+              /><text
+                class="mg-post-btn-t"
+                :class="{ on: p.isPinned }"
+              >
+                {{ p.isPinned ? '取消置顶' : '置顶' }}
+              </text>
             </view>
-            <view class="mg-post-btn" :class="{ gold: p.isEssence }" @tap="toggleEssence(p)">
-              <app-icon name="star" :size="22" :color="p.isEssence ? '#ffffff' : '#666666'" /><text class="mg-post-btn-t" :class="{ on: p.isEssence }">{{ p.isEssence ? '取消精华' : '设为精华' }}</text>
+            <view
+              class="mg-post-btn"
+              :class="{ gold: p.isEssence }"
+              @tap="toggleEssence(p)"
+            >
+              <app-icon
+                name="star"
+                :size="22"
+                :color="p.isEssence ? '#ffffff' : '#666666'"
+              /><text
+                class="mg-post-btn-t"
+                :class="{ on: p.isEssence }"
+              >
+                {{ p.isEssence ? '取消精华' : '设为精华' }}
+              </text>
             </view>
-            <view class="mg-post-btn danger" @tap="showConfirm = { type: 'deletePost', id: p.id, name: p.content.slice(0, 20) }">
-              <app-icon name="trash-2" :size="22" color="#EF4444" /><text class="mg-post-btn-t del">删除</text>
+            <view
+              class="mg-post-btn danger"
+              @tap="showConfirm = { type: 'deletePost', id: p.id, name: p.content.slice(0, 20) }"
+            >
+              <app-icon
+                name="trash-2"
+                :size="22"
+                color="#EF4444"
+              /><text class="mg-post-btn-t del">
+                删除
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 设置 -->
-      <view v-else-if="activeTab === 'settings'" class="mg-section">
+      <view
+        v-else-if="activeTab === 'settings'"
+        class="mg-section"
+      >
         <view class="mg-card">
-          <text class="mg-set-title">基本信息</text>
+          <text class="mg-set-title">
+            基本信息
+          </text>
           <view class="mg-field">
-            <text class="mg-field-label">圈子名称</text>
-            <input v-model="circle.name" class="mg-field-input" />
+            <text class="mg-field-label">
+              圈子名称
+            </text>
+            <input
+              v-model="circle.name"
+              class="mg-field-input"
+            >
           </view>
           <view class="mg-field">
-            <text class="mg-field-label">圈子简介</text>
-            <textarea v-model="circle.description" class="mg-field-textarea" :maxlength="-1" />
+            <text class="mg-field-label">
+              圈子简介
+            </text>
+            <textarea
+              v-model="circle.description"
+              class="mg-field-textarea"
+              :maxlength="-1"
+            />
           </view>
           <view class="mg-field">
-            <text class="mg-field-label">圈子分类</text>
+            <text class="mg-field-label">
+              圈子分类
+            </text>
             <view class="mg-cat-list">
-              <text v-for="cat in ['命理', '风水', '养生', '书法']" :key="cat" class="mg-cat" :class="{ on: circle.category === cat }" @tap="circle.category = cat">{{ cat }}</text>
+              <text
+                v-for="cat in ['命理', '风水', '养生', '书法']"
+                :key="cat"
+                class="mg-cat"
+                :class="{ on: circle.category === cat }"
+                @tap="circle.category = cat"
+              >
+                {{ cat }}
+              </text>
             </view>
           </view>
         </view>
 
         <view class="mg-card">
-          <text class="mg-set-title">圈规设置</text>
-          <textarea :value="(circle.rules || []).join('\n')" class="mg-field-textarea tall" placeholder="请输入圈规，每行一条" :maxlength="-1" @input="(e:any) => circle.rules = e.detail.value.split('\n')" />
+          <text class="mg-set-title">
+            圈规设置
+          </text>
+          <textarea
+            :value="(circle.rules || []).join('\n')"
+            class="mg-field-textarea tall"
+            placeholder="请输入圈规，每行一条"
+            :maxlength="-1"
+            @input="(e:any) => circle.rules = e.detail.value.split('\n')"
+          />
         </view>
 
-        <view class="mg-save-settings" @tap="saveSettings"><text class="mg-save-settings-t">保存设置</text></view>
+        <view
+          class="mg-save-settings"
+          @tap="saveSettings"
+        >
+          <text class="mg-save-settings-t">
+            保存设置
+          </text>
+        </view>
       </view>
       <view class="mg-bottom-pad" />
     </scroll-view>
 
     <!-- 确认弹窗 -->
-    <view v-if="showConfirm" class="mg-mask" @tap="showConfirm = null">
-      <view class="mg-confirm" @tap.stop>
-        <view class="mg-confirm-icon"><app-icon name="alert-triangle" :size="44" color="#F97316" /></view>
-        <text class="mg-confirm-title">{{ confirmTitle(showConfirm.type) }}</text>
-        <text class="mg-confirm-desc">{{ confirmDesc(showConfirm) }}</text>
+    <view
+      v-if="showConfirm"
+      class="mg-mask"
+      @tap="showConfirm = null"
+    >
+      <view
+        class="mg-confirm"
+        @tap.stop
+      >
+        <view class="mg-confirm-icon">
+          <app-icon
+            name="alert-triangle"
+            :size="44"
+            color="#F97316"
+          />
+        </view>
+        <text class="mg-confirm-title">
+          {{ confirmTitle(showConfirm.type) }}
+        </text>
+        <text class="mg-confirm-desc">
+          {{ confirmDesc(showConfirm) }}
+        </text>
         <view class="mg-confirm-actions">
-          <view class="mg-confirm-btn cancel" @tap="showConfirm = null"><text class="mg-confirm-btn-t cancel">取消</text></view>
-          <view class="mg-confirm-btn" :class="dangerConfirm ? 'danger' : 'primary'" @tap="doConfirm"><text class="mg-confirm-btn-t ok">确定</text></view>
+          <view
+            class="mg-confirm-btn cancel"
+            @tap="showConfirm = null"
+          >
+            <text class="mg-confirm-btn-t cancel">
+              取消
+            </text>
+          </view>
+          <view
+            class="mg-confirm-btn"
+            :class="dangerConfirm ? 'danger' : 'primary'"
+            @tap="doConfirm"
+          >
+            <text class="mg-confirm-btn-t ok">
+              确定
+            </text>
+          </view>
         </view>
       </view>
     </view>

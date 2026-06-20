@@ -41,13 +41,31 @@ function typeText(t: CallRecord['type']) { return t === 'incoming' ? '接入' : 
 <template>
   <view class="mc-page">
     <view class="mc-nav">
-      <view class="mc-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
-      <text class="mc-nav-title">我的通话</text>
+      <view
+        class="mc-nav-btn"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="34"
+          color="#2C2C2C"
+        />
+      </view>
+      <text class="mc-nav-title">
+        我的通话
+      </text>
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="mc-skeleton">
-      <view v-for="i in 3" :key="i" class="mc-sk-card">
+    <view
+      v-if="loading"
+      class="mc-skeleton"
+    >
+      <view
+        v-for="i in 3"
+        :key="i"
+        class="mc-sk-card"
+      >
         <view class="mc-sk-avatar sk-anim" />
         <view class="mc-sk-info">
           <view class="mc-sk-line mc-sk-line--short sk-anim" />
@@ -56,39 +74,98 @@ function typeText(t: CallRecord['type']) { return t === 'incoming' ? '接入' : 
       </view>
     </view>
 
-    <error-state v-else-if="error" :message="error" @retry="loadData" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadData"
+    />
 
     <template v-else>
-      <scroll-view scroll-x class="mc-filters" :show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="mc-filters"
+        :show-scrollbar="false"
+      >
         <view class="mc-filters-inner">
-          <view v-for="f in filterTabs" :key="f" class="mc-filter" :class="{ 'is-active': filter === f }" @tap="filter = f">
-            <text class="mc-filter-t" :class="{ 'is-active': filter === f }">{{ TYPE_LABEL[f] }}</text>
+          <view
+            v-for="f in filterTabs"
+            :key="f"
+            class="mc-filter"
+            :class="{ 'is-active': filter === f }"
+            @tap="filter = f"
+          >
+            <text
+              class="mc-filter-t"
+              :class="{ 'is-active': filter === f }"
+            >
+              {{ TYPE_LABEL[f] }}
+            </text>
           </view>
         </view>
       </scroll-view>
 
       <view class="mc-list">
-        <view v-for="c in filtered" :key="c.id" class="mc-card">
-          <image class="mc-avatar" :src="c.avatar" mode="aspectFill" />
+        <view
+          v-for="c in filtered"
+          :key="c.id"
+          class="mc-card"
+        >
+          <image
+            class="mc-avatar"
+            :src="c.avatar"
+            mode="aspectFill"
+          />
           <view class="mc-info">
             <view class="mc-info-top">
-              <text class="mc-expert">{{ c.expert }}</text>
-              <text class="mc-specialty">{{ c.specialty }}</text>
+              <text class="mc-expert">
+                {{ c.expert }}
+              </text>
+              <text class="mc-specialty">
+                {{ c.specialty }}
+              </text>
             </view>
             <view class="mc-info-sub">
               <view class="mc-type">
-                <app-icon :name="typeIcon(c.type)" :size="22" :color="typeColor(c.type)" />
-                <text class="mc-type-t" :style="{ color: typeColor(c.type) }">{{ typeText(c.type) }}</text>
+                <app-icon
+                  :name="typeIcon(c.type)"
+                  :size="22"
+                  :color="typeColor(c.type)"
+                />
+                <text
+                  class="mc-type-t"
+                  :style="{ color: typeColor(c.type) }"
+                >
+                  {{ typeText(c.type) }}
+                </text>
               </view>
-              <view class="mc-dur"><app-icon name="clock" :size="22" color="#999999" /><text class="mc-dur-t">{{ c.duration }}</text></view>
+              <view class="mc-dur">
+                <app-icon
+                  name="clock"
+                  :size="22"
+                  color="#999999"
+                /><text class="mc-dur-t">
+                  {{ c.duration }}
+                </text>
+              </view>
             </view>
           </view>
           <view class="mc-right">
-            <text class="mc-cost">{{ c.cost }}</text>
-            <text class="mc-time">{{ c.time }}</text>
+            <text class="mc-cost">
+              {{ c.cost }}
+            </text>
+            <text class="mc-time">
+              {{ c.time }}
+            </text>
           </view>
         </view>
-        <view v-if="filtered.length === 0" class="mc-empty"><text class="mc-empty-t">暂无通话记录</text></view>
+        <view
+          v-if="filtered.length === 0"
+          class="mc-empty"
+        >
+          <text class="mc-empty-t">
+            暂无通话记录
+          </text>
+        </view>
       </view>
     </template>
   </view>

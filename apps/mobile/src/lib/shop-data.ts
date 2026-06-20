@@ -1409,12 +1409,12 @@ export const shopApi = {
     } catch { return { items: shopProductReviews, total: shopProductReviews.length } }
   },
 
-  /** 店铺评价 */
+  /** 店铺评价（聚合所有商品评价） */
   async getShopReviews(params?: { page?: number; pageSize?: number }) {
     if (useMock()) return { stats: shopReviewStats, items: shopReviewList, total: shopReviewList.length }
     try {
-      const qs = `page=${params?.page || 1}&pageSize=${params?.pageSize || 20}`
-      return await apiGet<any>(`/shop/reviews?${qs}`)
+      const data = await apiGet<any>(`/shop/reviews?page=${params?.page || 1}&pageSize=${params?.pageSize || 20}`)
+      return { stats: shopReviewStats, items: data.reviews || [], total: data.total || 0 }
     } catch { return { stats: shopReviewStats, items: shopReviewList, total: shopReviewList.length } }
   },
 
@@ -1573,5 +1573,68 @@ export const shopApi = {
   async joinGroupBuy(id: string) {
     if (useMock()) return { success: true }
     return apiPost<any>(`/marketing/group-buys/${id}/join`)
+  },
+
+  /** 营销区秒杀商品 */
+  async getSeckillItems() {
+    if (useMock()) return { items: seckillItems, total: seckillItems.length }
+    try { return await apiGet<any>('/marketing/seckill/items') }
+    catch { return { items: seckillItems, total: seckillItems.length } }
+  },
+
+  /** 营销区拼团商品 */
+  async getGroupItems() {
+    if (useMock()) return { items: groupItems, total: groupItems.length }
+    try { return await apiGet<any>('/marketing/group/items') }
+    catch { return { items: groupItems, total: groupItems.length } }
+  },
+
+  /** 商品对比数据 */
+  async getCompareProducts() {
+    if (useMock()) return { products: compareProducts, pickList: comparePickList }
+    try { return await apiGet<any>('/shop/products/compare') }
+    catch { return { products: compareProducts, pickList: comparePickList } }
+  },
+
+  /** 拼团失败详情 */
+  async getGroupBuyFailDetail(id: string) {
+    if (useMock()) return groupBuyFail
+    try { return await apiGet<any>(`/marketing/group-buys/${id}/fail`) }
+    catch { return groupBuyFail }
+  },
+
+  /** 拼团成功详情 */
+  async getGroupBuySuccessDetail(id: string) {
+    if (useMock()) return groupBuySuccess
+    try { return await apiGet<any>(`/marketing/group-buys/${id}/success`) }
+    catch { return groupBuySuccess }
+  },
+
+  /** 支付失败原因 */
+  async getPayFailReasons() {
+    if (useMock()) return payFailReasons
+    try { return await apiGet<any>('/shop/pay/fail-reasons') }
+    catch { return payFailReasons }
+  },
+
+  /** 支付超时原因 */
+  async getPayTimeoutReasons() {
+    if (useMock()) return payTimeoutReasons
+    try { return await apiGet<any>('/shop/pay/timeout-reasons') }
+    catch { return payTimeoutReasons }
+  },
+
+  /** 已绑定的支付方式 */
+  async getPaymentMethods() {
+    if (useMock()) return boundPaymentMethods
+    try { return await apiGet<any>('/shop/payment-methods') }
+    catch { return boundPaymentMethods }
+  },
+
+  /** 领券中心列表 */
+  async getCenterCoupons() {
+    if (useMock()) return { items: centerCoupons, total: centerCoupons.length }
+    try { return await apiGet<any>('/shop/coupons/center') }
+    catch { return { items: centerCoupons, total: centerCoupons.length } }
   },
 }

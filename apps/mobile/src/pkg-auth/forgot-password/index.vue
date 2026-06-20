@@ -4,49 +4,131 @@
     <view class="top-decor" />
 
     <!-- 返回按钮 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view v-if="step !== 3" class="back-btn" @tap="handleBack">
-        <AppIcon name="arrow-left" :size="20" color="#2c2c2c" />
+    <view
+      class="navbar"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view
+        v-if="step !== 3"
+        class="back-btn"
+        @tap="handleBack"
+      >
+        <AppIcon
+          name="arrow-left"
+          :size="20"
+          color="#2c2c2c"
+        />
       </view>
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="body">
-      <view class="sk-steps"><view class="sk-dot" /><view class="sk-line" /><view class="sk-dot" /></view>
+    <view
+      v-if="loading"
+      class="body"
+    >
+      <view class="sk-steps">
+        <view class="sk-dot" /><view class="sk-line" /><view class="sk-dot" />
+      </view>
       <view class="sk-title" />
       <view class="sk-input" /><view class="sk-input sk-input-short" />
     </view>
 
     <!-- 错误 -->
-    <view v-else-if="error" class="body center">
-      <AppIcon name="alert-circle" :size="80" color="#999" />
-      <text class="error-msg">{{ error }}</text>
-      <view class="btn" @tap="initPage"><text class="btn-text">重试</text></view>
+    <view
+      v-else-if="error"
+      class="body center"
+    >
+      <AppIcon
+        name="alert-circle"
+        :size="80"
+        color="#999"
+      />
+      <text class="error-msg">
+        {{ error }}
+      </text>
+      <view
+        class="btn"
+        @tap="initPage"
+      >
+        <text class="btn-text">
+          重试
+        </text>
+      </view>
     </view>
 
-    <view v-else class="body">
+    <view
+      v-else
+      class="body"
+    >
       <!-- 步骤指示(步骤1、2显示) -->
-      <view v-if="step !== 3" class="steps">
-        <view class="step-dot" :class="step >= 1 ? 'dot-active' : 'dot-todo'">
-          <AppIcon v-if="step > 1" name="check" :size="16" color="#ffffff" />
-          <text v-else class="dot-num" :class="{ 'dot-num-active': step >= 1 }">1</text>
+      <view
+        v-if="step !== 3"
+        class="steps"
+      >
+        <view
+          class="step-dot"
+          :class="step >= 1 ? 'dot-active' : 'dot-todo'"
+        >
+          <AppIcon
+            v-if="step > 1"
+            name="check"
+            :size="16"
+            color="#ffffff"
+          />
+          <text
+            v-else
+            class="dot-num"
+            :class="{ 'dot-num-active': step >= 1 }"
+          >
+            1
+          </text>
         </view>
-        <view class="step-line" :class="step >= 2 ? 'line-active' : 'line-todo'" />
-        <view class="step-dot" :class="step >= 2 ? 'dot-active' : 'dot-todo'">
-          <AppIcon v-if="step > 2" name="check" :size="16" color="#ffffff" />
-          <text v-else class="dot-num" :class="{ 'dot-num-active': step >= 2 }">2</text>
+        <view
+          class="step-line"
+          :class="step >= 2 ? 'line-active' : 'line-todo'"
+        />
+        <view
+          class="step-dot"
+          :class="step >= 2 ? 'dot-active' : 'dot-todo'"
+        >
+          <AppIcon
+            v-if="step > 2"
+            name="check"
+            :size="16"
+            color="#ffffff"
+          />
+          <text
+            v-else
+            class="dot-num"
+            :class="{ 'dot-num-active': step >= 2 }"
+          >
+            2
+          </text>
         </view>
       </view>
 
       <!-- 步骤1：验证手机号 -->
-      <view v-if="step === 1" class="form">
+      <view
+        v-if="step === 1"
+        class="form"
+      >
         <view class="form-head">
-          <text class="form-title">找回密码</text>
-          <text class="form-sub">请验证您的手机号</text>
+          <text class="form-title">
+            找回密码
+          </text>
+          <text class="form-sub">
+            请验证您的手机号
+          </text>
         </view>
         <view class="fields">
           <view class="input-wrap">
-            <view class="input-icon"><AppIcon name="phone" :size="20" color="#999999" /></view>
+            <view class="input-icon">
+              <AppIcon
+                name="phone"
+                :size="20"
+                color="#999999"
+              />
+            </view>
             <input
               class="input"
               type="number"
@@ -55,10 +137,16 @@
               placeholder="请输入手机号"
               placeholder-class="input-ph"
               @input="onPhoneInput"
-            />
+            >
           </view>
           <view class="input-wrap">
-            <view class="input-icon"><AppIcon name="message-circle" :size="20" color="#999999" /></view>
+            <view class="input-icon">
+              <AppIcon
+                name="message-circle"
+                :size="20"
+                color="#999999"
+              />
+            </view>
             <input
               class="input input-code"
               type="number"
@@ -67,36 +155,79 @@
               placeholder="请输入验证码"
               placeholder-class="input-ph"
               @input="onCodeInput"
-            />
+            >
             <view
               class="code-btn"
               :class="{ 'code-btn-disabled': countdown > 0 || !isPhoneValid || sendingCode }"
               @tap="sendCode"
             >
-              <AppIcon v-if="sendingCode" name="loader-2" :size="16" color="#999" class="spin" />
-              <text v-else class="code-btn-text" :class="{ 'code-btn-text-disabled': countdown > 0 || !isPhoneValid }">
+              <AppIcon
+                v-if="sendingCode"
+                name="loader-2"
+                :size="16"
+                color="#999"
+                class="spin"
+              />
+              <text
+                v-else
+                class="code-btn-text"
+                :class="{ 'code-btn-text-disabled': countdown > 0 || !isPhoneValid }"
+              >
                 {{ countdown > 0 ? countdown + 's' : '获取验证码' }}
               </text>
             </view>
           </view>
-          <text v-if="formError" class="error-text">{{ formError }}</text>
-          <view class="btn" :class="{ 'btn-disabled': !isPhoneValid || !isCodeValid || verifyingCode }" @tap="verifyPhone">
-            <AppIcon v-if="verifyingCode" name="loader-2" :size="16" color="#fff" class="spin" />
-            <text v-else class="btn-text">下一步</text>
+          <text
+            v-if="formError"
+            class="error-text"
+          >
+            {{ formError }}
+          </text>
+          <view
+            class="btn"
+            :class="{ 'btn-disabled': !isPhoneValid || !isCodeValid || verifyingCode }"
+            @tap="verifyPhone"
+          >
+            <AppIcon
+              v-if="verifyingCode"
+              name="loader-2"
+              :size="16"
+              color="#fff"
+              class="spin"
+            />
+            <text
+              v-else
+              class="btn-text"
+            >
+              下一步
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 步骤2：设置新密码 -->
-      <view v-else-if="step === 2" class="form">
+      <view
+        v-else-if="step === 2"
+        class="form"
+      >
         <view class="form-head">
-          <text class="form-title">设置新密码</text>
-          <text class="form-sub">请设置6-20位新密码</text>
+          <text class="form-title">
+            设置新密码
+          </text>
+          <text class="form-sub">
+            请设置6-20位新密码
+          </text>
         </view>
         <view class="fields">
           <view>
             <view class="input-wrap">
-              <view class="input-icon"><AppIcon name="lock" :size="20" color="#999999" /></view>
+              <view class="input-icon">
+                <AppIcon
+                  name="lock"
+                  :size="20"
+                  color="#999999"
+                />
+              </view>
               <input
                 class="input input-pwd"
                 :password="!showPassword"
@@ -104,21 +235,49 @@
                 placeholder="请输入新密码"
                 placeholder-class="input-ph"
                 @input="onPasswordInput"
-              />
-              <view class="eye-btn" @tap="showPassword = !showPassword">
-                <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="20" color="#999999" />
+              >
+              <view
+                class="eye-btn"
+                @tap="showPassword = !showPassword"
+              >
+                <AppIcon
+                  :name="showPassword ? 'eye-off' : 'eye'"
+                  :size="20"
+                  color="#999999"
+                />
               </view>
             </view>
-            <view v-if="password" class="strength-row">
+            <view
+              v-if="password"
+              class="strength-row"
+            >
               <view class="strength-bars">
-                <view v-for="i in 3" :key="i" class="strength-bar" :style="{ background: i <= passwordStrength.level ? passwordStrength.color : '#f5f1eb' }" />
+                <view
+                  v-for="i in 3"
+                  :key="i"
+                  class="strength-bar"
+                  :style="{ background: i <= passwordStrength.level ? passwordStrength.color : '#f5f1eb' }"
+                />
               </view>
-              <text class="strength-text" :style="{ color: passwordStrength.color }">{{ passwordStrength.text }}</text>
+              <text
+                class="strength-text"
+                :style="{ color: passwordStrength.color }"
+              >
+                {{ passwordStrength.text }}
+              </text>
             </view>
-            <text class="hint-text">6-20位，建议包含数字和字母</text>
+            <text class="hint-text">
+              6-20位，建议包含数字和字母
+            </text>
           </view>
           <view class="input-wrap">
-            <view class="input-icon"><AppIcon name="lock" :size="20" color="#999999" /></view>
+            <view class="input-icon">
+              <AppIcon
+                name="lock"
+                :size="20"
+                color="#999999"
+              />
+            </view>
             <input
               class="input input-pwd"
               :password="!showConfirmPassword"
@@ -126,29 +285,77 @@
               placeholder="请再次输入新密码"
               placeholder-class="input-ph"
               @input="onConfirmInput"
-            />
-            <view class="eye-btn" @tap="showConfirmPassword = !showConfirmPassword">
-              <AppIcon :name="showConfirmPassword ? 'eye-off' : 'eye'" :size="20" color="#999999" />
+            >
+            <view
+              class="eye-btn"
+              @tap="showConfirmPassword = !showConfirmPassword"
+            >
+              <AppIcon
+                :name="showConfirmPassword ? 'eye-off' : 'eye'"
+                :size="20"
+                color="#999999"
+              />
             </view>
           </view>
-          <text v-if="confirmPassword && password !== confirmPassword" class="error-text">两次输入的密码不一致</text>
-          <text v-else-if="formError" class="error-text">{{ formError }}</text>
-          <view class="btn" :class="{ 'btn-disabled': !isPasswordValid || isSubmitting }" @tap="resetPassword">
-            <AppIcon v-if="isSubmitting" name="loader-2" :size="16" color="#fff" class="spin" />
-            <text v-else class="btn-text">确认设置</text>
+          <text
+            v-if="confirmPassword && password !== confirmPassword"
+            class="error-text"
+          >
+            两次输入的密码不一致
+          </text>
+          <text
+            v-else-if="formError"
+            class="error-text"
+          >
+            {{ formError }}
+          </text>
+          <view
+            class="btn"
+            :class="{ 'btn-disabled': !isPasswordValid || isSubmitting }"
+            @tap="resetPassword"
+          >
+            <AppIcon
+              v-if="isSubmitting"
+              name="loader-2"
+              :size="16"
+              color="#fff"
+              class="spin"
+            />
+            <text
+              v-else
+              class="btn-text"
+            >
+              确认设置
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 步骤3：成功 -->
-      <view v-else class="success">
+      <view
+        v-else
+        class="success"
+      >
         <view class="success-icon">
-          <AppIcon name="shield-check" :size="40" color="#22c55e" />
+          <AppIcon
+            name="shield-check"
+            :size="40"
+            color="#22c55e"
+          />
         </view>
-        <text class="success-title">密码重置成功</text>
-        <text class="success-sub">您的密码已重置成功{{ '\n' }}请使用新密码登录</text>
-        <view class="btn success-btn" @tap="goLogin">
-          <text class="btn-text">去登录</text>
+        <text class="success-title">
+          密码重置成功
+        </text>
+        <text class="success-sub">
+          您的密码已重置成功{{ '\n' }}请使用新密码登录
+        </text>
+        <view
+          class="btn success-btn"
+          @tap="goLogin"
+        >
+          <text class="btn-text">
+            去登录
+          </text>
         </view>
       </view>
     </view>

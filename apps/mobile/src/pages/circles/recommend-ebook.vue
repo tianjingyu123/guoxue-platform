@@ -3,87 +3,272 @@
     <!-- 顶部栏 -->
     <view class="re-header">
       <view class="re-header-left">
-        <view @tap="goBack"><app-icon name="arrow-left" :size="36" color="#475569" /></view>
+        <view @tap="goBack">
+          <app-icon
+            name="arrow-left"
+            :size="36"
+            color="#475569"
+          />
+        </view>
         <view>
-          <text class="re-title">推荐电子书</text>
-          <text class="re-subtitle">{{ circleInfo.name }}</text>
+          <text class="re-title">
+            推荐电子书
+          </text>
+          <text class="re-subtitle">
+            {{ circleInfo.name }}
+          </text>
         </view>
       </view>
-      <view class="re-save-btn" :class="{ disabled: isSaving }" @tap="handleSave">{{ isSaving ? '保存中…' : '保存' }}</view>
+      <view
+        class="re-save-btn"
+        :class="{ disabled: isSaving }"
+        @tap="handleSave"
+      >
+        {{ isSaving ? '保存中…' : '保存' }}
+      </view>
     </view>
 
     <!-- 说明提示 -->
     <view class="re-tip">
-      <app-icon name="crown" :size="28" color="#C41E3A" />
-      <text class="re-tip-t">圈主推荐的电子书将显示在圈子首页，吸引成员购买阅读（最多 12 本）</text>
+      <app-icon
+        name="crown"
+        :size="28"
+        color="#C41E3A"
+      />
+      <text class="re-tip-t">
+        圈主推荐的电子书将显示在圈子首页，吸引成员购买阅读（最多 12 本）
+      </text>
     </view>
 
     <!-- Tab 切换 -->
     <view class="re-tabs">
-      <view class="re-tab" :class="{ on: activeTab === 'recommended' }" @tap="activeTab = 'recommended'">已推荐 ({{ recommended.length }}/12)</view>
-      <view class="re-tab" :class="{ on: activeTab === 'search' }" @tap="activeTab = 'search'">选书</view>
+      <view
+        class="re-tab"
+        :class="{ on: activeTab === 'recommended' }"
+        @tap="activeTab = 'recommended'"
+      >
+        已推荐 ({{ recommended.length }}/12)
+      </view>
+      <view
+        class="re-tab"
+        :class="{ on: activeTab === 'search' }"
+        @tap="activeTab = 'search'"
+      >
+        选书
+      </view>
     </view>
 
-    <view v-if="loading" class="re-skeleton">
-      <view v-for="i in 3" :key="i" class="re-sk-row"><view class="re-sk-block sk-anim" /></view>
-    </view>
-    <error-state v-else-if="error" :message="error" @retry="loadData" />
-    <template v-else>
-    <!-- 选书 Tab -->
-    <view v-if="activeTab === 'search'" class="re-body">
-      <view class="re-search">
-        <app-icon name="search" :size="30" color="#94a3b8" />
-        <input v-model="search" class="re-search-input" placeholder="搜索书名、作者…" placeholder-class="re-ph" />
+    <view
+      v-if="loading"
+      class="re-skeleton"
+    >
+      <view
+        v-for="i in 3"
+        :key="i"
+        class="re-sk-row"
+      >
+        <view class="re-sk-block sk-anim" />
       </view>
-      <view class="re-list">
-        <view v-for="book in filteredBooks" :key="book.id" class="re-book" :class="{ sel: isRec(book.id) }">
-          <view class="re-cover" :style="{ background: coverColor(book.id) }">
-            <image v-if="book.cover" class="re-cover-img" :src="book.cover" mode="aspectFill" />
-            <app-icon v-else name="book-open" :size="28" color="rgba(255,255,255,0.6)" />
-          </view>
-          <view class="re-book-info">
-            <text class="re-book-title">{{ book.title }}</text>
-            <text class="re-book-author">{{ book.author }}</text>
-            <view class="re-book-meta">
-              <text v-if="book.isMemberFree" class="re-tag-member">会员免费</text>
-              <text v-else-if="book.price === 0" class="re-tag-free">免费</text>
-              <text v-else class="re-tag-price">¥{{ book.price }}</text>
-              <view class="re-meta-item"><app-icon name="star" :size="20" color="#fbbf24" :fill="true" /><text class="re-meta-t">{{ book.rating }}</text></view>
-              <view class="re-meta-item"><app-icon name="users" :size="20" color="#94a3b8" /><text class="re-meta-t">{{ book.readers.toLocaleString() }}人读过</text></view>
+    </view>
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadData"
+    />
+    <template v-else>
+      <!-- 选书 Tab -->
+      <view
+        v-if="activeTab === 'search'"
+        class="re-body"
+      >
+        <view class="re-search">
+          <app-icon
+            name="search"
+            :size="30"
+            color="#94a3b8"
+          />
+          <input
+            v-model="search"
+            class="re-search-input"
+            placeholder="搜索书名、作者…"
+            placeholder-class="re-ph"
+          >
+        </view>
+        <view class="re-list">
+          <view
+            v-for="book in filteredBooks"
+            :key="book.id"
+            class="re-book"
+            :class="{ sel: isRec(book.id) }"
+          >
+            <view
+              class="re-cover"
+              :style="{ background: coverColor(book.id) }"
+            >
+              <image
+                v-if="book.cover"
+                class="re-cover-img"
+                :src="book.cover"
+                mode="aspectFill"
+              />
+              <app-icon
+                v-else
+                name="book-open"
+                :size="28"
+                color="rgba(255,255,255,0.6)"
+              />
+            </view>
+            <view class="re-book-info">
+              <text class="re-book-title">
+                {{ book.title }}
+              </text>
+              <text class="re-book-author">
+                {{ book.author }}
+              </text>
+              <view class="re-book-meta">
+                <text
+                  v-if="book.isMemberFree"
+                  class="re-tag-member"
+                >
+                  会员免费
+                </text>
+                <text
+                  v-else-if="book.price === 0"
+                  class="re-tag-free"
+                >
+                  免费
+                </text>
+                <text
+                  v-else
+                  class="re-tag-price"
+                >
+                  ¥{{ book.price }}
+                </text>
+                <view class="re-meta-item">
+                  <app-icon
+                    name="star"
+                    :size="20"
+                    color="#fbbf24"
+                    :fill="true"
+                  /><text class="re-meta-t">
+                    {{ book.rating }}
+                  </text>
+                </view>
+                <view class="re-meta-item">
+                  <app-icon
+                    name="users"
+                    :size="20"
+                    color="#94a3b8"
+                  /><text class="re-meta-t">
+                    {{ book.readers.toLocaleString() }}人读过
+                  </text>
+                </view>
+              </view>
+            </view>
+            <view
+              class="re-toggle"
+              :class="isRec(book.id) ? 'on' : 'off'"
+              @tap="toggleRecommend(book.id)"
+            >
+              <app-icon
+                :name="isRec(book.id) ? 'check' : 'plus'"
+                :size="26"
+                :color="isRec(book.id) ? '#ffffff' : '#94a3b8'"
+              />
             </view>
           </view>
-          <view class="re-toggle" :class="isRec(book.id) ? 'on' : 'off'" @tap="toggleRecommend(book.id)">
-            <app-icon :name="isRec(book.id) ? 'check' : 'plus'" :size="26" :color="isRec(book.id) ? '#ffffff' : '#94a3b8'" />
-          </view>
         </view>
       </view>
-    </view>
 
-    <!-- 已推荐 Tab -->
-    <view v-else class="re-body">
-      <view v-if="recommendedBooks.length === 0" class="re-empty">
-        <app-icon name="sparkles" :size="80" color="#C41E3A" />
-        <text class="re-empty-t">还没有推荐电子书</text>
-        <text class="re-empty-sub">切换到「选书」Tab 添加推荐</text>
-      </view>
-      <view v-else class="re-list">
-        <view v-for="(book, i) in recommendedBooks" :key="book.id" class="re-book">
-          <text class="re-rank">{{ i + 1 }}</text>
-          <view class="re-cover sm" :style="{ background: coverColor(book.id) }">
-            <image v-if="book.cover" class="re-cover-img" :src="book.cover" mode="aspectFill" />
-            <app-icon v-else name="book-open" :size="24" color="rgba(255,255,255,0.6)" />
+      <!-- 已推荐 Tab -->
+      <view
+        v-else
+        class="re-body"
+      >
+        <view
+          v-if="recommendedBooks.length === 0"
+          class="re-empty"
+        >
+          <app-icon
+            name="sparkles"
+            :size="80"
+            color="#C41E3A"
+          />
+          <text class="re-empty-t">
+            还没有推荐电子书
+          </text>
+          <text class="re-empty-sub">
+            切换到「选书」Tab 添加推荐
+          </text>
+        </view>
+        <view
+          v-else
+          class="re-list"
+        >
+          <view
+            v-for="(book, i) in recommendedBooks"
+            :key="book.id"
+            class="re-book"
+          >
+            <text class="re-rank">
+              {{ i + 1 }}
+            </text>
+            <view
+              class="re-cover sm"
+              :style="{ background: coverColor(book.id) }"
+            >
+              <image
+                v-if="book.cover"
+                class="re-cover-img"
+                :src="book.cover"
+                mode="aspectFill"
+              />
+              <app-icon
+                v-else
+                name="book-open"
+                :size="24"
+                color="rgba(255,255,255,0.6)"
+              />
+            </view>
+            <view class="re-book-info">
+              <text class="re-book-title">
+                {{ book.title }}
+              </text>
+              <text class="re-book-author">
+                {{ book.author }}
+              </text>
+              <text
+                v-if="book.price === 0 && !book.isMemberFree"
+                class="re-tag-free"
+              >
+                免费
+              </text>
+              <text
+                v-else-if="book.isMemberFree"
+                class="re-tag-member-plain"
+              >
+                会员免费
+              </text>
+              <text
+                v-else
+                class="re-tag-price"
+              >
+                ¥{{ book.price }}
+              </text>
+            </view>
+            <view
+              class="re-remove"
+              @tap="toggleRecommend(book.id)"
+            >
+              <app-icon
+                name="x"
+                :size="22"
+                color="#dc2626"
+              />
+            </view>
           </view>
-          <view class="re-book-info">
-            <text class="re-book-title">{{ book.title }}</text>
-            <text class="re-book-author">{{ book.author }}</text>
-            <text v-if="book.price === 0 && !book.isMemberFree" class="re-tag-free">免费</text>
-            <text v-else-if="book.isMemberFree" class="re-tag-member-plain">会员免费</text>
-            <text v-else class="re-tag-price">¥{{ book.price }}</text>
-          </view>
-          <view class="re-remove" @tap="toggleRecommend(book.id)"><app-icon name="x" :size="22" color="#dc2626" /></view>
         </view>
       </view>
-    </view>
     </template>
   </view>
 </template>
@@ -97,21 +282,11 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import ErrorState from '@/components/common/error-state.vue'
+import { circleManageApi } from '@/lib/circle-detail-data'
 
 const circleInfo = { id: '1', name: '八字命理研习圈' }
 
 interface Book { id: string; title: string; author: string; cover: string; price: number; rating: number; readers: number; isMemberFree: boolean; isRecommended: boolean }
-const allBooks: Book[] = [
-  { id: '1', title: '《滴天髓》白话精解', author: '古籍研究院', cover: '', price: 68, rating: 4.9, readers: 8560, isMemberFree: false, isRecommended: true },
-  { id: '2', title: '《穷通宝鉴》注解版', author: '命理古籍馆', cover: '', price: 0, rating: 4.7, readers: 5280, isMemberFree: true, isRecommended: false },
-  { id: '3', title: '八字实战案例精选 100例', author: '玄微子', cover: '', price: 48, rating: 4.8, readers: 12800, isMemberFree: false, isRecommended: true },
-  { id: '4', title: '紫微斗数入门到精通', author: '星命研究所', cover: '', price: 58, rating: 4.6, readers: 7320, isMemberFree: false, isRecommended: false },
-  { id: '5', title: '《三命通会》现代解析', author: '传统命学院', cover: '', price: 38, rating: 4.5, readers: 4160, isMemberFree: true, isRecommended: false },
-  { id: '6', title: '六爻预测实战手册', author: '易学大师', cover: '', price: 42, rating: 4.7, readers: 6890, isMemberFree: false, isRecommended: false },
-  { id: '7', title: '四柱预测学精讲', author: '邵伟华传承', cover: '', price: 0, rating: 4.8, readers: 15600, isMemberFree: false, isRecommended: false },
-  { id: '8', title: '命理十神详解', author: '玄微子', cover: '', price: 29, rating: 4.9, readers: 9320, isMemberFree: true, isRecommended: false },
-]
-
 const coverColors = ['#1e3a5f', '#1a4731', '#4a1942', '#3d1f00', '#2d3561', '#1e3a2f', '#3a1a1a', '#1a2a4a']
 function coverColor(id: string) { return coverColors[parseInt(id) % coverColors.length] }
 
@@ -120,7 +295,8 @@ const activeTab = ref<'search' | 'recommended'>('recommended')
 const isSaving = ref(false)
 const loading = ref(true)
 const error = ref('')
-const MOCK_RECOMMENDED_IDS = allBooks.filter((b) => b.isRecommended).map((b) => b.id)
+const circleId = ref('1')
+const allBooks = ref<Book[]>([])
 const recommended = ref<string[]>([])
 
 onMounted(() => { loadData() })
@@ -129,8 +305,9 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    await new Promise(r => setTimeout(r, 500))
-    recommended.value = MOCK_RECOMMENDED_IDS
+    const res: any = await circleManageApi.getRecommendEbooks(circleId.value)
+    allBooks.value = (res.books || []).map((b: Book) => ({ ...b, isRecommended: (b as any).isRecommended ?? false }))
+    recommended.value = allBooks.value.filter((b) => b.isRecommended).map((b) => b.id)
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
@@ -138,8 +315,8 @@ async function loadData() {
   }
 }
 
-const filteredBooks = computed(() => allBooks.filter((b) => b.title.includes(search.value) || b.author.includes(search.value)))
-const recommendedBooks = computed(() => allBooks.filter((b) => recommended.value.includes(b.id)))
+const filteredBooks = computed(() => allBooks.value.filter((b) => b.title.includes(search.value) || b.author.includes(search.value)))
+const recommendedBooks = computed(() => allBooks.value.filter((b) => recommended.value.includes(b.id)))
 function isRec(id: string) { return recommended.value.includes(id) }
 function toggleRecommend(id: string) {
   if (recommended.value.includes(id)) {
@@ -152,9 +329,15 @@ function toggleRecommend(id: string) {
 async function handleSave() {
   if (isSaving.value) return
   isSaving.value = true
-  await new Promise((r) => setTimeout(r, 800))
-  isSaving.value = false
-  goBack()
+  try {
+    await circleManageApi.saveRecommendEbooks(circleId.value, recommended.value)
+    uni.showToast({ title: '保存成功', icon: 'success' })
+    goBack()
+  } catch {
+    uni.showToast({ title: '保存失败，请重试', icon: 'none' })
+  } finally {
+    isSaving.value = false
+  }
 }
 </script>
 

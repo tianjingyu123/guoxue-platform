@@ -41,7 +41,13 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
           return
         }
         if (body && body.code === 200) {
-          resolve(body.data)
+          // 分页响应归一化：后端返回 { code, data: [...], pagination: { total, page, pageSize } }
+          // 兼容旧格式 { items/rows/..., total, page, pageSize } → 新格式统一为 { items, total, page, pageSize }
+          if ((body as any).pagination) {
+            resolve({ items: body.data, ...(body as any).pagination } as any)
+          } else {
+            resolve(body.data)
+          }
         } else {
           reject(new Error(body?.message || `请求失败(${res.statusCode})`))
         }

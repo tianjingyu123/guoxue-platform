@@ -116,85 +116,231 @@ function confirm() {
 </script>
 
 <template>
-  <view v-if="open" class="dp-root">
-    <view class="dp-mask" @tap="emit('close')" />
+  <view
+    v-if="open"
+    class="dp-root"
+  >
+    <view
+      class="dp-mask"
+      @tap="emit('close')"
+    />
     <view class="dp-panel">
       <!-- 顶部显示 + 模式切换 -->
       <view class="dp-top">
-        <text class="dp-display">{{ displayDate }}</text>
+        <text class="dp-display">
+          {{ displayDate }}
+        </text>
         <view class="dp-ctrl">
           <view class="dp-modes">
-            <view v-for="m in (['solar','lunar','sizhu'] as Mode[])" :key="m"
-              class="dp-mode" :class="{ 'dp-mode-on': mode === m }" @tap="mode = m">
-              <text class="dp-mode-text" :class="{ 'dp-mode-text-on': mode === m }">{{ m === 'solar' ? '公历' : m === 'lunar' ? '农历' : '四柱' }}</text>
+            <view
+              v-for="m in (['solar','lunar','sizhu'] as Mode[])"
+              :key="m"
+              class="dp-mode"
+              :class="{ 'dp-mode-on': mode === m }"
+              @tap="mode = m"
+            >
+              <text
+                class="dp-mode-text"
+                :class="{ 'dp-mode-text-on': mode === m }"
+              >
+                {{ m === 'solar' ? '公历' : m === 'lunar' ? '农历' : '四柱' }}
+              </text>
             </view>
           </view>
-          <view v-if="mode !== 'sizhu'" class="dp-today" @tap="setToday"><text class="dp-today-text">今</text></view>
-          <view class="dp-confirm" @tap="confirm"><text class="dp-confirm-text">确定</text></view>
+          <view
+            v-if="mode !== 'sizhu'"
+            class="dp-today"
+            @tap="setToday"
+          >
+            <text class="dp-today-text">
+              今
+            </text>
+          </view>
+          <view
+            class="dp-confirm"
+            @tap="confirm"
+          >
+            <text class="dp-confirm-text">
+              确定
+            </text>
+          </view>
         </view>
       </view>
 
       <!-- 四柱键盘 -->
-      <view v-if="mode === 'sizhu'" class="dp-sizhu">
+      <view
+        v-if="mode === 'sizhu'"
+        class="dp-sizhu"
+      >
         <view class="dp-sz-labels">
-          <text v-for="n in colNames" :key="n" class="dp-sz-label">{{ n }}</text>
+          <text
+            v-for="n in colNames"
+            :key="n"
+            class="dp-sz-label"
+          >
+            {{ n }}
+          </text>
         </view>
         <view class="dp-sz-cells">
-          <view v-for="col in cols" :key="col" class="dp-sz-col">
-            <view class="dp-sz-cell" :class="{ 'dp-sz-cell-on': activeCol === col && activeRow === 'gan' }"
-              @tap="activeCol = col; activeRow = 'gan'">
-              <text class="dp-sz-char" :style="{ color: sizhu[col + 'Gan'] ? wxColor(sizhu[col + 'Gan']) : '#d1d5db' }">{{ sizhu[col + 'Gan'] }}</text>
+          <view
+            v-for="col in cols"
+            :key="col"
+            class="dp-sz-col"
+          >
+            <view
+              class="dp-sz-cell"
+              :class="{ 'dp-sz-cell-on': activeCol === col && activeRow === 'gan' }"
+              @tap="activeCol = col; activeRow = 'gan'"
+            >
+              <text
+                class="dp-sz-char"
+                :style="{ color: sizhu[col + 'Gan'] ? wxColor(sizhu[col + 'Gan']) : '#d1d5db' }"
+              >
+                {{ sizhu[col + 'Gan'] }}
+              </text>
             </view>
-            <view class="dp-sz-cell" :class="{ 'dp-sz-cell-on': activeCol === col && activeRow === 'zhi' }"
-              @tap="activeCol = col; activeRow = 'zhi'">
-              <text class="dp-sz-char" :style="{ color: sizhu[col + 'Zhi'] ? wxColor(sizhu[col + 'Zhi']) : '#d1d5db' }">{{ sizhu[col + 'Zhi'] }}</text>
+            <view
+              class="dp-sz-cell"
+              :class="{ 'dp-sz-cell-on': activeCol === col && activeRow === 'zhi' }"
+              @tap="activeCol = col; activeRow = 'zhi'"
+            >
+              <text
+                class="dp-sz-char"
+                :style="{ color: sizhu[col + 'Zhi'] ? wxColor(sizhu[col + 'Zhi']) : '#d1d5db' }"
+              >
+                {{ sizhu[col + 'Zhi'] }}
+              </text>
             </view>
           </view>
         </view>
         <view class="dp-sz-range">
-          <text class="dp-sz-range-text">查找范围：1801~2099年</text>
-          <view class="dp-sz-clear" @tap="clearSizhu">
-            <app-icon name="trash-2" :size="26" color="#9ca3af" /><text class="dp-sz-clear-text">清除</text>
+          <text class="dp-sz-range-text">
+            查找范围：1801~2099年
+          </text>
+          <view
+            class="dp-sz-clear"
+            @tap="clearSizhu"
+          >
+            <app-icon
+              name="trash-2"
+              :size="26"
+              color="#9ca3af"
+            /><text class="dp-sz-clear-text">
+              清除
+            </text>
           </view>
         </view>
-        <view v-if="activeRow === 'gan'" class="dp-kb dp-kb-5">
-          <view v-for="g in tianGan" :key="g" class="dp-key" @tap="selectGanZhi(g, true)">
-            <text class="dp-key-char" :style="{ color: wxColor(g) }">{{ g }}</text>
+        <view
+          v-if="activeRow === 'gan'"
+          class="dp-kb dp-kb-5"
+        >
+          <view
+            v-for="g in tianGan"
+            :key="g"
+            class="dp-key"
+            @tap="selectGanZhi(g, true)"
+          >
+            <text
+              class="dp-key-char"
+              :style="{ color: wxColor(g) }"
+            >
+              {{ g }}
+            </text>
           </view>
         </view>
-        <view v-else class="dp-kb dp-kb-6">
-          <view v-for="z in diZhi" :key="z" class="dp-key" @tap="selectGanZhi(z, false)">
-            <text class="dp-key-char" :style="{ color: wxColor(z) }">{{ z }}</text>
+        <view
+          v-else
+          class="dp-kb dp-kb-6"
+        >
+          <view
+            v-for="z in diZhi"
+            :key="z"
+            class="dp-key"
+            @tap="selectGanZhi(z, false)"
+          >
+            <text
+              class="dp-key-char"
+              :style="{ color: wxColor(z) }"
+            >
+              {{ z }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 公历/农历滚轮 -->
-      <view v-else class="dp-wheel">
-        <picker-view class="dp-pv" :value="pvValue" :indicator-style="'height: 88rpx;'" @change="onPvChange">
+      <view
+        v-else
+        class="dp-wheel"
+      >
+        <picker-view
+          class="dp-pv"
+          :value="pvValue"
+          :indicator-style="'height: 88rpx;'"
+          @change="onPvChange"
+        >
           <picker-view-column>
-            <view v-for="y in years" :key="y" class="dp-pv-item">{{ y }}</view>
+            <view
+              v-for="y in years"
+              :key="y"
+              class="dp-pv-item"
+            >
+              {{ y }}
+            </view>
           </picker-view-column>
           <picker-view-column>
-            <view v-for="(m, i) in monthItems" :key="i" class="dp-pv-item">{{ m }}{{ mode === 'lunar' ? '' : '月' }}</view>
+            <view
+              v-for="(m, i) in monthItems"
+              :key="i"
+              class="dp-pv-item"
+            >
+              {{ m }}{{ mode === 'lunar' ? '' : '月' }}
+            </view>
           </picker-view-column>
           <picker-view-column>
-            <view v-for="(d, i) in dayItems" :key="i" class="dp-pv-item">{{ d }}{{ mode === 'lunar' ? '' : '日' }}</view>
+            <view
+              v-for="(d, i) in dayItems"
+              :key="i"
+              class="dp-pv-item"
+            >
+              {{ d }}{{ mode === 'lunar' ? '' : '日' }}
+            </view>
           </picker-view-column>
           <picker-view-column>
-            <view v-for="(h, i) in hourItems" :key="i" class="dp-pv-item">{{ h }}</view>
+            <view
+              v-for="(h, i) in hourItems"
+              :key="i"
+              class="dp-pv-item"
+            >
+              {{ h }}
+            </view>
           </picker-view-column>
           <picker-view-column>
-            <view v-for="(mn, i) in minuteItems" :key="i" class="dp-pv-item">{{ mn }}</view>
+            <view
+              v-for="(mn, i) in minuteItems"
+              :key="i"
+              class="dp-pv-item"
+            >
+              {{ mn }}
+            </view>
           </picker-view-column>
         </picker-view>
       </view>
 
       <!-- 底部夏令时 -->
       <view class="dp-bottom">
-        <text class="dp-dst-label">夏令时</text>
-        <view class="dp-switch" :class="{ 'dp-switch-on': useDST }" @tap="useDST = !useDST">
-          <view class="dp-switch-dot" :class="{ 'dp-switch-dot-on': useDST }" />
+        <text class="dp-dst-label">
+          夏令时
+        </text>
+        <view
+          class="dp-switch"
+          :class="{ 'dp-switch-on': useDST }"
+          @tap="useDST = !useDST"
+        >
+          <view
+            class="dp-switch-dot"
+            :class="{ 'dp-switch-dot-on': useDST }"
+          />
         </view>
       </view>
     </view>

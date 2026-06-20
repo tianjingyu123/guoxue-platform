@@ -1,15 +1,30 @@
 <template>
   <view class="page">
-    <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-back" @tap="goBack">
-        <app-icon name="arrow-left" :size="40" color="#1A1A1A" />
+    <view
+      class="nav-bar"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="40"
+          color="#1A1A1A"
+        />
       </view>
-      <text class="nav-title">发票管理</text>
+      <text class="nav-title">
+        发票管理
+      </text>
       <view class="nav-placeholder" />
     </view>
 
     <!-- Tab 切换 -->
-    <view class="tabs" :style="{ top: navHeight + 'px' }">
+    <view
+      class="tabs"
+      :style="{ top: navHeight + 'px' }"
+    >
       <view
         v-for="tab in tabs"
         :key="tab.key"
@@ -17,102 +32,254 @@
         :class="{ active: activeTab === tab.key }"
         @tap="activeTab = tab.key"
       >
-        <text class="tab-text" :class="{ active: activeTab === tab.key }">{{ tab.label }}</text>
-        <view v-if="activeTab === tab.key" class="tab-bar" />
+        <text
+          class="tab-text"
+          :class="{ active: activeTab === tab.key }"
+        >
+          {{ tab.label }}
+        </text>
+        <view
+          v-if="activeTab === tab.key"
+          class="tab-bar"
+        />
       </view>
     </view>
 
-    <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 44 + 'px' }">
-      <!-- 可开票订单 -->
-      <block v-if="activeTab === 'apply'">
-        <view v-if="applicableOrders.length === 0" class="empty">
-          <app-icon name="file-text" :size="120" color="#DDDDDD" />
-          <text class="empty-text">暂无可开票订单</text>
-        </view>
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+      :style="{ paddingTop: navHeight + 44 + 'px' }"
+    >
+      <view
+        v-if="loading"
+        class="load-state"
+      >
+        <view class="loading-spinner" />
+        <text class="loading-text">
+          加载中...
+        </text>
+      </view>
+      <view
+        v-else-if="error"
+        class="err-state"
+      >
+        <app-icon
+          name="alert-circle"
+          :size="80"
+          color="#CCCCCC"
+        />
+        <text class="err-text">
+          {{ error }}
+        </text>
         <view
-          v-for="order in applicableOrders"
-          :key="order.orderId"
-          class="apply-card"
+          class="retry-btn"
+          @tap="loadInvoices"
         >
-          <view class="apply-head">
-            <text class="apply-no">订单号：{{ order.orderNo }}</text>
-            <text class="apply-time">{{ order.createdAt }}</text>
-          </view>
-          <text class="apply-product">{{ order.productName }}</text>
-          <view class="apply-foot">
-            <view class="apply-amount">
-              <text class="amount-label">开票金额</text>
-              <text class="amount-value">¥{{ order.amount }}</text>
-            </view>
-            <view class="apply-btn" @tap="openApply(order)">
-              <text class="apply-btn-text">申请开票</text>
-            </view>
-          </view>
+          <text class="retry-btn-text">
+            重试
+          </text>
         </view>
-      </block>
+      </view>
+      <template v-else>
+        <block v-if="activeTab === 'apply'">
+          <view
+            v-if="applicableOrders.length === 0"
+            class="empty"
+          >
+            <app-icon
+              name="file-text"
+              :size="120"
+              color="#DDDDDD"
+            />
+            <text class="empty-text">
+              暂无可开票订单
+            </text>
+          </view>
+          <view
+            v-for="order in applicableOrders"
+            :key="order.orderId"
+            class="apply-card"
+          >
+            <view class="apply-head">
+              <text class="apply-no">
+                订单号：{{ order.orderNo }}
+              </text>
+              <text class="apply-time">
+                {{ order.createdAt }}
+              </text>
+            </view>
+            <text class="apply-product">
+              {{ order.productName }}
+            </text>
+            <view class="apply-foot">
+              <view class="apply-amount">
+                <text class="amount-label">
+                  开票金额
+                </text>
+                <text class="amount-value">
+                  ¥{{ order.amount }}
+                </text>
+              </view>
+              <view
+                class="apply-btn"
+                @tap="openApply(order)"
+              >
+                <text class="apply-btn-text">
+                  申请开票
+                </text>
+              </view>
+            </view>
+          </view>
+        </block>
 
-      <!-- 开票记录 -->
-      <block v-else>
-        <view v-if="records.length === 0" class="empty">
-          <app-icon name="file-text" :size="120" color="#DDDDDD" />
-          <text class="empty-text">暂无开票记录</text>
-        </view>
-        <view
-          v-for="rec in records"
-          :key="rec.id"
-          class="record-card"
-        >
-          <view class="record-head">
-            <view class="record-type">
-              <app-icon :name="rec.type === 'company' ? 'building-2' : 'user'" :size="32" color="#9A2D2D" />
-              <text class="record-title">{{ rec.title }}</text>
+        <!-- 开票记录 -->
+        <block v-else>
+          <view
+            v-if="records.length === 0"
+            class="empty"
+          >
+            <app-icon
+              name="file-text"
+              :size="120"
+              color="#DDDDDD"
+            />
+            <text class="empty-text">
+              暂无开票记录
+            </text>
+          </view>
+          <view
+            v-for="rec in records"
+            :key="rec.id"
+            class="record-card"
+          >
+            <view class="record-head">
+              <view class="record-type">
+                <app-icon
+                  :name="rec.type === 'company' ? 'building-2' : 'user'"
+                  :size="32"
+                  color="#9A2D2D"
+                />
+                <text class="record-title">
+                  {{ rec.title }}
+                </text>
+              </view>
+              <view
+                class="record-status"
+                :style="{ color: statusCfg(rec.status).color, background: statusCfg(rec.status).bg }"
+              >
+                <text
+                  class="record-status-text"
+                  :style="{ color: statusCfg(rec.status).color }"
+                >
+                  {{ statusCfg(rec.status).label }}
+                </text>
+              </view>
             </view>
-            <view class="record-status" :style="{ color: statusCfg(rec.status).color, background: statusCfg(rec.status).bg }">
-              <text class="record-status-text" :style="{ color: statusCfg(rec.status).color }">{{ statusCfg(rec.status).label }}</text>
+            <view
+              v-if="rec.taxNumber"
+              class="record-row"
+            >
+              <text class="record-label">
+                税号
+              </text>
+              <text class="record-val">
+                {{ rec.taxNumber }}
+              </text>
+            </view>
+            <view class="record-row">
+              <text class="record-label">
+                金额
+              </text>
+              <text class="record-val amount">
+                ¥{{ rec.amount }}
+              </text>
+            </view>
+            <view class="record-row">
+              <text class="record-label">
+                邮箱
+              </text>
+              <text class="record-val">
+                {{ rec.email }}
+              </text>
+            </view>
+            <view class="record-row">
+              <text class="record-label">
+                申请时间
+              </text>
+              <text class="record-val">
+                {{ rec.createdAt }}
+              </text>
+            </view>
+            <view
+              v-if="rec.status === 'rejected' && rec.rejectReason"
+              class="reject-tip"
+            >
+              <app-icon
+                name="alert-circle"
+                :size="28"
+                color="#E74C3C"
+              />
+              <text class="reject-text">
+                驳回原因：{{ rec.rejectReason }}
+              </text>
+            </view>
+            <view
+              v-if="rec.status === 'completed'"
+              class="record-actions"
+            >
+              <view
+                class="record-action"
+                @tap="downloadInvoice(rec)"
+              >
+                <app-icon
+                  name="download"
+                  :size="28"
+                  color="#9A2D2D"
+                />
+                <text class="record-action-text">
+                  下载发票
+                </text>
+              </view>
+              <view
+                class="record-action"
+                @tap="resendInvoice(rec)"
+              >
+                <app-icon
+                  name="mail"
+                  :size="28"
+                  color="#9A2D2D"
+                />
+                <text class="record-action-text">
+                  重发邮箱
+                </text>
+              </view>
             </view>
           </view>
-          <view v-if="rec.taxNumber" class="record-row">
-            <text class="record-label">税号</text>
-            <text class="record-val">{{ rec.taxNumber }}</text>
-          </view>
-          <view class="record-row">
-            <text class="record-label">金额</text>
-            <text class="record-val amount">¥{{ rec.amount }}</text>
-          </view>
-          <view class="record-row">
-            <text class="record-label">邮箱</text>
-            <text class="record-val">{{ rec.email }}</text>
-          </view>
-          <view class="record-row">
-            <text class="record-label">申请时间</text>
-            <text class="record-val">{{ rec.createdAt }}</text>
-          </view>
-          <view v-if="rec.status === 'rejected' && rec.rejectReason" class="reject-tip">
-            <app-icon name="alert-circle" :size="28" color="#E74C3C" />
-            <text class="reject-text">驳回原因：{{ rec.rejectReason }}</text>
-          </view>
-          <view v-if="rec.status === 'completed'" class="record-actions">
-            <view class="record-action" @tap="downloadInvoice(rec)">
-              <app-icon name="download" :size="28" color="#9A2D2D" />
-              <text class="record-action-text">下载发票</text>
-            </view>
-            <view class="record-action" @tap="resendInvoice(rec)">
-              <app-icon name="mail" :size="28" color="#9A2D2D" />
-              <text class="record-action-text">重发邮箱</text>
-            </view>
-          </view>
-        </view>
-      </block>
-      <view class="bottom-gap" />
+        </block>
+        <view class="bottom-gap" />
+      </template>
     </scroll-view>
 
     <!-- 申请开票弹窗 -->
-    <view v-if="showApply" class="mask" @tap="showApply = false">
-      <view class="apply-sheet" @tap.stop>
+    <view
+      v-if="showApply"
+      class="mask"
+      @tap="showApply = false"
+    >
+      <view
+        class="apply-sheet"
+        @tap.stop
+      >
         <view class="sheet-head">
-          <text class="sheet-title">申请开票</text>
+          <text class="sheet-title">
+            申请开票
+          </text>
           <view @tap="showApply = false">
-            <app-icon name="x" :size="40" color="#999999" />
+            <app-icon
+              name="x"
+              :size="40"
+              color="#999999"
+            />
           </view>
         </view>
         <view class="type-switch">
@@ -121,30 +288,66 @@
             :class="{ active: form.type === 'personal' }"
             @tap="form.type = 'personal'"
           >
-            <text class="type-text" :class="{ active: form.type === 'personal' }">个人</text>
+            <text
+              class="type-text"
+              :class="{ active: form.type === 'personal' }"
+            >
+              个人
+            </text>
           </view>
           <view
             class="type-item"
             :class="{ active: form.type === 'company' }"
             @tap="form.type = 'company'"
           >
-            <text class="type-text" :class="{ active: form.type === 'company' }">企业</text>
+            <text
+              class="type-text"
+              :class="{ active: form.type === 'company' }"
+            >
+              企业
+            </text>
           </view>
         </view>
         <view class="form-field">
-          <text class="field-label">发票抬头</text>
-          <input class="field-input" v-model="form.title" :placeholder="form.type === 'company' ? '请输入企业名称' : '请输入姓名'" />
+          <text class="field-label">
+            发票抬头
+          </text>
+          <input
+            v-model="form.title"
+            class="field-input"
+            :placeholder="form.type === 'company' ? '请输入企业名称' : '请输入姓名'"
+          >
         </view>
-        <view v-if="form.type === 'company'" class="form-field">
-          <text class="field-label">税号</text>
-          <input class="field-input" v-model="form.taxNumber" placeholder="请输入纳税人识别号" />
+        <view
+          v-if="form.type === 'company'"
+          class="form-field"
+        >
+          <text class="field-label">
+            税号
+          </text>
+          <input
+            v-model="form.taxNumber"
+            class="field-input"
+            placeholder="请输入纳税人识别号"
+          >
         </view>
         <view class="form-field">
-          <text class="field-label">接收邮箱</text>
-          <input class="field-input" v-model="form.email" placeholder="请输入电子邮箱" />
+          <text class="field-label">
+            接收邮箱
+          </text>
+          <input
+            v-model="form.email"
+            class="field-input"
+            placeholder="请输入电子邮箱"
+          >
         </view>
-        <view class="sheet-submit" @tap="submitApply">
-          <text class="sheet-submit-text">提交申请</text>
+        <view
+          class="sheet-submit"
+          @tap="submitApply"
+        >
+          <text class="sheet-submit-text">
+            提交申请
+          </text>
         </view>
       </view>
     </view>
@@ -156,10 +359,9 @@ import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import {
-  invoiceApplicableOrders,
-  invoiceRecords,
+  orderApi,
   invoiceStatusConfig,
-  type InvoiceApplicableOrder,
+  type InvoiceOrder,
 } from '@/lib/order-data'
 
 const statusBarHeight = ref(20)
@@ -171,14 +373,29 @@ const tabs = [
 ]
 const activeTab = ref('apply')
 
-const applicableOrders = ref(invoiceApplicableOrders)
-const records = ref(invoiceRecords)
+const applicableOrders = ref<InvoiceOrder[]>([])
+const records = ref<any[]>([])
+const loading = ref(true)
+const error = ref('')
 
+const submitting = ref(false)
 const showApply = ref(false)
 const form = reactive({ orderId: '', type: 'personal' as 'personal' | 'company', title: '', taxNumber: '', email: '' })
 
 function statusCfg(status: string) {
   return invoiceStatusConfig[status] || { label: status, color: '#999', bg: '#F5F5F5' }
+}
+
+async function loadInvoices() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await orderApi.getInvoices()
+    applicableOrders.value = res.orders || []
+    records.value = res.records || []
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally { loading.value = false }
 }
 
 onLoad(() => {
@@ -190,9 +407,10 @@ onLoad(() => {
     statusBarHeight.value = 20
     navHeight.value = 64
   }
+  loadInvoices()
 })
 
-function openApply(order: InvoiceApplicableOrder) {
+function openApply(order: InvoiceOrder) {
   form.orderId = order.orderId
   form.type = 'personal'
   form.title = ''
@@ -201,7 +419,8 @@ function openApply(order: InvoiceApplicableOrder) {
   showApply.value = true
 }
 
-function submitApply() {
+async function submitApply() {
+  if (submitting.value) return
   if (!form.title.trim()) {
     uni.showToast({ title: '请输入发票抬头', icon: 'none' })
     return
@@ -214,8 +433,21 @@ function submitApply() {
     uni.showToast({ title: '请输入接收邮箱', icon: 'none' })
     return
   }
-  showApply.value = false
-  uni.showToast({ title: '申请已提交', icon: 'success' })
+  submitting.value = true
+  try {
+    await orderApi.applyInvoice({
+      orderId: form.orderId,
+      type: form.type,
+      title: form.title,
+      taxNumber: form.taxNumber,
+      email: form.email,
+    })
+    showApply.value = false
+    uni.showToast({ title: '申请已提交', icon: 'success' })
+    loadInvoices()
+  } catch {
+    uni.showToast({ title: '提交失败，请重试', icon: 'none' })
+  } finally { submitting.value = false }
 }
 
 function downloadInvoice(_rec: any) {
@@ -300,6 +532,15 @@ function resendInvoice(_rec: any) {
   height: 100vh;
   box-sizing: border-box;
 }
+
+.load-state { display: flex; flex-direction: column; align-items: center; padding: 120rpx 0; }
+.loading-spinner { width: 64rpx; height: 64rpx; border: 6rpx solid #E8E3DB; border-top-color: #9A2D2D; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 24rpx; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 28rpx; color: #999; }
+.err-state { display: flex; flex-direction: column; align-items: center; padding: 120rpx 0; }
+.err-text { font-size: 28rpx; color: #999; margin-top: 16rpx; }
+.retry-btn { margin-top: 24rpx; padding: 16rpx 48rpx; border-radius: 16rpx; background: #9A2D2D; }
+.retry-btn-text { font-size: 26rpx; color: #fff; font-weight: 500; }
 
 .empty {
   display: flex;

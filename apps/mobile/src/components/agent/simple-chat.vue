@@ -53,64 +53,167 @@ function reset() {
   <view class="page">
     <!-- 头部 -->
     <view class="header safe-pt">
-      <view class="back" @tap="goBack()"><AppIcon name="arrow-left" :size="40" color="#1a1a1a" /></view>
-      <view class="head-info">
-        <view class="head-avatar" :style="{ background: iconBg }"><AppIcon :name="iconName" :size="28" :color="iconColor" /></view>
-        <text class="head-title">{{ title }}</text>
-        <text class="head-online">在线</text>
+      <view
+        class="back"
+        @tap="goBack()"
+      >
+        <AppIcon
+          name="arrow-left"
+          :size="40"
+          color="#1a1a1a"
+        />
       </view>
-      <view class="refresh" @tap="reset"><AppIcon name="refresh-cw" :size="32" color="#999" /></view>
+      <view class="head-info">
+        <view
+          class="head-avatar"
+          :style="{ background: iconBg }"
+        >
+          <AppIcon
+            :name="iconName"
+            :size="28"
+            :color="iconColor"
+          />
+        </view>
+        <text class="head-title">
+          {{ title }}
+        </text>
+        <text class="head-online">
+          在线
+        </text>
+      </view>
+      <view
+        class="refresh"
+        @tap="reset"
+      >
+        <AppIcon
+          name="refresh-cw"
+          :size="32"
+          color="#999"
+        />
+      </view>
     </view>
 
     <!-- 消息区 -->
-    <scroll-view class="msg-area" scroll-y :scroll-into-view="scrollId" :scroll-with-animation="true">
+    <scroll-view
+      class="msg-area"
+      scroll-y
+      :scroll-into-view="scrollId"
+      :scroll-with-animation="true"
+    >
       <view class="msg-list">
-        <view v-for="msg in messages" :key="msg.id" class="msg-row" :class="{ 'msg-row-user': msg.role === 'user' }">
-          <view v-if="msg.role === 'assistant'" class="msg-avatar" :style="{ background: iconBg }">
-            <AppIcon :name="iconName" :size="24" :color="iconColor" />
+        <view
+          v-for="msg in messages"
+          :key="msg.id"
+          class="msg-row"
+          :class="{ 'msg-row-user': msg.role === 'user' }"
+        >
+          <view
+            v-if="msg.role === 'assistant'"
+            class="msg-avatar"
+            :style="{ background: iconBg }"
+          >
+            <AppIcon
+              :name="iconName"
+              :size="24"
+              :color="iconColor"
+            />
           </view>
-          <view class="bubble" :class="msg.role === 'assistant' ? 'bubble-ai' : 'bubble-user'">
-            <text class="bubble-text">{{ msg.content }}</text>
-            <text class="bubble-time" :class="{ 'time-user': msg.role === 'user' }">{{ msg.time }}</text>
+          <view
+            class="bubble"
+            :class="msg.role === 'assistant' ? 'bubble-ai' : 'bubble-user'"
+          >
+            <text class="bubble-text">
+              {{ msg.content }}
+            </text>
+            <text
+              class="bubble-time"
+              :class="{ 'time-user': msg.role === 'user' }"
+            >
+              {{ msg.time }}
+            </text>
           </view>
         </view>
         <!-- 打字中 -->
-        <view v-if="loading" class="msg-row">
-          <view class="msg-avatar" :style="{ background: iconBg }"><AppIcon :name="iconName" :size="24" :color="iconColor" /></view>
+        <view
+          v-if="loading"
+          class="msg-row"
+        >
+          <view
+            class="msg-avatar"
+            :style="{ background: iconBg }"
+          >
+            <AppIcon
+              :name="iconName"
+              :size="24"
+              :color="iconColor"
+            />
+          </view>
           <view class="bubble bubble-ai typing">
             <view class="dots">
-              <view class="dot typing-dot" style="animation-delay:0s" />
-              <view class="dot typing-dot" style="animation-delay:0.15s" />
-              <view class="dot typing-dot" style="animation-delay:0.3s" />
+              <view
+                class="dot typing-dot"
+                style="animation-delay:0s"
+              />
+              <view
+                class="dot typing-dot"
+                style="animation-delay:0.15s"
+              />
+              <view
+                class="dot typing-dot"
+                style="animation-delay:0.3s"
+              />
             </view>
           </view>
         </view>
-        <view :id="scrollId" class="anchor" />
+        <view
+          :id="scrollId"
+          class="anchor"
+        />
       </view>
     </scroll-view>
 
     <!-- 快捷词 -->
-    <scroll-view class="quick-bar" scroll-x>
+    <scroll-view
+      class="quick-bar"
+      scroll-x
+    >
       <view class="quick-row">
-        <view v-for="q in quickPrompts" :key="q" class="quick-chip" @tap="send(q)">{{ q }}</view>
+        <view
+          v-for="q in quickPrompts"
+          :key="q"
+          class="quick-chip"
+          @tap="send(q)"
+        >
+          {{ q }}
+        </view>
       </view>
     </scroll-view>
 
     <!-- 输入栏 -->
     <view class="input-bar safe-pb">
       <textarea
-        class="input"
         v-model="input"
+        class="input"
         :placeholder="'输入您的问题…'"
         :maxlength="-1"
         auto-height
         :show-confirm-bar="false"
       />
-      <view class="send-btn" :class="{ disabled: !input.trim() || loading }" @tap="send(input)">
-        <AppIcon name="send" :size="32" color="#ffffff" />
+      <view
+        class="send-btn"
+        :class="{ disabled: !input.trim() || loading }"
+        @tap="send(input)"
+      >
+        <AppIcon
+          name="send"
+          :size="32"
+          color="#ffffff"
+        />
       </view>
     </view>
-    <view class="tip safe-pb">内容由 AI 生成，仅供参考，不构成专业建议，请理性看待。</view>
+    <view class="tip safe-pb">
+      内容由 AI 生成，仅供参考，不构成专业建议，请理性看待。
+    </view>
   </view>
 </template>
 

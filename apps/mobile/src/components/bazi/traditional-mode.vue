@@ -34,72 +34,201 @@ function daYunYears(idx: number) {
     <!-- 基本信息 -->
     <view class="card">
       <view class="info-head">
-        <text class="info-item"><text class="info-k">名称：</text>{{ data.name }}</text>
-        <text class="info-item"><text class="info-k">性别：</text>{{ data.gender }}</text>
-        <text class="info-item"><text class="info-k">生肖：</text>{{ data.zodiac }}</text>
+        <text class="info-item">
+          <text class="info-k">
+            名称：
+          </text>{{ data.name }}
+        </text>
+        <text class="info-item">
+          <text class="info-k">
+            性别：
+          </text>{{ data.gender }}
+        </text>
+        <text class="info-item">
+          <text class="info-k">
+            生肖：
+          </text>{{ data.zodiac }}
+        </text>
       </view>
       <view class="info-row">
-        <text class="info-k shrink">日期</text>
-        <text class="info-v">{{ data.solarDate }}（{{ data.lunarDate }}）</text>
-        <view class="info-edit" @tap="emit('edit')"><app-icon name="pencil" :size="26" color="#9ca3af" /></view>
+        <text class="info-k shrink">
+          日期
+        </text>
+        <text class="info-v">
+          {{ data.solarDate }}（{{ data.lunarDate }}）
+        </text>
+        <view
+          class="info-edit"
+          @tap="emit('edit')"
+        >
+          <app-icon
+            name="pencil"
+            :size="26"
+            color="#9ca3af"
+          />
+        </view>
       </view>
       <view class="info-row">
-        <text class="info-k shrink">真太阳时</text><text class="info-soft">{{ data.realSolarTime }}</text>
+        <text class="info-k shrink">
+          真太阳时
+        </text><text class="info-soft">
+          {{ data.realSolarTime }}
+        </text>
       </view>
       <view class="info-row no-bd">
-        <text class="info-k shrink">节气</text><text class="info-soft">{{ data.jieQi }}</text>
+        <text class="info-k shrink">
+          节气
+        </text><text class="info-soft">
+          {{ data.jieQi }}
+        </text>
       </view>
     </view>
 
     <!-- 四柱主表 -->
     <view class="card">
       <view class="t-head">
-        <text class="t-h t-h-label">四柱</text>
-        <text v-for="(n, i) in COL_NAMES" :key="n" class="t-h" :class="{ 'is-brand': i === 2 }">{{ n }}</text>
+        <text class="t-h t-h-label">
+          四柱
+        </text>
+        <text
+          v-for="(n, i) in COL_NAMES"
+          :key="n"
+          class="t-h"
+          :class="{ 'is-brand': i === 2 }"
+        >
+          {{ n }}
+        </text>
       </view>
       <!-- 十神 -->
       <view class="t-row">
-        <text class="t-c t-label">十神</text>
-        <text v-for="k in COLS" :key="k" class="t-c soft">{{ data.siZhu[k].shiShen }}</text>
+        <text class="t-c t-label">
+          十神
+        </text>
+        <text
+          v-for="k in COLS"
+          :key="k"
+          class="t-c soft"
+        >
+          {{ data.siZhu[k].shiShen }}
+        </text>
       </view>
       <!-- 干支 -->
       <view class="t-row ganzhi">
-        <text class="t-c t-label">{{ data.qianKun }}</text>
-        <view v-for="k in COLS" :key="k" class="t-c">
-          <text class="gz-char" :class="wuxingColorClass[data.siZhu[k].gan]">{{ data.siZhu[k].gan }}</text>
-          <text class="gz-char" :class="wuxingColorClass[data.siZhu[k].zhi]">{{ data.siZhu[k].zhi }}</text>
+        <text class="t-c t-label">
+          {{ data.qianKun }}
+        </text>
+        <view
+          v-for="k in COLS"
+          :key="k"
+          class="t-c"
+        >
+          <text
+            class="gz-char"
+            :class="wuxingColorClass[data.siZhu[k].gan]"
+          >
+            {{ data.siZhu[k].gan }}
+          </text>
+          <text
+            class="gz-char"
+            :class="wuxingColorClass[data.siZhu[k].zhi]"
+          >
+            {{ data.siZhu[k].zhi }}
+          </text>
         </view>
       </view>
       <!-- 藏干 -->
       <view class="t-row">
-        <text class="t-c t-label">藏干</text>
-        <view v-for="k in COLS" :key="k" class="t-c cang">
+        <text class="t-c t-label">
+          藏干
+        </text>
+        <view
+          v-for="k in COLS"
+          :key="k"
+          class="t-c cang"
+        >
           <view class="cang-gan">
-            <text v-for="(c, i) in data.siZhu[k].cangGan" :key="i" class="cang-char" :class="wuxingColorClass[c.gan]">{{ c.gan }}</text>
+            <text
+              v-for="(c, i) in data.siZhu[k].cangGan"
+              :key="i"
+              class="cang-char"
+              :class="wuxingColorClass[c.gan]"
+            >
+              {{ c.gan }}
+            </text>
           </view>
           <view class="cang-shen">
-            <text v-for="(c, i) in data.siZhu[k].cangGan" :key="i" class="cang-shen-t">{{ c.shen }}</text>
+            <text
+              v-for="(c, i) in data.siZhu[k].cangGan"
+              :key="i"
+              class="cang-shen-t"
+            >
+              {{ c.shen }}
+            </text>
           </view>
         </view>
       </view>
       <!-- 纳音/地势/自坐/空亡 -->
-      <view v-for="row in naYinRows" :key="row.label" class="t-row">
-        <text class="t-c t-label">{{ row.label }}</text>
-        <text v-for="k in COLS" :key="k" class="t-c soft">{{ data.siZhu[k][row.key] }}</text>
+      <view
+        v-for="row in naYinRows"
+        :key="row.label"
+        class="t-row"
+      >
+        <text class="t-c t-label">
+          {{ row.label }}
+        </text>
+        <text
+          v-for="k in COLS"
+          :key="k"
+          class="t-c soft"
+        >
+          {{ data.siZhu[k][row.key] }}
+        </text>
       </view>
       <!-- 神煞 -->
       <view class="t-row">
-        <text class="t-c t-label">神煞</text>
-        <text v-for="k in COLS" :key="k" class="t-c soft xs">{{ data.shenSha[k].slice(0, 2).join('、') }}{{ data.shenSha[k].length > 2 ? '...' : '' }}</text>
+        <text class="t-c t-label">
+          神煞
+        </text>
+        <text
+          v-for="k in COLS"
+          :key="k"
+          class="t-c soft xs"
+        >
+          {{ data.shenSha[k].slice(0, 2).join('、') }}{{ data.shenSha[k].length > 2 ? '...' : '' }}
+        </text>
       </view>
-      <view class="t-expand" @tap="showAllShenSha = !showAllShenSha">
-        <text class="t-expand-text">{{ showAllShenSha ? '收起神煞' : '展开全部神煞' }}</text>
-        <app-icon :name="showAllShenSha ? 'chevron-up' : 'chevron-down'" :size="26" color="#c41e3a" />
+      <view
+        class="t-expand"
+        @tap="showAllShenSha = !showAllShenSha"
+      >
+        <text class="t-expand-text">
+          {{ showAllShenSha ? '收起神煞' : '展开全部神煞' }}
+        </text>
+        <app-icon
+          :name="showAllShenSha ? 'chevron-up' : 'chevron-down'"
+          :size="26"
+          color="#c41e3a"
+        />
       </view>
-      <view v-if="showAllShenSha" class="ss-all">
-        <view v-for="(k, ci) in COLS" :key="k" class="ss-col">
-          <text class="ss-col-h">{{ COL_NAMES[ci] }}</text>
-          <text v-for="(s, si) in data.shenSha[k]" :key="si" class="ss-item">{{ s }}</text>
+      <view
+        v-if="showAllShenSha"
+        class="ss-all"
+      >
+        <view
+          v-for="(k, ci) in COLS"
+          :key="k"
+          class="ss-col"
+        >
+          <text class="ss-col-h">
+            {{ COL_NAMES[ci] }}
+          </text>
+          <text
+            v-for="(s, si) in data.shenSha[k]"
+            :key="si"
+            class="ss-item"
+          >
+            {{ s }}
+          </text>
         </view>
       </view>
     </view>
@@ -107,58 +236,171 @@ function daYunYears(idx: number) {
     <!-- 胎元/命宫/身宫 -->
     <view class="card">
       <view class="t-head">
-        <text class="t-h">胎元</text><text class="t-h">命宫</text><text class="t-h">身宫</text><text class="t-h">旺相休囚死</text>
+        <text class="t-h">
+          胎元
+        </text><text class="t-h">
+          命宫
+        </text><text class="t-h">
+          身宫
+        </text><text class="t-h">
+          旺相休囚死
+        </text>
       </view>
       <view class="t-row palace">
-        <view v-for="(g, i) in [data.taiYuan, data.mingGong, data.shenGong]" :key="i" class="t-c">
-          <text class="palace-char" :class="wuxingColorClass[g.gan]">{{ g.gan }}</text><text class="palace-char" :class="wuxingColorClass[g.zhi]">{{ g.zhi }}</text>
+        <view
+          v-for="(g, i) in [data.taiYuan, data.mingGong, data.shenGong]"
+          :key="i"
+          class="t-c"
+        >
+          <text
+            class="palace-char"
+            :class="wuxingColorClass[g.gan]"
+          >
+            {{ g.gan }}
+          </text><text
+            class="palace-char"
+            :class="wuxingColorClass[g.zhi]"
+          >
+            {{ g.zhi }}
+          </text>
         </view>
         <view class="t-c">
           <view class="wx-wrap">
-            <text v-for="([el, st]) in Object.entries(data.wuxingState)" :key="el" class="wx-tag" :class="wuxingBgClass[el]">{{ el }}{{ st }}</text>
+            <text
+              v-for="([el, st]) in Object.entries(data.wuxingState)"
+              :key="el"
+              class="wx-tag"
+              :class="wuxingBgClass[el]"
+            >
+              {{ el }}{{ st }}
+            </text>
           </view>
         </view>
       </view>
       <view class="t-row nayin">
-        <text class="t-c xs soft">{{ data.taiYuan.naYin }}</text>
-        <text class="t-c xs soft">{{ data.mingGong.naYin }}</text>
-        <text class="t-c xs soft">{{ data.shenGong.naYin }}</text>
+        <text class="t-c xs soft">
+          {{ data.taiYuan.naYin }}
+        </text>
+        <text class="t-c xs soft">
+          {{ data.mingGong.naYin }}
+        </text>
+        <text class="t-c xs soft">
+          {{ data.shenGong.naYin }}
+        </text>
         <text class="t-c" />
       </view>
     </view>
 
     <!-- 起运 -->
-    <view class="card qiyun"><text class="qiyun-text">{{ data.qiYun }}</text></view>
+    <view class="card qiyun">
+      <text class="qiyun-text">
+        {{ data.qiYun }}
+      </text>
+    </view>
 
     <!-- 大运 -->
     <view class="card">
-      <section-title title="大运"><template #extra><text class="hint">点击展开流年</text></template></section-title>
+      <section-title title="大运">
+        <template #extra>
+          <text class="hint">
+            点击展开流年
+          </text>
+        </template>
+      </section-title>
       <view class="dy-table">
         <view class="dy-row dy-years">
-          <text v-for="(d, i) in data.daYun" :key="i" class="dy-c year">{{ d.year }}</text>
+          <text
+            v-for="(d, i) in data.daYun"
+            :key="i"
+            class="dy-c year"
+          >
+            {{ d.year }}
+          </text>
         </view>
         <view class="dy-row">
-          <view v-for="(d, i) in data.daYun" :key="i" class="dy-c click" :class="{ active: d.active, sel: expandedDaYun === i }" @tap="expandedDaYun = expandedDaYun === i ? null : i">
-            <text class="dy-char" :class="wuxingColorClass[d.gan]">{{ d.gan }}</text><text class="dy-shen">{{ d.shiShen }}</text>
+          <view
+            v-for="(d, i) in data.daYun"
+            :key="i"
+            class="dy-c click"
+            :class="{ active: d.active, sel: expandedDaYun === i }"
+            @tap="expandedDaYun = expandedDaYun === i ? null : i"
+          >
+            <text
+              class="dy-char"
+              :class="wuxingColorClass[d.gan]"
+            >
+              {{ d.gan }}
+            </text><text class="dy-shen">
+              {{ d.shiShen }}
+            </text>
           </view>
         </view>
         <view class="dy-row">
-          <view v-for="(d, i) in data.daYun" :key="i" class="dy-c click" :class="{ active: d.active, sel: expandedDaYun === i }" @tap="expandedDaYun = expandedDaYun === i ? null : i">
-            <text class="dy-char" :class="wuxingColorClass[d.zhi]">{{ d.zhi }}</text><text class="dy-shen">{{ d.shiShenZhi }}</text>
+          <view
+            v-for="(d, i) in data.daYun"
+            :key="i"
+            class="dy-c click"
+            :class="{ active: d.active, sel: expandedDaYun === i }"
+            @tap="expandedDaYun = expandedDaYun === i ? null : i"
+          >
+            <text
+              class="dy-char"
+              :class="wuxingColorClass[d.zhi]"
+            >
+              {{ d.zhi }}
+            </text><text class="dy-shen">
+              {{ d.shiShenZhi }}
+            </text>
           </view>
         </view>
       </view>
-      <view v-if="expandedDaYun !== null" class="dy-detail">
+      <view
+        v-if="expandedDaYun !== null"
+        class="dy-detail"
+      >
         <view class="dy-detail-head">
-          <text class="dy-detail-title">{{ data.daYun[expandedDaYun].year }}-{{ data.daYun[expandedDaYun].year + 9 }} 流年</text>
-          <text class="dy-collapse" @tap="expandedDaYun = null">收起</text>
+          <text class="dy-detail-title">
+            {{ data.daYun[expandedDaYun].year }}-{{ data.daYun[expandedDaYun].year + 9 }} 流年
+          </text>
+          <text
+            class="dy-collapse"
+            @tap="expandedDaYun = null"
+          >
+            收起
+          </text>
         </view>
         <view class="dy-grid">
-          <view v-for="(item, i) in daYunYears(expandedDaYun)" :key="i" class="dy-cell">
-            <text class="dy-cell-year">{{ item.year }}</text>
-            <view><text class="dy-cell-char" :class="wuxingColorClass[item.gan]">{{ item.gan }}</text><text class="dy-shen">{{ item.ganShen }}</text></view>
-            <view><text class="dy-cell-char" :class="wuxingColorClass[item.zhi]">{{ item.zhi }}</text><text class="dy-shen">{{ item.zhiShen }}</text></view>
-            <text class="dy-cell-age">{{ item.age }}岁</text>
+          <view
+            v-for="(item, i) in daYunYears(expandedDaYun)"
+            :key="i"
+            class="dy-cell"
+          >
+            <text class="dy-cell-year">
+              {{ item.year }}
+            </text>
+            <view>
+              <text
+                class="dy-cell-char"
+                :class="wuxingColorClass[item.gan]"
+              >
+                {{ item.gan }}
+              </text><text class="dy-shen">
+                {{ item.ganShen }}
+              </text>
+            </view>
+            <view>
+              <text
+                class="dy-cell-char"
+                :class="wuxingColorClass[item.zhi]"
+              >
+                {{ item.zhi }}
+              </text><text class="dy-shen">
+                {{ item.zhiShen }}
+              </text>
+            </view>
+            <text class="dy-cell-age">
+              {{ item.age }}岁
+            </text>
           </view>
         </view>
       </view>
@@ -168,24 +410,73 @@ function daYunYears(idx: number) {
     <view class="card">
       <section-title title="流年" />
       <view class="dy-table">
-        <view class="dy-row dy-years"><text v-for="(n, i) in data.liuNian" :key="i" class="dy-c year">{{ n.year }}</text></view>
+        <view class="dy-row dy-years">
+          <text
+            v-for="(n, i) in data.liuNian"
+            :key="i"
+            class="dy-c year"
+          >
+            {{ n.year }}
+          </text>
+        </view>
         <view class="dy-row">
-          <view v-for="(n, i) in data.liuNian" :key="i" class="dy-c" :class="{ active: n.active }">
-            <text class="dy-char sm" :class="wuxingColorClass[n.gan]">{{ n.gan }}</text><text class="dy-shen">{{ n.shiShen }}</text>
+          <view
+            v-for="(n, i) in data.liuNian"
+            :key="i"
+            class="dy-c"
+            :class="{ active: n.active }"
+          >
+            <text
+              class="dy-char sm"
+              :class="wuxingColorClass[n.gan]"
+            >
+              {{ n.gan }}
+            </text><text class="dy-shen">
+              {{ n.shiShen }}
+            </text>
           </view>
         </view>
         <view class="dy-row">
-          <view v-for="(n, i) in data.liuNian" :key="i" class="dy-c" :class="{ active: n.active }">
-            <text class="dy-char sm" :class="wuxingColorClass[n.zhi]">{{ n.zhi }}</text><text class="dy-shen">{{ n.shiShenZhi }}</text>
+          <view
+            v-for="(n, i) in data.liuNian"
+            :key="i"
+            class="dy-c"
+            :class="{ active: n.active }"
+          >
+            <text
+              class="dy-char sm"
+              :class="wuxingColorClass[n.zhi]"
+            >
+              {{ n.zhi }}
+            </text><text class="dy-shen">
+              {{ n.shiShenZhi }}
+            </text>
           </view>
         </view>
-        <view class="dy-row dy-years"><text v-for="(n, i) in data.liuNian" :key="i" class="dy-c year" :class="{ active: n.active }">{{ n.age }}岁</text></view>
+        <view class="dy-row dy-years">
+          <text
+            v-for="(n, i) in data.liuNian"
+            :key="i"
+            class="dy-c year"
+            :class="{ active: n.active }"
+          >
+            {{ n.age }}岁
+          </text>
+        </view>
       </view>
     </view>
 
     <classics-section />
 
-    <view class="ai-btn"><app-icon name="sparkles" :size="36" color="#ffffff" /><text class="ai-btn-text">AI辅助分析</text></view>
+    <view class="ai-btn">
+      <app-icon
+        name="sparkles"
+        :size="36"
+        color="#ffffff"
+      /><text class="ai-btn-text">
+        AI辅助分析
+      </text>
+    </view>
   </view>
 </template>
 

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
+import { profileApi } from '@/lib/profile-data'
 
 // 预置标签库
 const tagCategories = [
@@ -24,13 +25,26 @@ type Gender = 'male' | 'female' | 'unknown'
 
 const form = ref({
   avatar: '',
-  nickname: '易学爱好者',
-  bio: '探索命理奥秘，传承国学智慧',
-  gender: 'male' as Gender,
-  birthday: '1990-01-01',
-  province: '广东省',
-  city: '深圳市',
-  tags: ['八字命理', '紫微斗数'] as string[],
+  nickname: '',
+  bio: '',
+  gender: 'unknown' as Gender,
+  birthday: '',
+  province: '',
+  city: '',
+  tags: [] as string[],
+})
+
+const loading = ref(true)
+onMounted(async () => {
+  try {
+    const profile = await profileApi.getMyProfile()
+    if (profile && !profile._isMock) {
+      form.value.nickname = profile.name || ''
+      form.value.bio = profile.bio || ''
+      form.value.avatar = profile.avatar || ''
+    }
+  } catch (e) { /* 使用默认值 */ }
+  loading.value = false
 })
 
 const showAvatarMenu = ref(false)
@@ -54,15 +68,26 @@ const locationLabel = computed(() =>
 )
 const currentCities = computed(() => cities[form.value.province] || [])
 
-function handleSave() {
+async function handleSave() {
   if (isSaving.value) return
   isSaving.value = true
-  setTimeout(() => {
-    isSaving.value = false
+  try {
+    await profileApi.updateProfile({
+      nickname: form.value.nickname,
+      bio: form.value.bio,
+      gender: form.value.gender,
+      birthday: form.value.birthday,
+      province: form.value.province,
+      city: form.value.city,
+      tags: form.value.tags,
+    })
     saved.value = true
     uni.showToast({ title: '已保存', icon: 'success' })
     setTimeout(() => { saved.value = false }, 2000)
-  }, 1000)
+  } catch (e) {
+    uni.showToast({ title: '保存失败，请重试', icon: 'none' })
+  }
+  isSaving.value = false
 }
 
 function onNicknameInput(e: any) {
@@ -111,12 +136,39 @@ function chooseAvatar() {
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <app-nav-bar title="编辑资料" background="rgba(250,248,245,0.95)" :back-size="40">
+    <app-nav-bar
+      title="编辑资料"
+      background="rgba(250,248,245,0.95)"
+      :back-size="40"
+    >
       <template #right>
-        <view class="save-btn" :class="{ saved }" @tap="handleSave">
-          <view v-if="isSaving" class="spinner" />
-          <view v-else-if="saved" class="save-inner"><AppIcon name="check" :size="24" color="#52C41A" /><text class="save-txt saved-txt">已保存</text></view>
-          <text v-else class="save-txt">保存</text>
+        <view
+          class="save-btn"
+          :class="{ saved }"
+          @tap="handleSave"
+        >
+          <view
+            v-if="isSaving"
+            class="spinner"
+          />
+          <view
+            v-else-if="saved"
+            class="save-inner"
+          >
+            <AppIcon
+              name="check"
+              :size="24"
+              color="#52C41A"
+            /><text class="save-txt saved-txt">
+              已保存
+            </text>
+          </view>
+          <text
+            v-else
+            class="save-txt"
+          >
+            保存
+          </text>
         </view>
       </template>
     </app-nav-bar>
@@ -125,86 +177,238 @@ function chooseAvatar() {
     <view class="avatar-sec">
       <view class="avatar-wrap">
         <view class="avatar">
-          <image v-if="form.avatar" class="avatar-img" :src="form.avatar" mode="aspectFill" />
-          <text v-else class="avatar-fallback">{{ form.nickname[0] }}</text>
+          <image
+            v-if="form.avatar"
+            class="avatar-img"
+            :src="form.avatar"
+            mode="aspectFill"
+          />
+          <text
+            v-else
+            class="avatar-fallback"
+          >
+            {{ form.nickname[0] }}
+          </text>
         </view>
-        <view class="cam-btn" @tap="showAvatarMenu = true"><AppIcon name="camera" :size="26" color="#ffffff" /></view>
+        <view
+          class="cam-btn"
+          @tap="showAvatarMenu = true"
+        >
+          <AppIcon
+            name="camera"
+            :size="26"
+            color="#ffffff"
+          />
+        </view>
       </view>
-      <text class="avatar-tip">点击更换头像</text>
+      <text class="avatar-tip">
+        点击更换头像
+      </text>
     </view>
 
     <!-- 表单区 -->
     <view class="form">
       <!-- 昵称 -->
       <view class="fcard">
-        <text class="flabel">昵称</text>
+        <text class="flabel">
+          昵称
+        </text>
         <view class="frow">
-          <input class="finput" :value="form.nickname" placeholder="请输入昵称" placeholder-class="ph" :maxlength="20" @input="onNicknameInput" />
-          <text class="fcount">{{ form.nickname.length }}/20</text>
+          <input
+            class="finput"
+            :value="form.nickname"
+            placeholder="请输入昵称"
+            placeholder-class="ph"
+            :maxlength="20"
+            @input="onNicknameInput"
+          >
+          <text class="fcount">
+            {{ form.nickname.length }}/20
+          </text>
         </view>
       </view>
 
       <!-- 简介 -->
       <view class="fcard">
-        <text class="flabel">简介</text>
-        <textarea class="ftextarea" :value="form.bio" placeholder="介绍一下自己吧" placeholder-class="ph" :maxlength="100" @input="onBioInput" />
-        <view class="fcount-right"><text class="fcount">{{ form.bio.length }}/100</text></view>
+        <text class="flabel">
+          简介
+        </text>
+        <textarea
+          class="ftextarea"
+          :value="form.bio"
+          placeholder="介绍一下自己吧"
+          placeholder-class="ph"
+          :maxlength="100"
+          @input="onBioInput"
+        />
+        <view class="fcount-right">
+          <text class="fcount">
+            {{ form.bio.length }}/100
+          </text>
+        </view>
       </view>
 
       <!-- 性别 -->
-      <view class="fcard frow-card" @tap="showGenderPicker = true">
-        <text class="fitem-label">性别</text>
-        <view class="fitem-val"><text class="fval-txt">{{ genderLabel }}</text><AppIcon name="chevron-right" :size="28" color="#999999" /></view>
+      <view
+        class="fcard frow-card"
+        @tap="showGenderPicker = true"
+      >
+        <text class="fitem-label">
+          性别
+        </text>
+        <view class="fitem-val">
+          <text class="fval-txt">
+            {{ genderLabel }}
+          </text><AppIcon
+            name="chevron-right"
+            :size="28"
+            color="#999999"
+          />
+        </view>
       </view>
 
       <!-- 生日 -->
-      <picker mode="date" :value="form.birthday" @change="onBirthdayChange">
+      <picker
+        mode="date"
+        :value="form.birthday"
+        @change="onBirthdayChange"
+      >
         <view class="fcard frow-card">
-          <text class="fitem-label">生日</text>
-          <view class="fitem-val"><text class="fval-txt">{{ form.birthday || '未设置' }}</text><AppIcon name="chevron-right" :size="28" color="#999999" /></view>
+          <text class="fitem-label">
+            生日
+          </text>
+          <view class="fitem-val">
+            <text class="fval-txt">
+              {{ form.birthday || '未设置' }}
+            </text><AppIcon
+              name="chevron-right"
+              :size="28"
+              color="#999999"
+            />
+          </view>
         </view>
       </picker>
 
       <!-- 所在地 -->
-      <view class="fcard frow-card" @tap="showLocationPicker = true">
-        <text class="fitem-label">所在地</text>
-        <view class="fitem-val"><text class="fval-txt">{{ locationLabel }}</text><AppIcon name="chevron-right" :size="28" color="#999999" /></view>
+      <view
+        class="fcard frow-card"
+        @tap="showLocationPicker = true"
+      >
+        <text class="fitem-label">
+          所在地
+        </text>
+        <view class="fitem-val">
+          <text class="fval-txt">
+            {{ locationLabel }}
+          </text><AppIcon
+            name="chevron-right"
+            :size="28"
+            color="#999999"
+          />
+        </view>
       </view>
 
       <!-- 兴趣标签 -->
       <view class="fcard">
         <view class="tag-head">
-          <text class="fitem-label">兴趣标签</text>
-          <text class="fcount">{{ form.tags.length }}/5</text>
+          <text class="fitem-label">
+            兴趣标签
+          </text>
+          <text class="fcount">
+            {{ form.tags.length }}/5
+          </text>
         </view>
         <view class="tag-wrap">
-          <view v-for="tag in form.tags" :key="tag" class="tag-chip">
-            <text class="tag-chip-txt">{{ tag }}</text>
-            <view class="tag-del" @tap="toggleTag(tag)"><AppIcon name="x" :size="20" color="#C41E3A" /></view>
+          <view
+            v-for="tag in form.tags"
+            :key="tag"
+            class="tag-chip"
+          >
+            <text class="tag-chip-txt">
+              {{ tag }}
+            </text>
+            <view
+              class="tag-del"
+              @tap="toggleTag(tag)"
+            >
+              <AppIcon
+                name="x"
+                :size="20"
+                color="#C41E3A"
+              />
+            </view>
           </view>
-          <view v-if="form.tags.length < 5" class="tag-add" @tap="showTagPicker = true">
-            <AppIcon name="plus" :size="22" color="#999999" /><text class="tag-add-txt">添加标签</text>
+          <view
+            v-if="form.tags.length < 5"
+            class="tag-add"
+            @tap="showTagPicker = true"
+          >
+            <AppIcon
+              name="plus"
+              :size="22"
+              color="#999999"
+            /><text class="tag-add-txt">
+              添加标签
+            </text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 头像选择菜单 -->
-    <view v-if="showAvatarMenu" class="sheet-mask" @tap="showAvatarMenu = false">
-      <view class="sheet" @tap.stop>
+    <view
+      v-if="showAvatarMenu"
+      class="sheet-mask"
+      @tap="showAvatarMenu = false"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
         <view class="sheet-list">
-          <view class="sheet-opt" @tap="chooseAvatar">拍照</view>
-          <view class="sheet-opt" @tap="chooseAvatar">从相册选择</view>
-          <view class="sheet-opt" @tap="showAvatarMenu = false">查看大图</view>
+          <view
+            class="sheet-opt"
+            @tap="chooseAvatar"
+          >
+            拍照
+          </view>
+          <view
+            class="sheet-opt"
+            @tap="chooseAvatar"
+          >
+            从相册选择
+          </view>
+          <view
+            class="sheet-opt"
+            @tap="showAvatarMenu = false"
+          >
+            查看大图
+          </view>
         </view>
-        <view class="sheet-cancel" @tap="showAvatarMenu = false">取消</view>
+        <view
+          class="sheet-cancel"
+          @tap="showAvatarMenu = false"
+        >
+          取消
+        </view>
       </view>
     </view>
 
     <!-- 性别选择器 -->
-    <view v-if="showGenderPicker" class="sheet-mask" @tap="showGenderPicker = false">
-      <view class="sheet" @tap.stop>
-        <view class="sheet-head-c"><text class="sheet-title">选择性别</text></view>
+    <view
+      v-if="showGenderPicker"
+      class="sheet-mask"
+      @tap="showGenderPicker = false"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
+        <view class="sheet-head-c">
+          <text class="sheet-title">
+            选择性别
+          </text>
+        </view>
         <view class="sheet-list">
           <view
             v-for="opt in genderOptions"
@@ -214,44 +418,87 @@ function chooseAvatar() {
             @tap="pickGender(opt.value)"
           >
             <text>{{ opt.label }}</text>
-            <AppIcon v-if="form.gender === opt.value" name="check" :size="28" color="#C41E3A" />
+            <AppIcon
+              v-if="form.gender === opt.value"
+              name="check"
+              :size="28"
+              color="#C41E3A"
+            />
           </view>
         </view>
-        <view class="sheet-cancel" @tap="showGenderPicker = false">取消</view>
+        <view
+          class="sheet-cancel"
+          @tap="showGenderPicker = false"
+        >
+          取消
+        </view>
       </view>
     </view>
 
     <!-- 地区选择器 -->
-    <view v-if="showLocationPicker" class="sheet-mask" @tap="showLocationPicker = false">
-      <view class="sheet" @tap.stop>
+    <view
+      v-if="showLocationPicker"
+      class="sheet-mask"
+      @tap="showLocationPicker = false"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
         <view class="sheet-head">
-          <text class="sheet-cancel-t" @tap="showLocationPicker = false">取消</text>
-          <text class="sheet-title">选择所在地</text>
-          <text class="sheet-confirm-t" @tap="showLocationPicker = false">确定</text>
+          <text
+            class="sheet-cancel-t"
+            @tap="showLocationPicker = false"
+          >
+            取消
+          </text>
+          <text class="sheet-title">
+            选择所在地
+          </text>
+          <text
+            class="sheet-confirm-t"
+            @tap="showLocationPicker = false"
+          >
+            确定
+          </text>
         </view>
         <view class="loc-grid">
           <view class="loc-col">
-            <text class="loc-label">省份</text>
-            <scroll-view scroll-y class="loc-scroll">
+            <text class="loc-label">
+              省份
+            </text>
+            <scroll-view
+              scroll-y
+              class="loc-scroll"
+            >
               <view
                 v-for="p in provinces"
                 :key="p"
                 class="loc-opt"
                 :class="{ 'loc-active': form.province === p }"
                 @tap="pickProvince(p)"
-              >{{ p }}</view>
+              >
+                {{ p }}
+              </view>
             </scroll-view>
           </view>
           <view class="loc-col">
-            <text class="loc-label">城市</text>
-            <scroll-view scroll-y class="loc-scroll">
+            <text class="loc-label">
+              城市
+            </text>
+            <scroll-view
+              scroll-y
+              class="loc-scroll"
+            >
               <view
                 v-for="c in currentCities"
                 :key="c"
                 class="loc-opt"
                 :class="{ 'loc-active': form.city === c }"
                 @tap="pickCity(c)"
-              >{{ c }}</view>
+              >
+                {{ c }}
+              </view>
             </scroll-view>
           </view>
         </view>
@@ -259,16 +506,44 @@ function chooseAvatar() {
     </view>
 
     <!-- 标签选择器 -->
-    <view v-if="showTagPicker" class="sheet-mask" @tap="showTagPicker = false">
-      <view class="sheet sheet-tall" @tap.stop>
+    <view
+      v-if="showTagPicker"
+      class="sheet-mask"
+      @tap="showTagPicker = false"
+    >
+      <view
+        class="sheet sheet-tall"
+        @tap.stop
+      >
         <view class="sheet-head">
-          <text class="sheet-cancel-t" @tap="showTagPicker = false">取消</text>
-          <text class="sheet-title">选择标签 ({{ form.tags.length }}/5)</text>
-          <text class="sheet-confirm-t" @tap="showTagPicker = false">完成</text>
+          <text
+            class="sheet-cancel-t"
+            @tap="showTagPicker = false"
+          >
+            取消
+          </text>
+          <text class="sheet-title">
+            选择标签 ({{ form.tags.length }}/5)
+          </text>
+          <text
+            class="sheet-confirm-t"
+            @tap="showTagPicker = false"
+          >
+            完成
+          </text>
         </view>
-        <scroll-view scroll-y class="tag-scroll">
-          <view v-for="cat in tagCategories" :key="cat.name" class="tag-cat">
-            <text class="tag-cat-name">{{ cat.name }}</text>
+        <scroll-view
+          scroll-y
+          class="tag-scroll"
+        >
+          <view
+            v-for="cat in tagCategories"
+            :key="cat.name"
+            class="tag-cat"
+          >
+            <text class="tag-cat-name">
+              {{ cat.name }}
+            </text>
             <view class="tag-cat-wrap">
               <view
                 v-for="tag in cat.tags"
@@ -279,7 +554,9 @@ function chooseAvatar() {
                   'picker-tag-disabled': !form.tags.includes(tag) && form.tags.length >= 5,
                 }"
                 @tap="toggleTag(tag)"
-              >{{ tag }}</view>
+              >
+                {{ tag }}
+              </view>
             </view>
           </view>
         </scroll-view>

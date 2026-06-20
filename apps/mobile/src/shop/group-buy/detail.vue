@@ -2,117 +2,246 @@
   <view class="gbd-page">
     <!-- 顶部导航 -->
     <view class="navbar">
-      <view class="nav-btn" hover-class="nav-hover" @tap="goBack">
-        <app-icon name="chevron-left" :size="36" color="#fff" />
+      <view
+        class="nav-btn"
+        hover-class="nav-hover"
+        @tap="goBack"
+      >
+        <app-icon
+          name="chevron-left"
+          :size="36"
+          color="#fff"
+        />
       </view>
-      <text class="nav-title">拼团详情</text>
-      <view class="nav-btn" hover-class="nav-hover">
-        <app-icon name="share-2" :size="32" color="#fff" />
+      <text class="nav-title">
+        拼团详情
+      </text>
+      <view
+        class="nav-btn"
+        hover-class="nav-hover"
+      >
+        <app-icon
+          name="share-2"
+          :size="32"
+          color="#fff"
+        />
       </view>
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="sk-wrap">
-      <view class="sk-card"><view class="sk-row" /><view class="sk-line" /><view class="sk-line sk-short" /></view>
-      <view class="sk-card"><view class="sk-line w4" /><view v-for="i in 3" :key="i" class="sk-group"><view class="sk-avatar" /><view class="sk-info"><view class="sk-line" /><view class="sk-line sk-short" /></view></view></view>
+    <view
+      v-if="loading"
+      class="sk-wrap"
+    >
+      <view class="sk-card">
+        <view class="sk-row" /><view class="sk-line" /><view class="sk-line sk-short" />
+      </view>
+      <view class="sk-card">
+        <view class="sk-line w4" /><view
+          v-for="i in 3"
+          :key="i"
+          class="sk-group"
+        >
+          <view class="sk-avatar" /><view class="sk-info">
+            <view class="sk-line" /><view class="sk-line sk-short" />
+          </view>
+        </view>
+      </view>
     </view>
 
-    <error-state v-else-if="error" :message="error" @retry="loadGroupBuy" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadGroupBuy"
+    />
 
     <view v-else>
-    <!-- 商品信息 -->
-    <view class="product-card">
-      <view class="pc-main">
-        <image class="pc-cover" :src="detail.cover" mode="aspectFill" />
-        <view class="pc-info">
-          <text class="pc-title">{{ detail.title }}</text>
-          <text class="pc-desc">{{ detail.description }}</text>
-          <view class="pc-price">
-            <text class="price-now">¥{{ detail.price }}</text>
-            <text class="price-old">¥{{ detail.originalPrice }}</text>
-            <text class="save-tag">省¥{{ detail.originalPrice - detail.price }}</text>
-          </view>
-        </view>
-      </view>
-      <view class="pc-meta">
-        <view class="meta-item">
-          <app-icon name="users" :size="28" color="#ff6b35" />
-          <text class="meta-text">{{ detail.minMembers }}人成团</text>
-        </view>
-        <view class="meta-item">
-          <app-icon name="clock" :size="28" color="#ff6b35" />
-          <text class="meta-text">24小时有效</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 正在拼团 -->
-    <view class="section">
-      <view class="section-head">
-        <text class="section-title">正在拼团</text>
-        <text class="section-count">{{ groups.length }}个团进行中</text>
-      </view>
-      <view class="groups">
-        <view v-for="g in groups" :key="g.id" class="group">
-          <view class="g-owner">
-            <image class="g-owner-avatar" :src="g.owner.avatar" mode="aspectFill" />
-            <view class="g-crown">
-              <app-icon name="crown" :size="20" color="#fff" />
+      <!-- 商品信息 -->
+      <view class="product-card">
+        <view class="pc-main">
+          <image
+            class="pc-cover"
+            :src="detail.cover"
+            mode="aspectFill"
+          />
+          <view class="pc-info">
+            <text class="pc-title">
+              {{ detail.title }}
+            </text>
+            <text class="pc-desc">
+              {{ detail.description }}
+            </text>
+            <view class="pc-price">
+              <text class="price-now">
+                ¥{{ detail.price }}
+              </text>
+              <text class="price-old">
+                ¥{{ detail.originalPrice }}
+              </text>
+              <text class="save-tag">
+                省¥{{ detail.originalPrice - detail.price }}
+              </text>
             </view>
           </view>
-          <view class="g-members">
-            <image
-              v-for="(m, i) in g.members"
-              :key="i"
-              class="g-member-avatar"
-              :src="m.avatar"
-              mode="aspectFill"
+        </view>
+        <view class="pc-meta">
+          <view class="meta-item">
+            <app-icon
+              name="users"
+              :size="28"
+              color="#ff6b35"
             />
+            <text class="meta-text">
+              {{ detail.minMembers }}人成团
+            </text>
+          </view>
+          <view class="meta-item">
+            <app-icon
+              name="clock"
+              :size="28"
+              color="#ff6b35"
+            />
+            <text class="meta-text">
+              24小时有效
+            </text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 正在拼团 -->
+      <view class="section">
+        <view class="section-head">
+          <text class="section-title">
+            正在拼团
+          </text>
+          <text class="section-count">
+            {{ groups.length }}个团进行中
+          </text>
+        </view>
+        <view class="groups">
+          <view
+            v-for="g in groups"
+            :key="g.id"
+            class="group"
+          >
+            <view class="g-owner">
+              <image
+                class="g-owner-avatar"
+                :src="g.owner.avatar"
+                mode="aspectFill"
+              />
+              <view class="g-crown">
+                <app-icon
+                  name="crown"
+                  :size="20"
+                  color="#fff"
+                />
+              </view>
+            </view>
+            <view class="g-members">
+              <image
+                v-for="(m, i) in g.members"
+                :key="i"
+                class="g-member-avatar"
+                :src="m.avatar"
+                mode="aspectFill"
+              />
+              <view
+                v-for="n in (g.minMembers - g.currentMembers)"
+                :key="'ge' + n"
+                class="g-member-empty"
+              >
+                <text class="g-q">
+                  ?
+                </text>
+              </view>
+            </view>
+            <view class="g-info">
+              <text class="g-remain">
+                还差<text class="g-remain-num">
+                  {{ g.minMembers - g.currentMembers }}
+                </text>人成团
+              </text>
+              <view class="g-cd">
+                <app-icon
+                  name="clock"
+                  :size="20"
+                  color="#999"
+                />
+                <text class="g-cd-text">
+                  {{ cdText(g.id) }}
+                </text>
+              </view>
+            </view>
             <view
-              v-for="n in (g.minMembers - g.currentMembers)"
-              :key="'ge' + n"
-              class="g-member-empty"
+              class="g-btn"
+              hover-class="btn-hover"
+              @tap="join(g.id)"
             >
-              <text class="g-q">?</text>
+              <text class="g-btn-text">
+                {{ joiningId === g.id ? '加入中...' : '去参团' }}
+              </text>
             </view>
           </view>
-          <view class="g-info">
-            <text class="g-remain">还差<text class="g-remain-num">{{ g.minMembers - g.currentMembers }}</text>人成团</text>
-            <view class="g-cd">
-              <app-icon name="clock" :size="20" color="#999" />
-              <text class="g-cd-text">{{ cdText(g.id) }}</text>
-            </view>
-          </view>
-          <view class="g-btn" hover-class="btn-hover" @tap="join(g.id)">
-            <text class="g-btn-text">{{ joiningId === g.id ? '加入中...' : '去参团' }}</text>
+        </view>
+        <view
+          v-if="!groups.length"
+          class="g-empty"
+        >
+          <app-icon
+            name="users"
+            :size="64"
+            color="#d4c5a9"
+          />
+          <text class="g-empty-text">
+            暂无进行中的拼团
+          </text>
+          <text class="g-empty-sub">
+            快来开启第一个拼团吧
+          </text>
+        </view>
+      </view>
+
+      <!-- 拼团规则 -->
+      <view class="section">
+        <text class="section-title">
+          拼团规则
+        </text>
+        <view class="rules">
+          <view
+            v-for="(r, i) in detail.rules"
+            :key="i"
+            class="rule"
+          >
+            <app-icon
+              name="check"
+              :size="26"
+              color="#ff6b35"
+            />
+            <text class="rule-text">
+              {{ r }}
+            </text>
           </view>
         </view>
       </view>
-      <view v-if="!groups.length" class="g-empty">
-        <app-icon name="users" :size="64" color="#d4c5a9" />
-        <text class="g-empty-text">暂无进行中的拼团</text>
-        <text class="g-empty-sub">快来开启第一个拼团吧</text>
-      </view>
-    </view>
 
-    <!-- 拼团规则 -->
-    <view class="section">
-      <text class="section-title">拼团规则</text>
-      <view class="rules">
-        <view v-for="(r, i) in detail.rules" :key="i" class="rule">
-          <app-icon name="check" :size="26" color="#ff6b35" />
-          <text class="rule-text">{{ r }}</text>
+      <!-- 底部开新团 -->
+      <view class="footer">
+        <view
+          class="footer-btn"
+          hover-class="btn-hover"
+          @tap="create"
+        >
+          <app-icon
+            name="plus"
+            :size="28"
+            color="#fff"
+          />
+          <text class="footer-btn-text">
+            ¥{{ detail.price }} 开新团
+          </text>
         </view>
       </view>
-    </view>
-
-    <!-- 底部开新团 -->
-    <view class="footer">
-      <view class="footer-btn" hover-class="btn-hover" @tap="create">
-        <app-icon name="plus" :size="28" color="#fff" />
-        <text class="footer-btn-text">¥{{ detail.price }} 开新团</text>
-      </view>
-    </view>
     </view>
   </view>
 </template>
@@ -122,13 +251,13 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
 import ErrorState from '@/components/common/error-state.vue'
-import { shopApi, groupBuyDetail as fallbackDetail, activeGroups as fallbackGroups, formatCountdown } from '@/lib/shop-data'
+import { shopApi, formatCountdown } from '@/lib/shop-data'
 
 const groupId = ref('')
 const loading = ref(true)
 const error = ref('')
-const detail = ref<any>({ ...fallbackDetail })
-const groups = ref<any[]>(fallbackGroups)
+const detail = ref<any>({})
+const groups = ref<any[]>([])
 const joiningId = ref<string | null>(null)
 
 const endMap: Record<string, number> = {}
@@ -143,8 +272,8 @@ async function loadGroupBuy() {
       shopApi.getGroupBuyDetail(groupId.value),
       shopApi.getGroupBuys(),
     ])
-    detail.value = d || fallbackDetail
-    groups.value = (g as any)?.items || g || fallbackGroups
+    detail.value = d || {}
+    groups.value = (g as any)?.items || g || []
     groups.value.forEach((g: any) => { endMap[g.id] = Date.now() + (g.endOffsetMs || 7200000) })
   } catch (e: any) { error.value = e?.message || '加载失败' } finally { loading.value = false }
 }

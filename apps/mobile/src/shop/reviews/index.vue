@@ -1,122 +1,234 @@
 <template>
   <view class="rv-page">
     <!-- 顶部导航 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-btn" hover-class="nav-hover" @tap="goBack">
-        <app-icon name="chevron-left" :size="38" color="#2C2C2C" />
+    <view
+      class="navbar"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view
+        class="nav-btn"
+        hover-class="nav-hover"
+        @tap="goBack"
+      >
+        <app-icon
+          name="chevron-left"
+          :size="38"
+          color="#2C2C2C"
+        />
       </view>
-      <text class="nav-title">商品评价</text>
+      <text class="nav-title">
+        商品评价
+      </text>
       <view class="nav-spacer" />
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="sk-wrap">
-      <view class="sk-summary"><view class="sk-big" /><view class="sk-stars" /></view>
-      <view v-for="i in 3" :key="i" class="sk-card"><view class="sk-head" /><view class="sk-line" /><view class="sk-line sk-short" /></view>
+    <view
+      v-if="loading"
+      class="sk-wrap"
+    >
+      <view class="sk-summary">
+        <view class="sk-big" /><view class="sk-stars" />
+      </view>
+      <view
+        v-for="i in 3"
+        :key="i"
+        class="sk-card"
+      >
+        <view class="sk-head" /><view class="sk-line" /><view class="sk-line sk-short" />
+      </view>
     </view>
 
-    <error-state v-else-if="error" :message="error" @retry="loadReviews" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadReviews"
+    />
 
     <view v-else>
-    <!-- 评分概览 -->
-    <view class="summary-card">
-      <view class="summary-left">
-        <text class="avg-num">{{ stats.average }}</text>
-        <view class="avg-stars">
-          <app-icon
-            v-for="s in 5"
-            :key="s"
-            name="star"
-            :size="26"
-            :color="s <= Math.round(stats.average) ? '#C9A96E' : '#DDDDDD'"
-            :fill="s <= Math.round(stats.average)"
-          />
-        </view>
-        <text class="avg-total">{{ stats.total }}条评价</text>
-      </view>
-      <view class="summary-right">
-        <view v-for="d in stats.distribution" :key="d.stars" class="dist-row">
-          <text class="dist-label">{{ d.stars }}星</text>
-          <view class="dist-bar">
-            <view class="dist-fill" :style="{ width: d.percent + '%' }" />
-          </view>
-          <text class="dist-percent">{{ d.percent }}%</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 筛选 Tab -->
-    <scroll-view class="filter-scroll" scroll-x>
-      <view class="filters">
-        <view
-          v-for="tab in filterTabs"
-          :key="tab.key"
-          class="filter-tab"
-          :class="{ 'filter-active': filter === tab.key }"
-          hover-class="opt-hover"
-          @tap="filter = tab.key"
-        >
-          <text class="filter-label">{{ tab.label }}</text>
-          <text class="filter-count" :class="{ 'count-active': filter === tab.key }">({{ tab.count }})</text>
-        </view>
-      </view>
-    </scroll-view>
-
-    <!-- 评价列表 -->
-    <view class="list">
-      <view v-if="filteredReviews.length === 0" class="empty">
-        <app-icon name="message-square" :size="80" color="#DDDDDD" />
-        <text class="empty-text">暂无相关评价</text>
-      </view>
-      <view v-for="rv in filteredReviews" :key="rv.id" class="rv-card">
-        <view class="rv-head">
-          <image class="rv-avatar" :src="rv.avatar" mode="aspectFill" />
-          <view class="rv-info">
-            <text class="rv-name">{{ rv.userName }}</text>
-            <view class="rv-stars">
-              <app-icon
-                v-for="s in 5"
-                :key="s"
-                name="star"
-                :size="20"
-                :color="s <= rv.rating ? '#C9A96E' : '#DDDDDD'"
-                :fill="s <= rv.rating"
-              />
-              <text v-if="rv.skuName" class="rv-sku">{{ rv.skuName }}</text>
-            </view>
-          </view>
-          <text class="rv-date">{{ rv.createdAt }}</text>
-        </view>
-        <text class="rv-content">{{ rv.content }}</text>
-        <scroll-view v-if="rv.images && rv.images.length" class="rv-imgs-scroll" scroll-x>
-          <view class="rv-imgs">
-            <image
-              v-for="(img, idx) in rv.images"
-              :key="idx"
-              class="rv-img"
-              :src="img"
-              mode="aspectFill"
-              @tap="openPreview(rv.images, idx)"
+      <!-- 评分概览 -->
+      <view class="summary-card">
+        <view class="summary-left">
+          <text class="avg-num">
+            {{ stats.average }}
+          </text>
+          <view class="avg-stars">
+            <app-icon
+              v-for="s in 5"
+              :key="s"
+              name="star"
+              :size="26"
+              :color="s <= Math.round(stats.average) ? '#C9A96E' : '#DDDDDD'"
+              :fill="s <= Math.round(stats.average)"
             />
           </view>
-        </scroll-view>
-        <view class="rv-foot">
-          <view class="like-btn" hover-class="opt-hover">
-            <app-icon name="thumbs-up" :size="28" color="#999999" />
-            <text class="like-text">有用 ({{ rv.likes }})</text>
+          <text class="avg-total">
+            {{ stats.total }}条评价
+          </text>
+        </view>
+        <view class="summary-right">
+          <view
+            v-for="d in stats.distribution"
+            :key="d.stars"
+            class="dist-row"
+          >
+            <text class="dist-label">
+              {{ d.stars }}星
+            </text>
+            <view class="dist-bar">
+              <view
+                class="dist-fill"
+                :style="{ width: d.percent + '%' }"
+              />
+            </view>
+            <text class="dist-percent">
+              {{ d.percent }}%
+            </text>
           </view>
         </view>
       </view>
-    </view>
+
+      <!-- 筛选 Tab -->
+      <scroll-view
+        class="filter-scroll"
+        scroll-x
+      >
+        <view class="filters">
+          <view
+            v-for="tab in filterTabs"
+            :key="tab.key"
+            class="filter-tab"
+            :class="{ 'filter-active': filter === tab.key }"
+            hover-class="opt-hover"
+            @tap="filter = tab.key"
+          >
+            <text class="filter-label">
+              {{ tab.label }}
+            </text>
+            <text
+              class="filter-count"
+              :class="{ 'count-active': filter === tab.key }"
+            >
+              ({{ tab.count }})
+            </text>
+          </view>
+        </view>
+      </scroll-view>
+
+      <!-- 评价列表 -->
+      <view class="list">
+        <view
+          v-if="filteredReviews.length === 0"
+          class="empty"
+        >
+          <app-icon
+            name="message-square"
+            :size="80"
+            color="#DDDDDD"
+          />
+          <text class="empty-text">
+            暂无相关评价
+          </text>
+        </view>
+        <view
+          v-for="rv in filteredReviews"
+          :key="rv.id"
+          class="rv-card"
+        >
+          <view class="rv-head">
+            <image
+              class="rv-avatar"
+              :src="rv.avatar"
+              mode="aspectFill"
+            />
+            <view class="rv-info">
+              <text class="rv-name">
+                {{ rv.userName }}
+              </text>
+              <view class="rv-stars">
+                <app-icon
+                  v-for="s in 5"
+                  :key="s"
+                  name="star"
+                  :size="20"
+                  :color="s <= rv.rating ? '#C9A96E' : '#DDDDDD'"
+                  :fill="s <= rv.rating"
+                />
+                <text
+                  v-if="rv.skuName"
+                  class="rv-sku"
+                >
+                  {{ rv.skuName }}
+                </text>
+              </view>
+            </view>
+            <text class="rv-date">
+              {{ rv.createdAt }}
+            </text>
+          </view>
+          <text class="rv-content">
+            {{ rv.content }}
+          </text>
+          <scroll-view
+            v-if="rv.images && rv.images.length"
+            class="rv-imgs-scroll"
+            scroll-x
+          >
+            <view class="rv-imgs">
+              <image
+                v-for="(img, idx) in rv.images"
+                :key="idx"
+                class="rv-img"
+                :src="img"
+                mode="aspectFill"
+                @tap="openPreview(rv.images, idx)"
+              />
+            </view>
+          </scroll-view>
+          <view class="rv-foot">
+            <view
+              class="like-btn"
+              hover-class="opt-hover"
+            >
+              <app-icon
+                name="thumbs-up"
+                :size="28"
+                color="#999999"
+              />
+              <text class="like-text">
+                有用 ({{ rv.likes }})
+              </text>
+            </view>
+          </view>
+        </view>
+      </view>
     </view>
 
     <!-- 图片预览 -->
-    <view v-if="previewImage" class="viewer" @tap="previewImage = ''">
-      <view class="viewer-close" @tap.stop="previewImage = ''">
-        <app-icon name="x" :size="44" color="#fff" />
+    <view
+      v-if="previewImage"
+      class="viewer"
+      @tap="previewImage = ''"
+    >
+      <view
+        class="viewer-close"
+        @tap.stop="previewImage = ''"
+      >
+        <app-icon
+          name="x"
+          :size="44"
+          color="#fff"
+        />
       </view>
-      <image class="viewer-img" :src="previewImage" mode="aspectFit" />
-      <view v-if="previewImages.length > 1" class="viewer-dots">
+      <image
+        class="viewer-img"
+        :src="previewImage"
+        mode="aspectFit"
+      />
+      <view
+        v-if="previewImages.length > 1"
+        class="viewer-dots"
+      >
         <view
           v-for="(img, idx) in previewImages"
           :key="idx"

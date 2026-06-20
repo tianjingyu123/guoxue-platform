@@ -1,7 +1,10 @@
 <template>
   <view class="pd-page">
     <!-- 加载骨架屏 -->
-    <view v-if="loading" class="sk-page">
+    <view
+      v-if="loading"
+      class="sk-page"
+    >
       <view class="sk-nav" />
       <view class="sk-gallery" />
       <view class="sk-price" />
@@ -12,248 +15,512 @@
     </view>
 
     <!-- 错误态 -->
-    <error-state v-else-if="error" :message="error" @retry="loadProduct(productId)" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadProduct(productId)"
+    />
 
     <view v-else>
-    <!-- 顶部导航 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-btn" hover-class="nav-hover" @tap="goBack">
-        <app-icon name="chevron-left" :size="36" color="#2C2C2C" />
-      </view>
-      <view class="nav-actions">
-        <view class="nav-btn" hover-class="nav-hover" @tap="toggleFavorite">
-          <app-icon name="heart" :size="34" :color="isFavorite ? '#C41E3A' : '#2C2C2C'" :fill="isFavorite" />
-        </view>
-        <view class="nav-btn" hover-class="nav-hover">
-          <app-icon name="share-2" :size="32" color="#2C2C2C" />
-        </view>
-      </view>
-    </view>
-
-    <!-- 图片轮播 -->
-    <view class="gallery" @tap="showImageViewer = true">
-      <swiper class="gallery-swiper" :current="currentImage" @change="onSwiperChange" :circular="true">
-        <swiper-item v-for="(img, i) in product.images" :key="i">
-          <image class="gallery-img" :src="img" mode="aspectFill" />
-        </swiper-item>
-      </swiper>
-      <view class="gallery-dots">
+      <!-- 顶部导航 -->
+      <view
+        class="navbar"
+        :style="{ paddingTop: statusBarHeight + 'px' }"
+      >
         <view
-          v-for="(img, i) in product.images"
-          :key="i"
-          class="dot"
-          :class="{ 'dot-active': i === currentImage }"
-        />
-      </view>
-      <view v-if="product.isHot" class="hot-tag">热销</view>
-    </view>
-
-    <!-- 价格信息 -->
-    <view class="price-card">
-      <view class="price-row">
-        <text class="price-now">¥{{ currentPrice }}</text>
-        <text class="price-old">¥{{ currentOriginalPrice }}</text>
-        <text class="save-tag">省¥{{ currentOriginalPrice - currentPrice }}</text>
-      </view>
-      <text class="p-title">{{ product.name }}</text>
-      <view class="p-meta">
-        <view class="meta-item">
-          <app-icon name="star" :size="28" color="#C9A96E" :fill="true" />
-          <text class="meta-text">{{ product.rating }}</text>
-        </view>
-        <text class="meta-text">已售{{ product.sales }}+</text>
-        <text class="meta-text">{{ product.shipping }}</text>
-      </view>
-    </view>
-
-    <!-- SKU 选择入口 -->
-    <view class="sku-entry" hover-class="cell-hover" @tap="openSku('cart')">
-      <text class="entry-label">已选</text>
-      <view class="entry-value">
-        <text class="entry-text">{{ selectedSku ? selectedSku.name : '请选择规格' }} x{{ quantity }}</text>
-        <app-icon name="chevron-right" :size="30" color="#999999" />
-      </view>
-    </view>
-
-    <!-- 规格参数 -->
-    <view class="block">
-      <text class="block-title">规格参数</text>
-      <view class="specs">
-        <view v-for="(spec, i) in product.specs" :key="i" class="spec-item">
-          <text class="spec-name">{{ spec.name }}</text>
-          <text class="spec-value">{{ spec.value }}</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 评价预览 -->
-    <view class="block">
-      <view class="block-head">
-        <text class="block-title">用户评价 ({{ product.reviewCount }})</text>
-        <view class="more-link" hover-class="link-hover" @tap="goReviews">
-          <text class="more-text">查看全部</text>
-          <app-icon name="chevron-right" :size="28" color="#C41E3A" />
-        </view>
-      </view>
-      <view class="rating-summary">
-        <text class="rating-num">{{ product.rating }}</text>
-        <view class="stars">
+          class="nav-btn"
+          hover-class="nav-hover"
+          @tap="goBack"
+        >
           <app-icon
-            v-for="s in 5"
-            :key="s"
-            name="star"
-            :size="26"
-            :color="s <= Math.round(product.rating) ? '#C9A96E' : '#DDDDDD'"
-            :fill="s <= Math.round(product.rating)"
+            name="chevron-left"
+            :size="36"
+            color="#2C2C2C"
+          />
+        </view>
+        <view class="nav-actions">
+          <view
+            class="nav-btn"
+            hover-class="nav-hover"
+            @tap="toggleFavorite"
+          >
+            <app-icon
+              name="heart"
+              :size="34"
+              :color="isFavorite ? '#C41E3A' : '#2C2C2C'"
+              :fill="isFavorite"
+            />
+          </view>
+          <view
+            class="nav-btn"
+            hover-class="nav-hover"
+          >
+            <app-icon
+              name="share-2"
+              :size="32"
+              color="#2C2C2C"
+            />
+          </view>
+        </view>
+      </view>
+
+      <!-- 图片轮播 -->
+      <view
+        class="gallery"
+        @tap="showImageViewer = true"
+      >
+        <swiper
+          class="gallery-swiper"
+          :current="currentImage"
+          :circular="true"
+          @change="onSwiperChange"
+        >
+          <swiper-item
+            v-for="(img, i) in product.images"
+            :key="i"
+          >
+            <image
+              class="gallery-img"
+              :src="img"
+              mode="aspectFill"
+            />
+          </swiper-item>
+        </swiper>
+        <view class="gallery-dots">
+          <view
+            v-for="(img, i) in product.images"
+            :key="i"
+            class="dot"
+            :class="{ 'dot-active': i === currentImage }"
+          />
+        </view>
+        <view
+          v-if="product.isHot"
+          class="hot-tag"
+        >
+          热销
+        </view>
+      </view>
+
+      <!-- 价格信息 -->
+      <view class="price-card">
+        <view class="price-row">
+          <text class="price-now">
+            ¥{{ currentPrice }}
+          </text>
+          <text class="price-old">
+            ¥{{ currentOriginalPrice }}
+          </text>
+          <text class="save-tag">
+            省¥{{ currentOriginalPrice - currentPrice }}
+          </text>
+        </view>
+        <text class="p-title">
+          {{ product.name }}
+        </text>
+        <view class="p-meta">
+          <view class="meta-item">
+            <app-icon
+              name="star"
+              :size="28"
+              color="#C9A96E"
+              :fill="true"
+            />
+            <text class="meta-text">
+              {{ product.rating }}
+            </text>
+          </view>
+          <text class="meta-text">
+            已售{{ product.sales }}+
+          </text>
+          <text class="meta-text">
+            {{ product.shipping }}
+          </text>
+        </view>
+      </view>
+
+      <!-- SKU 选择入口 -->
+      <view
+        class="sku-entry"
+        hover-class="cell-hover"
+        @tap="openSku('cart')"
+      >
+        <text class="entry-label">
+          已选
+        </text>
+        <view class="entry-value">
+          <text class="entry-text">
+            {{ selectedSku ? selectedSku.name : '请选择规格' }} x{{ quantity }}
+          </text>
+          <app-icon
+            name="chevron-right"
+            :size="30"
+            color="#999999"
           />
         </view>
       </view>
-      <view class="reviews">
-        <view v-for="rv in reviews" :key="rv.id" class="review">
-          <view class="rv-head">
-            <image class="rv-avatar" :src="rv.avatar" mode="aspectFill" />
-            <view class="rv-info">
-              <text class="rv-name">{{ rv.userName }}</text>
-              <view class="rv-stars">
-                <app-icon
-                  v-for="s in 5"
-                  :key="s"
-                  name="star"
-                  :size="20"
-                  :color="s <= rv.rating ? '#C9A96E' : '#DDDDDD'"
-                  :fill="s <= rv.rating"
-                />
-                <text v-if="rv.skuName" class="rv-sku">{{ rv.skuName }}</text>
+
+      <!-- 规格参数 -->
+      <view class="block">
+        <text class="block-title">
+          规格参数
+        </text>
+        <view class="specs">
+          <view
+            v-for="(spec, i) in product.specs"
+            :key="i"
+            class="spec-item"
+          >
+            <text class="spec-name">
+              {{ spec.name }}
+            </text>
+            <text class="spec-value">
+              {{ spec.value }}
+            </text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 评价预览 -->
+      <view class="block">
+        <view class="block-head">
+          <text class="block-title">
+            用户评价 ({{ product.reviewCount }})
+          </text>
+          <view
+            class="more-link"
+            hover-class="link-hover"
+            @tap="goReviews"
+          >
+            <text class="more-text">
+              查看全部
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="28"
+              color="#C41E3A"
+            />
+          </view>
+        </view>
+        <view class="rating-summary">
+          <text class="rating-num">
+            {{ product.rating }}
+          </text>
+          <view class="stars">
+            <app-icon
+              v-for="s in 5"
+              :key="s"
+              name="star"
+              :size="26"
+              :color="s <= Math.round(product.rating) ? '#C9A96E' : '#DDDDDD'"
+              :fill="s <= Math.round(product.rating)"
+            />
+          </view>
+        </view>
+        <view class="reviews">
+          <view
+            v-for="rv in reviews"
+            :key="rv.id"
+            class="review"
+          >
+            <view class="rv-head">
+              <image
+                class="rv-avatar"
+                :src="rv.avatar"
+                mode="aspectFill"
+              />
+              <view class="rv-info">
+                <text class="rv-name">
+                  {{ rv.userName }}
+                </text>
+                <view class="rv-stars">
+                  <app-icon
+                    v-for="s in 5"
+                    :key="s"
+                    name="star"
+                    :size="20"
+                    :color="s <= rv.rating ? '#C9A96E' : '#DDDDDD'"
+                    :fill="s <= rv.rating"
+                  />
+                  <text
+                    v-if="rv.skuName"
+                    class="rv-sku"
+                  >
+                    {{ rv.skuName }}
+                  </text>
+                </view>
               </view>
             </view>
-          </view>
-          <text class="rv-content">{{ rv.content }}</text>
-          <view v-if="rv.images && rv.images.length" class="rv-images">
-            <image v-for="(img, i) in rv.images" :key="i" class="rv-img" :src="img" mode="aspectFill" />
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 商品详情 -->
-    <view class="block">
-      <text class="block-title">商品详情</text>
-      <text class="desc-text">{{ product.description }}</text>
-    </view>
-
-    <!-- 养生保健类商品：专业医疗免责声明 -->
-    <view v-if="isHealthProduct" class="disc-wrap">
-      <disclaimer variant="medical" tone="card" />
-    </view>
-
-    <!-- 底部购买栏 -->
-    <view class="buy-bar" :style="{ paddingBottom: safeBottom + 'px' }">
-      <view class="bar-icon" hover-class="link-hover" @tap="goCart">
-        <app-icon name="shopping-cart" :size="44" color="#666666" />
-        <text class="bar-icon-text">购物车</text>
-        <view v-if="cartAdded" class="cart-badge">
-          <app-icon name="check" :size="20" color="#fff" />
-        </view>
-      </view>
-      <view class="bar-btn btn-cart" hover-class="btn-hover" @tap="openSku('cart')">
-        <text class="bar-btn-text">加入购物车</text>
-      </view>
-      <view class="bar-btn btn-buy" hover-class="btn-hover" @tap="openSku('buy')">
-        <text class="bar-btn-text">立即购买</text>
-      </view>
-    </view>
-
-    <!-- SKU 选择面板 -->
-    <view v-if="showSkuPanel" class="mask" @tap="showSkuPanel = false">
-      <view class="sku-panel" @tap.stop>
-        <view class="sku-top">
-          <image class="sku-cover" :src="selectedSku ? selectedSku.image : product.images[0]" mode="aspectFill" />
-          <view class="sku-top-info">
-            <text class="sku-price">¥{{ selectedSku ? selectedSku.price : product.price }}</text>
-            <text class="sku-stock">库存 {{ selectedSku ? selectedSku.stock : product.stock }}</text>
-            <text class="sku-selected">已选：{{ selectedSku ? selectedSku.name : '' }}</text>
-          </view>
-          <view class="sku-close" hover-class="nav-hover" @tap="showSkuPanel = false">
-            <app-icon name="x" :size="40" color="#999999" />
-          </view>
-        </view>
-        <view class="sku-body">
-          <text class="sku-label">规格</text>
-          <view class="sku-options">
+            <text class="rv-content">
+              {{ rv.content }}
+            </text>
             <view
-              v-for="sku in product.skus"
-              :key="sku.id"
-              class="sku-opt"
-              :class="{ 'sku-opt-active': selectedSku && selectedSku.id === sku.id, 'sku-opt-disabled': sku.stock === 0 }"
-              hover-class="opt-hover"
-              @tap="sku.stock > 0 && selectSku(sku)"
+              v-if="rv.images && rv.images.length"
+              class="rv-images"
             >
-              {{ sku.name }}
-            </view>
-          </view>
-          <view class="qty-row">
-            <text class="sku-label">数量</text>
-            <view class="qty-stepper">
-              <view class="qty-btn" hover-class="opt-hover" @tap="decQty">
-                <app-icon name="minus" :size="28" color="#666666" />
-              </view>
-              <text class="qty-num">{{ quantity }}</text>
-              <view class="qty-btn" hover-class="opt-hover" @tap="incQty">
-                <app-icon name="plus" :size="28" color="#666666" />
-              </view>
+              <image
+                v-for="(img, i) in rv.images"
+                :key="i"
+                class="rv-img"
+                :src="img"
+                mode="aspectFill"
+              />
             </view>
           </view>
         </view>
-        <view class="sku-foot" :style="{ paddingBottom: (safeBottom + 16) + 'px' }">
-          <view class="sku-submit" :class="buyMode === 'cart' ? 'submit-cart' : 'submit-buy'" hover-class="btn-hover" @tap="confirmSku">
-            <text class="sku-submit-text">{{ buyMode === 'cart' ? '加入购物车' : '立即购买' }}</text>
-          </view>
-        </view>
       </view>
-    </view>
 
-    <!-- 加购成功提示 -->
-    <view v-if="addedToast" class="toast">
-      <app-icon name="check" :size="28" color="#4ADE80" />
-      <text class="toast-text">已加入购物车</text>
-    </view>
-
-    <!-- 图片浏览器 -->
-    <view v-if="showImageViewer" class="viewer" @tap="showImageViewer = false">
-      <view class="viewer-close" @tap.stop="showImageViewer = false">
-        <app-icon name="x" :size="44" color="#fff" />
+      <!-- 商品详情 -->
+      <view class="block">
+        <text class="block-title">
+          商品详情
+        </text>
+        <text class="desc-text">
+          {{ product.description }}
+        </text>
       </view>
-      <swiper class="viewer-swiper" :current="currentImage" @change="onSwiperChange" :circular="true">
-        <swiper-item v-for="(img, i) in product.images" :key="i" class="viewer-item">
-          <image class="viewer-img" :src="img" mode="aspectFit" />
-        </swiper-item>
-      </swiper>
-      <view class="viewer-dots">
-        <view
-          v-for="(img, i) in product.images"
-          :key="i"
-          class="vdot"
-          :class="{ 'vdot-active': i === currentImage }"
+
+      <!-- 养生保健类商品：专业医疗免责声明 -->
+      <view
+        v-if="isHealthProduct"
+        class="disc-wrap"
+      >
+        <disclaimer
+          variant="medical"
+          tone="card"
         />
+      </view>
+
+      <!-- 底部购买栏 -->
+      <view
+        class="buy-bar"
+        :style="{ paddingBottom: safeBottom + 'px' }"
+      >
+        <view
+          class="bar-icon"
+          hover-class="link-hover"
+          @tap="goCart"
+        >
+          <app-icon
+            name="shopping-cart"
+            :size="44"
+            color="#666666"
+          />
+          <text class="bar-icon-text">
+            购物车
+          </text>
+          <view
+            v-if="cartAdded"
+            class="cart-badge"
+          >
+            <app-icon
+              name="check"
+              :size="20"
+              color="#fff"
+            />
+          </view>
+        </view>
+        <view
+          class="bar-btn btn-cart"
+          hover-class="btn-hover"
+          @tap="openSku('cart')"
+        >
+          <text class="bar-btn-text">
+            加入购物车
+          </text>
+        </view>
+        <view
+          class="bar-btn btn-buy"
+          hover-class="btn-hover"
+          @tap="openSku('buy')"
+        >
+          <text class="bar-btn-text">
+            立即购买
+          </text>
+        </view>
+      </view>
+
+      <!-- SKU 选择面板 -->
+      <view
+        v-if="showSkuPanel"
+        class="mask"
+        @tap="showSkuPanel = false"
+      >
+        <view
+          class="sku-panel"
+          @tap.stop
+        >
+          <view class="sku-top">
+            <image
+              class="sku-cover"
+              :src="selectedSku ? selectedSku.image : product.images[0]"
+              mode="aspectFill"
+            />
+            <view class="sku-top-info">
+              <text class="sku-price">
+                ¥{{ selectedSku ? selectedSku.price : product.price }}
+              </text>
+              <text class="sku-stock">
+                库存 {{ selectedSku ? selectedSku.stock : product.stock }}
+              </text>
+              <text class="sku-selected">
+                已选：{{ selectedSku ? selectedSku.name : '' }}
+              </text>
+            </view>
+            <view
+              class="sku-close"
+              hover-class="nav-hover"
+              @tap="showSkuPanel = false"
+            >
+              <app-icon
+                name="x"
+                :size="40"
+                color="#999999"
+              />
+            </view>
+          </view>
+          <view class="sku-body">
+            <text class="sku-label">
+              规格
+            </text>
+            <view class="sku-options">
+              <view
+                v-for="sku in product.skus"
+                :key="sku.id"
+                class="sku-opt"
+                :class="{ 'sku-opt-active': selectedSku && selectedSku.id === sku.id, 'sku-opt-disabled': sku.stock === 0 }"
+                hover-class="opt-hover"
+                @tap="sku.stock > 0 && selectSku(sku)"
+              >
+                {{ sku.name }}
+              </view>
+            </view>
+            <view class="qty-row">
+              <text class="sku-label">
+                数量
+              </text>
+              <view class="qty-stepper">
+                <view
+                  class="qty-btn"
+                  hover-class="opt-hover"
+                  @tap="decQty"
+                >
+                  <app-icon
+                    name="minus"
+                    :size="28"
+                    color="#666666"
+                  />
+                </view>
+                <text class="qty-num">
+                  {{ quantity }}
+                </text>
+                <view
+                  class="qty-btn"
+                  hover-class="opt-hover"
+                  @tap="incQty"
+                >
+                  <app-icon
+                    name="plus"
+                    :size="28"
+                    color="#666666"
+                  />
+                </view>
+              </view>
+            </view>
+          </view>
+          <view
+            class="sku-foot"
+            :style="{ paddingBottom: (safeBottom + 16) + 'px' }"
+          >
+            <view
+              class="sku-submit"
+              :class="buyMode === 'cart' ? 'submit-cart' : 'submit-buy'"
+              hover-class="btn-hover"
+              @tap="confirmSku"
+            >
+              <text class="sku-submit-text">
+                {{ buyMode === 'cart' ? '加入购物车' : '立即购买' }}
+              </text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 加购成功提示 -->
+      <view
+        v-if="addedToast"
+        class="toast"
+      >
+        <app-icon
+          name="check"
+          :size="28"
+          color="#4ADE80"
+        />
+        <text class="toast-text">
+          已加入购物车
+        </text>
+      </view>
+
+      <!-- 图片浏览器 -->
+      <view
+        v-if="showImageViewer"
+        class="viewer"
+        @tap="showImageViewer = false"
+      >
+        <view
+          class="viewer-close"
+          @tap.stop="showImageViewer = false"
+        >
+          <app-icon
+            name="x"
+            :size="44"
+            color="#fff"
+          />
+        </view>
+        <swiper
+          class="viewer-swiper"
+          :current="currentImage"
+          :circular="true"
+          @change="onSwiperChange"
+        >
+          <swiper-item
+            v-for="(img, i) in product.images"
+            :key="i"
+            class="viewer-item"
+          >
+            <image
+              class="viewer-img"
+              :src="img"
+              mode="aspectFit"
+            />
+          </swiper-item>
+        </swiper>
+        <view class="viewer-dots">
+          <view
+            v-for="(img, i) in product.images"
+            :key="i"
+            class="vdot"
+            :class="{ 'vdot-active': i === currentImage }"
+          />
+        </view>
       </view>
     </view>
   </view>
-</view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { getShopProductDetail, shopProductReviews, shopApi, type ShopProductSku } from '@/lib/shop-data'
+import { shopApi, type ShopProductSku } from '@/lib/shop-data'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import ErrorState from '@/components/common/error-state.vue'
 
 const statusBarHeight = ref(0)
 const safeBottom = ref(0)
 
-const product = ref(getShopProductDetail())
-const reviews = ref(shopProductReviews)
+const product = ref<any>({})
+const reviews = ref<any[]>([])
 const productId = ref('1')
 const loading = ref(true)
 const error = ref('')
@@ -283,15 +550,17 @@ async function loadProduct(id: string) {
   loading.value = true
   error.value = ''
   try {
-    const data = await shopApi.getProductDetail(id)
+    const [data, revRes] = await Promise.all([
+      shopApi.getProductDetail(id),
+      shopApi.getProductReviews(id),
+    ])
     if (data) {
       product.value = data
       selectedSku.value = data.skus?.[0] || null
     }
+    reviews.value = revRes?.items || []
   } catch (e: any) {
     error.value = e?.message || '加载失败'
-    product.value = getShopProductDetail(id)
-    selectedSku.value = product.value.skus?.[0] || null
   } finally {
     loading.value = false
   }
@@ -323,7 +592,7 @@ function openSku(mode: 'cart' | 'buy') {
 }
 function selectSku(sku: ShopProductSku) {
   selectedSku.value = sku
-  const idx = product.value.images.findIndex((img) => img === sku.image)
+  const idx = product.value.images.findIndex((img: any) => img === sku.image)
   if (idx >= 0) currentImage.value = idx
 }
 function decQty() {

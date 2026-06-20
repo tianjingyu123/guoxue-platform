@@ -19,13 +19,33 @@ const emit = defineEmits<{ (e: 'retry'): void }>()
 <template>
   <view class="app-error">
     <view class="app-error__icon">
-      <AppIcon :name="icon" :size="56" color="#D9CFC2" />
+      <AppIcon
+        :name="icon"
+        :size="56"
+        color="#D9CFC2"
+      />
     </view>
-    <text class="app-error__title">{{ title }}</text>
-    <text v-if="desc" class="app-error__desc">{{ desc }}</text>
-    <view class="app-error__action" @tap="emit('retry')">
-      <AppIcon name="refresh-cw" :size="28" color="#C41E3A" />
-      <text class="app-error__action-text">{{ retryText }}</text>
+    <text class="app-error__title">
+      {{ title }}
+    </text>
+    <text
+      v-if="desc"
+      class="app-error__desc"
+    >
+      {{ desc }}
+    </text>
+    <view
+      class="app-error__action"
+      @tap="emit('retry')"
+    >
+      <AppIcon
+        name="refresh-cw"
+        :size="28"
+        color="#C41E3A"
+      />
+      <text class="app-error__action-text">
+        {{ retryText }}
+      </text>
     </view>
   </view>
 </template>

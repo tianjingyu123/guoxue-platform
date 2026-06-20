@@ -51,44 +51,127 @@ function openCircle(id: string) { navigateTo(`/pages/circles/detail?id=${id}`) }
   <view class="sr">
     <!-- 搜索栏 -->
     <view class="sr-bar">
-      <view @tap="goBack" class="sr-back"><app-icon name="arrow-left" :size="44" color="#2C2C2C" /></view>
-      <view class="sr-input-wrap">
-        <app-icon name="search" :size="28" color="#999999" class="sr-input-icon" />
-        <input v-model="keyword" class="sr-input" placeholder="搜索圈子名称、分类..." placeholder-class="sr-ph" confirm-type="search" @confirm="doSearch(keyword)" />
-        <view v-if="keyword" class="sr-clear" @tap="clearKeyword"><app-icon name="x" :size="28" color="#999999" /></view>
+      <view
+        class="sr-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="44"
+          color="#2C2C2C"
+        />
       </view>
-      <text class="sr-cancel" @tap="goBack">取消</text>
+      <view class="sr-input-wrap">
+        <app-icon
+          name="search"
+          :size="28"
+          color="#999999"
+          class="sr-input-icon"
+        />
+        <input
+          v-model="keyword"
+          class="sr-input"
+          placeholder="搜索圈子名称、分类..."
+          placeholder-class="sr-ph"
+          confirm-type="search"
+          @confirm="doSearch(keyword)"
+        >
+        <view
+          v-if="keyword"
+          class="sr-clear"
+          @tap="clearKeyword"
+        >
+          <app-icon
+            name="x"
+            :size="28"
+            color="#999999"
+          />
+        </view>
+      </view>
+      <text
+        class="sr-cancel"
+        @tap="goBack"
+      >
+        取消
+      </text>
     </view>
 
     <view class="sr-body">
       <!-- 未搜索 -->
-      <view v-if="!hasSearched" class="sr-pre">
-        <view v-if="history.length" class="sr-sec">
+      <view
+        v-if="!hasSearched"
+        class="sr-pre"
+      >
+        <view
+          v-if="history.length"
+          class="sr-sec"
+        >
           <view class="sr-sec-head">
-            <text class="sr-sec-title">搜索历史</text>
-            <text class="sr-sec-clear" @tap="clearHistory">清空</text>
+            <text class="sr-sec-title">
+              搜索历史
+            </text>
+            <text
+              class="sr-sec-clear"
+              @tap="clearHistory"
+            >
+              清空
+            </text>
           </view>
           <view class="sr-tags">
-            <view v-for="(kw, i) in history" :key="i" class="sr-tag" @tap="doSearch(kw)"><text class="sr-tag-txt">{{ kw }}</text></view>
+            <view
+              v-for="(kw, i) in history"
+              :key="i"
+              class="sr-tag"
+              @tap="doSearch(kw)"
+            >
+              <text class="sr-tag-txt">
+                {{ kw }}
+              </text>
+            </view>
           </view>
         </view>
         <view class="sr-sec">
           <view class="sr-sec-head start">
-            <app-icon name="trending-up" :size="28" color="#C41E3A" />
-            <text class="sr-sec-title">热门搜索</text>
+            <app-icon
+              name="trending-up"
+              :size="28"
+              color="#C41E3A"
+            />
+            <text class="sr-sec-title">
+              热门搜索
+            </text>
           </view>
           <view class="sr-tags">
-            <view v-for="(kw, i) in hotSearches" :key="i" class="sr-tag" @tap="doSearch(kw)">
-              <text v-if="i < 3" class="sr-tag-rank">{{ i + 1 }}</text>
-              <text class="sr-tag-txt">{{ kw }}</text>
+            <view
+              v-for="(kw, i) in hotSearches"
+              :key="i"
+              class="sr-tag"
+              @tap="doSearch(kw)"
+            >
+              <text
+                v-if="i < 3"
+                class="sr-tag-rank"
+              >
+                {{ i + 1 }}
+              </text>
+              <text class="sr-tag-txt">
+                {{ kw }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 搜索中骨架 -->
-      <view v-else-if="searching" class="sr-skeleton">
-        <view v-for="i in 3" :key="i" class="sr-sk-row">
+      <view
+        v-else-if="searching"
+        class="sr-skeleton"
+      >
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="sr-sk-row"
+        >
           <view class="sr-sk-avatar" />
           <view class="sr-sk-main">
             <view class="sr-sk-line w75" />
@@ -98,28 +181,107 @@ function openCircle(id: string) { navigateTo(`/pages/circles/detail?id=${id}`) }
         </view>
       </view>
 
+      <!-- 搜索出错 -->
+      <view
+        v-else-if="error"
+        class="sr-empty"
+      >
+        <view class="sr-empty-icon">
+          <app-icon
+            name="alert-circle"
+            :size="56"
+            color="#E74C3C"
+          />
+        </view>
+        <text class="sr-empty-title">
+          {{ error }}
+        </text>
+        <text
+          class="sr-empty-sub"
+          @tap="doSearch(keyword)"
+        >
+          点击重试
+        </text>
+      </view>
+
       <!-- 无结果 -->
-      <view v-else-if="results.length === 0" class="sr-empty">
-        <view class="sr-empty-icon"><app-icon name="search" :size="56" color="#999999" /></view>
-        <text class="sr-empty-title">没有找到相关圈子</text>
-        <text class="sr-empty-sub">换个关键词试试？</text>
+      <view
+        v-else-if="results.length === 0"
+        class="sr-empty"
+      >
+        <view class="sr-empty-icon">
+          <app-icon
+            name="search"
+            :size="56"
+            color="#999999"
+          />
+        </view>
+        <text class="sr-empty-title">
+          没有找到相关圈子
+        </text>
+        <text class="sr-empty-sub">
+          换个关键词试试？
+        </text>
       </view>
 
       <!-- 结果 -->
-      <view v-else class="sr-results">
-        <text class="sr-count">找到 <text class="sr-count-num">{{ results.length }}</text> 个相关圈子</text>
-        <view v-for="c in results" :key="c.id" class="sr-result" @tap="openCircle(c.id)">
-          <image :src="c.cover" class="sr-result-avatar" mode="aspectFill" />
+      <view
+        v-else
+        class="sr-results"
+      >
+        <text class="sr-count">
+          找到 <text class="sr-count-num">
+            {{ results.length }}
+          </text> 个相关圈子
+        </text>
+        <view
+          v-for="c in results"
+          :key="c.id"
+          class="sr-result"
+          @tap="openCircle(c.id)"
+        >
+          <image
+            :src="c.cover"
+            class="sr-result-avatar"
+            mode="aspectFill"
+          />
           <view class="sr-result-main">
             <view class="sr-result-top">
-              <text class="sr-result-name">{{ c.name }}</text>
-              <text v-if="c.isPaid" class="sr-result-paid">付费</text>
+              <text class="sr-result-name">
+                {{ c.name }}
+              </text>
+              <text
+                v-if="c.isPaid"
+                class="sr-result-paid"
+              >
+                付费
+              </text>
             </view>
-            <text class="sr-result-desc">{{ c.description }}</text>
+            <text class="sr-result-desc">
+              {{ c.description }}
+            </text>
             <view class="sr-result-bottom">
-              <view class="sr-result-members"><app-icon name="users" :size="24" color="#999999" /><text class="sr-result-members-txt">{{ formatCount(c.members) }} 成员</text></view>
-              <text v-if="c.isJoined" class="sr-result-joined">已加入</text>
-              <text v-else class="sr-result-price">{{ c.isPaid ? `¥${c.price}/年` : '免费加入' }}</text>
+              <view class="sr-result-members">
+                <app-icon
+                  name="users"
+                  :size="24"
+                  color="#999999"
+                /><text class="sr-result-members-txt">
+                  {{ formatCount(c.members) }} 成员
+                </text>
+              </view>
+              <text
+                v-if="c.isJoined"
+                class="sr-result-joined"
+              >
+                已加入
+              </text>
+              <text
+                v-else
+                class="sr-result-price"
+              >
+                {{ c.isPaid ? `¥${c.price}/年` : '免费加入' }}
+              </text>
             </view>
           </view>
         </view>

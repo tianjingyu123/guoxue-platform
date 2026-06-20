@@ -1,160 +1,350 @@
 <template>
   <view class="page">
-    <app-nav-bar title="直播回顾" background="rgba(15,15,15,0.95)" color="#ffffff" :back-size="40" />
-
-    <view v-if="loading" class="xx-skeleton">
-      <view v-for="i in 3" :key="i" class="sk-card" />
+    <view
+      v-if="loading"
+      class="loading"
+    >
+      <text>加载中...</text>
     </view>
-    <app-error v-else-if="error" :desc="error" @retry="loadData" />
-    <template v-else>
-    <!-- 封面区域 -->
-    <view class="cover">
-      <image class="cover-img" :src="room.cover" mode="aspectFill" />
-      <view class="cover-mask" />
+    <view
+      v-else-if="error"
+      class="err-msg"
+    >
+      <text>{{ error }}</text>
+      <view
+        class="retry-btn"
+        @tap="loadData"
+      >
+        重试
+      </view>
+    </view>
+    <template v-else-if="room">
+      <!-- 封面区域 -->
+      <view class="cover">
+        <image
+          class="cover-img"
+          :src="room.cover"
+          mode="aspectFill"
+        />
+        <view class="cover-mask" />
 
-      <!-- 直播已结束标识 -->
-      <view class="end-badge">
-        <view class="end-badge-inner">
-          <view class="end-icon">
-            <AppIcon name="radio" :size="24" color="#fff" />
+        <!-- 顶部导航 -->
+        <view
+          class="cover-nav"
+          :style="{ paddingTop: statusBarHeight + 'px' }"
+        >
+          <view
+            class="nav-back"
+            @tap="goBack"
+          >
+            <AppIcon
+              name="chevron-left"
+              :size="40"
+              color="#fff"
+            />
           </view>
-          <text class="end-title">直播已结束</text>
-          <text class="end-duration">时长 {{ formatDuration(room.stats.duration) }}</text>
         </view>
-      </view>
 
-      <!-- 底部信息 -->
-      <view class="cover-info">
-        <text class="cover-title">{{ room.title }}</text>
-        <view class="cover-tags">
-          <text v-for="tag in room.tags" :key="tag" class="cover-tag">{{ tag }}</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 主播信息 -->
-    <view class="host-card">
-      <view class="host-left">
-        <image class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
-        <view class="host-meta">
-          <text class="host-name">{{ room.hostName }}</text>
-          <text class="host-fans">{{ formatNumber(room.hostFollowers) }} 粉丝</text>
-        </view>
-      </view>
-      <view class="follow-btn" :class="{ followed: isFollowing }" @tap="isFollowing = !isFollowing">
-        <AppIcon :name="isFollowing ? 'check' : 'user-plus'" :size="16" :color="isFollowing ? '#999999' : '#fff'" />
-        <text class="follow-txt">{{ isFollowing ? '已关注' : '关注' }}</text>
-      </view>
-    </view>
-
-    <!-- 直播数据统计 -->
-    <view class="card">
-      <text class="card-title">直播数据</text>
-      <view class="stats-grid">
-        <view class="stat-item">
-          <AppIcon name="eye" :size="20" color="#C41E3A" />
-          <text class="stat-num">{{ formatNumber(room.stats.totalViewers) }}</text>
-          <text class="stat-label">总观看</text>
-        </view>
-        <view class="stat-item">
-          <AppIcon name="users" :size="20" color="#C9A96E" />
-          <text class="stat-num">{{ formatNumber(room.stats.peakViewers) }}</text>
-          <text class="stat-label">峰值在线</text>
-        </view>
-        <view class="stat-item">
-          <AppIcon name="heart" :size="20" color="#ec4899" />
-          <text class="stat-num">{{ formatNumber(room.stats.totalLikes) }}</text>
-          <text class="stat-label">总点赞</text>
-        </view>
-        <view class="stat-item">
-          <AppIcon name="gift" :size="20" color="#f97316" />
-          <text class="stat-num">{{ formatNumber(room.stats.totalGifts) }}</text>
-          <text class="stat-label">礼物收入</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 讲师其他直播 -->
-    <view class="card">
-      <view class="card-head">
-        <text class="card-title">讲师其他直播</text>
-        <view class="card-more">
-          <text class="more-txt">查看全部</text>
-          <AppIcon name="chevron-right" :size="16" color="#999999" />
-        </view>
-      </view>
-      <view class="live-list">
-        <view v-for="live in recommendLives" :key="live.id" class="live-item">
-          <view class="live-cover">
-            <image class="live-cover-img" :src="live.cover" mode="aspectFill" />
-            <view v-if="live.status === 'live'" class="live-tag live-tag-live">
-              <view class="live-dot" />
-              <text class="live-tag-txt">直播中</text>
+        <!-- 直播已结束标识 -->
+        <view class="end-badge">
+          <view class="end-badge-inner">
+            <view class="end-icon">
+              <AppIcon
+                name="radio"
+                :size="48"
+                color="#fff"
+              />
             </view>
-            <view v-else class="live-tag live-tag-preview">
-              <text class="live-tag-txt">预告</text>
+            <text class="end-title">
+              直播已结束
+            </text>
+            <text class="end-duration">
+              时长 {{ formatDuration(room.stats.duration) }}
+            </text>
+          </view>
+        </view>
+
+        <!-- 底部信息 -->
+        <view class="cover-info">
+          <text class="cover-title">
+            {{ room.title }}
+          </text>
+          <view class="cover-tags">
+            <text
+              v-for="tag in room.tags"
+              :key="tag"
+              class="cover-tag"
+            >
+              {{ tag }}
+            </text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 主播信息 -->
+      <view class="host-card">
+        <view class="host-left">
+          <image
+            class="host-avatar"
+            :src="room.hostAvatar"
+            mode="aspectFill"
+          />
+          <view class="host-meta">
+            <text class="host-name">
+              {{ room.hostName }}
+            </text>
+            <text class="host-fans">
+              {{ formatNumber(room.hostFollowers) }} 粉丝
+            </text>
+          </view>
+        </view>
+        <view
+          class="follow-btn"
+          :class="{ followed: isFollowing }"
+          @tap="isFollowing = !isFollowing"
+        >
+          <AppIcon
+            :name="isFollowing ? 'check' : 'user-plus'"
+            :size="32"
+            :color="isFollowing ? '#999999' : '#fff'"
+          />
+          <text class="follow-txt">
+            {{ isFollowing ? '已关注' : '关注' }}
+          </text>
+        </view>
+      </view>
+
+      <!-- 直播数据统计 -->
+      <view class="card">
+        <text class="card-title">
+          直播数据
+        </text>
+        <view class="stats-grid">
+          <view class="stat-item">
+            <AppIcon
+              name="eye"
+              :size="40"
+              color="#C41E3A"
+            />
+            <text class="stat-num">
+              {{ formatNumber(room.stats.totalViewers) }}
+            </text>
+            <text class="stat-label">
+              总观看
+            </text>
+          </view>
+          <view class="stat-item">
+            <AppIcon
+              name="users"
+              :size="40"
+              color="#C9A96E"
+            />
+            <text class="stat-num">
+              {{ formatNumber(room.stats.peakViewers) }}
+            </text>
+            <text class="stat-label">
+              峰值在线
+            </text>
+          </view>
+          <view class="stat-item">
+            <AppIcon
+              name="heart"
+              :size="40"
+              color="#ec4899"
+            />
+            <text class="stat-num">
+              {{ formatNumber(room.stats.totalLikes) }}
+            </text>
+            <text class="stat-label">
+              总点赞
+            </text>
+          </view>
+          <view class="stat-item">
+            <AppIcon
+              name="gift"
+              :size="40"
+              color="#f97316"
+            />
+            <text class="stat-num">
+              {{ formatNumber(room.stats.totalGifts) }}
+            </text>
+            <text class="stat-label">
+              礼物收入
+            </text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 讲师其他直播 -->
+      <view class="card">
+        <view class="card-head">
+          <text class="card-title">
+            讲师其他直播
+          </text>
+          <view class="card-more">
+            <text class="more-txt">
+              查看全部
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="32"
+              color="#999999"
+            />
+          </view>
+        </view>
+        <view class="live-list">
+          <view
+            v-for="live in recommendLives"
+            :key="live.id"
+            class="live-item"
+          >
+            <view class="live-cover">
+              <image
+                class="live-cover-img"
+                :src="live.cover"
+                mode="aspectFill"
+              />
+              <view
+                v-if="live.status === 'live'"
+                class="live-tag live-tag-live"
+              >
+                <view class="live-dot" />
+                <text class="live-tag-txt">
+                  直播中
+                </text>
+              </view>
+              <view
+                v-else
+                class="live-tag live-tag-preview"
+              >
+                <text class="live-tag-txt">
+                  预告
+                </text>
+              </view>
+            </view>
+            <view class="live-meta">
+              <text class="live-title">
+                {{ live.title }}
+              </text>
+              <text class="live-stat">
+                {{ live.status === 'live' ? formatNumber(live.viewers) + ' 观看' : live.bookedCount + ' 人预约' }}
+              </text>
             </view>
           </view>
-          <view class="live-meta">
-            <text class="live-title">{{ live.title }}</text>
-            <text class="live-stat">{{ live.status === 'live' ? formatNumber(live.viewers) + ' 观看' : live.bookedCount + ' 人预约' }}</text>
+        </view>
+      </view>
+
+      <!-- 相关课程推荐 -->
+      <view class="card">
+        <view class="card-head">
+          <text class="card-title">
+            相关课程推荐
+          </text>
+          <view class="card-more">
+            <text class="more-txt">
+              查看更多
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="32"
+              color="#999999"
+            />
           </view>
         </view>
-      </view>
-    </view>
-
-    <!-- 相关课程推荐 -->
-    <view class="card">
-      <view class="card-head">
-        <text class="card-title">相关课程推荐</text>
-        <view class="card-more">
-          <text class="more-txt">查看更多</text>
-          <AppIcon name="chevron-right" :size="16" color="#999999" />
-        </view>
-      </view>
-      <view class="course-grid">
-        <view v-for="course in recommendCourses" :key="course.id" class="course-item">
-          <image class="course-cover" :src="course.cover" mode="aspectFill" />
-          <view class="course-meta">
-            <text class="course-title">{{ course.title }}</text>
-            <view class="course-foot">
-              <text class="course-price">¥{{ course.price }}</text>
-              <text class="course-lessons">{{ course.lessons }}课时</text>
+        <view class="course-grid">
+          <view
+            v-for="course in recommendCourses"
+            :key="course.id"
+            class="course-item"
+          >
+            <image
+              class="course-cover"
+              :src="course.cover"
+              mode="aspectFill"
+            />
+            <view class="course-meta">
+              <text class="course-title">
+                {{ course.title }}
+              </text>
+              <view class="course-foot">
+                <text class="course-price">
+                  ¥{{ course.price }}
+                </text>
+                <text class="course-lessons">
+                  {{ course.lessons }}课时
+                </text>
+              </view>
             </view>
           </view>
         </view>
       </view>
-    </view>
 
-    <!-- 底部固定按钮 -->
-    <view class="bottom-bar" :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16rpx)' }">
-      <view class="bottom-btn bottom-btn-outline">
-        <text class="bottom-btn-txt-outline">进入讲师圈子</text>
+      <!-- 底部固定按钮 -->
+      <view
+        class="bottom-bar"
+        :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16rpx)' }"
+      >
+        <view class="bottom-btn bottom-btn-outline">
+          <text class="bottom-btn-txt-outline">
+            进入讲师圈子
+          </text>
+        </view>
+        <view
+          v-if="room.hasReplay"
+          class="bottom-btn bottom-btn-primary"
+        >
+          <AppIcon
+            name="play"
+            :size="32"
+            color="#fff"
+          />
+          <text class="bottom-btn-txt-primary">
+            查看回放
+          </text>
+        </view>
       </view>
-      <view v-if="room.hasReplay" class="bottom-btn bottom-btn-primary">
-        <AppIcon name="play" :size="16" color="#fff" />
-        <text class="bottom-btn-txt-primary">查看回放</text>
-      </view>
-    </view>
     </template>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppNavBar from '@/components/common/app-nav-bar.vue'
-import AppError from '@/components/common/app-error.vue'
-import { liveEndRoom, liveEndRecommendLives, liveEndRecommendCourses } from '@/lib/live-data'
+import { goBack } from '@/utils/router'
+import { liveApi } from '@/lib/live-data'
 
-const loading = ref(true)
-const error = ref('')
+const statusBarHeight = ref(0)
+const roomId = ref('')
 
 // UI 临时状态
-const room = ref(liveEndRoom)
-const recommendLives = ref(liveEndRecommendLives)
-const recommendCourses = ref(liveEndRecommendCourses)
+const room = ref<any>(null)
+const recommendLives = ref<any[]>([])
+const recommendCourses = ref<any[]>([])
 const isFollowing = ref(false)
+const loading = ref(false)
+const error = ref('')
+
+async function loadData() {
+  if (!roomId.value) return
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await liveApi.endStats(roomId.value)
+    room.value = res.room
+    recommendLives.value = res.recommends
+    recommendCourses.value = res.courses
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((opts) => {
+  if (opts?.id) roomId.value = opts.id
+  loadData()
+})
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600)
@@ -166,19 +356,6 @@ function formatNumber(num: number): string {
   if (num >= 10000) return (num / 10000).toFixed(1) + '万'
   return String(num)
 }
-
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    await new Promise(r => setTimeout(r, 300))
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-onMounted(() => loadData())
 </script>
 
 <style scoped>
@@ -187,6 +364,9 @@ onMounted(() => loadData())
   background: #FAF8F5;
   padding-bottom: 192rpx;
 }
+.loading { display: flex; align-items: center; justify-content: center; padding: 160rpx 0; font-size: 28rpx; color: #999; }
+.err-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; gap: 24rpx; font-size: 28rpx; color: #ef4444; }
+.retry-btn { padding: 12rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 999rpx; font-size: 28rpx; }
 
 /* 封面区域 */
 .cover {
@@ -201,6 +381,22 @@ onMounted(() => loadData())
   position: absolute;
   inset: 0;
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent, rgba(0, 0, 0, 0.7));
+}
+.cover-nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 32rpx;
+}
+.nav-back {
+  width: 64rpx;
+  height: 64rpx;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .end-badge {
   position: absolute;
@@ -530,8 +726,4 @@ onMounted(() => loadData())
   font-weight: 500;
   color: #fff;
 }
-
-.xx-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 24rpx; padding-top: 120rpx; }
-.sk-card { height: 200rpx; border-radius: 20rpx; background: #f0ebe3; animation: sk-pulse 1.5s infinite; }
-@keyframes sk-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
 </style>

@@ -3,22 +3,26 @@
  * 八字结果页（从原型 app/paipan/bazi/result/page.tsx 1:1 高保真迁移）
  * 结构：白色顶栏(返回/标题/笔记/分享) + 模式Tab(传统/分析) + 主体(传统模式 | 分析模式) + 合规声明 + 悬浮笔记按钮 + 编辑弹窗 + 断事笔记面板
  */
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import TraditionalMode from '@/components/bazi/traditional-mode.vue'
 import AnalysisMode from '@/components/bazi/analysis-mode.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
-import { baziData } from '@/lib/bazi-result-data'
+import { baziApi } from '@/lib/bazi-result-data'
 import { navigateBack } from '@/utils/router'
+
+const loading = ref(true)
+const error = ref<string | null>(null)
+const baziResult = ref<Record<string, any>>({})
 
 const activeMode = ref<'traditional' | 'analysis'>('traditional')
 const showEditModal = ref(false)
 const showNotes = ref(false)
 
 const userInput = reactive({
-  name: baziData.name, gender: baziData.gender,
+  name: '未知', gender: '男',
   year: 1983, month: 6, day: 18, hour: 14, minute: 31,
   province: '', city: '北京', district: '房山区',
 })
@@ -34,10 +38,36 @@ onLoad((q: Record<string, string> = {}) => {
   if (q.province) userInput.province = decodeURIComponent(q.province)
   if (q.city) userInput.city = decodeURIComponent(q.city)
   if (q.district) userInput.district = decodeURIComponent(q.district)
+  loadData()
 })
 
+async function loadData() {
+  loading.value = true
+  error.value = null
+  try {
+    const params = {
+      name: userInput.name,
+      gender: userInput.gender,
+      year: userInput.year,
+      month: userInput.month,
+      day: userInput.day,
+      hour: userInput.hour,
+      minute: userInput.minute,
+      province: userInput.province,
+      city: userInput.city,
+      district: userInput.district,
+    }
+    const res = await baziApi.calculate('bazi', params)
+    baziResult.value = res
+  } catch (e: any) {
+    error.value = e.message || '排盘计算失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 const data = computed(() => ({
-  ...baziData,
+  ...baziResult.value,
   name: userInput.name,
   gender: userInput.gender,
   qianKun: userInput.gender === '女' ? '坤造' : '乾造',
@@ -55,6 +85,7 @@ function openEdit() {
 function confirmEdit() {
   Object.assign(userInput, draft)
   showEditModal.value = false
+  loadData()
 }
 
 function openNotes() {
@@ -70,91 +101,316 @@ function onShare() {
     <!-- 顶栏 -->
     <view class="hdr">
       <view class="hdr-bar">
-        <view class="hdr-back" @tap="navigateBack()"><app-icon name="chevron-left" :size="40" color="#666666" /></view>
-        <text class="hdr-title">热卜八字</text>
+        <view
+          class="hdr-back"
+          @tap="navigateBack()"
+        >
+          <app-icon
+            name="chevron-left"
+            :size="40"
+            color="#666666"
+          />
+        </view>
+        <text class="hdr-title">
+          热卜八字
+        </text>
         <view class="hdr-actions">
-          <view class="hdr-act" @tap="openNotes"><app-icon name="book-open" :size="34" color="#9ca3af" /></view>
-          <view class="hdr-act" @tap="onShare"><app-icon name="share-2" :size="34" color="#9ca3af" /></view>
+          <view
+            class="hdr-act"
+            @tap="openNotes"
+          >
+            <app-icon
+              name="book-open"
+              :size="34"
+              color="#9ca3af"
+            />
+          </view>
+          <view
+            class="hdr-act"
+            @tap="onShare"
+          >
+            <app-icon
+              name="share-2"
+              :size="34"
+              color="#9ca3af"
+            />
+          </view>
         </view>
       </view>
       <view class="tabs">
-        <view v-for="m in ([{ key: 'traditional', label: '传统模式' }, { key: 'analysis', label: '分析模式' }] as const)" :key="m.key"
-          class="tab" :class="{ 'tab-on': activeMode === m.key }" @tap="activeMode = m.key">
-          <text class="tab-text" :class="{ 'tab-text-on': activeMode === m.key }">{{ m.label }}</text>
+        <view
+          v-for="m in ([{ key: 'traditional', label: '传统模式' }, { key: 'analysis', label: '分析模式' }] as const)"
+          :key="m.key"
+          class="tab"
+          :class="{ 'tab-on': activeMode === m.key }"
+          @tap="activeMode = m.key"
+        >
+          <text
+            class="tab-text"
+            :class="{ 'tab-text-on': activeMode === m.key }"
+          >
+            {{ m.label }}
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 主体 -->
-    <scroll-view scroll-y class="body">
-      <traditional-mode v-if="activeMode === 'traditional'" :data="data" @edit="openEdit" />
-      <analysis-mode v-else :data="data" @edit="openEdit" />
-      <view class="disc-wrap"><disclaimer variant="fortune" tone="card" /></view>
+    <scroll-view
+      scroll-y
+      class="body"
+    >
+      <!-- loading -->
+      <view
+        v-if="loading"
+        class="state-wrap"
+      >
+        <view class="spinner" />
+        <text class="state-text">
+          排盘计算中...
+        </text>
+      </view>
+      <!-- error -->
+      <view
+        v-else-if="error"
+        class="state-wrap"
+      >
+        <text class="state-text">
+          {{ error }}
+        </text>
+        <view
+          class="retry-btn"
+          @tap="loadData"
+        >
+          重试
+        </view>
+      </view>
+      <!-- content -->
+      <template v-else>
+        <traditional-mode
+          v-if="activeMode === 'traditional'"
+          :data="data"
+          @edit="openEdit"
+        />
+        <analysis-mode
+          v-else
+          :data="data"
+          @edit="openEdit"
+        />
+        <view class="disc-wrap">
+          <disclaimer
+            variant="fortune"
+            tone="card"
+          />
+        </view>
+      </template>
     </scroll-view>
 
     <!-- 悬浮笔记按钮 -->
-    <view class="fab" @tap="openNotes">
-      <app-icon name="book-open" :size="32" color="#c41e3a" />
-      <text class="fab-text">笔记</text>
+    <view
+      class="fab"
+      @tap="openNotes"
+    >
+      <app-icon
+        name="book-open"
+        :size="32"
+        color="#c41e3a"
+      />
+      <text class="fab-text">
+        笔记
+      </text>
     </view>
 
     <!-- 编辑信息弹窗 -->
-    <view v-if="showEditModal" class="mask" @tap="showEditModal = false">
-      <view class="sheet" @tap.stop>
+    <view
+      v-if="showEditModal"
+      class="mask"
+      @tap="showEditModal = false"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
         <view class="sheet-head">
-          <text class="sheet-title">修改信息</text>
-          <view class="sheet-close" @tap="showEditModal = false"><app-icon name="x" :size="28" color="#9ca3af" /></view>
+          <text class="sheet-title">
+            修改信息
+          </text>
+          <view
+            class="sheet-close"
+            @tap="showEditModal = false"
+          >
+            <app-icon
+              name="x"
+              :size="28"
+              color="#9ca3af"
+            />
+          </view>
         </view>
 
         <view class="form">
           <!-- 名称 -->
           <view class="frow">
-            <text class="flabel">客户名称</text>
-            <input v-model="draft.name" class="finput-r" placeholder="请输入名称" />
+            <text class="flabel">
+              客户名称
+            </text>
+            <input
+              v-model="draft.name"
+              class="finput-r"
+              placeholder="请输入名称"
+            >
           </view>
           <!-- 性别 -->
           <view class="frow">
-            <text class="flabel">选择性别</text>
+            <text class="flabel">
+              选择性别
+            </text>
             <view class="genders">
-              <view class="gender" @tap="draft.gender = '男'"><view class="radio" :class="{ 'radio-on': draft.gender === '男' }" /><text class="gtext">男</text></view>
-              <view class="gender" @tap="draft.gender = '女'"><view class="radio" :class="{ 'radio-on': draft.gender === '女' }" /><text class="gtext">女</text></view>
+              <view
+                class="gender"
+                @tap="draft.gender = '男'"
+              >
+                <view
+                  class="radio"
+                  :class="{ 'radio-on': draft.gender === '男' }"
+                /><text class="gtext">
+                  男
+                </text>
+              </view>
+              <view
+                class="gender"
+                @tap="draft.gender = '女'"
+              >
+                <view
+                  class="radio"
+                  :class="{ 'radio-on': draft.gender === '女' }"
+                /><text class="gtext">
+                  女
+                </text>
+              </view>
             </view>
           </view>
           <!-- 出生时间 -->
           <view class="fblock">
-            <text class="flabel block">出生时间</text>
+            <text class="flabel block">
+              出生时间
+            </text>
             <view class="time-grid">
-              <view class="tg-item"><text class="tg-lab">年</text><input v-model.number="draft.year" type="number" class="tg-input" /></view>
-              <view class="tg-item"><text class="tg-lab">月</text><input v-model.number="draft.month" type="number" class="tg-input" /></view>
-              <view class="tg-item"><text class="tg-lab">日</text><input v-model.number="draft.day" type="number" class="tg-input" /></view>
-              <view class="tg-item"><text class="tg-lab">时</text><input v-model.number="draft.hour" type="number" class="tg-input" /></view>
-              <view class="tg-item"><text class="tg-lab">分</text><input v-model.number="draft.minute" type="number" class="tg-input" /></view>
+              <view class="tg-item">
+                <text class="tg-lab">
+                  年
+                </text><input
+                  v-model.number="draft.year"
+                  type="number"
+                  class="tg-input"
+                >
+              </view>
+              <view class="tg-item">
+                <text class="tg-lab">
+                  月
+                </text><input
+                  v-model.number="draft.month"
+                  type="number"
+                  class="tg-input"
+                >
+              </view>
+              <view class="tg-item">
+                <text class="tg-lab">
+                  日
+                </text><input
+                  v-model.number="draft.day"
+                  type="number"
+                  class="tg-input"
+                >
+              </view>
+              <view class="tg-item">
+                <text class="tg-lab">
+                  时
+                </text><input
+                  v-model.number="draft.hour"
+                  type="number"
+                  class="tg-input"
+                >
+              </view>
+              <view class="tg-item">
+                <text class="tg-lab">
+                  分
+                </text><input
+                  v-model.number="draft.minute"
+                  type="number"
+                  class="tg-input"
+                >
+              </view>
             </view>
           </view>
           <!-- 出生地点 -->
           <view class="fblock">
-            <text class="flabel block">出生地点</text>
+            <text class="flabel block">
+              出生地点
+            </text>
             <view class="loc-grid">
-              <view class="loc-item"><text class="tg-lab">城市</text><input v-model="draft.city" class="loc-input" placeholder="如：北京" /></view>
-              <view class="loc-item"><text class="tg-lab">区县</text><input v-model="draft.district" class="loc-input" placeholder="如：房山区" /></view>
+              <view class="loc-item">
+                <text class="tg-lab">
+                  城市
+                </text><input
+                  v-model="draft.city"
+                  class="loc-input"
+                  placeholder="如：北京"
+                >
+              </view>
+              <view class="loc-item">
+                <text class="tg-lab">
+                  区县
+                </text><input
+                  v-model="draft.district"
+                  class="loc-input"
+                  placeholder="如：房山区"
+                >
+              </view>
             </view>
           </view>
         </view>
 
         <!-- 时间选项 -->
         <view class="opts">
-          <view v-for="(opt, i) in ['真太阳时', '早晚子时', '夏令时']" :key="opt" class="opt" @tap="timeOpts[i] = !timeOpts[i]">
-            <view class="checkbox" :class="{ 'checkbox-on': timeOpts[i] }"><app-icon v-if="timeOpts[i]" name="check" :size="22" color="#ffffff" /></view>
-            <text class="opt-text">{{ opt }}</text>
+          <view
+            v-for="(opt, i) in ['真太阳时', '早晚子时', '夏令时']"
+            :key="opt"
+            class="opt"
+            @tap="timeOpts[i] = !timeOpts[i]"
+          >
+            <view
+              class="checkbox"
+              :class="{ 'checkbox-on': timeOpts[i] }"
+            >
+              <app-icon
+                v-if="timeOpts[i]"
+                name="check"
+                :size="22"
+                color="#ffffff"
+              />
+            </view>
+            <text class="opt-text">
+              {{ opt }}
+            </text>
           </view>
         </view>
 
-        <view class="confirm" @tap="confirmEdit"><text class="confirm-text">确定</text></view>
+        <view
+          class="confirm"
+          @tap="confirmEdit"
+        >
+          <text class="confirm-text">
+            确定
+          </text>
+        </view>
       </view>
     </view>
 
     <!-- 断事笔记面板 -->
-    <notes-panel :open="showNotes" @close="showNotes = false" />
+    <notes-panel
+      :open="showNotes"
+      @close="showNotes = false"
+    />
   </view>
 </template>
 
@@ -175,6 +431,24 @@ function onShare() {
 /* 主体 */
 .body { flex: 1; }
 .disc-wrap { padding: 0 20rpx 32rpx; }
+
+/* 加载/错误状态 */
+.state-wrap {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 120rpx 40rpx; gap: 24rpx;
+}
+.spinner {
+  width: 48rpx; height: 48rpx; border: 4rpx solid var(--border, rgba(0,0,0,0.08));
+  border-top-color: var(--brand); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.state-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn {
+  padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx;
+  color: #fff; font-size: 28rpx;
+}
+
 /* 悬浮笔记按钮 */
 .fab { position: fixed; right: 24rpx; bottom: 40rpx; z-index: 10; width: 88rpx; height: 88rpx; background: var(--card); border-radius: 999rpx; box-shadow: 0 8rpx 20rpx rgba(0,0,0,0.15); border: 2rpx solid var(--border, rgba(0,0,0,0.08)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rpx; }
 .fab-text { font-size: 18rpx; color: var(--brand); font-weight: 500; }

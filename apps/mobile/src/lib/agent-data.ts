@@ -353,6 +353,67 @@ export const agentApi = {
     }
   },
 
+  /** 获取最近对话列表 */
+  async recentConversations() {
+    if (useMock()) {
+      return { items: initialHistory, groups: historyGroups }
+    }
+    try {
+      const data = await apiGet<any>('/bots/conversations')
+      return {
+        items: (data.items || data || []).map((raw: any) => ({
+          id: raw.id,
+          agentName: raw.agentName || raw.agent?.name || '',
+          agentAvatar: raw.agentAvatar || raw.agent?.avatar || '',
+          agentType: raw.agentType || raw.agent?.type || '',
+          lastMessage: raw.lastMessage || raw.content || '',
+          time: raw.time || raw.createdAt || '',
+          timeGroup: raw.timeGroup || '今天',
+          unread: raw.unread ?? 0,
+          isFree: raw.isFree ?? true,
+        })),
+        groups: data.groups || historyGroups,
+      }
+    } catch {
+      return { items: initialHistory, groups: historyGroups }
+    }
+  },
+
+  /** 获取智玄助手首页配置 */
+  async main() {
+    if (useMock()) {
+      return { welcome: zhixuanWelcome, quickPrompts: zhixuanQuickPrompts, reply: zhixuanReply }
+    }
+    try {
+      const data = await apiGet<any>('/bots/main')
+      return {
+        welcome: data.welcome || zhixuanWelcome,
+        quickPrompts: data.quickPrompts || zhixuanQuickPrompts,
+        reply: data.reply || zhixuanReply,
+      }
+    } catch {
+      return { welcome: zhixuanWelcome, quickPrompts: zhixuanQuickPrompts, reply: zhixuanReply }
+    }
+  },
+
+  /** 获取客服页面配置 */
+  async customerServiceConfig() {
+    if (useMock()) {
+      return { welcome: csWelcome, quick: csQuick, replies: csReplies, defaultReply: csDefaultReply }
+    }
+    try {
+      const data = await apiGet<any>('/bots/customer-service/config')
+      return {
+        welcome: data.welcome || csWelcome,
+        quick: data.quick || csQuick,
+        replies: data.replies || csReplies,
+        defaultReply: data.defaultReply || csDefaultReply,
+      }
+    } catch {
+      return { welcome: csWelcome, quick: csQuick, replies: csReplies, defaultReply: csDefaultReply }
+    }
+  },
+
   /** 客服消息 */
   async customerService(message: string) {
     if (useMock()) {

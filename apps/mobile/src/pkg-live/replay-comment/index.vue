@@ -1,59 +1,145 @@
 <template>
   <!-- 提交成功态 -->
-  <view v-if="submitted" class="success-page">
+  <view
+    v-if="submitted"
+    class="success-page"
+  >
     <view class="success-icon">
-      <AppIcon name="star" :size="32" color="#C9A96E" :fill="true" />
+      <AppIcon
+        name="star"
+        :size="32"
+        color="#C9A96E"
+        :fill="true"
+      />
     </view>
-    <text class="success-title">感谢您的评价！</text>
-    <text class="success-desc">您的反馈帮助我们持续改进直播质量</text>
-    <view class="success-btn" @tap="goBack">
-      <text class="success-btn-txt">返回回放</text>
+    <text class="success-title">
+      感谢您的评价！
+    </text>
+    <text class="success-desc">
+      您的反馈帮助我们持续改进直播质量
+    </text>
+    <view
+      class="success-btn"
+      @tap="goBack"
+    >
+      <text class="success-btn-txt">
+        返回回放
+      </text>
     </view>
   </view>
 
   <!-- 评价表单 -->
-  <view v-else class="page">
-    <app-nav-bar title="评价回放" background="rgba(255,255,255,0.95)" color="#2C2C2C" :back-size="40" />
+  <view
+    v-else
+    class="page"
+  >
+    <!-- 顶部 -->
+    <view
+      class="nav"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view class="nav-inner">
+        <view
+          class="nav-back"
+          @tap="goBack"
+        >
+          <AppIcon
+            name="arrow-left"
+            :size="20"
+            color="#2C2C2C"
+          />
+        </view>
+        <text class="nav-title">
+          评价回放
+        </text>
+      </view>
+    </view>
 
     <view class="body">
       <!-- 直播信息 -->
       <view class="info-card">
-        <text class="info-hint">您正在评价</text>
-        <text class="info-title">八字命理精讲系列</text>
-        <text class="info-sub">直播回放 #{{ id }}</text>
+        <text class="info-hint">
+          您正在评价
+        </text>
+        <text class="info-title">
+          八字命理精讲系列
+        </text>
+        <text class="info-sub">
+          直播回放 #{{ id }}
+        </text>
       </view>
 
       <!-- 整体评分 -->
       <view class="rating-section">
-        <text class="section-label">整体评分</text>
+        <text class="section-label">
+          整体评分
+        </text>
         <view class="stars">
-          <view v-for="s in 5" :key="s" class="star-btn" @tap="onRate(s)">
-            <AppIcon name="star" :size="40" :color="s <= rating ? '#C9A96E' : '#999999'" :fill="s <= rating" />
+          <view
+            v-for="s in 5"
+            :key="s"
+            class="star-btn"
+            @tap="onRate(s)"
+          >
+            <AppIcon
+              name="star"
+              :size="40"
+              :color="s <= rating ? '#C9A96E' : '#999999'"
+              :fill="s <= rating"
+            />
           </view>
         </view>
         <text
           v-if="rating > 0"
           class="rating-label"
           :class="rating >= 4 ? 'label-good' : rating === 3 ? 'label-mid' : 'label-bad'"
-        >{{ ratingLabels[rating] }}</text>
+        >
+          {{ ratingLabels[rating] }}
+        </text>
       </view>
 
       <!-- 维度评分 -->
-      <view v-if="rating > 0" class="aspect-card">
-        <text class="section-label">细项评分</text>
-        <view v-for="a in aspects" :key="a.key" class="aspect-row">
-          <text class="aspect-label">{{ a.label }}</text>
+      <view
+        v-if="rating > 0"
+        class="aspect-card"
+      >
+        <text class="section-label">
+          细项评分
+        </text>
+        <view
+          v-for="a in aspects"
+          :key="a.key"
+          class="aspect-row"
+        >
+          <text class="aspect-label">
+            {{ a.label }}
+          </text>
           <view class="aspect-stars">
-            <view v-for="s in 5" :key="s" class="aspect-star-btn" @tap="setAspect(a.key, s)">
-              <AppIcon name="star" :size="20" :color="s <= (aspectRatings[a.key] || 0) ? '#C9A96E' : '#999999'" :fill="s <= (aspectRatings[a.key] || 0)" />
+            <view
+              v-for="s in 5"
+              :key="s"
+              class="aspect-star-btn"
+              @tap="setAspect(a.key, s)"
+            >
+              <AppIcon
+                name="star"
+                :size="20"
+                :color="s <= (aspectRatings[a.key] || 0) ? '#C9A96E' : '#999999'"
+                :fill="s <= (aspectRatings[a.key] || 0)"
+              />
             </view>
           </view>
         </view>
       </view>
 
       <!-- 标签选择 -->
-      <view v-if="rating > 0 && currentTags.length > 0" class="tags-section">
-        <text class="section-label">选择标签（可多选）</text>
+      <view
+        v-if="rating > 0 && currentTags.length > 0"
+        class="tags-section"
+      >
+        <text class="section-label">
+          选择标签（可多选）
+        </text>
         <view class="tags-list">
           <view
             v-for="tag in currentTags"
@@ -62,7 +148,12 @@
             :class="{ active: selectedTags.includes(tag) }"
             @tap="toggleTag(tag)"
           >
-            <text class="tag-txt" :class="{ 'tag-txt-active': selectedTags.includes(tag) }">{{ tag }}</text>
+            <text
+              class="tag-txt"
+              :class="{ 'tag-txt-active': selectedTags.includes(tag) }"
+            >
+              {{ tag }}
+            </text>
           </view>
         </view>
       </view>
@@ -70,12 +161,16 @@
       <!-- 文字评价 -->
       <view class="text-section">
         <view class="text-head">
-          <text class="section-label">文字评价（选填）</text>
-          <text class="text-count">{{ content.length }}/300</text>
+          <text class="section-label">
+            文字评价（选填）
+          </text>
+          <text class="text-count">
+            {{ content.length }}/300
+          </text>
         </view>
         <textarea
-          class="text-area"
           v-model="content"
+          class="text-area"
           placeholder="分享您对这次直播的感受和建议..."
           :maxlength="300"
         />
@@ -83,30 +178,47 @@
     </view>
 
     <!-- 固定提交 -->
-    <view class="bottom-bar" :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16rpx)' }">
+    <view
+      class="bottom-bar"
+      :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16rpx)' }"
+    >
       <view
         class="submit-btn"
         :class="{ disabled: rating === 0 }"
         @tap="onSubmit"
       >
-        <AppIcon v-if="submitting" name="loader-2" :size="16" color="#fff" class="spin" />
-        <text class="submit-txt" :class="{ 'submit-txt-disabled': rating === 0 }">{{ submitting ? '提交中...' : '提交评价' }}</text>
+        <AppIcon
+          v-if="submitting"
+          name="loader-2"
+          :size="16"
+          color="#fff"
+          class="spin"
+        />
+        <text
+          class="submit-txt"
+          :class="{ 'submit-txt-disabled': rating === 0 }"
+        >
+          {{ submitting ? '提交中...' : '提交评价' }}
+        </text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import AppNavBar from '@/components/common/app-nav-bar.vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { replayCommentAspects, replayCommentTagsByRating, replayCommentLabels } from '@/lib/live-data'
+import { liveApi } from '@/lib/live-data'
+
+const statusBarHeight = ref(0)
+
+const aspects = ref<{ key: string; label: string }[]>([])
+const ratingLabels = ref<string[]>([])
+const tagsByRating = ref<Record<number, string[]>>({})
 
 // UI 临时状态
 const id = ref('1')
-const aspects = ref(replayCommentAspects)
-const ratingLabels = replayCommentLabels
 const rating = ref(0)
 const aspectRatings = ref<Record<string, number>>({})
 const selectedTags = ref<string[]>([])
@@ -114,7 +226,14 @@ const content = ref('')
 const submitting = ref(false)
 const submitted = ref(false)
 
-const currentTags = computed(() => replayCommentTagsByRating[rating.value] ?? [])
+const currentTags = computed(() => tagsByRating.value[rating.value] ?? [])
+
+onMounted(async () => {
+  const config = await liveApi.getReplayCommentConfig()
+  aspects.value = config.aspects
+  ratingLabels.value = config.labels
+  tagsByRating.value = config.tagsByRating
+})
 
 function onRate(s: number) {
   rating.value = s
@@ -146,6 +265,26 @@ function onSubmit() {
   background: #FAF8F5;
 }
 
+/* 顶部 */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #FAF8F5;
+  border-bottom: 1rpx solid #E8E3DB;
+}
+.nav-inner {
+  display: flex;
+  align-items: center;
+  height: 96rpx;
+  padding: 0 32rpx;
+}
+.nav-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #2C2C2C;
+  margin-left: 24rpx;
+}
 
 .body {
   padding: 32rpx;

@@ -1,111 +1,232 @@
 <template>
   <view class="page">
     <!-- 自定义导航栏 -->
-    <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-back" @tap="goBack">
-        <app-icon name="arrow-left" :size="40" color="#1A1A1A" />
+    <view
+      class="nav-bar"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="40"
+          color="#1A1A1A"
+        />
       </view>
-      <text class="nav-title">发表评价</text>
+      <text class="nav-title">
+        发表评价
+      </text>
       <view class="nav-placeholder" />
     </view>
 
-    <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
+    <!-- Loading -->
+    <view
+      v-if="loading"
+      class="load-state"
+      :style="{ paddingTop: navHeight + 'px' }"
+    >
+      <view class="load-spinner" />
+      <text class="load-text">
+        加载中...
+      </text>
+    </view>
+
+    <!-- Error -->
+    <view
+      v-else-if="error"
+      class="err-state"
+      :style="{ paddingTop: navHeight + 'px' }"
+    >
+      <app-icon
+        name="alert-circle"
+        :size="80"
+        color="#CCCCCC"
+      />
+      <text class="err-text">
+        加载失败
+      </text>
       <view
-        v-for="(item, idx) in reviewItems"
-        :key="item.id"
-        class="review-card"
+        class="err-btn"
+        @tap="loadData"
       >
-        <!-- 商品信息 -->
-        <view class="product-row">
-          <image class="product-cover" :src="item.cover" mode="aspectFill" />
-          <text class="product-name">{{ item.name }}</text>
-        </view>
-
-        <!-- 评分 -->
-        <view class="rating-row">
-          <text class="rating-label">商品评分</text>
-          <view class="stars">
-            <view
-              v-for="star in 5"
-              :key="star"
-              class="star-btn"
-              @tap="setRating(idx, star)"
-            >
-              <app-icon
-                name="star"
-                :size="48"
-                :color="star <= forms[idx].rating ? '#D4A017' : '#DDDDDD'"
-                :fill="star <= forms[idx].rating"
-              />
-            </view>
-            <text class="rating-text">{{ ratingLabels[forms[idx].rating] }}</text>
-          </view>
-        </view>
-
-        <!-- 评价标签 -->
-        <view class="tags-wrap">
-          <view
-            v-for="tag in tagsByRating[forms[idx].rating] || []"
-            :key="tag"
-            class="tag-chip"
-            :class="{ active: forms[idx].tags.includes(tag) }"
-            @tap="toggleTag(idx, tag)"
-          >
-            <text class="tag-text" :class="{ active: forms[idx].tags.includes(tag) }">{{ tag }}</text>
-          </view>
-        </view>
-
-        <!-- 文字评价 -->
-        <textarea
-          class="content-input"
-          v-model="forms[idx].content"
-          placeholder="宝贝满足你的期待吗？说说它的优点和美中不足的地方吧~"
-          :maxlength="500"
-          placeholder-class="ph"
-        />
-        <text class="word-count">{{ forms[idx].content.length }}/500</text>
-
-        <!-- 图片上传 -->
-        <view class="upload-wrap">
-          <view
-            v-for="(img, imgIdx) in forms[idx].images"
-            :key="imgIdx"
-            class="upload-item"
-          >
-            <image class="upload-img" :src="img" mode="aspectFill" />
-            <view class="upload-del" @tap="removeImage(idx, imgIdx)">
-              <app-icon name="x" :size="24" color="#FFFFFF" />
-            </view>
-          </view>
-          <view
-            v-if="forms[idx].images.length < 9"
-            class="upload-add"
-            @tap="addImage(idx)"
-          >
-            <app-icon name="camera" :size="48" color="#999999" />
-            <text class="upload-hint">{{ forms[idx].images.length }}/9</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 匿名评价 -->
-      <view class="anon-row">
-        <view class="anon-left">
-          <text class="anon-title">匿名评价</text>
-          <text class="anon-desc">开启后将隐藏您的头像和昵称</text>
-        </view>
-        <switch :checked="anonymous" color="#9A2D2D" @change="onAnonChange" />
-      </view>
-
-      <view class="bottom-gap" />
-    </scroll-view>
-
-    <!-- 底部提交 -->
-    <view class="submit-bar" :style="{ paddingBottom: safeBottom + 'px' }">
-      <view class="submit-btn" @tap="submit">
-        <text class="submit-text">提交评价</text>
+        重新加载
       </view>
     </view>
+
+    <!-- Content -->
+    <template v-else>
+      <scroll-view
+        scroll-y
+        class="scroll-area"
+        :style="{ paddingTop: navHeight + 'px' }"
+      >
+        <!-- 空态 -->
+        <view
+          v-if="reviewItems.length === 0"
+          class="empty-state"
+        >
+          <app-icon
+            name="file-text"
+            :size="80"
+            color="#CCCCCC"
+          />
+          <text class="empty-text">
+            暂无待评价商品
+          </text>
+        </view>
+
+        <template v-else>
+          <view
+            v-for="(item, idx) in reviewItems"
+            :key="item.id"
+            class="review-card"
+          >
+            <!-- 商品信息 -->
+            <view class="product-row">
+              <image
+                class="product-cover"
+                :src="item.cover"
+                mode="aspectFill"
+              />
+              <text class="product-name">
+                {{ item.name }}
+              </text>
+            </view>
+
+            <!-- 评分 -->
+            <view class="rating-row">
+              <text class="rating-label">
+                商品评分
+              </text>
+              <view class="stars">
+                <view
+                  v-for="star in 5"
+                  :key="star"
+                  class="star-btn"
+                  @tap="setRating(idx, star)"
+                >
+                  <app-icon
+                    name="star"
+                    :size="48"
+                    :color="star <= forms[idx].rating ? '#D4A017' : '#DDDDDD'"
+                    :fill="star <= forms[idx].rating"
+                  />
+                </view>
+                <text class="rating-text">
+                  {{ ratingLabels[forms[idx].rating] }}
+                </text>
+              </view>
+            </view>
+
+            <!-- 评价标签 -->
+            <view class="tags-wrap">
+              <view
+                v-for="tag in tagsByRating[forms[idx].rating] || []"
+                :key="tag"
+                class="tag-chip"
+                :class="{ active: forms[idx].tags.includes(tag) }"
+                @tap="toggleTag(idx, tag)"
+              >
+                <text
+                  class="tag-text"
+                  :class="{ active: forms[idx].tags.includes(tag) }"
+                >
+                  {{ tag }}
+                </text>
+              </view>
+            </view>
+
+            <!-- 文字评价 -->
+            <textarea
+              v-model="forms[idx].content"
+              class="content-input"
+              placeholder="宝贝满足你的期待吗？说说它的优点和美中不足的地方吧~"
+              :maxlength="500"
+              placeholder-class="ph"
+            />
+            <text class="word-count">
+              {{ forms[idx].content.length }}/500
+            </text>
+
+            <!-- 图片上传 -->
+            <view class="upload-wrap">
+              <view
+                v-for="(img, imgIdx) in forms[idx].images"
+                :key="imgIdx"
+                class="upload-item"
+              >
+                <image
+                  class="upload-img"
+                  :src="img"
+                  mode="aspectFill"
+                />
+                <view
+                  class="upload-del"
+                  @tap="removeImage(idx, imgIdx)"
+                >
+                  <app-icon
+                    name="x"
+                    :size="24"
+                    color="#FFFFFF"
+                  />
+                </view>
+              </view>
+              <view
+                v-if="forms[idx].images.length < 9"
+                class="upload-add"
+                @tap="addImage(idx)"
+              >
+                <app-icon
+                  name="camera"
+                  :size="48"
+                  color="#999999"
+                />
+                <text class="upload-hint">
+                  {{ forms[idx].images.length }}/9
+                </text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 匿名评价 -->
+          <view class="anon-row">
+            <view class="anon-left">
+              <text class="anon-title">
+                匿名评价
+              </text>
+              <text class="anon-desc">
+                开启后将隐藏您的头像和昵称
+              </text>
+            </view>
+            <switch
+              :checked="anonymous"
+              color="#9A2D2D"
+              @change="onAnonChange"
+            />
+          </view>
+        </template>
+
+        <view class="bottom-gap" />
+      </scroll-view>
+
+      <!-- 底部提交 -->
+      <view
+        v-if="reviewItems.length > 0"
+        class="submit-bar"
+        :style="{ paddingBottom: safeBottom + 'px' }"
+      >
+        <view
+          class="submit-btn"
+          @tap="submit"
+        >
+          <text class="submit-text">
+            提交评价
+          </text>
+        </view>
+      </view>
+    </template>
   </view>
 </template>
 
@@ -113,23 +234,26 @@
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
-import { orderReviewItems, reviewTagsByRating, reviewRatingLabels } from '@/lib/order-data'
+import { orderApi } from '@/lib/order-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
 const safeBottom = ref(0)
+const loading = ref(true)
+const error = ref(false)
+const orderId = ref('')
 
-const reviewItems = ref(orderReviewItems)
-const tagsByRating = reviewTagsByRating
-const ratingLabels = reviewRatingLabels
+const reviewItems = ref<any[]>([])
+const tagsByRating = ref<Record<number, string[]>>({})
+const ratingLabels = ref<string[]>([])
+const submitting = ref(false)
 const anonymous = ref(false)
 
 interface ReviewForm { rating: number; tags: string[]; content: string; images: string[] }
-const forms = reactive<ReviewForm[]>(
-  orderReviewItems.map(() => ({ rating: 5, tags: [], content: '', images: [] })),
-)
+const forms = reactive<ReviewForm[]>([])
 
-onLoad(() => {
+onLoad(async (q) => {
+  orderId.value = (q?.orderId as string) || ''
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 20
@@ -139,11 +263,28 @@ onLoad(() => {
     statusBarHeight.value = 20
     navHeight.value = 64
   }
+  await loadData()
 })
+
+async function loadData() {
+  loading.value = true
+  error.value = false
+  try {
+    const res = await orderApi.getReviewItems(orderId.value || 'current')
+    reviewItems.value = res.items
+    tagsByRating.value = res.tagsByRating
+    ratingLabels.value = res.ratingLabels
+    forms.length = 0
+    res.items.forEach(() => forms.push({ rating: 5, tags: [], content: '', images: [] }))
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
 
 function setRating(idx: number, star: number) {
   forms[idx].rating = star
-  // 切换评分后清空不适用的标签
   forms[idx].tags = []
 }
 
@@ -172,18 +313,37 @@ function onAnonChange(e: any) {
   anonymous.value = e.detail.value
 }
 
-function submit() {
+async function submit() {
+  if (submitting.value) return
   const empty = forms.some((f) => !f.content.trim())
   if (empty) {
     uni.showToast({ title: '请填写评价内容', icon: 'none' })
     return
   }
+  submitting.value = true
   uni.showLoading({ title: '提交中...' })
-  setTimeout(() => {
+  try {
+    for (let i = 0; i < reviewItems.value.length; i++) {
+      const item = reviewItems.value[i]
+      const form = forms[i]
+      await orderApi.submitReview({
+        orderId: orderId.value,
+        productId: item.id,
+        rating: form.rating,
+        content: form.content,
+        images: form.images,
+        tags: form.tags,
+      })
+    }
     uni.hideLoading()
     uni.showToast({ title: '评价成功', icon: 'success' })
     setTimeout(() => goBack(), 1500)
-  }, 1000)
+  } catch {
+    uni.hideLoading()
+    uni.showToast({ title: '提交失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -388,6 +548,42 @@ function submit() {
   font-size: 24rpx;
   color: #999999;
 }
+
+.load-state, .err-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 20rpx;
+}
+.load-spinner {
+  width: 64rpx;
+  height: 64rpx;
+  border: 4rpx solid #F0F0F0;
+  border-top-color: #9A2D2D;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.load-text { font-size: 28rpx; color: #999; }
+.err-text { font-size: 28rpx; color: #999; margin-top: 16rpx; }
+.err-btn {
+  margin-top: 24rpx;
+  padding: 16rpx 48rpx;
+  border: 1rpx solid #DDD;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  color: #666;
+}
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 200rpx;
+  gap: 20rpx;
+}
+.empty-text { font-size: 28rpx; color: #999; }
 
 .bottom-gap {
   height: 160rpx;

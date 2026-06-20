@@ -1,201 +1,432 @@
 <template>
   <view class="ex-page">
     <!-- Header -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-btn" hover-class="nav-hover" @tap="goBack">
-        <app-icon name="chevron-left" :size="38" color="#2C2C2C" />
+    <view
+      class="navbar"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view
+        class="nav-btn"
+        hover-class="nav-hover"
+        @tap="goBack"
+      >
+        <app-icon
+          name="chevron-left"
+          :size="38"
+          color="#2C2C2C"
+        />
       </view>
-      <text class="nav-title">申请换货</text>
+      <text class="nav-title">
+        申请换货
+      </text>
       <view class="nav-spacer" />
     </view>
 
     <view class="content">
       <!-- 加载骨架 -->
-      <view v-if="loading" class="sk-wrap">
-        <view v-for="i in 3" :key="i" class="sk-card"><view class="sk-line" /><view class="sk-line sk-short" /></view>
+      <view
+        v-if="loading"
+        class="sk-wrap"
+      >
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="sk-card"
+        >
+          <view class="sk-line" /><view class="sk-line sk-short" />
+        </view>
       </view>
 
-      <error-state v-else-if="error" :message="error" @retry="loadExchangeData" />
+      <error-state
+        v-else-if="error"
+        :message="error"
+        @retry="loadExchangeData"
+      />
 
       <view v-else>
-      <!-- 选择换货商品 -->
-      <view class="card">
-        <view class="card-head">
-          <app-icon name="package" :size="34" color="#C41E3A" />
-          <text class="card-title">选择换货商品</text>
-          <text v-if="errors.product" class="err">{{ errors.product }}</text>
-        </view>
-        <view v-if="!products.length" class="prod-empty">
-          <view class="prod-empty-icon"><app-icon name="package" :size="80" color="#CCCCCC" /></view>
-          <text class="prod-empty-text">暂无可换货商品</text>
-          <view class="prod-empty-btn" @tap="goBack"><text class="prod-empty-btn-text">返回</text></view>
-        </view>
-        <view v-else class="prod-list">
-          <view
-            v-for="p in products"
-            :key="p.id"
-            class="prod-item"
-            :class="{ 'prod-active': selectedProduct && selectedProduct.id === p.id }"
-            hover-class="card-hover"
-            @tap="selectProduct(p)"
-          >
-            <view class="prod-cover-wrap">
-              <image class="prod-cover" :src="p.cover" mode="aspectFill" />
-              <view v-if="selectedProduct && selectedProduct.id === p.id" class="prod-check">
-                <app-icon name="check" :size="20" color="#fff" />
-              </view>
-            </view>
-            <view class="prod-info">
-              <text class="prod-name">{{ p.name }}</text>
-              <text class="prod-sku">{{ p.skuName }}</text>
-              <view class="prod-bottom">
-                <text class="prod-price">¥{{ p.price }}</text>
-                <text class="prod-qty">x{{ p.quantity }}</text>
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 换货原因 -->
-      <view class="card">
-        <view class="cell" hover-class="card-hover" @tap="showReasonPicker = true">
-          <view class="cell-left">
-            <text class="cell-label">换货原因</text>
-            <text v-if="errors.reason" class="err">{{ errors.reason }}</text>
-          </view>
-          <view class="cell-right">
-            <text class="cell-value" :class="{ placeholder: !reason }">{{ reasonLabel }}</text>
-            <app-icon name="chevron-right" :size="32" color="#CCCCCC" />
-          </view>
-        </view>
-      </view>
-
-      <!-- 换货类型 -->
-      <view class="card">
-        <view class="card-head">
-          <app-icon name="refresh-cw" :size="34" color="#C41E3A" />
-          <text class="card-title">换货类型</text>
-        </view>
-        <view class="type-grid">
-          <view
-            v-for="t in exchangeTypes"
-            :key="t.value"
-            class="type-item"
-            :class="{ 'type-active': exchangeType === t.value }"
-            hover-class="card-hover"
-            @tap="selectType(t.value)"
-          >
-            <view class="type-top">
-              <view class="radio" :class="{ 'radio-active': exchangeType === t.value }">
-                <view v-if="exchangeType === t.value" class="radio-dot" />
-              </view>
-              <text class="type-label">{{ t.label }}</text>
-            </view>
-            <text class="type-desc">{{ t.desc }}</text>
-          </view>
-        </view>
-
-        <!-- 选择新规格 -->
-        <view v-if="exchangeType === 'different' && selectedProduct" class="new-sku">
-          <view class="new-sku-head">
-            <text class="new-sku-label">选择新规格</text>
-            <text v-if="errors.sku" class="err">{{ errors.sku }}</text>
-          </view>
-          <view v-if="availableSkus.length" class="sku-opts">
-            <view
-              v-for="sku in availableSkus"
-              :key="sku.id"
-              class="sku-opt"
-              :class="{ 'sku-opt-active': newSkuId === sku.id }"
-              hover-class="opt-hover"
-              @tap="newSkuId = sku.id"
+        <!-- 选择换货商品 -->
+        <view class="card">
+          <view class="card-head">
+            <app-icon
+              name="package"
+              :size="34"
+              color="#C41E3A"
+            />
+            <text class="card-title">
+              选择换货商品
+            </text>
+            <text
+              v-if="errors.product"
+              class="err"
             >
-              {{ sku.name }} ¥{{ sku.price }}
+              {{ errors.product }}
+            </text>
+          </view>
+          <view
+            v-if="!products.length"
+            class="prod-empty"
+          >
+            <view class="prod-empty-icon">
+              <app-icon
+                name="package"
+                :size="80"
+                color="#CCCCCC"
+              />
+            </view>
+            <text class="prod-empty-text">
+              暂无可换货商品
+            </text>
+            <view
+              class="prod-empty-btn"
+              @tap="goBack"
+            >
+              <text class="prod-empty-btn-text">
+                返回
+              </text>
             </view>
           </view>
-          <text v-else class="no-sku">该商品暂无其他可换规格</text>
-        </view>
-      </view>
-
-      <!-- 问题描述 -->
-      <view class="card">
-        <text class="card-title block">问题描述（选填）</text>
-        <textarea
-          v-model="description"
-          class="textarea"
-          placeholder="请详细描述换货原因，以便我们更好处理..."
-          :maxlength="200"
-        />
-        <text class="counter">{{ description.length }}/200</text>
-      </view>
-
-      <!-- 上传凭证 -->
-      <view class="card">
-        <text class="card-title block">上传凭证（选填，最多5张）</text>
-        <view class="img-grid">
-          <view v-for="(img, idx) in images" :key="idx" class="img-item">
-            <image class="up-img" :src="img" mode="aspectFill" />
-            <view class="img-del" @tap="removeImage(idx)">
-              <app-icon name="x" :size="20" color="#fff" />
+          <view
+            v-else
+            class="prod-list"
+          >
+            <view
+              v-for="p in products"
+              :key="p.id"
+              class="prod-item"
+              :class="{ 'prod-active': selectedProduct && selectedProduct.id === p.id }"
+              hover-class="card-hover"
+              @tap="selectProduct(p)"
+            >
+              <view class="prod-cover-wrap">
+                <image
+                  class="prod-cover"
+                  :src="p.cover"
+                  mode="aspectFill"
+                />
+                <view
+                  v-if="selectedProduct && selectedProduct.id === p.id"
+                  class="prod-check"
+                >
+                  <app-icon
+                    name="check"
+                    :size="20"
+                    color="#fff"
+                  />
+                </view>
+              </view>
+              <view class="prod-info">
+                <text class="prod-name">
+                  {{ p.name }}
+                </text>
+                <text class="prod-sku">
+                  {{ p.skuName }}
+                </text>
+                <view class="prod-bottom">
+                  <text class="prod-price">
+                    ¥{{ p.price }}
+                  </text>
+                  <text class="prod-qty">
+                    x{{ p.quantity }}
+                  </text>
+                </view>
+              </view>
             </view>
           </view>
-          <view v-if="images.length < 5" class="img-add" hover-class="card-hover" @tap="addImage">
-            <app-icon name="camera" :size="40" color="#999999" />
-            <text class="add-count">{{ images.length }}/5</text>
-          </view>
         </view>
-      </view>
 
-      <!-- 取件地址 -->
-      <view class="card">
-        <view class="card-head">
-          <app-icon name="map-pin" :size="34" color="#C41E3A" />
-          <text class="card-title">取件地址</text>
-          <text v-if="errors.address" class="err">{{ errors.address }}</text>
-        </view>
-        <view v-if="selectedAddress" class="addr" hover-class="card-hover" @tap="showAddressPicker = true">
-          <view class="addr-info">
-            <view class="addr-top">
-              <text class="addr-name">{{ selectedAddress.name }}</text>
-              <text class="addr-phone">{{ selectedAddress.phone }}</text>
+        <!-- 换货原因 -->
+        <view class="card">
+          <view
+            class="cell"
+            hover-class="card-hover"
+            @tap="showReasonPicker = true"
+          >
+            <view class="cell-left">
+              <text class="cell-label">
+                换货原因
+              </text>
+              <text
+                v-if="errors.reason"
+                class="err"
+              >
+                {{ errors.reason }}
+              </text>
             </view>
-            <text class="addr-detail">{{ fullAddress(selectedAddress) }}</text>
+            <view class="cell-right">
+              <text
+                class="cell-value"
+                :class="{ placeholder: !reason }"
+              >
+                {{ reasonLabel }}
+              </text>
+              <app-icon
+                name="chevron-right"
+                :size="32"
+                color="#CCCCCC"
+              />
+            </view>
           </view>
-          <app-icon name="chevron-right" :size="32" color="#CCCCCC" />
         </view>
-        <view v-else class="addr-empty" hover-class="card-hover" @tap="showAddressPicker = true">
-          <text class="addr-empty-text">请选择取件地址</text>
-        </view>
-      </view>
 
-      <!-- 换货须知 -->
-      <view class="notice">
-        <text class="notice-title">换货须知</text>
-        <view class="notice-list">
-          <text class="notice-item">• 审核通过后，快递员将上门取件</text>
-          <text class="notice-item">• 请保持商品完好，配件齐全</text>
-          <text class="notice-item">• 新商品将在收到退回商品后3个工作日内发出</text>
+        <!-- 换货类型 -->
+        <view class="card">
+          <view class="card-head">
+            <app-icon
+              name="refresh-cw"
+              :size="34"
+              color="#C41E3A"
+            />
+            <text class="card-title">
+              换货类型
+            </text>
+          </view>
+          <view class="type-grid">
+            <view
+              v-for="t in exchangeTypes"
+              :key="t.value"
+              class="type-item"
+              :class="{ 'type-active': exchangeType === t.value }"
+              hover-class="card-hover"
+              @tap="selectType(t.value)"
+            >
+              <view class="type-top">
+                <view
+                  class="radio"
+                  :class="{ 'radio-active': exchangeType === t.value }"
+                >
+                  <view
+                    v-if="exchangeType === t.value"
+                    class="radio-dot"
+                  />
+                </view>
+                <text class="type-label">
+                  {{ t.label }}
+                </text>
+              </view>
+              <text class="type-desc">
+                {{ t.desc }}
+              </text>
+            </view>
+          </view>
+
+          <!-- 选择新规格 -->
+          <view
+            v-if="exchangeType === 'different' && selectedProduct"
+            class="new-sku"
+          >
+            <view class="new-sku-head">
+              <text class="new-sku-label">
+                选择新规格
+              </text>
+              <text
+                v-if="errors.sku"
+                class="err"
+              >
+                {{ errors.sku }}
+              </text>
+            </view>
+            <view
+              v-if="availableSkus.length"
+              class="sku-opts"
+            >
+              <view
+                v-for="sku in availableSkus"
+                :key="sku.id"
+                class="sku-opt"
+                :class="{ 'sku-opt-active': newSkuId === sku.id }"
+                hover-class="opt-hover"
+                @tap="newSkuId = sku.id"
+              >
+                {{ sku.name }} ¥{{ sku.price }}
+              </view>
+            </view>
+            <text
+              v-else
+              class="no-sku"
+            >
+              该商品暂无其他可换规格
+            </text>
+          </view>
         </view>
-      </view>
+
+        <!-- 问题描述 -->
+        <view class="card">
+          <text class="card-title block">
+            问题描述（选填）
+          </text>
+          <textarea
+            v-model="description"
+            class="textarea"
+            placeholder="请详细描述换货原因，以便我们更好处理..."
+            :maxlength="200"
+          />
+          <text class="counter">
+            {{ description.length }}/200
+          </text>
+        </view>
+
+        <!-- 上传凭证 -->
+        <view class="card">
+          <text class="card-title block">
+            上传凭证（选填，最多5张）
+          </text>
+          <view class="img-grid">
+            <view
+              v-for="(img, idx) in images"
+              :key="idx"
+              class="img-item"
+            >
+              <image
+                class="up-img"
+                :src="img"
+                mode="aspectFill"
+              />
+              <view
+                class="img-del"
+                @tap="removeImage(idx)"
+              >
+                <app-icon
+                  name="x"
+                  :size="20"
+                  color="#fff"
+                />
+              </view>
+            </view>
+            <view
+              v-if="images.length < 5"
+              class="img-add"
+              hover-class="card-hover"
+              @tap="addImage"
+            >
+              <app-icon
+                name="camera"
+                :size="40"
+                color="#999999"
+              />
+              <text class="add-count">
+                {{ images.length }}/5
+              </text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 取件地址 -->
+        <view class="card">
+          <view class="card-head">
+            <app-icon
+              name="map-pin"
+              :size="34"
+              color="#C41E3A"
+            />
+            <text class="card-title">
+              取件地址
+            </text>
+            <text
+              v-if="errors.address"
+              class="err"
+            >
+              {{ errors.address }}
+            </text>
+          </view>
+          <view
+            v-if="selectedAddress"
+            class="addr"
+            hover-class="card-hover"
+            @tap="showAddressPicker = true"
+          >
+            <view class="addr-info">
+              <view class="addr-top">
+                <text class="addr-name">
+                  {{ selectedAddress.name }}
+                </text>
+                <text class="addr-phone">
+                  {{ selectedAddress.phone }}
+                </text>
+              </view>
+              <text class="addr-detail">
+                {{ fullAddress(selectedAddress) }}
+              </text>
+            </view>
+            <app-icon
+              name="chevron-right"
+              :size="32"
+              color="#CCCCCC"
+            />
+          </view>
+          <view
+            v-else
+            class="addr-empty"
+            hover-class="card-hover"
+            @tap="showAddressPicker = true"
+          >
+            <text class="addr-empty-text">
+              请选择取件地址
+            </text>
+          </view>
+        </view>
+
+        <!-- 换货须知 -->
+        <view class="notice">
+          <text class="notice-title">
+            换货须知
+          </text>
+          <view class="notice-list">
+            <text class="notice-item">
+              • 审核通过后，快递员将上门取件
+            </text>
+            <text class="notice-item">
+              • 请保持商品完好，配件齐全
+            </text>
+            <text class="notice-item">
+              • 新商品将在收到退回商品后3个工作日内发出
+            </text>
+          </view>
+        </view>
       </view>
     </view>
 
     <!-- 提交按钮 -->
-    <view class="submit-bar" :style="{ paddingBottom: (safeBottom + 16) + 'px' }">
-      <view class="submit-btn" :class="{ disabled: submitting }" hover-class="btn-hover" @tap="handleSubmit">
-        <text class="submit-text">{{ submitting ? '提交中...' : '提交换货申请' }}</text>
+    <view
+      class="submit-bar"
+      :style="{ paddingBottom: (safeBottom + 16) + 'px' }"
+    >
+      <view
+        class="submit-btn"
+        :class="{ disabled: submitting }"
+        hover-class="btn-hover"
+        @tap="handleSubmit"
+      >
+        <text class="submit-text">
+          {{ submitting ? '提交中...' : '提交换货申请' }}
+        </text>
       </view>
     </view>
 
     <!-- 原因选择弹窗 -->
-    <view v-if="showReasonPicker" class="mask" @tap="showReasonPicker = false">
-      <view class="sheet" @tap.stop>
+    <view
+      v-if="showReasonPicker"
+      class="mask"
+      @tap="showReasonPicker = false"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
         <view class="sheet-head">
-          <text class="sheet-title">选择换货原因</text>
-          <text class="sheet-close" @tap="showReasonPicker = false">关闭</text>
+          <text class="sheet-title">
+            选择换货原因
+          </text>
+          <text
+            class="sheet-close"
+            @tap="showReasonPicker = false"
+          >
+            关闭
+          </text>
         </view>
-        <view class="sheet-body" :style="{ paddingBottom: (safeBottom + 24) + 'px' }">
+        <view
+          class="sheet-body"
+          :style="{ paddingBottom: (safeBottom + 24) + 'px' }"
+        >
           <view
             v-for="r in reasons"
             :key="r.value"
@@ -205,20 +436,42 @@
             @tap="pickReason(r.value)"
           >
             <text>{{ r.label }}</text>
-            <app-icon v-if="reason === r.value" name="check" :size="32" color="#C41E3A" />
+            <app-icon
+              v-if="reason === r.value"
+              name="check"
+              :size="32"
+              color="#C41E3A"
+            />
           </view>
         </view>
       </view>
     </view>
 
     <!-- 地址选择弹窗 -->
-    <view v-if="showAddressPicker" class="mask" @tap="showAddressPicker = false">
-      <view class="sheet" @tap.stop>
+    <view
+      v-if="showAddressPicker"
+      class="mask"
+      @tap="showAddressPicker = false"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
         <view class="sheet-head">
-          <text class="sheet-title">选择取件地址</text>
-          <text class="sheet-close" @tap="showAddressPicker = false">关闭</text>
+          <text class="sheet-title">
+            选择取件地址
+          </text>
+          <text
+            class="sheet-close"
+            @tap="showAddressPicker = false"
+          >
+            关闭
+          </text>
         </view>
-        <view class="sheet-body" :style="{ paddingBottom: (safeBottom + 24) + 'px' }">
+        <view
+          class="sheet-body"
+          :style="{ paddingBottom: (safeBottom + 24) + 'px' }"
+        >
           <view
             v-for="addr in addresses"
             :key="addr.id"
@@ -228,11 +481,22 @@
             @tap="pickAddress(addr)"
           >
             <view class="addr-top">
-              <text class="addr-name">{{ addr.name }}</text>
-              <text class="addr-phone">{{ addr.phone }}</text>
-              <text v-if="addr.isDefault" class="addr-default">默认</text>
+              <text class="addr-name">
+                {{ addr.name }}
+              </text>
+              <text class="addr-phone">
+                {{ addr.phone }}
+              </text>
+              <text
+                v-if="addr.isDefault"
+                class="addr-default"
+              >
+                默认
+              </text>
             </view>
-            <text class="addr-detail">{{ fullAddress(addr) }}</text>
+            <text class="addr-detail">
+              {{ fullAddress(addr) }}
+            </text>
           </view>
         </view>
       </view>

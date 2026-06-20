@@ -1,153 +1,455 @@
 <template>
   <view class="detail">
     <!-- 顶部 -->
-    <view class="nav" :style="{ paddingTop: 'calc(12rpx + var(--status-bar-height, 0px))' }">
-      <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="44" color="#2C2C2C" /></view>
-      <text class="nav-title">订单详情</text>
-      <view class="nav-act" @tap="toService"><app-icon name="message-circle" :size="40" color="#666666" /></view>
+    <view
+      class="nav"
+      :style="{ paddingTop: 'calc(12rpx + var(--status-bar-height, 0px))' }"
+    >
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="chevron-left"
+          :size="44"
+          color="#2C2C2C"
+        />
+      </view>
+      <text class="nav-title">
+        订单详情
+      </text>
+      <view
+        class="nav-act"
+        @tap="toService"
+      >
+        <app-icon
+          name="message-circle"
+          :size="40"
+          color="#666666"
+        />
+      </view>
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="sk-wrap">
-      <view class="sk-card"><view class="sk-line w6" /><view class="sk-line w4" /><view class="sk-steps"><view v-for="i in 4" :key="i" class="sk-step-dot" /></view></view>
-      <view class="sk-card"><view class="sk-line w3" /><view class="sk-line w5" /></view>
-      <view class="sk-card"><view class="sk-row"><view class="sk-img" /><view class="sk-info"><view class="sk-line" /><view class="sk-line w5" /></view></view></view>
+    <view
+      v-if="loading"
+      class="sk-wrap"
+    >
+      <view class="sk-card">
+        <view class="sk-line w6" /><view class="sk-line w4" /><view class="sk-steps">
+          <view
+            v-for="i in 4"
+            :key="i"
+            class="sk-step-dot"
+          />
+        </view>
+      </view>
+      <view class="sk-card">
+        <view class="sk-line w3" /><view class="sk-line w5" />
+      </view>
+      <view class="sk-card">
+        <view class="sk-row">
+          <view class="sk-img" /><view class="sk-info">
+            <view class="sk-line" /><view class="sk-line w5" />
+          </view>
+        </view>
+      </view>
     </view>
 
-    <error-state v-else-if="error" :message="error" @retry="loadDetail" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadDetail"
+    />
 
     <view v-else>
       <!-- 状态卡 -->
-      <view class="status-card" :style="{ background: status.bg }">
-      <view class="status-row">
-        <view class="status-icon" :style="{ background: status.bg }">
-          <app-icon :name="status.icon" :size="56" :color="status.color" />
+      <view
+        class="status-card"
+        :style="{ background: status.bg }"
+      >
+        <view class="status-row">
+          <view
+            class="status-icon"
+            :style="{ background: status.bg }"
+          >
+            <app-icon
+              :name="status.icon"
+              :size="56"
+              :color="status.color"
+            />
+          </view>
+          <view class="status-text-box">
+            <text
+              class="status-text"
+              :style="{ color: status.color }"
+            >
+              {{ status.text }}
+            </text>
+            <text
+              v-if="order.status === 'pending_pay'"
+              class="status-sub"
+            >
+              请在30分钟内完成支付
+            </text>
+            <text
+              v-else-if="order.status === 'pending_receive' && order.logistics"
+              class="status-sub"
+            >
+              {{ order.logistics.status }}
+            </text>
+          </view>
         </view>
-        <view class="status-text-box">
-          <text class="status-text" :style="{ color: status.color }">{{ status.text }}</text>
-          <text v-if="order.status === 'pending_pay'" class="status-sub">请在30分钟内完成支付</text>
-          <text v-else-if="order.status === 'pending_receive' && order.logistics" class="status-sub">{{ order.logistics.status }}</text>
-        </view>
-      </view>
-      <!-- 进度步骤 -->
-      <view v-if="order.status !== 'cancelled'" class="steps">
-        <view v-for="(step, idx) in steps" :key="step.key" class="step-item">
-          <view class="step-col">
-            <view class="step-dot" :class="{ done: idx < status.step }">
-              <app-icon v-if="idx < status.step" name="check-circle" :size="24" color="#FFFFFF" />
-              <text v-else class="step-num">{{ idx + 1 }}</text>
+        <!-- 进度步骤 -->
+        <view
+          v-if="order.status !== 'cancelled'"
+          class="steps"
+        >
+          <view
+            v-for="(step, idx) in steps"
+            :key="step.key"
+            class="step-item"
+          >
+            <view class="step-col">
+              <view
+                class="step-dot"
+                :class="{ done: idx < status.step }"
+              >
+                <app-icon
+                  v-if="idx < status.step"
+                  name="check-circle"
+                  :size="24"
+                  color="#FFFFFF"
+                />
+                <text
+                  v-else
+                  class="step-num"
+                >
+                  {{ idx + 1 }}
+                </text>
+              </view>
+              <text
+                class="step-label"
+                :class="{ done: idx < status.step }"
+              >
+                {{ step.label }}
+              </text>
             </view>
-            <text class="step-label" :class="{ done: idx < status.step }">{{ step.label }}</text>
-          </view>
-          <view v-if="idx < steps.length - 1" class="step-line" :class="{ done: idx < status.step - 1 }" />
-        </view>
-      </view>
-    </view>
-
-    <!-- 物流入口 -->
-    <view
-      v-if="order.logistics && order.status !== 'pending_pay' && order.status !== 'cancelled'"
-      class="card logistics-entry"
-      @tap="goLogistics"
-    >
-      <view class="log-icon"><app-icon name="truck" :size="36" color="#3B82F6" /></view>
-      <view class="log-info">
-        <view class="log-top">
-          <text class="log-company">{{ order.logistics.company }}</text>
-          <text class="log-no">{{ order.logistics.trackingNo }}</text>
-        </view>
-        <text class="log-latest">{{ order.logistics.timeline[0].content }}</text>
-        <text class="log-time">{{ order.logistics.timeline[0].time }}</text>
-      </view>
-      <app-icon name="chevron-right" :size="32" color="#CCCCCC" />
-    </view>
-
-    <!-- 地址 -->
-    <view class="card address">
-      <view class="addr-icon"><app-icon name="map-pin" :size="36" color="#C41E3A" /></view>
-      <view class="addr-info">
-        <view class="addr-top">
-          <text class="addr-name">{{ order.address.name }}</text>
-          <text class="addr-phone">{{ order.address.phone }}</text>
-        </view>
-        <text class="addr-detail">{{ order.address.province }}{{ order.address.city }}{{ order.address.district }}{{ order.address.address }}</text>
-      </view>
-    </view>
-
-    <!-- 商品清单 -->
-    <view class="card products">
-      <view class="card-title-row"><text class="card-title">商品清单</text></view>
-      <view v-for="p in order.products" :key="p.id" class="product">
-        <image class="p-cover" :src="p.cover" mode="aspectFill" />
-        <view class="p-info">
-          <text class="p-name">{{ p.name }}</text>
-          <text class="p-sku">{{ p.skuName }}</text>
-          <view class="p-bottom">
-            <text class="p-price">¥{{ p.price }}</text>
-            <text class="p-qty">x{{ p.quantity }}</text>
+            <view
+              v-if="idx < steps.length - 1"
+              class="step-line"
+              :class="{ done: idx < status.step - 1 }"
+            />
           </view>
         </view>
       </view>
-      <view v-if="order.status === 'completed' || order.status === 'pending_receive'" class="quick-acts">
-        <view v-if="order.canReview" class="quick primary" @tap="goReview"><app-icon name="star" :size="30" color="#C41E3A" /><text>评价晒单</text></view>
-        <view class="quick ghost" @tap="goAfterSale"><app-icon name="undo-2" :size="30" color="#666666" /><text>申请售后</text></view>
-      </view>
-    </view>
 
-    <!-- 价格明细 -->
-    <view class="card">
-      <text class="card-title">价格明细</text>
-      <view class="price-rows">
-        <view class="price-row"><text class="pr-label">商品总额</text><text class="pr-value">¥{{ order.totalAmount.toFixed(2) }}</text></view>
-        <view class="price-row"><text class="pr-label">运费</text><text class="pr-value">包邮</text></view>
-        <view v-if="order.coupon" class="price-row"><text class="pr-label">{{ order.coupon.name }}</text><text class="pr-value red">-¥{{ order.coupon.discount.toFixed(2) }}</text></view>
-        <view class="price-row total"><text class="pr-label bold">实付金额</text><text class="pr-pay">¥{{ order.payAmount.toFixed(2) }}</text></view>
+      <!-- 物流入口 -->
+      <view
+        v-if="order.logistics && order.status !== 'pending_pay' && order.status !== 'cancelled'"
+        class="card logistics-entry"
+        @tap="goLogistics"
+      >
+        <view class="log-icon">
+          <app-icon
+            name="truck"
+            :size="36"
+            color="#3B82F6"
+          />
+        </view>
+        <view class="log-info">
+          <view class="log-top">
+            <text class="log-company">
+              {{ order.logistics.company }}
+            </text>
+            <text class="log-no">
+              {{ order.logistics.trackingNo }}
+            </text>
+          </view>
+          <text class="log-latest">
+            {{ order.logistics.timeline[0].content }}
+          </text>
+          <text class="log-time">
+            {{ order.logistics.timeline[0].time }}
+          </text>
+        </view>
+        <app-icon
+          name="chevron-right"
+          :size="32"
+          color="#CCCCCC"
+        />
       </view>
-    </view>
 
-    <!-- 订单信息 -->
-    <view class="card last">
-      <text class="card-title">订单信息</text>
-      <view class="info-rows">
-        <view class="info-row">
-          <text class="ir-label">订单编号</text>
-          <view class="ir-right">
-            <text class="ir-value mono">{{ order.orderNo }}</text>
-            <view @tap="copyNo"><app-icon name="copy" :size="28" color="#C41E3A" /></view>
+      <!-- 地址 -->
+      <view class="card address">
+        <view class="addr-icon">
+          <app-icon
+            name="map-pin"
+            :size="36"
+            color="#C41E3A"
+          />
+        </view>
+        <view class="addr-info">
+          <view class="addr-top">
+            <text class="addr-name">
+              {{ order.address.name }}
+            </text>
+            <text class="addr-phone">
+              {{ order.address.phone }}
+            </text>
+          </view>
+          <text class="addr-detail">
+            {{ order.address.province }}{{ order.address.city }}{{ order.address.district }}{{ order.address.address }}
+          </text>
+        </view>
+      </view>
+
+      <!-- 商品清单 -->
+      <view class="card products">
+        <view class="card-title-row">
+          <text class="card-title">
+            商品清单
+          </text>
+        </view>
+        <view
+          v-for="p in order.products"
+          :key="p.id"
+          class="product"
+        >
+          <image
+            class="p-cover"
+            :src="p.cover"
+            mode="aspectFill"
+          />
+          <view class="p-info">
+            <text class="p-name">
+              {{ p.name }}
+            </text>
+            <text class="p-sku">
+              {{ p.skuName }}
+            </text>
+            <view class="p-bottom">
+              <text class="p-price">
+                ¥{{ p.price }}
+              </text>
+              <text class="p-qty">
+                x{{ p.quantity }}
+              </text>
+            </view>
           </view>
         </view>
-        <view class="info-row"><text class="ir-label">下单时间</text><text class="ir-value">{{ order.createdAt }}</text></view>
-        <view v-if="order.paidAt" class="info-row"><text class="ir-label">付款时间</text><text class="ir-value">{{ order.paidAt }}</text></view>
-        <view v-if="order.payMethod" class="info-row"><text class="ir-label">支付方式</text><text class="ir-value">{{ order.payMethod }}</text></view>
-        <view v-if="order.remark" class="info-row"><text class="ir-label">备注</text><text class="ir-value">{{ order.remark }}</text></view>
+        <view
+          v-if="order.status === 'completed' || order.status === 'pending_receive'"
+          class="quick-acts"
+        >
+          <view
+            v-if="order.canReview"
+            class="quick primary"
+            @tap="goReview"
+          >
+            <app-icon
+              name="star"
+              :size="30"
+              color="#C41E3A"
+            /><text>评价晒单</text>
+          </view>
+          <view
+            class="quick ghost"
+            @tap="goAfterSale"
+          >
+            <app-icon
+              name="undo-2"
+              :size="30"
+              color="#666666"
+            /><text>申请售后</text>
+          </view>
+        </view>
       </view>
-    </view>
 
-    <!-- 底部操作 -->
-    <view class="footer">
-      <view class="foot-service" @tap="toService"><app-icon name="phone" :size="30" color="#666666" /><text>联系客服</text></view>
-      <view class="foot-actions">
-        <template v-if="order.status === 'pending_pay'">
-          <view class="fbtn ghost"><text>取消订单</text></view>
-          <view class="fbtn primary" @tap="goPay"><text>去支付</text></view>
-        </template>
-        <template v-else-if="order.status === 'pending_receive'">
-          <view class="fbtn ghost" @tap="goLogistics"><text>查看物流</text></view>
-          <view class="fbtn primary" @tap="confirmReceive"><text>确认收货</text></view>
-        </template>
-        <template v-else-if="order.status === 'completed'">
-          <view v-if="order.canReview" class="fbtn outline" @tap="goReview"><text>去评价</text></view>
-          <view class="fbtn ghost" @tap="goAfterSale"><text>申请售后</text></view>
-          <view class="fbtn primary" @tap="goShop"><app-icon name="shopping-bag" :size="28" color="#FFFFFF" /><text>再次购买</text></view>
-        </template>
-        <template v-else-if="order.status === 'cancelled'">
-          <view class="fbtn primary" @tap="goShop"><text>重新下单</text></view>
-        </template>
+      <!-- 价格明细 -->
+      <view class="card">
+        <text class="card-title">
+          价格明细
+        </text>
+        <view class="price-rows">
+          <view class="price-row">
+            <text class="pr-label">
+              商品总额
+            </text><text class="pr-value">
+              ¥{{ order.totalAmount.toFixed(2) }}
+            </text>
+          </view>
+          <view class="price-row">
+            <text class="pr-label">
+              运费
+            </text><text class="pr-value">
+              包邮
+            </text>
+          </view>
+          <view
+            v-if="order.coupon"
+            class="price-row"
+          >
+            <text class="pr-label">
+              {{ order.coupon.name }}
+            </text><text class="pr-value red">
+              -¥{{ order.coupon.discount.toFixed(2) }}
+            </text>
+          </view>
+          <view class="price-row total">
+            <text class="pr-label bold">
+              实付金额
+            </text><text class="pr-pay">
+              ¥{{ order.payAmount.toFixed(2) }}
+            </text>
+          </view>
+        </view>
       </view>
-    </view>
 
-    <!-- 复制提示 -->
-    <view v-if="copied" class="toast"><text>复制成功</text></view>
+      <!-- 订单信息 -->
+      <view class="card last">
+        <text class="card-title">
+          订单信息
+        </text>
+        <view class="info-rows">
+          <view class="info-row">
+            <text class="ir-label">
+              订单编号
+            </text>
+            <view class="ir-right">
+              <text class="ir-value mono">
+                {{ order.orderNo }}
+              </text>
+              <view @tap="copyNo">
+                <app-icon
+                  name="copy"
+                  :size="28"
+                  color="#C41E3A"
+                />
+              </view>
+            </view>
+          </view>
+          <view class="info-row">
+            <text class="ir-label">
+              下单时间
+            </text><text class="ir-value">
+              {{ order.createdAt }}
+            </text>
+          </view>
+          <view
+            v-if="order.paidAt"
+            class="info-row"
+          >
+            <text class="ir-label">
+              付款时间
+            </text><text class="ir-value">
+              {{ order.paidAt }}
+            </text>
+          </view>
+          <view
+            v-if="order.payMethod"
+            class="info-row"
+          >
+            <text class="ir-label">
+              支付方式
+            </text><text class="ir-value">
+              {{ order.payMethod }}
+            </text>
+          </view>
+          <view
+            v-if="order.remark"
+            class="info-row"
+          >
+            <text class="ir-label">
+              备注
+            </text><text class="ir-value">
+              {{ order.remark }}
+            </text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部操作 -->
+      <view class="footer">
+        <view
+          class="foot-service"
+          @tap="toService"
+        >
+          <app-icon
+            name="phone"
+            :size="30"
+            color="#666666"
+          /><text>联系客服</text>
+        </view>
+        <view class="foot-actions">
+          <template v-if="order.status === 'pending_pay'">
+            <view class="fbtn ghost">
+              <text>取消订单</text>
+            </view>
+            <view
+              class="fbtn primary"
+              @tap="goPay"
+            >
+              <text>去支付</text>
+            </view>
+          </template>
+          <template v-else-if="order.status === 'pending_receive'">
+            <view
+              class="fbtn ghost"
+              @tap="goLogistics"
+            >
+              <text>查看物流</text>
+            </view>
+            <view
+              class="fbtn primary"
+              @tap="confirmReceive"
+            >
+              <text>确认收货</text>
+            </view>
+          </template>
+          <template v-else-if="order.status === 'completed'">
+            <view
+              v-if="order.canReview"
+              class="fbtn outline"
+              @tap="goReview"
+            >
+              <text>去评价</text>
+            </view>
+            <view
+              class="fbtn ghost"
+              @tap="goAfterSale"
+            >
+              <text>申请售后</text>
+            </view>
+            <view
+              class="fbtn primary"
+              @tap="goShop"
+            >
+              <app-icon
+                name="shopping-bag"
+                :size="28"
+                color="#FFFFFF"
+              /><text>再次购买</text>
+            </view>
+          </template>
+          <template v-else-if="order.status === 'cancelled'">
+            <view
+              class="fbtn primary"
+              @tap="goShop"
+            >
+              <text>重新下单</text>
+            </view>
+          </template>
+        </view>
+      </view>
+
+      <!-- 复制提示 -->
+      <view
+        v-if="copied"
+        class="toast"
+      >
+        <text>复制成功</text>
+      </view>
     </view>
   </view>
 </template>
@@ -158,14 +460,15 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ErrorState from '@/components/common/error-state.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { orderApi, mockOrderDetail, detailSteps, detailStatusConfig, type OrderDetail } from '@/lib/order-data'
+import { orderApi, detailSteps, detailStatusConfig, type OrderDetail } from '@/lib/order-data'
 
 const steps = detailSteps
-const order = ref<OrderDetail>({ ...mockOrderDetail })
+const order = ref<OrderDetail>(null as any)
 const loading = ref(true)
 const error = ref('')
 const copied = ref(false)
 const orderId = ref('1')
+const submitting = ref(false)
 
 const status = computed(() => detailStatusConfig[order.value.status] || detailStatusConfig.pending_pay)
 
@@ -193,9 +496,15 @@ function goPay() { navigateTo(`/shop/paying?orderId=${order.value.id}`) }
 function goShop() { navigateTo('/shop') }
 function toService() { navigateTo('/customer-service') }
 async function confirmReceive() {
-  try { await orderApi.confirmReceipt(order.value.id) } catch { }
-  order.value = { ...order.value, status: 'completed', canConfirm: false, canReview: true }
-  uni.showToast({ title: '确认收货成功', icon: 'none' })
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    await orderApi.confirmReceipt(order.value.id)
+    order.value = { ...order.value, status: 'completed', canConfirm: false, canReview: true }
+    uni.showToast({ title: '确认收货成功', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '确认收货失败，请重试', icon: 'none' })
+  } finally { submitting.value = false }
 }
 </script>
 

@@ -1,5 +1,5 @@
 // 我的主页数据层（1:1 迁移自原型 app/profile/page.tsx）
-import { apiGet, useMock } from '@/utils/request'
+import { apiGet, apiPut, useMock } from '@/utils/request'
 import { getToken } from '@/utils/storage'
 export type UserRole = 'user' | 'circle_owner' | 'teacher' | 'station_owner' | 'streamer' | 'creator'
 
@@ -106,7 +106,7 @@ export const totalMessages =
 // ============================================
 
 /** 简单 JWT 解码（不验证签名），取 payload 中的 userId */
-function getUserIdFromToken(): string | null {
+export function getUserIdFromToken(): string | null {
   try {
     const token = getToken()
     if (!token) return null
@@ -209,6 +209,18 @@ export const profileApi = {
       }
     } catch {
       return { ...userData, _isMock: true }
+    }
+  },
+
+  /** 更新个人资料 */
+  async updateProfile(data: Record<string, unknown>) {
+    if (useMock()) {
+      return { ok: true }
+    }
+    try {
+      return await apiPut<any>('/users/profile', data)
+    } catch {
+      return { ok: false }
     }
   },
 

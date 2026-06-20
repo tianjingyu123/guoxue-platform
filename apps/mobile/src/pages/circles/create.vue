@@ -28,6 +28,7 @@ const yearlyPrice = ref('')
 const tags = ref<string[]>([])
 const tagInput = ref('')
 const loading = ref(false)
+const submitError = ref('')
 const errors = reactive<Record<string, string>>({})
 
 function uploadCover() {
@@ -70,6 +71,7 @@ function validate() {
 
 async function submit() {
   if (!validate()) return
+  submitError.value = ''
   loading.value = true
   try {
     await circleApi.create({
@@ -83,7 +85,8 @@ async function submit() {
     uni.showToast({ title: '创建成功', icon: 'success' })
     setTimeout(() => reLaunch('/pages/circles/index'), 600)
   } catch (e: any) {
-    uni.showToast({ title: e?.message || '创建失败', icon: 'none' })
+    submitError.value = e?.message || '创建失败，请重试'
+    uni.showToast({ title: submitError.value, icon: 'none' })
   } finally {
     loading.value = false
   }
@@ -92,24 +95,51 @@ async function submit() {
 
 <template>
   <view class="cc">
-    <app-nav-bar title="创建圈子" background="rgba(250,248,245,0.95)" :back-size="40" />
+    <app-nav-bar
+      title="创建圈子"
+      background="rgba(250,248,245,0.95)"
+      :back-size="40"
+    />
 
-    <scroll-view scroll-y class="cc-body">
+    <scroll-view
+      scroll-y
+      class="cc-body"
+    >
       <!-- 封面 -->
       <view class="cc-cover-wrap">
-        <view class="cc-cover-btn" @tap="uploadCover">
-          <image v-if="cover" :src="cover" class="cc-cover-img" mode="aspectFill" />
+        <view
+          class="cc-cover-btn"
+          @tap="uploadCover"
+        >
+          <image
+            v-if="cover"
+            :src="cover"
+            class="cc-cover-img"
+            mode="aspectFill"
+          />
           <template v-else>
-            <app-icon name="camera" :size="48" color="#8a8378" />
-            <text class="cc-cover-tip">添加封面</text>
+            <app-icon
+              name="camera"
+              :size="48"
+              color="#8a8378"
+            />
+            <text class="cc-cover-tip">
+              添加封面
+            </text>
           </template>
         </view>
-        <text class="cc-cover-hint">建议尺寸 600×600px</text>
+        <text class="cc-cover-hint">
+          建议尺寸 600×600px
+        </text>
       </view>
 
       <!-- 圈子名称 -->
       <view class="cc-field">
-        <text class="cc-label">圈子名称 <text class="cc-req">*</text></text>
+        <text class="cc-label">
+          圈子名称 <text class="cc-req">
+            *
+          </text>
+        </text>
         <input
           v-model="name"
           class="cc-input"
@@ -118,17 +148,31 @@ async function submit() {
           placeholder-class="cc-ph"
           :maxlength="20"
           @input="errors.name = ''"
-        />
+        >
         <view class="cc-row">
-          <text v-if="errors.name" class="cc-err">{{ errors.name }}</text>
-          <text v-else class="cc-spacer" />
-          <text class="cc-count">{{ name.length }}/20</text>
+          <text
+            v-if="errors.name"
+            class="cc-err"
+          >
+            {{ errors.name }}
+          </text>
+          <text
+            v-else
+            class="cc-spacer"
+          />
+          <text class="cc-count">
+            {{ name.length }}/20
+          </text>
         </view>
       </view>
 
       <!-- 圈子简介 -->
       <view class="cc-field">
-        <text class="cc-label">圈子简介 <text class="cc-req">*</text></text>
+        <text class="cc-label">
+          圈子简介 <text class="cc-req">
+            *
+          </text>
+        </text>
         <textarea
           v-model="desc"
           class="cc-textarea"
@@ -139,15 +183,29 @@ async function submit() {
           @input="errors.desc = ''"
         />
         <view class="cc-row">
-          <text v-if="errors.desc" class="cc-err">{{ errors.desc }}</text>
-          <text v-else class="cc-spacer" />
-          <text class="cc-count">{{ desc.length }}/200</text>
+          <text
+            v-if="errors.desc"
+            class="cc-err"
+          >
+            {{ errors.desc }}
+          </text>
+          <text
+            v-else
+            class="cc-spacer"
+          />
+          <text class="cc-count">
+            {{ desc.length }}/200
+          </text>
         </view>
       </view>
 
       <!-- 分类 -->
       <view class="cc-field">
-        <text class="cc-label">分类 <text class="cc-req">*</text></text>
+        <text class="cc-label">
+          分类 <text class="cc-req">
+            *
+          </text>
+        </text>
         <view class="cc-cats">
           <view
             v-for="cat in CATEGORIES"
@@ -156,22 +214,51 @@ async function submit() {
             :class="{ on: category === cat }"
             @tap="selectCategory(cat)"
           >
-            <text class="cc-cat-t" :class="{ on: category === cat }">{{ cat }}</text>
+            <text
+              class="cc-cat-t"
+              :class="{ on: category === cat }"
+            >
+              {{ cat }}
+            </text>
           </view>
         </view>
-        <text v-if="errors.category" class="cc-err">{{ errors.category }}</text>
+        <text
+          v-if="errors.category"
+          class="cc-err"
+        >
+          {{ errors.category }}
+        </text>
       </view>
 
       <!-- 标签 -->
       <view class="cc-field">
-        <text class="cc-label">标签（最多 5 个）</text>
-        <view v-if="tags.length" class="cc-tags">
-          <view v-for="t in tags" :key="t" class="cc-tag">
-            <text class="cc-tag-t">{{ t }}</text>
-            <text class="cc-tag-x" @tap="removeTag(t)">×</text>
+        <text class="cc-label">
+          标签（最多 5 个）
+        </text>
+        <view
+          v-if="tags.length"
+          class="cc-tags"
+        >
+          <view
+            v-for="t in tags"
+            :key="t"
+            class="cc-tag"
+          >
+            <text class="cc-tag-t">
+              {{ t }}
+            </text>
+            <text
+              class="cc-tag-x"
+              @tap="removeTag(t)"
+            >
+              ×
+            </text>
           </view>
         </view>
-        <view v-if="tags.length < 5" class="cc-tag-add">
+        <view
+          v-if="tags.length < 5"
+          class="cc-tag-add"
+        >
           <input
             v-model="tagInput"
             class="cc-input cc-tag-input"
@@ -179,14 +266,23 @@ async function submit() {
             placeholder-class="cc-ph"
             confirm-type="done"
             @confirm="addTag"
-          />
-          <view class="cc-tag-btn" @tap="addTag"><text class="cc-tag-btn-t">添加</text></view>
+          >
+          <view
+            class="cc-tag-btn"
+            @tap="addTag"
+          >
+            <text class="cc-tag-btn-t">
+              添加
+            </text>
+          </view>
         </view>
       </view>
 
       <!-- 加入方式 -->
       <view class="cc-field">
-        <text class="cc-label">加入方式</text>
+        <text class="cc-label">
+          加入方式
+        </text>
         <view class="cc-joins">
           <view
             v-for="opt in JOIN_OPTIONS"
@@ -195,24 +291,50 @@ async function submit() {
             :class="{ on: joinMethod === opt.value }"
             @tap="selectJoin(opt.value)"
           >
-            <view class="cc-join-icon" :class="{ on: joinMethod === opt.value }">
-              <app-icon :name="opt.icon" :size="28" :color="joinMethod === opt.value ? '#c41e3a' : '#8a8378'" />
+            <view
+              class="cc-join-icon"
+              :class="{ on: joinMethod === opt.value }"
+            >
+              <app-icon
+                :name="opt.icon"
+                :size="28"
+                :color="joinMethod === opt.value ? '#c41e3a' : '#8a8378'"
+              />
             </view>
             <view class="cc-join-main">
-              <text class="cc-join-label">{{ opt.label }}</text>
-              <text class="cc-join-desc">{{ opt.desc }}</text>
+              <text class="cc-join-label">
+                {{ opt.label }}
+              </text>
+              <text class="cc-join-desc">
+                {{ opt.desc }}
+              </text>
             </view>
-            <view class="cc-radio" :class="{ on: joinMethod === opt.value }">
-              <view v-if="joinMethod === opt.value" class="cc-radio-dot" />
+            <view
+              class="cc-radio"
+              :class="{ on: joinMethod === opt.value }"
+            >
+              <view
+                v-if="joinMethod === opt.value"
+                class="cc-radio-dot"
+              />
             </view>
           </view>
         </view>
 
         <!-- 付费加入 - 年费价格 -->
-        <view v-if="joinMethod === 'paid'" class="cc-paid">
-          <text class="cc-label">年费价格 <text class="cc-req">*</text></text>
+        <view
+          v-if="joinMethod === 'paid'"
+          class="cc-paid"
+        >
+          <text class="cc-label">
+            年费价格 <text class="cc-req">
+              *
+            </text>
+          </text>
           <view class="cc-price-row">
-            <text class="cc-price-sym">¥</text>
+            <text class="cc-price-sym">
+              ¥
+            </text>
             <input
               v-model="yearlyPrice"
               type="number"
@@ -221,24 +343,44 @@ async function submit() {
               placeholder="如 199"
               placeholder-class="cc-ph"
               @input="errors.price = ''"
-            />
-            <text class="cc-price-unit">元 / 年</text>
+            >
+            <text class="cc-price-unit">
+              元 / 年
+            </text>
           </view>
-          <text v-if="errors.price" class="cc-err">{{ errors.price }}</text>
-          <text class="cc-paid-hint">成员按年付费加入，到期需续费。价格可在圈子设置中修改，修改后不影响已加入成员。</text>
+          <text
+            v-if="errors.price"
+            class="cc-err"
+          >
+            {{ errors.price }}
+          </text>
+          <text class="cc-paid-hint">
+            成员按年付费加入，到期需续费。价格可在圈子设置中修改，修改后不影响已加入成员。
+          </text>
         </view>
 
         <!-- 审核加入 - 说明 -->
-        <view v-if="joinMethod === 'approval'" class="cc-approval">
-          <text class="cc-approval-t">用户点击"申请加入"后提交申请，你可在圈子管理后台的"入圈申请审批"中同意或拒绝。</text>
+        <view
+          v-if="joinMethod === 'approval'"
+          class="cc-approval"
+        >
+          <text class="cc-approval-t">
+            用户点击"申请加入"后提交申请，你可在圈子管理后台的"入圈申请审批"中同意或拒绝。
+          </text>
         </view>
       </view>
     </scroll-view>
 
     <!-- 提交 -->
     <view class="cc-submit-bar">
-      <view class="cc-submit" :class="{ disabled: loading }" @tap="submit">
-        <text class="cc-submit-t">{{ loading ? '创建中…' : '创建圈子' }}</text>
+      <view
+        class="cc-submit"
+        :class="{ disabled: loading }"
+        @tap="submit"
+      >
+        <text class="cc-submit-t">
+          {{ loading ? '创建中…' : '创建圈子' }}
+        </text>
       </view>
     </view>
   </view>

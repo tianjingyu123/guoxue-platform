@@ -25,26 +25,61 @@ function onTab(tab: { name: string; href: string }) {
 <template>
   <view class="app-header">
     <!-- 状态栏占位 -->
-    <view class="status-bar" :style="{ height: 'var(--status-bar-height, 0px)' }" />
+    <view
+      class="status-bar"
+      :style="{ height: 'var(--status-bar-height, 0px)' }"
+    />
 
     <!-- 第一行：AI搜索框 + 智能客服 + 铃铛 -->
     <view class="bar">
-      <view class="search" @tap="navigateTo('/pages/agent/chat')">
-        <app-icon name="search" :size="28" color="#999999" />
+      <view
+        class="search"
+        @tap="navigateTo('/pages/agent/chat')"
+      >
+        <app-icon
+          name="search"
+          :size="28"
+          color="#999999"
+        />
         <view class="ai-badge">
-          <app-icon name="sparkles" :size="20" color="#c41e3a" />
-          <text class="ai-text">AI</text>
+          <app-icon
+            name="sparkles"
+            :size="20"
+            color="#c41e3a"
+          />
+          <text class="ai-text">
+            AI
+          </text>
         </view>
-        <text class="ph">AI搜索平台全部内容...</text>
+        <text class="ph">
+          AI搜索平台全部内容...
+        </text>
       </view>
 
-      <view class="icon-btn" @tap="toastComingSoon()">
-        <app-icon name="message-circle" :size="40" color="#999999" />
+      <view
+        class="icon-btn"
+        @tap="toastComingSoon()"
+      >
+        <app-icon
+          name="message-circle"
+          :size="40"
+          color="#999999"
+        />
       </view>
 
-      <view class="icon-btn bell" @tap="toastComingSoon()">
-        <app-icon name="bell" :size="40" color="#2c2c2c" />
-        <view v-if="hasUnread" class="dot" />
+      <view
+        class="icon-btn bell"
+        @tap="toastComingSoon()"
+      >
+        <app-icon
+          name="bell"
+          :size="40"
+          color="#2c2c2c"
+        />
+        <view
+          v-if="hasUnread"
+          class="dot"
+        />
       </view>
     </view>
 
@@ -58,12 +93,24 @@ function onTab(tab: { name: string; href: string }) {
           :class="{ active: activeTab === tab.name }"
           @tap="onTab(tab)"
         >
-          <text class="tab-text">{{ tab.name }}</text>
-          <view v-if="activeTab === tab.name" class="indicator" />
+          <text class="tab-text">
+            {{ tab.name }}
+          </text>
+          <view
+            v-if="activeTab === tab.name"
+            class="indicator"
+          />
         </view>
       </view>
-      <view class="plus-btn" @tap="navigateTo('/pages/circles/publish')">
-        <app-icon name="plus" :size="32" color="#999999" />
+      <view
+        class="plus-btn"
+        @tap="navigateTo('/pages/circles/publish')"
+      >
+        <app-icon
+          name="plus"
+          :size="32"
+          color="#999999"
+        />
       </view>
     </view>
   </view>

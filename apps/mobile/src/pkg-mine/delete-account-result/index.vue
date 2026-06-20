@@ -41,62 +41,161 @@ function backHome() {
     <!-- 冷静期 -->
     <template v-if="status === 'pending'">
       <view class="hero hero-blue">
-        <view class="hero-icon"><AppIcon name="clock" :size="44" color="#fff" /></view>
-        <text class="hero-title">注销申请已提交</text>
-        <text class="hero-sub">您的账号已进入 7 天冷静期</text>
+        <view class="hero-icon">
+          <AppIcon
+            name="clock"
+            :size="44"
+            color="#fff"
+          />
+        </view>
+        <text class="hero-title">
+          注销申请已提交
+        </text>
+        <text class="hero-sub">
+          您的账号已进入 7 天冷静期
+        </text>
       </view>
 
       <view class="content">
         <view class="countdown-card">
-          <text class="countdown-label">距离账号永久注销还剩</text>
-          <text class="countdown-num">{{ remainDays }}<text class="countdown-unit">天</text></text>
-          <text v-if="expireText" class="countdown-date">预计注销时间：{{ expireText }}</text>
+          <text class="countdown-label">
+            距离账号永久注销还剩
+          </text>
+          <text class="countdown-num">
+            {{ remainDays }}<text class="countdown-unit">
+              天
+            </text>
+          </text>
+          <text
+            v-if="expireText"
+            class="countdown-date"
+          >
+            预计注销时间：{{ expireText }}
+          </text>
         </view>
 
         <view class="card">
           <view class="card-row">
-            <view class="card-icon icon-blue"><AppIcon name="info" :size="20" color="#2563eb" /></view>
+            <view class="card-icon icon-blue">
+              <AppIcon
+                name="info"
+                :size="20"
+                color="#2563eb"
+              />
+            </view>
             <view class="card-body">
-              <text class="card-title">冷静期说明</text>
-              <text class="card-desc">在冷静期内，您随时可以撤销注销申请。冷静期结束后，账号及所有数据将被永久删除，无法恢复。</text>
+              <text class="card-title">
+                冷静期说明
+              </text>
+              <text class="card-desc">
+                在冷静期内，您随时可以撤销注销申请。冷静期结束后，账号及所有数据将被永久删除，无法恢复。
+              </text>
             </view>
           </view>
         </view>
 
         <view class="card">
-          <text class="list-title">注销后将清除</text>
-          <view class="list-item"><AppIcon name="x-circle" :size="16" color="#ef4444" /><text class="list-text">个人资料与账号信息</text></view>
-          <view class="list-item"><AppIcon name="x-circle" :size="16" color="#ef4444" /><text class="list-text">订单、收藏与浏览记录</text></view>
-          <view class="list-item"><AppIcon name="x-circle" :size="16" color="#ef4444" /><text class="list-text">钱包余额、积分与优惠券</text></view>
-          <view class="list-item"><AppIcon name="x-circle" :size="16" color="#ef4444" /><text class="list-text">圈子动态与社交关系</text></view>
+          <text class="list-title">
+            注销后将清除
+          </text>
+          <view class="list-item">
+            <AppIcon
+              name="x-circle"
+              :size="16"
+              color="#ef4444"
+            /><text class="list-text">
+              个人资料与账号信息
+            </text>
+          </view>
+          <view class="list-item">
+            <AppIcon
+              name="x-circle"
+              :size="16"
+              color="#ef4444"
+            /><text class="list-text">
+              订单、收藏与浏览记录
+            </text>
+          </view>
+          <view class="list-item">
+            <AppIcon
+              name="x-circle"
+              :size="16"
+              color="#ef4444"
+            /><text class="list-text">
+              钱包余额、积分与优惠券
+            </text>
+          </view>
+          <view class="list-item">
+            <AppIcon
+              name="x-circle"
+              :size="16"
+              color="#ef4444"
+            /><text class="list-text">
+              圈子动态与社交关系
+            </text>
+          </view>
         </view>
       </view>
 
       <view class="footer-bar">
-        <view class="btn-primary" :class="{ disabled: cancelling }" @tap="cancelDelete">
-          <text class="btn-primary-text">{{ cancelling ? '撤销中...' : '我再想想，撤销注销' }}</text>
+        <view
+          class="btn-primary"
+          :class="{ disabled: cancelling }"
+          @tap="cancelDelete"
+        >
+          <text class="btn-primary-text">
+            {{ cancelling ? '撤销中...' : '我再想想，撤销注销' }}
+          </text>
         </view>
-        <view class="btn-ghost" @tap="backHome"><text class="btn-ghost-text">返回首页</text></view>
+        <view
+          class="btn-ghost"
+          @tap="backHome"
+        >
+          <text class="btn-ghost-text">
+            返回首页
+          </text>
+        </view>
       </view>
     </template>
 
     <!-- 已完成 -->
     <template v-else>
       <view class="hero hero-gray">
-        <view class="hero-icon hero-icon-gray"><AppIcon name="check-circle" :size="44" color="#fff" /></view>
-        <text class="hero-title">账号已注销</text>
-        <text class="hero-sub">感谢您曾经的陪伴</text>
+        <view class="hero-icon hero-icon-gray">
+          <AppIcon
+            name="check-circle"
+            :size="44"
+            color="#fff"
+          />
+        </view>
+        <text class="hero-title">
+          账号已注销
+        </text>
+        <text class="hero-sub">
+          感谢您曾经的陪伴
+        </text>
       </view>
 
       <view class="content">
         <view class="card center-card">
-          <text class="done-title">账号注销完成</text>
-          <text class="done-desc">您的账号及相关数据已被永久删除。如需重新使用，请注册新账号。期待与您再次相遇。</text>
+          <text class="done-title">
+            账号注销完成
+          </text>
+          <text class="done-desc">
+            您的账号及相关数据已被永久删除。如需重新使用，请注册新账号。期待与您再次相遇。
+          </text>
         </view>
       </view>
 
       <view class="footer-bar">
-        <view class="btn-primary" @tap="backHome"><text class="btn-primary-text">返回首页</text></view>
+        <view
+          class="btn-primary"
+          @tap="backHome"
+        >
+          <text class="btn-primary-text">
+            返回首页
+          </text>
+        </view>
       </view>
     </template>
   </view>

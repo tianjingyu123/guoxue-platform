@@ -7,7 +7,10 @@ const tags = ['八字', '紫微', '六爻', '奇门']
 </script>
 
 <template>
-  <view class="pp-card card-press" @tap="navigateTo('/pages/paipan/index')">
+  <view
+    class="pp-card card-press"
+    @tap="navigateTo('/pages/paipan/index')"
+  >
     <!-- 宣纸纹理层 -->
     <view class="paper-texture" />
 
@@ -19,18 +22,36 @@ const tags = ['八字', '紫微', '六爻', '奇门']
       <!-- 文案 -->
       <view class="copy">
         <view class="title-row">
-          <text class="title">排盘工具</text>
-          <text class="free-tag">免费使用</text>
+          <text class="title">
+            排盘工具
+          </text>
+          <text class="free-tag">
+            免费使用
+          </text>
         </view>
-        <text class="desc">易学工具大全，算法精准，功能全面</text>
+        <text class="desc">
+          易学工具大全，算法精准，功能全面
+        </text>
         <view class="tags">
-          <text v-for="t in tags" :key="t" class="tag">{{ t }}</text>
+          <text
+            v-for="t in tags"
+            :key="t"
+            class="tag"
+          >
+            {{ t }}
+          </text>
         </view>
       </view>
       <!-- CTA -->
       <view class="cta">
-        <text class="cta-text">立即体验</text>
-        <app-icon name="chevron-right" :size="26" color="#ffffff" />
+        <text class="cta-text">
+          立即体验
+        </text>
+        <app-icon
+          name="chevron-right"
+          :size="26"
+          color="#ffffff"
+        />
       </view>
     </view>
   </view>

@@ -2,17 +2,34 @@
   <view class="flash-page">
     <!-- 顶部导航 -->
     <view class="navbar">
-      <view class="nav-back" hover-class="nav-hover" @tap="goBack">
-        <app-icon name="chevron-left" :size="40" color="#fff" />
+      <view
+        class="nav-back"
+        hover-class="nav-hover"
+        @tap="goBack"
+      >
+        <app-icon
+          name="chevron-left"
+          :size="40"
+          color="#fff"
+        />
       </view>
       <view class="nav-title-wrap">
-        <app-icon name="zap" :size="36" color="#ffe066" />
-        <text class="nav-title">限时秒杀</text>
+        <app-icon
+          name="zap"
+          :size="36"
+          color="#ffe066"
+        />
+        <text class="nav-title">
+          限时秒杀
+        </text>
       </view>
     </view>
 
     <!-- 时段切换 -->
-    <scroll-view scroll-x class="slots">
+    <scroll-view
+      scroll-x
+      class="slots"
+    >
       <view class="slots-row">
         <view
           v-for="slot in flashTimeSlots"
@@ -21,32 +38,72 @@
           :class="{ 'slot--on': activeSlot === slot.id }"
           @tap="activeSlot = slot.id"
         >
-          <text class="slot-time" :class="{ 'slot-time--on': activeSlot === slot.id }">{{ slot.label }}</text>
-          <text class="slot-state" :class="{ 'slot-state--on': activeSlot === slot.id }">{{ slotState(slot.id) }}</text>
+          <text
+            class="slot-time"
+            :class="{ 'slot-time--on': activeSlot === slot.id }"
+          >
+            {{ slot.label }}
+          </text>
+          <text
+            class="slot-state"
+            :class="{ 'slot-state--on': activeSlot === slot.id }"
+          >
+            {{ slotState(slot.id) }}
+          </text>
         </view>
       </view>
     </scroll-view>
 
     <!-- 倒计时区 -->
     <view class="countdown-box">
-      <view v-if="showNotice" class="notice">
-        <app-icon name="volume-2" :size="28" color="#ffe066" />
+      <view
+        v-if="showNotice"
+        class="notice"
+      >
+        <app-icon
+          name="volume-2"
+          :size="28"
+          color="#ffe066"
+        />
         <view class="notice-scroll">
-          <text class="notice-text">{{ noticeText }}</text>
+          <text class="notice-text">
+            {{ noticeText }}
+          </text>
         </view>
-        <text class="notice-close" @tap="showNotice = false">关闭</text>
+        <text
+          class="notice-close"
+          @tap="showNotice = false"
+        >
+          关闭
+        </text>
       </view>
       <view class="cd-row">
         <view class="cd-label">
-          <app-icon name="flame" :size="36" color="#ff8c42" />
-          <text class="cd-label-text">距离结束还剩</text>
+          <app-icon
+            name="flame"
+            :size="36"
+            color="#ff8c42"
+          />
+          <text class="cd-label-text">
+            距离结束还剩
+          </text>
         </view>
         <view class="cd-timer">
-          <text class="cd-num">{{ cd.h }}</text>
-          <text class="cd-sep">:</text>
-          <text class="cd-num">{{ cd.m }}</text>
-          <text class="cd-sep">:</text>
-          <text class="cd-num">{{ cd.s }}</text>
+          <text class="cd-num">
+            {{ cd.h }}
+          </text>
+          <text class="cd-sep">
+            :
+          </text>
+          <text class="cd-num">
+            {{ cd.m }}
+          </text>
+          <text class="cd-sep">
+            :
+          </text>
+          <text class="cd-num">
+            {{ cd.s }}
+          </text>
         </view>
       </view>
     </view>
@@ -54,8 +111,15 @@
     <!-- 商品区 -->
     <view class="products">
       <!-- 加载骨架 -->
-      <view v-if="loading" class="grid">
-        <view v-for="i in 4" :key="i" class="card sk-card">
+      <view
+        v-if="loading"
+        class="grid"
+      >
+        <view
+          v-for="i in 4"
+          :key="i"
+          class="card sk-card"
+        >
           <view class="card-img-wrap sk-img" />
           <view class="sk-line" />
           <view class="sk-line sk-short" />
@@ -64,9 +128,16 @@
         </view>
       </view>
 
-      <error-state v-else-if="error" :message="error" @retry="loadFlashSale" />
+      <error-state
+        v-else-if="error"
+        :message="error"
+        @retry="loadFlashSale"
+      />
 
-      <view v-else class="grid">
+      <view
+        v-else
+        class="grid"
+      >
         <view
           v-for="p in products"
           :key="p.id"
@@ -75,30 +146,71 @@
           @tap="goDetail(p.id)"
         >
           <view class="card-img-wrap">
-            <image class="card-img" :src="p.cover" mode="aspectFill" />
-            <view v-if="progress(p) >= 80" class="badge-soon">即将售罄</view>
+            <image
+              class="card-img"
+              :src="p.cover"
+              mode="aspectFill"
+            />
+            <view
+              v-if="progress(p) >= 80"
+              class="badge-soon"
+            >
+              即将售罄
+            </view>
             <view class="badge-flash">
-              <app-icon name="zap" :size="20" color="#fff" />
-              <text class="badge-flash-text">秒杀</text>
+              <app-icon
+                name="zap"
+                :size="20"
+                color="#fff"
+              />
+              <text class="badge-flash-text">
+                秒杀
+              </text>
             </view>
           </view>
-          <text class="card-name">{{ p.name }}</text>
+          <text class="card-name">
+            {{ p.name }}
+          </text>
           <view class="card-price">
-            <text class="price-now">¥{{ p.price }}</text>
-            <text class="price-old">¥{{ p.originalPrice }}</text>
+            <text class="price-now">
+              ¥{{ p.price }}
+            </text>
+            <text class="price-old">
+              ¥{{ p.originalPrice }}
+            </text>
           </view>
           <view class="progress">
-            <view class="progress-bar" :style="{ width: progress(p) + '%' }" />
-            <text class="progress-text">已抢{{ progress(p) }}%</text>
+            <view
+              class="progress-bar"
+              :style="{ width: progress(p) + '%' }"
+            />
+            <text class="progress-text">
+              已抢{{ progress(p) }}%
+            </text>
           </view>
           <view
             class="rush-btn"
             :class="{ 'rush-btn--done': progress(p) >= 100, 'rush-btn--ing': rushingId === p.id }"
             @tap.stop="rush(p.id)"
           >
-            <text v-if="rushingId === p.id" class="rush-text">抢购中...</text>
-            <text v-else-if="progress(p) >= 100" class="rush-text">已抢光</text>
-            <text v-else class="rush-text">立即抢购</text>
+            <text
+              v-if="rushingId === p.id"
+              class="rush-text"
+            >
+              抢购中...
+            </text>
+            <text
+              v-else-if="progress(p) >= 100"
+              class="rush-text"
+            >
+              已抢光
+            </text>
+            <text
+              v-else
+              class="rush-text"
+            >
+              立即抢购
+            </text>
           </view>
         </view>
       </view>

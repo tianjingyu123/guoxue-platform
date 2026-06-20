@@ -1,17 +1,41 @@
 <template>
   <view class="cart-page">
     <!-- 顶部导航 -->
-    <view class="nav-bar" :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }">
-      <view class="nav-back" @tap="goBack">
-        <app-icon name="arrow-left" :size="40" color="#1A1A1A" />
+    <view
+      class="nav-bar"
+      :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }"
+    >
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="40"
+          color="#1A1A1A"
+        />
       </view>
-      <text class="nav-title">购物车</text>
-      <text class="nav-edit" @tap="editMode = !editMode">{{ editMode ? '完成' : '编辑' }}</text>
+      <text class="nav-title">
+        购物车
+      </text>
+      <text
+        class="nav-edit"
+        @tap="editMode = !editMode"
+      >
+        {{ editMode ? '完成' : '编辑' }}
+      </text>
     </view>
 
     <!-- 加载骨架屏 -->
-    <view v-if="loading" class="content">
-      <view v-for="i in 3" :key="i" class="sk-group">
+    <view
+      v-if="loading"
+      class="content"
+    >
+      <view
+        v-for="i in 3"
+        :key="i"
+        class="sk-group"
+      >
         <view class="sk-header" />
         <view class="sk-item">
           <view class="sk-img" />
@@ -24,55 +48,159 @@
     </view>
 
     <!-- 错误态 -->
-    <error-state v-else-if="error" :message="error" @retry="loadCart" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadCart"
+    />
 
-    <scroll-view scroll-y class="content" v-else-if="hasItems">
+    <scroll-view
+      v-else-if="hasItems"
+      scroll-y
+      class="content"
+    >
       <!-- 卖家分组 -->
-      <view v-for="group in groups" :key="group.id" class="seller-group">
+      <view
+        v-for="group in groups"
+        :key="group.id"
+        class="seller-group"
+      >
         <view class="seller-header">
-          <view class="seller-check" :class="{ checked: isGroupChecked(group) }" @tap="toggleGroup(group)">
-            <app-icon v-if="isGroupChecked(group)" name="check" :size="28" color="#FFFFFF" />
+          <view
+            class="seller-check"
+            :class="{ checked: isGroupChecked(group) }"
+            @tap="toggleGroup(group)"
+          >
+            <app-icon
+              v-if="isGroupChecked(group)"
+              name="check"
+              :size="28"
+              color="#FFFFFF"
+            />
           </view>
-          <image class="seller-avatar" :src="group.sellerAvatar" mode="aspectFill" />
-          <text class="seller-name">{{ group.sellerName }}</text>
-          <view class="seller-tag" :class="group.sellerType">
+          <image
+            class="seller-avatar"
+            :src="group.sellerAvatar"
+            mode="aspectFill"
+          />
+          <text class="seller-name">
+            {{ group.sellerName }}
+          </text>
+          <view
+            class="seller-tag"
+            :class="group.sellerType"
+          >
             <text>{{ group.sellerType === 'circle' ? '圈子' : '驿站' }}</text>
           </view>
-          <app-icon name="chevron-right" :size="32" color="#CCCCCC" />
+          <app-icon
+            name="chevron-right"
+            :size="32"
+            color="#CCCCCC"
+          />
         </view>
 
         <!-- 凑单包邮提示 -->
-        <view class="ship-tip" v-if="groupAmount(group) < group.freeShippingThreshold">
-          <app-icon name="truck" :size="28" color="#9A2D2D" />
-          <text class="ship-text">再买 ¥{{ group.freeShippingThreshold - groupAmount(group) }} 可包邮</text>
-          <text class="ship-action">去凑单</text>
+        <view
+          v-if="groupAmount(group) < group.freeShippingThreshold"
+          class="ship-tip"
+        >
+          <app-icon
+            name="truck"
+            :size="28"
+            color="#9A2D2D"
+          />
+          <text class="ship-text">
+            再买 ¥{{ group.freeShippingThreshold - groupAmount(group) }} 可包邮
+          </text>
+          <text class="ship-action">
+            去凑单
+          </text>
         </view>
-        <view class="ship-tip free" v-else>
-          <app-icon name="truck" :size="28" color="#2E7D32" />
-          <text class="ship-text free">已满足包邮条件</text>
+        <view
+          v-else
+          class="ship-tip free"
+        >
+          <app-icon
+            name="truck"
+            :size="28"
+            color="#2E7D32"
+          />
+          <text class="ship-text free">
+            已满足包邮条件
+          </text>
         </view>
 
         <!-- 商品项 -->
-        <view v-for="item in group.items" :key="item.id" class="cart-item">
-          <view class="item-check" :class="{ checked: selected[item.id] }" @tap="toggleItem(item.id)">
-            <app-icon v-if="selected[item.id]" name="check" :size="28" color="#FFFFFF" />
+        <view
+          v-for="item in group.items"
+          :key="item.id"
+          class="cart-item"
+        >
+          <view
+            class="item-check"
+            :class="{ checked: selected[item.id] }"
+            @tap="toggleItem(item.id)"
+          >
+            <app-icon
+              v-if="selected[item.id]"
+              name="check"
+              :size="28"
+              color="#FFFFFF"
+            />
           </view>
-          <image class="item-img" :src="item.image" mode="aspectFill" />
+          <image
+            class="item-img"
+            :src="item.image"
+            mode="aspectFill"
+          />
           <view class="item-info">
-            <text class="item-name">{{ item.name }}</text>
+            <text class="item-name">
+              {{ item.name }}
+            </text>
             <view class="item-spec-row">
-              <text class="item-spec">{{ item.spec }}</text>
-              <view v-if="item.type === 'course'" class="type-badge">课程</view>
+              <text class="item-spec">
+                {{ item.spec }}
+              </text>
+              <view
+                v-if="item.type === 'course'"
+                class="type-badge"
+              >
+                课程
+              </view>
             </view>
             <view class="item-bottom">
               <view class="price-box">
-                <text class="cur">¥{{ item.price }}</text>
-                <text class="ori">¥{{ item.originalPrice }}</text>
+                <text class="cur">
+                  ¥{{ item.price }}
+                </text>
+                <text class="ori">
+                  ¥{{ item.originalPrice }}
+                </text>
               </view>
               <view class="stepper">
-                <view class="step-btn" @tap="changeQty(item, -1)"><app-icon name="minus" :size="24" color="#666666" /></view>
-                <text class="step-num">{{ item.quantity }}</text>
-                <view class="step-btn" @tap="changeQty(item, 1)"><app-icon name="plus" :size="24" color="#666666" /></view>
+                <view
+                  class="step-btn"
+                  @tap="changeQty(item, -1)"
+                >
+                  <app-icon
+                    name="minus"
+                    :size="24"
+                    color="#666666"
+                  />
+                </view>
+                <text class="step-num">
+                  {{ item.quantity }}
+                </text>
+                <view
+                  class="step-btn"
+                  @tap="changeQty(item, 1)"
+                >
+                  <app-icon
+                    name="plus"
+                    :size="24"
+                    color="#666666"
+                  />
+                </view>
               </view>
             </view>
           </view>
@@ -80,35 +208,80 @@
 
         <view class="group-subtotal">
           <text>小计：</text>
-          <text class="subtotal-amount">¥{{ groupAmount(group) }}</text>
+          <text class="subtotal-amount">
+            ¥{{ groupAmount(group) }}
+          </text>
         </view>
       </view>
 
       <!-- 失效商品 -->
-      <view class="invalid-block" v-if="invalidItems.length">
+      <view
+        v-if="invalidItems.length"
+        class="invalid-block"
+      >
         <view class="invalid-header">
-          <text class="invalid-title">失效商品 {{ invalidItems.length }} 件</text>
-          <text class="invalid-clear" @tap="clearInvalid">清空</text>
+          <text class="invalid-title">
+            失效商品 {{ invalidItems.length }} 件
+          </text>
+          <text
+            class="invalid-clear"
+            @tap="clearInvalid"
+          >
+            清空
+          </text>
         </view>
-        <view v-for="iv in invalidItems" :key="iv.id" class="invalid-item">
-          <view class="invalid-badge"><text>失效</text></view>
-          <image class="item-img gray" :src="iv.image" mode="aspectFill" />
+        <view
+          v-for="iv in invalidItems"
+          :key="iv.id"
+          class="invalid-item"
+        >
+          <view class="invalid-badge">
+            <text>失效</text>
+          </view>
+          <image
+            class="item-img gray"
+            :src="iv.image"
+            mode="aspectFill"
+          />
           <view class="item-info">
-            <text class="item-name gray">{{ iv.name }}</text>
-            <text class="item-spec">{{ iv.reason }}</text>
+            <text class="item-name gray">
+              {{ iv.name }}
+            </text>
+            <text class="item-spec">
+              {{ iv.reason }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 横滑推荐 -->
       <view class="recommend">
-        <text class="recommend-title">为你推荐</text>
-        <scroll-view scroll-x class="recommend-scroll" :show-scrollbar="false">
+        <text class="recommend-title">
+          为你推荐
+        </text>
+        <scroll-view
+          scroll-x
+          class="recommend-scroll"
+          :show-scrollbar="false"
+        >
           <view class="recommend-row">
-            <view v-for="r in recommends" :key="r.id" class="rec-card" @tap="goProduct(r.id)">
-              <image class="rec-img" :src="r.image" mode="aspectFill" />
-              <text class="rec-name">{{ r.name }}</text>
-              <text class="rec-price">¥{{ r.price }}</text>
+            <view
+              v-for="r in recommends"
+              :key="r.id"
+              class="rec-card"
+              @tap="goProduct(r.id)"
+            >
+              <image
+                class="rec-img"
+                :src="r.image"
+                mode="aspectFill"
+              />
+              <text class="rec-name">
+                {{ r.name }}
+              </text>
+              <text class="rec-price">
+                ¥{{ r.price }}
+              </text>
             </view>
           </view>
         </scroll-view>
@@ -117,27 +290,73 @@
     </scroll-view>
 
     <!-- 空态 -->
-    <view class="empty" v-else-if="!loading">
-      <app-icon name="shopping-cart" :size="120" color="#DDDDDD" />
-      <text class="empty-text">购物车空空如也</text>
-      <view class="empty-btn" @tap="goMall"><text>去逛逛</text></view>
+    <view
+      v-else-if="!loading"
+      class="empty"
+    >
+      <app-icon
+        name="shopping-cart"
+        :size="120"
+        color="#DDDDDD"
+      />
+      <text class="empty-text">
+        购物车空空如也
+      </text>
+      <view
+        class="empty-btn"
+        @tap="goMall"
+      >
+        <text>去逛逛</text>
+      </view>
     </view>
 
     <!-- 底部结算栏 -->
-    <view class="footer" v-if="hasItems">
-      <view class="all-check" :class="{ checked: isAllChecked }" @tap="toggleAll">
-        <app-icon v-if="isAllChecked" name="check" :size="28" color="#FFFFFF" />
+    <view
+      v-if="hasItems"
+      class="footer"
+    >
+      <view
+        class="all-check"
+        :class="{ checked: isAllChecked }"
+        @tap="toggleAll"
+      >
+        <app-icon
+          v-if="isAllChecked"
+          name="check"
+          :size="28"
+          color="#FFFFFF"
+        />
       </view>
-      <text class="all-label">全选</text>
-      <view class="footer-total" v-if="!editMode">
-        <text class="total-label">合计：</text>
-        <text class="total-amount">¥{{ totalAmount }}</text>
+      <text class="all-label">
+        全选
+      </text>
+      <view
+        v-if="!editMode"
+        class="footer-total"
+      >
+        <text class="total-label">
+          合计：
+        </text>
+        <text class="total-amount">
+          ¥{{ totalAmount }}
+        </text>
       </view>
-      <view class="footer-spacer" v-else />
-      <view class="footer-btn" v-if="!editMode" @tap="goCheckout">
+      <view
+        v-else
+        class="footer-spacer"
+      />
+      <view
+        v-if="!editMode"
+        class="footer-btn"
+        @tap="goCheckout"
+      >
         <text>结算({{ selectedCount }})</text>
       </view>
-      <view class="footer-btn danger" v-else @tap="removeSelected">
+      <view
+        v-else
+        class="footer-btn danger"
+        @tap="removeSelected"
+      >
         <text>删除</text>
       </view>
     </view>
@@ -149,11 +368,11 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { navigateBack, navigateTo, reLaunch } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import ErrorState from '@/components/common/error-state.vue'
-import { cartGroups, cartInvalidItems, cartRecommendProducts, shopApi, type CartSellerGroup } from '@/lib/shop-data'
+import { shopApi, type CartSellerGroup } from '@/lib/shop-data'
 
 const groups = ref<CartSellerGroup[]>([])
-const invalidItems = ref([...cartInvalidItems])
-const recommends = cartRecommendProducts
+const invalidItems = ref<any[]>([])
+const recommends = ref<any[]>([])
 const editMode = ref(false)
 const loading = ref(true)
 const error = ref('')
@@ -166,12 +385,11 @@ async function loadCart() {
     groups.value = res.items || []
   } catch (e: any) {
     error.value = e?.message || '加载失败'
-    groups.value = JSON.parse(JSON.stringify(cartGroups))
   } finally { loading.value = false }
 }
 
 // 选中状态
-const selected = reactive<Record<number, boolean>>({})
+const selected = reactive<Record<string, boolean>>({})
 
 // groups 变化后重新默认全选
 watch(groups, (g) => {

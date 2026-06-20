@@ -1,16 +1,20 @@
 <script setup lang="ts">
 /** 作业批改页 - 从原型 app/courses/work-review/page.tsx 迁移（默认列表态） */
 import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
-// @data-needs: 作业提交列表, 参数 courseId, 返回 WorkSubmission[]
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { workSubmissions } from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
+
+const courseId = ref('1')
+onLoad((opts?: Record<string, any>) => {
+  if (opts?.id) courseId.value = opts.id
+})
 
 type FilterKey = 'all' | 'pending' | 'graded'
-const submissions = ref(workSubmissions)
+const submissions = ref<any[]>([])
 const filter = ref<FilterKey>('all')
 const batchMode = ref(false)
 const selectedIds = ref<Set<string>>(new Set())
@@ -23,7 +27,7 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    await new Promise(r => setTimeout(r, 300))
+    submissions.value = await courseApi.workSubmissions(courseId.value)
     dataReady.value = true
   } catch (e: any) {
     error.value = e?.message || '加载失败'
@@ -59,89 +63,207 @@ function toggleSelect(id: string) {
 <template>
   <view class="page">
     <!-- 导航栏 -->
-    <app-nav-bar title="作业批改" background="#fff" color="#2C2C2C">
+    <app-nav-bar
+      title="作业批改"
+      background="#fff"
+      color="#2C2C2C"
+    >
       <template #right>
-        <view class="batch-btn" :class="{ on: batchMode }" @tap="batchMode = !batchMode">
-          <text class="batch-txt" :class="{ on: batchMode }">{{ batchMode ? '取消批量' : '批量批改' }}</text>
+        <view
+          class="batch-btn"
+          :class="{ on: batchMode }"
+          @tap="batchMode = !batchMode"
+        >
+          <text
+            class="batch-txt"
+            :class="{ on: batchMode }"
+          >
+            {{ batchMode ? '取消批量' : '批量批改' }}
+          </text>
         </view>
       </template>
     </app-nav-bar>
 
     <template v-if="loading">
-    <view class="filter-bar">
-      <view class="pl-skeleton">
-        <view class="sk-stat-row" />
-        <view class="sk-tabs"><view v-for="i in 3" :key="i" class="sk-tab" /></view>
-      </view>
-    </view>
-    <view class="body">
-      <view class="pl-skeleton">
-        <view class="sk-card" v-for="i in 3" :key="i"><view class="sk-row"><view class="sk-avatar" /><view class="sk-info"><view class="sk-title" /><view class="sk-desc" /></view></view></view>
-      </view>
-    </view>
-    </template>
-    <app-error v-else-if="error" :desc="error" @retry="loadData" />
-    <template v-else>
-    <!-- 统计和筛选 -->
-    <view class="filter-bar">
-      <view class="stat-row">
-        <view class="stat-item">
-          <app-icon name="users" :size="28" color="#999999" />
-          <text class="stat-txt">共 {{ submissions.length }} 份作业</text>
-        </view>
-        <view class="stat-item">
-          <app-icon name="clock" :size="28" color="#f97316" />
-          <text class="stat-txt orange">{{ pendingCount }} 份待批改</text>
-        </view>
-      </view>
-      <view class="tabs">
-        <view
-          v-for="t in filterTabs" :key="t.key"
-          class="tab" :class="{ on: filter === t.key }" @tap="filter = t.key"
-        >
-          <text class="tab-txt" :class="{ on: filter === t.key }">{{ t.label }}</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 列表 -->
-    <view class="body">
-      <view v-if="filtered.length === 0" class="empty">
-        <view class="empty-ico"><app-icon name="file-text" :size="56" color="#999999" /></view>
-        <text class="empty-txt">暂无作业</text>
-      </view>
-      <view v-else class="list">
-        <view v-for="work in filtered" :key="work.id" class="item-wrap">
-          <view
-            v-if="batchMode" class="check" :class="{ on: selectedIds.has(work.id) }" @tap="toggleSelect(work.id)"
-          >
-            <app-icon v-if="selectedIds.has(work.id)" name="check-circle" :size="28" color="#ffffff" />
+      <view class="filter-bar">
+        <view class="pl-skeleton">
+          <view class="sk-stat-row" />
+          <view class="sk-tabs">
+            <view
+              v-for="i in 3"
+              :key="i"
+              class="sk-tab"
+            />
           </view>
-          <view class="card">
-            <view class="card-top">
-              <view class="stu">
-                <view class="avatar"><text class="avatar-txt">{{ work.student.name.charAt(0) }}</text></view>
-                <view class="stu-info">
-                  <text class="stu-name">{{ work.student.name }}</text>
-                  <text class="stu-chap">{{ work.chapterTitle }}</text>
+        </view>
+      </view>
+      <view class="body">
+        <view class="pl-skeleton">
+          <view
+            v-for="i in 3"
+            :key="i"
+            class="sk-card"
+          >
+            <view class="sk-row">
+              <view class="sk-avatar" /><view class="sk-info">
+                <view class="sk-title" /><view class="sk-desc" />
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </template>
+    <app-error
+      v-else-if="error"
+      :desc="error"
+      @retry="loadData"
+    />
+    <template v-else>
+      <!-- 统计和筛选 -->
+      <view class="filter-bar">
+        <view class="stat-row">
+          <view class="stat-item">
+            <app-icon
+              name="users"
+              :size="28"
+              color="#999999"
+            />
+            <text class="stat-txt">
+              共 {{ submissions.length }} 份作业
+            </text>
+          </view>
+          <view class="stat-item">
+            <app-icon
+              name="clock"
+              :size="28"
+              color="#f97316"
+            />
+            <text class="stat-txt orange">
+              {{ pendingCount }} 份待批改
+            </text>
+          </view>
+        </view>
+        <view class="tabs">
+          <view
+            v-for="t in filterTabs"
+            :key="t.key"
+            class="tab"
+            :class="{ on: filter === t.key }"
+            @tap="filter = t.key"
+          >
+            <text
+              class="tab-txt"
+              :class="{ on: filter === t.key }"
+            >
+              {{ t.label }}
+            </text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 列表 -->
+      <view class="body">
+        <view
+          v-if="filtered.length === 0"
+          class="empty"
+        >
+          <view class="empty-ico">
+            <app-icon
+              name="file-text"
+              :size="56"
+              color="#999999"
+            />
+          </view>
+          <text class="empty-txt">
+            暂无作业
+          </text>
+        </view>
+        <view
+          v-else
+          class="list"
+        >
+          <view
+            v-for="work in filtered"
+            :key="work.id"
+            class="item-wrap"
+          >
+            <view
+              v-if="batchMode"
+              class="check"
+              :class="{ on: selectedIds.has(work.id) }"
+              @tap="toggleSelect(work.id)"
+            >
+              <app-icon
+                v-if="selectedIds.has(work.id)"
+                name="check-circle"
+                :size="28"
+                color="#ffffff"
+              />
+            </view>
+            <view class="card">
+              <view class="card-top">
+                <view class="stu">
+                  <view class="avatar">
+                    <text class="avatar-txt">
+                      {{ work.student.name.charAt(0) }}
+                    </text>
+                  </view>
+                  <view class="stu-info">
+                    <text class="stu-name">
+                      {{ work.student.name }}
+                    </text>
+                    <text class="stu-chap">
+                      {{ work.chapterTitle }}
+                    </text>
+                  </view>
+                </view>
+                <view
+                  class="badge"
+                  :class="work.status"
+                >
+                  <text
+                    class="badge-txt"
+                    :class="work.status"
+                  >
+                    {{ statusLabel(work.status) }}
+                  </text>
                 </view>
               </view>
-              <view class="badge" :class="work.status">
-                <text class="badge-txt" :class="work.status">{{ statusLabel(work.status) }}</text>
+              <text class="card-content">
+                {{ work.content }}
+              </text>
+              <view class="card-foot">
+                <view class="meta">
+                  <view class="meta-item">
+                    <app-icon
+                      name="file-text"
+                      :size="22"
+                      color="#999999"
+                    /><text class="meta-txt">
+                      {{ work.wordCount }}字
+                    </text>
+                  </view>
+                  <view
+                    v-if="work.images.length > 0"
+                    class="meta-item"
+                  >
+                    <app-icon
+                      name="image"
+                      :size="22"
+                      color="#999999"
+                    /><text class="meta-txt">
+                      {{ work.images.length }}图
+                    </text>
+                  </view>
+                </view>
+                <text class="meta-time">
+                  {{ work.submittedAt }}
+                </text>
               </view>
-            </view>
-            <text class="card-content">{{ work.content }}</text>
-            <view class="card-foot">
-              <view class="meta">
-                <view class="meta-item"><app-icon name="file-text" :size="22" color="#999999" /><text class="meta-txt">{{ work.wordCount }}字</text></view>
-                <view v-if="work.images.length > 0" class="meta-item"><app-icon name="image" :size="22" color="#999999" /><text class="meta-txt">{{ work.images.length }}图</text></view>
-              </view>
-              <text class="meta-time">{{ work.submittedAt }}</text>
             </view>
           </view>
         </view>
       </view>
-    </view>
     </template>
   </view>
 </template>

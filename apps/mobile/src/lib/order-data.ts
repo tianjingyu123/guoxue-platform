@@ -319,6 +319,8 @@ export interface RefundDetail {
   reason: string; amount: number; description: string
   product: OrderProduct
   timeline: RefundTimelineNode[]
+  estimatedDate?: string
+  refundMethod?: string
   createdAt: string; canCancel: boolean
 }
 
@@ -404,7 +406,7 @@ export const invoiceRecords = mockInvoices;
 export const logisticsDetail = mockLogistics;
 export const orderDetail = mockOrderDetail;
 export const orders = mockOrders;
-export const refundProgress = refundNodeDetails;
+export const refundProgress: RefundDetail = mockRefund;
 export const orderReviewItems = reviewItems;
 export const orderReviewTags = reviewTagsByRating;
 
@@ -511,14 +513,24 @@ export const orderApi = {
     return apiPost<any>(`/shop/products/${params.productId}/reviews`, { orderId: params.orderId, rating: params.rating, content: params.content, images: params.images, tags: params.tags })
   },
 
-  async getUnifiedOrders(_params?: { page?: number; pageSize?: number; status?: string }) {
-    // 统一订单中心目前只有 mock（后端尚无跨品类订单聚合端点）
-    return { items: mockUnifiedOrders, total: mockUnifiedOrders.length, page: 1, pageSize: 10 }
+  async getUnifiedOrders(params?: { page?: number; pageSize?: number; status?: string }) {
+    if (useMock()) return { items: mockUnifiedOrders, total: mockUnifiedOrders.length, page: 1, pageSize: 10 }
+    try {
+      const qs = new URLSearchParams()
+      if (params?.page) qs.set('page', String(params.page))
+      if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
+      if (params?.status) qs.set('status', params.status)
+      const data = await apiGet<any>('/shop/orders/my?' + qs.toString())
+      return { items: data.items || data.list || [], total: data.total || 0, page: params?.page || 1, pageSize: params?.pageSize || 10 }
+    } catch { return { items: mockUnifiedOrders, total: mockUnifiedOrders.length, page: 1, pageSize: 10 } }
   },
 
   async getInvoices() {
-    // 发票管理目前只有 mock
-    return { orders: mockInvoiceOrders, records: mockInvoices }
+    if (useMock()) return { orders: mockInvoiceOrders, records: mockInvoices }
+    try {
+      const data = await apiGet<any>('/finance/my/invoices')
+      return { orders: data.invoices || [], records: data.invoices || [], total: data.total || 0 }
+    } catch { return { orders: mockInvoiceOrders, records: mockInvoices } }
   },
 
   async getDisputes() {
@@ -541,8 +553,29 @@ export const orderApi = {
     return apiPut<any>(`/shop/after-sales/${id}/cancel`)
   },
 
-  async getRefundDetail(_id: string) {
-    // 退款进度目前只有 mock
-    return mockRefund
+  async submitDispute(data: { type: string; description: string; images?: string[]; expectation: string }) {
+    if (useMock()) return { success: true, id: String(Date.now()) }
+    return apiPost<any>('/shop/after-sales', data)
+  },
+
+  async applyInvoice(data: { orderId: string; type: string; title: string; taxNumber?: string; email: string }) {
+    if (useMock()) return { success: true }
+    return apiPost<any>('/shop/invoices', data)
+  },
+
+  async getRefundDetail(id: string) {
+    if (useMock()) return mockRefund
+    try {
+      return await apiGet<any>('/shop/after-sales/' + id)
+    } catch { return mockRefund }
+  },
+
+  async getReviewItems(orderId: string) {
+    if (useMock()) return { items: reviewItems, tagsByRating: reviewTagsByRating, ratingLabels: reviewRatingLabels }
+    try {
+      return await apiGet<any>(`/shop/orders/${orderId}/review-items`)
+    } catch {
+      return { items: reviewItems, tagsByRating: reviewTagsByRating, ratingLabels: reviewRatingLabels }
+    }
   },
 }

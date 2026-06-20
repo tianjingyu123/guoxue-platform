@@ -15,36 +15,106 @@ function toggleBook() { booked.value = !booked.value }
 </script>
 
 <template>
-  <view class="card" :class="status === 'live' && 'card-live'" hover-class="card-press" @tap="open">
-    <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
+  <view
+    class="card"
+    :class="status === 'live' && 'card-live'"
+    hover-class="card-press"
+    @tap="open"
+  >
+    <view
+      class="cover"
+      :class="ratio === '1:1' ? 'r-sq' : 'r-34'"
+    >
+      <image
+        v-if="data.cover"
+        class="cover-img"
+        :src="data.cover"
+        mode="aspectFill"
+      />
       <view class="grad" />
       <!-- 类型标 -->
-      <text class="type-badge">{{ typeLabel }}</text>
+      <text class="type-badge">
+        {{ typeLabel }}
+      </text>
       <!-- 状态标 -->
-      <view v-if="status === 'live'" class="live-badge"><view class="live-dot" /><text class="live-txt">直播中</text></view>
-      <view v-else-if="status === 'upcoming'" class="time-badge">
-        <AppIcon name="clock" :size="20" color="#ffffff" /><text class="time-txt">{{ data.scheduledTime }}</text>
+      <view
+        v-if="status === 'live'"
+        class="live-badge"
+      >
+        <view class="live-dot" /><text class="live-txt">
+          直播中
+        </text>
       </view>
-      <text v-else class="time-badge time-txt">{{ data.duration || '回放' }}</text>
+      <view
+        v-else-if="status === 'upcoming'"
+        class="time-badge"
+      >
+        <AppIcon
+          name="clock"
+          :size="20"
+          color="#ffffff"
+        /><text class="time-txt">
+          {{ data.scheduledTime }}
+        </text>
+      </view>
+      <text
+        v-else
+        class="time-badge time-txt"
+      >
+        {{ data.duration || '回放' }}
+      </text>
       <!-- 人数 -->
       <view class="viewers">
-        <AppIcon :name="status === 'upcoming' ? 'users' : 'eye'" :size="20" color="rgba(255,255,255,0.8)" />
-        <text class="viewers-txt">{{ status === 'upcoming' ? formatCount(data.reservations) + '预约' : formatCount(data.viewers) + (status === 'replay' ? '次观看' : '') }}</text>
+        <AppIcon
+          :name="status === 'upcoming' ? 'users' : 'eye'"
+          :size="20"
+          color="rgba(255,255,255,0.8)"
+        />
+        <text class="viewers-txt">
+          {{ status === 'upcoming' ? formatCount(data.reservations) + '预约' : formatCount(data.viewers) + (status === 'replay' ? '次观看' : '') }}
+        </text>
       </view>
       <!-- 预约按钮 -->
-      <view v-if="status === 'upcoming'" class="book-btn" :class="booked ? 'book-on' : 'book-off'" @tap.stop="toggleBook">
-        <AppIcon name="bell" :size="20" :color="booked ? '#ffffff' : '#ffffff'" /><text class="book-txt">{{ booked ? '已约' : '预约' }}</text>
+      <view
+        v-if="status === 'upcoming'"
+        class="book-btn"
+        :class="booked ? 'book-on' : 'book-off'"
+        @tap.stop="toggleBook"
+      >
+        <AppIcon
+          name="bell"
+          :size="20"
+          :color="booked ? '#ffffff' : '#ffffff'"
+        /><text class="book-txt">
+          {{ booked ? '已约' : '预约' }}
+        </text>
       </view>
     </view>
     <view class="body">
-      <text class="title">{{ data.title }}</text>
-      <view v-if="data.host" class="author">
+      <text class="title">
+        {{ data.title }}
+      </text>
+      <view
+        v-if="data.host"
+        class="author"
+      >
         <view class="avatar">
-          <image v-if="data.hostAvatar" class="avatar-img" :src="data.hostAvatar" mode="aspectFill" />
-          <text v-else class="avatar-ph">{{ data.host.charAt(0) }}</text>
+          <image
+            v-if="data.hostAvatar"
+            class="avatar-img"
+            :src="data.hostAvatar"
+            mode="aspectFill"
+          />
+          <text
+            v-else
+            class="avatar-ph"
+          >
+            {{ data.host.charAt(0) }}
+          </text>
         </view>
-        <text class="author-name">{{ data.host }}</text>
+        <text class="author-name">
+          {{ data.host }}
+        </text>
       </view>
     </view>
   </view>

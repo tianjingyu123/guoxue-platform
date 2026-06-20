@@ -3,12 +3,26 @@
     <!-- 顶部导航 -->
     <view class="navbar">
       <view class="nav-top">
-        <view class="nav-back" hover-class="nav-hover" @tap="goBack">
-          <app-icon name="chevron-left" :size="40" color="#fff" />
+        <view
+          class="nav-back"
+          hover-class="nav-hover"
+          @tap="goBack"
+        >
+          <app-icon
+            name="chevron-left"
+            :size="40"
+            color="#fff"
+          />
         </view>
         <view class="nav-title-wrap">
-          <app-icon name="users" :size="36" color="#d4af37" />
-          <text class="nav-title">拼团特惠</text>
+          <app-icon
+            name="users"
+            :size="36"
+            color="#d4af37"
+          />
+          <text class="nav-title">
+            拼团特惠
+          </text>
         </view>
       </view>
       <view class="tabs">
@@ -19,8 +33,18 @@
           :class="{ 'tab--on': tab === t.key }"
           @tap="tab = t.key"
         >
-          <text class="tab-text" :class="{ 'tab-text--on': tab === t.key }">{{ t.label }}</text>
-          <text v-if="t.key === 'my' && myGroups.length" class="tab-badge">{{ myGroups.length }}</text>
+          <text
+            class="tab-text"
+            :class="{ 'tab-text--on': tab === t.key }"
+          >
+            {{ t.label }}
+          </text>
+          <text
+            v-if="t.key === 'my' && myGroups.length"
+            class="tab-badge"
+          >
+            {{ myGroups.length }}
+          </text>
         </view>
       </view>
     </view>
@@ -28,164 +52,433 @@
     <!-- 说明横幅 -->
     <view class="banner">
       <view class="banner-icon">
-        <app-icon name="users" :size="36" color="#fff" />
+        <app-icon
+          name="users"
+          :size="36"
+          color="#fff"
+        />
       </view>
       <view class="banner-text">
-        <text class="banner-title">邀请好友一起拼团</text>
-        <text class="banner-sub">人越多越便宜，拼团成功立享优惠</text>
+        <text class="banner-title">
+          邀请好友一起拼团
+        </text>
+        <text class="banner-sub">
+          人越多越便宜，拼团成功立享优惠
+        </text>
       </view>
-      <app-icon name="chevron-right" :size="36" color="#b8ab94" />
+      <app-icon
+        name="chevron-right"
+        :size="36"
+        color="#b8ab94"
+      />
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="list">
-      <view v-for="i in 3" :key="i" class="sk-card">
-        <view class="sk-row"><view class="sk-img" /><view class="sk-info"><view class="sk-line sk-w8" /><view class="sk-line sk-w6" /><view class="sk-line sk-w4" /></view></view>
+    <view
+      v-if="loading"
+      class="list"
+    >
+      <view
+        v-for="i in 3"
+        :key="i"
+        class="sk-card"
+      >
+        <view class="sk-row">
+          <view class="sk-img" /><view class="sk-info">
+            <view class="sk-line sk-w8" /><view class="sk-line sk-w6" /><view class="sk-line sk-w4" />
+          </view>
+        </view>
       </view>
     </view>
 
-    <error-state v-else-if="error" :message="error" @retry="loadGroupBuys" />
+    <error-state
+      v-else-if="error"
+      :message="error"
+      @retry="loadGroupBuys"
+    />
 
     <!-- 拼团商品 -->
-    <view v-else-if="tab === 'all'" class="list">
-      <view v-if="!groupBuyItems.length" class="empty">
-        <view class="empty-icon"><app-icon name="users" :size="80" color="#CCCCCC" /></view>
-        <text class="empty-text">暂无拼团活动</text>
+    <view
+      v-else-if="tab === 'all'"
+      class="list"
+    >
+      <view
+        v-if="!groupBuyItems.length"
+        class="empty"
+      >
+        <view class="empty-icon">
+          <app-icon
+            name="users"
+            :size="80"
+            color="#CCCCCC"
+          />
+        </view>
+        <text class="empty-text">
+          暂无拼团活动
+        </text>
       </view>
-      <view v-for="item in groupBuyItems" :key="item.id" class="card">
+      <view
+        v-for="item in groupBuyItems"
+        :key="item.id"
+        class="card"
+      >
         <view class="card-main">
           <view class="card-img-wrap">
-            <image class="card-img" :src="item.cover" mode="aspectFill" />
-            <view class="badge-team">{{ item.minMembers }}人团</view>
-            <view v-if="item.status === 'success'" class="mask-done">
-              <text class="mask-done-text">已成团</text>
+            <image
+              class="card-img"
+              :src="item.cover"
+              mode="aspectFill"
+            />
+            <view class="badge-team">
+              {{ item.minMembers }}人团
+            </view>
+            <view
+              v-if="item.status === 'success'"
+              class="mask-done"
+            >
+              <text class="mask-done-text">
+                已成团
+              </text>
             </view>
           </view>
           <view class="card-info">
-            <text class="card-title">{{ item.title }}</text>
+            <text class="card-title">
+              {{ item.title }}
+            </text>
             <view class="card-price">
-              <text class="price-now"><text class="price-unit">¥</text>{{ item.price }}</text>
-              <text class="price-old">单买¥{{ item.originalPrice }}</text>
+              <text class="price-now">
+                <text class="price-unit">
+                  ¥
+                </text>{{ item.price }}
+              </text>
+              <text class="price-old">
+                单买¥{{ item.originalPrice }}
+              </text>
             </view>
-            <view class="save-tag">拼团省{{ item.originalPrice - item.price }}元</view>
+            <view class="save-tag">
+              拼团省{{ item.originalPrice - item.price }}元
+            </view>
             <view class="prog-meta">
               <view class="member-stack">
-                <view v-for="n in item.currentMembers" :key="'m' + n" class="m-avatar m-avatar--on">
-                  <app-icon name="users" :size="20" color="#fff" />
+                <view
+                  v-for="n in item.currentMembers"
+                  :key="'m' + n"
+                  class="m-avatar m-avatar--on"
+                >
+                  <app-icon
+                    name="users"
+                    :size="20"
+                    color="#fff"
+                  />
                 </view>
-                <view v-for="n in (item.minMembers - item.currentMembers)" :key="'e' + n" class="m-avatar m-avatar--empty">
-                  <text class="m-plus">+</text>
+                <view
+                  v-for="n in (item.minMembers - item.currentMembers)"
+                  :key="'e' + n"
+                  class="m-avatar m-avatar--empty"
+                >
+                  <text class="m-plus">
+                    +
+                  </text>
                 </view>
-                <text class="prog-text">{{ item.status === 'success' ? '已拼满' : `还差${item.minMembers - item.currentMembers}人` }}</text>
+                <text class="prog-text">
+                  {{ item.status === 'success' ? '已拼满' : `还差${item.minMembers - item.currentMembers}人` }}
+                </text>
               </view>
-              <view v-if="item.status !== 'success'" class="cd">
-                <app-icon name="clock" :size="22" color="#c41e3a" />
-                <text class="cd-text">{{ cdText(item.id, item.endOffsetMs) }}</text>
+              <view
+                v-if="item.status !== 'success'"
+                class="cd"
+              >
+                <app-icon
+                  name="clock"
+                  :size="22"
+                  color="#c41e3a"
+                />
+                <text class="cd-text">
+                  {{ cdText(item.id, item.endOffsetMs) }}
+                </text>
               </view>
             </view>
             <view class="prog-bar">
-              <view class="prog-fill" :style="{ width: pct(item.currentMembers, item.minMembers) + '%' }" />
+              <view
+                class="prog-fill"
+                :style="{ width: pct(item.currentMembers, item.minMembers) + '%' }"
+              />
             </view>
           </view>
         </view>
-        <view v-if="item.status !== 'success'" class="card-actions">
-          <view class="btn-join" hover-class="btn-hover" @tap="goJoin(item.id)">
-            <app-icon name="flame" :size="28" color="#d4af37" />
-            <text class="btn-join-text">去拼团</text>
+        <view
+          v-if="item.status !== 'success'"
+          class="card-actions"
+        >
+          <view
+            class="btn-join"
+            hover-class="btn-hover"
+            @tap="goJoin(item.id)"
+          >
+            <app-icon
+              name="flame"
+              :size="28"
+              color="#d4af37"
+            />
+            <text class="btn-join-text">
+              去拼团
+            </text>
           </view>
-          <view class="btn-create" hover-class="btn-hover" @tap="goCreate(item.id)">
-            <app-icon name="share-2" :size="28" color="#c41e3a" />
-            <text class="btn-create-text">开新团</text>
+          <view
+            class="btn-create"
+            hover-class="btn-hover"
+            @tap="goCreate(item.id)"
+          >
+            <app-icon
+              name="share-2"
+              :size="28"
+              color="#c41e3a"
+            />
+            <text class="btn-create-text">
+              开新团
+            </text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 我的拼团 -->
-    <view v-else class="list">
-      <view v-if="!myGroups.length" class="empty">
+    <view
+      v-else
+      class="list"
+    >
+      <view
+        v-if="!myGroups.length"
+        class="empty"
+      >
         <view class="empty-icon">
-          <app-icon name="users" :size="80" color="#CCCCCC" />
+          <app-icon
+            name="users"
+            :size="80"
+            color="#CCCCCC"
+          />
         </view>
-        <text class="empty-text">暂无拼团记录</text>
-        <view class="empty-btn" @tap="tab = 'all'">
-          <text class="empty-btn-text">去拼团</text>
+        <text class="empty-text">
+          暂无拼团记录
+        </text>
+        <view
+          class="empty-btn"
+          @tap="tab = 'all'"
+        >
+          <text class="empty-btn-text">
+            去拼团
+          </text>
         </view>
       </view>
-      <view v-for="item in myGroups" :key="item.id" class="card">
+      <view
+        v-for="item in myGroups"
+        :key="item.id"
+        class="card"
+      >
         <view class="my-head">
-          <text class="my-status" :class="'my-status--' + item.status">{{ statusText(item.status) }}</text>
-          <text v-if="item.isOwner" class="my-owner">团长</text>
+          <text
+            class="my-status"
+            :class="'my-status--' + item.status"
+          >
+            {{ statusText(item.status) }}
+          </text>
+          <text
+            v-if="item.isOwner"
+            class="my-owner"
+          >
+            团长
+          </text>
         </view>
         <view class="card-main">
-          <image class="my-cover" :src="item.productCover" mode="aspectFill" />
+          <image
+            class="my-cover"
+            :src="item.productCover"
+            mode="aspectFill"
+          />
           <view class="card-info">
-            <text class="card-title">{{ item.productName }}</text>
-            <text class="price-now my-price"><text class="price-unit">¥</text>{{ item.price }}</text>
+            <text class="card-title">
+              {{ item.productName }}
+            </text>
+            <text class="price-now my-price">
+              <text class="price-unit">
+                ¥
+              </text>{{ item.price }}
+            </text>
             <view class="member-stack">
-              <view v-for="n in item.memberCount" :key="'mm' + n" class="m-avatar m-avatar--on">
-                <app-icon name="users" :size="20" color="#fff" />
+              <view
+                v-for="n in item.memberCount"
+                :key="'mm' + n"
+                class="m-avatar m-avatar--on"
+              >
+                <app-icon
+                  name="users"
+                  :size="20"
+                  color="#fff"
+                />
               </view>
-              <view v-for="n in (item.minMembers - item.memberCount)" :key="'me' + n" class="m-avatar m-avatar--empty">
-                <text class="m-plus">?</text>
+              <view
+                v-for="n in (item.minMembers - item.memberCount)"
+                :key="'me' + n"
+                class="m-avatar m-avatar--empty"
+              >
+                <text class="m-plus">
+                  ?
+                </text>
               </view>
-              <text class="prog-text">还差{{ item.minMembers - item.currentMembers }}人成团</text>
+              <text class="prog-text">
+                还差{{ item.minMembers - item.currentMembers }}人成团
+              </text>
             </view>
           </view>
         </view>
-        <view v-if="item.status === 'pending'" class="my-foot">
+        <view
+          v-if="item.status === 'pending'"
+          class="my-foot"
+        >
           <view class="cd">
-            <app-icon name="clock" :size="24" color="#c41e3a" />
-            <text class="cd-text">剩余 {{ cdText(item.id, item.endOffsetMs) }}</text>
+            <app-icon
+              name="clock"
+              :size="24"
+              color="#c41e3a"
+            />
+            <text class="cd-text">
+              剩余 {{ cdText(item.id, item.endOffsetMs) }}
+            </text>
           </view>
-          <view class="btn-invite" hover-class="btn-hover" @tap="openShare(item)">
-            <app-icon name="share-2" :size="26" color="#fff" />
-            <text class="btn-invite-text">邀请好友</text>
+          <view
+            class="btn-invite"
+            hover-class="btn-hover"
+            @tap="openShare(item)"
+          >
+            <app-icon
+              name="share-2"
+              :size="26"
+              color="#fff"
+            />
+            <text class="btn-invite-text">
+              邀请好友
+            </text>
           </view>
         </view>
-        <view v-else-if="item.status === 'success'" class="my-foot my-foot--tip">
-          <app-icon name="badge-check" :size="26" color="#2e8b57" />
-          <text class="tip-success">拼团成功，商品将尽快为您发货</text>
+        <view
+          v-else-if="item.status === 'success'"
+          class="my-foot my-foot--tip"
+        >
+          <app-icon
+            name="badge-check"
+            :size="26"
+            color="#2e8b57"
+          />
+          <text class="tip-success">
+            拼团成功，商品将尽快为您发货
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 分享弹窗 -->
-    <view v-if="showShare && shareTarget" class="share-mask" @tap="showShare = false">
-      <view class="share-panel" @tap.stop>
-        <view class="share-close" @tap="showShare = false">
-          <app-icon name="x" :size="32" color="#b8ab94" />
+    <view
+      v-if="showShare && shareTarget"
+      class="share-mask"
+      @tap="showShare = false"
+    >
+      <view
+        class="share-panel"
+        @tap.stop
+      >
+        <view
+          class="share-close"
+          @tap="showShare = false"
+        >
+          <app-icon
+            name="x"
+            :size="32"
+            color="#b8ab94"
+          />
         </view>
-        <text class="share-title">邀请好友参团</text>
-        <text class="share-sub">还差 <text class="share-num">{{ shareTarget.minMembers - shareTarget.currentMembers }}</text> 人即可成团</text>
+        <text class="share-title">
+          邀请好友参团
+        </text>
+        <text class="share-sub">
+          还差 <text class="share-num">
+            {{ shareTarget.minMembers - shareTarget.currentMembers }}
+          </text> 人即可成团
+        </text>
         <view class="share-product">
-          <image class="share-cover" :src="shareTarget.productCover" mode="aspectFill" />
+          <image
+            class="share-cover"
+            :src="shareTarget.productCover"
+            mode="aspectFill"
+          />
           <view class="share-pinfo">
-            <text class="share-pname">{{ shareTarget.productName }}</text>
-            <text class="price-now">¥{{ shareTarget.price }}</text>
+            <text class="share-pname">
+              {{ shareTarget.productName }}
+            </text>
+            <text class="price-now">
+              ¥{{ shareTarget.price }}
+            </text>
           </view>
         </view>
-        <text class="share-label">分享至</text>
+        <text class="share-label">
+          分享至
+        </text>
         <view class="share-ways">
           <view class="way">
-            <view class="way-icon way-wx"><app-icon name="message-circle" :size="44" color="#fff" /></view>
-            <text class="way-text">微信好友</text>
+            <view class="way-icon way-wx">
+              <app-icon
+                name="message-circle"
+                :size="44"
+                color="#fff"
+              />
+            </view>
+            <text class="way-text">
+              微信好友
+            </text>
           </view>
           <view class="way">
-            <view class="way-icon way-wx"><app-icon name="users" :size="44" color="#fff" /></view>
-            <text class="way-text">朋友圈</text>
+            <view class="way-icon way-wx">
+              <app-icon
+                name="users"
+                :size="44"
+                color="#fff"
+              />
+            </view>
+            <text class="way-text">
+              朋友圈
+            </text>
           </view>
           <view class="way">
-            <view class="way-icon way-qr"><app-icon name="grid" :size="44" color="#fff" /></view>
-            <text class="way-text">二维码</text>
+            <view class="way-icon way-qr">
+              <app-icon
+                name="grid"
+                :size="44"
+                color="#fff"
+              />
+            </view>
+            <text class="way-text">
+              二维码
+            </text>
           </view>
-          <view class="way" @tap="copyLink">
-            <view class="way-icon way-copy"><app-icon name="copy" :size="44" color="#3a3024" /></view>
-            <text class="way-text">复制链接</text>
+          <view
+            class="way"
+            @tap="copyLink"
+          >
+            <view class="way-icon way-copy">
+              <app-icon
+                name="copy"
+                :size="44"
+                color="#3a3024"
+              />
+            </view>
+            <text class="way-text">
+              复制链接
+            </text>
           </view>
         </view>
         <view class="share-tip">
-          <text class="share-tip-text">分享给好友，TA购买后即可帮你成团，成团后自动发货</text>
+          <text class="share-tip-text">
+            分享给好友，TA购买后即可帮你成团，成团后自动发货
+          </text>
         </view>
       </view>
     </view>
@@ -196,7 +489,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
 import ErrorState from '@/components/common/error-state.vue'
-import { groupBuyList, myGroupBuyList, formatCountdown, shopApi, type MyGroupBuyItem } from '@/lib/shop-data'
+import { formatCountdown, shopApi, type MyGroupBuyItem } from '@/lib/shop-data'
 
 const tabList = [
   { key: 'all', label: '拼团商品' },
@@ -222,15 +515,15 @@ async function loadGroupBuys() {
       shopApi.getGroupBuys(),
       shopApi.getMyGroupBuys(),
     ])
-    groupBuyItems.value = allRes?.items || allRes || groupBuyList
-    myGroups.value = myRes?.items || myRes || myGroupBuyList
+    groupBuyItems.value = allRes?.items || allRes || []
+    myGroups.value = myRes?.items || myRes || []
     ;[...groupBuyItems.value, ...myGroups.value].forEach((g: any) => {
       endMap[g.id] = Date.now() + (g.endOffsetMs || 86400000)
     })
   } catch (e: any) {
     error.value = e?.message || '加载失败'
-    groupBuyItems.value = groupBuyList
-    myGroups.value = myGroupBuyList
+    groupBuyItems.value = []
+    myGroups.value = []
   } finally { loading.value = false }
 }
 

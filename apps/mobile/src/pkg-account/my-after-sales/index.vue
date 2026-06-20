@@ -1,11 +1,23 @@
 <template>
   <view class="page">
-    <view class="header" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="header"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="nav-bar">
-        <view class="nav-back" @tap="goBack">
-          <app-icon name="chevron-left" :size="44" color="#2C2C2C" />
+        <view
+          class="nav-back"
+          @tap="goBack"
+        >
+          <app-icon
+            name="chevron-left"
+            :size="44"
+            color="#2C2C2C"
+          />
         </view>
-        <text class="nav-title">我的售后</text>
+        <text class="nav-title">
+          我的售后
+        </text>
         <view class="nav-placeholder" />
       </view>
       <view class="tabs">
@@ -15,20 +27,46 @@
           class="tab-item"
           @tap="activeTab = tab.key"
         >
-          <text class="tab-text" :class="{ active: activeTab === tab.key }">{{ tab.label }}</text>
-          <view v-if="activeTab === tab.key" class="tab-bar" />
+          <text
+            class="tab-text"
+            :class="{ active: activeTab === tab.key }"
+          >
+            {{ tab.label }}
+          </text>
+          <view
+            v-if="activeTab === tab.key"
+            class="tab-bar"
+          />
         </view>
       </view>
     </view>
 
-    <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
-      <view v-if="filtered.length === 0" class="empty">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+      :style="{ paddingTop: navHeight + 'px' }"
+    >
+      <view
+        v-if="filtered.length === 0"
+        class="empty"
+      >
         <view class="empty-icon">
-          <app-icon name="package" :size="80" color="#999999" />
+          <app-icon
+            name="package"
+            :size="80"
+            color="#999999"
+          />
         </view>
-        <text class="empty-text">暂无售后记录</text>
-        <view class="empty-btn" @tap="navigateTo('/orders')">
-          <text class="empty-btn-text">查看订单</text>
+        <text class="empty-text">
+          暂无售后记录
+        </text>
+        <view
+          class="empty-btn"
+          @tap="navigateTo('/orders')"
+        >
+          <text class="empty-btn-text">
+            查看订单
+          </text>
         </view>
       </view>
 
@@ -39,44 +77,105 @@
       >
         <view class="as-head">
           <view class="as-head-left">
-            <view class="as-status" :style="{ color: sCfg(item.status).color, background: sCfg(item.status).bg }">
-              <app-icon :name="sCfg(item.status).icon" :size="22" :color="sCfg(item.status).color" />
-              <text class="as-status-text" :style="{ color: sCfg(item.status).color }">{{ sCfg(item.status).label }}</text>
+            <view
+              class="as-status"
+              :style="{ color: sCfg(item.status).color, background: sCfg(item.status).bg }"
+            >
+              <app-icon
+                :name="sCfg(item.status).icon"
+                :size="22"
+                :color="sCfg(item.status).color"
+              />
+              <text
+                class="as-status-text"
+                :style="{ color: sCfg(item.status).color }"
+              >
+                {{ sCfg(item.status).label }}
+              </text>
             </view>
-            <text class="as-type">{{ item.type === 'refund_only' ? '仅退款' : '退货退款' }}</text>
+            <text class="as-type">
+              {{ item.type === 'refund_only' ? '仅退款' : '退货退款' }}
+            </text>
           </view>
-          <text class="as-time">{{ item.createdAt }}</text>
+          <text class="as-time">
+            {{ item.createdAt }}
+          </text>
         </view>
 
-        <view class="as-body" @tap="navigateTo(`/shop/after-sale/${item.id}`)">
-          <image class="as-cover" :src="item.product.cover" mode="aspectFill" />
+        <view
+          class="as-body"
+          @tap="navigateTo(`/shop/after-sale/${item.id}`)"
+        >
+          <image
+            class="as-cover"
+            :src="item.product.cover"
+            mode="aspectFill"
+          />
           <view class="as-info">
-            <text class="as-name">{{ item.product.name }}</text>
-            <text class="as-sku">{{ item.product.skuName }}</text>
+            <text class="as-name">
+              {{ item.product.name }}
+            </text>
+            <text class="as-sku">
+              {{ item.product.skuName }}
+            </text>
             <view class="as-foot">
               <view class="as-amount">
-                <text class="amount-label">退款金额：</text>
-                <text class="amount-value">¥{{ item.amount }}</text>
+                <text class="amount-label">
+                  退款金额：
+                </text>
+                <text class="amount-value">
+                  ¥{{ item.amount }}
+                </text>
               </view>
-              <app-icon name="chevron-right" :size="28" color="#999999" />
+              <app-icon
+                name="chevron-right"
+                :size="28"
+                color="#999999"
+              />
             </view>
           </view>
         </view>
 
-        <view v-if="item.canCancel" class="as-actions">
-          <view class="act-btn ghost" @tap="confirmCancel(item.id)">
-            <text class="act-text">取消售后</text>
+        <view
+          v-if="item.canCancel"
+          class="as-actions"
+        >
+          <view
+            class="act-btn ghost"
+            @tap="confirmCancel(item.id)"
+          >
+            <text class="act-text">
+              取消售后
+            </text>
           </view>
-          <view class="act-btn primary" @tap="navigateTo(`/shop/after-sale/${item.id}`)">
-            <text class="act-text-primary">查看进度</text>
+          <view
+            class="act-btn primary"
+            @tap="navigateTo(`/shop/after-sale/${item.id}`)"
+          >
+            <text class="act-text-primary">
+              查看进度
+            </text>
           </view>
         </view>
-        <view v-else-if="item.status === 'rejected'" class="as-actions">
-          <view class="act-btn outline" @tap="navigateTo(`/shop/after-sale-rejected?id=${item.id}`)">
-            <text class="act-text-outline">查看原因</text>
+        <view
+          v-else-if="item.status === 'rejected'"
+          class="as-actions"
+        >
+          <view
+            class="act-btn outline"
+            @tap="navigateTo(`/shop/after-sale-rejected?id=${item.id}`)"
+          >
+            <text class="act-text-outline">
+              查看原因
+            </text>
           </view>
-          <view class="act-btn primary" @tap="navigateTo(`/shop/after-sale?orderId=${item.orderId}`)">
-            <text class="act-text-primary">重新申请</text>
+          <view
+            class="act-btn primary"
+            @tap="navigateTo(`/shop/after-sale?orderId=${item.orderId}`)"
+          >
+            <text class="act-text-primary">
+              重新申请
+            </text>
           </view>
         </view>
       </view>
@@ -85,19 +184,44 @@
     </scroll-view>
 
     <!-- 取消确认弹窗 -->
-    <view v-if="cancelId" class="mask" @tap="cancelId = ''">
-      <view class="confirm-box" @tap.stop>
+    <view
+      v-if="cancelId"
+      class="mask"
+      @tap="cancelId = ''"
+    >
+      <view
+        class="confirm-box"
+        @tap.stop
+      >
         <view class="confirm-icon">
-          <app-icon name="alert-circle" :size="48" color="#E8820C" />
+          <app-icon
+            name="alert-circle"
+            :size="48"
+            color="#E8820C"
+          />
         </view>
-        <text class="confirm-title">确认取消售后？</text>
-        <text class="confirm-desc">取消后如需继续申请，请重新提交</text>
+        <text class="confirm-title">
+          确认取消售后？
+        </text>
+        <text class="confirm-desc">
+          取消后如需继续申请，请重新提交
+        </text>
         <view class="confirm-actions">
-          <view class="confirm-btn ghost" @tap="cancelId = ''">
-            <text class="confirm-btn-text">再想想</text>
+          <view
+            class="confirm-btn ghost"
+            @tap="cancelId = ''"
+          >
+            <text class="confirm-btn-text">
+              再想想
+            </text>
           </view>
-          <view class="confirm-btn primary" @tap="doCancel">
-            <text class="confirm-btn-text-primary">确认取消</text>
+          <view
+            class="confirm-btn primary"
+            @tap="doCancel"
+          >
+            <text class="confirm-btn-text-primary">
+              确认取消
+            </text>
           </view>
         </view>
       </view>
@@ -109,14 +233,14 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { afterSaleApi, afterSaleList, afterSaleTabs, afterSaleStatusConfig } from '@/lib/account-data'
+import { afterSaleApi, afterSaleTabs, afterSaleStatusConfig, type AfterSaleListItem } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(108)
 
 const tabs = afterSaleTabs
 const activeTab = ref('')
-const list = ref([...afterSaleList])
+const list = ref<AfterSaleListItem[]>([])
 const cancelId = ref('')
 
 const filtered = computed(() => {
@@ -143,19 +267,21 @@ onLoad(async () => {
   try {
     const res = await afterSaleApi.getAfterSales({ page: 1, pageSize: 50 })
     list.value = res.items
-  } catch { list.value = [...afterSaleList] }
+  } catch { /* keep empty */ }
 })
 
 function confirmCancel(id: string) {
   cancelId.value = id
 }
 async function doCancel() {
-  try { await afterSaleApi.cancelAfterSale(cancelId.value) } catch { }
-  list.value = list.value.map((i) =>
-    i.id === cancelId.value ? { ...i, status: 'cancelled' as const, canCancel: false } : i,
-  )
-  cancelId.value = ''
-  uni.showToast({ title: '已取消', icon: 'none' })
+  try {
+    await afterSaleApi.cancelAfterSale(cancelId.value)
+    list.value = list.value.map((i) =>
+      i.id === cancelId.value ? { ...i, status: 'cancelled' as const, canCancel: false } : i,
+    )
+    cancelId.value = ''
+    uni.showToast({ title: '已取消', icon: 'none' })
+  } catch { uni.showToast({ title: '操作失败，请重试', icon: 'none' }) }
 }
 </script>
 

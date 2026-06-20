@@ -5,159 +5,493 @@
 <template>
   <view class="page">
     <!-- Header -->
-    <view class="hdr" :style="{ paddingTop: statusBarH + 'px' }">
+    <view
+      class="hdr"
+      :style="{ paddingTop: statusBarH + 'px' }"
+    >
       <view class="hdr-bar">
-        <view class="hdr-btn" @tap="goBack"><app-icon name="chevron-left" :size="36" color="#2C2C2C" /></view>
-        <text class="hdr-title">收益分配设置</text>
-        <view class="hdr-btn" @tap="showHelp = true"><app-icon name="help-circle" :size="36" color="#999999" /></view>
+        <view
+          class="hdr-btn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="chevron-left"
+            :size="36"
+            color="#2C2C2C"
+          />
+        </view>
+        <text class="hdr-title">
+          收益分配设置
+        </text>
+        <view
+          class="hdr-btn"
+          @tap="showHelp = true"
+        >
+          <app-icon
+            name="help-circle"
+            :size="36"
+            color="#999999"
+          />
+        </view>
       </view>
       <view class="tabs">
-        <view class="tab" :class="{ on: activeTab === 'plans' }" @tap="activeTab = 'plans'">分配方案</view>
-        <view class="tab" :class="{ on: activeTab === 'guests' }" @tap="activeTab = 'guests'">嘉宾个性化</view>
+        <view
+          class="tab"
+          :class="{ on: activeTab === 'plans' }"
+          @tap="activeTab = 'plans'"
+        >
+          分配方案
+        </view>
+        <view
+          class="tab"
+          :class="{ on: activeTab === 'guests' }"
+          @tap="activeTab = 'guests'"
+        >
+          嘉宾个性化
+        </view>
       </view>
     </view>
 
-    <scroll-view scroll-y class="scroll">
+    <scroll-view
+      scroll-y
+      class="scroll"
+    >
       <!-- 骨架屏 -->
-      <view v-if="loading" class="dist-skeleton">
-        <view v-for="i in 3" :key="i" class="dist-sk-row"><view class="dist-sk-block sk-anim" /></view>
+      <view
+        v-if="loading"
+        class="dist-skeleton"
+      >
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="dist-sk-row"
+        >
+          <view class="dist-sk-block sk-anim" />
+        </view>
       </view>
-      <error-state v-else-if="error" :message="error" @retry="loadData" />
+      <error-state
+        v-else-if="error"
+        :message="error"
+        @retry="loadData"
+      />
       <template v-else>
         <!-- 说明卡片 -->
-      <view class="info-card">
-        <app-icon name="info" :size="32" color="#D97706" />
-        <view class="info-text">
-          <text class="info-title">分配说明</text>
-          <text class="info-desc">收益分配顺序：平台抽成 → 圈子收益 → 创作者（嘉宾/老师）收益。您可以为不同内容类型设置不同方案，也可以为特定嘉宾设置个性化分成比例。</text>
+        <view class="info-card">
+          <app-icon
+            name="info"
+            :size="32"
+            color="#D97706"
+          />
+          <view class="info-text">
+            <text class="info-title">
+              分配说明
+            </text>
+            <text class="info-desc">
+              收益分配顺序：平台抽成 → 圈子收益 → 创作者（嘉宾/老师）收益。您可以为不同内容类型设置不同方案，也可以为特定嘉宾设置个性化分成比例。
+            </text>
+          </view>
         </view>
-      </view>
 
-      <!-- 分配方案列表 -->
-      <view v-if="activeTab === 'plans'" class="list">
-        <view v-for="plan in plans" :key="plan.id" class="plan-card">
-          <view class="plan-head">
-            <view class="plan-info">
-              <view class="plan-name-row">
-                <text class="plan-name">{{ plan.name }}</text>
-                <text v-if="plan.isDefault" class="plan-default">默认</text>
+        <!-- 分配方案列表 -->
+        <view
+          v-if="activeTab === 'plans'"
+          class="list"
+        >
+          <view
+            v-for="plan in plans"
+            :key="plan.id"
+            class="plan-card"
+          >
+            <view class="plan-head">
+              <view class="plan-info">
+                <view class="plan-name-row">
+                  <text class="plan-name">
+                    {{ plan.name }}
+                  </text>
+                  <text
+                    v-if="plan.isDefault"
+                    class="plan-default"
+                  >
+                    默认
+                  </text>
+                </view>
+                <text class="plan-desc">
+                  {{ plan.description }}
+                </text>
               </view>
-              <text class="plan-desc">{{ plan.description }}</text>
+              <view
+                class="plan-edit"
+                @tap="openEdit(plan.id)"
+              >
+                <app-icon
+                  name="edit"
+                  :size="30"
+                  color="#999999"
+                />
+              </view>
             </view>
-            <view class="plan-edit" @tap="openEdit(plan.id)"><app-icon name="edit" :size="30" color="#999999" /></view>
+
+            <view class="plan-types">
+              <view
+                v-for="type in plan.contentTypes"
+                :key="type"
+                class="type-chip"
+                :style="chipStyle(type)"
+              >
+                <app-icon
+                  :name="typeIcon(type)"
+                  :size="22"
+                  :color="typeColor(type)"
+                />
+                <text
+                  class="type-chip-t"
+                  :style="{ color: typeColor(type) }"
+                >
+                  {{ typeLabel(type) }}
+                </text>
+              </view>
+            </view>
+
+            <view class="plan-ratio">
+              <view class="ratio-bar">
+                <view
+                  class="ratio-seg"
+                  :style="{ width: plan.rules.platform + '%', background: '#999999' }"
+                >
+                  <text
+                    v-if="plan.rules.platform > 8"
+                    class="ratio-seg-t"
+                  >
+                    {{ plan.rules.platform }}%
+                  </text>
+                </view>
+                <view
+                  class="ratio-seg"
+                  :style="{ width: plan.rules.circle + '%', background: '#C9A96E' }"
+                >
+                  <text class="ratio-seg-t">
+                    {{ plan.rules.circle }}%
+                  </text>
+                </view>
+                <view
+                  class="ratio-seg"
+                  :style="{ width: plan.rules.creator + '%', background: '#C41E3A' }"
+                >
+                  <text class="ratio-seg-t">
+                    {{ plan.rules.creator }}%
+                  </text>
+                </view>
+              </view>
+              <view class="ratio-legend">
+                <view class="legend">
+                  <view
+                    class="dot"
+                    style="background:#999999"
+                  /><text class="legend-t">
+                    平台 {{ plan.rules.platform }}%
+                  </text>
+                </view>
+                <view class="legend">
+                  <view
+                    class="dot"
+                    style="background:#C9A96E"
+                  /><text class="legend-t">
+                    圈子 {{ plan.rules.circle }}%
+                  </text>
+                </view>
+                <view class="legend">
+                  <view
+                    class="dot"
+                    style="background:#C41E3A"
+                  /><text class="legend-t">
+                    创作者 {{ plan.rules.creator }}%
+                  </text>
+                </view>
+              </view>
+            </view>
           </view>
 
-          <view class="plan-types">
-            <view v-for="type in plan.contentTypes" :key="type" class="type-chip" :style="chipStyle(type)">
-              <app-icon :name="typeIcon(type)" :size="22" :color="typeColor(type)" />
-              <text class="type-chip-t" :style="{ color: typeColor(type) }">{{ typeLabel(type) }}</text>
-            </view>
-          </view>
-
-          <view class="plan-ratio">
-            <view class="ratio-bar">
-              <view class="ratio-seg" :style="{ width: plan.rules.platform + '%', background: '#999999' }"><text v-if="plan.rules.platform > 8" class="ratio-seg-t">{{ plan.rules.platform }}%</text></view>
-              <view class="ratio-seg" :style="{ width: plan.rules.circle + '%', background: '#C9A96E' }"><text class="ratio-seg-t">{{ plan.rules.circle }}%</text></view>
-              <view class="ratio-seg" :style="{ width: plan.rules.creator + '%', background: '#C41E3A' }"><text class="ratio-seg-t">{{ plan.rules.creator }}%</text></view>
-            </view>
-            <view class="ratio-legend">
-              <view class="legend"><view class="dot" style="background:#999999" /><text class="legend-t">平台 {{ plan.rules.platform }}%</text></view>
-              <view class="legend"><view class="dot" style="background:#C9A96E" /><text class="legend-t">圈子 {{ plan.rules.circle }}%</text></view>
-              <view class="legend"><view class="dot" style="background:#C41E3A" /><text class="legend-t">创作者 {{ plan.rules.creator }}%</text></view>
-            </view>
+          <view
+            class="add-btn"
+            @tap="openCreate"
+          >
+            <app-icon
+              name="plus"
+              :size="36"
+              color="#999999"
+            /><text class="add-btn-t">
+              添加分配方案
+            </text>
           </view>
         </view>
 
-        <view class="add-btn" @tap="openCreate"><app-icon name="plus" :size="36" color="#999999" /><text class="add-btn-t">添加分配方案</text></view>
-      </view>
-
-      <!-- 嘉宾个性化 -->
-      <view v-else class="list">
-        <text class="guests-hint">为特定嘉宾/老师设置个性化分成比例，覆盖默认方案</text>
-        <view v-for="g in guestOverrides" :key="g.guestId" class="guest-card">
-          <image class="guest-avatar" :src="g.avatar" mode="aspectFill" />
-          <view class="guest-info">
-            <text class="guest-name">{{ g.guestName }}</text>
-            <view class="guest-types">
-              <text v-for="type in g.contentTypes" :key="type" class="guest-type" :style="chipStyle(type)">{{ typeLabel(type) }}</text>
+        <!-- 嘉宾个性化 -->
+        <view
+          v-else
+          class="list"
+        >
+          <text class="guests-hint">
+            为特定嘉宾/老师设置个性化分成比例，覆盖默认方案
+          </text>
+          <view
+            v-for="g in guestOverrides"
+            :key="g.guestId"
+            class="guest-card"
+          >
+            <image
+              class="guest-avatar"
+              :src="g.avatar"
+              mode="aspectFill"
+            />
+            <view class="guest-info">
+              <text class="guest-name">
+                {{ g.guestName }}
+              </text>
+              <view class="guest-types">
+                <text
+                  v-for="type in g.contentTypes"
+                  :key="type"
+                  class="guest-type"
+                  :style="chipStyle(type)"
+                >
+                  {{ typeLabel(type) }}
+                </text>
+              </view>
             </view>
+            <view class="guest-share">
+              <text class="guest-pct">
+                {{ g.sharePercent }}%
+              </text>
+              <text class="guest-share-t">
+                创作者分成
+              </text>
+            </view>
+            <app-icon
+              name="chevron-right"
+              :size="34"
+              color="#999999"
+            />
           </view>
-          <view class="guest-share">
-            <text class="guest-pct">{{ g.sharePercent }}%</text>
-            <text class="guest-share-t">创作者分成</text>
+          <view
+            v-if="guestOverrides.length === 0"
+            class="empty"
+          >
+            <app-icon
+              name="users"
+              :size="72"
+              color="#D9D4C8"
+            />
+            <text class="empty-t">
+              暂无个性化分成设置
+            </text>
+            <text class="empty-sub">
+              所有嘉宾使用默认分配方案
+            </text>
           </view>
-          <app-icon name="chevron-right" :size="34" color="#999999" />
+          <view
+            class="add-btn"
+            @tap="toastComingSoon"
+          >
+            <app-icon
+              name="plus"
+              :size="36"
+              color="#999999"
+            /><text class="add-btn-t">
+              添加个性化分成
+            </text>
+          </view>
         </view>
-        <view v-if="guestOverrides.length === 0" class="empty">
-          <app-icon name="users" :size="72" color="#D9D4C8" />
-          <text class="empty-t">暂无个性化分成设置</text>
-          <text class="empty-sub">所有嘉宾使用默认分配方案</text>
-        </view>
-        <view class="add-btn" @tap="toastComingSoon"><app-icon name="plus" :size="36" color="#999999" /><text class="add-btn-t">添加个性化分成</text></view>
-      </view>
-      <view style="height: 40rpx;" />
+        <view style="height: 40rpx;" />
       </template>
     </scroll-view>
 
     <!-- 创建/编辑方案弹窗 -->
-    <view v-if="showEditor" class="mask" @tap="closeEditor">
-      <view class="sheet" @tap.stop>
+    <view
+      v-if="showEditor"
+      class="mask"
+      @tap="closeEditor"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
         <view class="sheet-hdr">
-          <text class="sheet-cancel" @tap="closeEditor">取消</text>
-          <text class="sheet-title">{{ editingId ? '编辑方案' : '创建方案' }}</text>
-          <text class="sheet-save" @tap="handleSave">保存</text>
+          <text
+            class="sheet-cancel"
+            @tap="closeEditor"
+          >
+            取消
+          </text>
+          <text class="sheet-title">
+            {{ editingId ? '编辑方案' : '创建方案' }}
+          </text>
+          <text
+            class="sheet-save"
+            @tap="handleSave"
+          >
+            保存
+          </text>
         </view>
-        <scroll-view scroll-y class="sheet-body">
-          <view v-if="error" class="err"><app-icon name="alert-circle" :size="28" color="#DC2626" /><text class="err-t">{{ error }}</text></view>
+        <scroll-view
+          scroll-y
+          class="sheet-body"
+        >
+          <view
+            v-if="error"
+            class="err"
+          >
+            <app-icon
+              name="alert-circle"
+              :size="28"
+              color="#DC2626"
+            /><text class="err-t">
+              {{ error }}
+            </text>
+          </view>
 
           <view class="field">
-            <text class="field-label">方案名称</text>
-            <input v-model="f.name" class="field-input" placeholder="如：课程专属方案" @input="error = ''" />
+            <text class="field-label">
+              方案名称
+            </text>
+            <input
+              v-model="f.name"
+              class="field-input"
+              placeholder="如：课程专属方案"
+              @input="error = ''"
+            >
           </view>
           <view class="field">
-            <text class="field-label">方案描述（可选）</text>
-            <input v-model="f.description" class="field-input" placeholder="简要描述此方案的用途" />
+            <text class="field-label">
+              方案描述（可选）
+            </text>
+            <input
+              v-model="f.description"
+              class="field-input"
+              placeholder="简要描述此方案的用途"
+            >
           </view>
 
           <view class="field">
-            <text class="field-label">适用内容类型</text>
+            <text class="field-label">
+              适用内容类型
+            </text>
             <view class="type-picker">
-              <view v-for="t in contentTypes" :key="t.key" class="type-opt" :class="{ on: f.selectedTypes.includes(t.key) }" :style="f.selectedTypes.includes(t.key) ? { background: t.color } : {}" @tap="toggleType(t.key)">
-                <app-icon :name="t.icon" :size="26" :color="f.selectedTypes.includes(t.key) ? '#ffffff' : '#999999'" />
-                <text class="type-opt-t" :style="{ color: f.selectedTypes.includes(t.key) ? '#ffffff' : '#999999' }">{{ t.label }}</text>
+              <view
+                v-for="t in contentTypes"
+                :key="t.key"
+                class="type-opt"
+                :class="{ on: f.selectedTypes.includes(t.key) }"
+                :style="f.selectedTypes.includes(t.key) ? { background: t.color } : {}"
+                @tap="toggleType(t.key)"
+              >
+                <app-icon
+                  :name="t.icon"
+                  :size="26"
+                  :color="f.selectedTypes.includes(t.key) ? '#ffffff' : '#999999'"
+                />
+                <text
+                  class="type-opt-t"
+                  :style="{ color: f.selectedTypes.includes(t.key) ? '#ffffff' : '#999999' }"
+                >
+                  {{ t.label }}
+                </text>
               </view>
             </view>
           </view>
 
           <view class="field">
-            <text class="field-label">分配比例</text>
+            <text class="field-label">
+              分配比例
+            </text>
             <view class="slider-row">
-              <view class="slider-head"><text class="slider-name">平台抽成</text><text class="slider-val">{{ f.platform }}%</text></view>
-              <slider :value="f.platform" :min="5" :max="30" activeColor="#999999" block-size="20" @changing="onPlatform" @change="onPlatform" />
-              <text class="slider-hint">平台技术服务费，固定比例5%-30%</text>
+              <view class="slider-head">
+                <text class="slider-name">
+                  平台抽成
+                </text><text class="slider-val">
+                  {{ f.platform }}%
+                </text>
+              </view>
+              <slider
+                :value="f.platform"
+                :min="5"
+                :max="30"
+                active-color="#999999"
+                block-size="20"
+                @changing="onPlatform"
+                @change="onPlatform"
+              />
+              <text class="slider-hint">
+                平台技术服务费，固定比例5%-30%
+              </text>
             </view>
             <view class="slider-row">
-              <view class="slider-head"><text class="slider-name">圈子收益</text><text class="slider-val gold">{{ f.circle }}%</text></view>
-              <slider :value="f.circle" :min="0" :max="50" activeColor="#C9A96E" block-size="20" @changing="onCircle" @change="onCircle" />
-              <text class="slider-hint">归圈主所有，用于圈子运营</text>
+              <view class="slider-head">
+                <text class="slider-name">
+                  圈子收益
+                </text><text class="slider-val gold">
+                  {{ f.circle }}%
+                </text>
+              </view>
+              <slider
+                :value="f.circle"
+                :min="0"
+                :max="50"
+                active-color="#C9A96E"
+                block-size="20"
+                @changing="onCircle"
+                @change="onCircle"
+              />
+              <text class="slider-hint">
+                归圈主所有，用于圈子运营
+              </text>
             </view>
             <view class="slider-row">
-              <view class="slider-head"><text class="slider-name">创作者收益</text><text class="slider-val red">{{ f.creator }}%</text></view>
-              <view class="creator-bar"><view class="creator-fill" :style="{ width: f.creator + '%' }" /></view>
-              <text class="slider-hint">归内容创作者（嘉宾/老师）所有</text>
+              <view class="slider-head">
+                <text class="slider-name">
+                  创作者收益
+                </text><text class="slider-val red">
+                  {{ f.creator }}%
+                </text>
+              </view>
+              <view class="creator-bar">
+                <view
+                  class="creator-fill"
+                  :style="{ width: f.creator + '%' }"
+                />
+              </view>
+              <text class="slider-hint">
+                归内容创作者（嘉宾/老师）所有
+              </text>
             </view>
-            <view class="total" :class="total === 100 ? 'ok' : 'bad'">
-              <text class="total-label">比例总和</text>
-              <text class="total-val">{{ total }}% {{ total === 100 ? '✓' : '(需为100%)' }}</text>
+            <view
+              class="total"
+              :class="total === 100 ? 'ok' : 'bad'"
+            >
+              <text class="total-label">
+                比例总和
+              </text>
+              <text class="total-val">
+                {{ total }}% {{ total === 100 ? '✓' : '(需为100%)' }}
+              </text>
             </view>
           </view>
 
           <view class="default-row">
             <view>
-              <text class="default-name">设为默认方案</text>
-              <text class="default-sub">新内容将自动使用此方案</text>
+              <text class="default-name">
+                设为默认方案
+              </text>
+              <text class="default-sub">
+                新内容将自动使用此方案
+              </text>
             </view>
-            <view class="switch" :class="{ on: f.isDefault }" @tap="f.isDefault = !f.isDefault"><view class="switch-knob" /></view>
+            <view
+              class="switch"
+              :class="{ on: f.isDefault }"
+              @tap="f.isDefault = !f.isDefault"
+            >
+              <view class="switch-knob" />
+            </view>
           </view>
           <view style="height: 20rpx;" />
         </scroll-view>
@@ -165,29 +499,82 @@
     </view>
 
     <!-- 帮助说明弹窗 -->
-    <view v-if="showHelp" class="mask center" @tap="showHelp = false">
-      <view class="help" @tap.stop>
-        <view class="help-hdr"><text class="help-title">收益分配说明</text><text class="help-close" @tap="showHelp = false">关闭</text></view>
-        <scroll-view scroll-y class="help-body">
+    <view
+      v-if="showHelp"
+      class="mask center"
+      @tap="showHelp = false"
+    >
+      <view
+        class="help"
+        @tap.stop
+      >
+        <view class="help-hdr">
+          <text class="help-title">
+            收益分配说明
+          </text><text
+            class="help-close"
+            @tap="showHelp = false"
+          >
+            关闭
+          </text>
+        </view>
+        <scroll-view
+          scroll-y
+          class="help-body"
+        >
           <view class="help-sec">
-            <text class="help-h">分配流程</text>
-            <text class="help-p">1. 用户付费购买内容</text>
-            <text class="help-p">2. 平台扣除技术服务费</text>
-            <text class="help-p">3. 圈子获得运营收益</text>
-            <text class="help-p">4. 创作者获得内容收益</text>
+            <text class="help-h">
+              分配流程
+            </text>
+            <text class="help-p">
+              1. 用户付费购买内容
+            </text>
+            <text class="help-p">
+              2. 平台扣除技术服务费
+            </text>
+            <text class="help-p">
+              3. 圈子获得运营收益
+            </text>
+            <text class="help-p">
+              4. 创作者获得内容收益
+            </text>
           </view>
           <view class="help-sec">
-            <text class="help-h">角色说明</text>
-            <text class="help-p"><text class="help-b">平台</text>：提供技术服务，收取固定比例服务费</text>
-            <text class="help-p"><text class="help-b">圈子</text>：圈主获得的运营收益，用于圈子建设</text>
-            <text class="help-p"><text class="help-b">创作者</text>：内容创作者（嘉宾/老师）的收益</text>
+            <text class="help-h">
+              角色说明
+            </text>
+            <text class="help-p">
+              <text class="help-b">
+                平台
+              </text>：提供技术服务，收取固定比例服务费
+            </text>
+            <text class="help-p">
+              <text class="help-b">
+                圈子
+              </text>：圈主获得的运营收益，用于圈子建设
+            </text>
+            <text class="help-p">
+              <text class="help-b">
+                创作者
+              </text>：内容创作者（嘉宾/老师）的收益
+            </text>
           </view>
           <view class="help-sec">
-            <text class="help-h">注意事项</text>
-            <text class="help-p">• 分配比例总和必须为100%</text>
-            <text class="help-p">• 可为不同内容类型设置不同方案</text>
-            <text class="help-p">• 可为特定嘉宾设置个性化比例</text>
-            <text class="help-p">• 修改方案不影响已结算的收益</text>
+            <text class="help-h">
+              注意事项
+            </text>
+            <text class="help-p">
+              • 分配比例总和必须为100%
+            </text>
+            <text class="help-p">
+              • 可为不同内容类型设置不同方案
+            </text>
+            <text class="help-p">
+              • 可为特定嘉宾设置个性化比例
+            </text>
+            <text class="help-p">
+              • 修改方案不影响已结算的收益
+            </text>
           </view>
         </scroll-view>
       </view>
@@ -200,9 +587,15 @@
  * 收益分配设置页
  */
 import { ref, reactive, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ErrorState from '@/components/common/error-state.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
+import { circleManageApi } from '@/lib/circle-detail-data'
+
+const circleId = ref('1')
+
+onLoad((q) => { if (q?.id) circleId.value = q.id })
 
 const loading = ref(true)
 const error = ref('')
@@ -214,7 +607,9 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    await new Promise(r => setTimeout(r, 500))
+    const res: any = await circleManageApi.getDistribution(circleId.value)
+    plans.value = res.plans
+    guestOverrides.value = res.guestOverrides
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
@@ -231,16 +626,12 @@ const contentTypes = [
 
 interface Plan { id: string; name: string; isDefault: boolean; description: string; rules: { platform: number; circle: number; creator: number }; contentTypes: string[]; createdAt: string }
 
-const plans = ref<Plan[]>([
-  { id: 'default', name: '默认分配方案', isDefault: true, description: '适用于所有内容类型的通用分配方案', rules: { platform: 10, circle: 20, creator: 70 }, contentTypes: ['article', 'course', 'live', 'qa'], createdAt: '2024-01-01' },
-  { id: 'course-special', name: '课程专属方案', isDefault: false, description: '针对付费课程的特殊分配比例', rules: { platform: 15, circle: 15, creator: 70 }, contentTypes: ['course'], createdAt: '2024-02-15' },
-  { id: 'live-tips', name: '直播打赏方案', isDefault: false, description: '直播打赏收益的分配规则', rules: { platform: 20, circle: 10, creator: 70 }, contentTypes: ['live'], createdAt: '2024-03-01' },
-])
+const plans = ref<Plan[]>([])
 
-const guestOverrides = [
+const guestOverrides = ref([
   { guestId: '1', guestName: '张玄风', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang', sharePercent: 75, contentTypes: ['article', 'course'] },
   { guestId: '2', guestName: '李易安', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=li', sharePercent: 65, contentTypes: ['course'] },
-]
+])
 
 const activeTab = ref<'plans' | 'guests'>('plans')
 const showHelp = ref(false)
