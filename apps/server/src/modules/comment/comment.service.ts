@@ -129,6 +129,10 @@ export class CommentService {
     });
   }
 
+  async getCommentById(commentId: string) {
+    return this.prisma.comment.findUnique({ where: { id: commentId } });
+  }
+
   async like(commentId: string) {
     const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
     if (!comment) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
@@ -209,6 +213,57 @@ export class CommentService {
       }),
       this.prisma.comment.count({ where }),
     ]);
+    return { items, total, page: p, pageSize: ps };
+  }
+
+  /** 收到的评论：其他人对我的内容发表的评论 */
+  async getReceivedComments(userId: string, page = 1, pageSize = 20) {
+    const { skip, page: p, pageSize: ps } = safePagination(page, pageSize);
+
+    // 查找该用户拥有的内容ID（文章/课程/视频/商品/圈子帖子）
+    const [articleIds, courseIds, videoIds, productIds, postIds] = await Promise.all([
+      this.prisma.article.findMany({ where: { userId }, select: { id: true } }),
+      this.prisma.course.findMany({ where: { userId }, select: { id: true } }),
+      this.prisma.video.findMany({ where: { userId }, select: { id: true } }),
+      this.prisma.product.findMany({ where: { userId }, select: { id: true } }),
+      this.prisma.post.findMany({ where: { userId }, select: { id: true } }),
+    ]);
+
+    const typeTargets: { targetType: string; targetIds: string[] }[] = [
+      { targetType: "ARTICLE", targetIds: articleIds.map((a) => a.id) },
+      { targetType: "COURSE", targetIds: courseIds.map((c) => c.id) },
+      { targetType: "VIDEO", targetIds: videoIds.map((v) => v.id) },
+      { targetType: "PRODUCT", targetIds: productIds.map((p) => p.id) },
+      { targetType: "CIRCLE_POST", targetIds: postIds.map((p) => p.id) },
+    ].filter((t) => t.targetIds.length > 0);
+
+    if (typeTargets.length === 0) {
+      return { items: [], total: 0, page: p, pageSize: ps };
+    }
+
+    // 构建OR条件：每个type+其IDs
+    const orConditions = typeTargets.map((t) => ({
+      targetType: t.targetType,
+      targetId: { in: t.targetIds },
+    }));
+
+    const where: Prisma.CommentWhereInput = {
+      OR: orConditions,
+      userId: { not: userId }, // 排除我自己写的评论
+      status: "PUBLISHED",
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.comment.findMany({
+        where,
+        include: { user: { select: { id: true, nickname: true, avatar: true } } },
+        skip,
+        take: ps,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.comment.count({ where }),
+    ]);
+
     return { items, total, page: p, pageSize: ps };
   }
 }

@@ -237,17 +237,29 @@ export class BusinessException extends HttpException {
     ErrorCode.STATION_PICK_ALREADY_EXISTS,
   ]);
 
+  private static INTERNAL_ERROR_CODES = new Set<number>([
+    ErrorCode.INTERNAL_ERROR,
+  ]);
+
+  private static RATE_LIMITED_CODES = new Set<number>([
+    ErrorCode.RATE_LIMITED,
+  ]);
+
   /** 根据错误码自动推断 HTTP 状态码 */
   private static mapHttpStatus(code: ErrorCode): HttpStatus {
     if (this.NOT_FOUND_CODES.has(code)) return HttpStatus.NOT_FOUND;
     if (this.FORBIDDEN_CODES.has(code)) return HttpStatus.FORBIDDEN;
     if (this.CONFLICT_CODES.has(code)) return HttpStatus.CONFLICT;
+    if (this.INTERNAL_ERROR_CODES.has(code)) return HttpStatus.INTERNAL_SERVER_ERROR;
+    if (this.RATE_LIMITED_CODES.has(code)) return HttpStatus.TOO_MANY_REQUESTS;
 
     const mod = Math.floor(code / 1000);
 
     switch (mod) {
       case 200:
         return HttpStatus.UNAUTHORIZED;
+      case 700:
+        return HttpStatus.BAD_GATEWAY;
       default:
         return HttpStatus.BAD_REQUEST;
     }

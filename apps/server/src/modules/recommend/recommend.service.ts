@@ -859,8 +859,8 @@ export class RecommendService {
         : ([] as any[]),
     ]);
 
-    const ownerMap = new Map(circleOwners.map((u) => [u.id, u]));
-    const teacherMap = new Map(courseTeachers.map((u) => [u.id, u]));
+    const ownerMap = new Map<any, any>(circleOwners.map((u: any) => [u.id, u] as [string, any]));
+    const teacherMap = new Map<any, any>(courseTeachers.map((u: any) => [u.id, u] as [string, any]));
 
     // 汇总圈主热度
     const ownerScoreMap = new Map<string, number>();

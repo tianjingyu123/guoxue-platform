@@ -97,7 +97,7 @@ export class MiniController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  updateMiniApp(@Param("id") id: string, @Body() body: Record<string, unknown>) {
+  updateMiniApp(@Param("id") id: string, @Body() body: CreateMiniAppDto) {
     return this.mini.updateMiniAppConfig(id, body);
   }
 

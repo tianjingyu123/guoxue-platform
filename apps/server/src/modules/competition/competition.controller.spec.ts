@@ -1,5 +1,6 @@
 import { Test } from "@nestjs/testing";
 import { CanActivate } from "@nestjs/common";
+import { RoleType } from "@prisma/client";
 import { CompetitionAdminController, CompetitionPublicController, CompetitionJudgeController } from "./competition.controller";
 import { CompetitionService } from "./competition.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -198,31 +199,31 @@ describe("CompetitionPublicController", () => {
 
   it("报名参赛", async () => {
     mockService.register.mockResolvedValue({ id: "reg1" } as any);
-    const result: any = await ctrl.register("c1", {}, { user: { id: "u1" } });
+    const result: any = await ctrl.register("c1", {}, { user: { id: "u1", roles: [] as RoleType[] } } as any);
     expect(result.id).toBe("reg1");
   });
 
   it("我的报名状态", async () => {
     mockService.getRegistration.mockResolvedValue({ status: "REGISTERED" } as any);
-    const result: any = await ctrl.getMyRegistration("c1", { user: { id: "u1" } });
+    const result: any = await ctrl.getMyRegistration("c1", { user: { id: "u1", roles: [] as RoleType[] } } as any);
     expect(result.status).toBe("REGISTERED");
   });
 
   it("我的比赛成绩", async () => {
     mockService.getMyResults.mockResolvedValue({ score: 95 } as any);
-    const result: any = await ctrl.getMyResults("c1", { user: { id: "u1" } });
+    const result: any = await ctrl.getMyResults("c1", { user: { id: "u1", roles: [] as RoleType[] } } as any);
     expect(result.score).toBe(95);
   });
 
   it("提交答题", async () => {
     mockService.submitAnswer.mockResolvedValue({ id: "a1" } as any);
-    const result: any = await ctrl.submitAnswer("r1", { questionId: "q1", answer: "A" } as any, { user: { id: "u1" } });
+    const result: any = await ctrl.submitAnswer("r1", { questionId: "q1", answer: "A" } as any, { user: { id: "u1", roles: [] as RoleType[] } } as any);
     expect(result.id).toBe("a1");
   });
 
   it("批量提交答题", async () => {
     mockService.batchSubmitAnswers.mockResolvedValue({ count: 10 } as any);
-    const result: any = await ctrl.batchSubmit("r1", { registrationId: "reg1", answers: [] }, { user: { id: "u1" } });
+    const result: any = await ctrl.batchSubmit("r1", { registrationId: "reg1", answers: [] }, { user: { id: "u1", roles: [] as RoleType[] } } as any);
     expect(result.count).toBe(10);
   });
 
@@ -260,7 +261,7 @@ describe("CompetitionJudgeController", () => {
   it("评委评分", async () => {
     mockService.getAnswerById.mockResolvedValue({ registrationId: "reg1", questionId: "q1" } as any);
     mockService.manualGrade.mockResolvedValue({ score: 85 } as any);
-    const result: any = await ctrl.gradeAnswer("a1", { score: 85, comment: "优秀" } as any, { user: { id: "judge1" } });
+    const result: any = await ctrl.gradeAnswer("a1", { score: 85, comment: "优秀" } as any, { user: { id: "judge1", roles: [] as RoleType[] } } as any);
     expect(result.score).toBe(85);
     expect(mockService.manualGrade).toHaveBeenCalledWith("reg1", "q1", 85, "judge1", "优秀");
   });

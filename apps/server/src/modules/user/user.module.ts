@@ -7,12 +7,19 @@ import { PointsController } from "./points.controller";
 import { PointsService } from "./points.service";
 import { TeenModeController } from "./teen-mode.controller";
 import { TeenModeService } from "./teen-mode.service";
+import { FeedbackController } from "./feedback.controller";
+import { FeedbackService } from "./feedback.service";
+import { WalletController } from "./wallet.controller";
+import { WalletService } from "./wallet.service";
 import { SystemModule } from "../system/system.module";
+import { CoinModule } from "../coin/coin.module";
+import { InteractionModule } from "../interaction/interaction.module";
+import { CommentModule } from "../comment/comment.module";
 
 @Module({
-  imports: [SystemModule],
-  controllers: [UserController, PaymentPasswordController, PointsController, TeenModeController],
-  providers: [UserService, PaymentPasswordService, PointsService, TeenModeService],
+  imports: [SystemModule, CoinModule, InteractionModule, CommentModule],
+  controllers: [UserController, PaymentPasswordController, PointsController, TeenModeController, FeedbackController, WalletController],
+  providers: [UserService, PaymentPasswordService, PointsService, TeenModeService, FeedbackService, WalletService],
   exports: [UserService, PointsService],
 })
 export class UserModule {}

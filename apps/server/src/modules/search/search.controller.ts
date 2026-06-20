@@ -7,6 +7,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { SearchWeightService } from "./search-weight.service";
+import { SkipFormat } from "../../common/skip-format.decorator";
 
 @ApiTags("搜索")
 @Controller("search")
@@ -137,6 +138,7 @@ export class SearchController {
 
   /** SSE 流式搜索 */
   @Get("stream")
+  @SkipFormat()
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "SSE 流式搜索（逐类型推送结果）" })
   @ApiResponse({ status: 200, description: "成功" })

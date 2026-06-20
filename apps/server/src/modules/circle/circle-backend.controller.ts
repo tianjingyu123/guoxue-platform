@@ -170,6 +170,45 @@ export class CircleBackendController {
     };
   }
 
+  @Get("calendar-events")
+  @ApiOperation({ summary: "圈子活动日历" })
+  @ApiQuery({ name: "circleId", required: true })
+  @ApiQuery({ name: "year", required: false, type: Number })
+  @ApiQuery({ name: "month", required: false, type: Number })
+  async getCalendarEvents(
+    @Req() req: Request,
+    @Query("circleId") circleId: string,
+    @Query("year") year?: number,
+    @Query("month") month?: number,
+  ) {
+    // 验证用户是否是该圈子成员
+    const uid = (req.user as any).id
+    const member = await this.prisma.circleMember.findFirst({
+      where: { circleId, userId: uid },
+    })
+    if (!member) throw new BusinessException(ErrorCode.FORBIDDEN, "你不是该圈子成员")
+
+    const now = new Date()
+    const y = year || now.getFullYear()
+    const m = month || now.getMonth() + 1
+    const startDate = new Date(y, m - 1, 1)
+    const endDate = new Date(y, m, 0, 23, 59, 59)
+
+    const events = await this.prisma.circleEvent.findMany({
+      where: { circleId, date: { gte: startDate, lte: endDate } },
+      orderBy: { date: "asc" },
+    })
+
+    return events.map(e => ({
+      id: e.id,
+      date: e.date.toISOString().slice(0, 10),
+      title: e.title,
+      time: e.time,
+      circle: e.circle,
+      type: e.type,
+    }))
+  }
+
   // ── 管理员端点 ──
 
   @Get("admin/circles")

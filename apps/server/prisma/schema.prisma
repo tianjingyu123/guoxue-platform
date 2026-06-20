@@ -45,6 +45,7 @@ model User {
   status              UserStatus  @default(ACTIVE)
   timezone            String?     @default("Asia/Shanghai") // 时区（国际化预留）
   preferredCurrency   String?     @default("CNY") // 偏好货币（国际化预留）
+  notifySettings      Json?       // 通知开关（JSON: {message/course/live/interact/system: bool}）
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
@@ -79,6 +80,7 @@ model User {
   stationOffline       StationOffline?
   instituteMember      InstituteMember?
   sentReports          Report[]                 @relation("Reporter")
+  feedbacks            Feedback[]
   followings           Follow[]                 @relation("Follower")
   followers            Follow[]                 @relation("FollowedUser")
   referralUsers        ReferralRelation[]       @relation("ReferredUser")
@@ -366,6 +368,7 @@ model Circle {
   institute           Institute?
   circleRevenueSplits CircleRevenueSplit[]
   circleGuestEarnings CircleGuestEarning[]
+  events             CircleEvent[]
 
   @@index([ownerId])
   @@index([status])
@@ -1478,7 +1481,7 @@ model AiCacheEntry {
   scene           String // 调用场景
   queryHash       String // 规范化查询的MD5（精确匹配用）
   queryText       String // 原始用户查询（用于调试/统计）
-  queryVector     Unsupported("vector(1536)")? // pgvector 向量（语义匹配用）
+  // queryVector     Unsupported("vector(1536)")? // pgvector 向量（语义匹配用，需 pgvector 扩展）
   queryVectorJson String? // 向量JSON降级存储
   response        String                       @db.Text // AI 响应内容
   model           String // 生成此响应的模型
@@ -2363,6 +2366,29 @@ model Report {
   @@index([status])
   @@index([targetType, targetId])
   @@index([reporterId, createdAt])
+}
+
+// ─────────────────────────────────────────────────
+// 用户反馈
+// ─────────────────────────────────────────────────
+
+model Feedback {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // bug / suggestion / complaint / other
+  content   String   // 反馈正文
+  contact   String?  // 联系方式（可选）
+  images    String[] @default([]) // 截图URL列表
+  status    String   @default("pending") // pending / processing / resolved
+  result    String?  // 处理结果备注
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([type, createdAt])
 }
 
 // ─────────────────────────────────────────────────
@@ -4929,6 +4955,22 @@ model CircleExpertBooking {
   @@index([circleId, status])
 }
 
+model CircleEvent {
+  id        String   @id @default(uuid())
+  circleId  String
+  title     String
+  date      DateTime @db.Date
+  time      String   // HH:mm
+  circle    String   // 圈子名称冗余
+  type      String   @default("activity") // activity / live / offline
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  circleRel Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+
+  @@index([circleId, date])
+}
+
 // ─────────────────────────────────────────────────
 // 平台知识库 — 聚合全平台知识沉淀
 // ─────────────────────────────────────────────────
@@ -4942,7 +4984,7 @@ model PlatformKnowledge {
   tags          String[]                     @default([])
   category      String? // 分类：儒学/道学/佛学/中医/诗词/历史/易学/...
   qualityScore  Float? // 质量评分
-  embedding     Unsupported("vector(1536)")? // pgvector 向量
+  // embedding     Unsupported("vector(1536)")? // pgvector 向量（需 pgvector 扩展）
   embeddingJson String? // JSON向量降级
   usageCount    Int                          @default(0)
   lastUsedAt    DateTime?

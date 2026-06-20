@@ -37,7 +37,7 @@ export class RenewalController {
 
   /** 管理员：即将到期用户 */
   @Get("admin/expiring-users")
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "获取即将到期用户列表（30天内）" })
@@ -49,7 +49,7 @@ export class RenewalController {
 
   /** 管理员：所有续费记录 */
   @Get("admin/history")
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "管理员查看所有续费记录" })

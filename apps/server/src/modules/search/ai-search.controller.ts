@@ -5,6 +5,7 @@ import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { AiSearchDto, AiQueryDto } from "./dto/ai-search.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { SkipFormat } from "../../common/skip-format.decorator";
 
 @ApiTags("AI搜索")
 @Controller("search")
@@ -85,6 +86,7 @@ export class AiSearchController {
 
   /** AI 总结流式输出 */
   @Post("ai/summary/stream")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "AI搜索总结流式 (SSE)" })
   @ApiResponse({ status: 201, description: "创建成功" })

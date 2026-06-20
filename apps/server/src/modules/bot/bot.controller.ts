@@ -8,7 +8,10 @@ import { CreateBotDto, UpdateBotDto, BindBotToCircleDto, AddKnowledgeDto, ChatDt
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { SkipFormat } from "../../common/skip-format.decorator";
 
 /**
  * 智能体管理控制器
@@ -63,7 +66,7 @@ export class BotController {
     onboarding?: Record<string, unknown>; voiceId?: string;
   }) {
     const apiKey = process.env.COZE_API_KEY || "";
-    if (!apiKey) throw new Error("COZE_API_KEY 未配置");
+    if (!apiKey) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "COZE_API_KEY 未配置");
 
     // 1. 在 Coze 平台创建智能体
     const botData = await this.cozeSvc.createBot({
@@ -210,6 +213,7 @@ export class BotController {
   }
 
   @Post(":id/chat/stream")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "智能体对话（流式SSE）" })
   @ApiResponse({ status: 201, description: "创建成功" })

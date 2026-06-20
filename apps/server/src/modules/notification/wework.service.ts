@@ -102,7 +102,7 @@ export class WeworkService {
 
   /** 广播到所有配置的webhook */
   private async broadcast(body: Record<string, unknown>) {
-    const results = [];
+    const results: Record<string, unknown>[] = [];
     for (const url of this.webhookUrls) {
       try {
         const resp = await fetch(url, {

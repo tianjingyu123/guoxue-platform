@@ -88,6 +88,39 @@ export class CreateCompetitionDto {
   invitationShare?: number;
 }
 
+/** 更新赛程（所有字段可选） */
+export class UpdateRoundDto {
+  @IsOptional() @IsString()
+  title?: string;
+
+  @IsOptional() @IsInt()
+  sortOrder?: number;
+
+  @IsOptional() @IsString()
+  startAt?: string;
+
+  @IsOptional() @IsString()
+  endAt?: string;
+
+  @IsOptional() @IsString()
+  description?: string;
+
+  @IsOptional() @IsInt() @Min(0)
+  duration?: number;
+
+  @IsOptional() @IsInt() @Min(0)
+  passCount?: number;
+
+  @IsOptional() @IsInt() @Min(0) @Max(1000)
+  passPercent?: number;
+
+  @IsOptional()
+  scoringConfig?: Record<string, any>;
+
+  @IsOptional()
+  liveConfig?: Record<string, any>;
+}
+
 /** 创建赛程 */
 export class CreateRoundDto {
   @IsString()
@@ -130,6 +163,39 @@ export class CreateRoundDto {
 
   @IsOptional()
   liveConfig?: Record<string, any>;
+}
+
+/** 更新题目（所有字段可选） */
+export class UpdateQuestionDto {
+  @IsOptional() @IsString()
+  roundId?: string;
+
+  @IsOptional() @IsEnum(QuestionType)
+  type?: QuestionType;
+
+  @IsOptional() @IsInt() @Min(1)
+  score?: number;
+
+  @IsOptional() @IsInt() @Min(1) @Max(5)
+  difficulty?: number;
+
+  @IsOptional() @IsString()
+  stem?: string;
+
+  @IsOptional()
+  options?: Record<string, any>[];
+
+  @IsOptional()
+  answer?: Record<string, any>;
+
+  @IsOptional() @IsString()
+  analysis?: string;
+
+  @IsOptional() @IsString()
+  source?: string;
+
+  @IsOptional() @IsArray() @IsString({ each: true })
+  tags?: string[];
 }
 
 /** 题库 DTO */

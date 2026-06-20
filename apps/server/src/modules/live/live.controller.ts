@@ -503,6 +503,19 @@ export class LiveController {
     return this.svc.handleAuditCallback(roomId, screenshotUrl, result, label, body);
   }
 
+  // ───────── 推流配置 ─────────
+
+  @Get("stream-config")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取推流配置（地址、密钥、推荐参数）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  getStreamConfig(@Req() req: AuthRequest) {
+    return this.svc.getStreamConfig(req.user.id);
+  }
+
+  // ───────── 内容审核 ─────────
+
   @Get("rooms/:id/audit-logs")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")

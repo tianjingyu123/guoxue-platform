@@ -4,6 +4,8 @@
 // 每卦六爻纳甲按上下卦各自所属八卦的纳甲规则计算，非简单复用纯卦数据
 
 import type { LiuYaoNaJiaResult, NaJiaLine } from "@guoxue/shared";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 // ===== 常量定义 =====
 
@@ -230,12 +232,12 @@ function getGuaShen(
 export function calculateLiuYaoNaJia(input: Record<string, unknown>): LiuYaoNaJiaResult {
   const guaNumber = Number(input.guaNumber);
   if (!Number.isInteger(guaNumber) || guaNumber < 1 || guaNumber > 64) {
-    throw new Error(`无效的卦序号：${String(input.guaNumber)}，须为 1-64 的整数`);
+    throw new BusinessException(ErrorCode.VALIDATION_ERROR, `无效的卦序号：${String(input.guaNumber)}，须为 1-64 的整数`);
   }
 
   const gua = GUA_DB[guaNumber - 1];
   if (!gua) {
-    throw new Error(`未找到卦序号 ${guaNumber} 的数据`);
+    throw new BusinessException(ErrorCode.VALIDATION_ERROR, `未找到卦序号 ${guaNumber} 的数据`);
   }
 
   const gongWuXing = GONG_WU_XING[gua.gong] ?? "土";

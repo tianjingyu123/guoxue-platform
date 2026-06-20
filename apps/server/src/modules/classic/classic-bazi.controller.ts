@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Body, Query } from "@nestjs/common";
+import { Controller, Get, Post, Body, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
+import { ThrottleGuard } from "../../common/throttle.guard";
 import { BaziClassicQueryService } from "./classic-bazi-query.service";
 import { BaziClassicQueryDto, BaziClassicSearchDto } from "./classic-bazi-query.dto";
 
@@ -9,6 +10,7 @@ export class BaziClassicController {
   constructor(private readonly queryService: BaziClassicQueryService) {}
 
   @Post("query")
+  @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "八字排盘联动查询——根据八字概念查找古籍相关章节" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

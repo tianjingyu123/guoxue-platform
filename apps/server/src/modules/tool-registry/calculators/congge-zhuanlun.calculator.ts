@@ -4,6 +4,8 @@
 // 从格分类：从强/从旺/从儿/从财/从杀/化气，各配喜忌用神
 
 import type { CongGeZhuanLunInput, CongGeZhuanLunResult } from "@guoxue/shared";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 const WX_REL: Record<string, Record<string, string>> = {
   "木": { "木":"比和","火":"生","土":"克","金":"被克","水":"被生" },
@@ -34,7 +36,7 @@ function getWxScore(pillar: string): Record<string, number> {
 export function calculateCongGeZhuanLun(input: Record<string, unknown>): CongGeZhuanLunResult {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { gender, yearPillar, monthPillar, dayPillar, hourPillar } = input as unknown as CongGeZhuanLunInput;
-  if (!dayPillar) throw new Error("日柱不能为空");
+  if (!dayPillar) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "日柱不能为空");
 
   const dayGan = dayPillar[0];
   const dayZhi = dayPillar[1];

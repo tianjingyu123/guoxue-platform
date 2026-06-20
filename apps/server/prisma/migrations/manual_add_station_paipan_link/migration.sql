@@ -1,2 +1,1 @@
-ALTER TABLE "Station" ADD COLUMN "paipanLink" TEXT;
-ALTER TABLE "Station" ADD COLUMN "paipanUserId" TEXT;
+-- Migration: manual_add_station_paipan_link

@@ -1,4 +1,4 @@
-import { Module, forwardRef } from "@nestjs/common";
+import { Module } from "@nestjs/common";
 import { ShopService } from "./shop.service";
 import { ShopCouponService } from "./shop-coupon.service";
 import { WechatPayService } from "./wechat-pay.service";
@@ -21,7 +21,7 @@ import { HuifuModule } from "../huifu/huifu.module";
 import { PricingModule } from "../pricing/pricing.module";
 
 @Module({
-  imports: [CommissionModule, SystemModule, forwardRef(() => CoinModule), WebhookModule, HuifuModule, PricingModule],
+  imports: [CommissionModule, SystemModule, CoinModule, WebhookModule, HuifuModule, PricingModule],
   controllers: [ShopController, AddressController, ProductCategoryController],
   providers: [ShopService, ShopCouponService, WechatPayService, AlipayService, UnionpayService, PaymentProviderFactory, LogisticsService, AddressService, ProductCategoryService, ActiveUserGuard, StationIsolationGuard],
   exports: [ShopService, ShopCouponService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService],

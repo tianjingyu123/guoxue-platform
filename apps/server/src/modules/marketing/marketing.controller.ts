@@ -3,6 +3,7 @@ import {
   Body, Param, Query, Req, UseGuards, Logger,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
+import { Request } from "express";
 import { MarketingService } from "./marketing.service";
 import {
   CreateFlashSaleDto, UpdateFlashSaleDto, FlashSaleFilterDto,
@@ -747,7 +748,7 @@ export class MarketingController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  joinGroupBuy(@Req() req: any, @Param("id") id: string, @Body() dto?: { groupId?: string }) {
+  joinGroupBuy(@Req() req: Request, @Param("id") id: string, @Body() dto?: { groupId?: string }) {
     return this.marketing.joinGroupBuy(req.user.id, id, dto?.groupId);
   }
 
@@ -757,7 +758,7 @@ export class MarketingController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  getMyGroupBuys(@Req() req: any) {
+  getMyGroupBuys(@Req() req: Request) {
     return this.marketing.getMyGroupBuys(req.user.id);
   }
 

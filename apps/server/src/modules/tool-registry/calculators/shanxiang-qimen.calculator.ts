@@ -114,7 +114,7 @@ export function calculateShanXiangQiMen(input: Record<string, unknown>): Record<
 
   // ── 第三步：排地盘九宫 ── (阳遁顺飞，阴遁逆飞)
   const diPanGan = ["戊","己","庚","辛","壬","癸","丁","丙","乙"];
-  const gongs = [];
+  const gongs: { pos: number; direction: string; bagua: string; diPan: string; tianPan: string; star: string; men: string; shen: string; isZuoShanGong: boolean; isXiangGong: boolean; shanXiangJiXiong?: string; isRuMu: boolean; isJiXing: boolean; kongWang: boolean; maXing: boolean }[] = [];
   for (let i = 0; i < 9; i++) {
     const pos = i + 1;
     // 飞宫排布

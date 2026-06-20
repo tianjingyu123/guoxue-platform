@@ -50,7 +50,7 @@ export class MemberController {
   }
 
   @Post("renew/:planId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "续费会员" })
   @ApiResponse({ status: 201, description: "创建成功" })

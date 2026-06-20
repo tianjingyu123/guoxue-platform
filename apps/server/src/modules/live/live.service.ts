@@ -773,4 +773,20 @@ export class LiveService {
 
     this.logger.log(`直播间 ${roomId} 回放已同步为课程 ${courseId} 的章节`);
   }
+
+  /** 推流配置 — 返回默认推流地址/密钥/推荐参数 */
+  async getStreamConfig(_userId: string) {
+    return {
+      roomTitle: "我的直播间",
+      roomId: _userId.slice(0, 8),
+      streamUrl: "rtmp://live-rtmp.guoxue.ac.cn/live/",
+      streamKey: "stream_" + _userId.slice(0, 16).replace(/-/g, ""),
+      recommendedSettings: {
+        resolution: "1920×1080",
+        bitrate: "4000 Kbps",
+        fps: 30,
+        encoder: "H.264 (x264)",
+      },
+    };
+  }
 }

@@ -69,7 +69,35 @@ export class FinanceController {
     return this.svc.getReconciliationDetail(id);
   }
 
-  // ───────── 2. 发票管理 ─────────
+  // ───────── 2. 发票管理（用户端） ─────────
+
+  @Get("my/invoices")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的发票列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  getMyInvoices(
+    @Req() req: Request,
+    @Query("status") status?: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.getMyInvoices(req.user.id, status, +page, +pageSize);
+  }
+
+  @Post("my/invoices")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "申请开票" })
+  @ApiResponse({ status: 201, description: "申请成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  createMyInvoice(
+    @Req() req: Request,
+    @Body() body: { orderId: string; type: string; title: string; taxNo?: string; email?: string },
+  ) {
+    return this.svc.createMyInvoice(req.user.id, body.orderId, body.type, body.title, body.taxNo, body.email);
+  }
+
+  // ───────── 2b. 发票管理（管理端） ─────────
 
   @Post("invoices")
   @UseGuards(JwtAuthGuard, RolesGuard)

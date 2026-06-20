@@ -3,6 +3,8 @@
 // 纳音五行、甲子旬空、天地冲合配卦全解
 
 import type { LiuShiJiaZiResult } from "@guoxue/shared";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 // ── 天干信息表 ──
 const GAN_INFO: Record<string, { element: string; yinYang: string; meaning: string }> = {
@@ -609,12 +611,12 @@ export function calculateLiuShiJiaZi(input: Record<string, unknown>): LiuShiJiaZ
   const ganZhi = input.ganZhi as string;
 
   if (!ganZhi || typeof ganZhi !== "string" || ganZhi.length !== 2) {
-    throw new Error(`无效的干支: ${ganZhi}，请输入两位干支如"甲子"`);
+    throw new BusinessException(ErrorCode.VALIDATION_ERROR, `无效的干支: ${ganZhi}，请输入两位干支如"甲子"`);
   }
 
   const entry = JIAZI_DB[ganZhi];
   if (!entry) {
-    throw new Error(`未知干支: ${ganZhi}，请使用有效的六十甲子`);
+    throw new BusinessException(ErrorCode.VALIDATION_ERROR, `未知干支: ${ganZhi}，请使用有效的六十甲子`);
   }
 
   const gan = ganZhi[0];

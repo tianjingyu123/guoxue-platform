@@ -49,19 +49,25 @@ export class CheckinService {
     return { consecutiveDays, rewardPoints, date: today };
   }
 
-  /** 签到状态（今天是否签到+连续天数） */
+  /** 签到状态（今天是否签到+连续天数+累计积分） */
   async getStatus(userId: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const todayRecord = await this.prisma.checkIn.findUnique({
-      where: { userId_checkInDate: { userId, checkInDate: today } },
-    });
+    const [todayRecord, totalResult] = await Promise.all([
+      this.prisma.checkIn.findUnique({
+        where: { userId_checkInDate: { userId, checkInDate: today } },
+      }),
+      this.prisma.checkIn.aggregate({
+        where: { userId },
+        _sum: { rewardPoints: true },
+      }),
+    ]);
 
     return {
-      checkedInToday: !!todayRecord,
-      consecutiveDays: todayRecord?.consecutiveDays ?? 0,
-      todayReward: todayRecord?.rewardPoints ?? 0,
+      todayChecked: !!todayRecord,
+      continuousDays: todayRecord?.consecutiveDays ?? 0,
+      totalPoints: totalResult._sum.rewardPoints ?? 0,
     };
   }
 

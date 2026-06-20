@@ -1,4 +1,5 @@
 import { Test } from "@nestjs/testing";
+import { RoleType } from "@prisma/client";
 import { DiscoverController } from "./discover.controller";
 import { DiscoverService } from "./discover.service";
 import { DiscoverQueryDto } from "./discover-query.dto";
@@ -139,21 +140,21 @@ describe("DiscoverController", () => {
 
     it("已登录用户获取个性化推荐", async () => {
       svc.getRecommendations.mockResolvedValue(recResult);
-      const result = await ctrl.getRecommendations({ user: { id: "u1" } }, 1, 10);
+      const result = await ctrl.getRecommendations({ user: { id: "u1", roles: [] as RoleType[] } } as any, 1, 10);
       expect(svc.getRecommendations).toHaveBeenCalledWith("u1", 1, 10);
       expect(result).toEqual(recResult);
     });
 
     it("未登录用户（user 为 undefined）", async () => {
       svc.getRecommendations.mockResolvedValue(recResult);
-      const result = await ctrl.getRecommendations({ user: undefined }, 1, 10);
+      const result = await ctrl.getRecommendations({ user: undefined as any } as any, 1, 10);
       expect(svc.getRecommendations).toHaveBeenCalledWith(undefined, 1, 10);
       expect(result).toEqual(recResult);
     });
 
     it("默认分页参数", async () => {
       svc.getRecommendations.mockResolvedValue(recResult);
-      await ctrl.getRecommendations({ user: { id: "u1" } });
+      await ctrl.getRecommendations({ user: { id: "u1", roles: [] as RoleType[] } } as any);
       expect(svc.getRecommendations).toHaveBeenCalledWith("u1", 1, 10);
     });
   });

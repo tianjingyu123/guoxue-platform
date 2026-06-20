@@ -4,6 +4,8 @@
 // 出处：《三命通会》云：「六亲者，父母兄弟妻财子禄是也。」
 
 import type { LiuQinXiangJieInput, LiuQinXiangJieResult, LiuQinRelation } from "@guoxue/shared";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 const GAN = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
 const GAN_WX: Record<string, string> = { "甲":"木","乙":"木","丙":"火","丁":"火","戊":"土","己":"土","庚":"金","辛":"金","壬":"水","癸":"水" };
@@ -89,7 +91,7 @@ const QIN_ANALYSIS: Record<string, Record<string, string>> = {
 
 export function calculateLiuQinXiangJie(input: Record<string, unknown>): LiuQinXiangJieResult {
   const { gender, yearPillar, monthPillar, dayPillar, hourPillar } = input as unknown as LiuQinXiangJieInput;
-  if (!dayPillar) throw new Error("日柱不能为空");
+  if (!dayPillar) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "日柱不能为空");
 
   const dayGan = dayPillar[0];
   const g = gender || "男";

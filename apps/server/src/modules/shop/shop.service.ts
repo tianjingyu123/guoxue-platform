@@ -1,4 +1,4 @@
-import { Injectable, forwardRef, Inject, Logger, Optional } from "@nestjs/common";
+import { Injectable, Inject, Logger, Optional } from "@nestjs/common";
 import { createHash } from "node:crypto";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
@@ -47,8 +47,8 @@ export class ShopService {
     private paymentFactory: PaymentProviderFactory,
     private webhook: WebhookService,
     @Optional() private huifu?: HuifuService,
-    @Inject(forwardRef(() => CommissionService)) private commissionSvc?: CommissionService,
-    @Inject(forwardRef(() => CoinService)) private coinSvc?: CoinService,
+    @Inject(CommissionService) private commissionSvc?: CommissionService,
+    @Inject(CoinService) private coinSvc?: CoinService,
   ) {}
 
   // ═══════════════════ 商品管理 ═══════════════════
@@ -1248,6 +1248,21 @@ export class ShopService {
     await this.prisma.productReview.findUniqueOrThrow({ where: { id: reviewId } });
     await this.prisma.productReview.delete({ where: { id: reviewId } });
     return { success: true };
+  }
+
+  /** 获取店铺级评价列表（聚合所有商品评价） */
+  async listShopReviews(page = 1, pageSize = 20) {
+    const where = { status: "PUBLISHED" as const };
+    const [reviews, total] = await Promise.all([
+      this.prisma.productReview.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.productReview.count({ where }),
+    ]);
+    return { reviews, total, page, pageSize };
   }
 
   // ═══════════════════ 物流追踪 ═══════════════════

@@ -1,5 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 
 export interface AiDecisionRecord {
@@ -177,7 +179,7 @@ export class DecisionLedgerService {
     });
 
     // 查找关联事件
-    let eventContext = null;
+    let eventContext: Record<string, unknown> | null = null;
     if (decision.capabilityId) {
       const event = await this.prisma.aiEvent.findFirst({
         where: {
@@ -189,7 +191,7 @@ export class DecisionLedgerService {
         },
         orderBy: { createdAt: "desc" },
       });
-      eventContext = event;
+      eventContext = event as Record<string, unknown> | null;
     }
 
     return {
@@ -213,7 +215,7 @@ export class DecisionLedgerService {
     const decision = await this.prisma.aiDecision.findUnique({
       where: { id: decisionId },
     });
-    if (!decision) throw new Error("决策不存在");
+    if (!decision) throw new BusinessException(ErrorCode.NOT_FOUND, "决策不存在");
 
     const expectedVsActual =
       decision.outcomeMetric

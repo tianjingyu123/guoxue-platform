@@ -1,5 +1,6 @@
 import { Controller, Get, Query, UseGuards, Req } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
+import { Request } from "express";
 import { DiscoverService } from "./discover.service";
 import { DiscoverQueryDto } from "./discover-query.dto";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
@@ -53,7 +54,7 @@ export class DiscoverController {
   @ApiBearerAuth()
   @UseGuards(OptionalAuthGuard)
   getRecommendations(
-    @Req() req: any,
+    @Req() req: Request,
     @Query("page") page?: number,
     @Query("pageSize") pageSize?: number,
   ) {

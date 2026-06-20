@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Req } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
+import { Request } from "express";
 import { FeatureFlagService } from "./feature-flag.service";
 import { UpsertFeatureFlagDto } from "./feature-flag.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -68,7 +69,7 @@ export class FeatureFlagPublicController {
   @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取当前启用的功能列表（公开）" })
   @ApiResponse({ status: 200, description: "成功" })
-  async getEnabledFeatures(@Req() req: any) {
+  async getEnabledFeatures(@Req() req: Request) {
     const userId = req.user?.id;
     const allFlags = await this.service.list();
 

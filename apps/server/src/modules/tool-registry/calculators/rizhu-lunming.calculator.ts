@@ -3,6 +3,8 @@
 // 来源：《三命通会·六十甲子》《渊海子平·地支藏干》
 
 import type { RiZhuLunMingInput, RiZhuLunMingResult, RiZhuDetail } from "@guoxue/shared";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 const GAN = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -148,7 +150,7 @@ function buildCangGanAnalysis(dayPillar: string): string {
 export function calculateRiZhuLunMing(input: Record<string, unknown>): RiZhuLunMingResult {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { dayPillar, gender } = input as unknown as RiZhuLunMingInput;
-  if (!dayPillar || dayPillar.length < 2) throw new Error("请提供有效日柱（如甲子）");
+  if (!dayPillar || dayPillar.length < 2) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请提供有效日柱（如甲子）");
 
   const pd = PILLAR_DB[dayPillar];
   const gan = dayPillar[0];

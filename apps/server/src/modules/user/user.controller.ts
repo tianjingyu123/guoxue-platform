@@ -9,7 +9,7 @@ import { Roles } from "../../common/roles.decorator";
 import { RoleType } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
-import { AssignRoleDto, RemoveRoleDto, UserListQueryDto, UpdateProfileDto, UpdateUserStatusDto, BatchUpdateUserStatusDto } from "./user.dto";
+import { AssignRoleDto, RemoveRoleDto, UserListQueryDto, UpdateProfileDto, UpdateUserStatusDto, BatchUpdateUserStatusDto, UpdateNotifySettingsDto, PushByTagDto, AddWhitelistDto } from "./user.dto";
 
 @ApiTags("用户")
 @ApiBearerAuth()
@@ -31,6 +31,51 @@ export class UserController {
   @ApiResponse({ status: 401, description: "未登录" })
   updateProfile(@Req() req: Request, @Body() dto: UpdateProfileDto) {
     return this.user.updateProfile(req.user.id, dto);
+  }
+
+  // ───────── 通知设置 ─────────
+
+  @Get("notify-settings")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取通知设置" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  getNotifySettings(@Req() req: Request) {
+    return this.user.getNotifySettings(req.user.id);
+  }
+
+  @Put("notify-settings")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "更新通知设置" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  updateNotifySettings(@Req() req: Request, @Body() dto: UpdateNotifySettingsDto) {
+    return this.user.updateNotifySettings(req.user.id, dto);
+  }
+
+  // ───────── 第三方账号绑定 ─────────
+
+  @Get("bound-accounts")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取已绑定的第三方账号" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  getBoundAccounts(@Req() req: Request) {
+    return this.user.getBoundAccounts(req.user.id);
+  }
+
+  // ── 浏览历史 ──
+
+  @Get("history")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取浏览历史" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  getBrowseHistory(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.user.getBrowseHistory(req.user.id, +page, +pageSize);
   }
 
   // ───────── 用户查询 ─────────
@@ -279,13 +324,13 @@ export class UserController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  pushByTag(@Body() body: Record<string, unknown>) {
+  pushByTag(@Body() body: PushByTagDto) {
     return this.user.pushByTag(
-      body.tag as string,
-      body.memberLevel as string,
-      +(body.activeDays as string || 0),
-      body.title as string,
-      body.content as string,
+      body.tag,
+      body.memberLevel || "",
+      body.activeDays || 0,
+      body.title,
+      body.content,
     );
   }
 
@@ -315,8 +360,8 @@ export class UserController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  addWhitelist(@Body() body: Record<string, unknown>) {
-    return this.user.addWhitelist(body.userId as string);
+  addWhitelist(@Body() body: AddWhitelistDto) {
+    return this.user.addWhitelist(body.userId);
   }
 
   @Delete("whitelist/:userId")
@@ -359,6 +404,15 @@ export class UserController {
   }
 
   // ───────── 账号注销（GDPR合规） ─────────
+
+  @Get("delete-account/info")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取注销账号相关信息（原因/影响数据/资产）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  async getDeleteAccountInfo(@Req() req: Request) {
+    return this.user.getDeleteAccountInfo(req.user.id);
+  }
 
   @Post("delete-request")
   @UseGuards(JwtAuthGuard)

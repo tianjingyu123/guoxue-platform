@@ -3,6 +3,7 @@ import { FortuneController } from "./fortune.controller";
 import { FortuneService } from "./fortune.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 const mockFortuneSvc = {
   subscribe: jest.fn().mockResolvedValue({ id: "s1", type: "daily", channel: "wechat" }),
@@ -28,6 +29,7 @@ describe("FortuneController", () => {
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(FortuneController);
   });

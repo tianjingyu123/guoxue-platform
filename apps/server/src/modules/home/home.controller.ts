@@ -1,5 +1,6 @@
 import { Controller, Get, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from "@nestjs/swagger";
+import { Request } from "express";
 import { HomeService } from "./home.service";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 
@@ -17,7 +18,7 @@ export class HomeController {
   getHome(
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
-    @Req() req?: any,
+    @Req() req?: Request,
   ) {
     return this.home.getHome({ page: +page, pageSize: +pageSize, userId: req?.user?.id });
   }

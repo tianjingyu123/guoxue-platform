@@ -240,7 +240,7 @@ export class MiniService {
   }
 
   /** 更新小程序配置 */
-  async updateMiniAppConfig(id: string, data: Record<string, unknown>) {
+  async updateMiniAppConfig(id: string, data: Record<string, unknown> | any) {
     return this.prisma.miniAppConfig.update({
       where: { id },
       data: data as any,

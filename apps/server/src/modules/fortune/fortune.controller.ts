@@ -6,6 +6,7 @@ import { CreateFortuneSubscriptionDto } from "./fortune.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 @ApiTags("个性化运势")
 @Controller("fortune")
@@ -52,7 +53,20 @@ export class FortuneController {
   @ApiResponse({ status: 401, description: "未登录" })
   getToday(@Req() req: Request) { return this.svc.getTodayFortune(req.user.id); }
 
+  @Get("admin/records")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "运势记录列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  listRecords(@Query("page") page?: string, @Query("pageSize") pageSize?: string, @Query("fortuneType") fortuneType?: string) {
+    return this.svc.adminListRecords(page ? +page : 1, pageSize ? +pageSize : 20, fortuneType);
+  }
+
   @Get(":type/:period")
+  @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "按周期查询运势" })
   @ApiResponse({ status: 200, description: "成功" })
   getByPeriod(@Param("type") type: string, @Param("period") period: string) {
@@ -72,21 +86,10 @@ export class FortuneController {
   @ApiResponse({ status: 403, description: "无权限" })
   pushAll(@Body("fortuneType") fortuneType: string) { return this.svc.pushAll(fortuneType); }
 
-  @Get("admin/records")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiBearerAuth()
-  @ApiOperation({ summary: "运势记录列表" })
-  @ApiResponse({ status: 200, description: "成功" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiResponse({ status: 403, description: "无权限" })
-  listRecords(@Query("page") page?: string, @Query("pageSize") pageSize?: string, @Query("fortuneType") fortuneType?: string) {
-    return this.svc.adminListRecords(page ? +page : 1, pageSize ? +pageSize : 20, fortuneType);
-  }
-
   // ───────── 排盘工具聚合 ─────────
 
   @Get("tools")
+  @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "排盘工具首页聚合（工具网格+最近使用+课程推荐+智能体引导）" })
   @ApiResponse({ status: 200, description: "成功" })
   getTools(@Req() req?: Request) {

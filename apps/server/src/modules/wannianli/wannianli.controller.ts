@@ -1,9 +1,11 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
+import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { WannianliService } from "./wannianli.service";
+import { ThrottleGuard } from "../../common/throttle.guard";
 
 @ApiTags("万年历")
 @Controller("wannianli")
+@UseGuards(ThrottleGuard)
 export class WannianliController {
   constructor(private readonly svc: WannianliService) {}
 

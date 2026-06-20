@@ -79,6 +79,11 @@ export class SmsService {
     }
   }
 
+  /** 是否为开发模式（无腾讯云凭证时走本地验证码） */
+  private isDevMode(): boolean {
+    return process.env.NODE_ENV === "development" && (!this.secretId || !this.secretKey || !this.appId);
+  }
+
   /** 发送短信验证码 */
   async sendVerifyCode(phone: string, scene: string = "LOGIN"): Promise<{ ok: boolean; message: string }> {
     // 频率限制：60秒内只能发一次
@@ -91,7 +96,23 @@ export class SmsService {
     // 生成6位验证码（密码学安全随机数）
     const code = String(randomInt(100000, 1000000));
 
-    const templateParamSet = [code, "5"]; // 验证码, 有效期5分钟
+    // 存储验证码到 Redis（5分钟有效）
+    const codeKey = `sms:code:${scene}:${phone}`;
+    await this.redis.set(codeKey, code, 300);
+
+    // 设置频率限制（60秒）
+    await this.redis.set(rateKey, "1", 60);
+
+    // 开发模式：跳过腾讯云 API，验证码直接打印到控制台
+    if (this.isDevMode()) {
+      this.logger.warn(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+      this.logger.warn(`[DEV] 验证码: ${code} → 手机号: ${phone} (场景: ${scene})`);
+      this.logger.warn(`[DEV] 此验证码 5 分钟内有效，可在登录/注册页使用`);
+      this.logger.warn(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+      return { ok: true, message: "验证码已发送（开发模式，查看控制台获取验证码）" };
+    }
+
+    const templateParamSet = [code, "5"];
     const phoneNumberSet = [`+86${phone}`];
 
     try {
@@ -103,13 +124,6 @@ export class SmsService {
         TemplateParamSet: templateParamSet,
       });
 
-      // 存储验证码到 Redis（5分钟有效）
-      const codeKey = `sms:code:${scene}:${phone}`;
-      await this.redis.set(codeKey, code, 300);
-
-      // 设置频率限制（60秒）
-      await this.redis.set(rateKey, "1", 60);
-
       // 异步写日志
       this.prisma.smsLog.create({
         data: { phone: maskPhone(phone), scene, status: "SUCCESS" },
@@ -118,8 +132,11 @@ export class SmsService {
       this.logger.log(`验证码已发送到 ${maskPhone(phone)}，场景: ${scene}`);
       return { ok: true, message: "验证码已发送" };
     } catch (err: unknown) {
+      // 生产模式 API 调用失败时清除 Redis 中的验证码
+      await this.redis.del(codeKey);
+      await this.redis.del(rateKey);
+
       const errorMsg = (err as Error).message;
-      // 异步写失败日志
       this.prisma.smsLog.create({
         data: { phone: maskPhone(phone), scene, status: "FAIL", errorMsg: errorMsg?.substring(0, 200) },
       }).catch((e) => this.logger.warn("SMS日志写入失败", e));

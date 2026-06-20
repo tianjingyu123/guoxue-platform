@@ -4,6 +4,7 @@ import { Request } from "express";
 import { StationDashboardService } from "./station-dashboard.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { PrismaService } from "../../prisma/prisma.service";
+import { UpdateMyOperatorDto } from "./station.dto";
 
 @ApiTags("站长仪表盘")
 @Controller("station/dashboard")
@@ -152,8 +153,8 @@ export class OperatorDashboardController {
       monthNewStations: stations.filter(s => new Date(s.createdAt) >= monthStart).length,
       monthEarning: monthEarnings._sum.earned || 0,
       usedQuota: stations.length,
-      fullRebateSlots: 5, // 默认5个全返名额
-      usedRebateSlots: 0, // TODO: 跟踪全返名额使用
+      fullRebateSlots: 5, // 全返名额上限（后续由运营策略配置）
+      usedRebateSlots: 0, // 全返名额已使用数（待实现 RebateUsage 跟踪表）
     };
   }
 
@@ -163,16 +164,15 @@ export class OperatorDashboardController {
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
-  async updateMyOperator(@Req() req: Request, @Body() body: Record<string, unknown>) {
+  async updateMyOperator(@Req() req: Request, @Body() body: UpdateMyOperatorDto) {
     const userId = (req.user as any).id;
     const operator = await this.prisma.operator.findFirst({ where: { userId } });
     if (!operator) throw new ForbiddenException("当前用户不是运营商");
 
-    const allowed = ["brandName", "brandLogo", "brandThemeColor"];
     const data: Record<string, unknown> = {};
-    for (const key of allowed) {
-      if (body[key] !== undefined) data[key] = body[key];
-    }
+    if (body.brandName !== undefined) data.brandName = body.brandName;
+    if (body.brandLogo !== undefined) data.brandLogo = body.brandLogo;
+    if (body.brandThemeColor !== undefined) data.brandThemeColor = body.brandThemeColor;
 
     return this.prisma.operator.update({ where: { id: operator.id }, data });
   }

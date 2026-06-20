@@ -86,6 +86,24 @@ export class CircleController {
     return this.circle.getCircleRanking(+page, +pageSize, sortBy);
   }
 
+  // ───────── 全平台热门与活动（必须在 :id 路由之前）─────────
+
+  @Get("hot-posts")
+  @ApiOperation({ summary: "全平台热门帖子", description: "跨圈子按热度排序的热门帖子" })
+  @ApiQuery({ name: "limit", required: false, type: Number, description: "返回条数，默认10" })
+  @ApiResponse({ status: 200, description: "成功返回热门帖子列表" })
+  getGlobalHotPosts(@Query("limit") limit = 10) {
+    return this.circle.getGlobalHotPosts(+limit);
+  }
+
+  @Get("activities")
+  @ApiOperation({ summary: "今日活动", description: "今日新增帖子和即将开始的直播等动态" })
+  @ApiQuery({ name: "limit", required: false, type: Number, description: "返回条数，默认5" })
+  @ApiResponse({ status: 200, description: "成功返回今日活动列表" })
+  getTodayActivities(@Query("limit") limit = 5) {
+    return this.circle.getTodayActivities(+limit);
+  }
+
   @Get(":id")
   @UseGuards(StationIsolationGuard)
   @ApiOperation({ summary: "获取圈子详情" })
@@ -548,4 +566,6 @@ export class CircleController {
     }
     return this.circle.rewardPost(circleId, postId, req.user.id, amount, message);
   }
+
+
 }

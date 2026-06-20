@@ -3,6 +3,7 @@ import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { EbookService } from "./ebook.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { SkipFormat } from "../../common/skip-format.decorator";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { MemberGuard } from "../../common/member.guard";
@@ -284,6 +285,7 @@ export class EbookController {
   }
 
   @Get("books/:id/file")
+  @SkipFormat()
   @ApiOperation({ summary: "下载电子书文件（token校验）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })

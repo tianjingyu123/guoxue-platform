@@ -71,3 +71,37 @@ export class BatchUpdateUserStatusDto {
   @MinLength(1)
   status: string;
 }
+
+export class PushByTagDto {
+  @IsString()
+  @MinLength(1)
+  tag: string;
+
+  @IsOptional() @IsString()
+  memberLevel?: string;
+
+  @IsOptional() @Type(() => Number)
+  activeDays?: number;
+
+  @IsString()
+  @MinLength(1)
+  title: string;
+
+  @IsString()
+  @MinLength(1)
+  content: string;
+}
+
+export class AddWhitelistDto {
+  @IsString()
+  @MinLength(1)
+  userId: string;
+}
+
+export class UpdateNotifySettingsDto {
+  @IsOptional() @IsString()
+  key?: string;
+
+  @IsOptional()
+  value?: boolean | string;
+}

@@ -4,6 +4,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@ne
 import { LiveDashboardService } from "./live-dashboard.service";
 import { LiveReportService } from "./live-report.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { SkipFormat } from "../../common/skip-format.decorator";
 
 @ApiTags("直播间数据大屏")
 @Controller("live/rooms")
@@ -80,6 +81,7 @@ export class LiveDashboardController {
   }
 
   @Get(":id/report/export")
+  @SkipFormat()
   @ApiOperation({ summary: "导出直播报告 — JSON格式输出" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })

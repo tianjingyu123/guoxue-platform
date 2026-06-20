@@ -4,6 +4,8 @@ import { Logger } from "@nestjs/common";
 import { NotificationService } from "../../notification/notification.service";
 import { EmailService } from "../../email/email.service";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 export interface NotificationJobData {
   userId: string;
@@ -71,7 +73,7 @@ export class NotificationProcessor extends WorkerHost {
     }
     const result = await this.email.sendNotification(to, job.title, job.content);
     if (!result.success) {
-      throw new Error(`邮件发送失败: ${result.error}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `邮件发送失败: ${result.error}`);
     }
   }
 

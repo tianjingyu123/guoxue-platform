@@ -3,6 +3,8 @@
 // 六十四卦风水 + 抽爻换象 + 卦运卦气
 
 import type { XuanKongDaGuaInput, XuanKongDaGuaResult, XuanKongYaoBian } from "@guoxue/shared";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 const GUA = [
   { n:1, name:"乾为天", sym:"䷀", upper:"乾", lower:"乾", wx:9, yun:1 },
@@ -152,7 +154,7 @@ function getCurrentYun(year: number): number {
 export function calculateXuanKongDaGua(input: Record<string, unknown>): XuanKongDaGuaResult {
   const { guaNumber, orientation, year } = input as unknown as XuanKongDaGuaInput;
   if (!Number.isInteger(guaNumber) || guaNumber < 1 || guaNumber > 64) {
-    throw new Error("卦序号必须在1-64之间");
+    throw new BusinessException(ErrorCode.VALIDATION_ERROR, "卦序号必须在1-64之间");
   }
 
   const gua = GUA.find(g => g.n === guaNumber)!;

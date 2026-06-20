@@ -677,6 +677,17 @@ export class ShopController {
     return this.shop.deleteProductReview(id);
   }
 
+  // ───────── 店铺评价 ─────────
+
+  @Get("reviews")
+  @ApiOperation({ summary: "获取店铺评价列表（聚合所有商品评价）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  listShopReviews(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.shop.listShopReviews(+page, +pageSize);
+  }
+
   // ───────── 物流追踪 ─────────
 
   @Get("orders/:id/logistics")

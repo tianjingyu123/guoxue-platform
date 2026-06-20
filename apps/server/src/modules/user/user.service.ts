@@ -279,7 +279,7 @@ export class UserService {
       }),
       this.prisma.blacklist.count({ where }),
     ]);
-    return { blocks, total, page, pageSize };
+    return { items: blocks, total, page, pageSize };
   }
 
   async blockUser(userId: string, blockedUserId: string) {
@@ -535,6 +535,49 @@ export class UserService {
 
   // ───────── 账号注销（GDPR合规） ─────────
 
+  /** 获取注销账号相关信息（原因/影响数据/资产快照） */
+  async getDeleteAccountInfo(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { phone: true },
+    });
+    if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+
+    const [coinAccount, points, coupons, memberInfo] = await Promise.all([
+      this.prisma.virtualCoinAccount.findUnique({ where: { userId }, select: { balance: true } }),
+      this.prisma.userPoints.findUnique({ where: { userId }, select: { balance: true } }),
+      this.prisma.userCoupon.count({ where: { userId, used: false } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { memberLevel: true, memberExpire: true } }),
+    ]);
+
+    const memberDays = memberInfo?.memberExpire ? Math.max(0, Math.ceil((memberInfo.memberExpire.getTime() - Date.now()) / 86400000)) : 0;
+
+    return {
+      phone: maskPhone(user.phone),
+      reasons: [
+        { id: "not_useful", label: "不再使用该服务" },
+        { id: "privacy", label: "隐私安全考虑" },
+        { id: "found_better", label: "找到了更好的替代品" },
+        { id: "too_many_notifications", label: "通知太多" },
+        { id: "poor_experience", label: "使用体验不好" },
+        { id: "other", label: "其他原因" },
+      ],
+      dataItems: [
+        { icon: "message-circle", label: "帖子、评论、消息等内容", color: "#3b82f6" },
+        { icon: "users", label: "圈子、关注、粉丝关系", color: "#22c55e" },
+        { icon: "shopping-bag", label: "订单记录和购买历史", color: "#f97316" },
+        { icon: "gift", label: "积分、优惠券和会员权益", color: "#a855f7" },
+        { icon: "credit-card", label: "钱包余额（需先提现）", color: "#ef4444" },
+      ],
+      assets: {
+        balance: coinAccount?.balance ?? 0,
+        points: points?.balance ?? 0,
+        coupons: coupons ?? 0,
+        memberDays,
+      },
+    };
+  }
+
   /** 用户申请注销账号，进入7天冷静期 */
   async requestAccountDeletion(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true, deleteRequestedAt: true } });
@@ -618,5 +661,67 @@ export class UserService {
 
     this.logger.log(`用户 ${userId} 账号已注销并匿名化`);
     return { message: "账号已注销，数据已匿名化处理" };
+  }
+
+  // ───────── 浏览历史 ─────────
+
+  async getBrowseHistory(userId: string, page = 1, pageSize = 20) {
+    const { skip, page: p, pageSize: ps } = safePagination(page, pageSize);
+    const [items, total] = await Promise.all([
+      this.prisma.browseHistory.findMany({
+        where: { userId },
+        skip,
+        take: ps,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.browseHistory.count({ where: { userId } }),
+    ]);
+    return { items, total, page: p, pageSize: ps };
+  }
+
+  // ───────── 通知设置 ─────────
+
+  async getNotifySettings(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { notifySettings: true } });
+    const saved = (user?.notifySettings as Record<string, boolean>) ?? {};
+    return [
+      { key: "message", label: "新消息通知", icon: "bell", value: saved.message ?? true },
+      { key: "course", label: "课程提醒", icon: "book-open", value: saved.course ?? true },
+      { key: "live", label: "直播提醒", icon: "radio", value: saved.live ?? false },
+      { key: "interact", label: "互动提醒", icon: "message-square", value: saved.interact ?? true },
+      { key: "system", label: "系统通知", icon: "settings", value: saved.system ?? true },
+    ];
+  }
+
+  async updateNotifySettings(userId: string, dto: { key?: string; value?: boolean | string }) {
+    if (!dto.key) throw new BusinessException(ErrorCode.BAD_REQUEST, "key 不能为空");
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { notifySettings: true } });
+    const current = (user?.notifySettings as Record<string, boolean>) ?? {};
+    const updated = { ...current, [dto.key]: Boolean(dto.value) };
+    await this.prisma.user.update({ where: { id: userId }, data: { notifySettings: updated as any } });
+    return { success: true };
+  }
+
+  // ───────── 第三方账号绑定 ─────────
+
+  async getBoundAccounts(userId: string) {
+    const auths = await this.prisma.auth.findMany({
+      where: { userId },
+      select: { provider: true, openId: true, createdAt: true },
+    });
+    const providers = ["wechat", "qq", "apple"];
+    return providers.map(provider => {
+      const binding = auths.find(a => a.provider.toUpperCase() === provider.toUpperCase() || a.provider === provider);
+      const nameMap: Record<string, string> = { wechat: "微信", qq: "QQ", apple: "Apple ID" };
+      const colorMap: Record<string, string> = { wechat: "#07C160", qq: "#12B7F5", apple: "#000000" };
+      return {
+        provider,
+        name: nameMap[provider] || provider,
+        color: colorMap[provider] || "#666",
+        isBound: !!binding,
+        accountInfo: binding?.openId ? `${provider}_user***${binding.openId.slice(-3)}` : undefined,
+        boundAt: binding?.createdAt?.toISOString() || undefined,
+      };
+    });
   }
 }

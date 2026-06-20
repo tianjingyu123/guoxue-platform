@@ -202,6 +202,42 @@ export class FinanceService {
     return { invoices, total, page: dto.page, pageSize: dto.pageSize };
   }
 
+  /** 获取当前用户的发票列表 */
+  async getMyInvoices(userId: string, status?: string, page = 1, pageSize = 20) {
+    const where: Record<string, any> = { userId };
+    if (status) where.status = status;
+
+    const [invoices, total] = await Promise.all([
+      this.prisma.invoice.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.invoice.count({ where }),
+    ]);
+    return { invoices, total, page, pageSize };
+  }
+
+  /** 用户申请开票 */
+  async createMyInvoice(userId: string, orderId: string, type: string, title: string, taxNo?: string, _email?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, '订单不存在');
+    if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, '无权操作他人订单');
+
+    return this.prisma.invoice.create({
+      data: {
+        userId,
+        orderId,
+        type,
+        title,
+        taxNo: taxNo || null,
+        amount: order.payAmount || order.amount,
+        status: 'PENDING',
+      },
+    });
+  }
+
   async issueInvoice(id: string, invoiceUrl: string) {
     const invoice = await this.prisma.invoice.findUnique({ where: { id } });
     if (!invoice) throw new BusinessException(ErrorCode.NOT_FOUND, "发票不存在");

@@ -5,6 +5,8 @@
 // 《八宅明镜》云：「大游年者，八卦变爻之法，以定八宅之吉凶方位。」
 
 import type { YangZhaiSanYaoInput, YangZhaiSanYaoResult, YangZhaiElement, YangZhaiRelation } from "@guoxue/shared";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 const DIRECTIONS: Record<string, { trigram:string; wx:string; dongXi:"东四"|"西四"; gongWei:string; luoShu:number }> = {
   "北": { trigram:"坎", wx:"水", dongXi:"东四", gongWei:"坎宫", luoShu:1 },
@@ -115,7 +117,7 @@ const MING_GUA_ADVICE: Record<string, Record<string, string>> = {
 
 function getElement(dir: string): YangZhaiElement {
   const d = DIRECTIONS[dir];
-  if (!d) throw new Error(`方位${dir}无效，请使用东/南/西/北/东南/西南/东北/西北或八卦名`);
+  if (!d) throw new BusinessException(ErrorCode.VALIDATION_ERROR, `方位${dir}无效，请使用东/南/西/北/东南/西南/东北/西北或八卦名`);
   return {
     name: dir,
     direction: DIRECTION_NAMES[d.trigram] || dir,

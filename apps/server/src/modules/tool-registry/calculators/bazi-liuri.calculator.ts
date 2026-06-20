@@ -211,7 +211,7 @@ export function calculateBaziLiuRi(input: unknown): BaziLiuRiResult {
   const birthYear = p.year;
   const age = targetYear - birthYear + 1;
 
-  let currentDaYun = null;
+  let currentDaYun: { ganZhi: string; ganShiShen: any; zhiShiShen: any; startAge: number; endAge: number } | null = null;
   for (const dy of bazi.qiYun.daYun) {
     if (age >= dy.startAge && age <= dy.endAge) {
       currentDaYun = {

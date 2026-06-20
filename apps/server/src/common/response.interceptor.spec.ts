@@ -70,14 +70,50 @@ describe("ResponseInterceptor", () => {
     });
   });
 
-  it("分页响应被正确包装", (done) => {
+  it("分页响应被正确包装（标准 _paginated 标记）", (done) => {
     const ctx = mockContext("/api/v1/courses");
-    const paginated = { items: [{ id: "1" }], total: 100, page: 1, pageSize: 10 };
-    const result = interceptor.intercept(ctx, mockHandler(paginated));
-    result.subscribe((r: ApiResponse) => {
+    const data = { rows: [{ id: "1" }], total: 100, page: 1, pageSize: 10, _paginated: true };
+    const result = interceptor.intercept(ctx, mockHandler(data));
+    result.subscribe((r: any) => {
       expect(r.code).toBe(200);
-      expect(r.data.items).toBeDefined();
-      expect(r.data.total).toBe(100);
+      expect(r.data).toEqual([{ id: "1" }]);
+      expect(r.pagination).toEqual({ total: 100, page: 1, pageSize: 10 });
+      done();
+    });
+  });
+
+  it("分页响应自动检测 { items, total, page, pageSize } 模式", (done) => {
+    const ctx = mockContext("/api/v1/courses");
+    const data = { items: [{ id: "1" }, { id: "2" }], total: 50, page: 2, pageSize: 20 };
+    const result = interceptor.intercept(ctx, mockHandler(data));
+    result.subscribe((r: any) => {
+      expect(r.code).toBe(200);
+      expect(r.data).toEqual([{ id: "1" }, { id: "2" }]);
+      expect(r.pagination).toEqual({ total: 50, page: 2, pageSize: 20 });
+      done();
+    });
+  });
+
+  it("自动识别 { list, total, page, pageSize } 分页格式", (done) => {
+    const ctx = mockContext("/api/v1/merchants");
+    const data = { list: [{ id: "m1" }], total: 30, page: 1, pageSize: 15 };
+    const result = interceptor.intercept(ctx, mockHandler(data));
+    result.subscribe((r: any) => {
+      expect(r.code).toBe(200);
+      expect(r.data).toEqual([{ id: "m1" }]);
+      expect(r.pagination).toEqual({ total: 30, page: 1, pageSize: 15 });
+      done();
+    });
+  });
+
+  it("缺少数据数组的对象不误判为分页响应", (done) => {
+    const ctx = mockContext("/api/v1/users");
+    const data = { id: "1", name: "test", total: 100, page: 1 };
+    const result = interceptor.intercept(ctx, mockHandler(data));
+    result.subscribe((r: any) => {
+      expect(r.code).toBe(200);
+      expect(r.data).toEqual({ id: "1", name: "test", total: 100, page: 1 });
+      expect(r.pagination).toBeUndefined();
       done();
     });
   });

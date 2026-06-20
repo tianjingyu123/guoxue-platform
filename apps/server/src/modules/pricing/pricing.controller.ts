@@ -2,9 +2,10 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } fro
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { PricingService } from "./pricing.service";
 import { UnifiedPricingService } from "./unified-pricing.service";
-import { BatchUnifiedPriceDto } from "./pricing.dto";
+import { BatchUnifiedPriceDto, CreatePricingRuleDto, UpdatePricingRuleDto } from "./pricing.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { ThrottleGuard } from "../../common/throttle.guard";
 import { Roles } from "../../common/roles.decorator";
 
 @ApiTags("智能定价")
@@ -34,6 +35,7 @@ export class PricingController {
   }
 
   @Post("unified-price/batch")
+  @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "批量计算商品统一价格" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -78,7 +80,7 @@ export class PricingController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  createRule(@Body() body: Record<string, unknown>) { return this.svc.createRule(body); }
+  createRule(@Body() body: CreatePricingRuleDto) { return this.svc.createRule(body); }
 
   @Put("admin/rules/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -90,7 +92,7 @@ export class PricingController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  updateRule(@Param("id") id: string, @Body() body: Record<string, unknown>) { return this.svc.updateRule(id, body); }
+  updateRule(@Param("id") id: string, @Body() body: UpdatePricingRuleDto) { return this.svc.updateRule(id, body); }
 
   @Delete("admin/rules/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)

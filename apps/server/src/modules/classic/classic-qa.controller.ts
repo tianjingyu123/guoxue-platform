@@ -6,6 +6,7 @@ import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { ClassicQaDto } from "./dto/classic-qa.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { SkipFormat } from "../../common/skip-format.decorator";
 
 @ApiTags("古籍问答")
 @Controller("classic")
@@ -42,6 +43,7 @@ export class ClassicQaController {
   }
 
   @Post(":classicId/qa/stream")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "古籍智能问答（SSE流式）" })
   @ApiResponse({ status: 201, description: "创建成功" })

@@ -1,4 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiEventBusService } from "./ai-event-bus.service";
 import { DecisionLedgerService } from "./decision-ledger.service";
@@ -135,9 +137,9 @@ export class CollaborationService {
     const proposal = await this.prisma.aiCollaboration.findUnique({
       where: { id: proposalId },
     });
-    if (!proposal) throw new Error("建议不存在");
+    if (!proposal) throw new BusinessException(ErrorCode.NOT_FOUND, "建议不存在");
     if (proposal.status !== "pending_review")
-      throw new Error("建议状态不允许审核");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "建议状态不允许审核");
 
     await this.prisma.aiCollaboration.update({
       where: { id: proposalId },
@@ -185,9 +187,9 @@ export class CollaborationService {
     const proposal = await this.prisma.aiCollaboration.findUnique({
       where: { id: proposalId },
     });
-    if (!proposal) throw new Error("建议不存在");
+    if (!proposal) throw new BusinessException(ErrorCode.NOT_FOUND, "建议不存在");
     if (!["approved", "executing"].includes(proposal.status))
-      throw new Error("建议未审核通过，不可执行");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "建议未审核通过，不可执行");
 
     await this.prisma.aiCollaboration.update({
       where: { id: proposalId },
@@ -231,9 +233,9 @@ export class CollaborationService {
     const proposal = await this.prisma.aiCollaboration.findUnique({
       where: { id: proposalId },
     });
-    if (!proposal) throw new Error("建议不存在");
+    if (!proposal) throw new BusinessException(ErrorCode.NOT_FOUND, "建议不存在");
     if (proposal.status !== "executed")
-      throw new Error("只能回滚已执行的建议");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "只能回滚已执行的建议");
 
     await this.prisma.aiCollaboration.update({
       where: { id: proposalId },

@@ -1,4 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiGatewayService } from "./ai-gateway.service";
 import { CapabilityRegistryService } from "./capability-registry.service";
@@ -109,7 +111,7 @@ AI相关：
 
     // 2. 执行 SQL（安全检查后）
     if (!this.isSafeSql(sql)) {
-      throw new Error("生成的SQL包含不安全操作，已被拦截");
+      throw new BusinessException(ErrorCode.FORBIDDEN, "生成的SQL包含不安全操作，已被拦截");
     }
 
     // 3. 服务端强制 LIMIT (defense-in-depth)，包装为子查询避免与已有 LIMIT 冲突
@@ -124,7 +126,7 @@ AI相关：
       );
     } catch (err: any) {
       this.logger.warn(`SQL执行失败: ${err.message}`);
-      throw new Error(`查询执行失败: ${err.message}`);
+      throw new BusinessException(ErrorCode.INTERNAL_ERROR, `查询执行失败: ${err.message}`);
     }
 
     // 3. 生成图表建议
@@ -170,7 +172,7 @@ AI相关：
     sql = sql.trim();
 
     if (!sql.toUpperCase().startsWith("SELECT")) {
-      throw new Error("AI 未生成有效的 SELECT 查询");
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "AI 未生成有效的 SELECT 查询");
     }
 
     return sql;

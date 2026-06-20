@@ -1007,8 +1007,8 @@ ${chapterCtx}
       this.prisma.courseProgress.groupBy({ by: ["userId"], where: { courseId, userId: { in: userIds } }, _count: { id: true }, _sum: { progress: true } }),
     ]);
 
-    const userMap = new Map(users.map(u => [u.id, u]));
-    const progressMap = new Map(progresses.map(p => [p.userId, { completedChapters: p._count.id, totalProgress: Math.round((p._sum.progress || 0) / Math.max(p._count.id, 1)) }]));
+    const userMap = new Map<any, any>(users.map((u: any) => [u.id, u] as [string, any]));
+    const progressMap = new Map<any, any>(progresses.map((p: any) => [p.userId, { completedChapters: p._count.id, totalProgress: Math.round((p._sum.progress || 0) / Math.max(p._count.id, 1)) }] as [string, any]));
 
     const students = orders.map(o => ({
       orderId: o.id,

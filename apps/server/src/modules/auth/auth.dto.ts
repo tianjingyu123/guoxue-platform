@@ -187,3 +187,22 @@ export class ChangePhoneDto {
   @MinLength(4)
   newCode: string;
 }
+
+export class ForgotPasswordDto {
+  @ApiProperty({ description: "手机号", example: "13800138000" })
+  @IsString()
+  @MinLength(1)
+  phone: string;
+
+  @ApiProperty({ description: "短信验证码" })
+  @IsString()
+  @MinLength(4)
+  code: string;
+
+  @ApiProperty({ description: "新密码，至少8位，需包含大小写字母和数字", example: "Abc12345" })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(20)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, { message: "密码需包含大小写字母和数字，至少8位" })
+  password: string;
+}

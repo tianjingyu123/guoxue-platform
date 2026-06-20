@@ -1,3 +1,4 @@
+import { RoleType } from "@prisma/client";
 import { Test, TestingModule } from "@nestjs/testing";
 import { ToolRegistryController } from "./tool-registry.controller";
 import { ToolRegistryService } from "./tool-registry.service";
@@ -96,7 +97,7 @@ describe("ToolRegistryController", () => {
       mockToolAi.analyze.mockResolvedValue({ id: "a1", content: "命理分析结果" });
       const result = await ctrl.analyze(
         "bazi",
-        { user: { id: "u1" } },
+        { user: { id: "u1", roles: [] as RoleType[] } } as any,
         { input: { name: "测试" }, result: { siZhu: {} } },
       );
       expect(result).toHaveProperty("content", "命理分析结果");
@@ -104,7 +105,7 @@ describe("ToolRegistryController", () => {
 
     it("未登录用户使用anonymous标识", async () => {
       mockToolAi.analyze.mockResolvedValue({ id: "a2" });
-      await ctrl.analyze("bazi", {}, { input: {}, result: {} });
+      await ctrl.analyze("bazi", {} as any, { input: {}, result: {} });
       expect(mockToolAi.analyze).toHaveBeenCalledWith("anonymous", undefined, expect.any(Object));
     });
   });
@@ -112,7 +113,7 @@ describe("ToolRegistryController", () => {
   describe("GET /tools/analysis/:analysisId", () => {
     it("获取AI分析记录详情", async () => {
       mockToolAi.getAnalysisRecord.mockResolvedValue({ id: "a1", content: "详细分析" });
-      const result = await ctrl.getAnalysisRecord("a1", { user: { id: "u1" } });
+      const result = await ctrl.getAnalysisRecord("a1", { user: { id: "u1", roles: [] as RoleType[] } } as any);
       expect(result).toHaveProperty("id", "a1");
     });
   });
@@ -120,20 +121,20 @@ describe("ToolRegistryController", () => {
   describe("GET /tools/analysis/history/mine", () => {
     it("获取用户AI分析历史（默认分页）", async () => {
       mockToolAi.getUserHistory.mockResolvedValue({ records: [], total: 0 });
-      const result = await ctrl.getUserAnalysisHistory({ user: { id: "u1" } });
+      const result = await ctrl.getUserAnalysisHistory({ user: { id: "u1", roles: [] as RoleType[] } } as any);
       expect(mockToolAi.getUserHistory).toHaveBeenCalledWith("u1", 1, 20);
       expect(result).toHaveProperty("total", 0);
     });
 
     it("自定义分页参数", async () => {
       mockToolAi.getUserHistory.mockResolvedValue({ records: [], total: 0 });
-      await ctrl.getUserAnalysisHistory({ user: { id: "u1" } }, "2", "10");
+      await ctrl.getUserAnalysisHistory({ user: { id: "u1", roles: [] as RoleType[] } } as any, "2", "10");
       expect(mockToolAi.getUserHistory).toHaveBeenCalledWith("u1", 2, 10);
     });
 
     it("未登录用户使用anonymous", async () => {
       mockToolAi.getUserHistory.mockResolvedValue({ records: [], total: 0 });
-      await ctrl.getUserAnalysisHistory({});
+      await ctrl.getUserAnalysisHistory({} as any);
       expect(mockToolAi.getUserHistory).toHaveBeenCalledWith("anonymous", 1, 20);
     });
   });

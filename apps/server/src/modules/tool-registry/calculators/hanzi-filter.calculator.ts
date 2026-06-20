@@ -3,6 +3,8 @@
 // 起名用字多维度筛选
 
 import type { HanZiFilterInput, HanZiFilterResult, FilteredChar } from "@guoxue/shared";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 // 常用汉字库（姓名学常用字3500+中精选）
 interface CharEntry {
@@ -94,7 +96,7 @@ function matchFilter(char: CharEntry, conditions: Record<string, unknown>): bool
 
 export function calculateHanZiFilter(input: Record<string, unknown>): HanZiFilterResult {
   const { conditions, sortBy, page, pageSize } = input as unknown as HanZiFilterInput;
-  if (!conditions) throw new Error("请提供筛选条件");
+  if (!conditions) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请提供筛选条件");
 
   const cond = conditions as unknown as Record<string, unknown>;
   const filtered = CHAR_DB.filter(c => matchFilter(c, cond));

@@ -2,10 +2,13 @@ import { Controller, Get, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { CockpitService } from "./cockpit.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 
 @ApiTags("管理驾驶舱")
 @Controller("admin/cockpit")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles("SUPER_ADMIN", "OPERATION_ADMIN")
 @ApiBearerAuth()
 export class CockpitController {
   constructor(private readonly svc: CockpitService) {}

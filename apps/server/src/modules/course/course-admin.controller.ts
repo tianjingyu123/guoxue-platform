@@ -26,6 +26,27 @@ export class CourseAdminController {
 
   // ───────── 审核 ─────────
 
+  @Put("batch/audit")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "批量审核课程" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  async batchAudit(@Body("ids") ids: string[], @Body("status") status: string, @Req() req: AuthRequest) {
+    const result = await this.course.batchAudit(ids, status);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "BATCH_AUDIT",
+      targetType: "COURSE",
+      detail: `批量审核: ${ids.length}门课程 → ${status}`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志记录失败", err));
+    return result;
+  }
+
   @Put(":id/audit")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -44,27 +65,6 @@ export class CourseAdminController {
       targetType: "COURSE",
       targetId: id,
       detail: `审核课程: ${status}`,
-      ip: req.ip,
-    }).catch((err) => this.logger.warn("审计日志记录失败", err));
-    return result;
-  }
-
-  @Put("batch/audit")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "批量审核课程" })
-  @ApiResponse({ status: 200, description: "更新成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiResponse({ status: 403, description: "无权限" })
-  @ApiBearerAuth()
-  async batchAudit(@Body("ids") ids: string[], @Body("status") status: string, @Req() req: AuthRequest) {
-    const result = await this.course.batchAudit(ids, status);
-    this.systemService.logAudit({
-      userId: req.user?.id,
-      action: "BATCH_AUDIT",
-      targetType: "COURSE",
-      detail: `批量审核: ${ids.length}门课程 → ${status}`,
       ip: req.ip,
     }).catch((err) => this.logger.warn("审计日志记录失败", err));
     return result;

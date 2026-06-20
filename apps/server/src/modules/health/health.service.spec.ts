@@ -78,9 +78,13 @@ describe("HealthService", () => {
     });
 
     it("外部服务故障时状态为 degraded", async () => {
+      process.env.DEEPSEEK_API_KEY = "sk-test";
       (global.fetch as jest.Mock).mockRejectedValue(new Error("timeout"));
       const result = await svc.check();
+      delete process.env.DEEPSEEK_API_KEY;
+      // 已配置的外部服务 fetch 失败 → degraded，所以 checks 中必有 ai 项
       expect(result.status).toBe("degraded");
+      expect(result.checks.ai.status).toBe("degraded");
     });
   });
 });

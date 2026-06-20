@@ -420,7 +420,7 @@ export function calculateGeJuXiangJie(input: GeJuXiangJieInput): GeJuXiangJieRes
   };
 
   // ── 二、其他可能格局 ──
-  const alternativePatterns = [];
+  const alternativePatterns: { name: string; type: string; category: string; conditions: string[]; formed: boolean; supportingGod: string; source: string; description: string }[] = [];
 
   // 检测化气格
   const heGan = GAN_HE[dayGan];

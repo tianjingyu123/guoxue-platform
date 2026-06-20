@@ -4,6 +4,7 @@ import { Response, Request } from "express"
 import { TtsService } from "./tts.service"
 import { TtsRequestDto } from "./tts.dto"
 import { JwtAuthGuard } from "../../common/jwt-auth.guard"
+import { SkipFormat } from "../../common/skip-format.decorator"
 
 @ApiTags("语音合成")
 @ApiBearerAuth()
@@ -13,6 +14,7 @@ export class TtsController {
 
   /** 文本转语音 (POST) */
   @Post("synthesize")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "文本转语音（POST）" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -31,6 +33,7 @@ export class TtsController {
 
   /** 文本转语音 (GET, 方便作为 audio src 直接使用) */
   @Get("synthesize")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "文本转语音（GET）" })
   @ApiResponse({ status: 200, description: "成功" })

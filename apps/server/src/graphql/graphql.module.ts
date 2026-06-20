@@ -1,7 +1,6 @@
 import { Module } from "@nestjs/common";
 import { GraphQLModule } from "@nestjs/graphql";
 import { ApolloDriver, ApolloDriverConfig } from "@nestjs/apollo";
-// @ts-expect-error graphql-depth-limit 无类型声明
 import depthLimit from "graphql-depth-limit";
 import { PrismaModule } from "../prisma/prisma.module";
 import { ContentResolver } from "./resolvers/content.resolver";

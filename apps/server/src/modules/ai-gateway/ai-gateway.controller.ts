@@ -11,6 +11,7 @@ import { Roles } from "../../common/roles.decorator";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { SkipFormat } from "../../common/skip-format.decorator";
 
 /**
  * AI 网关控制器
@@ -69,6 +70,7 @@ export class AiGatewayController {
 
   /** 流式对话 (SSE) */
   @Post("chat/stream")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "AI流式对话 (SSE)" })
   @ApiResponse({ status: 201, description: "创建成功" })

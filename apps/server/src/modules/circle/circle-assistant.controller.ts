@@ -5,6 +5,7 @@ import { CircleAssistantService } from "./circle-assistant.service";
 import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { SkipFormat } from "../../common/skip-format.decorator";
 
 @ApiTags("圈主助理")
 @Controller("circles")
@@ -47,6 +48,7 @@ export class CircleAssistantController {
 
   /** 流式提问 (SSE) */
   @Post(":circleId/assistant/stream")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "向圈主助理提问（SSE流式）" })
   @ApiResponse({ status: 201, description: "创建成功" })

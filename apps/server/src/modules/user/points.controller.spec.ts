@@ -2,6 +2,8 @@ import { Test } from "@nestjs/testing";
 import { CanActivate } from "@nestjs/common";
 import { PointsController } from "./points.controller";
 import { PointsService } from "./points.service";
+import { InteractionService } from "../interaction/interaction.service";
+import { CommentService } from "../comment/comment.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 
 const mockSvc = {
@@ -10,6 +12,15 @@ const mockSvc = {
   getGrowth: jest.fn(),
   getGrowthRecords: jest.fn(),
   spendPoints: jest.fn(),
+};
+
+const mockInteraction = {
+  getMyLikes: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
+};
+
+const mockComment = {
+  getUserComments: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
+  getReceivedComments: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
 };
 
 const mockGuard: CanActivate = { canActivate: () => true };
@@ -21,7 +32,11 @@ describe("PointsController", () => {
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [PointsController],
-      providers: [{ provide: PointsService, useValue: mockSvc }],
+      providers: [
+        { provide: PointsService, useValue: mockSvc },
+        { provide: InteractionService, useValue: mockInteraction },
+        { provide: CommentService, useValue: mockComment },
+      ],
     })
       .overrideGuard(JwtAuthGuard).useValue(mockGuard)
       .compile();

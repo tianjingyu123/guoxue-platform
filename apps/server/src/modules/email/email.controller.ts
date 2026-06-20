@@ -125,6 +125,7 @@ export class EmailController {
   // ───────── 退订管理 ─────────
 
   @Post("unsubscribe")
+  @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "退订邮件" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

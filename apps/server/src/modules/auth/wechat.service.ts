@@ -689,7 +689,7 @@ export class WechatService {
       d.setDate(d.getDate() + 1);
     }
 
-    const results = [];
+    const results: Record<string, unknown>[] = [];
     for (const date of dates) {
       try {
         const data = await this.getAdGeneral(date);

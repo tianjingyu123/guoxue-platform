@@ -5,6 +5,8 @@
 // 《天玉经》云：「零正阴阳诀，得水即为零，得山即为正。」
 
 import type { XuanKongShuiFaInput, XuanKongShuiFaResult } from "@guoxue/shared";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 const ZHI_GONG: Record<string, { direction: string; gongWei: string; luoshu: number }> = {
   "子": { direction:"正北", gongWei:"坎宫", luoshu:1 },
@@ -146,8 +148,8 @@ function getWxRelation(wx1: string, wx2: string): string {
 
 export function calculateXuanKongShuiFa(input: Record<string, unknown>): XuanKongShuiFaResult {
   const { zuoShan, chaoXiang, year } = input as unknown as XuanKongShuiFaInput;
-  if (!zuoShan || !SHAN_24.includes(zuoShan)) throw new Error(`坐山"${zuoShan}"无效，须为24山之一`);
-  if (!chaoXiang || !SHAN_24.includes(chaoXiang)) throw new Error(`朝向"${chaoXiang}"无效，须为24山之一`);
+  if (!zuoShan || !SHAN_24.includes(zuoShan)) throw new BusinessException(ErrorCode.VALIDATION_ERROR, `坐山"${zuoShan}"无效，须为24山之一`);
+  if (!chaoXiang || !SHAN_24.includes(chaoXiang)) throw new BusinessException(ErrorCode.VALIDATION_ERROR, `朝向"${chaoXiang}"无效，须为24山之一`);
 
   const y = typeof year === "number" ? year : new Date().getFullYear();
   const diYun = getDiYun(y);

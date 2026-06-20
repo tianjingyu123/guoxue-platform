@@ -5,6 +5,8 @@
 // 《鲁班经》云：「尺者，度也，量也。以尺量物，以度定吉。」
 
 import type { LiJiChiInput, LiJiChiResult, ChiMeasurement, LuBanBaZi, DingLanShiZi } from "@guoxue/shared";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 // 鲁班尺八字：每字占1寸6分(5.12cm)，共8字循环
 // 出处：《鲁班经》载鲁班尺分八格，每格一寸六分，以财病离义官劫害本为序
@@ -184,7 +186,7 @@ function getRecommended(range: [number, number]): { lengthCm: number; luBanZi: L
 
 export function calculateLiJiChi(input: Record<string, unknown>): LiJiChiResult {
   const { chiType, lengthCm, usage, batch, batchLengths } = input as unknown as LiJiChiInput;
-  if (!lengthCm || lengthCm <= 0) throw new Error("请提供有效的尺寸(cm)");
+  if (!lengthCm || lengthCm <= 0) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请提供有效的尺寸(cm)");
 
   const measurement = makeMeasurement(lengthCm, usage);
 

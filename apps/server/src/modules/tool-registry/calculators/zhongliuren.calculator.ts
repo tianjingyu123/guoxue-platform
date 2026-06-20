@@ -107,7 +107,7 @@ export function calculateZhongLiuRen(input: Record<string, unknown>): ZhongLiuRe
   const guiOrder = isDay ? GUI_REN_ORDER_DAY : GUI_REN_ORDER_NIGHT;
 
   // 课传分析（多种判断）
-  const keChuan = [];
+  const keChuan: { name: string; meaning: string; jiXiong: string }[] = [];
   const tianDiDuizhao = diPan[0] === tianPan[0];
 
   // 伏吟/反吟

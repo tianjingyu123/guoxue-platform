@@ -3,6 +3,8 @@
 // 完整64卦数据库，输入卦序号1-64，输出完整卦象分析
 
 import type { LiuShiSiGuaResult, HexagramLine } from "@guoxue/shared";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 /**
  * 八卦五行映射
@@ -2097,7 +2099,7 @@ const GUA_DB: Record<number, {
 export function calculateLiuShiSiGua(input: Record<string, unknown>): LiuShiSiGuaResult {
   const hexagramNumber = Number(input.hexagramNumber);
   if (!Number.isInteger(hexagramNumber) || hexagramNumber < 1 || hexagramNumber > 64) {
-    throw new Error(`无效的卦序号：${input.hexagramNumber}，须为 1-64 的整数`);
+    throw new BusinessException(ErrorCode.VALIDATION_ERROR, `无效的卦序号：${input.hexagramNumber}，须为 1-64 的整数`);
   }
 
   const raw = GUA_DB[hexagramNumber];

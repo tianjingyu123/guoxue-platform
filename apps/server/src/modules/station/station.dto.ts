@@ -103,6 +103,50 @@ export class UpdateStationDto {
   templateConfig?: Record<string, unknown>;
 }
 
+export class UpdateOperatorBrandDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  brandName?: string;
+
+  @IsOptional()
+  @IsString()
+  brandLogo?: string;
+
+  @IsOptional()
+  @IsHexColor()
+  brandThemeColor?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  miniAppId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  mpAppId?: string;
+
+  @IsOptional()
+  @IsObject()
+  miniPages?: Record<string, string>;
+}
+
+export class UpdateMyOperatorDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  brandName?: string;
+
+  @IsOptional()
+  @IsString()
+  brandLogo?: string;
+
+  @IsOptional()
+  @IsHexColor()
+  brandThemeColor?: string;
+}
+
 export class CreateOperatorDto {
   @IsString()
   @MinLength(1)

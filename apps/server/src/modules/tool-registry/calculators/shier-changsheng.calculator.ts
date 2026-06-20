@@ -3,6 +3,8 @@
 // 算法参考：《三命通会·十二长生》《渊海子平·论生旺》《滴天髓·衰旺篇》《五行大义》
 
 import type { ShiErChangShengInput, ShiErChangShengResult } from "@guoxue/shared";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 const GAN_WX: Record<string, string> = {
   "甲": "木", "乙": "木", "丙": "火", "丁": "火", "戊": "土",
@@ -257,7 +259,7 @@ function getChangSheng(dayGan: string, zhiIdx: number): { name: string; stage: n
 export function calculateShiErChangSheng(input: Record<string, unknown>): ShiErChangShengResult {
   const { dayGan, yearZhi, monthZhi, dayZhi, hourZhi } = input as unknown as ShiErChangShengInput;
 
-  if (!GAN_WX[dayGan]) throw new Error(`无效日干: ${dayGan}`);
+  if (!GAN_WX[dayGan]) throw new BusinessException(ErrorCode.VALIDATION_ERROR, `无效日干: ${dayGan}`);
 
   const yinYang = GAN_YIN_YANG[dayGan];
   const wx = GAN_WX[dayGan];

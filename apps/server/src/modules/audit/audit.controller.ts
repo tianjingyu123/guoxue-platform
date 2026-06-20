@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Query, Param, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
+import { ThrottleGuard } from "../../common/throttle.guard";
 import { AuditService } from "./audit.service";
 import { ReportService, CreateReportDto, HandleReportDto } from "./report.service";
 import { SensitiveWordService } from "./sensitive-word.service";
@@ -101,6 +102,8 @@ export class AuditController {
   }
 
   @Get("reports/stats/:type/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: "查询内容举报统计" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
@@ -162,6 +165,7 @@ export class AuditController {
   }
 
   @Post("sensitive-words/check")
+  @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "检测文本敏感词（公开接口）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

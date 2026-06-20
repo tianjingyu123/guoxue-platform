@@ -57,14 +57,14 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, ApiResponse<T>
         if (this.isAlreadyWrapped(data)) {
           return data;
         }
-        // 分页响应：提取 rows 到 data，分页信息到顶层 pagination
+        // 分页响应：提取数据数组到 data，分页信息到顶层 pagination
         if (this.isPaginatedResult(data)) {
-          // _paginated 已通过 isPaginatedResult 确认存在，直接提取分页字段
-          const { rows, total, page, pageSize } = data as Record<string, unknown>;
+          const d = data as Record<string, unknown>;
+          const rowKey = this.getPaginatedRowKey(d);
           return {
             code: 200,
-            data: rows,
-            pagination: { total, page, pageSize },
+            data: d[rowKey],
+            pagination: { total: d.total, page: d.page, pageSize: d.pageSize },
             message: "ok",
           };
         }
@@ -90,10 +90,27 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, ApiResponse<T>
     return "code" in data && "data" in data;
   }
 
-  /** 检测是否为 paginated() 返回的标准分页响应 */
+  /** 分页数据字段候选名（按优先级排序） */
+  private static readonly PAGINATED_ROW_KEYS = ["rows", "items", "list", "data", "courses", "products", "members", "withdrawals", "circles", "users", "backups", "entries"];
+
+  /** 检测是否为分页响应（标准 _paginated 标记 或 自动识别 { rows/items/..., total, page, pageSize } 模式） */
   private isPaginatedResult(data: unknown): boolean {
     if (data === null || data === undefined) return false;
     if (typeof data !== "object") return false;
-    return "_paginated" in data && (data as any)._paginated === true;
+    // 标准 paginated() 标记
+    if ("_paginated" in data && (data as any)._paginated === true) return true;
+    // 自动检测：必须有 total 字段 + page/pageSize + 数据数组
+    const d = data as Record<string, unknown>;
+    if (typeof d.total !== "number") return false;
+    if (typeof d.page !== "number" && typeof d.pageSize !== "number") return false;
+    return ResponseInterceptor.PAGINATED_ROW_KEYS.some((k) => Array.isArray(d[k]));
+  }
+
+  /** 从分页响应中提取数据数组字段名 */
+  private getPaginatedRowKey(data: Record<string, unknown>): string {
+    for (const key of ResponseInterceptor.PAGINATED_ROW_KEYS) {
+      if (Array.isArray(data[key])) return key;
+    }
+    return "rows";
   }
 }

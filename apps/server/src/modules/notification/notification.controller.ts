@@ -65,6 +65,29 @@ export class NotificationController {
     return this.svc.getUnreadCount(req.user.id);
   }
 
+  // ───────── 通知偏好（必须在 :id 路由之前）─────────
+
+  @Get("preferences")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取通知偏好设置" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  getPreferences(@Req() req: Request) {
+    return this.svc.getPreferences(req.user.id);
+  }
+
+  @Put("preferences")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "更新通知偏好设置" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  updatePreferences(@Req() req: Request, @Body() prefs: Record<string, boolean>) {
+    return this.svc.updatePreferences(req.user.id, prefs);
+  }
+
   /** 通知详情 */
   @Get(":id")
   @UseGuards(JwtAuthGuard)
@@ -117,26 +140,4 @@ export class NotificationController {
     return this.svc.delete(id);
   }
 
-  // ───────── 通知偏好 ─────────
-
-  @Get("preferences")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "获取通知偏好设置" })
-  @ApiResponse({ status: 200, description: "成功" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiBearerAuth()
-  getPreferences(@Req() req: Request) {
-    return this.svc.getPreferences(req.user.id);
-  }
-
-  @Put("preferences")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "更新通知偏好设置" })
-  @ApiResponse({ status: 200, description: "更新成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiBearerAuth()
-  updatePreferences(@Req() req: Request, @Body() prefs: Record<string, boolean>) {
-    return this.svc.updatePreferences(req.user.id, prefs);
-  }
 }

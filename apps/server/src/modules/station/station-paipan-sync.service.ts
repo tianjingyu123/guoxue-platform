@@ -1,4 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 
 /**
@@ -130,7 +132,7 @@ export class StationPaipanSyncService {
       signal: AbortSignal.timeout(10000),
     });
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new BusinessException(ErrorCode.INTERNAL_ERROR, `远程服务返回 HTTP ${res.status}`);
     const json: any = await res.json();
     return json?.data || json;
   }

@@ -5,6 +5,8 @@ import { BigScreenService } from "./bigscreen.service";
 import { BigScreenAuthService } from "./bigscreen-auth.service";
 import { BigScreenAuthGuard } from "./bigscreen-auth.guard";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 
 @ApiTags("对外数字大屏")
 @Controller("bigscreen")
@@ -62,7 +64,8 @@ export class BigScreenController {
 
 @ApiTags("大屏令牌管理")
 @Controller("admin/bigscreen-tokens")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles("SUPER_ADMIN")
 @ApiBearerAuth()
 export class BigScreenTokenController {
   constructor(private readonly authSvc: BigScreenAuthService) {}

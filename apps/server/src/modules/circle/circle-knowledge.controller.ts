@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@ne
 import { Request, Response } from "express";
 import { CircleKnowledgeService } from "./circle-knowledge.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { SkipFormat } from "../../common/skip-format.decorator";
 
 @ApiTags("圈子知识库")
 @Controller("circles")
@@ -132,6 +133,7 @@ export class CircleKnowledgeController {
   // ───────── 知识库导出 ─────────
 
   @Get(":circleId/knowledge/export/json")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "导出知识库（JSON 格式）" })
   @ApiResponse({ status: 200, description: "成功" })
@@ -162,6 +164,7 @@ export class CircleKnowledgeController {
   }
 
   @Get(":circleId/knowledge/export/markdown")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "导出知识库（Markdown 格式）" })
   @ApiResponse({ status: 200, description: "成功" })

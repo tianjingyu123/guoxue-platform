@@ -35,6 +35,7 @@ export class PaipanController {
 
   /** 八字排盘预览（不登录也可用） */
   @Post("bazi/preview")
+  @UseGuards(StrictRedisThrottleGuard)
   @Header("Cache-Control", "public, max-age=600")
   @ApiOperation({ summary: "八字排盘预览（无需登录，结果缓存10分钟）" })
   @ApiResponse({ status: 201, description: "排盘成功" })
@@ -45,6 +46,7 @@ export class PaipanController {
 
   /** 八字排盘 CDN 静态化 GET 接口（不敏感部分，公开可缓存） */
   @Get("bazi/public")
+  @UseGuards(StrictRedisThrottleGuard)
   @Header("Cache-Control", "public, max-age=3600, s-maxage=86400")
   @ApiOperation({ summary: "八字排盘公开结果（CDN缓存1天，无需登录）" })
   baziPublic(
@@ -153,6 +155,7 @@ export class PaipanController {
 
   /** 紫微斗数预览（不登录也可用） */
   @Post("ziwei/preview")
+  @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "紫微斗数预览（无需登录）" })
   @ApiResponse({ status: 201, description: "排盘成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

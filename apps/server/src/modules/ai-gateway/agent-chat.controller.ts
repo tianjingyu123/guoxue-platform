@@ -5,6 +5,7 @@ import { AgentChatService } from "./agent-chat.service";
 import { AgentChatDto } from "./dto/agent-chat.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { SkipFormat } from "../../common/skip-format.decorator";
 
 /**
  * Agent Chat 控制器
@@ -50,6 +51,7 @@ export class AgentChatController {
 
   /** SSE 流式对话 */
   @Post("chat/:agentId/stream")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "Agent流式对话 (SSE)" })
   @ApiParam({ name: "agentId", description: "Agent ID", example: "bazi-master" })

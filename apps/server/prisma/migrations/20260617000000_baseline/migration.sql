@@ -1,0 +1,1 @@
+-- Baseline migration — all tables created before 2026-06-17

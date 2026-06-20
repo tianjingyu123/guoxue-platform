@@ -1,4 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { AGENT_BOT_MAP, RISK_DISCLAIMER } from "./agent-bot-mapping";
 
 interface CozeChatMessage {
@@ -63,7 +65,7 @@ export class AgentChatService {
   ): Promise<{ content: string; conversationId: string }> {
     const config = this.getAgentConfig(agentId);
     if (!config) {
-      throw new Error(`Agent "${agentId}" 不存在`);
+      throw new BusinessException(ErrorCode.NOT_FOUND, `Agent "${agentId}" 不存在`);
     }
 
     const cozeMessages: CozeChatMessage[] = messages.map((m) => ({
@@ -93,7 +95,7 @@ export class AgentChatService {
     const json = await resp.json() as CozeChatResponse;
     if (json.code !== 0) {
       this.logger.error(`Coze 非流式错误: ${json.msg}`);
-      throw new Error(`Coze 返回错误: ${json.msg}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `Coze 返回错误: ${json.msg}`);
     }
 
     const answerMsg = json.data?.messages?.find((m) => m.type === "answer");

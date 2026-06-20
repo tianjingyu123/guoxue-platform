@@ -3,11 +3,10 @@
 // 理论来源：
 //   《三世因果经》— 佛教三世因果观
 //   《六十甲子纳音》— 年柱纳音定前世根基
-//   《协纪辨方书》— 二十八宿值日本命星宿
-//   《三命通会》— 十二长生运程体系
-
 import type { SanSeShuInput, SanSeShuResult } from "@guoxue/shared";
 import { Solar } from "lunar-javascript";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 const SHENG_XIAO = ["鼠", "牛", "虎", "兔", "龙", "蛇", "马", "羊", "猴", "鸡", "狗", "猪"];
 const DI_ZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
@@ -242,7 +241,7 @@ function getNayinIndex(naYin: string, offset: number): number {
 
 export function calculateSanSeShu(input: Record<string, unknown>): SanSeShuResult {
   const { year, month, day, hourZhi, gender } = input as unknown as SanSeShuInput;
-  if (!year || !month || !day) throw new Error("请提供完整的出生年月日");
+  if (!year || !month || !day) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请提供完整的出生年月日");
 
   const h = hourZhi || "子";
   const solar = Solar.fromYmd(year, month, day);

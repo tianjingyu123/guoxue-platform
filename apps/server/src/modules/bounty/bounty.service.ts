@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma } from "@prisma/client";
@@ -15,7 +15,7 @@ export class BountyService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
-    @Inject(forwardRef(() => CoinService)) private coinSvc?: CoinService,
+    @Inject(CoinService) private coinSvc?: CoinService,
   ) {}
 
   // ───────── 创建悬赏 ─────────

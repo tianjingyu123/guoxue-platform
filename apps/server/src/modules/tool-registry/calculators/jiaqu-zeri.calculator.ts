@@ -3,6 +3,8 @@
 // 算法参考：《协纪辨方书》《玉匣记·嫁娶》《鳌头通书》《选择求真》
 
 import type { JiaQuZeRiInput, JiaQuZeRiResult, JiaQuDate, ZhouTangResult } from "@guoxue/shared";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 const SHENGXIAO = ["鼠","牛","虎","兔","龙","蛇","马","羊","猴","鸡","狗","猪"];
 const ZHI = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
@@ -50,7 +52,7 @@ function getZhouTang(month: number, _brideZhi: string, _groomZhi?: string): Zhou
   const startIdx = (month - 1) % 12;
 
   const daysInMonth = new Date(2024, month, 0).getDate(); // 用2024年做模板
-  const dailyStatus = [];
+  const dailyStatus: { day: number; zhouTang: string; available: boolean }[] = [];
 
   for (let d = 1; d <= daysInMonth; d++) {
     const posIdx = (startIdx + d - 1) % 12;
@@ -139,10 +141,10 @@ export function calculateJiaQuZeRi(input: Record<string, unknown>): JiaQuZeRiRes
   } = input as unknown as JiaQuZeRiInput;
 
   if (!Number.isInteger(brideYear) || brideYear < 1900) {
-    throw new Error("新娘出生年份无效");
+    throw new BusinessException(ErrorCode.VALIDATION_ERROR, "新娘出生年份无效");
   }
   if (!Number.isInteger(targetYear) || targetYear < 1900) {
-    throw new Error("目标年份无效");
+    throw new BusinessException(ErrorCode.VALIDATION_ERROR, "目标年份无效");
   }
 
   const brideZhi = ZHI[(brideYear - 4) % 12];

@@ -4,11 +4,13 @@
  * - 笔画兜底（替代 charCodeAt % N）
  */
 import * as crypto from "crypto";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 /** 确定性从数组中选取元素，基于 seed（数字或字符串）取模 */
 export function seededPick<T>(arr: T[], seed?: number | string): T {
   if (!arr || arr.length === 0) {
-    throw new Error("seededPick: 数组不能为空");
+    throw new BusinessException(ErrorCode.VALIDATION_ERROR, "seededPick: 数组不能为空");
   }
   if (seed === undefined || seed === null) {
     // 无 seed 时用时间戳毫秒位作为种子（确定性但随时间变化）

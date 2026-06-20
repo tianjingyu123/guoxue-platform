@@ -4,7 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { CreateStationDto, UpdateStationDto, CreateOperatorDto, SetStationTemplateDto } from "./station.dto";
+import { CreateStationDto, UpdateStationDto, CreateOperatorDto, SetStationTemplateDto, UpdateOperatorBrandDto } from "./station.dto";
 
 /** 模版定义 */
 export const STATION_TEMPLATES = {
@@ -435,7 +435,7 @@ export class StationService {
 
   // ───────── 运营商品牌与小程序 ─────────
 
-  async updateOperatorBrand(operatorId: string, dto: Record<string, unknown>) {
+  async updateOperatorBrand(operatorId: string, dto: UpdateOperatorBrandDto) {
     const data: any = {};
     if (dto.brandName) data.brandName = dto.brandName;
     if (dto.brandLogo !== undefined) data.brandLogo = dto.brandLogo;

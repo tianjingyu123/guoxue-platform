@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Param, Query, Body, Req, Header, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
+import { Request } from "express";
 import { ToolRegistryService } from "./tool-registry.service";
 import { ToolAiService } from "./tool-ai.service";
 import { ToolCalculationService } from "./tool-calculation.service";
@@ -91,7 +92,7 @@ export class ToolRegistryController {
   @ApiResponse({ status: 401, description: "未登录" })
   analyze(
     @Param("id") toolId: string,
-    @Req() req: any,
+    @Req() req: Request,
     @Body() body: { input: Record<string, unknown>; result: Record<string, unknown>; paipanRecordId?: string },
   ) {
     return this.toolAi.analyze(req.user?.id ?? "anonymous", body.paipanRecordId, {
@@ -105,7 +106,7 @@ export class ToolRegistryController {
   @Get("analysis/:analysisId")
   @ApiOperation({ summary: "获取AI分析记录详情" })
   @ApiResponse({ status: 200, description: "成功" })
-  getAnalysisRecord(@Param("analysisId") analysisId: string, @Req() req: any) {
+  getAnalysisRecord(@Param("analysisId") analysisId: string, @Req() req: Request) {
     return this.toolAi.getAnalysisRecord(analysisId, req.user?.id ?? "anonymous");
   }
 
@@ -117,7 +118,7 @@ export class ToolRegistryController {
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   getUserAnalysisHistory(
-    @Req() req: any,
+    @Req() req: Request,
     @Query("page") page?: string,
     @Query("pageSize") pageSize?: string,
   ) {

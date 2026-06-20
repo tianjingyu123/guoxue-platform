@@ -1,4 +1,4 @@
-import { Module, forwardRef } from "@nestjs/common";
+import { Module } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { RedisModule } from "../../redis/redis.module";
 import { FeatureFlagModule } from "../feature-flag/feature-flag.module";
@@ -22,7 +22,7 @@ import { MerchantAdminController } from "./merchant-admin.controller";
     FeatureFlagModule,
     NotificationModule,
     SystemModule,
-    forwardRef(() => ShopModule),
+    ShopModule,
     CommissionModule,
   ],
   controllers: [MerchantController, MerchantBackendController, MerchantAdminController],

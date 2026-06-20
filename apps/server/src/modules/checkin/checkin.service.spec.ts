@@ -8,6 +8,7 @@ const mockPrisma = {
     findUnique: jest.fn(),
     findMany: jest.fn(),
     create: jest.fn(),
+    aggregate: jest.fn().mockResolvedValue({ _sum: { rewardPoints: 0 } }),
   },
   dailyTask: {
     upsert: jest.fn(),
@@ -103,20 +104,21 @@ describe("CheckinService", () => {
   describe("getStatus", () => {
     it("已签到返回状态", async () => {
       mockPrisma.checkIn.findUnique.mockResolvedValue({ consecutiveDays: 5, rewardPoints: 8 });
+      mockPrisma.checkIn.aggregate.mockResolvedValue({ _sum: { rewardPoints: 100 } });
 
       const result = await svc.getStatus("u1");
-      expect(result.checkedInToday).toBe(true);
-      expect(result.consecutiveDays).toBe(5);
-      expect(result.todayReward).toBe(8);
+      expect(result.todayChecked).toBe(true);
+      expect(result.continuousDays).toBe(5);
+      expect(result.totalPoints).toBe(100);
     });
 
     it("未签到返回默认值", async () => {
       mockPrisma.checkIn.findUnique.mockResolvedValue(null);
+      mockPrisma.checkIn.aggregate.mockResolvedValue({ _sum: { rewardPoints: null } });
 
       const result = await svc.getStatus("u1");
-      expect(result.checkedInToday).toBe(false);
-      expect(result.consecutiveDays).toBe(0);
-      expect(result.todayReward).toBe(0);
+      expect(result.todayChecked).toBe(false);
+      expect(result.continuousDays).toBe(0);
     });
   });
 

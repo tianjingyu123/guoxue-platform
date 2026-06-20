@@ -7,12 +7,14 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiConsumes, ApiRespons
 import { FileInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { ThrottleGuard } from "../../common/throttle.guard";
 import { Roles } from "../../common/roles.decorator";
 import { SystemService } from "./system.service";
 import { ExportService } from "./export.service";
 import { Response, Request } from "express";
 import * as fs from "fs";
 import { SetConfigDto, CreateConfigDto, ToggleMaintenanceDto, ToggleAutomationDto, ExportUsersDto, ExportOrdersDto, ExportContentsDto, ExportAuditLogsDto, ExportEarningsDto, UpsertPageContentDto, CreateSiteNoticeDto, UpdateSiteNoticeDto, RollbackConfigDto, UpsertMemberConfigDto, ExportExcelDto } from "./system.dto";
+import { SkipFormat } from "../../common/skip-format.decorator";
 
 @ApiTags("系统配置")
 @Controller("system")
@@ -175,8 +177,7 @@ export class SystemController {
     return this.systemService.getHomeConfig();
   }
 
-  /**
-   * 公开接口：小程序合规配置
+  /** 公开接口：小程序合规配置
    *
    * 小程序启动时调用此接口，获取当前可用的功能列表。
    * 审核期间通过后台关闭排盘/算命等敏感功能，审核通过后开启。
@@ -208,6 +209,26 @@ export class SystemController {
     };
   }
 
+
+  /** 公开接口：关于我们 */
+  @Get("about")
+  @ApiOperation({ summary: "获取关于我们信息（公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  async getAbout() {
+    return {
+      stats: [
+        { value: "100+", label: "专家讲师", color: "#c41e3a" },
+        { value: "500+", label: "精品课程", color: "#d4b87d" },
+        { value: "50万+", label: "学习用户", color: "#6ed24a" },
+      ],
+      features: [
+        { icon: "book-open", title: "专业内容", desc: "严选优质国学课程与古籍资源" },
+        { icon: "users", title: "圈子交流", desc: "加入志同道合的学习社区" },
+        { icon: "award", title: "名师指导", desc: "一对一咨询，答疑解惑" },
+        { icon: "building-2", title: "线下活动", desc: "定期举办国学文化体验活动" },
+      ],
+    };
+  }
   // ── 审计日志 ──
 
   @Get("audit-logs")
@@ -299,6 +320,7 @@ export class SystemController {
   // ── Cron Webhook ──
 
   @Post("cron/:jobName")
+  @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "定时任务触发入口（由 Vercel Cron / 阿里云函数计算调用）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -327,6 +349,7 @@ export class SystemController {
   // ───────── 数据导出 ─────────
 
   @Post("export/users")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "导出用户数据CSV" })
@@ -341,6 +364,7 @@ export class SystemController {
   }
 
   @Post("export/orders")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "导出订单数据CSV" })
@@ -355,6 +379,7 @@ export class SystemController {
   }
 
   @Post("export/contents")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "导出内容数据CSV" })
@@ -369,6 +394,7 @@ export class SystemController {
   }
 
   @Post("export/audit-logs")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "导出审计日志CSV" })
@@ -383,6 +409,7 @@ export class SystemController {
   }
 
   @Post("export/earnings")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "导出佣金收益CSV" })
@@ -397,6 +424,7 @@ export class SystemController {
   }
 
   @Post("export/excel")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "导出Excel文件（支持 users/orders 类型）" })
@@ -413,7 +441,7 @@ export class SystemController {
     res.send(buffer);
   }
 
-  @Post("import/products")
+  @Post("import-products")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量导入商品（CSV/TSV 格式）" })

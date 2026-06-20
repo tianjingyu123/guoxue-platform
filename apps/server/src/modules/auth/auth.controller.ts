@@ -14,6 +14,7 @@ import {
   ChangePasswordDto,
   RegisterDeviceDto,
   BindPhoneDto,
+  ForgotPasswordDto,
 } from "./auth.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
@@ -110,6 +111,13 @@ export class AuthController {
   @UseGuards(StrictRedisThrottleGuard)
   sendCode(@Body() dto: SendCodeDto) {
     return this.auth.sendSmsCode(dto);
+  }
+
+  @Post("reset-password")
+  @ApiOperation({ summary: "忘记密码：短信验证码重置密码" })
+  @UseGuards(StrictRedisThrottleGuard)
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.forgotPassword(dto);
   }
 
   @Get("wechat/oauth-url")

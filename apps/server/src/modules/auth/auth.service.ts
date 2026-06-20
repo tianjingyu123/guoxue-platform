@@ -25,6 +25,7 @@ import {
   MiniPhoneLoginDto,
   UpdateProfileDto,
   ChangePasswordDto,
+  ForgotPasswordDto,
 } from "./auth.dto";
 
 @Injectable()
@@ -381,6 +382,27 @@ export class AuthService {
       data: { credential: newHash },
     });
     return { success: true };
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    await this.sms.verifyCode(dto.phone, dto.code, "RESET");
+
+    const user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+    if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "该手机号未注册");
+
+    const auth = await this.prisma.auth.findFirst({
+      where: { userId: user.id, provider: "PASSWORD" },
+    });
+    if (!auth) throw new BusinessException(ErrorCode.BAD_REQUEST, "账号未设置密码，请使用短信登录");
+
+    const newHash = await bcrypt.hash(dto.password, 10);
+    await this.prisma.auth.update({
+      where: { id: auth.id },
+      data: { credential: newHash },
+    });
+
+    await this.revokeAllRefreshTokens(user.id);
+    return { success: true, message: "密码已重置" };
   }
 
   // ── 设备管理 ──

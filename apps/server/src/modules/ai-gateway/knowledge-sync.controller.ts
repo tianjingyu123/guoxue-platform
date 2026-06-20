@@ -3,6 +3,8 @@ import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@ne
 import { KnowledgeSyncService } from "./knowledge-sync.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 
 @ApiTags("圈主助理知识库同步")
 @ApiBearerAuth()
@@ -21,6 +23,8 @@ export class KnowledgeSyncController {
   }
 
   @Post("sync-all")
+  @UseGuards(RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "全量同步所有圈子知识库" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -73,6 +77,8 @@ export class KnowledgeSyncController {
   }
 
   @Post("candidates/:candidateId/confirm")
+  @UseGuards(RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "确认候选内容加入知识库" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -81,6 +87,8 @@ export class KnowledgeSyncController {
   }
 
   @Post("candidates/:candidateId/reject")
+  @UseGuards(RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "拒绝候选内容" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

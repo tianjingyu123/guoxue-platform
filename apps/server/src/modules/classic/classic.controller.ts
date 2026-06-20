@@ -8,6 +8,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { SkipFormat } from "../../common/skip-format.decorator";
 import { CreateBookDto, UpdateBookDto, CreateChapterDto, UpdateChapterDto, UpdateProgressDto, CreateBookmarkDto, UpdateBookmarkDto, BookListQueryDto, DictionaryLookupDto, TranslateDto, ContinueReadingQueryDto, CreateAnnotationDto, CreateNoteDto, UpdateNoteDto } from "./classic.dto";
 
 @ApiTags("经典")
@@ -230,6 +231,7 @@ export class ClassicController {
   }
 
   @Get("books/:id/file")
+  @SkipFormat()
   @ApiOperation({ summary: "下载古籍文件（token校验）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })

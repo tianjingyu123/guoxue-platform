@@ -8,6 +8,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { SkipFormat } from "../../common/skip-format.decorator";
 
 @ApiTags("智能客服")
 @Controller("ai")
@@ -34,6 +35,7 @@ export class CustomerServiceController {
   }
 
   @Post("customer-service/stream")
+  @SkipFormat()
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "智能客服流式对话 (SSE)" })
   @ApiResponse({ status: 201, description: "创建成功" })

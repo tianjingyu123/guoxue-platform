@@ -1283,7 +1283,7 @@ export class CircleService {
         const startH = parseInt(h.start?.split(":")[0] || "9");
         const endH = parseInt(h.end?.split(":")[0] || "18");
         const interval = h.interval || 60;
-        const result = [];
+        const result: { start: string; end: string; available: boolean }[] = [];
         for (let hour = startH; hour < endH; hour += interval / 60) {
           const start = `${String(hour).padStart(2, "0")}:${String((hour % 1) * 60).padStart(2, "0")}`;
           const endHr = hour + interval / 60;
@@ -1396,4 +1396,84 @@ export class CircleService {
     });
     if (!member) throw new BusinessException(ErrorCode.FORBIDDEN, "请先加入圈子");
   }
+
+  /** 获取全平台热门帖子（跨圈子） */
+  async getGlobalHotPosts(limit = 10) {
+    const posts = await this.prisma.post.findMany({
+      where: { status: 'PUBLISHED' },
+      select: {
+        id: true, title: true, content: true,
+        circleId: true,
+        circle: { select: { id: true, name: true, cover: true } },
+        user: { select: { id: true, nickname: true, avatar: true } },
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    if (posts.length === 0) return [];
+
+    const postIds = posts.map((p) => p.id);
+    const [likeCounts, commentCounts] = await Promise.all([
+      this.prisma.like.groupBy({
+        by: ['targetId'],
+        where: { targetType: 'POST', targetId: { in: postIds } },
+        _count: { id: true },
+      }),
+      this.prisma.comment.groupBy({
+        by: ['targetId'],
+        where: { targetType: 'POST', targetId: { in: postIds } },
+        _count: { id: true },
+      }),
+    ]);
+
+    const likeMap = new Map(likeCounts.map((l) => [l.targetId, l._count.id]));
+    const commentMap = new Map(commentCounts.map((c) => [c.targetId, c._count.id]));
+
+    const scored = posts.map((p) => ({
+      ...p,
+      likes: likeMap.get(p.id) || 0,
+      comments: commentMap.get(p.id) || 0,
+      hotScore: (likeMap.get(p.id) || 0) * 2 + (commentMap.get(p.id) || 0) * 3,
+    }));
+
+    scored.sort((a, b) => b.hotScore - a.hotScore);
+    return scored.slice(0, limit);
+  }
+
+  /** 获取今日活动（聚合近期帖子和即将开始的直播） */
+  async getTodayActivities(limit = 5) {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrowStart = new Date(todayStart.getTime() + 86400000);
+
+    // 今日帖子
+    const todayPosts = await this.prisma.post.findMany({
+      where: {
+        status: 'PUBLISHED',
+        createdAt: { gte: todayStart, lt: tomorrowStart },
+      },
+      select: {
+        id: true, title: true,
+        circle: { select: { id: true, name: true } },
+        user: { select: { id: true, nickname: true, avatar: true } },
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    const activities = todayPosts.map((p) => ({
+      id: p.id,
+      type: 'post' as const,
+      title: p.title,
+      circle: p.circle,
+      user: p.user,
+      createdAt: p.createdAt,
+    }));
+
+    return activities;
+  }
+
 }
