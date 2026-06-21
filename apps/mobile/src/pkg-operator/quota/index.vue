@@ -487,7 +487,7 @@ const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () =
 
 const isEmpty = computed(() => !pageData.value?.quotaData)
 
-const quotaInfo = computed(() => pageData.value?.quotaData ?? { total: 0, used: 0, available: 0, price: 0, monthlyPrice: 0 })
+const quotaInfo = computed(() => pageData.value?.quotaData ?? { total: 0, used: 0, sold: 0, gifted: 0, available: 0, price: 0, monthlyPrice: 0 })
 const records = computed(() => pageData.value?.records ?? [])
 const saleLink = quotaSaleLink
 const data = quotaInfo

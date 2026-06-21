@@ -12,7 +12,7 @@ import BackTop from '@/components/home/back-top.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
 import { buildFeedItems, type RenderItem } from '@/lib/home-data'
-import { defaultStationConfig as _defaultStationConfig, featuredTypeConfig as _featuredTypeConfig } from '@/lib/station-detail-data'
+import { defaultStationConfig as _defaultStationConfig, featuredTypeConfig as _featuredTypeConfig, type StationFeaturedItem, type StationConfig } from '@/lib/station-detail-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
   return { config: _defaultStationConfig, typeConfig: _featuredTypeConfig, feedItems: buildFeedItems() }
@@ -20,9 +20,9 @@ const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () =
 
 const isEmpty = computed(() => !pageData.value?.config)
 
-const station = computed(() => pageData.value?.config ?? { themeColor: '#C41E3A', name: '' })
+const station = computed<StationConfig>(() => pageData.value?.config ?? ({ themeColor: '#C41E3A', name: '', heroImages: [], featured: [], id: '', logo: '', masterName: '', masterAvatar: '', masterIntro: '', memberCount: 0, contentCount: 0, createdAt: '', expiresAt: '' } as StationConfig))
 const theme = computed(() => station.value.themeColor)
-const featuredTypeConfig = computed(() => pageData.value?.typeConfig ?? {})
+const featuredTypeConfig = computed<Record<StationFeaturedItem['type'], { icon: string; label: string }>>(() => pageData.value?.typeConfig ?? {} as any)
 
 // Hero 轮播
 const heroIndex = ref(0)

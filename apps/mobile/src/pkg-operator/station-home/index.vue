@@ -17,6 +17,7 @@ import {
   feedTypeIcon,
   formatStatNumber,
   type StationFeedItem,
+  type StationBrand,
 } from '@/lib/station-home-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
@@ -25,7 +26,7 @@ const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () =
 
 const isEmpty = computed(() => !pageData.value?.brand)
 
-const stationBrand = computed(() => pageData.value?.brand ?? { theme: { primaryColor: '#C41E3A', headerStyle: 'dark' } })
+const stationBrand = computed(() => pageData.value?.brand ?? { id: 0, code: '', name: '', logo: '', slogan: '', theme: { primaryColor: '#C41E3A', headerStyle: 'dark' as const }, master: { id: 0, nickname: '', avatar: '', title: '' } } as StationBrand)
 const brand = stationBrand
 const primary = computed(() => stationBrand.value.theme.primaryColor)
 const headerColor = computed(() => stationBrand.value.theme.headerStyle === 'dark' ? '#ffffff' : '#000000')

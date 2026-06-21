@@ -290,7 +290,7 @@ const cancelReasons = computed(() => pageData.value?.reasons ?? [])
 const orderStatusConfig = computed(() => pageData.value?.config ?? {})
 const isEmpty = computed(() => {
   const raw = pageData.value?.mockOrders
-  return raw !== undefined && raw.length === 0
+  return raw != null && raw.length === 0
 })
 const activeTab = ref('')
 const orders = ref<OrderListItem[]>([])

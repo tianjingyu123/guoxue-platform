@@ -19,7 +19,7 @@ const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () =
 
 const dataIsEmpty = computed(() => {
   const raw = pageData.value
-  return raw !== undefined && raw.info === undefined
+  return raw != null && raw.info === undefined
 })
 
 const info = ref({ balance: 0, totalEarned: 0, totalSpent: 0, todayEarned: 0 })

@@ -45,7 +45,6 @@
     </view>
 
     <scroll-view
-      v-if="!loading"
       scroll-y
       class="op-scroll"
     >
@@ -324,9 +323,9 @@ const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () =
 const isEmpty = computed(() => !pageData.value?.info)
 
 const info = computed(() => pageData.value?.info ?? { avatar: '', name: '', role: '', level: '', growthValue: 0, nextLevel: '', nextLevelGrowth: 0 })
-const overview = computed(() => pageData.value?.overview ?? { totalEarnings: 0, monthEarnings: 0, todayEarnings: 0, totalMembers: 0, activeMembers: 0, avgCommission: 0 })
-const teamRanking = computed(() => pageData.value?.teamRanking ?? { current: { rank: 0, score: 0 }, top3: [] })
-const quotaUsage = computed(() => pageData.value?.quotaUsage ?? { total: 0, used: 0 })
+const overview = computed(() => pageData.value?.overview ?? ([] as any[]))
+const teamRanking = computed(() => pageData.value?.teamRanking ?? ([] as any[]))
+const quotaUsage = computed(() => pageData.value?.quotaUsage ?? ([] as any[]))
 const quickActions = computed(() => pageData.value?.quickActions ?? [])
 
 const statusBarHeight = ref(0)
