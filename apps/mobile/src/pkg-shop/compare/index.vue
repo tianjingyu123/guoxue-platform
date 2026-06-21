@@ -1,5 +1,14 @@
 <template>
-  <view class="compare-page">
+  <view v-if="isLoading" class="compare-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="400rpx" radius="24rpx" mb="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无对比数据" />
+  <view v-else class="compare-page">
     <!-- 导航栏 -->
     <app-nav-bar title="商品对比" back-icon="arrow-left" :back-size="40" color="#2C2C2C">
       <template #right>
@@ -131,7 +140,18 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { compareProducts as products, comparePickList, type CompareProduct } from '@/lib/shop-data'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { compareProducts as _products, comparePickList, type CompareProduct } from '@/lib/shop-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { products: _products }
+})
+
+const products = computed(() => pageData.value?.products ?? {})
+const isEmpty = computed(() => Object.keys(products.value).length === 0)
 
 const safeBottom = ref(0)
 try {
@@ -144,7 +164,7 @@ const showPicker = ref(false)
 const onlyDiff = ref(false)
 const collapsed = ref<string[]>([])
 
-const picked = computed<CompareProduct[]>(() => selected.value.map((id) => products[id]).filter(Boolean))
+const picked = computed<CompareProduct[]>(() => selected.value.map((id) => products.value[id]).filter(Boolean))
 const pickableIds = computed(() => comparePickList.filter((id) => !selected.value.includes(id)))
 
 function goDetail(id: string) {

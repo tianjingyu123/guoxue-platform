@@ -1,5 +1,14 @@
 <template>
-  <view class="pd-page">
+  <view v-if="isLoading" class="pd-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="750rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无商品" />
+  <view v-else class="pd-page">
     <!-- 顶部导航 -->
     <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-btn" hover-class="nav-hover" @tap="goBack">
@@ -232,17 +241,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { getShopProductDetail, shopProductReviews, type ShopProductSku } from '@/lib/shop-data'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { getShopProductDetail as _getShopProductDetail, shopProductReviews as _shopProductReviews, type ShopProductSku } from '@/lib/shop-data'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { product: _getShopProductDetail(), reviews: _shopProductReviews }
+})
+
+const isEmpty = computed(() => !pageData.value?.product?.id)
 
 const statusBarHeight = ref(0)
 const safeBottom = ref(0)
 
-const product = ref(getShopProductDetail())
-const reviews = ref(shopProductReviews)
+const product = ref(_getShopProductDetail())
+watch(() => pageData.value?.product, (val) => { if (val) product.value = val }, { immediate: true })
+const reviews = ref(_shopProductReviews)
+watch(() => pageData.value?.reviews, (val) => { if (val) reviews.value = val }, { immediate: true })
 const productId = ref('1')
 
 const currentImage = ref(0)
@@ -270,7 +291,7 @@ const isHealthProduct = computed(() => {
 onLoad((q) => {
   if (q && q.id) {
     productId.value = String(q.id)
-    product.value = getShopProductDetail(q.id)
+    product.value = _getShopProductDetail(q.id)
     selectedSku.value = product.value.skus[0] || null
   }
   try {

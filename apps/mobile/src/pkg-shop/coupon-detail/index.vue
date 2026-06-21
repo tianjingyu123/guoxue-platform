@@ -1,5 +1,14 @@
 <template>
-  <view class="cd-page">
+  <view v-if="isLoading" class="cd-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无优惠券" />
+  <view v-else class="cd-page">
     <!-- 导航 -->
     <app-nav-bar title="优惠券详情" />
 
@@ -76,12 +85,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
-import { couponDetail, type CouponApplicableItem } from '@/lib/shop-data'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { couponDetail as _couponDetail, type CouponApplicableItem } from '@/lib/shop-data'
 
-const coupon = couponDetail
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { detail: _couponDetail }
+})
+
+const coupon = computed(() => pageData.value?.detail ?? {} as any)
+const isEmpty = computed(() => !coupon.value.id)
 const copied = ref(false)
 
 onLoad((q) => {
@@ -90,7 +108,7 @@ onLoad((q) => {
 
 function copy() {
   uni.setClipboardData({
-    data: coupon.id,
+    data: coupon.value.id,
     success: () => {
       copied.value = true
       setTimeout(() => (copied.value = false), 2000)

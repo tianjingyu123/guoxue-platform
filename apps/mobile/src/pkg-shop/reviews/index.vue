@@ -1,5 +1,15 @@
 <template>
-  <view class="rv-page">
+  <view v-if="isLoading" class="rv-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无评价" />
+  <view v-else class="rv-page">
     <!-- 顶部导航 -->
     <app-nav-bar title="商品评价" :back-size="38" />
 
@@ -114,14 +124,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-
-import { shopReviewStats, shopReviewList, type ShopProductReview } from '@/lib/shop-data'
+import { ref, computed, watch } from 'vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { shopReviewStats as _shopReviewStats, shopReviewList as _shopReviewList, type ShopProductReview } from '@/lib/shop-data'
 
 type FilterType = 'all' | 'good' | 'medium' | 'bad' | 'images'
 
-const stats = ref(shopReviewStats)
-const reviews = ref<ShopProductReview[]>(shopReviewList)
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { stats: _shopReviewStats, reviews: _shopReviewList }
+})
+
+const isEmpty = computed(() => pageData.value?.reviews?.length === 0)
+
+const stats = ref(_shopReviewStats)
+watch(() => pageData.value?.stats, (val) => { if (val) stats.value = val }, { immediate: true })
+const reviews = ref<ShopProductReview[]>(_shopReviewList)
+watch(() => pageData.value?.reviews, (val) => { if (val) reviews.value = val }, { immediate: true })
 const filter = ref<FilterType>('all')
 const previewImage = ref('')
 const previewImages = ref<string[]>([])

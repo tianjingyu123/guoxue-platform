@@ -1,5 +1,14 @@
 <template>
-  <view class="gbd-page">
+  <view v-if="isLoading" class="gbd-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="400rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无拼团信息" />
+  <view v-else class="gbd-page">
     <!-- 顶部导航 -->
     <view class="navbar">
       <view class="nav-btn" hover-class="nav-hover" @tap="goBack">
@@ -108,18 +117,31 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { groupBuyDetail as detail, activeGroups, formatCountdown } from '@/lib/shop-data'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { groupBuyDetail as _detail, activeGroups as _activeGroups, formatCountdown } from '@/lib/shop-data'
 
-const groups = activeGroups
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { detail: _detail, groups: _activeGroups }
+})
+
+const detail = computed(() => pageData.value?.detail ?? {} as any)
+const activeGroups = computed(() => pageData.value?.groups ?? [])
+const isEmpty = computed(() => !detail.value.id)
+
 const joiningId = ref<string | null>(null)
 
 const endMap: Record<string, number> = {}
-groups.forEach((g) => {
-  endMap[g.id] = Date.now() + g.endOffsetMs
-})
+watch(() => activeGroups.value, (val) => {
+  if (val.length && Object.keys(endMap).length === 0) {
+    val.forEach((g: any) => { endMap[g.id] = Date.now() + g.endOffsetMs })
+  }
+}, { immediate: true })
 const tick = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -147,7 +169,7 @@ function join(id: string) {
   }, 800)
 }
 function create() {
-  navigateTo(`/shop/checkout?type=group&groupId=${detail.id}`)
+  navigateTo(`/shop/checkout?type=group&groupId=${detail.value.id}`)
 }
 </script>
 
