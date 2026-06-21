@@ -1,23 +1,43 @@
 <script setup lang="ts">
 /** 品牌定制分站首页（A类逐像素，对齐原型 app/station/home/page.tsx）
  *  自定义品牌导航 + Banner轮播 + 特色入口 + 站长推荐 + 内容Feed流 + 分享海报弹层 */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  stationBrand,
-  stationBanners,
-  stationFeatures,
-  stationRecommends,
-  stationFeedList,
-  stationPosterImage,
+  stationBrand as _stationBrand,
+  stationBanners as _stationBanners,
+  stationFeatures as _stationFeatures,
+  stationRecommends as _stationRecommends,
+  stationFeedList as _stationFeedList,
+  stationPosterImage as _stationPosterImage,
   feedTypeLabel,
   feedTypeIcon,
   formatStatNumber,
   type StationFeedItem,
 } from '@/lib/station-home-data'
 
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { brand: _stationBrand, banners: _stationBanners, features: _stationFeatures, recommends: _stationRecommends, feedList: _stationFeedList, posterImage: _stationPosterImage }
+})
+
+const isEmpty = computed(() => !pageData.value?.brand)
+
+const stationBrand = computed(() => pageData.value?.brand ?? { theme: { primaryColor: '#C41E3A', headerStyle: 'dark' } })
 const brand = stationBrand
-const primary = brand.theme.primaryColor
-const headerColor = brand.theme.headerStyle === 'dark' ? '#ffffff' : '#000000'
+const primary = computed(() => stationBrand.value.theme.primaryColor)
+const headerColor = computed(() => stationBrand.value.theme.headerStyle === 'dark' ? '#ffffff' : '#000000')
+
+const stationBanners = computed(() => pageData.value?.banners ?? [])
+const stationFeatures = computed(() => pageData.value?.features ?? [])
+const stationRecommends = computed(() => pageData.value?.recommends ?? [])
+const stationFeedList = computed(() => pageData.value?.feedList ?? [])
+const stationPosterImage = computed(() => pageData.value?.posterImage ?? '')
+
+const recommends = stationRecommends
+const features = stationFeatures
 
 const currentBanner = ref(0)
 function onBannerChange(e: any) {
@@ -25,15 +45,22 @@ function onBannerChange(e: any) {
 }
 
 // Feed 列表（模拟分页加载更多）
-const feedList = ref<StationFeedItem[]>([...stationFeedList])
+const feedList = ref<StationFeedItem[]>([])
 const hasMore = ref(true)
 const feedLoading = ref(false)
 const feedPage = ref(1)
+
+watch(() => stationFeedList.value, (val) => {
+  if (val.length > 0) {
+    feedList.value = val.map((item) => ({ ...item }))
+  }
+}, { immediate: true })
+
 function loadMoreFeed() {
   if (feedLoading.value || !hasMore.value) return
   feedLoading.value = true
   setTimeout(() => {
-    const more = stationFeedList.map((item) => ({ ...item, id: item.id + feedPage.value * 10 }))
+    const more = stationFeedList.value.map((item) => ({ ...item, id: item.id + feedPage.value * 10 }))
     feedList.value = [...feedList.value, ...more]
     feedPage.value += 1
     hasMore.value = feedPage.value < 3
@@ -59,15 +86,20 @@ function goBack() {
 function toastSoon() {
   uni.showToast({ title: '敬请期待', icon: 'none' })
 }
-
-const recommends = computed(() => stationRecommends)
-const features = computed(() => stationFeatures)
-
-onMounted(() => {})
 </script>
 
 <template>
-  <view
+  <view v-if="isLoading" class="sh">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="200rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="300rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
+  <view v-else
     class="sh"
     :style="{ '--sh-primary': primary }"
   >

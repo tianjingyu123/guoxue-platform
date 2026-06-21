@@ -1,5 +1,15 @@
 <template>
-  <view class="analysis-page">
+  <view v-if="isLoading" class="analysis-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="240rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="240rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="240rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无分析数据" />
+  <view v-else class="analysis-page">
     <app-nav-bar
       title="下线业绩分析"
       :show-back="true"
@@ -121,9 +131,22 @@
 </template>
 
 <script setup lang="ts">
-import { analysisMembers, type MemberPerf } from '@/lib/operator-data'
+import { computed } from 'vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { analysisMembers as _analysisMembers, type MemberPerf } from '@/lib/operator-data'
 
-const members = analysisMembers
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { members: _analysisMembers }
+})
+
+const members = computed(() => pageData.value?.members ?? [])
+const isEmpty = computed(() => {
+  const m = pageData.value?.members
+  return m !== undefined && m.length === 0
+})
 
 function ctr(m: MemberPerf) {
   return ((m.clicks / m.visits) * 100).toFixed(1)

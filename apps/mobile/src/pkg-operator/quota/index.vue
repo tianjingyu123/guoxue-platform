@@ -1,5 +1,15 @@
 <template>
-  <view class="quota-page">
+  <view v-if="isLoading" class="quota-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="60rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="300rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
+  <view v-else class="quota-page">
     <app-nav-bar
       title="名额管理"
       :show-back="true"
@@ -464,8 +474,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { quotaData as data, quotaRecords as records, quotaSaleLink as saleLink } from '@/lib/operator-data'
+import { ref, computed } from 'vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { quotaData as _quotaData, quotaRecords as _quotaRecords, quotaSaleLink } from '@/lib/operator-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { quotaData: _quotaData, records: _quotaRecords }
+})
+
+const isEmpty = computed(() => !pageData.value?.quotaData)
+
+const quotaInfo = computed(() => pageData.value?.quotaData ?? { total: 0, used: 0, available: 0, price: 0, monthlyPrice: 0 })
+const records = computed(() => pageData.value?.records ?? [])
+const saleLink = quotaSaleLink
+const data = quotaInfo
 
 const activeTab = ref<'manage' | 'rules'>('manage')
 const copied = ref(false)
@@ -483,7 +508,7 @@ function recordTypeLabel(type: string) { return type === 'self' ? '自用' : typ
 function recordBadgeClass(type: string) { return type === 'self' ? 'badge-operator' : type === 'sold' ? 'badge-success' : 'badge-gold' }
 
 function onGiftClick() {
-  if (data.available > 0) showGiftDialog.value = true
+  if (data.value.available > 0) showGiftDialog.value = true
 }
 function closeGift() {
   showGiftDialog.value = false

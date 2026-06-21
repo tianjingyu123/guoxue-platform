@@ -3,15 +3,26 @@
  *  分站品牌栏 + 搜索Header + Hero轮播(站长信息) + 站长寄语 + 十宫格 +
  *  站长精选 + 为你推荐Feed流 + 回到顶部 + 底部导航 */
 import { ref, computed } from 'vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import QuickEntryGrid from '@/components/home/quick-entry-grid.vue'
 import FeedCard from '@/components/home/feed-card.vue'
 import BackTop from '@/components/home/back-top.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 import { buildFeedItems, type RenderItem } from '@/lib/home-data'
-import { defaultStationConfig, featuredTypeConfig } from '@/lib/station-detail-data'
+import { defaultStationConfig as _defaultStationConfig, featuredTypeConfig as _featuredTypeConfig } from '@/lib/station-detail-data'
 
-const station = defaultStationConfig
-const theme = station.themeColor
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { config: _defaultStationConfig, typeConfig: _featuredTypeConfig, feedItems: buildFeedItems() }
+})
+
+const isEmpty = computed(() => !pageData.value?.config)
+
+const station = computed(() => pageData.value?.config ?? { themeColor: '#C41E3A', name: '' })
+const theme = computed(() => station.value.themeColor)
+const featuredTypeConfig = computed(() => pageData.value?.typeConfig ?? {})
 
 // Hero 轮播
 const heroIndex = ref(0)
@@ -20,9 +31,9 @@ function onHeroChange(e: any) {
 }
 
 // 为你推荐 Feed（复用主首页瀑布流）
-const renderItems = buildFeedItems()
-const leftCol = computed<RenderItem[]>(() => renderItems.filter((_, i) => i % 2 === 0))
-const rightCol = computed<RenderItem[]>(() => renderItems.filter((_, i) => i % 2 === 1))
+const renderItems = computed(() => pageData.value?.feedItems ?? [])
+const leftCol = computed<RenderItem[]>(() => renderItems.value.filter((_, i) => i % 2 === 0))
+const rightCol = computed<RenderItem[]>(() => renderItems.value.filter((_, i) => i % 2 === 1))
 
 // 回到顶部
 const showBackTop = ref(false)
@@ -41,7 +52,17 @@ function toastSoon() {
 </script>
 
 <template>
-  <view class="sd">
+  <view v-if="isLoading" class="sd">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="400rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="300rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
+  <view v-else class="sd">
     <!-- 固定顶部：品牌栏 + 搜索栏 -->
     <view
       class="sd-fixed-top"

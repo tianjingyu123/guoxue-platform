@@ -1,5 +1,15 @@
 <template>
-  <view class="team-page">
+  <view v-if="isLoading" class="team-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="60rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
+  <view v-else class="team-page">
     <!-- 顶部导航 -->
     <app-nav-bar
       title="团队管理"
@@ -610,19 +620,38 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  teamMgmtOverview as overview,
-  teamMgmtMembers,
-  teamLeaderboard as leaderboard,
-  teamMyRank as myRank,
-  teamActivities as activities,
-  teamSuccessCases as successCases,
-  teamMemberRecentOrders as recentOrders,
-  teamMemberInvitedMembers as invitedMembers,
+  teamMgmtOverview as _teamMgmtOverview,
+  teamMgmtMembers as _teamMgmtMembers,
+  teamLeaderboard as _teamLeaderboard,
+  teamMyRank as _teamMyRank,
+  teamActivities as _teamActivities,
+  teamSuccessCases as _teamSuccessCases,
+  teamMemberRecentOrders as _teamMemberRecentOrders,
+  teamMemberInvitedMembers as _teamMemberInvitedMembers,
   teamActivityIconMap,
   teamInviteLink as inviteLink,
   type TeamMgmtMember,
 } from '@/lib/operator-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { overview: _teamMgmtOverview, members: _teamMgmtMembers, leaderboard: _teamLeaderboard, myRank: _teamMyRank, activities: _teamActivities, successCases: _teamSuccessCases, recentOrders: _teamMemberRecentOrders, invitedMembers: _teamMemberInvitedMembers }
+})
+
+const isEmpty = computed(() => !pageData.value?.overview)
+
+const overview = computed(() => pageData.value?.overview ?? { totalCommission: 0, nextLevelRequirement: 0, level: '', memberCount: 0, activeCount: 0 })
+const teamMgmtMembers = computed(() => pageData.value?.members ?? [])
+const leaderboard = computed(() => pageData.value?.leaderboard ?? [])
+const myRank = computed(() => pageData.value?.myRank ?? { rank: 0, total: 0 })
+const activities = computed(() => pageData.value?.activities ?? [])
+const successCases = computed(() => pageData.value?.successCases ?? [])
+const recentOrders = computed(() => pageData.value?.recentOrders ?? [])
+const invitedMembers = computed(() => pageData.value?.invitedMembers ?? [])
 
 const tabs = [
   { key: 'members', label: '成员' },
@@ -633,7 +662,7 @@ const tabs = [
 const activeTab = ref<'members' | 'leaderboard' | 'activities' | 'cases'>('members')
 
 const upgradePercent = computed(() =>
-  Math.min((overview.totalCommission / overview.nextLevelRequirement) * 100, 100),
+  Math.min((overview.value.totalCommission / overview.value.nextLevelRequirement) * 100, 100),
 )
 
 // 成员筛选/排序
@@ -660,7 +689,7 @@ function selectFilter(v: 'all' | 'active' | 'inactive') { memberFilter.value = v
 function selectSort(v: 'commission' | 'inviteCount' | 'joinDate') { memberSort.value = v; dropdown.value = null }
 
 const sortedMembers = computed(() => {
-  let list = [...teamMgmtMembers]
+  let list = [...teamMgmtMembers.value]
   if (memberFilter.value === 'active') list = list.filter(m => m.status === 'active')
   if (memberFilter.value === 'inactive') list = list.filter(m => m.status === 'inactive')
   if (memberSort.value === 'commission') list.sort((a, b) => b.totalCommission - a.totalCommission)

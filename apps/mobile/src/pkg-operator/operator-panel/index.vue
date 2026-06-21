@@ -1,5 +1,15 @@
 <template>
-  <view class="op-page">
+  <view v-if="isLoading" class="op-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
+  <view v-else class="op-page">
     <!-- Header -->
     <view
       class="op-header"
@@ -292,19 +302,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  operatorPanelInfo as info,
-  operatorOverview as overview,
-  operatorTeamRanking as teamRanking,
-  operatorQuotaUsage as quotaUsage,
-  operatorQuickActions as quickActions,
+  operatorPanelInfo as _operatorPanelInfo,
+  operatorOverview as _operatorOverview,
+  operatorTeamRanking as _operatorTeamRanking,
+  operatorQuotaUsage as _operatorQuotaUsage,
+  operatorQuickActions as _operatorQuickActions,
 } from '@/lib/operator-data'
 
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { info: _operatorPanelInfo, overview: _operatorOverview, teamRanking: _operatorTeamRanking, quotaUsage: _operatorQuotaUsage, quickActions: _operatorQuickActions }
+})
+
+const isEmpty = computed(() => !pageData.value?.info)
+
+const info = computed(() => pageData.value?.info ?? { avatar: '', name: '', role: '', level: '', growthValue: 0, nextLevel: '', nextLevelGrowth: 0 })
+const overview = computed(() => pageData.value?.overview ?? { totalEarnings: 0, monthEarnings: 0, todayEarnings: 0, totalMembers: 0, activeMembers: 0, avgCommission: 0 })
+const teamRanking = computed(() => pageData.value?.teamRanking ?? { current: { rank: 0, score: 0 }, top3: [] })
+const quotaUsage = computed(() => pageData.value?.quotaUsage ?? { total: 0, used: 0 })
+const quickActions = computed(() => pageData.value?.quickActions ?? [])
+
 const statusBarHeight = ref(0)
-const loading = ref(true)
 const rankingPeriod = ref<'day' | 'week' | 'month'>('month')
 
 const periodTabs = [
@@ -316,8 +341,6 @@ const periodTabs = [
 onMounted(() => {
   const sys = uni.getSystemInfoSync()
   statusBarHeight.value = sys.statusBarHeight || 0
-  // 模拟原型 600ms loading
-  setTimeout(() => { loading.value = false }, 600)
 })
 
 function goBack() {

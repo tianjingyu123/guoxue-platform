@@ -1,5 +1,16 @@
 <template>
-  <view class="invite-page">
+  <view v-if="isLoading" class="invite-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="240rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="100rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无邀请数据" />
+  <view v-else class="invite-page">
     <app-nav-bar
       title="邀请站长"
       :show-back="true"
@@ -173,9 +184,22 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { invitedStations, operatorInviteLinkFull, operatorInviteCode } from '@/lib/operator-data'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { invitedStations as _invitedStations, operatorInviteLinkFull, operatorInviteCode } from '@/lib/operator-data'
 
-const invited = invitedStations
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { invited: _invitedStations }
+})
+
+const isEmpty = computed(() => {
+  const i = pageData.value?.invited
+  return i !== undefined && i.length === 0
+})
+
+const invited = computed(() => pageData.value?.invited ?? [])
 const inviteLink = operatorInviteLinkFull
 const inviteCode = operatorInviteCode
 
@@ -184,13 +208,13 @@ const email = ref('')
 const sent = ref(false)
 
 const statItems = computed(() => [
-  { label: '已邀请', value: invited.length, icon: 'users' },
-  { label: '已激活', value: invited.filter((s) => s.status === 'active').length, icon: 'check-circle-2' },
+  { label: '已邀请', value: invited.value.length, icon: 'users' },
+  { label: '已激活', value: invited.value.filter((s) => s.status === 'active').length, icon: 'check-circle-2' },
   { label: '累计佣金', value: `¥${totalCommission.value.toLocaleString()}`, icon: 'gift' },
 ])
 
 const totalCommission = computed(() =>
-  invited
+  invited.value
     .filter((s) => s.status === 'active')
     .reduce((sum, s) => sum + parseFloat(s.commission.replace(/[¥,]/g, '')), 0),
 )

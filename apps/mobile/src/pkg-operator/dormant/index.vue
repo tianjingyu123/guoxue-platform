@@ -1,5 +1,16 @@
 <template>
-  <view class="dormant-page">
+  <view v-if="isLoading" class="dormant-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="140rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="140rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="140rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无沉寂数据" />
+  <view v-else class="dormant-page">
     <app-nav-bar
       title="沉寂站长预警"
       :show-back="true"
@@ -126,10 +137,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { dormantMembers } from '@/lib/operator-data'
+import { ref, computed, watch } from 'vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { dormantMembers as _dormantMembers } from '@/lib/operator-data'
 
-const members = ref(dormantMembers.map((m) => ({ ...m })))
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { members: _dormantMembers }
+})
+
+const isEmpty = computed(() => {
+  const m = pageData.value?.members
+  return m !== undefined && m.length === 0
+})
+
+const members = ref<any[]>([])
+watch(() => pageData.value?.members, (val) => {
+  if (val) members.value = val.map((m: any) => ({ ...m }))
+}, { immediate: true })
 const batchReminded = ref(false)
 
 const pendingCount = computed(() => members.value.filter((m) => !m.reminded).length)

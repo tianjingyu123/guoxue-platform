@@ -1,5 +1,16 @@
 <template>
-  <view class="smp-page">
+  <view v-if="isLoading" class="smp-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="140rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
+  <view v-else class="smp-page">
     <!-- 顶部导航 -->
     <app-nav-bar
       title="分站管理"
@@ -341,28 +352,45 @@
 import { ref, computed } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  stationPanelInfo,
-  stationPanelOverview,
+  stationPanelInfo as _stationPanelInfo,
+  stationPanelOverview as _stationPanelOverview,
   stationOverviewIconMap,
-  stationPanelTrends,
-  stationPanelBalance,
-  stationPanelQuickActions,
+  stationPanelTrends as _stationPanelTrends,
+  stationPanelBalance as _stationPanelBalance,
+  stationPanelQuickActions as _stationPanelQuickActions,
   stationActionIconMap,
-  stationPanelNotices,
+  stationPanelNotices as _stationPanelNotices,
   type StationPanelQuickAction,
 } from '@/lib/operator-data'
 
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { info: _stationPanelInfo, overview: _stationPanelOverview, trends: _stationPanelTrends, balance: _stationPanelBalance, quickActions: _stationPanelQuickActions, notices: _stationPanelNotices }
+})
+
+const isEmpty = computed(() => !pageData.value?.info)
+
+const stationPanelInfo = computed(() => pageData.value?.info ?? { status: 'active', name: '', avatar: '' })
+const stationPanelOverview = computed(() => pageData.value?.overview ?? { todayOrders: 0, monthOrders: 0, totalOrders: 0, todayRevenue: 0, monthRevenue: 0, totalRevenue: 0 })
+const stationPanelTrends = computed(() => pageData.value?.trends ?? [])
+const stationPanelBalance = computed(() => pageData.value?.balance ?? { available: 0, frozen: 0, pending: 0 })
+const stationPanelQuickActions = computed(() => pageData.value?.quickActions ?? [])
+const stationPanelNotices = computed(() => pageData.value?.notices ?? [])
+
 const trendIndex = ref(0)
 const trendPeriod = ref<'week' | 'month'>('week')
-const activeTrend = computed(() => stationPanelTrends[trendIndex.value])
+const activeTrend = computed(() => stationPanelTrends.value[trendIndex.value])
 function trendTypeLabel(type: string) { return type === 'revenue' ? '收益' : '订单' }
-const unreadNotices = computed(() => stationPanelNotices.filter((n) => n.type === 'warning').length)
+const unreadNotices = computed(() => stationPanelNotices.value.filter((n) => n.type === 'warning').length)
 
 const statusLabel = computed(() => {
   const map: Record<string, string> = { active: '运营中', expired: '已过期', paused: '已暂停' }
-  return map[stationPanelInfo.status] || '运营中'
+  return map[stationPanelInfo.value.status] || '运营中'
 })
 
 const maxTrendValue = computed(() => Math.max(...activeTrend.value.data.map((p) => p.value)))
