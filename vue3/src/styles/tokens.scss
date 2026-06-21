@@ -1,0 +1,198 @@
+/* ============================================================
+   热卜国学 · 设计令牌系统（从原型 globals.css 1:1 迁移）
+   三层架构：① 原始调色板 → ② 语义令牌 → ③ 工具类映射(见 uno.config.ts)
+   说明：颜色值逐字段抄录，不得凭记忆重写。
+   ============================================================ */
+
+/* ---------- ① 原始调色板（仅供语义层引用，组件禁止直接用） ---------- */
+:root {
+  /* 故宫红 */
+  --gugong-red: #c41e3a;
+  --gugong-red-soft: #d94452;
+  --gugong-red-deep: #a01830;
+  /* 珠宝金 */
+  --jewel-gold: #c9a96e;
+  --jewel-gold-soft: #d4b87d;
+  --jewel-gold-deep: #b8985f;
+  /* 宣纸底色系 */
+  --xuan-paper: #faf8f5;
+  --xuan-paper-2: #f5f1eb;
+  --xuan-paper-3: #f0ebe5;
+  --xuan-sunken: #f2efea;
+  /* 墨色文字系 */
+  --ink: #2c2c2c;
+  --ink-2: #666666;
+  --ink-3: #999999;
+  /* 分割线 */
+  --hairline: #e8e0d5;
+  --hairline-2: #e8e3db;
+  --pure-white: #ffffff;
+  /* 状态色 */
+  --state-green: #52c41a;
+  --state-orange: #fa8c16;
+  --state-red: #ff4d4f;
+  --state-blue: #1890ff;
+  /* 角色专属色 */
+  --role-purple: #722ed1;   /* 运营商 */
+  --role-purple-soft: #9254de;
+  --role-cyan: #13c2c2;     /* 研究院 */
+  --role-cyan-soft: #36cfc9;
+  --role-magenta: #eb2f96;  /* 直播 */
+  --role-magenta-soft: #f759ab;
+}
+
+/* ---------- ② 语义令牌 · 浅色 ---------- */
+:root {
+  --touch-target-min: 88rpx; /* 44px */
+  --radius: 16rpx;           /* 0.5rem */
+
+  --surface-base: var(--xuan-paper);
+  --surface: var(--pure-white);
+  --surface-sunken: var(--xuan-sunken);
+  --line: var(--hairline);
+  --line-nav: var(--hairline-2);
+
+  --bg-paper: var(--xuan-paper);
+  --brand: var(--gugong-red);
+  --brand-soft: var(--gugong-red-soft);
+  --gold: var(--jewel-gold);
+  --gold-foreground: var(--ink);
+  --text-ink: var(--ink);
+  --text-strong: var(--ink);
+  --text: var(--ink-2);
+  --text-soft: var(--ink-3);
+  --info: var(--state-blue);
+  --success: var(--state-green);
+  --warning: var(--state-orange);
+  --danger: var(--state-red);
+
+  /* 角色专属语义色 */
+  --operator: var(--role-purple);
+  --institute: var(--role-cyan);
+  --live: var(--role-magenta);
+  --station: var(--state-green);
+
+  /* shadcn 对应（移动端常用子集） */
+  --background: var(--xuan-paper);
+  --foreground: var(--ink);
+  --card: var(--pure-white);
+  --card-foreground: var(--ink);
+  --primary: var(--gugong-red);
+  --primary-foreground: var(--pure-white);
+  --secondary: var(--xuan-paper-2);
+  --muted: var(--xuan-paper-3);
+  --muted-foreground: var(--ink-3);
+  --border: var(--hairline);
+
+  /* 古籍馆专属底色（原型 #f4f2ee 暖灰米，区别于全局宣纸 #faf8f5） */
+  --classics-bg: #f4f2ee;
+
+  /* 电子书城专属主题（知识蓝，区别于古籍故宫红） */
+  --ebook-primary: #2563eb;
+  --ebook-primary-soft: #dbeafe;
+  --ebook-accent: #0ea5e9;
+  --ebook-member: #7c3aed;
+  --ebook-member-soft: #ede9fe;
+  --ebook-price: #dc2626;
+  --ebook-free: #16a34a;
+  --ebook-bg: #f8fafc;
+  --ebook-card: #ffffff;
+  --ebook-border: #e2e8f0;
+  --ebook-text: #1e293b;
+  --ebook-text-soft: #64748b;
+}
+
+/* ---------- ② 语义令牌 · 深色（与原型一致的整套覆盖） ---------- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --xuan-paper: #1a1815;
+    --xuan-paper-2: #211e1a;
+    --xuan-paper-3: #2a2620;
+    --pure-white: #211e1a;
+    --ink: #f0ebe3;
+    --ink-2: #c4bcae;
+    --ink-3: #8a8276;
+    --hairline: #353029;
+    --gugong-red: #d94452;
+    --jewel-gold: #d4b87d;
+    --classics-bg: #1a1815;
+  }
+}
+/* 手动暗色 class（小程序无 prefers-color-scheme 时用） */
+.theme-dark {
+  --xuan-paper: #1a1815;
+  --pure-white: #211e1a;
+  --ink: #f0ebe3;
+  --ink-2: #c4bcae;
+  --ink-3: #8a8276;
+  --hairline: #353029;
+  --gugong-red: #d94452;
+  --jewel-gold: #d4b87d;
+  --classics-bg: #1a1815;
+}
+
+/* ---------- 字族 ---------- */
+:root {
+  --font-sans: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-serif: 'Noto Serif SC', 'Songti SC', 'STSong', serif;
+}
+
+/* ---------- 五行专属色 + indigo 辅助色（从原型 globals.css 1:1 迁移） ---------- */
+:root {
+  --wuxing-wood: #2d8a4e;   /* 木 - 青绿色 */
+  --wuxing-fire: #c41e3a;   /* 火 - 朱红色 */
+  --wuxing-earth: #b8860b;  /* 土 - 土黄色 */
+  --wuxing-metal: #c9a96e;  /* 金 - 金黄色 */
+  --wuxing-water: #1a6fc7;  /* 水 - 湖蓝色 */
+  --indigo: #2d5a87;
+  --indigo-light: #e8f0f5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --wuxing-wood: #4ade80;
+    --wuxing-fire: #f87171;
+    --wuxing-earth: #fbbf24;
+    --wuxing-metal: #fcd34d;
+    --wuxing-water: #60a5fa;
+  }
+}
+.theme-dark {
+  --wuxing-wood: #4ade80;
+  --wuxing-fire: #f87171;
+  --wuxing-earth: #fbbf24;
+  --wuxing-metal: #fcd34d;
+  --wuxing-water: #60a5fa;
+}
+
+/* ---------- 五行类名工具类（供 :class 动态绑定, App/小程序端 scoped 外全局可用） ---------- */
+.wx-wood { color: var(--wuxing-wood); }
+.wx-fire { color: var(--wuxing-fire); }
+.wx-earth { color: var(--wuxing-earth); }
+.wx-metal { color: var(--wuxing-metal); }
+.wx-water { color: var(--wuxing-water); }
+.wxb-wood { background: rgba(45,138,78,0.1); color: var(--wuxing-wood); }
+.wxb-fire { background: rgba(196,30,58,0.1); color: var(--wuxing-fire); }
+.wxb-earth { background: rgba(184,134,11,0.1); color: var(--wuxing-earth); }
+.wxb-metal { background: rgba(201,169,110,0.1); color: var(--wuxing-metal); }
+.wxb-water { background: rgba(26,111,199,0.1); color: var(--wuxing-water); }
+
+/* ============================================================
+   诗词板块专属配色系统（从原型 globals.css 1:1 迁移）
+   定位：深色沉浸式文化体验——深棕夜色为底，琥珀金为点缀
+   ============================================================ */
+:root {
+  --poem-bg:          #1c1208;   /* 页面底色：深夜棕黑 */
+  --poem-bg-2:        #241a0e;   /* 次级背景 */
+  --poem-surface:     #2e1f10;   /* 卡片/面板底色 */
+  --poem-border:      rgba(255, 210, 140, 0.12); /* 边框：琥珀金半透明 */
+  --poem-gold:        #e8c07a;   /* 主强调色：琥珀金 */
+  --poem-gold-soft:   rgba(232, 192, 122, 0.15); /* 金色浅底 */
+  --poem-gold-dim:    rgba(232, 192, 122, 0.35); /* 金色中等透明 */
+  --poem-text:        #f5ead8;   /* 主文字：暖白 */
+  --poem-text-soft:   rgba(245, 234, 216, 0.55); /* 次级文字 */
+  --poem-text-muted:  rgba(245, 234, 216, 0.30); /* 更弱辅助文字 */
+  --poem-ai:          #9b7ec8;   /* AI 功能色：淡紫 */
+  --poem-ai-soft:     rgba(155, 126, 200, 0.18); /* AI 浅底 */
+  --poem-red:         #c0433a;   /* 点赞红 */
+  --poem-line:        rgba(255, 210, 140, 0.08); /* 分隔线 */
+}
