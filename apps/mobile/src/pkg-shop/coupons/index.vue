@@ -1,5 +1,14 @@
 <template>
-  <view class="cp-page">
+  <view v-if="isLoading" class="cp-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无优惠券" />
+  <view v-else class="cp-page">
     <!-- 导航 -->
     <view class="navbar">
       <view class="nav-back" hover-class="nav-hover" @tap="goBack">
@@ -118,10 +127,23 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { myCoupons, centerCoupons, couponTabs, formatCouponValue, type CenterCoupon } from '@/lib/shop-data'
+import { myCoupons as _myCoupons, centerCoupons as _centerCoupons, couponTabs as _couponTabs, formatCouponValue, type CenterCoupon } from '@/lib/shop-data'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { myCoupons: _myCoupons, centerCoupons: _centerCoupons, tabs: _couponTabs }
+})
+
+const couponTabs = computed(() => pageData.value?.tabs ?? [])
+const myCoupons = computed(() => pageData.value?.myCoupons ?? [])
+const centerCoupons = computed(() => pageData.value?.centerCoupons ?? [])
+const isEmpty = computed(() => myCoupons.value.length === 0 && centerCoupons.value.length === 0)
 
 const activeTab = ref('unused')
-const myList = ref([...myCoupons])
+const myList = ref([..._myCoupons])
 const centerList = ref([...centerCoupons])
 const claimingId = ref<string | null>(null)
 

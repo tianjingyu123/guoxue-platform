@@ -1,5 +1,13 @@
 <template>
-  <view class="cart-page">
+  <view v-if="loading" class="cart-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="loadCart" />
+  <view v-else class="cart-page">
     <!-- 顶部导航 -->
     <app-nav-bar :title="`购物车(${items.length})`" back-icon="arrow-left" :back-size="40" :title-size="36" :bar-height="106">
       <template #right>
@@ -153,15 +161,25 @@
 import { ref, computed, onMounted } from 'vue'
 import { navigateTo, reLaunch } from '@/utils/router'
 import { shopApi, type FlatCartItem } from '@/lib/shop-data'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 
 const loading = ref(true)
+const loadError = ref<string | null>(null)
 const items = ref<FlatCartItem[]>([])
 
-onMounted(async () => {
-  try { items.value = await shopApi.getCart() }
-  catch { /* useMock handles fallback */ }
+async function loadCart() {
+  loading.value = true
+  loadError.value = null
+  try {
+    items.value = await shopApi.getCart()
+  } catch {
+    loadError.value = '加载购物车失败，请稍后重试'
+  }
   finally { loading.value = false }
-})
+}
+onMounted(loadCart)
 const editMode = ref(false)
 const swipedId = ref<number | null>(null)
 

@@ -1,17 +1,41 @@
 <script setup lang="ts">
 /** 购物板块首页 - 从原型 app/shop/page.tsx 1:1 迁移 */
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  shopQuickActions, shopBanners, shopCategories, shopFlashSale, shopGroupBuy, shopRecProducts,
+  shopQuickActions as _shopQuickActions, shopBanners as _shopBanners, shopCategories as _shopCategories,
+  shopFlashSale as _shopFlashSale, shopGroupBuy as _shopGroupBuy, shopRecProducts as _shopRecProducts,
 } from '@/lib/shop-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return {
+    quickActions: _shopQuickActions,
+    banners: _shopBanners,
+    categories: _shopCategories,
+    flashSale: _shopFlashSale,
+    groupBuy: _shopGroupBuy,
+    recProducts: _shopRecProducts,
+  }
+})
+
+const shopQuickActions = computed(() => pageData.value?.quickActions ?? [])
+const shopBanners = computed(() => pageData.value?.banners ?? [])
+const shopCategories = computed(() => pageData.value?.categories ?? [])
+const shopFlashSale = computed(() => pageData.value?.flashSale ?? {} as any)
+const shopGroupBuy = computed(() => pageData.value?.groupBuy ?? {})
+const shopRecProducts = computed(() => pageData.value?.recProducts ?? [])
+const isEmpty = computed(() => shopBanners.value.length === 0 && shopCategories.value.length === 0)
 
 const loading = ref(true)
 const bannerIndex = ref(0)
 
 // 秒杀倒计时（距结束 2 小时）
-const endTime = Date.now() + shopFlashSale.durationSec * 1000
+const endTime = Date.now() + shopFlashSale.value.durationSec * 1000
 const cd = ref({ hours: '00', minutes: '00', seconds: '00' })
 let timer: ReturnType<typeof setInterval> | null = null
 function tick() {
@@ -31,10 +55,21 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 
 function onBannerChange(e: { detail: { current: number } }) { bannerIndex.value = e.detail.current }
 function goSearch() { toastComingSoon() }
-const groupPct = Math.round((shopGroupBuy.currentMembers / shopGroupBuy.minMembers) * 100)
+const groupPct = Math.round((shopGroupBuy.value.currentMembers / shopGroupBuy.value.minMembers) * 100)
 </script>
 
 <template>
+  <view v-if="isLoading || loading" class="shop-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="240rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无商品" />
+  <template v-else>
   <!-- 骨架屏 -->
   <view v-if="loading" class="sk-page">
     <view class="sk-bar" />
@@ -200,6 +235,7 @@ const groupPct = Math.round((shopGroupBuy.currentMembers / shopGroupBuy.minMembe
 
     <view class="bottom-safe" />
   </view>
+  </template>
 </template>
 
 <style scoped lang="scss">

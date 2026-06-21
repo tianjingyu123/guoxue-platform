@@ -1,5 +1,16 @@
 <template>
-  <view class="cat-page">
+  <view v-if="loading" class="cat-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <view style="display: flex; gap: 24rpx;">
+        <AppSkeleton width="180rpx" height="400rpx" radius="24rpx" />
+        <AppSkeleton width="100%" height="400rpx" radius="24rpx" />
+      </view>
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无分类" />
+  <view v-else class="cat-page">
     <!-- 顶部导航 -->
     <app-nav-bar title="商品分类" back-icon="arrow-left" :back-size="34">
       <template #right>
@@ -87,15 +98,21 @@ import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from '@/utils/router'
 import { shopApi, type ShopCategoryNode } from '@/lib/shop-data'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 
 const categories = ref<ShopCategoryNode[]>([])
 const products = ref<Record<string, any[]>>({})
 const selectedCategory = ref('')
 const selectedSubCategory = ref('')
 const loading = ref(true)
+const loadError = ref<string | null>(null)
+
+const isEmpty = computed(() => categories.value.length === 0 && !loading.value)
 
 onMounted(async () => {
   try {
+    loadError.value = null
     const tree = await shopApi.getCategoryTree()
     categories.value = tree
     if (tree.length > 0) {
@@ -104,9 +121,30 @@ onMounted(async () => {
       const prods = await shopApi.getCategoryProducts(tree[0].id)
       products.value = { [tree[0].id]: prods }
     }
-  } catch { /* useMock handles fallback */ }
+  } catch {
+    loadError.value = '加载失败，请稍后重试'
+  }
   finally { loading.value = false }
 })
+async function reload() {
+  loading.value = true
+  loadError.value = null
+  categories.value = []
+  products.value = {}
+  try {
+    const tree = await shopApi.getCategoryTree()
+    categories.value = tree
+    if (tree.length > 0) {
+      selectedCategory.value = tree[0].id
+      selectedSubCategory.value = tree[0].children?.[0]?.id ?? ''
+      const prods = await shopApi.getCategoryProducts(tree[0].id)
+      products.value = { [tree[0].id]: prods }
+    }
+  } catch {
+    loadError.value = '加载失败，请稍后重试'
+  }
+  finally { loading.value = false }
+}
 
 const currentCategory = computed(() => categories.value.find((c) => c.id === selectedCategory.value))
 
