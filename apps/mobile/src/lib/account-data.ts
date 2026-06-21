@@ -3,8 +3,6 @@
    主题色统一为商城 #9A2D2D。
    ============================================================ */
 
-import { apiGet, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
-
 const P = '/static/images/products'
 
 /* —— 售后申请 —— */
@@ -185,112 +183,6 @@ export const shippingAddressList: ShippingAddressItem[] = [
   { id: '2', name: '李四', phone: '139****9999', province: '上海市', city: '上海市', district: '浦东新区', address: '张江高科技园区博云路2号浦软大厦8楼', isDefault: false },
   { id: '3', name: '王五', phone: '137****7777', province: '广东省', city: '深圳市', district: '南山区', address: '科技园南区高新南一道飞亚达大厦5层', isDefault: false },
 ]
-
-// ============================================
-// API 层：useMock 开关控制真实/模拟数据切换
-// ============================================
-
-function mapAddress(a: any): ShippingAddressItem {
-  return {
-    id: String(a.id || ''),
-    name: a.name || a.contactName || '',
-    phone: a.phone || a.mobile || '',
-    province: a.province || '',
-    city: a.city || '',
-    district: a.district || '',
-    address: a.address || a.detail || '',
-    isDefault: !!a.isDefault,
-  }
-}
-
-function mapAfterSale(a: any): AfterSaleListItem {
-  return {
-    id: String(a.id || ''),
-    orderId: String(a.orderId || ''),
-    orderNo: a.orderNo || '',
-    type: a.type || 'refund_only',
-    status: a.status || 'pending',
-    amount: a.amount ?? a.refundAmount ?? 0,
-    reason: a.reason || '',
-    product: {
-      id: String(a.product?.id || a.productId || ''),
-      name: a.product?.name || a.productName || '',
-      cover: a.product?.cover || a.productImage || '',
-      skuName: a.product?.skuName || a.product?.sku?.name || '',
-    },
-    createdAt: a.createdAt || a.created_at || '',
-    canCancel: a.canCancel ?? (a.status === 'pending'),
-  }
-}
-
-export const addressApi = {
-  async getAddresses() {
-    if (useMock()) return shippingAddressList
-    try {
-      const res = await apiGet<any>('/shop/addresses')
-      return (res.items || res.list || res || []).map(mapAddress)
-    } catch { return shippingAddressList }
-  },
-
-  async saveAddress(data: Partial<ShippingAddressItem>) {
-    if (useMock()) return { ...data, id: data.id || String(Date.now()) }
-    if (data.id) {
-      return apiPut<any>(`/shop/addresses/${data.id}`, data)
-    }
-    return apiPost<any>('/shop/addresses', data)
-  },
-
-  async deleteAddress(id: string) {
-    if (useMock()) return { success: true }
-    return apiDelete<any>(`/shop/addresses/${id}`)
-  },
-
-  async setDefault(id: string) {
-    if (useMock()) return { success: true }
-    return apiPut<any>(`/shop/addresses/${id}/default`)
-  },
-}
-
-export const afterSaleApi = {
-  async getAfterSales(params?: { page?: number; pageSize?: number; status?: string }) {
-    if (useMock()) {
-      let list = afterSaleList
-      if (params?.status) list = list.filter((a) => a.status === params.status)
-      return { items: list, total: list.length }
-    }
-    try {
-      const qs = new URLSearchParams()
-      if (params?.page) qs.set('page', String(params.page))
-      if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
-      if (params?.status) qs.set('status', params.status)
-      const res = await apiGet<any>(`/shop/after-sales?${qs}`)
-      return { items: (res.items || res.list || []).map(mapAfterSale), total: res.total || 0 }
-    } catch { return { items: afterSaleList, total: afterSaleList.length } }
-  },
-
-  async getAfterSaleDetail(id: string, status?: string) {
-    if (useMock()) {
-      if (status === 'rejected') return afterSaleRejectedDetail
-      return afterSaleDetail
-    }
-    try {
-      return await apiGet<any>(`/shop/after-sales/${id}`)
-    } catch {
-      if (status === 'rejected') return afterSaleRejectedDetail
-      return afterSaleDetail
-    }
-  },
-
-  async submitAfterSale(params: { orderId: string; type: string; reason: string; amount: number; description?: string; images?: string[] }) {
-    if (useMock()) return { success: true, id: `as-${Date.now()}` }
-    return apiPost<any>(`/shop/orders/${params.orderId}/after-sale`, params)
-  },
-
-  async cancelAfterSale(id: string) {
-    if (useMock()) return { success: true }
-    return apiPut<any>(`/shop/after-sales/${id}/cancel`)
-  },
-}
 
 /** 省市区数据（简化版） */
 export const REGIONS: Record<string, Record<string, string[]>> = {

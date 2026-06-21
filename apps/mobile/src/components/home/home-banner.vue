@@ -18,10 +18,7 @@ function onTap(link: string) {
 </script>
 
 <template>
-  <view
-    v-if="banners.length"
-    class="banner-wrap"
-  >
+  <view v-if="banners.length" class="banner-wrap">
     <swiper
       class="swiper"
       :autoplay="banners.length > 1"
@@ -30,29 +27,16 @@ function onTap(link: string) {
       circular
       @change="onChange"
     >
-      <swiper-item
-        v-for="b in banners"
-        :key="b.id"
-        @tap="onTap(b.link)"
-      >
+      <swiper-item v-for="b in banners" :key="b.id" @tap="onTap(b.link)">
         <view class="slide">
-          <image
-            :src="b.image"
-            class="slide-img"
-            mode="aspectFill"
-          />
+          <image :src="b.image" class="slide-img" mode="aspectFill" />
           <view class="mask" />
-          <text class="slide-title">
-            {{ b.title }}
-          </text>
+          <text class="slide-title">{{ b.title }}</text>
         </view>
       </swiper-item>
     </swiper>
     <!-- 指示器 -->
-    <view
-      v-if="banners.length > 1"
-      class="dots"
-    >
+    <view v-if="banners.length > 1" class="dots">
       <view
         v-for="(b, i) in banners"
         :key="i"

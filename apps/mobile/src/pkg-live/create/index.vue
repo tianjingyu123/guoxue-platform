@@ -2,130 +2,52 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
-      <view
-        class="nav-btn"
-        @tap="goBack"
-      >
-        <AppIcon
-          name="chevron-left"
-          :size="48"
-          color="#2C2C2C"
-        />
+      <view class="nav-btn" @tap="goBack">
+        <AppIcon name="chevron-left" :size="48" color="#2C2C2C" />
       </view>
-      <text class="nav-title">
-        创建直播
-      </text>
-      <text class="nav-draft">
-        存草稿
-      </text>
+      <text class="nav-title">创建直播</text>
+      <text class="nav-draft">存草稿</text>
     </view>
 
     <view class="body">
       <!-- 直播模式选择 -->
       <view class="card">
-        <text class="label">
-          直播模式 <text class="req">
-            *
-          </text>
-        </text>
+        <text class="label">直播模式 <text class="req">*</text></text>
         <view class="mode-grid">
-          <view
-            class="mode-card"
-            :class="{ 'mode-active': liveMode === 'vertical' }"
-            @tap="liveMode = 'vertical'"
-          >
-            <view class="mode-badge">
-              推荐
+          <view class="mode-card" :class="{ 'mode-active': liveMode === 'vertical' }" @tap="liveMode = 'vertical'">
+            <view class="mode-badge">推荐</view>
+            <view class="mode-icon" :class="{ 'mode-icon-active': liveMode === 'vertical' }">
+              <AppIcon name="smartphone" :size="40" :color="liveMode === 'vertical' ? '#fff' : '#666'" />
             </view>
-            <view
-              class="mode-icon"
-              :class="{ 'mode-icon-active': liveMode === 'vertical' }"
-            >
-              <AppIcon
-                name="smartphone"
-                :size="40"
-                :color="liveMode === 'vertical' ? '#fff' : '#666'"
-              />
-            </view>
-            <text
-              class="mode-name"
-              :class="{ 'mode-name-active': liveMode === 'vertical' }"
-            >
-              手机竖屏
-            </text>
-            <text class="mode-desc">
-              适合带货、聊天互动
-            </text>
+            <text class="mode-name" :class="{ 'mode-name-active': liveMode === 'vertical' }">手机竖屏</text>
+            <text class="mode-desc">适合带货、聊天互动</text>
           </view>
-          <view
-            class="mode-card"
-            :class="{ 'mode-active': liveMode === 'horizontal' }"
-            @tap="liveMode = 'horizontal'"
-          >
-            <view
-              class="mode-icon"
-              :class="{ 'mode-icon-active': liveMode === 'horizontal' }"
-            >
-              <AppIcon
-                name="monitor"
-                :size="40"
-                :color="liveMode === 'horizontal' ? '#fff' : '#666'"
-              />
+          <view class="mode-card" :class="{ 'mode-active': liveMode === 'horizontal' }" @tap="liveMode = 'horizontal'">
+            <view class="mode-icon" :class="{ 'mode-icon-active': liveMode === 'horizontal' }">
+              <AppIcon name="monitor" :size="40" :color="liveMode === 'horizontal' ? '#fff' : '#666'" />
             </view>
-            <text
-              class="mode-name"
-              :class="{ 'mode-name-active': liveMode === 'horizontal' }"
-            >
-              OBS横屏
-            </text>
-            <text class="mode-desc">
-              适合课程、课件讲解
-            </text>
+            <text class="mode-name" :class="{ 'mode-name-active': liveMode === 'horizontal' }">OBS横屏</text>
+            <text class="mode-desc">适合课程、课件讲解</text>
           </view>
         </view>
         <!-- OBS提示 -->
-        <view
-          v-if="liveMode === 'horizontal'"
-          class="obs-tip"
-        >
-          <AppIcon
-            name="settings"
-            :size="32"
-            color="#d97706"
-          />
+        <view v-if="liveMode === 'horizontal'" class="obs-tip">
+          <AppIcon name="settings" :size="32" color="#d97706" />
           <view class="obs-tip-body">
-            <text class="obs-tip-title">
-              OBS推流设置
-            </text>
-            <text class="obs-tip-desc">
-              横屏直播需要使用OBS等推流软件，开播后将显示推流地址。
-            </text>
-            <text class="obs-tip-link">
-              查看OBS配置教程
-            </text>
+            <text class="obs-tip-title">OBS推流设置</text>
+            <text class="obs-tip-desc">横屏直播需要使用OBS等推流软件，开播后将显示推流地址。</text>
+            <text class="obs-tip-link">查看OBS配置教程</text>
           </view>
         </view>
       </view>
 
       <!-- 封面上传 -->
       <view class="card">
-        <text class="label">
-          直播封面 <text class="req">
-            *
-          </text>
-        </text>
+        <text class="label">直播封面 <text class="req">*</text></text>
         <view class="cover-upload">
-          <AppIcon
-            name="camera"
-            :size="80"
-            color="#999999"
-          />
-          <text class="cover-tip">
-            点击上传封面
-          </text>
-          <text class="cover-hint">
-            建议尺寸 16:9，支持 JPG/PNG
-          </text>
+          <AppIcon name="camera" :size="80" color="#999999" />
+          <text class="cover-tip">点击上传封面</text>
+          <text class="cover-hint">建议尺寸 16:9，支持 JPG/PNG</text>
         </view>
       </view>
 
@@ -133,57 +55,26 @@
       <view class="card card-gap">
         <!-- 标题 -->
         <view class="field">
-          <text class="label">
-            直播标题 <text class="req">
-              *
-            </text>
-          </text>
-          <input
-            v-model="title"
-            class="input"
-            placeholder="请输入直播标题，最多30字"
-            placeholder-class="ph"
-            maxlength="30"
-          >
+          <text class="label">直播标题 <text class="req">*</text></text>
+          <input v-model="title" class="input" placeholder="请输入直播标题，最多30字" placeholder-class="ph" maxlength="30" />
           <view class="field-foot">
-            <text class="char-count">
-              {{ title.length }}/30
-            </text>
+            <text class="char-count">{{ title.length }}/30</text>
           </view>
         </view>
         <!-- 开播时间 -->
         <view class="field">
-          <text class="label">
-            开播时间 <text class="req">
-              *
-            </text>
-          </text>
-          <view
-            class="picker-btn"
-            @tap="showDatePicker = true"
-          >
+          <text class="label">开播时间 <text class="req">*</text></text>
+          <view class="picker-btn" @tap="showDatePicker = true">
             <view class="picker-left">
-              <AppIcon
-                name="calendar"
-                :size="40"
-                color="#999999"
-              />
-              <text class="picker-ph">
-                请选择开播时间
-              </text>
+              <AppIcon name="calendar" :size="40" color="#999999" />
+              <text class="picker-ph">请选择开播时间</text>
             </view>
-            <AppIcon
-              name="chevron-right"
-              :size="40"
-              color="#999999"
-            />
+            <AppIcon name="chevron-right" :size="40" color="#999999" />
           </view>
         </view>
         <!-- 直播类型 -->
         <view class="field">
-          <text class="label">
-            直播类型
-          </text>
+          <text class="label">直播类型</text>
           <view class="type-grid">
             <view
               v-for="item in typeOptions"
@@ -192,57 +83,17 @@
               :class="{ 'type-active': liveType === item.value }"
               @tap="liveType = item.value"
             >
-              <text
-                class="type-name"
-                :class="{ 'type-name-active': liveType === item.value }"
-              >
-                {{ item.label }}
-              </text>
-              <text class="type-desc">
-                {{ item.desc }}
-              </text>
+              <text class="type-name" :class="{ 'type-name-active': liveType === item.value }">{{ item.label }}</text>
+              <text class="type-desc">{{ item.desc }}</text>
             </view>
           </view>
         </view>
         <!-- 分类 -->
         <view class="field">
-          <text class="label">
-            直播分类 <text class="req">
-              *
-            </text>
-          </text>
-          <view
-            v-if="loading"
-            class="picker-ph"
-          >
-            加载分类中...
-          </view>
-          <view
-            v-else-if="error"
-            class="picker-ph"
-            style="color:#ef4444;"
-          >
-            <text>{{ error }}</text>
-            <text
-              style="color:#C41E3A;margin-left:12rpx;"
-              @tap="loadCategories"
-            >
-              重试
-            </text>
-          </view>
-          <view
-            v-else
-            class="picker-btn"
-            @tap="showCategoryPicker = true"
-          >
-            <text class="picker-ph">
-              {{ selectedCategoryName || '请选择分类' }}
-            </text>
-            <AppIcon
-              name="chevron-right"
-              :size="40"
-              color="#999999"
-            />
+          <text class="label">直播分类 <text class="req">*</text></text>
+          <view class="picker-btn" @tap="showCategoryPicker = true">
+            <text class="picker-ph">{{ selectedCategoryName || '请选择分类' }}</text>
+            <AppIcon name="chevron-right" :size="40" color="#999999" />
           </view>
         </view>
       </view>
@@ -251,109 +102,50 @@
       <view class="card card-gap">
         <!-- 描述 -->
         <view class="field">
-          <text class="label">
-            直播简介
-          </text>
-          <textarea
-            v-model="description"
-            class="textarea"
-            placeholder="介绍一下本场直播的内容..."
-            placeholder-class="ph"
-            maxlength="200"
-          />
+          <text class="label">直播简介</text>
+          <textarea v-model="description" class="textarea" placeholder="介绍一下本场直播的内容..." placeholder-class="ph" maxlength="200" />
           <view class="field-foot">
-            <text class="char-count">
-              {{ description.length }}/200
-            </text>
+            <text class="char-count">{{ description.length }}/200</text>
           </view>
         </view>
         <!-- 标签 -->
         <view class="field">
-          <text class="label">
-            直播标签 <text class="label-note">
-              （最多5个）
-            </text>
-          </text>
+          <text class="label">直播标签 <text class="label-note">（最多5个）</text></text>
           <view class="tag-input-row">
-            <input
-              v-model="tagInput"
-              class="tag-input"
-              placeholder="输入标签后回车添加"
-              placeholder-class="ph"
-              maxlength="10"
-              @confirm="addTag"
-            >
-            <view
-              class="tag-add-btn"
-              @tap="addTag"
-            >
-              添加
-            </view>
+            <input v-model="tagInput" class="tag-input" placeholder="输入标签后回车添加" placeholder-class="ph" maxlength="10" @confirm="addTag" />
+            <view class="tag-add-btn" @tap="addTag">添加</view>
           </view>
         </view>
         <!-- 公开设置 -->
         <view class="switch-row">
           <view class="switch-info">
-            <text class="switch-title">
-              公开直播
-            </text>
-            <text class="switch-desc">
-              关闭后仅粉丝可见
-            </text>
+            <text class="switch-title">公开直播</text>
+            <text class="switch-desc">关闭后仅粉丝可见</text>
           </view>
-          <view
-            class="switch"
-            :class="{ 'switch-on': isPublic }"
-            @tap="isPublic = !isPublic"
-          >
-            <view
-              class="switch-dot"
-              :class="{ 'switch-dot-on': isPublic }"
-            />
+          <view class="switch" :class="{ 'switch-on': isPublic }" @tap="isPublic = !isPublic">
+            <view class="switch-dot" :class="{ 'switch-dot-on': isPublic }" />
           </view>
         </view>
       </view>
 
       <!-- 提示 -->
       <view class="info-tip">
-        <AppIcon
-          name="info"
-          :size="32"
-          color="#C9A96E"
-        />
-        <text class="info-tip-txt">
-          直播开始前15分钟将推送通知给已预约的用户，请确保按时开播
-        </text>
+        <AppIcon name="info" :size="32" color="#C9A96E" />
+        <text class="info-tip-txt">直播开始前15分钟将推送通知给已预约的用户，请确保按时开播</text>
       </view>
     </view>
 
     <!-- 底部按钮 -->
     <view class="footer">
-      <view class="submit-btn">
-        创建直播
-      </view>
+      <view class="submit-btn">创建直播</view>
     </view>
 
     <!-- 分类选择器 -->
-    <view
-      v-if="showCategoryPicker"
-      class="sheet-mask"
-      @tap="showCategoryPicker = false"
-    >
-      <view
-        class="sheet"
-        @tap.stop
-      >
+    <view v-if="showCategoryPicker" class="sheet-mask" @tap="showCategoryPicker = false">
+      <view class="sheet" @tap.stop>
         <view class="sheet-head">
-          <text
-            class="sheet-cancel"
-            @tap="showCategoryPicker = false"
-          >
-            取消
-          </text>
-          <text class="sheet-title">
-            选择分类
-          </text>
+          <text class="sheet-cancel" @tap="showCategoryPicker = false">取消</text>
+          <text class="sheet-title">选择分类</text>
           <view class="sheet-placeholder" />
         </view>
         <view class="cat-grid">
@@ -373,10 +165,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { liveApi, type LiveCategory } from '@/lib/live-data'
+import { liveCreateCategories } from '@/lib/live-data'
 
 // UI 临时状态
 const liveMode = ref<'vertical' | 'horizontal'>('vertical')
@@ -388,22 +180,7 @@ const isPublic = ref(true)
 const categoryId = ref('')
 const showCategoryPicker = ref(false)
 const showDatePicker = ref(false)
-const categories = ref<LiveCategory[]>([])
-const loading = ref(false)
-const error = ref('')
-
-async function loadCategories() {
-  loading.value = true
-  error.value = ''
-  try {
-    categories.value = await liveApi.createCategories()
-  } catch (e: any) {
-    error.value = e?.message || '加载分类失败'
-  } finally {
-    loading.value = false
-  }
-}
-onMounted(() => { loadCategories() })
+const categories = ref(liveCreateCategories)
 
 const typeOptions = [
   { value: 'knowledge' as const, label: '知识授课', desc: '适合课程讲解' },

@@ -1,165 +1,67 @@
 <template>
-  <view
-    v-if="loading"
-    class="dormant-page"
-  >
-    <text>加载中...</text>
-  </view>
-  <view
-    v-else-if="error"
-    class="dormant-page"
-  >
-    <text>{{ error }}</text>
-    <view @tap="loadData">
-      重试
-    </view>
-  </view>
-  <view
-    v-else
-    class="dormant-page"
-  >
-    <app-nav-bar
-      title="沉寂站长预警"
-      :show-back="true"
-      background="#ffffff"
-      color="#1f2937"
-    />
+  <view class="dormant-page">
+    <app-nav-bar title="沉寂站长预警" :show-back="true" background="#ffffff" color="#1f2937" />
 
     <!-- 统计卡 -->
     <view class="dm-stat-wrap">
       <view class="dm-stat-card">
         <view class="dm-stat-top">
           <view class="dm-stat-icon">
-            <app-icon
-              name="clock"
-              :size="32"
-              color="#d97706"
-            />
+            <app-icon name="clock" :size="32" color="#d97706" />
           </view>
           <view class="dm-stat-info">
-            <text class="dm-stat-label">
-              超过 30 天无推广动作
-            </text>
-            <text class="dm-stat-value">
-              {{ members.length }} <text class="dm-stat-unit">
-                位站长
-              </text>
-            </text>
+            <text class="dm-stat-label">超过 30 天无推广动作</text>
+            <text class="dm-stat-value">{{ members.length }} <text class="dm-stat-unit">位站长</text></text>
           </view>
         </view>
-        <text class="dm-stat-tip">
-          及时唤醒沉寂站长有助于提升团队整体活跃度与佣金产出，建议定期推送关怀提醒。
-        </text>
+        <text class="dm-stat-tip">及时唤醒沉寂站长有助于提升团队整体活跃度与佣金产出，建议定期推送关怀提醒。</text>
       </view>
     </view>
 
     <!-- 列表 -->
-    <view
-      v-if="members.length > 0"
-      class="dm-list"
-    >
-      <view
-        v-for="m in members"
-        :key="m.id"
-        class="dm-item"
-      >
+    <view v-if="members.length > 0" class="dm-list">
+      <view v-for="m in members" :key="m.id" class="dm-item">
         <view class="dm-avatar">
-          <text class="dm-avatar-txt">
-            {{ m.name.charAt(0) }}
-          </text>
+          <text class="dm-avatar-txt">{{ m.name.charAt(0) }}</text>
         </view>
         <view class="dm-item-info">
           <view class="dm-item-head">
-            <text class="dm-item-name">
-              {{ m.name }}
-            </text>
-            <text class="dm-item-level">
-              {{ m.level }}
-            </text>
+            <text class="dm-item-name">{{ m.name }}</text>
+            <text class="dm-item-level">{{ m.level }}</text>
           </view>
-          <text class="dm-item-meta">
-            已沉寂 {{ m.lastActiveDays }} 天 · 累计佣金 ¥{{ m.totalCommission }}
-          </text>
+          <text class="dm-item-meta">已沉寂 {{ m.lastActiveDays }} 天 · 累计佣金 ¥{{ m.totalCommission }}</text>
         </view>
-        <view
-          class="dm-btn"
-          :class="{ reminded: m.reminded }"
-          @tap="remindOne(m.id)"
-        >
-          <app-icon
-            :name="m.reminded ? 'check' : 'bell'"
-            :size="24"
-            :color="m.reminded ? '#9ca3af' : '#ffffff'"
-          />
-          <text
-            class="dm-btn-txt"
-            :class="{ reminded: m.reminded }"
-          >
-            {{ m.reminded ? '已提醒' : '提醒' }}
-          </text>
+        <view class="dm-btn" :class="{ reminded: m.reminded }" @tap="remindOne(m.id)">
+          <app-icon :name="m.reminded ? 'check' : 'bell'" :size="24" :color="m.reminded ? '#9ca3af' : '#ffffff'" />
+          <text class="dm-btn-txt" :class="{ reminded: m.reminded }">{{ m.reminded ? '已提醒' : '提醒' }}</text>
         </view>
       </view>
     </view>
 
     <!-- 空态 -->
-    <view
-      v-else
-      class="dm-empty"
-    >
+    <view v-else class="dm-empty">
       <view class="dm-empty-icon">
-        <app-icon
-          name="users"
-          :size="48"
-          color="#16a34a"
-        />
+        <app-icon name="users" :size="48" color="#16a34a" />
       </view>
-      <text class="dm-empty-title">
-        暂无沉寂站长
-      </text>
-      <text class="dm-empty-desc">
-        您的团队都很活跃，继续保持！
-      </text>
+      <text class="dm-empty-title">暂无沉寂站长</text>
+      <text class="dm-empty-desc">您的团队都很活跃，继续保持！</text>
     </view>
 
     <!-- 一键推送 -->
-    <view
-      v-if="pendingCount > 0"
-      class="dm-bottom"
-    >
-      <view
-        class="dm-bottom-btn"
-        @tap="remindAll"
-      >
-        <app-icon
-          :name="batchReminded ? 'check' : 'message-circle'"
-          :size="28"
-          color="#ffffff"
-        />
-        <text class="dm-bottom-txt">
-          {{ batchReminded ? '已全部推送' : `一键提醒全部（${pendingCount}）` }}
-        </text>
+    <view v-if="pendingCount > 0" class="dm-bottom">
+      <view class="dm-bottom-btn" @tap="remindAll">
+        <app-icon :name="batchReminded ? 'check' : 'message-circle'" :size="28" color="#ffffff" />
+        <text class="dm-bottom-txt">{{ batchReminded ? '已全部推送' : `一键提醒全部（${pendingCount}）` }}</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { operatorApi, type DormantMember } from '@/lib/operator-data'
+import { ref, computed } from 'vue'
+import { dormantMembers } from '@/lib/operator-data'
 
-const loading = ref(true)
-const error = ref('')
-const members = ref<DormantMember[]>([])
-
-async function loadData() {
-  loading.value = true; error.value = ''
-  try {
-    const res = await operatorApi.dormant()
-    members.value = res.members.map((m: typeof res.members[number]) => ({ ...m }))
-  } catch (e: any) { error.value = e?.message || '加载失败' }
-  finally { loading.value = false }
-}
-onMounted(() => { loadData() })
+const members = ref(dormantMembers.map((m) => ({ ...m })))
 const batchReminded = ref(false)
 
 const pendingCount = computed(() => members.value.filter((m) => !m.reminded).length)

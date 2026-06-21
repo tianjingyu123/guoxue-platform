@@ -142,59 +142,25 @@ function avatarInitial(name?: string): string {
       />
       <!-- 顶部导航 -->
       <view class="up-nav">
-        <view
-          class="up-nav-btn"
-          @tap="goBack"
-        >
-          <AppIcon
-            name="arrow-left"
-            :size="40"
-            color="#ffffff"
-          />
+        <view class="up-nav-btn" @tap="goBack">
+          <AppIcon name="arrow-left" :size="40" color="#ffffff" />
         </view>
         <view class="up-nav-right">
-          <view
-            class="up-nav-btn"
-            @tap="handleShare"
-          >
-            <AppIcon
-              name="share-2"
-              :size="38"
-              color="#ffffff"
-            />
+          <view class="up-nav-btn" @tap="handleShare">
+            <AppIcon name="share-2" :size="38" color="#ffffff" />
           </view>
           <view class="up-nav-more">
-            <view
-              class="up-nav-btn"
-              @tap="toggleMore"
-            >
-              <AppIcon
-                name="more-horizontal"
-                :size="40"
-                color="#ffffff"
-              />
+            <view class="up-nav-btn" @tap="toggleMore">
+              <AppIcon name="more-horizontal" :size="40" color="#ffffff" />
             </view>
             <template v-if="showMoreMenu">
-              <view
-                class="up-mask"
-                @tap="showMoreMenu = false"
-              />
+              <view class="up-mask" @tap="showMoreMenu = false" />
               <view class="up-menu">
-                <view
-                  class="up-menu-item"
-                  @tap="() => { showMoreMenu = false; toastComingSoon() }"
-                >
-                  <text class="up-menu-txt">
-                    举报
-                  </text>
+                <view class="up-menu-item" @tap="() => { showMoreMenu = false; toastComingSoon() }">
+                  <text class="up-menu-txt">举报</text>
                 </view>
-                <view
-                  class="up-menu-item"
-                  @tap="() => { showMoreMenu = false; toastComingSoon() }"
-                >
-                  <text class="up-menu-txt up-menu-txt--danger">
-                    拉黑
-                  </text>
+                <view class="up-menu-item" @tap="() => { showMoreMenu = false; toastComingSoon() }">
+                  <text class="up-menu-txt up-menu-txt--danger">拉黑</text>
                 </view>
               </view>
             </template>
@@ -203,137 +169,71 @@ function avatarInitial(name?: string): string {
       </view>
 
       <!-- 头像 -->
-      <view
-        v-if="profile"
-        class="up-avatar-wrap"
-      >
+      <view v-if="profile" class="up-avatar-wrap">
         <image
           v-if="profile.profile.avatar"
           class="up-avatar"
           :src="profile.profile.avatar"
           mode="aspectFill"
         />
-        <view
-          v-else
-          class="up-avatar up-avatar--fallback"
-        >
-          <text class="up-avatar-initial">
-            {{ avatarInitial(profile.profile.nickname) }}
-          </text>
+        <view v-else class="up-avatar up-avatar--fallback">
+          <text class="up-avatar-initial">{{ avatarInitial(profile.profile.nickname) }}</text>
         </view>
-        <view
-          v-if="profile.profile.verified"
-          class="up-verify"
-        >
-          <AppIcon
-            name="badge-check"
-            :size="26"
-            color="#ffffff"
-          />
+        <view v-if="profile.profile.verified" class="up-verify">
+          <AppIcon name="badge-check" :size="26" color="#ffffff" />
         </view>
       </view>
     </view>
 
     <!-- 用户信息区 -->
-    <view
-      v-if="profile"
-      class="up-info"
-    >
+    <view v-if="profile" class="up-info">
       <view class="up-name-row">
-        <text class="up-name">
-          {{ profile.profile.nickname }}
-        </text>
-        <view
-          v-if="profile.profile.verified"
-          class="up-verify-tag"
-        >
-          <text class="up-verify-tag-txt">
-            {{ profile.profile.verifiedTitle }}
-          </text>
+        <text class="up-name">{{ profile.profile.nickname }}</text>
+        <view v-if="profile.profile.verified" class="up-verify-tag">
+          <text class="up-verify-tag-txt">{{ profile.profile.verifiedTitle }}</text>
         </view>
       </view>
-      <text
-        v-if="profile.profile.bio"
-        class="up-bio"
-      >
-        {{ profile.profile.bio }}
-      </text>
+      <text v-if="profile.profile.bio" class="up-bio">{{ profile.profile.bio }}</text>
       <view class="up-badges">
         <view class="up-level">
-          <text class="up-level-txt">
-            Lv.{{ profile.profile.level }} {{ profile.profile.levelName }}
-          </text>
+          <text class="up-level-txt">Lv.{{ profile.profile.level }} {{ profile.profile.levelName }}</text>
         </view>
-        <view
-          v-if="profile.isMutualFollow"
-          class="up-mutual"
-        >
-          <text class="up-mutual-txt">
-            互相关注
-          </text>
+        <view v-if="profile.isMutualFollow" class="up-mutual">
+          <text class="up-mutual-txt">互相关注</text>
         </view>
       </view>
 
       <!-- 数据看板 -->
       <view class="up-stats">
-        <view
-          class="up-stat"
-          @tap="toastComingSoon"
-        >
-          <text class="up-stat-num">
-            {{ formatCount(profile.stats.followingCount) }}
-          </text>
-          <text class="up-stat-label">
-            关注
-          </text>
+        <view class="up-stat" @tap="toastComingSoon">
+          <text class="up-stat-num">{{ formatCount(profile.stats.followingCount) }}</text>
+          <text class="up-stat-label">关注</text>
         </view>
         <view class="up-stat-divider" />
-        <view
-          class="up-stat"
-          @tap="toastComingSoon"
-        >
-          <text class="up-stat-num">
-            {{ formatCount(profile.stats.followerCount) }}
-          </text>
-          <text class="up-stat-label">
-            粉丝
-          </text>
+        <view class="up-stat" @tap="toastComingSoon">
+          <text class="up-stat-num">{{ formatCount(profile.stats.followerCount) }}</text>
+          <text class="up-stat-label">粉丝</text>
         </view>
         <view class="up-stat-divider" />
         <view class="up-stat">
-          <text class="up-stat-num">
-            {{ formatCount(profile.stats.likeCount) }}
-          </text>
-          <text class="up-stat-label">
-            获赞
-          </text>
+          <text class="up-stat-num">{{ formatCount(profile.stats.likeCount) }}</text>
+          <text class="up-stat-label">获赞</text>
         </view>
       </view>
 
       <!-- 操作按钮行 -->
-      <view
-        v-if="!profile.isSelf"
-        class="up-actions"
-      >
+      <view v-if="!profile.isSelf" class="up-actions">
         <view
           class="up-btn"
           :class="profile.isFollowing ? 'up-btn--following' : 'up-btn--follow'"
           @tap="handleFollow"
         >
-          <text
-            class="up-btn-txt"
-            :class="profile.isFollowing ? 'up-btn-txt--following' : 'up-btn-txt--follow'"
-          >
+          <text class="up-btn-txt" :class="profile.isFollowing ? 'up-btn-txt--following' : 'up-btn-txt--follow'">
             {{ profile.isFollowing ? '已关注' : '+ 关注' }}
           </text>
         </view>
-        <view
-          class="up-btn up-btn--msg"
-          @tap="goChat"
-        >
-          <text class="up-btn-txt up-btn-txt--msg">
-            发私信
-          </text>
+        <view class="up-btn up-btn--msg" @tap="goChat">
+          <text class="up-btn-txt up-btn-txt--msg">发私信</text>
         </view>
       </view>
     </view>
@@ -346,43 +246,22 @@ function avatarInitial(name?: string): string {
         class="up-tab"
         @tap="activeTab = tab.id"
       >
-        <text
-          class="up-tab-txt"
-          :class="{ 'up-tab-txt--active': activeTab === tab.id }"
-        >
-          {{ tab.label }}
-        </text>
-        <view
-          v-if="activeTab === tab.id"
-          class="up-tab-line"
-        />
+        <text class="up-tab-txt" :class="{ 'up-tab-txt--active': activeTab === tab.id }">{{ tab.label }}</text>
+        <view v-if="activeTab === tab.id" class="up-tab-line" />
       </view>
     </view>
 
     <!-- 内容列表 -->
     <view class="up-content">
-      <view
-        v-if="postsLoading"
-        class="up-empty"
-      >
-        <text class="up-empty-txt">
-          加载中…
-        </text>
+      <view v-if="postsLoading" class="up-empty">
+        <text class="up-empty-txt">加载中…</text>
       </view>
-      <view
-        v-else-if="filteredPosts.length === 0"
-        class="up-empty"
-      >
-        <text class="up-empty-txt">
-          暂无内容
-        </text>
+      <view v-else-if="filteredPosts.length === 0" class="up-empty">
+        <text class="up-empty-txt">暂无内容</text>
       </view>
 
       <!-- 短视频：双列网格 -->
-      <view
-        v-else-if="activeTab === 'videos'"
-        class="up-video-grid"
-      >
+      <view v-else-if="activeTab === 'videos'" class="up-video-grid">
         <view
           v-for="video in filteredPosts"
           :key="video.id"
@@ -390,212 +269,93 @@ function avatarInitial(name?: string): string {
           @tap="openContent(video)"
         >
           <view class="up-video-cover">
-            <image
-              v-if="video.cover"
-              class="up-video-img"
-              :src="video.cover"
-              mode="aspectFill"
-            />
-            <view
-              v-else
-              class="up-video-placeholder"
-            >
-              <AppIcon
-                name="video"
-                :size="56"
-                color="rgba(0,0,0,0.2)"
-              />
+            <image v-if="video.cover" class="up-video-img" :src="video.cover" mode="aspectFill" />
+            <view v-else class="up-video-placeholder">
+              <AppIcon name="video" :size="56" color="rgba(0,0,0,0.2)" />
             </view>
             <view class="up-video-play">
-              <AppIcon
-                name="play"
-                :size="32"
-                color="#ffffff"
-              />
+              <AppIcon name="play" :size="32" color="#ffffff" />
             </view>
           </view>
           <view class="up-video-body">
-            <text class="up-video-title">
-              {{ video.title || video.content }}
-            </text>
+            <text class="up-video-title">{{ video.title || video.content }}</text>
             <view class="up-video-meta">
-              <AppIcon
-                name="heart"
-                :size="22"
-                color="#999188"
-              />
-              <text class="up-video-likes">
-                {{ video.likeCount }}
-              </text>
+              <AppIcon name="heart" :size="22" color="#999188" />
+              <text class="up-video-likes">{{ video.likeCount }}</text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 帖子 / 文章 / 动态：单列 -->
-      <view
-        v-else
-        class="up-list"
-      >
-        <template
-          v-for="item in filteredPosts"
-          :key="item.id"
-        >
+      <view v-else class="up-list">
+        <template v-for="item in filteredPosts" :key="item.id">
           <!-- 文章卡片 -->
-          <view
-            v-if="item.type === 'article'"
-            class="up-article"
-            @tap="openContent(item)"
-          >
+          <view v-if="item.type === 'article'" class="up-article" @tap="openContent(item)">
             <view class="up-article-cover">
-              <image
-                v-if="item.cover"
-                class="up-article-img"
-                :src="item.cover"
-                mode="aspectFill"
-              />
-              <view
-                v-else
-                class="up-article-placeholder"
-              >
-                <AppIcon
-                  name="file-text"
-                  :size="36"
-                  color="rgba(0,0,0,0.2)"
-                />
+              <image v-if="item.cover" class="up-article-img" :src="item.cover" mode="aspectFill" />
+              <view v-else class="up-article-placeholder">
+                <AppIcon name="file-text" :size="36" color="rgba(0,0,0,0.2)" />
               </view>
             </view>
             <view class="up-article-body">
-              <text class="up-article-title">
-                {{ item.title }}
-              </text>
+              <text class="up-article-title">{{ item.title }}</text>
               <view class="up-article-meta">
                 <view class="up-meta-item">
-                  <AppIcon
-                    name="heart"
-                    :size="22"
-                    color="#999188"
-                  />
-                  <text class="up-meta-txt">
-                    {{ item.likeCount }}
-                  </text>
+                  <AppIcon name="heart" :size="22" color="#999188" />
+                  <text class="up-meta-txt">{{ item.likeCount }}</text>
                 </view>
-                <text class="up-meta-txt">
-                  {{ item.createdAt }}
-                </text>
+                <text class="up-meta-txt">{{ item.createdAt }}</text>
               </view>
             </view>
           </view>
 
           <!-- 视频卡片（动态混排时） -->
-          <view
-            v-else-if="item.type === 'video'"
-            class="up-post"
-            @tap="openContent(item)"
-          >
+          <view v-else-if="item.type === 'video'" class="up-post" @tap="openContent(item)">
             <view class="up-post-video">
-              <image
-                v-if="item.cover"
-                class="up-post-video-img"
-                :src="item.cover"
-                mode="aspectFill"
-              />
+              <image v-if="item.cover" class="up-post-video-img" :src="item.cover" mode="aspectFill" />
               <view class="up-post-video-play">
-                <AppIcon
-                  name="play"
-                  :size="36"
-                  color="#ffffff"
-                />
+                <AppIcon name="play" :size="36" color="#ffffff" />
               </view>
             </view>
-            <text class="up-post-content">
-              {{ item.title || item.content }}
-            </text>
+            <text class="up-post-content">{{ item.title || item.content }}</text>
             <view class="up-post-foot">
-              <text class="up-post-time">
-                {{ item.createdAt }}
-              </text>
+              <text class="up-post-time">{{ item.createdAt }}</text>
               <view class="up-post-stats">
                 <view class="up-meta-item">
-                  <AppIcon
-                    name="heart"
-                    :size="26"
-                    :color="item.isLiked ? '#C41E3A' : '#999188'"
-                  />
-                  <text
-                    class="up-meta-txt"
-                    :class="{ 'up-meta-txt--liked': item.isLiked }"
-                  >
-                    {{ item.likeCount }}
-                  </text>
+                  <AppIcon name="heart" :size="26" :color="item.isLiked ? '#C41E3A' : '#999188'" />
+                  <text class="up-meta-txt" :class="{ 'up-meta-txt--liked': item.isLiked }">{{ item.likeCount }}</text>
                 </view>
                 <view class="up-meta-item">
-                  <AppIcon
-                    name="message-circle"
-                    :size="26"
-                    color="#999188"
-                  />
-                  <text class="up-meta-txt">
-                    {{ item.commentCount }}
-                  </text>
+                  <AppIcon name="message-circle" :size="26" color="#999188" />
+                  <text class="up-meta-txt">{{ item.commentCount }}</text>
                 </view>
               </view>
             </view>
           </view>
 
           <!-- 帖子卡片 -->
-          <view
-            v-else
-            class="up-post"
-            @tap="openContent(item)"
-          >
-            <text class="up-post-content">
-              {{ item.content }}
-            </text>
-            <view
-              v-if="item.images && item.images.length"
-              class="up-post-imgs"
-              :class="item.images.length === 1 ? 'up-post-imgs--single' : 'up-post-imgs--multi'"
-            >
+          <view v-else class="up-post" @tap="openContent(item)">
+            <text class="up-post-content">{{ item.content }}</text>
+            <view v-if="item.images && item.images.length" class="up-post-imgs" :class="item.images.length === 1 ? 'up-post-imgs--single' : 'up-post-imgs--multi'">
               <view
                 v-for="(img, idx) in item.images.slice(0, 4)"
                 :key="idx"
                 class="up-post-img-wrap"
               >
-                <image
-                  class="up-post-img"
-                  :src="img"
-                  mode="aspectFill"
-                />
+                <image class="up-post-img" :src="img" mode="aspectFill" />
               </view>
             </view>
             <view class="up-post-foot">
-              <text class="up-post-time">
-                {{ item.createdAt }}
-              </text>
+              <text class="up-post-time">{{ item.createdAt }}</text>
               <view class="up-post-stats">
                 <view class="up-meta-item">
-                  <AppIcon
-                    name="heart"
-                    :size="26"
-                    :color="item.isLiked ? '#C41E3A' : '#999188'"
-                  />
-                  <text
-                    class="up-meta-txt"
-                    :class="{ 'up-meta-txt--liked': item.isLiked }"
-                  >
-                    {{ item.likeCount }}
-                  </text>
+                  <AppIcon name="heart" :size="26" :color="item.isLiked ? '#C41E3A' : '#999188'" />
+                  <text class="up-meta-txt" :class="{ 'up-meta-txt--liked': item.isLiked }">{{ item.likeCount }}</text>
                 </view>
                 <view class="up-meta-item">
-                  <AppIcon
-                    name="message-circle"
-                    :size="26"
-                    color="#999188"
-                  />
-                  <text class="up-meta-txt">
-                    {{ item.commentCount }}
-                  </text>
+                  <AppIcon name="message-circle" :size="26" color="#999188" />
+                  <text class="up-meta-txt">{{ item.commentCount }}</text>
                 </view>
               </view>
             </view>

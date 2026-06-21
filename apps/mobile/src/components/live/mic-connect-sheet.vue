@@ -1,202 +1,68 @@
 <template>
   <!-- 通话中：紧凑悬浮条 -->
-  <view
-    v-if="open && state === 'connected'"
-    class="mic-bar"
-  >
+  <view v-if="open && state === 'connected'" class="mic-bar">
     <view class="mic-bar__inner">
       <view class="mic-bar__avatar-wrap">
-        <view class="mic-bar__avatar">
-          <text class="mic-bar__avatar-emoji">
-            🎙️
-          </text>
-        </view>
+        <view class="mic-bar__avatar"><text class="mic-bar__avatar-emoji">🎙️</text></view>
         <view class="mic-bar__ping" />
       </view>
       <view class="mic-bar__info">
-        <text class="mic-bar__name">
-          与「{{ hostName }}」连麦中
-        </text>
-        <text class="mic-bar__timer">
-          {{ fmt(duration) }}
-        </text>
+        <text class="mic-bar__name">与「{{ hostName }}」连麦中</text>
+        <text class="mic-bar__timer">{{ fmt(duration) }}</text>
       </view>
-      <view
-        class="mic-bar__btn"
-        :class="{ 'mic-bar__btn--muted': muted }"
-        @tap="muted = !muted"
-      >
-        <AppIcon
-          :name="muted ? 'mic-off' : 'mic'"
-          :size="32"
-          color="#fff"
-        />
+      <view class="mic-bar__btn" :class="{ 'mic-bar__btn--muted': muted }" @tap="muted = !muted">
+        <AppIcon :name="muted ? 'mic-off' : 'mic'" :size="16" color="#fff" />
       </view>
-      <view
-        class="mic-bar__btn mic-bar__btn--hangup"
-        @tap="hangUp"
-      >
-        <AppIcon
-          name="phone-off"
-          :size="32"
-          color="#fff"
-        />
+      <view class="mic-bar__btn mic-bar__btn--hangup" @tap="hangUp">
+        <AppIcon name="phone-off" :size="16" color="#fff" />
       </view>
     </view>
   </view>
 
   <!-- 申请/等待/超时/结束 半屏弹窗 -->
-  <view
-    v-else-if="open"
-    class="mic-mask"
-    @tap="reset"
-  >
+  <view v-else-if="open" class="mic-mask" @tap="reset">
     <view class="mic-overlay" />
-    <view
-      class="mic-sheet"
-      @tap.stop
-    >
-      <view class="mic-handle-row">
-        <view class="mic-handle" />
-      </view>
+    <view class="mic-sheet" @tap.stop>
+      <view class="mic-handle-row"><view class="mic-handle" /></view>
 
       <!-- 申请前 -->
-      <view
-        v-if="state === 'idle'"
-        class="mic-state"
-      >
-        <view class="mic-icon mic-icon--blue">
-          <AppIcon
-            name="phone"
-            :size="56"
-            color="#93C5FD"
-          />
+      <view v-if="state === 'idle'" class="mic-state">
+        <view class="mic-icon mic-icon--blue"><AppIcon name="phone" :size="28" color="#93C5FD" /></view>
+        <text class="mic-title">申请与主播连麦</text>
+        <text class="mic-sub">向「{{ hostName }}」发起连麦申请，主播同意后即可开始语音互动，连麦内容将对全场观众公开。</text>
+        <view class="mic-primary" @tap="state = 'requesting'">
+          <AppIcon name="phone" :size="20" color="#fff" />
+          <text class="mic-primary-txt">申请连麦</text>
         </view>
-        <text class="mic-title">
-          申请与主播连麦
-        </text>
-        <text class="mic-sub">
-          向「{{ hostName }}」发起连麦申请，主播同意后即可开始语音互动，连麦内容将对全场观众公开。
-        </text>
-        <view
-          class="mic-primary"
-          @tap="state = 'requesting'"
-        >
-          <AppIcon
-            name="phone"
-            :size="40"
-            color="#fff"
-          />
-          <text class="mic-primary-txt">
-            申请连麦
-          </text>
-        </view>
-        <view
-          class="mic-ghost"
-          @tap="reset"
-        >
-          <text class="mic-ghost-txt">
-            取消
-          </text>
-        </view>
+        <view class="mic-ghost" @tap="reset"><text class="mic-ghost-txt">取消</text></view>
       </view>
 
       <!-- 等待主播同意 -->
-      <view
-        v-else-if="state === 'requesting'"
-        class="mic-state"
-      >
-        <view class="mic-icon mic-icon--blue-soft">
-          <AppIcon
-            name="loader-2"
-            :size="56"
-            color="#93C5FD"
-            class="mic-spin"
-          />
-        </view>
-        <text class="mic-title">
-          等待主播同意…
-        </text>
-        <text class="mic-sub">
-          已向「{{ hostName }}」发送连麦申请
-        </text>
-        <view
-          class="mic-secondary"
-          @tap="reset"
-        >
-          <text class="mic-secondary-txt">
-            取消申请
-          </text>
-        </view>
+      <view v-else-if="state === 'requesting'" class="mic-state">
+        <view class="mic-icon mic-icon--blue-soft"><AppIcon name="loader-2" :size="28" color="#93C5FD" class="mic-spin" /></view>
+        <text class="mic-title">等待主播同意…</text>
+        <text class="mic-sub">已向「{{ hostName }}」发送连麦申请</text>
+        <view class="mic-secondary" @tap="reset"><text class="mic-secondary-txt">取消申请</text></view>
       </view>
 
       <!-- 超时未响应 -->
-      <view
-        v-else-if="state === 'timeout'"
-        class="mic-state"
-      >
-        <view class="mic-icon mic-icon--amber">
-          <AppIcon
-            name="alert-circle"
-            :size="56"
-            color="#FBBF24"
-          />
-        </view>
-        <text class="mic-title">
-          主播暂未响应
-        </text>
-        <text class="mic-sub">
-          主播正在忙碌，可稍后再试
-        </text>
-        <view
-          class="mic-primary"
-          @tap="state = 'requesting'"
-        >
-          <text class="mic-primary-txt">
-            重新申请
-          </text>
-        </view>
-        <view
-          class="mic-ghost"
-          @tap="reset"
-        >
-          <text class="mic-ghost-txt">
-            关闭
-          </text>
-        </view>
+      <view v-else-if="state === 'timeout'" class="mic-state">
+        <view class="mic-icon mic-icon--amber"><AppIcon name="alert-circle" :size="28" color="#FBBF24" /></view>
+        <text class="mic-title">主播暂未响应</text>
+        <text class="mic-sub">主播正在忙碌，可稍后再试</text>
+        <view class="mic-primary" @tap="state = 'requesting'"><text class="mic-primary-txt">重新申请</text></view>
+        <view class="mic-ghost" @tap="reset"><text class="mic-ghost-txt">关闭</text></view>
       </view>
 
       <!-- 挂断总结 -->
-      <view
-        v-else-if="state === 'ended'"
-        class="mic-state"
-      >
-        <view class="mic-icon mic-icon--gray">
-          <AppIcon
-            name="phone"
-            :size="56"
-            color="rgba(255,255,255,0.7)"
-          />
-        </view>
-        <text class="mic-title">
-          连麦已结束
-        </text>
+      <view v-else-if="state === 'ended'" class="mic-state">
+        <view class="mic-icon mic-icon--gray"><AppIcon name="phone" :size="28" color="rgba(255,255,255,0.7)" /></view>
+        <text class="mic-title">连麦已结束</text>
         <view class="mic-summary">
-          <text class="mic-summary-label">
-            通话时长
-          </text>
-          <text class="mic-summary-val">
-            {{ fmt(duration) }}
-          </text>
+          <text class="mic-summary-label">通话时长</text>
+          <text class="mic-summary-val">{{ fmt(duration) }}</text>
         </view>
-        <view
-          class="mic-secondary"
-          @tap="reset"
-        >
-          <text class="mic-secondary-txt">
-            完成
-          </text>
-        </view>
+        <view class="mic-secondary" @tap="reset"><text class="mic-secondary-txt">完成</text></view>
       </view>
       <view class="mic-safe" />
     </view>
@@ -234,6 +100,7 @@ function clearAll() {
   if (durTimer) { clearInterval(durTimer); durTimer = null }
 }
 
+// 申请连麦：模拟主播 3.5s 后同意；15s 无响应则超时
 watch(state, (s) => {
   clearAll()
   if (s === 'requesting') {
@@ -244,6 +111,7 @@ watch(state, (s) => {
   }
 })
 
+// 弹窗关闭时重置内部状态
 watch(() => props.open, (o) => { if (!o) doReset() })
 
 function doReset() {

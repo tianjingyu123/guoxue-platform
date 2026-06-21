@@ -1,52 +1,32 @@
 <template>
   <view class="page">
     <!-- 顶栏 -->
-    <view
-      class="topbar"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="topbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="tb-inner">
-        <view
-          class="tb-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#2b2b2b"
-          />
+        <view class="tb-back" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#2b2b2b" />
         </view>
-        <text class="tb-title">
-          智能体排行
-        </text>
+        <text class="tb-title">智能体排行</text>
         <view class="tb-placeholder" />
       </view>
     </view>
 
     <view class="body">
       <!-- 分类筛选 -->
-      <scroll-view
-        class="cat-scroll"
-        scroll-x
-        :show-scrollbar="false"
-      >
+      <scroll-view class="cat-scroll" scroll-x :show-scrollbar="false">
         <view class="cat-row">
           <view
             class="cat-chip"
             :class="{ 'cat-chip-on': selectedCategory === null }"
             @tap="selectedCategory = null"
-          >
-            全部
-          </view>
+          >全部</view>
           <view
             v-for="cat in categories"
             :key="cat"
             class="cat-chip"
             :class="{ 'cat-chip-on': selectedCategory === cat }"
             @tap="selectedCategory = cat"
-          >
-            {{ cat }}
-          </view>
+          >{{ cat }}</view>
         </view>
       </scroll-view>
 
@@ -60,79 +40,39 @@
         >
           <view class="rc-head">
             <view class="rc-avatar-wrap">
-              <image
-                class="rc-avatar"
-                :src="agent.avatar"
-                mode="aspectFill"
-              />
-              <view
-                v-if="agent.verified"
-                class="rc-verified"
-              >
-                <app-icon
-                  name="check"
-                  :size="20"
-                  color="#ffffff"
-                />
+              <image class="rc-avatar" :src="agent.avatar" mode="aspectFill" />
+              <view v-if="agent.verified" class="rc-verified">
+                <app-icon name="check" :size="20" color="#ffffff" />
               </view>
             </view>
             <view class="rc-info">
               <view class="rc-title-row">
-                <text class="rc-rank">
-                  #{{ idx + 1 }}
-                </text>
-                <text class="rc-name">
-                  {{ agent.name }}
-                </text>
-                <text class="rc-cat">
-                  {{ agent.category }}
-                </text>
+                <text class="rc-rank">#{{ idx + 1 }}</text>
+                <text class="rc-name">{{ agent.name }}</text>
+                <text class="rc-cat">{{ agent.category }}</text>
               </view>
-              <text class="rc-desc">
-                {{ agent.description }}
-              </text>
+              <text class="rc-desc">{{ agent.description }}</text>
             </view>
           </view>
 
           <view class="rc-stats">
             <view class="rc-stat">
-              <text class="rc-stat-num">
-                {{ agent.users.toLocaleString() }}
-              </text>
-              <text class="rc-stat-label">
-                用户
-              </text>
+              <text class="rc-stat-num">{{ agent.users.toLocaleString() }}</text>
+              <text class="rc-stat-label">用户</text>
             </view>
             <view class="rc-stat">
-              <text class="rc-stat-num">
-                {{ agent.sessions.toLocaleString() }}
-              </text>
-              <text class="rc-stat-label">
-                对话
-              </text>
+              <text class="rc-stat-num">{{ agent.sessions.toLocaleString() }}</text>
+              <text class="rc-stat-label">对话</text>
             </view>
             <view class="rc-stat rc-stat-rating">
-              <text class="rc-stat-num rc-rating-num">
-                {{ agent.rating }} 分
-              </text>
-              <text class="rc-stat-label">
-                评分
-              </text>
+              <text class="rc-stat-num rc-rating-num">{{ agent.rating }} 分</text>
+              <text class="rc-stat-label">评分</text>
             </view>
           </view>
 
-          <view
-            class="rc-btn"
-            @tap.stop="goChat(agent.id)"
-          >
-            <app-icon
-              name="message-circle"
-              :size="30"
-              color="#ffffff"
-            />
-            <text class="rc-btn-txt">
-              立即对话
-            </text>
+          <view class="rc-btn" @tap.stop="goChat(agent.id)">
+            <app-icon name="message-circle" :size="30" color="#ffffff" />
+            <text class="rc-btn-txt">立即对话</text>
           </view>
         </view>
       </view>
@@ -141,10 +81,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { agentsSquareApi, type RankingAgent } from '@/lib/agents-square-data'
+import { agentsRanking } from '@/lib/agents-square-data'
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({
@@ -153,26 +93,11 @@ uni.getSystemInfo({
   },
 })
 
-const list = ref<RankingAgent[]>([])
-const loading = ref(true)
-const error = ref('')
-
-onMounted(async () => {
-  try {
-    loading.value = true
-    list.value = await agentsSquareApi.ranking()
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-})
-
 const selectedCategory = ref<string | null>(null)
 
-const categories = computed(() => Array.from(new Set(list.value.map((a) => a.category))))
+const categories = computed(() => Array.from(new Set(agentsRanking.map((a) => a.category))))
 const filteredAgents = computed(() =>
-  selectedCategory.value ? list.value.filter((a) => a.category === selectedCategory.value) : list.value,
+  selectedCategory.value ? agentsRanking.filter((a) => a.category === selectedCategory.value) : agentsRanking,
 )
 
 function goChat(id: string) {

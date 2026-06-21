@@ -426,20 +426,16 @@ export const ebookReaderThemes = {
   dark: { bg: '#1a1815', text: '#c5c0b8', secondary: '#7a756d', surface: '#242220', border: '#3d3a37' },
 }
 
-// ============================================
-// API 层（所有页面必须通过此层获取数据）
-// ============================================
+// ── API ──
 export const ebookApi = {
-  async bookshelf() {
-    if (useMock()) return { shelfBooks: ebookShelfBooks, filters: ebookShelfFilters }
-    try { const data = await apiGet<any>('/ebook/bookshelf'); return { shelfBooks: data.shelfBooks || ebookShelfBooks, filters: data.filters || ebookShelfFilters } }
-    catch { return { shelfBooks: ebookShelfBooks, filters: ebookShelfFilters } }
+  /** 电子书列表 GET /ebook */
+  async list(params?: Record<string, any>): Promise<any[]> {
+    if (useMock()) return []
+    try { return await apiGet<any[]>(`/ebook${params ? '?' + new URLSearchParams(params).toString() : ''}`) } catch { return [] }
   },
-  async store() { return { books: ebookStoreBooks, categories: ebookStoreCategories, sorts: ebookStoreSorts } },
-  async detail(_id: string) { return { book: ebookDetailData, discussions: ebookDiscussions } },
-  async bookmarks() { return { items: ebookBookmarks } },
-  async notes() { return { items: ebookNotes } },
-  async reader(_chapterId?: string) { return { chapter: ebookReaderChapter, chapters: ebookReaderChapters, discussions: ebookReaderDiscussions, themes: ebookReaderThemes } },
-  async checkout(_bookId: string) { return { book: ebookCheckoutBook, payMethods: ebookPayMethods } },
-  async checkoutSuccess(_orderNo?: string) { return { order: ebookOrderInfo, related: ebookRelatedBuy } },
+  /** 电子书详情 GET /ebook/:id */
+  async detail(id: string): Promise<any> {
+    if (useMock()) return null
+    try { return await apiGet<any>(`/ebook/${id}`) } catch { return null }
+  },
 }

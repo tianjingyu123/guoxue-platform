@@ -13,89 +13,43 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'like', id: string): void }>()
 
 function openPost() {
-  navigateTo(`/pages/circles/post?circleId=${props.circleId}&id=${props.post.id}`)
+  navigateTo(`/pkg-circle/circles/post?circleId=${props.circleId}&id=${props.post.id}`)
 }
 function openUser() {
-  // 用户主页尚未迁移，暂用 toastComingSoon
-  uni.showToast({ title: '功能开发中', icon: 'none' })
+  navigateTo(`/pkg-circle/user/profile?id=${props.post.author.id}`)
 }
 </script>
 
 <template>
   <view class="pc">
     <!-- 置顶/精华标签 -->
-    <view
-      v-if="post.isPinned || (showEssence && post.isEssence)"
-      class="pc-tags"
-    >
-      <view
-        v-if="post.isPinned"
-        class="pc-pin"
-      >
-        <app-icon
-          name="pin"
-          :size="13"
-          color="#C41E3A"
-        />
-        <text class="pc-pin-txt">
-          置顶
-        </text>
+    <view v-if="post.isPinned || (showEssence && post.isEssence)" class="pc-tags">
+      <view v-if="post.isPinned" class="pc-pin">
+        <app-icon name="pin" :size="13" color="#C41E3A" />
+        <text class="pc-pin-txt">置顶</text>
       </view>
-      <text
-        v-if="post.isEssence"
-        class="pc-essence"
-      >
-        精华
-      </text>
+      <text v-if="post.isEssence" class="pc-essence">精华</text>
     </view>
 
     <!-- 作者信息 -->
     <view class="pc-head">
-      <view
-        class="pc-author"
-        @tap="openUser"
-      >
-        <image
-          :src="post.author.avatar"
-          class="pc-avatar"
-          mode="aspectFill"
-        />
+      <view class="pc-author" @tap="openUser">
+        <image :src="post.author.avatar" class="pc-avatar" mode="aspectFill" />
         <view>
           <view class="pc-name-row">
-            <text class="pc-name">
-              {{ post.author.name }}
-            </text>
-            <text
-              v-if="post.author.title"
-              class="pc-title"
-            >
-              {{ post.author.title }}
-            </text>
+            <text class="pc-name">{{ post.author.name }}</text>
+            <text v-if="post.author.title" class="pc-title">{{ post.author.title }}</text>
           </view>
-          <text class="pc-time">
-            {{ post.createdAt }}
-          </text>
+          <text class="pc-time">{{ post.createdAt }}</text>
         </view>
       </view>
-      <view class="pc-more">
-        <app-icon
-          name="more-horizontal"
-          :size="20"
-          color="#999999"
-        />
-      </view>
+      <view class="pc-more"><app-icon name="more-horizontal" :size="20" color="#999999" /></view>
     </view>
 
     <!-- 内容 -->
     <view @tap="openPost">
-      <text class="pc-content">
-        {{ post.content }}
-      </text>
-      <view
-        v-if="post.images && post.images.length"
-        class="pc-imgs"
-        :class="post.images.length === 1 ? 'one' : 'multi'"
-      >
+      <text class="pc-content">{{ post.content }}</text>
+      <view v-if="post.images && post.images.length" class="pc-imgs" :class="post.images.length === 1 ? 'one' : 'multi'">
         <image
           v-for="(img, idx) in post.images"
           :key="idx"
@@ -109,42 +63,16 @@ function openUser() {
 
     <!-- 操作栏 -->
     <view class="pc-actions">
-      <view
-        class="pc-act"
-        @tap="emit('like', post.id)"
-      >
-        <app-icon
-          name="heart"
-          :size="16"
-          :color="liked ? '#C41E3A' : '#999999'"
-          :fill="liked"
-        />
-        <text
-          class="pc-act-txt"
-          :class="{ on: liked }"
-        >
-          {{ post.likes }}
-        </text>
+      <view class="pc-act" @tap="emit('like', post.id)">
+        <app-icon name="heart" :size="16" :color="liked ? '#C41E3A' : '#999999'" :fill="liked" />
+        <text class="pc-act-txt" :class="{ on: liked }">{{ post.likes }}</text>
       </view>
-      <view
-        class="pc-act"
-        @tap="openPost"
-      >
-        <app-icon
-          name="message-circle"
-          :size="16"
-          color="#999999"
-        />
-        <text class="pc-act-txt">
-          {{ post.comments }}
-        </text>
+      <view class="pc-act" @tap="openPost">
+        <app-icon name="message-circle" :size="16" color="#999999" />
+        <text class="pc-act-txt">{{ post.comments }}</text>
       </view>
       <view class="pc-act">
-        <app-icon
-          name="bookmark"
-          :size="16"
-          color="#999999"
-        />
+        <app-icon name="bookmark" :size="16" color="#999999" />
       </view>
     </view>
   </view>

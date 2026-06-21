@@ -1,33 +1,14 @@
 <template>
   <view class="page">
     <!-- 顶部红色渐变导航 -->
-    <view
-      class="topbar"
-      :style="{ paddingTop: statusBar + 'px' }"
-    >
+    <view class="topbar" :style="{ paddingTop: statusBar + 'px' }">
       <view class="topbar-inner">
-        <view
-          class="tb-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="44"
-            color="#FFFFFF"
-          />
+        <view class="tb-btn" @tap="goBack">
+          <app-icon name="chevron-left" :size="44" color="#FFFFFF" />
         </view>
-        <text class="tb-title">
-          账单详情
-        </text>
-        <view
-          class="tb-btn"
-          @tap="exportBill"
-        >
-          <app-icon
-            name="download"
-            :size="36"
-            color="#FFFFFF"
-          />
+        <text class="tb-title">账单详情</text>
+        <view class="tb-btn" @tap="exportBill">
+          <app-icon name="download" :size="36" color="#FFFFFF" />
         </view>
       </view>
     </view>
@@ -35,153 +16,67 @@
     <!-- 周期选择 -->
     <view class="period-bar">
       <view class="seg">
-        <text
-          class="seg-item"
-          :class="{ active: viewType === 'month' }"
-          @tap="viewType = 'month'"
-        >
-          月账单
-        </text>
-        <text
-          class="seg-item"
-          :class="{ active: viewType === 'year' }"
-          @tap="viewType = 'year'"
-        >
-          年账单
-        </text>
+        <text class="seg-item" :class="{ active: viewType === 'month' }" @tap="viewType = 'month'">月账单</text>
+        <text class="seg-item" :class="{ active: viewType === 'year' }" @tap="viewType = 'year'">年账单</text>
       </view>
       <view class="period-nav">
-        <view
-          class="pn-btn"
-          @tap="prevPeriod"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="36"
-            color="#666666"
-          />
-        </view>
-        <text class="pn-label">
-          {{ periodLabel }}
-        </text>
-        <view
-          class="pn-btn"
-          @tap="nextPeriod"
-        >
-          <app-icon
-            name="chevron-right"
-            :size="36"
-            color="#666666"
-          />
-        </view>
+        <view class="pn-btn" @tap="prevPeriod"><app-icon name="chevron-left" :size="36" color="#666666" /></view>
+        <text class="pn-label">{{ periodLabel }}</text>
+        <view class="pn-btn" @tap="nextPeriod"><app-icon name="chevron-right" :size="36" color="#666666" /></view>
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <!-- 收支概览 -->
       <view class="overview-card">
         <view class="ring-wrap">
-          <view
-            class="ring"
-            :style="ringStyle"
-          >
+          <view class="ring" :style="ringStyle">
             <view class="ring-hole">
-              <text class="ring-label">
-                结余
-              </text>
-              <text
-                class="ring-val"
-                :class="{ neg: balance < 0 }"
-              >
-                {{ balance >= 0 ? '+' : '' }}{{ balance }}
-              </text>
+              <text class="ring-label">结余</text>
+              <text class="ring-val" :class="{ neg: balance < 0 }">{{ balance >= 0 ? '+' : '' }}{{ balance }}</text>
             </view>
           </view>
         </view>
         <view class="ov-data">
           <view class="ov-row">
-            <view class="ov-left">
-              <view class="dot income" /><text class="ov-name">
-                收入
-              </text>
-            </view>
-            <text class="ov-amt income">
-              +{{ totalIncome.toFixed(2) }}
-            </text>
+            <view class="ov-left"><view class="dot income" /><text class="ov-name">收入</text></view>
+            <text class="ov-amt income">+{{ totalIncome.toFixed(2) }}</text>
           </view>
           <view class="ov-row">
-            <view class="ov-left">
-              <view class="dot expense" /><text class="ov-name">
-                支出
-              </text>
-            </view>
-            <text class="ov-amt expense">
-              -{{ totalExpense.toFixed(2) }}
-            </text>
+            <view class="ov-left"><view class="dot expense" /><text class="ov-name">支出</text></view>
+            <text class="ov-amt expense">-{{ totalExpense.toFixed(2) }}</text>
           </view>
         </view>
       </view>
 
       <!-- 支出分类 -->
       <view class="cat-card">
-        <view class="cat-head">
-          <text class="cat-head-title">
-            支出分类
-          </text>
-        </view>
+        <view class="cat-head"><text class="cat-head-title">支出分类</text></view>
         <view
           v-for="(cat, i) in expenseCategories"
           :key="cat.category"
           class="cat-item"
           :class="{ noborder: i === expenseCategories.length - 1 }"
         >
-          <view
-            class="cat-row"
-            @tap="toggle(cat.category)"
-          >
+          <view class="cat-row" @tap="toggle(cat.category)">
             <view class="cat-left">
-              <view
-                class="cat-icon"
-                :style="{ background: cat.color + '22', color: cat.color }"
-              >
-                <app-icon
-                  :name="cat.icon"
-                  :size="32"
-                  :color="cat.color"
-                />
+              <view class="cat-icon" :style="{ background: cat.color + '22', color: cat.color }">
+                <app-icon :name="cat.icon" :size="32" :color="cat.color" />
               </view>
               <view>
-                <text class="cat-name">
-                  {{ cat.name }}
-                </text>
-                <text class="cat-count">
-                  {{ cat.count }}笔交易
-                </text>
+                <text class="cat-name">{{ cat.name }}</text>
+                <text class="cat-count">{{ cat.count }}笔交易</text>
               </view>
             </view>
             <view class="cat-right">
               <view class="cat-amt-box">
-                <text class="cat-amt">
-                  -{{ cat.amount.toFixed(2) }}
-                </text>
-                <text class="cat-percent">
-                  占比{{ cat.percent }}%
-                </text>
+                <text class="cat-amt">-{{ cat.amount.toFixed(2) }}</text>
+                <text class="cat-percent">占比{{ cat.percent }}%</text>
               </view>
-              <app-icon
-                :name="expanded.includes(cat.category) ? 'chevron-up' : 'chevron-down'"
-                :size="28"
-                color="#999999"
-              />
+              <app-icon :name="expanded.includes(cat.category) ? 'chevron-up' : 'chevron-down'" :size="28" color="#999999" />
             </view>
           </view>
-          <view
-            v-if="expanded.includes(cat.category)"
-            class="sub-list"
-          >
+          <view v-if="expanded.includes(cat.category)" class="sub-list">
             <view
               v-for="(it, idx) in cat.items"
               :key="it.id"
@@ -189,16 +84,10 @@
               :class="{ noborder: idx === cat.items.length - 1 }"
             >
               <view>
-                <text class="sub-title">
-                  {{ it.title }}
-                </text>
-                <text class="sub-time">
-                  {{ it.createdAt }}
-                </text>
+                <text class="sub-title">{{ it.title }}</text>
+                <text class="sub-time">{{ it.createdAt }}</text>
               </view>
-              <text class="sub-amt">
-                -{{ it.amount.toFixed(2) }}
-              </text>
+              <text class="sub-amt">-{{ it.amount.toFixed(2) }}</text>
             </view>
           </view>
         </view>
@@ -206,61 +95,32 @@
 
       <!-- 收入分类 -->
       <view class="cat-card">
-        <view class="cat-head">
-          <text class="cat-head-title">
-            收入分类
-          </text>
-        </view>
+        <view class="cat-head"><text class="cat-head-title">收入分类</text></view>
         <view
           v-for="(cat, i) in incomeCategories"
           :key="cat.category"
           class="cat-item"
           :class="{ noborder: i === incomeCategories.length - 1 }"
         >
-          <view
-            class="cat-row"
-            @tap="toggle(cat.category)"
-          >
+          <view class="cat-row" @tap="toggle(cat.category)">
             <view class="cat-left">
-              <view
-                class="cat-icon"
-                :style="{ background: cat.color + '22', color: cat.color }"
-              >
-                <app-icon
-                  :name="cat.icon"
-                  :size="32"
-                  :color="cat.color"
-                />
+              <view class="cat-icon" :style="{ background: cat.color + '22', color: cat.color }">
+                <app-icon :name="cat.icon" :size="32" :color="cat.color" />
               </view>
               <view>
-                <text class="cat-name">
-                  {{ cat.name }}
-                </text>
-                <text class="cat-count">
-                  {{ cat.count }}笔交易
-                </text>
+                <text class="cat-name">{{ cat.name }}</text>
+                <text class="cat-count">{{ cat.count }}笔交易</text>
               </view>
             </view>
             <view class="cat-right">
               <view class="cat-amt-box">
-                <text class="cat-amt income">
-                  +{{ cat.amount.toFixed(2) }}
-                </text>
-                <text class="cat-percent">
-                  占比{{ cat.percent }}%
-                </text>
+                <text class="cat-amt income">+{{ cat.amount.toFixed(2) }}</text>
+                <text class="cat-percent">占比{{ cat.percent }}%</text>
               </view>
-              <app-icon
-                :name="expanded.includes(cat.category) ? 'chevron-up' : 'chevron-down'"
-                :size="28"
-                color="#999999"
-              />
+              <app-icon :name="expanded.includes(cat.category) ? 'chevron-up' : 'chevron-down'" :size="28" color="#999999" />
             </view>
           </view>
-          <view
-            v-if="expanded.includes(cat.category)"
-            class="sub-list"
-          >
+          <view v-if="expanded.includes(cat.category)" class="sub-list">
             <view
               v-for="(it, idx) in cat.items"
               :key="it.id"
@@ -268,16 +128,10 @@
               :class="{ noborder: idx === cat.items.length - 1 }"
             >
               <view>
-                <text class="sub-title">
-                  {{ it.title }}
-                </text>
-                <text class="sub-time">
-                  {{ it.createdAt }}
-                </text>
+                <text class="sub-title">{{ it.title }}</text>
+                <text class="sub-time">{{ it.createdAt }}</text>
               </view>
-              <text class="sub-amt income">
-                +{{ it.amount.toFixed(2) }}
-              </text>
+              <text class="sub-amt income">+{{ it.amount.toFixed(2) }}</text>
             </view>
           </view>
         </view>
@@ -288,18 +142,9 @@
 
     <!-- 底部导出按钮 -->
     <view class="footer">
-      <view
-        class="export-btn"
-        @tap="exportBill"
-      >
-        <app-icon
-          name="download"
-          :size="36"
-          color="#FFFFFF"
-        />
-        <text class="export-txt">
-          导出账单PDF
-        </text>
+      <view class="export-btn" @tap="exportBill">
+        <app-icon name="download" :size="36" color="#FFFFFF" />
+        <text class="export-txt">导出账单PDF</text>
       </view>
     </view>
   </view>

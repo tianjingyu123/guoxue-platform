@@ -1,79 +1,110 @@
-import { apiGet, useMock } from '@/utils/request'
+// 分站首页数据（对齐原型 lib/api/station-home mock；图片复用项目既有素材）
+
+export interface StationBrand {
+  id: number
+  code: string
+  name: string
+  logo: string
+  slogan: string
+  theme: { primaryColor: string; secondaryColor: string; headerStyle: 'dark' | 'light' }
+  master: { id: number; nickname: string; avatar: string; title: string }
+}
+
+export interface StationBanner {
+  id: number
+  image: string
+  title: string
+  link: string
+}
+
+export interface StationFeature {
+  id: number
+  icon: string
+  name: string
+  link: string
+  color: string
+  badge?: string
+}
+
+export interface StationRecommend {
+  id: number
+  type: 'course' | 'circle' | 'live'
+  title: string
+  cover: string
+  price?: number
+  originalPrice?: number
+  tag?: string
+}
 
 export interface StationFeedItem {
   id: number
-  type: string
-  cover: string
+  type: 'article' | 'video' | 'course' | 'live' | 'product'
   title: string
+  cover: string
+  author: { id: number; nickname: string; avatar: string }
+  stats: { views: number; likes: number; comments: number }
+  createdAt: string
   isLive?: boolean
   price?: number
-  author: { avatar: string; nickname: string }
-  stats: { views: number; likes: number }
 }
 
-export const stationBrand = {
-  name: '易道书院',
-  logo: '/static/images/brand/logo.png',
-  theme: { primaryColor: '#C41E3A', headerStyle: 'dark' as 'dark' | 'light' },
-  master: { avatar: '/static/images/avatar/master.png' },
+export const stationBrand: StationBrand = {
+  id: 1,
+  code: 'guoxue001',
+  name: '明德国学馆',
+  logo: '/static/experts/expert-1.jpg',
+  slogan: '传承经典·启迪智慧',
+  theme: { primaryColor: '#C41E3A', secondaryColor: '#C9A96E', headerStyle: 'dark' },
+  master: { id: 101, nickname: '明德先生', avatar: '/static/experts/expert-1.jpg', title: '国学传承人' },
 }
 
-export const stationBanners: { id: number; image: string }[] = [
-  { id: 1, image: '/static/images/brand/banner1.png' },
-  { id: 2, image: '/static/images/brand/banner2.png' },
-  { id: 3, image: '/static/images/brand/banner3.png' },
+export const stationBanners: StationBanner[] = [
+  { id: 1, image: '/static/images/banners/banner-1.png', title: '春季国学研修班火热招生', link: '/courses/1' },
+  { id: 2, image: '/static/images/banners/banner-2.png', title: '名师直播·每周三晚8点', link: '/live/list' },
+  { id: 3, image: '/static/images/banners/banner-3.png', title: '新人专享·首单立减50元', link: '/activity/new-user' },
 ]
 
-export const stationFeatures: { id: number; icon: string; color: string; name: string; badge?: string }[] = [
-  { id: 1, icon: 'book-open', color: '#C41E3A', name: '课程推广' },
-  { id: 2, icon: 'users', color: '#2563EB', name: '邀请有礼' },
-  { id: 3, icon: 'image', color: '#D97706', name: '海报素材', badge: 'NEW' },
-  { id: 4, icon: 'trending-up', color: '#16A34A', name: '收益排行' },
-  { id: 5, icon: 'gift', color: '#E74C3C', name: '活动奖励' },
-  { id: 6, icon: 'settings', color: '#6B7280', name: '分站设置' },
-  { id: 7, icon: 'help-circle', color: '#8B5CF6', name: '推广指南' },
-  { id: 8, icon: 'message-circle', color: '#EC4899', name: '专属客服' },
+export const stationFeatures: StationFeature[] = [
+  { id: 1, icon: 'book-open', name: '精品课程', link: '/courses', color: '#C41E3A' },
+  { id: 2, icon: 'users', name: '国学圈子', link: '/circles', color: '#C9A96E', badge: '热' },
+  { id: 3, icon: 'video', name: '直播讲堂', link: '/live/list', color: '#10B981' },
+  { id: 4, icon: 'shopping-bag', name: '文创商城', link: '/shop', color: '#6366F1' },
+  { id: 5, icon: 'compass', name: '每日运势', link: '/paipan', color: '#F59E0B' },
 ]
 
-export const stationRecommends: { id: number; cover: string; title: string; tag?: string; price?: number; originalPrice?: number }[] = [
-  { id: 1, cover: '/static/images/brand/course1.png', title: '八字命理入门', tag: '热销', price: 99, originalPrice: 199 },
-  { id: 2, cover: '/static/images/brand/course2.png', title: '风水实战指南', price: 128, originalPrice: 258 },
-  { id: 3, cover: '/static/images/brand/course3.png', title: '紫微斗数精讲', tag: '新课', price: 168 },
+export const stationRecommends: StationRecommend[] = [
+  { id: 1, type: 'course', title: '八字命理入门到精通', cover: '/static/images/feed/course-1.jpg', price: 199, originalPrice: 399, tag: '站长推荐' },
+  { id: 2, type: 'course', title: '易经智慧与人生决策', cover: '/static/images/feed/course-2.jpg', price: 299, tag: '热门' },
+  { id: 3, type: 'circle', title: '风水研习社', cover: '/static/images/feed/circle-1.jpg', tag: '官方' },
+  { id: 4, type: 'live', title: '周易六爻预测实战', cover: '/static/images/feed/live-1.jpg', price: 0, tag: '免费' },
 ]
 
 export const stationFeedList: StationFeedItem[] = [
-  { id: 1, type: 'course', cover: '/static/images/brand/course1.png', title: '周易六十四卦详解', author: { avatar: '/static/images/avatar/u1.png', nickname: '周易大师' }, stats: { views: 1280, likes: 256 } },
-  { id: 2, type: 'article', cover: '/static/images/brand/article1.png', title: '命理学的现代应用', author: { avatar: '/static/images/avatar/u2.png', nickname: '命理研究者' }, stats: { views: 890, likes: 128 } },
-  { id: 3, type: 'live', cover: '/static/images/brand/live1.png', title: '每日运势解读直播', isLive: true, author: { avatar: '/static/images/avatar/u3.png', nickname: '运势主播' }, stats: { views: 3200, likes: 560 } },
-  { id: 4, type: 'product', cover: '/static/images/brand/product1.png', title: '开光风水罗盘', price: 298, author: { avatar: '/static/images/avatar/u4.png', nickname: '法器专营' }, stats: { views: 650, likes: 89 } },
+  { id: 1, type: 'article', title: '八字看婚姻：什么样的八字容易遇到良缘？', cover: '/static/images/feed/article-1.jpg', author: { id: 101, nickname: '明德先生', avatar: '/static/experts/expert-1.jpg' }, stats: { views: 3280, likes: 156, comments: 42 }, createdAt: '2026-06-03' },
+  { id: 2, type: 'video', title: '三分钟学会看手相基础', cover: '/static/images/feed/video-1.jpg', author: { id: 102, nickname: '玄易居士', avatar: '/static/experts/expert-2.jpg' }, stats: { views: 8920, likes: 423, comments: 87 }, createdAt: '2026-06-02' },
+  { id: 3, type: 'live', title: '今晚8点：如何通过风水改善财运', cover: '/static/images/feed/live-2.jpg', author: { id: 103, nickname: '风水大师张', avatar: '/static/experts/expert-1.jpg' }, stats: { views: 1560, likes: 89, comments: 23 }, createdAt: '2026-06-03', isLive: true },
+  { id: 4, type: 'course', title: '紫微斗数从零开始', cover: '/static/images/feed/course-3.jpg', author: { id: 104, nickname: '紫微学堂', avatar: '/static/experts/expert-2.jpg' }, stats: { views: 4560, likes: 234, comments: 56 }, createdAt: '2026-06-01', price: 299 },
+  { id: 5, type: 'product', title: '开光铜钱六帝钱挂件', cover: '/static/images/feed/product-1.jpg', author: { id: 105, nickname: '文创小铺', avatar: '/static/experts/expert-1.jpg' }, stats: { views: 2340, likes: 89, comments: 12 }, createdAt: '2026-06-02', price: 68 },
 ]
 
-export const stationPosterImage = '/static/images/brand/share-poster.png'
+export const stationPosterImage = '/static/images/station/share-poster.png'
 
-export function feedTypeLabel(type: string): string {
-  const map: Record<string, string> = { course: '课程', article: '文章', live: '直播', product: '商品' }
-  return map[type] || type
+export function feedTypeLabel(type: StationFeedItem['type']): string {
+  const labels: Record<StationFeedItem['type'], string> = {
+    article: '文章', video: '视频', course: '课程', live: '直播', product: '商品',
+  }
+  return labels[type] || '内容'
 }
 
-export function feedTypeIcon(type: string): string {
-  const map: Record<string, string> = { course: 'book-open', article: 'file-text', live: 'radio', product: 'shopping-bag' }
-  return map[type] || 'file-text'
+export function feedTypeIcon(type: StationFeedItem['type']): string {
+  const icons: Record<StationFeedItem['type'], string> = {
+    article: 'file-text', video: 'play', course: 'book-open', live: 'radio', product: 'shopping-bag',
+  }
+  return icons[type] || 'file-text'
 }
 
-export function formatStatNumber(n: number): string {
-  if (n >= 10000) return `${(n / 10000).toFixed(1)}万`
-  return n.toString()
-}
-
-// ============================================
-// API 层
-// ============================================
-export const stationHomeApi = {
-  async home() {
-    if (useMock()) return { brand: stationBrand, banners: stationBanners, features: stationFeatures, recommends: stationRecommends, feedList: stationFeedList, posterImage: stationPosterImage }
-    try {
-      const data = await apiGet<any>('/station/home')
-      return { brand: data.brand || stationBrand, banners: data.banners || stationBanners, features: data.features || stationFeatures, recommends: data.recommends || stationRecommends, feedList: data.feedList || stationFeedList, posterImage: data.posterImage || stationPosterImage }
-    } catch { return { brand: stationBrand, banners: stationBanners, features: stationFeatures, recommends: stationRecommends, feedList: stationFeedList, posterImage: stationPosterImage } }
-  },
+export function formatStatNumber(num: number): string {
+  if (num >= 10000) return (num / 10000).toFixed(1) + 'w'
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
+  return String(num)
 }

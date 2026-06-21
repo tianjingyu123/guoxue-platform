@@ -1,321 +1,145 @@
 <template>
   <view class="page">
-    <view
-      v-if="loading"
-      class="loading"
-    >
-      <text>加载中...</text>
-    </view>
-    <view
-      v-else-if="error"
-      class="err-msg"
-    >
-      <text>{{ error }}</text>
-      <view
-        class="retry-btn"
-        @tap="loadData"
-      >
-        重试
-      </view>
-    </view>
-    <template v-else-if="room">
-      <!-- 封面区域 -->
-      <view class="cover-area">
-        <image
-          class="cover-img"
-          :src="room.cover"
-          mode="aspectFill"
-        />
-        <view class="cover-mask" />
+    <!-- 封面区域 -->
+    <view class="cover-area">
+      <image class="cover-img" :src="room.cover" mode="aspectFill" />
+      <view class="cover-mask" />
 
-        <!-- 顶部导航 -->
-        <view class="cover-nav">
-          <view
-            class="circle-btn"
-            @tap="goBack"
-          >
-            <AppIcon
-              name="chevron-left"
-              :size="48"
-              color="#fff"
-            />
-          </view>
-          <view class="circle-btn">
-            <AppIcon
-              name="share-2"
-              :size="40"
-              color="#fff"
-            />
-          </view>
+      <!-- 顶部导航 -->
+      <view class="cover-nav">
+        <view class="circle-btn" @tap="goBack">
+          <AppIcon name="chevron-left" :size="48" color="#fff" />
         </view>
-
-        <!-- 预告标签 -->
-        <view class="preview-badge">
-          <AppIcon
-            name="calendar"
-            :size="32"
-            color="#fff"
-          />
-          <text class="preview-badge-txt">
-            直播预告
-          </text>
-        </view>
-
-        <!-- 底部信息 -->
-        <view class="cover-bottom">
-          <text class="cover-title">
-            {{ room.title }}
-          </text>
-          <!-- 讲师 -->
-          <view class="host-row">
-            <image
-              class="host-avatar"
-              :src="room.hostAvatar"
-              mode="aspectFill"
-            />
-            <view class="host-info">
-              <text class="host-name">
-                {{ room.hostName }}
-              </text>
-              <text class="host-fans">
-                {{ room.hostFollowers.toLocaleString() }} 粉丝
-              </text>
-            </view>
-          </view>
-          <!-- 倒计时 -->
-          <view class="countdown">
-            <text class="countdown-label">
-              距开播还有
-            </text>
-            <view class="countdown-row">
-              <template v-if="countdown.days > 0">
-                <view class="cd-box">
-                  <text class="cd-num">
-                    {{ countdown.days }}
-                  </text>
-                  <text class="cd-unit">
-                    天
-                  </text>
-                </view>
-                <text class="cd-colon">
-                  :
-                </text>
-              </template>
-              <view class="cd-box">
-                <text class="cd-num">
-                  {{ pad(countdown.hours) }}
-                </text>
-                <text class="cd-unit">
-                  时
-                </text>
-              </view>
-              <text class="cd-colon">
-                :
-              </text>
-              <view class="cd-box">
-                <text class="cd-num">
-                  {{ pad(countdown.minutes) }}
-                </text>
-                <text class="cd-unit">
-                  分
-                </text>
-              </view>
-              <text class="cd-colon">
-                :
-              </text>
-              <view class="cd-box">
-                <text class="cd-num">
-                  {{ pad(countdown.seconds) }}
-                </text>
-                <text class="cd-unit">
-                  秒
-                </text>
-              </view>
-            </view>
-          </view>
+        <view class="circle-btn">
+          <AppIcon name="share-2" :size="40" color="#fff" />
         </view>
       </view>
 
-      <!-- 详情内容 -->
-      <view class="body">
-        <!-- 信息卡 -->
-        <view class="info-card">
-          <view class="info-col">
-            <view class="info-top info-red">
-              <AppIcon
-                name="users"
-                :size="32"
-                color="#C41E3A"
-              />
-              <text class="info-num">
-                {{ room.bookedCount.toLocaleString() }}
-              </text>
-            </view>
-            <text class="info-label">
-              已预约
-            </text>
-          </view>
-          <view class="info-col">
-            <view class="info-top info-gold">
-              <AppIcon
-                name="clock"
-                :size="32"
-                color="#C9A96E"
-              />
-              <text class="info-num">
-                {{ room.estimatedDuration }}
-              </text>
-            </view>
-            <text class="info-label">
-              预计时长(分钟)
-            </text>
-          </view>
-          <view class="info-col">
-            <text class="info-num info-dark">
-              {{ startDateText }}
-            </text>
-            <text class="info-label">
-              {{ startTimeText }}
-            </text>
+      <!-- 预告标签 -->
+      <view class="preview-badge">
+        <AppIcon name="calendar" :size="32" color="#fff" />
+        <text class="preview-badge-txt">直播预告</text>
+      </view>
+
+      <!-- 底部信息 -->
+      <view class="cover-bottom">
+        <text class="cover-title">{{ room.title }}</text>
+        <!-- 讲师 -->
+        <view class="host-row">
+          <image class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
+          <view class="host-info">
+            <text class="host-name">{{ room.hostName }}</text>
+            <text class="host-fans">{{ room.hostFollowers.toLocaleString() }} 粉丝</text>
           </view>
         </view>
-
-        <!-- 标签 -->
-        <view class="tag-row">
-          <text
-            v-for="(tag, i) in room.tags"
-            :key="i"
-            class="tag"
-          >
-            {{ tag }}
-          </text>
-        </view>
-
-        <!-- 直播简介 -->
-        <view class="detail-card">
-          <text class="detail-title">
-            直播简介
-          </text>
-          <view class="desc">
-            <template
-              v-for="(line, i) in descLines"
-              :key="i"
-            >
-              <text
-                v-if="line.type === 'h3'"
-                class="desc-h3"
-              >
-                {{ line.text }}
-              </text>
-              <text
-                v-else-if="line.type === 'bold'"
-                class="desc-bold"
-              >
-                {{ line.text }}
-              </text>
-              <view
-                v-else-if="line.type === 'bullet'"
-                class="desc-bullet"
-              >
-                <text class="desc-dot">
-                  •
-                </text>
-                <text class="desc-bullet-txt">
-                  {{ line.text }}
-                </text>
+        <!-- 倒计时 -->
+        <view class="countdown">
+          <text class="countdown-label">距开播还有</text>
+          <view class="countdown-row">
+            <template v-if="countdown.days > 0">
+              <view class="cd-box">
+                <text class="cd-num">{{ countdown.days }}</text>
+                <text class="cd-unit">天</text>
               </view>
-              <text
-                v-else-if="line.type === 'num'"
-                class="desc-num"
-              >
-                {{ line.text }}
-              </text>
-              <text
-                v-else-if="line.type === 'p'"
-                class="desc-p"
-              >
-                {{ line.text }}
-              </text>
-              <view
-                v-else
-                class="desc-br"
-              />
+              <text class="cd-colon">:</text>
             </template>
-          </view>
-        </view>
-
-        <!-- 讲师卡 -->
-        <view class="detail-card">
-          <text class="detail-title">
-            讲师介绍
-          </text>
-          <view class="teacher-row">
-            <image
-              class="teacher-avatar"
-              :src="room.hostAvatar"
-              mode="aspectFill"
-            />
-            <view class="teacher-info">
-              <text class="teacher-name">
-                {{ room.hostName }}
-              </text>
-              <text class="teacher-fans">
-                {{ room.hostFollowers.toLocaleString() }} 粉丝
-              </text>
+            <view class="cd-box">
+              <text class="cd-num">{{ pad(countdown.hours) }}</text>
+              <text class="cd-unit">时</text>
             </view>
-            <text class="teacher-link">
-              查看主页 →
-            </text>
+            <text class="cd-colon">:</text>
+            <view class="cd-box">
+              <text class="cd-num">{{ pad(countdown.minutes) }}</text>
+              <text class="cd-unit">分</text>
+            </view>
+            <text class="cd-colon">:</text>
+            <view class="cd-box">
+              <text class="cd-num">{{ pad(countdown.seconds) }}</text>
+              <text class="cd-unit">秒</text>
+            </view>
           </view>
         </view>
       </view>
+    </view>
 
-      <!-- 底部预约按钮 -->
-      <view class="footer">
-        <view class="book-btn">
-          <AppIcon
-            name="bell"
-            :size="40"
-            color="#fff"
-          />
-          <text class="book-txt">
-            立即预约
-          </text>
+    <!-- 详情内容 -->
+    <view class="body">
+      <!-- 信息卡 -->
+      <view class="info-card">
+        <view class="info-col">
+          <view class="info-top info-red">
+            <AppIcon name="users" :size="32" color="#C41E3A" />
+            <text class="info-num">{{ room.bookedCount.toLocaleString() }}</text>
+          </view>
+          <text class="info-label">已预约</text>
+        </view>
+        <view class="info-col">
+          <view class="info-top info-gold">
+            <AppIcon name="clock" :size="32" color="#C9A96E" />
+            <text class="info-num">{{ room.estimatedDuration }}</text>
+          </view>
+          <text class="info-label">预计时长(分钟)</text>
+        </view>
+        <view class="info-col">
+          <text class="info-num info-dark">{{ startDateText }}</text>
+          <text class="info-label">{{ startTimeText }}</text>
         </view>
       </view>
-    </template>
+
+      <!-- 标签 -->
+      <view class="tag-row">
+        <text v-for="(tag, i) in room.tags" :key="i" class="tag">{{ tag }}</text>
+      </view>
+
+      <!-- 直播简介 -->
+      <view class="detail-card">
+        <text class="detail-title">直播简介</text>
+        <view class="desc">
+          <template v-for="(line, i) in descLines" :key="i">
+            <text v-if="line.type === 'h3'" class="desc-h3">{{ line.text }}</text>
+            <text v-else-if="line.type === 'bold'" class="desc-bold">{{ line.text }}</text>
+            <view v-else-if="line.type === 'bullet'" class="desc-bullet">
+              <text class="desc-dot">•</text>
+              <text class="desc-bullet-txt">{{ line.text }}</text>
+            </view>
+            <text v-else-if="line.type === 'num'" class="desc-num">{{ line.text }}</text>
+            <text v-else-if="line.type === 'p'" class="desc-p">{{ line.text }}</text>
+            <view v-else class="desc-br" />
+          </template>
+        </view>
+      </view>
+
+      <!-- 讲师卡 -->
+      <view class="detail-card">
+        <text class="detail-title">讲师介绍</text>
+        <view class="teacher-row">
+          <image class="teacher-avatar" :src="room.hostAvatar" mode="aspectFill" />
+          <view class="teacher-info">
+            <text class="teacher-name">{{ room.hostName }}</text>
+            <text class="teacher-fans">{{ room.hostFollowers.toLocaleString() }} 粉丝</text>
+          </view>
+          <text class="teacher-link">查看主页 →</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部预约按钮 -->
+    <view class="footer">
+      <view class="book-btn">
+        <AppIcon name="bell" :size="40" color="#fff" />
+        <text class="book-txt">立即预约</text>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { liveApi } from '@/lib/live-data'
+import { livePreviewRoom } from '@/lib/live-data'
 
-const room = ref<any>(null)
-const roomId = ref('')
-const loading = ref(false)
-const error = ref('')
-
-async function loadData() {
-  if (!roomId.value) return
-  loading.value = true
-  error.value = ''
-  try {
-    room.value = await liveApi.previewRoom(roomId.value)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-onLoad((opts) => {
-  if (opts?.id) roomId.value = opts.id
-  loadData()
-})
+const room = ref(livePreviewRoom)
 
 // 开播时间 = 当前时间 + 2 小时（与原型一致：动态计算 + 实时倒计时）
 const startTime = Date.now() + 2 * 60 * 60 * 1000
@@ -357,7 +181,7 @@ function pad(n: number) {
 
 // markdown 行解析(纯UI渲染)
 const descLines = computed(() => {
-  return room.value.descriptionLines.map((line: string) => {
+  return room.value.descriptionLines.map((line) => {
     if (line.startsWith('### ')) return { type: 'h3', text: line.replace('### ', '') }
     if (line.startsWith('**') && line.endsWith('**')) return { type: 'bold', text: line.replace(/\*\*/g, '') }
     if (line.startsWith('- ')) return { type: 'bullet', text: line.replace('- ', '') }
@@ -374,9 +198,6 @@ const descLines = computed(() => {
   background: #FAF8F5;
   padding-bottom: 192rpx;
 }
-.loading { display: flex; align-items: center; justify-content: center; padding: 160rpx 0; font-size: 28rpx; color: #999; }
-.err-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; gap: 24rpx; font-size: 28rpx; color: #ef4444; }
-.retry-btn { padding: 12rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 999rpx; font-size: 28rpx; }
 
 /* 封面 */
 .cover-area {

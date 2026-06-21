@@ -31,64 +31,29 @@ function notReady() {
 
 <template>
   <view class="page">
-    <app-nav-bar
-      title="我的钱包"
-      back-icon="arrow-left"
-      :title-size="36"
-    />
+    <app-nav-bar title="我的钱包" back-icon="arrow-left" :title-size="36" />
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <!-- 余额卡片 -->
       <view class="balance-card">
         <view class="balance-head">
           <view>
-            <text class="balance-label">
-              国学币余额
-            </text>
-            <text class="balance-num">
-              {{ info.balance }}
-            </text>
-            <text class="balance-rmb">
-              ≈ ¥{{ info.rmb.toFixed(2) }}
-            </text>
+            <text class="balance-label">国学币余额</text>
+            <text class="balance-num">{{ info.balance }}</text>
+            <text class="balance-rmb">≈ ¥{{ info.rmb.toFixed(2) }}</text>
           </view>
           <view class="balance-icon">
-            <AppIcon
-              name="zap"
-              :size="34"
-              color="#fff"
-            />
+            <AppIcon name="zap" :size="34" color="#fff" />
           </view>
         </view>
         <view class="balance-actions">
-          <view
-            class="ba-btn"
-            @tap="navigateTo('/wallet/recharge')"
-          >
-            <AppIcon
-              name="plus"
-              :size="18"
-              color="#fff"
-            />
-            <text class="ba-text">
-              充值
-            </text>
+          <view class="ba-btn" @tap="navigateTo('/wallet/recharge')">
+            <AppIcon name="plus" :size="18" color="#fff" />
+            <text class="ba-text">充值</text>
           </view>
-          <view
-            class="ba-btn"
-            @tap="navigateTo('/wallet/withdraw')"
-          >
-            <AppIcon
-              name="arrow-up-right"
-              :size="18"
-              color="#fff"
-            />
-            <text class="ba-text">
-              提现
-            </text>
+          <view class="ba-btn" @tap="navigateTo('/wallet/withdraw')">
+            <AppIcon name="arrow-up-right" :size="18" color="#fff" />
+            <text class="ba-text">提现</text>
           </view>
         </view>
       </view>
@@ -97,81 +62,46 @@ function notReady() {
       <view class="level-card">
         <view class="level-head">
           <view class="level-left">
-            <view class="level-badge">
-              {{ info.level }}
-            </view>
+            <view class="level-badge">{{ info.level }}</view>
             <view>
-              <text class="level-name">
-                会员 {{ info.level }} 级
-              </text>
-              <text class="level-sub">
-                已累积 {{ info.growthValue }} 成长值
-              </text>
+              <text class="level-name">会员 {{ info.level }} 级</text>
+              <text class="level-sub">已累积 {{ info.growthValue }} 成长值</text>
             </view>
           </view>
-          <AppIcon
-            name="trending-up"
-            :size="20"
-            color="#C9A96E"
-          />
+          <AppIcon name="trending-up" :size="20" color="#C9A96E" />
         </view>
         <view class="level-prog-row">
-          <text class="level-prog-label">
-            升级进度
-          </text>
-          <text class="level-prog-val">
-            {{ info.growthValue }}/{{ info.nextLevelGrowth }}
-          </text>
+          <text class="level-prog-label">升级进度</text>
+          <text class="level-prog-val">{{ info.growthValue }}/{{ info.nextLevelGrowth }}</text>
         </view>
         <view class="prog-track">
-          <view
-            class="prog-fill"
-            :style="{ width: levelProgress + '%' }"
-          />
+          <view class="prog-fill" :style="{ width: levelProgress + '%' }" />
         </view>
       </view>
 
       <!-- 数据统计 -->
       <view class="stat-grid">
         <view class="stat-card">
-          <text class="stat-label">
-            累计充值
-          </text>
-          <text class="stat-val">
-            ¥{{ info.totalRecharge.toFixed(2) }}
-          </text>
+          <text class="stat-label">累计充值</text>
+          <text class="stat-val">¥{{ info.totalRecharge.toFixed(2) }}</text>
         </view>
         <view class="stat-card">
-          <text class="stat-label">
-            累计消费
-          </text>
-          <text class="stat-val">
-            ¥{{ info.totalSpent.toFixed(2) }}
-          </text>
+          <text class="stat-label">累计消费</text>
+          <text class="stat-val">¥{{ info.totalSpent.toFixed(2) }}</text>
         </view>
         <view class="stat-card">
-          <text class="stat-label">
-            积分
-          </text>
-          <text class="stat-val">
-            {{ info.points }}
-          </text>
+          <text class="stat-label">积分</text>
+          <text class="stat-val">{{ info.points }}</text>
         </view>
         <view class="stat-card">
-          <text class="stat-label">
-            成长值
-          </text>
-          <text class="stat-val">
-            {{ info.growthValue }}
-          </text>
+          <text class="stat-label">成长值</text>
+          <text class="stat-val">{{ info.growthValue }}</text>
         </view>
       </view>
 
       <!-- 快速充值 -->
       <view class="section">
-        <text class="section-title">
-          快速充值
-        </text>
+        <text class="section-title">快速充值</text>
         <view class="recharge-grid">
           <view
             v-for="(opt, idx) in options"
@@ -180,74 +110,33 @@ function notReady() {
             :class="{ popular: opt.popular }"
             @tap="navigateTo('/wallet/recharge')"
           >
-            <text
-              v-if="opt.popular"
-              class="recharge-tag"
-            >
-              推荐
-            </text>
-            <text class="recharge-coins">
-              {{ opt.coins }}
-            </text>
-            <text class="recharge-price">
-              ¥{{ opt.price }}
-            </text>
-            <text
-              v-if="opt.bonus > 0"
-              class="recharge-bonus"
-            >
-              +送{{ opt.bonus }}币
-            </text>
+            <text v-if="opt.popular" class="recharge-tag">推荐</text>
+            <text class="recharge-coins">{{ opt.coins }}</text>
+            <text class="recharge-price">¥{{ opt.price }}</text>
+            <text v-if="opt.bonus > 0" class="recharge-bonus">+送{{ opt.bonus }}币</text>
           </view>
         </view>
-        <view
-          class="more-btn"
-          @tap="navigateTo('/wallet/recharge')"
-        >
-          <text class="more-btn-text">
-            查看更多充值方案
-          </text>
+        <view class="more-btn" @tap="navigateTo('/wallet/recharge')">
+          <text class="more-btn-text">查看更多充值方案</text>
         </view>
       </view>
 
       <!-- 最近交易 -->
       <view class="section">
         <view class="section-head">
-          <text class="section-title">
-            最近交易
-          </text>
-          <text
-            class="section-link"
-            @tap="navigateTo('/wallet/transactions')"
-          >
-            查看全部
-          </text>
+          <text class="section-title">最近交易</text>
+          <text class="section-link" @tap="navigateTo('/wallet/transactions')">查看全部</text>
         </view>
         <view class="tx-list">
-          <view
-            v-for="t in transactions"
-            :key="t.id"
-            class="tx-item"
-          >
+          <view v-for="t in transactions" :key="t.id" class="tx-item">
             <view class="tx-icon">
-              <AppIcon
-                :name="txIcon[t.type].icon"
-                :size="18"
-                :color="txIcon[t.type].color"
-              />
+              <AppIcon :name="txIcon[t.type].icon" :size="18" :color="txIcon[t.type].color" />
             </view>
             <view class="tx-body">
-              <text class="tx-title">
-                {{ t.title }}
-              </text>
-              <text class="tx-time">
-                {{ t.time }}
-              </text>
+              <text class="tx-title">{{ t.title }}</text>
+              <text class="tx-time">{{ t.time }}</text>
             </view>
-            <text
-              class="tx-amount"
-              :class="{ income: t.amount > 0 }"
-            >
+            <text class="tx-amount" :class="{ income: t.amount > 0 }">
               {{ t.amount > 0 ? '+' : '' }}{{ t.amount }}
             </text>
           </view>

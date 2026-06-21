@@ -1,0 +1,61 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8">
+<title>保真比对报告</title>
+<style>
+  body{font-family:system-ui,-apple-system,sans-serif;margin:0;padding:16px;background:#f5f3ef;color:#222}
+  h1{font-size:18px}
+  .summary{margin:8px 0 16px;font-size:13px;color:#555}
+  table{border-collapse:collapse;width:100%}
+  td{border:1px solid #ddd;padding:6px;vertical-align:top;background:#fff}
+  td.meta{width:220px;font-size:12px}
+  .pct{font-size:20px;font-weight:700}
+  .owner{display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;color:#fff;margin:4px 0}
+  .owner-A{background:#2a7}.owner-B{background:#c70}.owner-NONE{background:#999}
+  .route{font-family:monospace;font-size:11px;word-break:break-all;color:#333}
+  .route.vue{color:#06c}
+  .note{margin-top:4px;color:#777}
+  img{width:257px;height:auto;display:block;border:1px solid #eee}
+  th{position:sticky;top:0;background:#eee;padding:6px;font-size:12px}
+</style></head><body>
+<h1>保真比对报告（原型 vs uni-app H5 · 514×1111）</h1>
+<div class="summary">共 4 对 · 通过 0 · 未通过 4 · 按差异降序</div>
+<table><thead><tr><th>信息</th><th>原型</th><th>vue3 (H5)</th><th>diff</th></tr></thead>
+<tbody><tr>
+        <td class="meta">
+          <div class="pct" style="color:#c70">28.77%</div>
+          <div class="owner owner-V">V</div>
+          <div class="route">/bots</div>
+          <div class="route vue">/#/pkg-agent/bots/index</div>
+          <div class="note">智能体广场页(A级,v0新迁,pkg-agent分包)。全站AI Bot应用市场,辨析:与已迁circles/bots(pkg-circle圈子内机器人列表)是不同功能。红渐变头(返回+sparkles智能体广场+排行榜trending-up跳/pkg-agent/agents/ranking)+搜索框(点开弹层)+分类Tab(10类all/bazi/fengshui/health/divination/naming/dream/face/palm/other各带图标)+Banner+热门智能体2列网格卡(头像+官方badge-check/NEW徽章+名称+描述line-clamp2+评分star+热度flame+免费/价格crown)+新上线横滚+为你推荐feed(bot_recommend/hot_topic/user_story三类型)+搜索弹层(热门搜索标签)。点击bot跳/pkg-agent/bots/chat?id=。补grid-3x3/scan/hand图标。全mock。注:此页连同注册曾因上一轮提交丢失,本轮重做补回。</div>
+        </td>
+        <td><img src="pkg_agent_bots_index__proto.png"></td><td><img src="pkg_agent_bots_index__vue.png"></td><td><img src="pkg_agent_bots_index__diff.png"></td>
+      </tr>
+<tr>
+        <td class="meta">
+          <div class="pct" style="color:#c70">18.42%</div>
+          <div class="owner owner-A">A</div>
+          <div class="route">/circles/bots</div>
+          <div class="route vue">/#/pkg-circle/circles/bots</div>
+          <div class="note">圈子机器人列表</div>
+        </td>
+        <td><img src="pkg_circle_circles_bots__proto.png"></td><td><img src="pkg_circle_circles_bots__vue.png"></td><td><img src="pkg_circle_circles_bots__diff.png"></td>
+      </tr>
+<tr>
+        <td class="meta">
+          <div class="pct" style="color:#c70">7.55%</div>
+          <div class="owner owner-A">A</div>
+          <div class="route">/circles/1/bots</div>
+          <div class="route vue">/#/pkg-circle/circles/circle-bots</div>
+          <div class="note">圈子内机器人</div>
+        </td>
+        <td><img src="pkg_circle_circles_circle_bots__proto.png"></td><td><img src="pkg_circle_circles_circle_bots__vue.png"></td><td><img src="pkg_circle_circles_circle_bots__diff.png"></td>
+      </tr>
+<tr>
+        <td class="meta">
+          <div class="pct" style="color:#c70">4.44%</div>
+          <div class="owner owner-V">V</div>
+          <div class="route">/bots/chat/[id]</div>
+          <div class="route vue">/#/pkg-agent/bots/chat/index</div>
+          <div class="note">Bot对话页(A级,v0新迁,pkg-agent分包,接?id= query)。circles/bots和bots广场都跳此路径。红渐变顶栏(返回+头像+名称+在线/官方认证状态+语音通话phone+more菜单[历史/分享/设置/清空对话])+对话scroll-view(欢迎语气泡+推荐问题chip+能力说明tag,消息气泡左bot白/右user红+流式blink光标+图片/文件消息paperclip+时间)+使用限制提示条(今日免费次数+升级会员)+底部输入栏(语音mic/mic-off+输入框+附件image-plus+发送send/loader)。流式回复用setInterval逐字mock(30ms),Markdown简化用rich-text渲染粗体/标题/列表。文件走chooseImage,语音/通话/菜单走toast。补paperclip图标。</div>
+        </td>
+        <td><img src="pkg_agent_bots_chat_index__proto.png"></td><td><img src="pkg_agent_bots_chat_index__vue.png"></td><td><img src="pkg_agent_bots_chat_index__diff.png"></td>
+      </tr></tbody></table></body></html>

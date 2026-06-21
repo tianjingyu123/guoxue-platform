@@ -1,528 +1,655 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { minePointsApi } from '@/lib/mine-data'
+import {
+  pointsInfo as infoData,
+  pointsTasks,
+  pointsHistory,
+  pointsExchangeItems,
+  type PointsExchangeItem,
+} from '@/lib/points-data'
 
-const activeTab = ref<'points' | 'growth'>('points')
-const showRules = ref(false)
+const info = ref({ ...infoData })
+const tasks = ref(pointsTasks)
+const history = ref(pointsHistory)
+const exchangeItems = ref(pointsExchangeItems)
 
-const info = ref({ balance: 0, todayEarned: 0, monthEarned: 0, totalEarned: 0, expiringSoon: 0, expireDate: '' })
-const growth = ref({ value: 0, level: 0, levelName: '', nextLevel: 0, nextLevelName: '', nextLevelValue: 0, progress: 0 })
-const earnRules = ref<any[]>([])
-const records = ref<any[]>([])
-const levels = ref<any[]>([])
-const gRules = ref<any[]>([])
-const loading = ref(true)
+const showExchangeModal = ref(false)
+const selectedItem = ref<PointsExchangeItem | null>(null)
+const exchangeSuccess = ref(false)
 
-onMounted(async () => {
-  try {
-    const data = await minePointsApi.getPointsOverview()
-    if (data.pointsInfo) info.value = data.pointsInfo
-    if (data.growthInfo) growth.value = data.growthInfo
-    if (data.earnRules) earnRules.value = data.earnRules
-    if (data.growthRules) gRules.value = data.growthRules
-    if (data.growthLevels) levels.value = data.growthLevels
-    const recs = await minePointsApi.getPointsRecords()
-    records.value = recs.items || recs || []
-  } catch (e) {} finally {
-    loading.value = false
-  }
-})
+const userPoints = computed(() => info.value.balance)
 
 function fmt(n: number) {
   return n.toLocaleString()
 }
-function notReady() {
-  uni.showToast({ title: '功能开发中', icon: 'none' })
+function goBack() {
+  uni.navigateBack()
+}
+function go(url: string) {
+  uni.navigateTo({ url })
+}
+function handleExchange(item: PointsExchangeItem) {
+  if (userPoints.value >= item.points) {
+    selectedItem.value = item
+    showExchangeModal.value = true
+  }
+}
+function confirmExchange() {
+  if (!selectedItem.value) return
+  info.value.balance -= selectedItem.value.points
+  exchangeSuccess.value = true
+  setTimeout(() => {
+    showExchangeModal.value = false
+    exchangeSuccess.value = false
+    selectedItem.value = null
+  }, 2000)
 }
 </script>
 
 <template>
   <view class="page">
-    <app-nav-bar>
-      <template #center>
-        <view class="tabs">
-          <text
-            class="tab"
-            :class="{ active: activeTab === 'points' }"
-            @tap="activeTab = 'points'"
-          >
-            我的积分
-          </text>
-          <text
-            class="tab"
-            :class="{ active: activeTab === 'growth' }"
-            @tap="activeTab = 'growth'"
-          >
-            成长值
-          </text>
-        </view>
-      </template>
-      <template #right>
-        <view
-          class="nav-btn"
-          @tap="showRules = true"
-        >
-          <AppIcon
-            name="help-circle"
-            :size="40"
-            color="#8a8178"
-          />
-        </view>
-      </template>
-    </app-nav-bar>
+    <!-- 顶部导航 -->
+    <view class="nav">
+      <view class="nav-back" @tap="goBack">
+        <AppIcon name="arrow-left" :size="44" color="#2D2A26" />
+      </view>
+      <text class="nav-title">积分中心</text>
+      <text class="nav-link" @tap="go('/pkg-mine/points/history')">明细</text>
+    </view>
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
-      <!-- 我的积分 -->
-      <template v-if="activeTab === 'points'">
-        <view class="hero hero-red">
+    <scroll-view scroll-y class="scroll">
+      <!-- 积分余额卡片 -->
+      <view class="hero">
+        <view class="hero-deco hero-deco-1" />
+        <view class="hero-deco hero-deco-2" />
+        <view class="hero-body">
           <view class="hero-top">
-            <text class="hero-label">
-              可用积分
-            </text>
-            <text
-              v-if="info.expiringSoon > 0"
-              class="hero-expire"
-            >
-              {{ info.expiringSoon }}积分将于{{ info.expireDate }}过期
-            </text>
+            <AppIcon name="coins" :size="20" color="rgba(255,255,255,0.8)" />
+            <text class="hero-label">我的积分</text>
           </view>
-          <text class="hero-num">
-            {{ fmt(info.balance) }}
-          </text>
+          <text class="hero-num">{{ fmt(userPoints) }}</text>
+          <text class="hero-tip">100积分 = ¥1.00，可在兑换时抵扣</text>
           <view class="hero-stats">
             <view class="hs-item">
-              <text class="hs-label">
-                今日获取
-              </text>
-              <text class="hs-val gold">
-                +{{ info.todayEarned }}
-              </text>
+              <text class="hs-label">累计获取</text>
+              <text class="hs-val">{{ fmt(info.totalEarned) }}</text>
             </view>
             <view class="hs-item">
-              <text class="hs-label">
-                本月获取
-              </text>
-              <text class="hs-val gold">
-                +{{ info.monthEarned }}
-              </text>
+              <text class="hs-label">累计使用</text>
+              <text class="hs-val">{{ fmt(info.totalSpent) }}</text>
             </view>
             <view class="hs-item">
-              <text class="hs-label">
-                累计获取
-              </text>
-              <text class="hs-val">
-                {{ fmt(info.totalEarned) }}
-              </text>
+              <text class="hs-label">今日获取</text>
+              <text class="hs-val">+{{ info.todayEarned }}</text>
             </view>
           </view>
         </view>
+      </view>
 
-        <view
-          class="card action-card"
-          @tap="notReady"
-        >
-          <view class="ac-icon">
-            <AppIcon
-              name="gift"
-              :size="44"
-              color="#d97706"
-            />
+      <!-- 积分获取任务 -->
+      <view class="section">
+        <view class="section-head">
+          <text class="section-title">如何获取积分</text>
+          <view class="section-more" @tap="go('/pkg-mine/points/tasks')">
+            <text class="section-more-text">更多任务</text>
+            <AppIcon name="chevron-right" :size="14" color="#8a8178" />
           </view>
-          <view class="ac-body">
-            <text class="ac-title">
-              积分兑换
-            </text>
-            <text class="ac-sub">
-              兑换优惠券、实物商品
-            </text>
-          </view>
-          <AppIcon
-            name="chevron-right"
-            :size="40"
-            color="#c9c2b6"
-          />
         </view>
-
         <view class="card">
-          <view class="card-head">
-            <text class="card-title">
-              赚取积分
-            </text>
-            <text
-              class="card-link"
-              @tap="showRules = true"
-            >
-              积分规则
-            </text>
-          </view>
-          <view class="rule-list">
-            <view
-              v-for="r in earnRules"
-              :key="r.id"
-              class="rule-item"
-            >
-              <view
-                class="rule-icon"
-                :class="{ done: r.completed }"
-              >
-                <AppIcon
-                  :name="r.icon"
-                  :size="40"
-                  :color="r.completed ? '#16a34a' : '#8a8178'"
-                />
+          <view v-for="task in tasks" :key="task.id" class="task-row">
+            <view class="task-left">
+              <view class="task-icon">
+                <AppIcon :name="task.icon" :size="20" color="#c9a96e" />
               </view>
-              <view class="rule-body">
-                <view class="rule-name-row">
-                  <text class="rule-name">
-                    {{ r.title }}
-                  </text>
-                  <text
-                    v-if="r.completed"
-                    class="rule-done"
-                  >
-                    已完成
-                  </text>
+              <view class="task-info">
+                <view class="task-title-row">
+                  <text class="task-title">{{ task.title }}</text>
+                  <text class="task-badge">+{{ task.points }}积分</text>
                 </view>
-                <text class="rule-desc">
-                  {{ r.description }}
-                </text>
-              </view>
-              <view class="rule-right">
-                <text class="rule-pts">
-                  +{{ r.points }}
-                </text>
-                <text
-                  v-if="r.limit"
-                  class="rule-limit"
-                >
-                  {{ r.limit }}
+                <text class="task-limit">
+                  {{ task.limit }}{{ task.current !== undefined ? ` (${task.current}/${task.max})` : '' }}
                 </text>
               </view>
             </view>
-          </view>
-        </view>
-
-        <view class="card">
-          <view class="card-head">
-            <text class="card-title">
-              积分明细
-            </text>
-            <view
-              class="card-link-row"
-              @tap="notReady"
-            >
-              <text class="card-link">
-                查看全部
-              </text>
-              <AppIcon
-                name="chevron-right"
-                :size="32"
-                color="#C41E3A"
-              />
+            <view v-if="task.completed" class="task-done">
+              <AppIcon name="check-circle" :size="14" color="#22c55e" />
+              <text class="task-done-text">已完成</text>
             </view>
-          </view>
-          <view class="record-list">
-            <view
-              v-for="rec in records"
-              :key="rec.id"
-              class="record-item"
-            >
-              <view class="record-body">
-                <text class="record-title">
-                  {{ rec.title }}
-                </text>
-                <text class="record-desc">
-                  {{ rec.description }}
-                </text>
-                <text class="record-time">
-                  {{ rec.createdAt }}
-                </text>
-              </view>
-              <text
-                class="record-pts"
-                :class="{ income: rec.type === 'income' }"
-              >
-                {{ rec.type === 'income' ? '+' : '' }}{{ rec.points }}
-              </text>
+            <view v-else class="task-btn" @tap="go('/pkg-mine/points/tasks')">
+              <text class="task-btn-text">{{ task.action }}</text>
             </view>
           </view>
         </view>
-      </template>
+      </view>
 
-      <!-- 成长值 -->
-      <template v-else>
-        <view class="hero hero-gold">
-          <view class="hero-top">
-            <text class="hero-label">
-              当前成长值
-            </text>
-            <text class="hero-pill">
-              {{ growth.levelName }}
-            </text>
+      <!-- 积分兑换 -->
+      <view class="section">
+        <view class="section-head">
+          <text class="section-title">积分兑换</text>
+          <view class="section-more" @tap="go('/pkg-mine/points/exchange')">
+            <text class="section-more-text">全部商品</text>
+            <AppIcon name="chevron-right" :size="14" color="#8a8178" />
           </view>
-          <text class="hero-num">
-            {{ fmt(growth.value) }}
-          </text>
-          <view class="growth-prog-labels">
-            <text class="gp-label">
-              Lv.{{ growth.level }} {{ growth.levelName }}
-            </text>
-            <text class="gp-label">
-              Lv.{{ growth.nextLevel }} {{ growth.nextLevelName }}
-            </text>
-          </view>
-          <view class="growth-track">
-            <view
-              class="growth-fill"
-              :style="{ width: growth.progress + '%' }"
-            />
-          </view>
-          <text class="growth-tip">
-            还需 {{ growth.nextLevelValue - growth.value }} 成长值升级
-          </text>
         </view>
-
-        <view class="card">
-          <view class="card-head">
-            <text class="card-title">
-              等级权益
-            </text>
-          </view>
-          <scroll-view
-            scroll-x
-            class="level-scroll"
+        <view class="ex-grid">
+          <view
+            v-for="item in exchangeItems"
+            :key="item.id"
+            class="ex-card"
+            :class="{ 'ex-disabled': userPoints < item.points }"
+            @tap="handleExchange(item)"
           >
-            <view class="level-row">
-              <view
-                v-for="lv in levels"
-                :key="lv.level"
-                class="level-tile"
-                :class="{ current: lv.level === growth.level }"
-              >
-                <text class="lt-lv">
-                  Lv.{{ lv.level }}
-                </text>
-                <text class="lt-name">
-                  {{ lv.name }}
-                </text>
-                <text class="lt-val">
-                  {{ lv.value }}+
-                </text>
-                <view class="lt-benefits">
-                  <text
-                    v-for="(b, i) in lv.benefits"
-                    :key="i"
-                    class="lt-benefit"
-                  >
-                    {{ b }}
-                  </text>
-                </view>
+            <view class="ex-top">
+              <view class="ex-icon">
+                <AppIcon :name="item.icon" :size="18" :color="item.color" />
+              </view>
+              <text class="ex-stock">剩{{ item.stock }}</text>
+            </view>
+            <text class="ex-title">{{ item.title }}</text>
+            <view class="ex-bottom">
+              <view class="ex-points">
+                <AppIcon name="coins" :size="13" color="#c9a96e" />
+                <text class="ex-points-num">{{ item.points }}</text>
+              </view>
+              <view class="ex-btn" :class="{ 'ex-btn-disabled': userPoints < item.points }">
+                <text class="ex-btn-text">{{ userPoints >= item.points ? '兑换' : '积分不足' }}</text>
               </view>
             </view>
-          </scroll-view>
+          </view>
         </view>
+      </view>
 
+      <!-- 积分明细预览 -->
+      <view class="section">
+        <view class="section-head">
+          <text class="section-title">近期明细</text>
+          <view class="section-more" @tap="go('/pkg-mine/points/history')">
+            <text class="section-more-text">全部记录</text>
+            <AppIcon name="chevron-right" :size="14" color="#8a8178" />
+          </view>
+        </view>
         <view class="card">
-          <view class="card-head">
-            <text class="card-title">
-              成长值获取
+          <view v-for="item in history" :key="item.id" class="his-row">
+            <view class="his-info">
+              <text class="his-title">{{ item.title }}</text>
+              <text class="his-time">{{ item.time }}</text>
+            </view>
+            <text class="his-points" :class="item.type === 'earn' ? 'his-earn' : 'his-spend'">
+              {{ item.points > 0 ? '+' : '' }}{{ item.points }}
             </text>
           </view>
-          <view class="rule-list">
-            <view
-              v-for="(g, i) in gRules"
-              :key="i"
-              class="rule-item"
-            >
-              <view class="rule-icon gold-bg">
-                <AppIcon
-                  :name="g.icon"
-                  :size="40"
-                  color="#d97706"
-                />
-              </view>
-              <view class="rule-body">
-                <text class="rule-name">
-                  {{ g.title }}
-                </text>
-                <text class="rule-desc">
-                  {{ g.desc }}
-                </text>
-              </view>
-              <text class="rule-pts gold-text">
-                {{ g.value }}
-              </text>
-            </view>
-          </view>
         </view>
-      </template>
+      </view>
+
+      <!-- 积分说明 -->
+      <view class="section">
+        <view class="note">
+          <text class="note-text">
+            <text class="note-strong">积分说明：</text>积分可用于兑换优惠券、国学币、会员体验及实物礼品。积分有效期为获取后12个月，请及时使用。
+          </text>
+        </view>
+      </view>
+
+      <view class="bottom-space" />
     </scroll-view>
 
-    <!-- 规则弹窗 -->
-    <view
-      v-if="showRules"
-      class="mask mask-fade-in"
-      @tap="showRules = false"
-    >
-      <view
-        class="sheet sheet-slide-up"
-        @tap.stop
-      >
-        <view class="sheet-head">
-          <text class="sheet-title">
-            积分规则
-          </text>
-          <text
-            class="sheet-close"
-            @tap="showRules = false"
-          >
-            关闭
-          </text>
-        </view>
-        <scroll-view
-          scroll-y
-          class="sheet-body"
-        >
-          <view class="rule-block">
-            <text class="rb-title">
-              一、积分获取
-            </text>
-            <text class="rb-line">
-              1. 每日签到可获得10积分，连续签到可获得额外奖励
-            </text>
-            <text class="rb-line">
-              2. 学习课程满30分钟可获得20积分，每日最多3次
-            </text>
-            <text class="rb-line">
-              3. 发表优质评论可获得15积分，每日最多5次
-            </text>
-            <text class="rb-line">
-              4. 分享内容可获得10积分，每日最多3次
-            </text>
-            <text class="rb-line">
-              5. 购买课程每消费10元可获得1积分
-            </text>
-            <text class="rb-line">
-              6. 邀请好友注册成功可获得100积分
-            </text>
+    <!-- 兑换确认弹窗 -->
+    <view v-if="showExchangeModal && selectedItem" class="modal-mask" @tap="showExchangeModal = false">
+      <view class="modal" @tap.stop>
+        <template v-if="!exchangeSuccess">
+          <view class="modal-icon">
+            <AppIcon name="gift" :size="32" color="#c9a96e" />
           </view>
-          <view class="rule-block">
-            <text class="rb-title">
-              二、积分使用
-            </text>
-            <text class="rb-line">
-              1. 积分可在积分商城兑换优惠券、实物商品等
-            </text>
-            <text class="rb-line">
-              2. 部分课程支持积分抵扣，100积分=1元
-            </text>
-            <text class="rb-line">
-              3. 积分不可提现、不可转让
-            </text>
+          <text class="modal-title">确认兑换</text>
+          <text class="modal-sub">使用 {{ selectedItem.points }}积分 兑换</text>
+          <view class="modal-card">
+            <text class="modal-card-text">{{ selectedItem.title }}</text>
           </view>
-          <view class="rule-block">
-            <text class="rb-title">
-              三、积分有效期
-            </text>
-            <text class="rb-line">
-              1. 积分自获取之日起，有效期为1年
-            </text>
-            <text class="rb-line">
-              2. 过期积分将自动清零，请及时使用
-            </text>
+          <text class="modal-balance">兑换后积分余额：{{ fmt(userPoints - selectedItem.points) }}</text>
+          <view class="modal-actions">
+            <view class="modal-btn modal-btn-cancel" @tap="showExchangeModal = false">
+              <text class="modal-btn-text">取消</text>
+            </view>
+            <view class="modal-btn modal-btn-confirm" @tap="confirmExchange">
+              <text class="modal-btn-text modal-btn-text-light">确认兑换</text>
+            </view>
           </view>
-        </scroll-view>
+        </template>
+        <template v-else>
+          <view class="modal-icon modal-icon-success">
+            <AppIcon name="check-circle" :size="32" color="#22c55e" />
+          </view>
+          <text class="modal-title">兑换成功</text>
+          <text class="modal-sub">{{ selectedItem.title }} 已发放至您的账户</text>
+        </template>
       </view>
     </view>
   </view>
 </template>
 
 <style scoped>
-.page { min-height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
-  .nav-btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
-.tabs { flex: 1; display: flex; align-items: center; justify-content: center; gap: 64rpx; }
-.tab { font-size: 32rpx; color: #8a8178; padding-bottom: 6rpx; border-bottom: 4rpx solid transparent; }
-.tab.active { color: #C41E3A; font-weight: 600; border-bottom-color: #C41E3A; }
-.scroll { flex: 1; padding: 24rpx; box-sizing: border-box; }
+.page {
+  min-height: 100vh;
+  background: #faf8f5;
+}
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx;
+  background: rgba(250, 248, 245, 0.95);
+  border-bottom: 2rpx solid rgba(201, 169, 110, 0.2);
+}
+.nav-back {
+  width: 48rpx;
+}
+.nav-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #2d2a26;
+}
+.nav-link {
+  font-size: 28rpx;
+  color: #9a2e22;
+  width: 48rpx;
+  text-align: right;
+}
+.scroll {
+  height: calc(100vh - 92rpx);
+}
 
-.hero { border-radius: 28rpx; padding: 36rpx; color: #fff; }
-.hero-red { background: linear-gradient(135deg, #C41E3A, #8B0000); }
-.hero-gold { background: linear-gradient(135deg, #f59e0b, #ea580c); }
-.hero-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
-.hero-label { font-size: 26rpx; color: rgba(255,255,255,0.8); }
-.hero-expire { font-size: 20rpx; color: #fff; background: rgba(255,255,255,0.2); padding: 4rpx 14rpx; border-radius: 999rpx; }
-.hero-pill { font-size: 22rpx; color: #fff; background: rgba(255,255,255,0.2); padding: 4rpx 16rpx; border-radius: 999rpx; }
-.hero-num { display: block; font-size: 64rpx; font-weight: 700; margin-bottom: 24rpx; }
-.hero-stats { display: flex; gap: 40rpx; }
-.hs-item { display: flex; flex-direction: column; gap: 4rpx; }
-.hs-label { font-size: 22rpx; color: rgba(255,255,255,0.6); }
-.hs-val { font-size: 26rpx; color: #fff; }
-.hs-val.gold { color: #FCE7C8; }
+/* 余额卡片 */
+.hero {
+  position: relative;
+  margin: 32rpx;
+  border-radius: 28rpx;
+  overflow: hidden;
+  background: linear-gradient(135deg, #c9a96e 0%, #b8923f 60%, #a67c1a 100%);
+  padding: 40rpx;
+}
+.hero-deco {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+.hero-deco-1 {
+  width: 192rpx;
+  height: 192rpx;
+  right: -48rpx;
+  top: -48rpx;
+}
+.hero-deco-2 {
+  width: 128rpx;
+  height: 128rpx;
+  right: -16rpx;
+  top: 64rpx;
+  background: rgba(255, 255, 255, 0.05);
+}
+.hero-body {
+  position: relative;
+  z-index: 1;
+}
+.hero-top {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 12rpx;
+}
+.hero-label {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+.hero-num {
+  font-size: 72rpx;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.1;
+}
+.hero-tip {
+  display: block;
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 8rpx;
+}
+.hero-stats {
+  display: flex;
+  gap: 48rpx;
+  margin-top: 28rpx;
+  padding-top: 28rpx;
+  border-top: 2rpx solid rgba(255, 255, 255, 0.2);
+}
+.hs-label {
+  display: block;
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.6);
+}
+.hs-val {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #fff;
+  margin-top: 4rpx;
+}
 
-.growth-prog-labels { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10rpx; }
-.gp-label { font-size: 22rpx; color: rgba(255,255,255,0.9); }
-.growth-track { height: 14rpx; background: rgba(255,255,255,0.25); border-radius: 999rpx; overflow: hidden; }
-.growth-fill { height: 100%; background: #fff; border-radius: 999rpx; }
-.growth-tip { display: block; text-align: center; font-size: 22rpx; color: rgba(255,255,255,0.85); margin-top: 10rpx; }
+/* 区块 */
+.section {
+  padding: 0 32rpx;
+  margin-top: 40rpx;
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+.section-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #2d2a26;
+}
+.section-more {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+.section-more-text {
+  font-size: 24rpx;
+  color: #8a8178;
+}
+.card {
+  background: #fff;
+  border-radius: 24rpx;
+  overflow: hidden;
+}
 
-.card { background: #fff; border-radius: 20rpx; padding: 28rpx; margin-top: 24rpx; }
-.card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
-.card-title { font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
-.card-link { font-size: 24rpx; color: #C41E3A; }
-.card-link-row { display: flex; align-items: center; gap: 4rpx; }
+/* 任务行 */
+.task-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx;
+  border-bottom: 2rpx solid #f2ede4;
+}
+.task-row:last-child {
+  border-bottom: none;
+}
+.task-left {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  flex: 1;
+}
+.task-icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 24rpx;
+  background: rgba(201, 169, 110, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.task-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.task-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #2d2a26;
+}
+.task-badge {
+  font-size: 20rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 16rpx;
+  background: rgba(201, 169, 110, 0.1);
+  color: #c9a96e;
+}
+.task-limit {
+  display: block;
+  font-size: 22rpx;
+  color: #8a8178;
+  margin-top: 6rpx;
+}
+.task-done {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  background: rgba(34, 197, 94, 0.1);
+}
+.task-done-text {
+  font-size: 22rpx;
+  color: #22c55e;
+}
+.task-btn {
+  padding: 10rpx 24rpx;
+  border-radius: 32rpx;
+  background: #9a2e22;
+}
+.task-btn-text {
+  font-size: 22rpx;
+  color: #fff;
+}
 
-.action-card { display: flex; align-items: center; gap: 20rpx; }
-.ac-icon { width: 72rpx; height: 72rpx; border-radius: 18rpx; background: #FEF3C7; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.ac-body { flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
-.ac-title { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.ac-sub { font-size: 22rpx; color: #8a8178; }
+/* 兑换网格 */
+.ex-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24rpx;
+}
+.ex-card {
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 24rpx;
+}
+.ex-disabled {
+  opacity: 0.6;
+}
+.ex-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+.ex-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 16rpx;
+  background: #f7f3ec;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ex-stock {
+  font-size: 20rpx;
+  color: #8a8178;
+  border: 2rpx solid rgba(138, 129, 120, 0.3);
+  border-radius: 12rpx;
+  padding: 2rpx 10rpx;
+}
+.ex-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #2d2a26;
+}
+.ex-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16rpx;
+}
+.ex-points {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+.ex-points-num {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #c9a96e;
+}
+.ex-btn {
+  padding: 8rpx 20rpx;
+  border-radius: 32rpx;
+  background: #9a2e22;
+}
+.ex-btn-disabled {
+  background: #ece7df;
+}
+.ex-btn-text {
+  font-size: 22rpx;
+  color: #fff;
+}
+.ex-btn-disabled .ex-btn-text {
+  color: #8a8178;
+}
 
-.rule-list { display: flex; flex-direction: column; gap: 24rpx; }
-.rule-item { display: flex; align-items: center; gap: 20rpx; }
-.rule-icon { width: 72rpx; height: 72rpx; border-radius: 18rpx; background: #F2ECE1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.rule-icon.done { background: #DCFCE7; }
-.rule-icon.gold-bg { background: #FEF3C7; }
-.rule-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
-.rule-name-row { display: flex; align-items: center; gap: 12rpx; }
-.rule-name { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.rule-done { font-size: 20rpx; color: #16a34a; background: #DCFCE7; padding: 2rpx 12rpx; border-radius: 8rpx; }
-.rule-desc { font-size: 22rpx; color: #8a8178; }
-.rule-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4rpx; }
-.rule-pts { font-size: 28rpx; font-weight: 600; color: #C41E3A; }
-.rule-pts.gold-text { color: #d97706; }
-.rule-limit { font-size: 20rpx; color: #b8b0a4; }
+/* 明细 */
+.his-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx;
+  border-bottom: 2rpx solid #f2ede4;
+}
+.his-row:last-child {
+  border-bottom: none;
+}
+.his-title {
+  font-size: 28rpx;
+  color: #2d2a26;
+}
+.his-time {
+  display: block;
+  font-size: 22rpx;
+  color: #8a8178;
+  margin-top: 6rpx;
+}
+.his-points {
+  font-size: 28rpx;
+  font-weight: 500;
+}
+.his-earn {
+  color: #22c55e;
+}
+.his-spend {
+  color: #9a2e22;
+}
 
-.record-list { display: flex; flex-direction: column; }
-.record-item { display: flex; align-items: center; justify-content: space-between; padding: 20rpx 0; border-bottom: 1rpx solid #F2ECE1; }
-.record-item:last-child { border-bottom: none; }
-.record-body { display: flex; flex-direction: column; gap: 4rpx; }
-.record-title { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.record-desc { font-size: 22rpx; color: #8a8178; }
-.record-time { font-size: 22rpx; color: #b8b0a4; }
-.record-pts { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
-.record-pts.income { color: #C41E3A; }
+/* 说明 */
+.note {
+  background: rgba(236, 231, 223, 0.5);
+  border-radius: 20rpx;
+  padding: 24rpx;
+}
+.note-text {
+  font-size: 22rpx;
+  color: #8a8178;
+  line-height: 1.6;
+}
+.note-strong {
+  color: #2d2a26;
+  font-weight: 600;
+}
+.bottom-space {
+  height: 48rpx;
+}
 
-.level-scroll { width: 100%; white-space: nowrap; }
-.level-row { display: inline-flex; gap: 16rpx; padding-bottom: 8rpx; }
-.level-tile { width: 200rpx; padding: 24rpx; border-radius: 18rpx; border: 2rpx solid transparent; background: #FAF8F5; display: inline-flex; flex-direction: column; gap: 6rpx; white-space: normal; }
-.level-tile.current { background: #FEF3C7; border-color: #f59e0b; }
-.lt-lv { font-size: 22rpx; color: #8a8178; font-weight: 500; }
-.lt-name { font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
-.lt-val { font-size: 22rpx; color: #b8b0a4; margin-bottom: 8rpx; }
-.lt-benefits { display: flex; flex-direction: column; gap: 4rpx; }
-.lt-benefit { font-size: 22rpx; color: #6f6760; }
-
-.mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; display: flex; align-items: flex-end; }
-.sheet { width: 100%; max-height: 80vh; background: #FAF8F5; border-radius: 40rpx 40rpx 0 0; display: flex; flex-direction: column; }
-.sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 32rpx; border-bottom: 1rpx solid #EDE7DC; background: #fff; border-radius: 40rpx 40rpx 0 0; }
-.sheet-title { font-size: 32rpx; font-weight: 700; color: #2C2C2C; }
-.sheet-close { font-size: 28rpx; color: #8a8178; }
-.sheet-body { padding: 32rpx; padding-bottom: calc(32rpx + env(safe-area-inset-bottom)); }
-.rule-block { margin-bottom: 32rpx; }
-.rb-title { display: block; font-size: 28rpx; font-weight: 600; color: #2C2C2C; margin-bottom: 16rpx; }
-.rb-line { display: block; font-size: 26rpx; color: #6f6760; line-height: 1.8; }
+/* 弹窗 */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal {
+  width: 85%;
+  max-width: 560rpx;
+  background: #fff;
+  border-radius: 28rpx;
+  padding: 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.modal-icon {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  background: rgba(201, 169, 110, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24rpx;
+}
+.modal-icon-success {
+  background: rgba(34, 197, 94, 0.1);
+}
+.modal-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #2d2a26;
+}
+.modal-sub {
+  font-size: 26rpx;
+  color: #8a8178;
+  margin-top: 8rpx;
+  text-align: center;
+}
+.modal-card {
+  width: 100%;
+  background: rgba(236, 231, 223, 0.5);
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin: 28rpx 0;
+}
+.modal-card-text {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #2d2a26;
+  text-align: center;
+  display: block;
+}
+.modal-balance {
+  font-size: 22rpx;
+  color: #8a8178;
+  margin-bottom: 28rpx;
+}
+.modal-actions {
+  display: flex;
+  gap: 24rpx;
+  width: 100%;
+}
+.modal-btn {
+  flex: 1;
+  padding: 22rpx 0;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-btn-cancel {
+  background: #ece7df;
+}
+.modal-btn-confirm {
+  background: #9a2e22;
+}
+.modal-btn-text {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #2d2a26;
+}
+.modal-btn-text-light {
+  color: #fff;
+}
 </style>

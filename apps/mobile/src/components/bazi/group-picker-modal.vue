@@ -30,113 +30,36 @@ function addGroup() {
 </script>
 
 <template>
-  <view
-    v-if="open"
-    class="gp-root"
-  >
-    <view
-      class="gp-mask"
-      @tap="emit('close')"
-    />
+  <view v-if="open" class="gp-root">
+    <view class="gp-mask" @tap="emit('close')" />
     <view class="gp-panel">
-      <view class="gp-handle-wrap">
-        <view class="gp-handle" />
-      </view>
+      <view class="gp-handle-wrap"><view class="gp-handle" /></view>
       <view class="gp-head">
-        <view
-          class="gp-x"
-          @tap="emit('close')"
-        >
-          <app-icon
-            name="x"
-            :size="36"
-            color="#6b7280"
-          />
-        </view>
-        <text class="gp-title">
-          选择分组
-        </text>
-        <view
-          class="gp-confirm"
-          @tap="confirm"
-        >
-          <text class="gp-confirm-text">
-            确定
-          </text>
-        </view>
+        <view class="gp-x" @tap="emit('close')"><app-icon name="x" :size="36" color="#6b7280" /></view>
+        <text class="gp-title">选择分组</text>
+        <view class="gp-confirm" @tap="confirm"><text class="gp-confirm-text">确定</text></view>
       </view>
-      <scroll-view
-        scroll-y
-        class="gp-list"
-      >
+      <scroll-view scroll-y class="gp-list">
         <view
-          v-for="g in groups"
-          :key="g.name"
-          class="gp-item"
-          :class="{ 'gp-item-on': selected === g.name }"
+          v-for="g in groups" :key="g.name"
+          class="gp-item" :class="{ 'gp-item-on': selected === g.name }"
           @tap="selected = g.name"
         >
           <view class="gp-item-l">
-            <text
-              class="gp-name"
-              :class="{ 'gp-name-on': selected === g.name }"
-            >
-              {{ g.name }}
-            </text>
-            <text class="gp-count">
-              ({{ g.count }})
-            </text>
+            <text class="gp-name" :class="{ 'gp-name-on': selected === g.name }">{{ g.name }}</text>
+            <text class="gp-count">({{ g.count }})</text>
           </view>
-          <app-icon
-            v-if="selected === g.name"
-            name="check"
-            :size="36"
-            color="#c41e3a"
-          />
+          <app-icon v-if="selected === g.name" name="check" :size="36" color="#c41e3a" />
         </view>
 
-        <view
-          v-if="showAddInput"
-          class="gp-add-input"
-        >
-          <input
-            v-model="newName"
-            class="gp-input"
-            placeholder="输入分组名称"
-            confirm-type="done"
-            @confirm="addGroup"
-          >
-          <view
-            class="gp-add-btn"
-            :class="{ 'gp-add-btn-off': !newName.trim() }"
-            @tap="addGroup"
-          >
-            <text class="gp-add-btn-text">
-              添加
-            </text>
-          </view>
-          <view
-            class="gp-cancel"
-            @tap="showAddInput = false; newName = ''"
-          >
-            <text class="gp-cancel-text">
-              取消
-            </text>
-          </view>
+        <view v-if="showAddInput" class="gp-add-input">
+          <input v-model="newName" class="gp-input" placeholder="输入分组名称" confirm-type="done" @confirm="addGroup" />
+          <view class="gp-add-btn" :class="{ 'gp-add-btn-off': !newName.trim() }" @tap="addGroup"><text class="gp-add-btn-text">添加</text></view>
+          <view class="gp-cancel" @tap="showAddInput = false; newName = ''"><text class="gp-cancel-text">取消</text></view>
         </view>
-        <view
-          v-else
-          class="gp-add"
-          @tap="showAddInput = true"
-        >
-          <app-icon
-            name="plus"
-            :size="28"
-            color="#c41e3a"
-          />
-          <text class="gp-add-text">
-            添加新分组
-          </text>
+        <view v-else class="gp-add" @tap="showAddInput = true">
+          <app-icon name="plus" :size="28" color="#c41e3a" />
+          <text class="gp-add-text">添加新分组</text>
         </view>
       </scroll-view>
       <view class="gp-safe" />

@@ -4,7 +4,7 @@
  *  px→rpx 按 ×2 换算；颜色取设计令牌。 */
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateTo, toastComingSoon } from '@/utils/router'
+import { navigateTo } from '@/utils/router'
 
 const tabs = [
   { name: '推荐', href: '/' },
@@ -24,62 +24,27 @@ function onTab(tab: { name: string; href: string }) {
 
 <template>
   <view class="app-header">
-    <!-- 状态栏占位 -->
-    <view
-      class="status-bar"
-      :style="{ height: 'var(--status-bar-height, 0px)' }"
-    />
+    <!-- 状态栏占位（H5 下 --status-bar-height 为 0，与原型 safe-area 对齐） -->
+    <view class="status-bar" />
 
     <!-- 第一行：AI搜索框 + 智能客服 + 铃铛 -->
     <view class="bar">
-      <view
-        class="search"
-        @tap="navigateTo('/pages/agent/chat')"
-      >
-        <app-icon
-          name="search"
-          :size="28"
-          color="#999999"
-        />
+      <view class="search" @tap="navigateTo('/search')">
+        <app-icon name="search" :size="28" color="#999999" />
         <view class="ai-badge">
-          <app-icon
-            name="sparkles"
-            :size="20"
-            color="#c41e3a"
-          />
-          <text class="ai-text">
-            AI
-          </text>
+          <app-icon name="sparkles" :size="20" color="#c41e3a" />
+          <text class="ai-text">AI</text>
         </view>
-        <text class="ph">
-          AI搜索平台全部内容...
-        </text>
+        <text class="ph">AI搜索平台全部内容...</text>
       </view>
 
-      <view
-        class="icon-btn"
-        @tap="toastComingSoon()"
-      >
-        <app-icon
-          name="message-circle"
-          :size="40"
-          color="#999999"
-        />
+      <view class="icon-btn" @tap="navigateTo('/customer-service')">
+        <app-icon name="message-circle" :size="40" color="#999999" />
       </view>
 
-      <view
-        class="icon-btn bell"
-        @tap="toastComingSoon()"
-      >
-        <app-icon
-          name="bell"
-          :size="40"
-          color="#2c2c2c"
-        />
-        <view
-          v-if="hasUnread"
-          class="dot"
-        />
+      <view class="icon-btn bell" @tap="navigateTo('/im/conversations')">
+        <app-icon name="bell" :size="40" color="#2c2c2c" />
+        <view v-if="hasUnread" class="dot" />
       </view>
     </view>
 
@@ -93,24 +58,12 @@ function onTab(tab: { name: string; href: string }) {
           :class="{ active: activeTab === tab.name }"
           @tap="onTab(tab)"
         >
-          <text class="tab-text">
-            {{ tab.name }}
-          </text>
-          <view
-            v-if="activeTab === tab.name"
-            class="indicator"
-          />
+          <text class="tab-text">{{ tab.name }}</text>
+          <view v-if="activeTab === tab.name" class="indicator" />
         </view>
       </view>
-      <view
-        class="plus-btn"
-        @tap="navigateTo('/pages/circles/publish')"
-      >
-        <app-icon
-          name="plus"
-          :size="32"
-          color="#999999"
-        />
+      <view class="plus-btn">
+        <app-icon name="plus" :size="32" color="#999999" />
       </view>
     </view>
   </view>
@@ -122,7 +75,7 @@ function onTab(tab: { name: string; href: string }) {
   background: rgba(250, 248, 245, 0.95);
   backdrop-filter: blur(8rpx);
 }
-.status-bar { /* height set via inline style */ }
+.status-bar { height: var(--status-bar-height, 0); }
 
 /* 第一行 */
 .bar {

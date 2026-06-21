@@ -1,34 +1,14 @@
 <template>
   <view class="earn-page">
     <!-- 顶部导航 -->
-    <view
-      class="earn-nav"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="earn-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="earn-nav-inner">
-        <view
-          class="earn-nav-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="48"
-            color="#1f2937"
-          />
+        <view class="earn-nav-btn" @tap="goBack">
+          <app-icon name="arrow-left" :size="48" color="#1f2937" />
         </view>
-        <text class="earn-nav-title">
-          推广收益
-        </text>
-        <view
-          class="earn-nav-btn"
-          :class="{ spinning: refreshing }"
-          @tap="onRefresh"
-        >
-          <app-icon
-            name="refresh-cw"
-            :size="40"
-            color="#4b5563"
-          />
+        <text class="earn-nav-title">推广收益</text>
+        <view class="earn-nav-btn" :class="{ spinning: refreshing }" @tap="onRefresh">
+          <app-icon name="refresh-cw" :size="40" color="#4b5563" />
         </view>
       </view>
     </view>
@@ -38,72 +18,35 @@
       <view class="earn-overview">
         <view class="earn-overview-top">
           <view>
-            <text class="earn-ov-label">
-              可提现余额
-            </text>
-            <text class="earn-ov-balance">
-              ¥{{ overview.availableBalance.toFixed(2) }}
-            </text>
+            <text class="earn-ov-label">可提现余额</text>
+            <text class="earn-ov-balance">¥{{ overview.availableBalance.toFixed(2) }}</text>
           </view>
-          <view
-            class="earn-withdraw-btn"
-            @tap="goWithdraw"
-          >
-            <app-icon
-              name="wallet"
-              :size="32"
-              color="#C41E3A"
-            />
-            <text class="earn-withdraw-txt">
-              提现
-            </text>
+          <view class="earn-withdraw-btn" @tap="goWithdraw">
+            <app-icon name="wallet" :size="32" color="#C41E3A" />
+            <text class="earn-withdraw-txt">提现</text>
           </view>
         </view>
         <view class="earn-ov-stats">
           <view class="earn-ov-stat">
             <view class="earn-ov-stat-head">
-              <app-icon
-                name="snowflake"
-                :size="24"
-                color="rgba(255,255,255,0.7)"
-              />
-              <text class="earn-ov-stat-label">
-                冻结中
-              </text>
+              <app-icon name="snowflake" :size="24" color="rgba(255,255,255,0.7)" />
+              <text class="earn-ov-stat-label">冻结中</text>
             </view>
-            <text class="earn-ov-stat-val">
-              ¥{{ overview.frozenBalance.toFixed(2) }}
-            </text>
+            <text class="earn-ov-stat-val">¥{{ overview.frozenBalance.toFixed(2) }}</text>
           </view>
           <view class="earn-ov-stat">
             <view class="earn-ov-stat-head">
-              <app-icon
-                name="trending-up"
-                :size="24"
-                color="rgba(255,255,255,0.7)"
-              />
-              <text class="earn-ov-stat-label">
-                累计收益
-              </text>
+              <app-icon name="trending-up" :size="24" color="rgba(255,255,255,0.7)" />
+              <text class="earn-ov-stat-label">累计收益</text>
             </view>
-            <text class="earn-ov-stat-val">
-              ¥{{ overview.totalEarnings.toFixed(2) }}
-            </text>
+            <text class="earn-ov-stat-val">¥{{ overview.totalEarnings.toFixed(2) }}</text>
           </view>
           <view class="earn-ov-stat">
             <view class="earn-ov-stat-head">
-              <app-icon
-                name="clock"
-                :size="24"
-                color="rgba(255,255,255,0.7)"
-              />
-              <text class="earn-ov-stat-label">
-                本月收益
-              </text>
+              <app-icon name="clock" :size="24" color="rgba(255,255,255,0.7)" />
+              <text class="earn-ov-stat-label">本月收益</text>
             </view>
-            <text class="earn-ov-stat-val">
-              ¥{{ overview.monthEarnings.toFixed(2) }}
-            </text>
+            <text class="earn-ov-stat-val">¥{{ overview.monthEarnings.toFixed(2) }}</text>
           </view>
         </view>
       </view>
@@ -111,51 +54,28 @@
       <!-- 今日/上月对比 -->
       <view class="earn-compare">
         <view class="earn-compare-card">
-          <text class="earn-compare-label">
-            今日收益
-          </text>
-          <text class="earn-compare-val earn-red">
-            +¥{{ overview.todayEarnings.toFixed(2) }}
-          </text>
+          <text class="earn-compare-label">今日收益</text>
+          <text class="earn-compare-val earn-red">+¥{{ overview.todayEarnings.toFixed(2) }}</text>
         </view>
         <view class="earn-compare-card">
-          <text class="earn-compare-label">
-            上月收益
-          </text>
-          <text class="earn-compare-val">
-            ¥{{ overview.lastMonthEarnings.toFixed(2) }}
-          </text>
+          <text class="earn-compare-label">上月收益</text>
+          <text class="earn-compare-val">¥{{ overview.lastMonthEarnings.toFixed(2) }}</text>
         </view>
       </view>
 
       <!-- Tab 切换 -->
       <view class="earn-tabs">
-        <view
-          class="earn-tab"
-          :class="{ active: activeTab === 'earnings' }"
-          @tap="activeTab = 'earnings'"
-        >
-          <text class="earn-tab-txt">
-            收益明细
-          </text>
+        <view class="earn-tab" :class="{ active: activeTab === 'earnings' }" @tap="activeTab = 'earnings'">
+          <text class="earn-tab-txt">收益明细</text>
         </view>
-        <view
-          class="earn-tab"
-          :class="{ active: activeTab === 'withdraw' }"
-          @tap="activeTab = 'withdraw'"
-        >
-          <text class="earn-tab-txt">
-            提现记录
-          </text>
+        <view class="earn-tab" :class="{ active: activeTab === 'withdraw' }" @tap="activeTab = 'withdraw'">
+          <text class="earn-tab-txt">提现记录</text>
         </view>
       </view>
 
       <!-- 收益明细 -->
       <block v-if="activeTab === 'earnings'">
-        <scroll-view
-          scroll-x
-          class="earn-filter-scroll"
-        >
+        <scroll-view scroll-x class="earn-filter-scroll">
           <view class="earn-filter-row">
             <view
               v-for="f in filterTypes"
@@ -164,92 +84,37 @@
               :class="{ active: filterType === f.value }"
               @tap="filterType = f.value"
             >
-              <text
-                class="earn-filter-txt"
-                :style="{ color: filterType === f.value ? '#fff' : '#4b5563' }"
-              >
-                {{ f.label }}
-              </text>
+              <text class="earn-filter-txt" :style="{ color: filterType === f.value ? '#fff' : '#4b5563' }">{{ f.label }}</text>
             </view>
           </view>
         </scroll-view>
 
-        <view
-          v-if="filteredEarnings.length === 0"
-          class="earn-empty"
-        >
-          <app-icon
-            name="file-text"
-            :size="96"
-            color="#d1d5db"
-          />
-          <text class="earn-empty-txt">
-            暂无收益记录
-          </text>
+        <view v-if="filteredEarnings.length === 0" class="earn-empty">
+          <app-icon name="file-text" :size="96" color="#d1d5db" />
+          <text class="earn-empty-txt">暂无收益记录</text>
         </view>
-        <view
-          v-else
-          class="earn-list"
-        >
-          <view
-            v-for="item in filteredEarnings"
-            :key="item.id"
-            class="earn-item"
-          >
+        <view v-else class="earn-list">
+          <view v-for="item in filteredEarnings" :key="item.id" class="earn-item">
             <view class="earn-item-main">
-              <view
-                class="earn-item-icon"
-                :class="statusIconClass(item.status)"
-              >
-                <app-icon
-                  :name="typeIcon(item.type)"
-                  :size="32"
-                  :color="statusColor(item.status)"
-                />
+              <view class="earn-item-icon" :class="statusIconClass(item.status)">
+                <app-icon :name="typeIcon(item.type)" :size="32" :color="statusColor(item.status)" />
               </view>
               <view class="earn-item-info">
                 <view class="earn-item-row1">
-                  <text class="earn-item-title">
-                    {{ item.title }}
-                  </text>
-                  <text class="earn-item-amount">
-                    +¥{{ item.amount.toFixed(2) }}
-                  </text>
+                  <text class="earn-item-title">{{ item.title }}</text>
+                  <text class="earn-item-amount">+¥{{ item.amount.toFixed(2) }}</text>
                 </view>
-                <text class="earn-item-desc">
-                  {{ item.description }}
-                </text>
+                <text class="earn-item-desc">{{ item.description }}</text>
                 <view class="earn-item-row2">
-                  <text class="earn-item-time">
-                    {{ item.createdAt }}
-                  </text>
-                  <text
-                    class="earn-item-status"
-                    :class="statusBadgeClass(item.status)"
-                  >
-                    {{ statusName(item.status) }}
-                  </text>
+                  <text class="earn-item-time">{{ item.createdAt }}</text>
+                  <text class="earn-item-status" :class="statusBadgeClass(item.status)">{{ statusName(item.status) }}</text>
                 </view>
               </view>
             </view>
-            <view
-              v-if="item.relatedUser"
-              class="earn-item-user"
-            >
-              <image
-                :src="item.relatedUser.avatar"
-                class="earn-item-avatar"
-                mode="aspectFill"
-              />
-              <text class="earn-item-from">
-                来自 {{ item.relatedUser.nickname }}
-              </text>
-              <text
-                v-if="item.relatedOrder"
-                class="earn-item-order"
-              >
-                订单金额 ¥{{ item.relatedOrder.orderAmount }}
-              </text>
+            <view v-if="item.relatedUser" class="earn-item-user">
+              <image :src="item.relatedUser.avatar" class="earn-item-avatar" mode="aspectFill" />
+              <text class="earn-item-from">来自 {{ item.relatedUser.nickname }}</text>
+              <text v-if="item.relatedOrder" class="earn-item-order">订单金额 ¥{{ item.relatedOrder.orderAmount }}</text>
             </view>
           </view>
         </view>
@@ -257,80 +122,35 @@
 
       <!-- 提现记录 -->
       <block v-else>
-        <view
-          v-if="withdrawRecords.length === 0"
-          class="earn-empty"
-        >
-          <app-icon
-            name="wallet"
-            :size="96"
-            color="#d1d5db"
-          />
-          <text class="earn-empty-txt">
-            暂无提现记录
-          </text>
+        <view v-if="withdrawRecords.length === 0" class="earn-empty">
+          <app-icon name="wallet" :size="96" color="#d1d5db" />
+          <text class="earn-empty-txt">暂无提现记录</text>
         </view>
-        <view
-          v-else
-          class="earn-list"
-        >
-          <view
-            v-for="r in withdrawRecords"
-            :key="r.id"
-            class="earn-wd-item"
-          >
+        <view v-else class="earn-list">
+          <view v-for="r in withdrawRecords" :key="r.id" class="earn-wd-item">
             <view class="earn-wd-row1">
               <view class="earn-wd-method-wrap">
-                <text class="earn-wd-method">
-                  提现到{{ r.method === 'alipay' ? '支付宝' : '银行卡' }}
-                </text>
-                <text class="earn-wd-account">
-                  {{ r.account }}
-                </text>
+                <text class="earn-wd-method">提现到{{ r.method === 'alipay' ? '支付宝' : '银行卡' }}</text>
+                <text class="earn-wd-account">{{ r.account }}</text>
               </view>
-              <text
-                class="earn-wd-status"
-                :class="wdBadgeClass(r.status)"
-              >
-                {{ wdStatusName(r.status) }}
-              </text>
+              <text class="earn-wd-status" :class="wdBadgeClass(r.status)">{{ wdStatusName(r.status) }}</text>
             </view>
             <view class="earn-wd-row2">
               <view>
-                <text class="earn-wd-amount">
-                  ¥{{ r.actualAmount.toFixed(2) }}
-                </text>
-                <text class="earn-wd-fee">
-                  (手续费 ¥{{ r.fee.toFixed(2) }})
-                </text>
+                <text class="earn-wd-amount">¥{{ r.actualAmount.toFixed(2) }}</text>
+                <text class="earn-wd-fee">(手续费 ¥{{ r.fee.toFixed(2) }})</text>
               </view>
-              <text class="earn-wd-time">
-                {{ r.createdAt }}
-              </text>
+              <text class="earn-wd-time">{{ r.createdAt }}</text>
             </view>
-            <text
-              v-if="r.status === 'failed' && r.failReason"
-              class="earn-wd-fail"
-            >
-              失败原因：{{ r.failReason }}
-            </text>
-            <text
-              v-if="r.completedAt"
-              class="earn-wd-completed"
-            >
-              到账时间：{{ r.completedAt }}
-            </text>
+            <text v-if="r.status === 'failed' && r.failReason" class="earn-wd-fail">失败原因：{{ r.failReason }}</text>
+            <text v-if="r.completedAt" class="earn-wd-completed">到账时间：{{ r.completedAt }}</text>
           </view>
         </view>
       </block>
 
       <!-- 底部提示 -->
       <view class="earn-tip">
-        <text class="earn-tip-txt">
-          <text class="earn-tip-bold">
-            收益说明：
-          </text>推广收益将在订单完成后7天内结算，结算后可申请提现。如有疑问请联系客服。
-        </text>
+        <text class="earn-tip-txt"><text class="earn-tip-bold">收益说明：</text>推广收益将在订单完成后7天内结算，结算后可申请提现。如有疑问请联系客服。</text>
       </view>
     </view>
   </view>
@@ -338,7 +158,6 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { operatorApi } from '@/lib/operator-data'
 
 const statusBarHeight = ref(20)
 try {
@@ -346,7 +165,7 @@ try {
   statusBarHeight.value = info.statusBarHeight || 20
 } catch (e) {}
 
-type EarnType = 'course_commission' | 'product_commission' | 'member_commission' | 'team_bonus' | 'platform_reward' | 'invite_reward'
+type'all' | 'live' | 'course' | 'shop' | 'membership' = 'course_commission' | 'product_commission' | 'member_commission' | 'team_bonus' | 'platform_reward' | 'invite_reward'
 type EarnStatus = 'settled' | 'pending' | 'frozen'
 type WdStatus = 'pending' | 'processing' | 'success' | 'failed'
 
@@ -360,12 +179,12 @@ const overview = {
 }
 
 const earningsList = [
-  { id: 1, type: 'course_commission' as EarnType, title: '课程分销佣金', description: '用户"国学爱好者"购买了《八字命理入门》', amount: 29.9, status: 'settled' as EarnStatus, createdAt: '2026-06-03 14:30', relatedUser: { id: 101, nickname: '国学爱好者', avatar: '/marketing/course.png' }, relatedOrder: { orderId: 'ORD202606031430', orderAmount: 299.0 } },
-  { id: 2, type: 'member_commission' as EarnType, title: '会员推广佣金', description: '用户"易学新人"开通了年度VIP', amount: 99.0, status: 'settled' as EarnStatus, createdAt: '2026-06-03 10:15', relatedUser: { id: 102, nickname: '易学新人', avatar: '/marketing/course.png' }, relatedOrder: { orderId: 'ORD202606031015', orderAmount: 998.0 } },
-  { id: 3, type: 'team_bonus' as EarnType, title: '团队奖励', description: '团队本周业绩达标奖励', amount: 200.0, status: 'pending' as EarnStatus, createdAt: '2026-06-02 18:00', relatedUser: null, relatedOrder: null },
-  { id: 4, type: 'product_commission' as EarnType, title: '商品分销佣金', description: '用户"风水学徒"购买了专业风水罗盘', amount: 58.0, status: 'frozen' as EarnStatus, createdAt: '2026-06-02 15:20', relatedUser: { id: 103, nickname: '风水学徒', avatar: '/marketing/course.png' }, relatedOrder: { orderId: 'ORD202606021520', orderAmount: 580.0 } },
-  { id: 5, type: 'invite_reward' as EarnType, title: '邀请奖励', description: '成功邀请用户"玄学入门者"注册', amount: 10.0, status: 'settled' as EarnStatus, createdAt: '2026-06-01 09:30', relatedUser: { id: 104, nickname: '玄学入门者', avatar: '/marketing/course.png' }, relatedOrder: null },
-  { id: 6, type: 'platform_reward' as EarnType, title: '平台奖励', description: '月度推广达人奖励', amount: 500.0, status: 'settled' as EarnStatus, createdAt: '2026-06-01 00:00', relatedUser: null, relatedOrder: null },
+  { id: 1, type: 'course_commission' as'all' | 'live' | 'course' | 'shop' | 'membership', title: '课程分销佣金', description: '用户"国学爱好者"购买了《八字命理入门》', amount: 29.9, status: 'settled' as EarnStatus, createdAt: '2026-06-03 14:30', relatedUser: { id: 101, nickname: '国学爱好者', avatar: '/static/experts/expert-1.jpg' }, relatedOrder: { orderId: 'ORD202606031430', orderAmount: 299.0 } },
+  { id: 2, type: 'member_commission' as'all' | 'live' | 'course' | 'shop' | 'membership', title: '会员推广佣金', description: '用户"易学新人"开通了年度VIP', amount: 99.0, status: 'settled' as EarnStatus, createdAt: '2026-06-03 10:15', relatedUser: { id: 102, nickname: '易学新人', avatar: '/static/experts/expert-2.jpg' }, relatedOrder: { orderId: 'ORD202606031015', orderAmount: 998.0 } },
+  { id: 3, type: 'team_bonus' as'all' | 'live' | 'course' | 'shop' | 'membership', title: '团队奖励', description: '团队本周业绩达标奖励', amount: 200.0, status: 'pending' as EarnStatus, createdAt: '2026-06-02 18:00', relatedUser: null, relatedOrder: null },
+  { id: 4, type: 'product_commission' as'all' | 'live' | 'course' | 'shop' | 'membership', title: '商品分销佣金', description: '用户"风水学徒"购买了专业风水罗盘', amount: 58.0, status: 'frozen' as EarnStatus, createdAt: '2026-06-02 15:20', relatedUser: { id: 103, nickname: '风水学徒', avatar: '/static/experts/expert-1.jpg' }, relatedOrder: { orderId: 'ORD202606021520', orderAmount: 580.0 } },
+  { id: 5, type: 'invite_reward' as'all' | 'live' | 'course' | 'shop' | 'membership', title: '邀请奖励', description: '成功邀请用户"玄学入门者"注册', amount: 10.0, status: 'settled' as EarnStatus, createdAt: '2026-06-01 09:30', relatedUser: { id: 104, nickname: '玄学入门者', avatar: '/static/experts/expert-2.jpg' }, relatedOrder: null },
+  { id: 6, type: 'platform_reward' as'all' | 'live' | 'course' | 'shop' | 'membership', title: '平台奖励', description: '月度推广达人奖励', amount: 500.0, status: 'settled' as EarnStatus, createdAt: '2026-06-01 00:00', relatedUser: null, relatedOrder: null },
 ]
 
 const withdrawRecords = [
@@ -373,7 +192,7 @@ const withdrawRecords = [
   { id: 2, amount: 500.0, fee: 3.0, actualAmount: 497.0, status: 'processing' as WdStatus, method: 'bank', account: '6222****1234', createdAt: '2026-06-02 14:00', completedAt: '', failReason: '' },
 ]
 
-const filterTypes: { value: EarnType | 'all'; label: string }[] = [
+const filterTypes = [
   { value: 'all', label: '全部' },
   { value: 'course_commission', label: '课程佣金' },
   { value: 'product_commission', label: '商品佣金' },
@@ -387,10 +206,10 @@ const filterType = ref<EarnType | 'all'>('all')
 const refreshing = ref(false)
 
 const filteredEarnings = computed(() =>
-  filterType.value === 'all' ? earningsList : earningsList.filter((i) => i.type === filterType.value),
+  filterType.value === 'all' | 'live' | 'course' | 'shop' | 'membership'? earningsList : earningsList.filter((i) => i.type === filterType.value),
 )
 
-function typeIcon(type: EarnType): string {
+function typeIcon(type:'all' | 'live' | 'course' | 'shop' | 'membership'): string {
   const map: Record<EarnType, string> = {
     course_commission: 'book-open',
     product_commission: 'shopping-bag',
@@ -420,16 +239,10 @@ function wdBadgeClass(s: WdStatus): string {
   return { pending: 'badge-amber', processing: 'badge-blue', success: 'badge-green', failed: 'badge-red' }[s]
 }
 
-async function onRefresh() {
+function onRefresh() {
   if (refreshing.value) return
   refreshing.value = true
-  try {
-    await new Promise<void>((resolve) => setTimeout(resolve, 800))
-  } catch {
-    uni.showToast({ title: '刷新失败', icon: 'none' })
-  } finally {
-    refreshing.value = false
-  }
+  setTimeout(() => { refreshing.value = false }, 800)
 }
 function goWithdraw() {
   uni.navigateTo({ url: '/pkg-mine/wallet/withdraw', fail: () => uni.showToast({ title: '提现', icon: 'none' }) })

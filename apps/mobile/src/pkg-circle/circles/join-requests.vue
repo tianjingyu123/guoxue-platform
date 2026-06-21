@@ -99,312 +99,114 @@ function batchApprove() {
     <!-- 顶部导航 -->
     <view class="jr-nav">
       <view class="jr-nav-bar">
-        <view
-          class="jr-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="44"
-            color="#2C2C2C"
-          />
-        </view>
-        <text class="jr-title">
-          入圈申请
-        </text>
+        <view class="jr-back" @tap="goBack"><app-icon name="chevron-left" :size="44" color="#2C2C2C" /></view>
+        <text class="jr-title">入圈申请</text>
         <view class="jr-nav-ph" />
       </view>
       <!-- 统计 -->
       <view class="jr-stats">
         <view class="jr-stat">
-          <view class="jr-stat-icon">
-            <app-icon
-              name="users"
-              :size="28"
-              color="#C41E3A"
-            />
-          </view>
+          <view class="jr-stat-icon"><app-icon name="users" :size="28" color="#C41E3A" /></view>
           <view>
-            <text class="jr-stat-num jr-red">
-              {{ pendingRequests.length }}
-            </text>
-            <text class="jr-stat-label">
-              待审批
-            </text>
+            <text class="jr-stat-num jr-red">{{ pendingRequests.length }}</text>
+            <text class="jr-stat-label">待审批</text>
           </view>
         </view>
         <view class="jr-divider" />
         <view>
-          <text class="jr-stat-num">
-            {{ processedRequests.length }}
-          </text>
-          <text class="jr-stat-label">
-            已处理
-          </text>
+          <text class="jr-stat-num">{{ processedRequests.length }}</text>
+          <text class="jr-stat-label">已处理</text>
         </view>
       </view>
       <!-- Tab -->
       <view class="jr-tabs">
-        <view
-          v-for="t in [{ key: 'pending', label: '待审批' }, { key: 'processed', label: '已处理' }]"
-          :key="t.key"
-          class="jr-tab"
-          :class="{ 'jr-tab-on': filter === t.key }"
-          @tap="switchTab(t.key as any)"
-        >
+        <view v-for="t in [{ key: 'pending', label: '待审批' }, { key: 'processed', label: '已处理' }]" :key="t.key"
+          class="jr-tab" :class="{ 'jr-tab-on': filter === t.key }" @tap="switchTab(t.key as any)">
           <text>{{ t.label }}</text>
-          <view
-            v-if="filter === t.key"
-            class="jr-tab-line"
-          />
+          <view v-if="filter === t.key" class="jr-tab-line" />
         </view>
       </view>
     </view>
 
     <!-- 批量操作栏 -->
-    <view
-      v-if="filter === 'pending' && pendingRequests.length > 0"
-      class="jr-batch"
-    >
-      <view
-        class="jr-selall"
-        @tap="toggleSelectAll"
-      >
-        <view
-          class="jr-cb jr-cb-sm"
-          :class="{ 'jr-cb-on': allSelected }"
-        >
-          <app-icon
-            v-if="allSelected"
-            name="check"
-            :size="18"
-            color="#ffffff"
-          />
+    <view v-if="filter === 'pending' && pendingRequests.length > 0" class="jr-batch">
+      <view class="jr-selall" @tap="toggleSelectAll">
+        <view class="jr-cb jr-cb-sm" :class="{ 'jr-cb-on': allSelected }">
+          <app-icon v-if="allSelected" name="check" :size="18" color="#ffffff" />
         </view>
         <text>全选</text>
       </view>
-      <view
-        v-if="selectedIds.size > 0"
-        class="jr-batch-btn"
-        @tap="batchApprove"
-      >
-        批量通过 ({{ selectedIds.size }})
-      </view>
+      <view v-if="selectedIds.size > 0" class="jr-batch-btn" @tap="batchApprove">批量通过 ({{ selectedIds.size }})</view>
     </view>
 
     <!-- 骨架屏 -->
-    <view
-      v-if="isLoading"
-      class="jr-list"
-    >
-      <view
-        v-for="i in 3"
-        :key="i"
-        class="jr-skel"
-      >
+    <view v-if="isLoading" class="jr-list">
+      <view v-for="i in 3" :key="i" class="jr-skel">
         <view class="jr-skel-row">
           <view class="jr-skel-avatar" />
           <view class="jr-skel-lines">
-            <view
-              class="jr-skel-line"
-              style="width: 160rpx;"
-            />
-            <view
-              class="jr-skel-line"
-              style="width: 220rpx;"
-            />
+            <view class="jr-skel-line" style="width: 160rpx;" />
+            <view class="jr-skel-line" style="width: 220rpx;" />
           </view>
         </view>
-        <view
-          class="jr-skel-line"
-          style="width: 100%; margin-top: 24rpx;"
-        />
-        <view
-          class="jr-skel-line"
-          style="width: 66%; margin-top: 14rpx;"
-        />
+        <view class="jr-skel-line" style="width: 100%; margin-top: 24rpx;" />
+        <view class="jr-skel-line" style="width: 66%; margin-top: 14rpx;" />
       </view>
     </view>
 
     <!-- 空态 -->
-    <view
-      v-else-if="displayRequests.length === 0"
-      class="jr-empty"
-    >
-      <view class="jr-empty-icon">
-        <app-icon
-          name="users"
-          :size="56"
-          color="#CCCCCC"
-        />
-      </view>
-      <text class="jr-empty-text">
-        {{ filter === 'pending' ? '暂无待审批申请' : '暂无已处理申请' }}
-      </text>
+    <view v-else-if="displayRequests.length === 0" class="jr-empty">
+      <view class="jr-empty-icon"><app-icon name="users" :size="56" color="#CCCCCC" /></view>
+      <text class="jr-empty-text">{{ filter === 'pending' ? '暂无待审批申请' : '暂无已处理申请' }}</text>
     </view>
 
     <!-- 列表 -->
-    <view
-      v-else
-      class="jr-list"
-    >
-      <view
-        v-for="req in displayRequests"
-        :key="req.id"
-        class="jr-card"
-        :class="{ 'jr-card-done': req.status !== 'pending', 'jr-card-sel': isSelected(req.id) }"
-      >
+    <view v-else class="jr-list">
+      <view v-for="req in displayRequests" :key="req.id" class="jr-card" :class="{ 'jr-card-done': req.status !== 'pending', 'jr-card-sel': isSelected(req.id) }">
         <view class="jr-card-body">
           <view class="jr-card-head">
-            <view
-              v-if="req.status === 'pending'"
-              class="jr-cb"
-              :class="{ 'jr-cb-on': isSelected(req.id) }"
-              @tap="toggleSelect(req.id)"
-            >
-              <app-icon
-                v-if="isSelected(req.id)"
-                name="check"
-                :size="20"
-                color="#ffffff"
-              />
+            <view v-if="req.status === 'pending'" class="jr-cb" :class="{ 'jr-cb-on': isSelected(req.id) }" @tap="toggleSelect(req.id)">
+              <app-icon v-if="isSelected(req.id)" name="check" :size="20" color="#ffffff" />
             </view>
-            <image
-              class="jr-avatar"
-              :src="req.user.avatar"
-              mode="aspectFill"
-            />
+            <image class="jr-avatar" :src="req.user.avatar" mode="aspectFill" />
             <view class="jr-userinfo">
               <view class="jr-name-row">
-                <text class="jr-name">
-                  {{ req.user.name }}
-                </text>
-                <text
-                  v-if="req.status === 'approved'"
-                  class="jr-badge jr-badge-ok"
-                >
-                  已通过
-                </text>
-                <text
-                  v-else-if="req.status === 'rejected'"
-                  class="jr-badge jr-badge-no"
-                >
-                  已拒绝
-                </text>
+                <text class="jr-name">{{ req.user.name }}</text>
+                <text v-if="req.status === 'approved'" class="jr-badge jr-badge-ok">已通过</text>
+                <text v-else-if="req.status === 'rejected'" class="jr-badge jr-badge-no">已拒绝</text>
               </view>
-              <text
-                v-if="req.user.bio"
-                class="jr-bio"
-              >
-                {{ req.user.bio }}
-              </text>
-              <view class="jr-time">
-                <app-icon
-                  name="clock"
-                  :size="22"
-                  color="#999999"
-                /><text>{{ formatTime(req.createdAt) }}</text>
-              </view>
+              <text v-if="req.user.bio" class="jr-bio">{{ req.user.bio }}</text>
+              <view class="jr-time"><app-icon name="clock" :size="22" color="#999999" /><text>{{ formatTime(req.createdAt) }}</text></view>
             </view>
-            <view
-              class="jr-expand"
-              @tap="toggleExpand(req.id)"
-            >
-              <app-icon
-                :name="expandedId === req.id ? 'chevron-up' : 'chevron-down'"
-                :size="36"
-                color="#999999"
-              />
+            <view class="jr-expand" @tap="toggleExpand(req.id)">
+              <app-icon :name="expandedId === req.id ? 'chevron-up' : 'chevron-down'" :size="36" color="#999999" />
             </view>
           </view>
           <view class="jr-reason">
-            <text class="jr-reason-label">
-              申请理由：
-            </text><text class="jr-reason-text">
-              {{ req.reason }}
-            </text>
+            <text class="jr-reason-label">申请理由：</text><text class="jr-reason-text">{{ req.reason }}</text>
           </view>
-          <view
-            v-if="expandedId === req.id"
-            class="jr-detail"
-          >
-            <text class="jr-detail-line">
-              申请时间：{{ fullTime(req.createdAt) }}
-            </text>
-            <text
-              v-if="req.processedAt"
-              class="jr-detail-line"
-            >
-              处理时间：{{ fullTime(req.processedAt) }}
-            </text>
-            <text
-              v-if="req.rejectReason"
-              class="jr-detail-rej"
-            >
-              拒绝原因：{{ req.rejectReason }}
-            </text>
+          <view v-if="expandedId === req.id" class="jr-detail">
+            <text class="jr-detail-line">申请时间：{{ fullTime(req.createdAt) }}</text>
+            <text v-if="req.processedAt" class="jr-detail-line">处理时间：{{ fullTime(req.processedAt) }}</text>
+            <text v-if="req.rejectReason" class="jr-detail-rej">拒绝原因：{{ req.rejectReason }}</text>
           </view>
         </view>
-        <view
-          v-if="req.status === 'pending'"
-          class="jr-actions"
-        >
-          <view
-            class="jr-act"
-            @tap="openReject(req.id)"
-          >
-            <app-icon
-              name="x-circle"
-              :size="28"
-              color="#666666"
-            /><text>拒绝</text>
-          </view>
+        <view v-if="req.status === 'pending'" class="jr-actions">
+          <view class="jr-act" @tap="openReject(req.id)"><app-icon name="x-circle" :size="28" color="#666666" /><text>拒绝</text></view>
           <view class="jr-act-divider" />
-          <view
-            class="jr-act jr-act-ok"
-            @tap="approve(req.id)"
-          >
-            <app-icon
-              name="check-circle"
-              :size="28"
-              color="#C41E3A"
-            /><text>通过</text>
-          </view>
+          <view class="jr-act jr-act-ok" @tap="approve(req.id)"><app-icon name="check-circle" :size="28" color="#C41E3A" /><text>通过</text></view>
         </view>
       </view>
     </view>
 
     <!-- 拒绝原因弹窗 -->
-    <view
-      v-if="rejectingId"
-      class="jr-modal-mask"
-      @tap="rejectingId = null"
-    >
-      <view
-        class="jr-modal"
-        @tap.stop
-      >
-        <text class="jr-modal-title">
-          拒绝申请
-        </text>
-        <textarea
-          v-model="rejectReason"
-          class="jr-modal-input"
-          placeholder="请输入拒绝原因（选填）"
-        />
+    <view v-if="rejectingId" class="jr-modal-mask" @tap="rejectingId = null">
+      <view class="jr-modal" @tap.stop>
+        <text class="jr-modal-title">拒绝申请</text>
+        <textarea v-model="rejectReason" class="jr-modal-input" placeholder="请输入拒绝原因（选填）" />
         <view class="jr-modal-btns">
-          <view
-            class="jr-modal-cancel"
-            @tap="rejectingId = null"
-          >
-            取消
-          </view>
-          <view
-            class="jr-modal-ok"
-            @tap="confirmReject"
-          >
-            确认拒绝
-          </view>
+          <view class="jr-modal-cancel" @tap="rejectingId = null">取消</view>
+          <view class="jr-modal-ok" @tap="confirmReject">确认拒绝</view>
         </view>
       </view>
     </view>

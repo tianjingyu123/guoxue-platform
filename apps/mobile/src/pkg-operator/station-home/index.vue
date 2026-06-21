@@ -3,43 +3,21 @@
  *  自定义品牌导航 + Banner轮播 + 特色入口 + 站长推荐 + 内容Feed流 + 分享海报弹层 */
 import { ref, computed, onMounted } from 'vue'
 import {
-  stationHomeApi,
+  stationBrand,
+  stationBanners,
+  stationFeatures,
+  stationRecommends,
+  stationFeedList,
+  stationPosterImage,
   feedTypeLabel,
   feedTypeIcon,
   formatStatNumber,
   type StationFeedItem,
 } from '@/lib/station-home-data'
 
-const loading = ref(true)
-const error = ref('')
-
-// 从 API 加载的数据
-const brand = ref({ name: '', logo: '', theme: { primaryColor: '#C41E3A', headerStyle: 'dark' as 'dark' | 'light' }, master: { avatar: '' } })
-const stationBanners = ref<{ id: number; image: string }[]>([])
-const stationFeatures = ref<{ id: number; icon: string; color: string; name: string; badge?: string }[]>([])
-const stationRecommends = ref<{ id: number; cover: string; title: string; tag?: string; price?: number; originalPrice?: number }[]>([])
-const stationFeedList = ref<StationFeedItem[]>([])
-const stationPosterImage = ref('')
-
-const primary = computed(() => brand.value.theme.primaryColor)
-const headerColor = computed(() => brand.value.theme.headerStyle === 'dark' ? '#ffffff' : '#000000')
-const features = computed(() => stationFeatures.value)
-const recommends = computed(() => stationRecommends.value)
-
-async function loadData() {
-  loading.value = true; error.value = ''
-  try {
-    const res = await stationHomeApi.home()
-    brand.value = res.brand
-    stationBanners.value = res.banners
-    stationFeatures.value = res.features
-    stationRecommends.value = res.recommends
-    stationFeedList.value = res.feedList
-    stationPosterImage.value = res.posterImage
-    feedList.value = [...res.feedList]
-  } catch (e: any) { error.value = e?.message || '加载失败' }
-  finally { loading.value = false }
-}
+const brand = stationBrand
+const primary = brand.theme.primaryColor
+const headerColor = brand.theme.headerStyle === 'dark' ? '#ffffff' : '#000000'
 
 const currentBanner = ref(0)
 function onBannerChange(e: any) {
@@ -47,7 +25,7 @@ function onBannerChange(e: any) {
 }
 
 // Feed 列表（模拟分页加载更多）
-const feedList = ref<StationFeedItem[]>([])
+const feedList = ref<StationFeedItem[]>([...stationFeedList])
 const hasMore = ref(true)
 const feedLoading = ref(false)
 const feedPage = ref(1)
@@ -55,7 +33,7 @@ function loadMoreFeed() {
   if (feedLoading.value || !hasMore.value) return
   feedLoading.value = true
   setTimeout(() => {
-    const more = stationFeedList.value.map((item) => ({ ...item, id: item.id + feedPage.value * 10 }))
+    const more = stationFeedList.map((item) => ({ ...item, id: item.id + feedPage.value * 10 }))
     feedList.value = [...feedList.value, ...more]
     feedPage.value += 1
     hasMore.value = feedPage.value < 3
@@ -82,452 +60,178 @@ function toastSoon() {
   uni.showToast({ title: '敬请期待', icon: 'none' })
 }
 
-onMounted(() => { loadData() })
+const recommends = computed(() => stationRecommends)
+const features = computed(() => stationFeatures)
+
+onMounted(() => {})
 </script>
 
 <template>
-  <view
-    class="sh"
-    :style="{ '--sh-primary': primary }"
-  >
-    <!-- 加载状态 -->
+  <view class="sh" :style="{ '--sh-primary': primary }">
+    <!-- 自定义品牌导航栏 -->
     <view
-      v-if="loading"
-      class="sh-status"
+      class="sh-header"
+      :style="{ background: primary, color: headerColor, paddingTop: 'var(--status-bar-height, 0px)' }"
     >
-      <view class="sh-status-inner">
-        <view class="asst-loading-anim">
-          <view class="asst-dot asst-dot1" />
-          <view class="asst-dot asst-dot2" />
-          <view class="asst-dot asst-dot3" />
+      <view class="sh-header-inner">
+        <view class="sh-back" @tap="goBack"><app-icon name="chevron-left" :size="40" :color="headerColor" /></view>
+        <view class="sh-brand">
+          <image class="sh-logo" :src="brand.logo" mode="aspectFill" />
+          <text class="sh-brand-name" :style="{ color: headerColor }">{{ brand.name }}</text>
         </view>
-        <text class="sh-status-txt">
-          加载中...
-        </text>
+        <view class="sh-share" @tap="handleShare"><app-icon name="share-2" :size="40" :color="headerColor" /></view>
       </view>
     </view>
 
-    <!-- 错误状态 -->
-    <view
-      v-else-if="error"
-      class="sh-status"
-    >
-      <view class="sh-status-inner">
-        <app-icon
-          name="alert-circle"
-          :size="72"
-          color="#ef4444"
+    <scroll-view scroll-y class="sh-scroll">
+      <!-- Banner 轮播 -->
+      <swiper
+        class="sh-banner"
+        circular
+        autoplay
+        :interval="4000"
+        :duration="500"
+        @change="onBannerChange"
+      >
+        <swiper-item v-for="b in stationBanners" :key="b.id" @tap="toastSoon">
+          <image class="sh-banner-img" :src="b.image" mode="aspectFill" />
+        </swiper-item>
+      </swiper>
+      <view class="sh-banner-dots">
+        <view
+          v-for="(b, i) in stationBanners"
+          :key="b.id"
+          class="sh-dot"
+          :class="{ active: i === currentBanner }"
         />
-        <text class="sh-status-txt sh-status-err">
-          {{ error }}
-        </text>
-        <view
-          class="sh-retry-btn"
-          @tap="loadData"
-        >
-          重试
+      </view>
+
+      <!-- 特色入口 -->
+      <view class="sh-features">
+        <view v-for="f in features" :key="f.id" class="sh-feature" @tap="toastSoon">
+          <view class="sh-feature-icon" :style="{ background: f.color + '26' }">
+            <app-icon :name="f.icon" :size="48" :color="f.color" />
+            <view v-if="f.badge" class="sh-feature-badge" :style="{ background: primary }">
+              <text class="sh-feature-badge-txt">{{ f.badge }}</text>
+            </view>
+          </view>
+          <text class="sh-feature-name">{{ f.name }}</text>
+        </view>
+      </view>
+
+      <!-- 站长推荐 -->
+      <view class="sh-section">
+        <view class="sh-section-head">
+          <view class="sh-section-title">
+            <image class="sh-master-avatar" :src="brand.master.avatar" mode="aspectFill" />
+            <text class="sh-section-title-txt">站长推荐</text>
+          </view>
+          <view class="sh-section-more" @tap="toastSoon">
+            <text class="sh-section-more-txt">更多</text>
+            <app-icon name="chevron-right" :size="24" color="#999" />
+          </view>
+        </view>
+        <scroll-view scroll-x class="sh-rec-scroll" :show-scrollbar="false">
+          <view class="sh-rec-row">
+            <view v-for="item in recommends" :key="item.id" class="sh-rec-card" @tap="toastSoon">
+              <view class="sh-rec-cover-wrap">
+                <image class="sh-rec-cover" :src="item.cover" mode="aspectFill" />
+                <view v-if="item.tag" class="sh-rec-tag" :style="{ background: primary }">
+                  <text class="sh-rec-tag-txt">{{ item.tag }}</text>
+                </view>
+              </view>
+              <text class="sh-rec-title">{{ item.title }}</text>
+              <view class="sh-rec-price-row">
+                <text
+                  v-if="item.price !== undefined"
+                  class="sh-rec-price"
+                  :style="{ color: primary }"
+                >{{ item.price > 0 ? '¥' + item.price : '免费' }}</text>
+                <text
+                  v-if="item.originalPrice && item.originalPrice > (item.price || 0)"
+                  class="sh-rec-original"
+                >¥{{ item.originalPrice }}</text>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 内容 Feed 流 -->
+      <view class="sh-feed">
+        <text class="sh-feed-title">精选内容</text>
+        <view class="sh-feed-list">
+          <view v-for="item in feedList" :key="item.id" class="sh-feed-card" @tap="toastSoon">
+            <view class="sh-feed-cover-wrap">
+              <image class="sh-feed-cover" :src="item.cover" mode="aspectFill" />
+              <view v-if="item.isLive" class="sh-feed-live">
+                <view class="sh-feed-live-dot" />
+                <text class="sh-feed-live-txt">直播中</text>
+              </view>
+              <view v-else-if="item.type === 'video'" class="sh-feed-play">
+                <app-icon name="play" :size="56" color="#ffffff" />
+              </view>
+            </view>
+            <view class="sh-feed-info">
+              <view class="sh-feed-type">
+                <app-icon :name="feedTypeIcon(item.type)" :size="24" color="#999" />
+                <text class="sh-feed-type-txt">{{ feedTypeLabel(item.type) }}</text>
+              </view>
+              <text class="sh-feed-name">{{ item.title }}</text>
+              <view class="sh-feed-bottom">
+                <view class="sh-feed-author">
+                  <image class="sh-feed-author-avatar" :src="item.author.avatar" mode="aspectFill" />
+                  <text class="sh-feed-author-name">{{ item.author.nickname }}</text>
+                </view>
+                <view class="sh-feed-stats">
+                  <view class="sh-feed-stat"><app-icon name="eye" :size="24" color="#999" /><text class="sh-feed-stat-txt">{{ formatStatNumber(item.stats.views) }}</text></view>
+                  <view class="sh-feed-stat"><app-icon name="heart" :size="24" color="#999" /><text class="sh-feed-stat-txt">{{ formatStatNumber(item.stats.likes) }}</text></view>
+                </view>
+              </view>
+              <text v-if="item.price !== undefined && item.price > 0" class="sh-feed-price" :style="{ color: primary }">¥{{ item.price }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 加载更多 -->
+        <view v-if="hasMore" class="sh-loadmore">
+          <view class="sh-loadmore-btn" @tap="loadMoreFeed">
+            <app-icon v-if="feedLoading" name="loader-2" :size="28" color="#666" class="sh-spin" />
+            <text class="sh-loadmore-txt">{{ feedLoading ? '加载中...' : '加载更多' }}</text>
+          </view>
+        </view>
+        <text v-else-if="feedList.length > 0" class="sh-feed-end">已经到底啦</text>
+      </view>
+    </scroll-view>
+
+    <!-- 分享海报弹层 -->
+    <view v-if="showPoster" class="sh-poster-mask" @tap="closePoster">
+      <view class="sh-poster-sheet" @tap.stop>
+        <view class="sh-poster-head">
+          <text class="sh-poster-head-title">分享推广</text>
+          <view class="sh-poster-close" @tap="closePoster"><app-icon name="x" :size="40" color="#666" /></view>
+        </view>
+        <view class="sh-poster-body">
+          <view v-if="posterLoading" class="sh-poster-loading">
+            <app-icon name="loader-2" :size="64" :color="primary" class="sh-spin" />
+            <text class="sh-poster-loading-txt">正在生成海报...</text>
+          </view>
+          <template v-else>
+            <image class="sh-poster-img" :src="stationPosterImage" mode="aspectFit" />
+            <view class="sh-poster-actions">
+              <view class="sh-poster-btn outline" @tap="toastSoon"><text class="sh-poster-btn-txt">保存图片</text></view>
+              <view class="sh-poster-btn primary" :style="{ background: primary }" @tap="toastSoon"><text class="sh-poster-btn-txt primary">分享给好友</text></view>
+            </view>
+            <text class="sh-poster-hint">长按图片保存或分享给好友</text>
+          </template>
         </view>
       </view>
     </view>
-
-    <template v-else>
-      <!-- 自定义品牌导航栏 -->
-      <view
-        class="sh-header"
-        :style="{ background: primary, color: headerColor, paddingTop: 'var(--status-bar-height, 0px)' }"
-      >
-        <view class="sh-header-inner">
-          <view
-            class="sh-back"
-            @tap="goBack"
-          >
-            <app-icon
-              name="chevron-left"
-              :size="40"
-              :color="headerColor"
-            />
-          </view>
-          <view class="sh-brand">
-            <image
-              class="sh-logo"
-              :src="brand.logo"
-              mode="aspectFill"
-            />
-            <text
-              class="sh-brand-name"
-              :style="{ color: headerColor }"
-            >
-              {{ brand.name }}
-            </text>
-          </view>
-          <view
-            class="sh-share"
-            @tap="handleShare"
-          >
-            <app-icon
-              name="share-2"
-              :size="40"
-              :color="headerColor"
-            />
-          </view>
-        </view>
-      </view>
-
-      <scroll-view
-        scroll-y
-        class="sh-scroll"
-      >
-        <!-- Banner 轮播 -->
-        <swiper
-          class="sh-banner"
-          circular
-          autoplay
-          :interval="4000"
-          :duration="500"
-          @change="onBannerChange"
-        >
-          <swiper-item
-            v-for="b in stationBanners"
-            :key="b.id"
-            @tap="toastSoon"
-          >
-            <image
-              class="sh-banner-img"
-              :src="b.image"
-              mode="aspectFill"
-            />
-          </swiper-item>
-        </swiper>
-        <view class="sh-banner-dots">
-          <view
-            v-for="(b, i) in stationBanners"
-            :key="b.id"
-            class="sh-dot"
-            :class="{ active: i === currentBanner }"
-          />
-        </view>
-
-        <!-- 特色入口 -->
-        <view class="sh-features">
-          <view
-            v-for="f in features"
-            :key="f.id"
-            class="sh-feature"
-            @tap="toastSoon"
-          >
-            <view
-              class="sh-feature-icon"
-              :style="{ background: f.color + '26' }"
-            >
-              <app-icon
-                :name="f.icon"
-                :size="48"
-                :color="f.color"
-              />
-              <view
-                v-if="f.badge"
-                class="sh-feature-badge"
-                :style="{ background: primary }"
-              >
-                <text class="sh-feature-badge-txt">
-                  {{ f.badge }}
-                </text>
-              </view>
-            </view>
-            <text class="sh-feature-name">
-              {{ f.name }}
-            </text>
-          </view>
-        </view>
-
-        <!-- 站长推荐 -->
-        <view class="sh-section">
-          <view class="sh-section-head">
-            <view class="sh-section-title">
-              <image
-                class="sh-master-avatar"
-                :src="brand.master.avatar"
-                mode="aspectFill"
-              />
-              <text class="sh-section-title-txt">
-                站长推荐
-              </text>
-            </view>
-            <view
-              class="sh-section-more"
-              @tap="toastSoon"
-            >
-              <text class="sh-section-more-txt">
-                更多
-              </text>
-              <app-icon
-                name="chevron-right"
-                :size="24"
-                color="#999"
-              />
-            </view>
-          </view>
-          <scroll-view
-            scroll-x
-            class="sh-rec-scroll"
-            :show-scrollbar="false"
-          >
-            <view class="sh-rec-row">
-              <view
-                v-for="item in recommends"
-                :key="item.id"
-                class="sh-rec-card"
-                @tap="toastSoon"
-              >
-                <view class="sh-rec-cover-wrap">
-                  <image
-                    class="sh-rec-cover"
-                    :src="item.cover"
-                    mode="aspectFill"
-                  />
-                  <view
-                    v-if="item.tag"
-                    class="sh-rec-tag"
-                    :style="{ background: primary }"
-                  >
-                    <text class="sh-rec-tag-txt">
-                      {{ item.tag }}
-                    </text>
-                  </view>
-                </view>
-                <text class="sh-rec-title">
-                  {{ item.title }}
-                </text>
-                <view class="sh-rec-price-row">
-                  <text
-                    v-if="item.price !== undefined"
-                    class="sh-rec-price"
-                    :style="{ color: primary }"
-                  >
-                    {{ item.price > 0 ? '¥' + item.price : '免费' }}
-                  </text>
-                  <text
-                    v-if="item.originalPrice && item.originalPrice > (item.price || 0)"
-                    class="sh-rec-original"
-                  >
-                    ¥{{ item.originalPrice }}
-                  </text>
-                </view>
-              </view>
-            </view>
-          </scroll-view>
-        </view>
-
-        <!-- 内容 Feed 流 -->
-        <view class="sh-feed">
-          <text class="sh-feed-title">
-            精选内容
-          </text>
-          <view class="sh-feed-list">
-            <view
-              v-for="item in feedList"
-              :key="item.id"
-              class="sh-feed-card"
-              @tap="toastSoon"
-            >
-              <view class="sh-feed-cover-wrap">
-                <image
-                  class="sh-feed-cover"
-                  :src="item.cover"
-                  mode="aspectFill"
-                />
-                <view
-                  v-if="item.isLive"
-                  class="sh-feed-live"
-                >
-                  <view class="sh-feed-live-dot" />
-                  <text class="sh-feed-live-txt">
-                    直播中
-                  </text>
-                </view>
-                <view
-                  v-else-if="item.type === 'video'"
-                  class="sh-feed-play"
-                >
-                  <app-icon
-                    name="play"
-                    :size="56"
-                    color="#ffffff"
-                  />
-                </view>
-              </view>
-              <view class="sh-feed-info">
-                <view class="sh-feed-type">
-                  <app-icon
-                    :name="feedTypeIcon(item.type)"
-                    :size="24"
-                    color="#999"
-                  />
-                  <text class="sh-feed-type-txt">
-                    {{ feedTypeLabel(item.type) }}
-                  </text>
-                </view>
-                <text class="sh-feed-name">
-                  {{ item.title }}
-                </text>
-                <view class="sh-feed-bottom">
-                  <view class="sh-feed-author">
-                    <image
-                      class="sh-feed-author-avatar"
-                      :src="item.author.avatar"
-                      mode="aspectFill"
-                    />
-                    <text class="sh-feed-author-name">
-                      {{ item.author.nickname }}
-                    </text>
-                  </view>
-                  <view class="sh-feed-stats">
-                    <view class="sh-feed-stat">
-                      <app-icon
-                        name="eye"
-                        :size="24"
-                        color="#999"
-                      /><text class="sh-feed-stat-txt">
-                        {{ formatStatNumber(item.stats.views) }}
-                      </text>
-                    </view>
-                    <view class="sh-feed-stat">
-                      <app-icon
-                        name="heart"
-                        :size="24"
-                        color="#999"
-                      /><text class="sh-feed-stat-txt">
-                        {{ formatStatNumber(item.stats.likes) }}
-                      </text>
-                    </view>
-                  </view>
-                </view>
-                <text
-                  v-if="item.price !== undefined && item.price > 0"
-                  class="sh-feed-price"
-                  :style="{ color: primary }"
-                >
-                  ¥{{ item.price }}
-                </text>
-              </view>
-            </view>
-          </view>
-
-          <!-- 加载更多 -->
-          <view
-            v-if="hasMore"
-            class="sh-loadmore"
-          >
-            <view
-              class="sh-loadmore-btn"
-              @tap="loadMoreFeed"
-            >
-              <app-icon
-                v-if="feedLoading"
-                name="loader-2"
-                :size="28"
-                color="#666"
-                class="sh-spin"
-              />
-              <text class="sh-loadmore-txt">
-                {{ feedLoading ? '加载中...' : '加载更多' }}
-              </text>
-            </view>
-          </view>
-          <text
-            v-else-if="feedList.length > 0"
-            class="sh-feed-end"
-          >
-            已经到底啦
-          </text>
-        </view>
-      </scroll-view>
-
-      <!-- 分享海报弹层 -->
-      <view
-        v-if="showPoster"
-        class="sh-poster-mask"
-        @tap="closePoster"
-      >
-        <view
-          class="sh-poster-sheet"
-          @tap.stop
-        >
-          <view class="sh-poster-head">
-            <text class="sh-poster-head-title">
-              分享推广
-            </text>
-            <view
-              class="sh-poster-close"
-              @tap="closePoster"
-            >
-              <app-icon
-                name="x"
-                :size="40"
-                color="#666"
-              />
-            </view>
-          </view>
-          <view class="sh-poster-body">
-            <view
-              v-if="posterLoading"
-              class="sh-poster-loading"
-            >
-              <app-icon
-                name="loader-2"
-                :size="64"
-                :color="primary"
-                class="sh-spin"
-              />
-              <text class="sh-poster-loading-txt">
-                正在生成海报...
-              </text>
-            </view>
-            <template v-else>
-              <image
-                class="sh-poster-img"
-                :src="stationPosterImage"
-                mode="aspectFit"
-              />
-              <view class="sh-poster-actions">
-                <view
-                  class="sh-poster-btn outline"
-                  @tap="toastSoon"
-                >
-                  <text class="sh-poster-btn-txt">
-                    保存图片
-                  </text>
-                </view>
-                <view
-                  class="sh-poster-btn primary"
-                  :style="{ background: primary }"
-                  @tap="toastSoon"
-                >
-                  <text class="sh-poster-btn-txt primary">
-                    分享给好友
-                  </text>
-                </view>
-              </view>
-              <text class="sh-poster-hint">
-                长按图片保存或分享给好友
-              </text>
-            </template>
-          </view>
-        </view>
-      </view>
-    </template>
   </view>
 </template>
 
 <style scoped lang="scss">
 .sh { min-height: 100vh; background: var(--bg-paper, #faf8f5); }
-
-/* 加载 & 错误 */
-.sh-status { display: flex; align-items: center; justify-content: center; height: 100vh; }
-.sh-status-inner { display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
-.sh-status-txt { font-size: 26rpx; color: #9ca3af; }
-.sh-status-err { color: #ef4444; }
-.sh-retry-btn { padding: 12rpx 48rpx; border: 2rpx solid #C41E3A; border-radius: 999rpx; color: #C41E3A; font-size: 26rpx; }
 
 /* 品牌导航 */
 .sh-header { position: sticky; top: 0; z-index: 50; }

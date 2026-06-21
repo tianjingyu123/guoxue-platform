@@ -1,604 +1,258 @@
 <template>
-  <view
-    class="watch"
-    :class="room?.type === 'commerce' ? 'watch--commerce' : ''"
-  >
-    <view
-      v-if="loading"
-      class="loading"
-    >
-      <text>加载中...</text>
-    </view>
-    <view
-      v-else-if="error"
-      class="err-msg"
-    >
-      <text>{{ error }}</text>
-      <view
-        class="retry-btn"
-        @tap="loadData"
-      >
-        重试
+  <view class="watch" :class="{ 'watch--commerce': room.type === 'commerce' }">
+    <!-- 直播画面背景（占位渐变，接入推流后替换） -->
+    <view class="watch__stage">
+      <view class="watch__stage-mask" />
+      <!-- 画面占位（接入推流后移除） -->
+      <view class="watch__stage-ph">
+        <view class="watch__stage-ph-icon">
+          <AppIcon :name="room.type === 'commerce' ? 'shopping-bag' : 'book-open'" :size="88" color="rgba(255,255,255,0.5)" />
+        </view>
+        <text class="watch__stage-ph-txt">直播画面</text>
       </view>
     </view>
-    <template v-else-if="room">
-      <!-- 直播画面背景（占位渐变，接入推流后替换） -->
-      <view class="watch__stage">
-        <view class="watch__stage-mask" />
-        <view class="watch__stage-ph">
-          <view class="watch__stage-ph-icon">
-            <AppIcon
-              :name="room.type === 'commerce' ? 'shopping-bag' : 'book-open'"
-              :size="88"
-              color="rgba(255,255,255,0.5)"
-            />
-          </view>
-          <text class="watch__stage-ph-txt">
-            直播画面
-          </text>
-        </view>
-      </view>
 
-      <!-- 顶部信息栏 -->
-      <view
-        class="watch__top"
-        :style="{ paddingTop: statusBarHeight + 'px' }"
-      >
-        <view class="watch__top-inner">
-          <view class="watch__top-row">
-            <view class="host-card">
-              <view class="host-card__avatar-wrap">
-                <image
-                  class="host-card__avatar"
-                  :src="room.hostAvatar"
-                  mode="aspectFill"
-                />
-                <view class="host-card__live-dot" />
-              </view>
-              <view class="host-card__info">
-                <text class="host-card__name">
-                  {{ room.hostName }}
-                </text>
-                <text class="host-card__fans">
-                  {{ formatCount(room.followers) }} 粉丝
-                </text>
-              </view>
-              <view
-                class="host-card__follow"
-                :class="{ 'host-card__follow--on': isFollowing }"
-                @tap="onFollow"
-              >
-                <text class="host-card__follow-txt">
-                  {{ isFollowing ? '已关注' : '关注' }}
-                </text>
-              </view>
+    <!-- 顶部信息栏 -->
+    <view class="watch__top" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="watch__top-inner">
+        <view class="watch__top-row">
+          <!-- 主播信息胶囊 -->
+          <view class="host-card">
+            <view class="host-card__avatar-wrap">
+              <image class="host-card__avatar" :src="room.hostAvatar" mode="aspectFill" />
+              <view class="host-card__live-dot" />
             </view>
-            <view class="watch__top-right">
-              <view class="online-box">
-                <AppIcon
-                  name="users"
-                  :size="28"
-                  color="rgba(255,255,255,0.8)"
-                />
-                <text class="online-box__count">
-                  {{ formatCount(room.viewerCount) }}
-                </text>
-              </view>
-              <view
-                class="watch__close"
-                @tap="onClose"
-              >
-                <AppIcon
-                  name="x"
-                  :size="40"
-                  color="#fff"
-                />
-              </view>
+            <view class="host-card__info">
+              <text class="host-card__name">{{ room.hostName }}</text>
+              <text class="host-card__fans">{{ formatCount(room.followers) }} 粉丝</text>
+            </view>
+            <view class="host-card__follow" :class="{ 'host-card__follow--on': isFollowing }" @tap="onFollow">
+              <text class="host-card__follow-txt">{{ isFollowing ? '已关注' : '关注' }}</text>
             </view>
           </view>
-          <view class="watch__title-row">
-            <text class="watch__title">
-              {{ room.title }}
-            </text>
+          <!-- 右侧：在线人数 + 关闭 -->
+          <view class="watch__top-right">
+            <view class="online-box">
+              <AppIcon name="users" :size="28" color="rgba(255,255,255,0.8)" />
+              <text class="online-box__count">{{ formatCount(room.viewerCount) }}</text>
+            </view>
+            <view class="watch__close" @tap="onClose">
+              <AppIcon name="x" :size="40" color="#fff" />
+            </view>
           </view>
-          <view class="watch__disclaimer">
-            <Disclaimer
-              variant="entertainment"
-              tone="inline"
-            />
+        </view>
+
+        <!-- 直播间标题 -->
+        <view class="watch__title-row">
+          <text class="watch__title">{{ room.title }}</text>
+        </view>
+
+        <!-- 合规提示 -->
+        <view class="watch__disclaimer">
+          <Disclaimer variant="entertainment" tone="inline" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 右上角榜单入口 -->
+    <view class="rank-entry-wrap">
+      <view class="rank-entry" @tap="showRank = true">
+        <AppIcon name="crown" :size="28" color="#fff" />
+        <text class="rank-entry__txt">榜单</text>
+        <AppIcon name="chevron-down" :size="24" color="#fff" />
+      </view>
+    </view>
+
+    <!-- 商品讲解卡（电商直播） -->
+    <view v-if="room.type === 'commerce' && explainingProduct" class="explain-card" @tap="openQuickBuy(explainingProduct)">
+      <image class="explain-card__img" :src="explainingProduct.cover" mode="aspectFill" />
+      <view class="explain-card__info">
+        <view class="explain-card__tag"><text class="explain-card__tag-txt">讲解中</text></view>
+        <text class="explain-card__name">{{ explainingProduct.name }}</text>
+        <view class="explain-card__price-row">
+          <text class="explain-card__price">¥{{ explainingProduct.price }}</text>
+          <text class="explain-card__origin">¥{{ explainingProduct.originalPrice }}</text>
+        </view>
+      </view>
+      <view class="explain-card__buy"><text class="explain-card__buy-txt">抢购</text></view>
+    </view>
+
+    <!-- 系统消息横幅（进入/送礼/购买） -->
+    <view class="sys-banners">
+      <view v-for="m in systemBanners" :key="m.id" class="sys-banner" :class="`sys-banner--${m.type}`">
+        <text class="sys-banner__user">{{ m.user }}</text>
+        <text class="sys-banner__content">{{ m.content }}</text>
+        <text v-if="m.giftIcon" class="sys-banner__icon">{{ m.giftIcon }}</text>
+      </view>
+    </view>
+
+    <!-- 飘屏礼物（大礼物横幅滑入） -->
+    <view class="gift-flyers">
+      <view v-for="g in giftFlyers" :key="g.id" class="gift-flyer">
+        <image class="gift-flyer__avatar" :src="g.avatar" mode="aspectFill" />
+        <view class="gift-flyer__info">
+          <text class="gift-flyer__user">{{ g.user }}</text>
+          <text class="gift-flyer__desc">送出 {{ g.giftName }}</text>
+        </view>
+        <text class="gift-flyer__icon">{{ g.giftIcon }}</text>
+        <text class="gift-flyer__count">x{{ g.count }}</text>
+      </view>
+    </view>
+
+    <!-- 电商实时已售通知 -->
+    <view v-if="room.type === 'commerce' && saleNotif" class="sale-notif">
+      <AppIcon name="shopping-cart" :size="26" color="#C41E3A" />
+      <text class="sale-notif__txt">{{ saleNotif }}</text>
+    </view>
+
+    <!-- 左侧弹幕区 -->
+    <scroll-view scroll-y class="danmaku" :scroll-top="danmakuScrollTop" :scroll-with-animation="true">
+      <view class="danmaku__inner">
+        <view v-for="c in comments" :key="c.id" class="danmaku__item">
+          <view class="danmaku__row">
+            <view class="danmaku__tag"><text class="danmaku__tag-txt">{{ c.userName }}</text></view>
+            <text class="danmaku__content">{{ c.content }}</text>
           </view>
         </view>
       </view>
+    </scroll-view>
 
-      <!-- 右上角榜单入口 -->
-      <view class="rank-entry-wrap">
-        <view
-          class="rank-entry"
-          @tap="showRank = true"
-        >
-          <AppIcon
-            name="crown"
-            :size="28"
-            color="#fff"
-          />
-          <text class="rank-entry__txt">
-            榜单
-          </text>
-          <AppIcon
-            name="chevron-down"
-            :size="24"
-            color="#fff"
-          />
-        </view>
-      </view>
-
-      <!-- 商品讲解卡（电商直播） -->
+    <!-- 飘心 -->
+    <view class="hearts">
       <view
-        v-if="room.type === 'commerce' && explainingProduct"
-        class="explain-card"
-        @tap="openQuickBuy(explainingProduct)"
+        v-for="h in floatingHearts"
+        :key="h.id"
+        class="heart"
+        :style="{ left: h.left + 'rpx', animationDuration: h.duration + 's' }"
       >
-        <image
-          class="explain-card__img"
-          :src="explainingProduct.cover"
-          mode="aspectFill"
+        <AppIcon name="heart" :size="48" color="#ef4444" :fill="true" />
+      </view>
+    </view>
+
+    <!-- 底部互动栏 -->
+    <view class="watch__bottom" :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12rpx)' }">
+      <view class="watch__bottom-row">
+        <!-- 输入框 -->
+        <view class="input-box" @tap="showCommentInput = true">
+          <text class="input-box__ph">说点什么...</text>
+          <view class="input-box__send"><AppIcon name="send" :size="24" color="#fff" /></view>
+        </view>
+        <!-- 电商：购物车 -->
+        <view v-if="room.type === 'commerce'" class="act-btn act-btn--cart" @tap="showProductList = true">
+          <AppIcon name="shopping-cart" :size="40" color="#f87171" />
+          <view v-if="products.length" class="act-btn__badge"><text class="act-btn__badge-txt">{{ products.length }}</text></view>
+        </view>
+        <!-- 点赞 -->
+        <view class="act-btn" @tap="onTapLike">
+          <AppIcon name="heart" :size="40" color="#ef4444" :fill="true" />
+        </view>
+        <!-- 礼物 -->
+        <view class="act-btn act-btn--gift" @tap="showGiftPanel = true">
+          <AppIcon name="gift" :size="40" color="#fbbf24" />
+        </view>
+        <!-- 连麦 -->
+        <view class="act-btn act-btn--mic" @tap="showMicSheet = true">
+          <AppIcon name="phone" :size="40" color="#60a5fa" />
+        </view>
+        <!-- 分享 -->
+        <view class="act-btn" @tap="showShare = true">
+          <AppIcon name="share-2" :size="40" color="rgba(255,255,255,0.8)" />
+        </view>
+        <!-- 举报 -->
+        <view class="act-btn" @tap="onReport">
+          <AppIcon name="flag" :size="40" color="rgba(255,255,255,0.8)" />
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 弹窗层 ===== -->
+
+    <!-- 弹幕输入 -->
+    <view v-if="showCommentInput" class="modal-mask modal-mask--bottom" @tap="showCommentInput = false">
+      <view class="comment-input" @tap.stop>
+        <input
+          class="comment-input__field"
+          v-model="commentText"
+          placeholder="说点什么..."
+          placeholder-class="comment-input__ph"
+          :focus="showCommentInput"
+          confirm-type="send"
+          @confirm="onSendComment"
         />
-        <view class="explain-card__info">
-          <view class="explain-card__tag">
-            <text class="explain-card__tag-txt">
-              讲解中
-            </text>
-          </view>
-          <text class="explain-card__name">
-            {{ explainingProduct.name }}
-          </text>
-          <view class="explain-card__price-row">
-            <text class="explain-card__price">
-              ¥{{ explainingProduct.price }}
-            </text>
-            <text class="explain-card__origin">
-              ¥{{ explainingProduct.originalPrice }}
-            </text>
-          </view>
-        </view>
-        <view class="explain-card__buy">
-          <text class="explain-card__buy-txt">
-            抢购
-          </text>
+        <view class="comment-input__send" :class="{ 'comment-input__send--on': commentText.trim() }" @tap="onSendComment">
+          <text class="comment-input__send-txt">发送</text>
         </view>
       </view>
+    </view>
 
-      <!-- 系统消息横幅（进入/送礼/购买） -->
-      <view class="sys-banners">
-        <view
-          v-for="m in systemBanners"
-          :key="m.id"
-          class="sys-banner"
-          :class="`sys-banner--${m.type}`"
-        >
-          <text class="sys-banner__user">
-            {{ m.user }}
-          </text>
-          <text class="sys-banner__content">
-            {{ m.content }}
-          </text>
-          <text
-            v-if="m.giftIcon"
-            class="sys-banner__icon"
-          >
-            {{ m.giftIcon }}
-          </text>
+    <!-- 榜单 -->
+    <view v-if="showRank" class="modal-mask modal-mask--bottom" @tap="showRank = false">
+      <view class="rank-sheet" @tap.stop>
+        <view class="rank-sheet__head">
+          <text class="rank-sheet__title">打赏榜</text>
+          <view @tap="showRank = false"><AppIcon name="x" :size="40" color="#999" /></view>
         </view>
-      </view>
-
-      <!-- 飘屏礼物 -->
-      <view class="gift-flyers">
-        <view
-          v-for="g in giftFlyers"
-          :key="g.id"
-          class="gift-flyer"
-        >
-          <image
-            class="gift-flyer__avatar"
-            :src="g.avatar"
-            mode="aspectFill"
-          />
-          <view class="gift-flyer__info">
-            <text class="gift-flyer__user">
-              {{ g.user }}
-            </text>
-            <text class="gift-flyer__desc">
-              送出 {{ g.giftName }}
-            </text>
-          </view>
-          <text class="gift-flyer__icon">
-            {{ g.giftIcon }}
-          </text>
-          <text class="gift-flyer__count">
-            x{{ g.count }}
-          </text>
-        </view>
-      </view>
-
-      <!-- 电商实时已售通知 -->
-      <view
-        v-if="room.type === 'commerce' && saleNotif"
-        class="sale-notif"
-      >
-        <AppIcon
-          name="shopping-cart"
-          :size="26"
-          color="#C41E3A"
-        />
-        <text class="sale-notif__txt">
-          {{ saleNotif }}
-        </text>
-      </view>
-
-      <!-- 弹幕区 -->
-      <scroll-view
-        scroll-y
-        class="danmaku"
-        :scroll-top="danmakuScrollTop"
-        :scroll-with-animation="true"
-      >
-        <view class="danmaku__inner">
-          <view
-            v-for="c in comments"
-            :key="c.id"
-            class="danmaku__item"
-          >
-            <view class="danmaku__row">
-              <view class="danmaku__tag">
-                <text class="danmaku__tag-txt">
-                  {{ c.userName }}
-                </text>
-              </view>
-              <text class="danmaku__content">
-                {{ c.content }}
-              </text>
+        <view class="rank-sheet__list">
+          <view v-for="item in rankList" :key="item.rank" class="rank-row">
+            <text class="rank-row__no" :class="`rank-row__no--${item.rank}`">{{ item.rank }}</text>
+            <text class="rank-row__user">{{ item.user }}</text>
+            <view class="rank-row__amount">
+              <AppIcon name="coins" :size="26" color="#C9A96E" />
+              <text class="rank-row__amount-txt">{{ formatCount(item.amount) }}</text>
             </view>
           </view>
         </view>
-      </scroll-view>
-
-      <!-- 飘心 -->
-      <view class="hearts">
-        <view
-          v-for="h in floatingHearts"
-          :key="h.id"
-          class="heart"
-          :style="{ left: h.left + 'rpx', animationDuration: h.duration + 's' }"
-        >
-          <AppIcon
-            name="heart"
-            :size="48"
-            color="#ef4444"
-            :fill="true"
-          />
-        </view>
       </view>
+    </view>
 
-      <!-- 底部互动栏 -->
-      <view
-        class="watch__bottom"
-        :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12rpx)' }"
-      >
-        <view class="watch__bottom-row">
-          <view
-            class="input-box"
-            @tap="showCommentInput = true"
-          >
-            <text class="input-box__ph">
-              说点什么...
-            </text>
-            <view class="input-box__send">
-              <AppIcon
-                name="send"
-                :size="24"
-                color="#fff"
-              />
-            </view>
-          </view>
-          <view
-            v-if="room.type === 'commerce'"
-            class="act-btn act-btn--cart"
-            @tap="showProductList = true"
-          >
-            <AppIcon
-              name="shopping-cart"
-              :size="40"
-              color="#f87171"
-            />
-            <view
-              v-if="products.length"
-              class="act-btn__badge"
-            >
-              <text class="act-btn__badge-txt">
-                {{ products.length }}
-              </text>
-            </view>
-          </view>
-          <view
-            class="act-btn"
-            @tap="onTapLike"
-          >
-            <AppIcon
-              name="heart"
-              :size="40"
-              color="#ef4444"
-              :fill="true"
-            />
-          </view>
-          <view
-            class="act-btn act-btn--gift"
-            @tap="showGiftPanel = true"
-          >
-            <AppIcon
-              name="gift"
-              :size="40"
-              color="#fbbf24"
-            />
-          </view>
-          <view
-            class="act-btn act-btn--mic"
-            @tap="showMicSheet = true"
-          >
-            <AppIcon
-              name="phone"
-              :size="40"
-              color="#60a5fa"
-            />
-          </view>
-          <view
-            class="act-btn"
-            @tap="showShare = true"
-          >
-            <AppIcon
-              name="share-2"
-              :size="40"
-              color="rgba(255,255,255,0.8)"
-            />
-          </view>
-          <view
-            class="act-btn"
-            @tap="onReport"
-          >
-            <AppIcon
-              name="flag"
-              :size="40"
-              color="rgba(255,255,255,0.8)"
-            />
-          </view>
+    <!-- 商品列表 -->
+    <view v-if="showProductList" class="modal-mask modal-mask--bottom" @tap="showProductList = false">
+      <view class="product-sheet" @tap.stop>
+        <view class="product-sheet__head">
+          <text class="product-sheet__title">全部商品（{{ products.length }}）</text>
+          <view @tap="showProductList = false"><AppIcon name="x" :size="40" color="#999" /></view>
         </view>
-      </view>
-
-      <!-- ===== 弹窗层 ===== -->
-
-      <!-- 弹幕输入 -->
-      <view
-        v-if="showCommentInput"
-        class="modal-mask modal-mask--bottom"
-        @tap="showCommentInput = false"
-      >
-        <view
-          class="comment-input"
-          @tap.stop
-        >
-          <input
-            v-model="commentText"
-            class="comment-input__field"
-            placeholder="说点什么..."
-            placeholder-class="comment-input__ph"
-            :focus="showCommentInput"
-            confirm-type="send"
-            @confirm="onSendComment"
-          >
-          <view
-            class="comment-input__send"
-            :class="{ 'comment-input__send--on': commentText.trim() }"
-            @tap="onSendComment"
-          >
-            <text class="comment-input__send-txt">
-              发送
-            </text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 榜单 -->
-      <view
-        v-if="showRank"
-        class="modal-mask modal-mask--bottom"
-        @tap="showRank = false"
-      >
-        <view
-          class="rank-sheet"
-          @tap.stop
-        >
-          <view class="rank-sheet__head">
-            <text class="rank-sheet__title">
-              打赏榜
-            </text>
-            <view @tap="showRank = false">
-              <AppIcon
-                name="x"
-                :size="40"
-                color="#999"
-              />
-            </view>
-          </view>
-          <view class="rank-sheet__list">
-            <view
-              v-for="item in rankList"
-              :key="item.rank"
-              class="rank-row"
-            >
-              <text
-                class="rank-row__no"
-                :class="`rank-row__no--${item.rank}`"
-              >
-                {{ item.rank }}
-              </text>
-              <text class="rank-row__user">
-                {{ item.user }}
-              </text>
-              <view class="rank-row__amount">
-                <AppIcon
-                  name="coins"
-                  :size="26"
-                  color="#C9A96E"
-                />
-                <text class="rank-row__amount-txt">
-                  {{ formatCount(item.amount) }}
-                </text>
+        <scroll-view scroll-y class="product-sheet__list">
+          <view v-for="(p, idx) in products" :key="p.id" class="product-row">
+            <text class="product-row__no">{{ idx + 1 }}</text>
+            <image class="product-row__img" :src="p.cover" mode="aspectFill" />
+            <view class="product-row__info">
+              <text class="product-row__name">{{ p.name }}</text>
+              <view v-if="p.isExplaining" class="product-row__tag"><text class="product-row__tag-txt">讲解中</text></view>
+              <view class="product-row__price-row">
+                <text class="product-row__price">¥{{ p.price }}</text>
+                <text class="product-row__origin">¥{{ p.originalPrice }}</text>
+                <text class="product-row__sold">已售{{ p.sold }}</text>
               </view>
             </view>
+            <view class="product-row__buy" @tap="openQuickBuy(p)"><text class="product-row__buy-txt">购买</text></view>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+
+    <!-- 礼物面板 -->
+    <GiftPanel :open="showGiftPanel" :balance="coinBalance" @close="showGiftPanel = false" @send="onSendGift" />
+
+    <!-- 连麦 -->
+    <MicConnectSheet :open="showMicSheet" :host-name="room.hostName" @close="showMicSheet = false" />
+
+    <!-- 快速购买 -->
+    <QuickBuySheet :open="showQuickBuy" :product="quickBuyProduct" @close="showQuickBuy = false" />
+
+    <!-- 分享 -->
+    <view v-if="showShare" class="modal-mask modal-mask--bottom" @tap="showShare = false">
+      <view class="share-sheet" @tap.stop>
+        <text class="share-sheet__title">分享直播间</text>
+        <view class="share-sheet__grid">
+          <view v-for="s in shareChannels" :key="s.key" class="share-item" @tap="onShare(s.key)">
+            <view class="share-item__icon"><AppIcon :name="s.icon" :size="52" color="#666" /></view>
+            <text class="share-item__label">{{ s.label }}</text>
           </view>
         </view>
+        <view class="share-sheet__cancel" @tap="showShare = false"><text class="share-sheet__cancel-txt">取消</text></view>
       </view>
-
-      <!-- 商品列表 -->
-      <view
-        v-if="showProductList"
-        class="modal-mask modal-mask--bottom"
-        @tap="showProductList = false"
-      >
-        <view
-          class="product-sheet"
-          @tap.stop
-        >
-          <view class="product-sheet__head">
-            <text class="product-sheet__title">
-              全部商品（{{ products.length }}）
-            </text>
-            <view @tap="showProductList = false">
-              <AppIcon
-                name="x"
-                :size="40"
-                color="#999"
-              />
-            </view>
-          </view>
-          <scroll-view
-            scroll-y
-            class="product-sheet__list"
-          >
-            <view
-              v-for="(p, idx) in products"
-              :key="p.id"
-              class="product-row"
-            >
-              <text class="product-row__no">
-                {{ idx + 1 }}
-              </text>
-              <image
-                class="product-row__img"
-                :src="p.cover"
-                mode="aspectFill"
-              />
-              <view class="product-row__info">
-                <text class="product-row__name">
-                  {{ p.name }}
-                </text>
-                <view
-                  v-if="p.isExplaining"
-                  class="product-row__tag"
-                >
-                  <text class="product-row__tag-txt">
-                    讲解中
-                  </text>
-                </view>
-                <view class="product-row__price-row">
-                  <text class="product-row__price">
-                    ¥{{ p.price }}
-                  </text>
-                  <text class="product-row__origin">
-                    ¥{{ p.originalPrice }}
-                  </text>
-                  <text class="product-row__sold">
-                    已售{{ p.sold }}
-                  </text>
-                </view>
-              </view>
-              <view
-                class="product-row__buy"
-                @tap="openQuickBuy(p)"
-              >
-                <text class="product-row__buy-txt">
-                  购买
-                </text>
-              </view>
-            </view>
-          </scroll-view>
-        </view>
-      </view>
-
-      <!-- 礼物面板 -->
-      <GiftPanel
-        :open="showGiftPanel"
-        :balance="coinBalance"
-        @close="showGiftPanel = false"
-        @send="onSendGift"
-      />
-
-      <!-- 连麦 -->
-      <MicConnectSheet
-        :open="showMicSheet"
-        :host-name="room.hostName"
-        @close="showMicSheet = false"
-      />
-
-      <!-- 快速购买 -->
-      <QuickBuySheet
-        :open="showQuickBuy"
-        :product="quickBuyProduct"
-        @close="showQuickBuy = false"
-      />
-
-      <!-- 分享 -->
-      <view
-        v-if="showShare"
-        class="modal-mask modal-mask--bottom"
-        @tap="showShare = false"
-      >
-        <view
-          class="share-sheet"
-          @tap.stop
-        >
-          <text class="share-sheet__title">
-            分享直播间
-          </text>
-          <view class="share-sheet__grid">
-            <view
-              v-for="s in shareChannels"
-              :key="s.key"
-              class="share-item"
-              @tap="onShare(s.key)"
-            >
-              <view class="share-item__icon">
-                <AppIcon
-                  :name="s.icon"
-                  :size="52"
-                  color="#666"
-                />
-              </view>
-              <text class="share-item__label">
-                {{ s.label }}
-              </text>
-            </view>
-          </view>
-          <view
-            class="share-sheet__cancel"
-            @tap="showShare = false"
-          >
-            <text class="share-sheet__cancel-txt">
-              取消
-            </text>
-          </view>
-        </view>
-      </view>
-    </template>
+    </view>
   </view>
 </template>
 
@@ -613,25 +267,31 @@ import QuickBuySheet, { type QuickBuyProduct } from '@/components/live/quick-buy
 import { type LiveGift } from '@/lib/live-gifts'
 import { goBack } from '@/utils/router'
 import {
-  liveApi,
+  liveWatchRoom,
+  liveWatchComments,
+  liveWatchProducts,
+  liveWatchRankList,
+  liveCoinBalance,
   type VerticalLiveComment,
   type VerticalLiveProduct,
 } from '@/lib/live-data'
 
+// ===== 系统信息（状态栏） =====
 const statusBarHeight = ref(0)
-const roomId = ref('')
 
-const room = ref<any>(null)
-const comments = ref<VerticalLiveComment[]>([])
-const products = ref<VerticalLiveProduct[]>([])
-const rankList = ref<any[]>([])
-const coinBalance = ref(0)
-const isFollowing = ref(false)
-const loading = ref(false)
-const error = ref('')
+// ===== 直播间数据（默认渲染真实 mock；@data-needs 由 Claude 接入） =====
+// @data-needs: 直播间详情, 参数 id(来自 onLoad), GET 返回 LiveWatchRoom
+const room = ref({ ...liveWatchRoom })
+const comments = ref<VerticalLiveComment[]>([...liveWatchComments])
+const products = ref<VerticalLiveProduct[]>([...liveWatchProducts])
+const rankList = ref([...liveWatchRankList])
+const coinBalance = ref(liveCoinBalance)
+const isFollowing = ref(room.value.isFollowing)
 
+// 讲解中的商品（电商直播浮卡）
 const explainingProduct = computed(() => products.value.find((p) => p.isExplaining) || null)
 
+// ===== UI 状态（弹窗开关、临时输入，仅 UI 层） =====
 const showCommentInput = ref(false)
 const commentText = ref('')
 const showRank = ref(false)
@@ -666,6 +326,7 @@ function formatCount(n: number): string {
   return String(n)
 }
 
+// ===== 交互函数（UI 状态切换由前端负责；关注/送礼/下单等业务交 Claude 接入） =====
 function onClose() {
   goBack()
 }
@@ -676,6 +337,7 @@ function onFollow() {
 }
 
 function onSendComment() {
+  // @data-needs: 发送弹幕接口；此处仅做 UI 上屏与清空
   if (commentText.value.trim()) {
     comments.value.push({ id: 'local-' + Date.now(), userName: '我', content: commentText.value.trim(), type: 'text' })
     commentText.value = ''
@@ -698,9 +360,10 @@ function spawnHeart() {
 }
 
 function onSendGift(gift: LiveGift) {
+  // UI：飘屏 + 弹幕 + 扣余额（前端即时反馈）
   const count = 1
   const fid = ++flyerId
-  giftFlyers.value.push({ id: fid, user: '我', avatar: room.value?.hostAvatar || '', giftName: gift.name, giftIcon: gift.icon, count })
+  giftFlyers.value.push({ id: fid, user: '我', avatar: room.value.hostAvatar, giftName: gift.name, giftIcon: gift.icon, count })
   setTimeout(() => {
     giftFlyers.value = giftFlyers.value.filter((g) => g.id !== fid)
   }, 4000)
@@ -709,6 +372,7 @@ function onSendGift(gift: LiveGift) {
     userName: '我',
     content: `送出 ${gift.name}`,
     type: 'gift',
+    giftInfo: { name: gift.name, icon: gift.icon, count },
   })
   scrollDanmakuToBottom()
   coinBalance.value = Math.max(0, coinBalance.value - gift.price * count)
@@ -722,10 +386,13 @@ function openQuickBuy(p: VerticalLiveProduct) {
 }
 
 function onShare(_key: string) {
+  // @data-needs: 分享渠道调用（uni.share），此处仅关闭面板
   showShare.value = false
 }
 
 function onReport() {
+  // 举报直播间。举报页尚未迁移，先以 toast 占位。
+  // @data-needs: 举报页路由 /pkg-mine/report/index?type=live&targetId={room.id}（待迁移后改为 navigateTo）
   uni.showToast({ title: '举报已提交，感谢反馈', icon: 'none' })
 }
 
@@ -733,7 +400,7 @@ function scrollDanmakuToBottom() {
   danmakuScrollTop.value = danmakuScrollTop.value + 9999
 }
 
-// 模拟实时数据——原型 setInterval 行为，UI 演示用
+// ===== 模拟实时数据（弹幕/系统消息/电商已售）——原型 setInterval 行为，UI 演示用 =====
 // @data-needs: 实际由 WebSocket 推送替换以下定时器
 function startSimulators() {
   const danmakuPool = [
@@ -763,7 +430,7 @@ function startSimulators() {
     }, 4000)
   }, 5000)
 
-  if (room.value?.type === 'commerce') {
+  if (room.value.type === 'commerce') {
     const buyers = ['福气满满', '招财进宝', '玄学新人', '易道弟子']
     saleTimer = setInterval(() => {
       const u = buyers[Math.floor(Math.random() * buyers.length)]
@@ -773,25 +440,9 @@ function startSimulators() {
   }
 }
 
-async function loadData() {
-  if (!roomId.value) return
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await liveApi.roomDetail(roomId.value)
-    room.value = res
-    isFollowing.value = res.isFollowing
-    coinBalance.value = 2680
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
 onLoad((opts) => {
-  if (opts?.id) roomId.value = opts.id
-  loadData()
+  // @data-needs: 根据 opts.id / opts.type 拉取直播间；type=commerce 切换电商模式
+  if (opts?.type === 'commerce') room.value.type = 'commerce'
 })
 
 onMounted(() => {
@@ -817,9 +468,6 @@ onUnmounted(() => {
   overflow: hidden;
   background: #000;
 }
-.loading { display: flex; align-items: center; justify-content: center; padding: 200rpx 0; font-size: 28rpx; color: #fff; background: #000; }
-.err-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; gap: 24rpx; font-size: 28rpx; background: #000; color: #ef4444; }
-.retry-btn { padding: 12rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 999rpx; font-size: 28rpx; }
 
 /* 视频画面占位 */
 .watch__stage {
@@ -832,6 +480,7 @@ onUnmounted(() => {
   inset: 0;
   background: linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.6) 100%);
 }
+/* 直播画面占位（接入推流后移除） */
 .watch__stage-ph {
   position: absolute;
   inset: 0;
@@ -1021,8 +670,8 @@ onUnmounted(() => {
   padding-top: 32rpx;
   background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.6), transparent);
 }
-.watch__bottom-row { display: flex; align-items: center; gap: 24rpx; padding: 0 24rpx 24rpx; }
-.input-box {
+  .watch__bottom-row { display: flex; align-items: center; gap: 24rpx; padding: 0 24rpx 24rpx; }
+  .input-box {
   flex: 0 1 auto;
   width: 288rpx;
   min-width: 0;
@@ -1031,19 +680,19 @@ onUnmounted(() => {
   border: 2rpx solid rgba(255,255,255,0.1);
   border-radius: 999rpx;
   display: flex; align-items: center; justify-content: space-between;
-}
-.input-box__ph { flex: 1; min-width: 0; font-size: 28rpx; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  }
+  .input-box__ph { flex: 1; min-width: 0; font-size: 28rpx; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .input-box__send {
   width: 40rpx; height: 40rpx; border-radius: 50%;
   background: #C41E3A;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.act-btn {
+  .act-btn {
   position: relative;
   width: 80rpx; height: 80rpx; border-radius: 999rpx;
   background: rgba(255,255,255,0.1);
   display: flex; align-items: center; justify-content: center; flex: 0 1 auto; min-width: 0;
-}
+  }
 .act-btn--gift { background: linear-gradient(135deg, rgba(245,158,11,0.3), rgba(249,115,22,0.3)); }
 .act-btn--mic { background: linear-gradient(135deg, rgba(59,130,246,0.3), rgba(6,182,212,0.3)); }
 .act-btn--cart { background: linear-gradient(135deg, rgba(239,68,68,0.3), rgba(236,72,153,0.3)); }

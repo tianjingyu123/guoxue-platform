@@ -1,350 +1,156 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <app-nav-bar
-      title="意见反馈"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="32"
-      :title-weight="500"
-      :bar-height="96"
-      title-align="left"
-    />
+    <app-nav-bar title="意见反馈" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="500" :bar-height="96" title-align="left" />
 
     <!-- Tab切换 -->
     <view class="tabs">
-      <view
-        class="tab"
-        @tap="activeTab = 'submit'"
-      >
-        <text
-          class="tab-text"
-          :class="{ 'tab-active': activeTab === 'submit' }"
-        >
-          提交反馈
-        </text>
-        <view
-          v-if="activeTab === 'submit'"
-          class="tab-line"
-        />
+      <view class="tab" @tap="activeTab = 'submit'">
+        <text class="tab-text" :class="{ 'tab-active': activeTab === 'submit' }">提交反馈</text>
+        <view v-if="activeTab === 'submit'" class="tab-line" />
       </view>
-      <view
-        class="tab"
-        @tap="activeTab = 'history'"
-      >
-        <text
-          class="tab-text"
-          :class="{ 'tab-active': activeTab === 'history' }"
-        >
-          我的反馈
-        </text>
-        <view
-          v-if="activeTab === 'history'"
-          class="tab-line"
-        />
+      <view class="tab" @tap="activeTab = 'history'">
+        <text class="tab-text" :class="{ 'tab-active': activeTab === 'history' }">我的反馈</text>
+        <view v-if="activeTab === 'history'" class="tab-line" />
       </view>
     </view>
 
-    <!-- 加载状态 -->
-    <view
-      v-if="dataLoading"
-      class="load-wrap"
-    >
-      <view class="loading-spinner" />
-      <text class="loading-text">
-        加载中...
-      </text>
-    </view>
-    <!-- 错误状态 -->
-    <view
-      v-else-if="dataError"
-      class="load-wrap"
-    >
-      <text class="load-error-text">
-        {{ dataError }}
-      </text>
-      <view
-        class="retry-btn"
-        @tap="loadData"
-      >
-        <text class="retry-btn-text">
-          重试
-        </text>
-      </view>
-    </view>
-    <template v-else>
-      <!-- 提交反馈 -->
-      <view
-        v-if="activeTab === 'submit'"
-        class="tab-pane"
-      >
-        <!-- 提交成功态 -->
-        <view
-          v-if="submitted"
-          class="success-box"
-        >
-          <view class="success-icon">
-            <AppIcon
-              name="check"
-              :size="64"
-              color="#22c55e"
-            />
-          </view>
-          <text class="success-title">
-            提交成功
-          </text>
-          <text class="success-desc">
-            感谢您的反馈，我们会尽快处理
-          </text>
-          <view
-            class="success-btn"
-            @tap="resetForm"
-          >
-            <text class="success-btn-text">
-              继续反馈
-            </text>
-          </view>
+    <!-- 提交反馈 -->
+    <view v-if="activeTab === 'submit'" class="tab-pane">
+      <!-- 提交成功态 -->
+      <view v-if="submitted" class="success-box">
+        <view class="success-icon">
+          <AppIcon name="check" :size="32" color="#22c55e" />
         </view>
+        <text class="success-title">提交成功</text>
+        <text class="success-desc">感谢您的反馈，我们会尽快处理</text>
+        <view class="success-btn" @tap="resetForm">
+          <text class="success-btn-text">继续反馈</text>
+        </view>
+      </view>
 
-        <!-- 表单 -->
-        <view
-          v-else
-          class="form"
-        >
-          <!-- 反馈类型 -->
-          <view class="field">
-            <text class="field-label">
-              反馈类型
-            </text>
-            <view class="type-grid">
-              <view
-                v-for="type in feedbackTypes"
-                :key="type.id"
-                class="type-cell"
-                :class="{ 'type-active': selectedType === type.id }"
-                @tap="selectedType = type.id"
-              >
-                <view
-                  class="type-icon"
-                  :style="{ background: type.bgColor }"
-                >
-                  <AppIcon
-                    :name="type.icon"
-                    :size="32"
-                    :color="type.color"
-                  />
-                </view>
-                <text class="type-label">
-                  {{ type.label }}
-                </text>
-              </view>
-            </view>
-          </view>
-
-          <!-- 详细描述 -->
-          <view class="field">
-            <text class="field-label">
-              详细描述 <text class="required">
-                *
-              </text>
-            </text>
-            <textarea
-              class="textarea"
-              :value="content"
-              placeholder="请详细描述您遇到的问题或建议，我们会认真处理每一条反馈..."
-              placeholder-class="ph"
-              :maxlength="500"
-              @input="onContentInput"
-            />
-            <text class="char-count">
-              {{ content.length }}/500
-            </text>
-          </view>
-
-          <!-- 上传截图 -->
-          <view class="field">
-            <text class="field-label">
-              上传截图（选填）
-            </text>
-            <view class="img-row">
-              <view
-                v-for="(img, i) in images"
-                :key="i"
-                class="img-cell"
-              >
-                <image
-                  class="img-thumb"
-                  :src="img"
-                  mode="aspectFill"
-                />
-                <view
-                  class="img-del"
-                  @tap="removeImage(i)"
-                >
-                  <AppIcon
-                    name="x"
-                    :size="24"
-                    color="#ffffff"
-                  />
-                </view>
-              </view>
-              <view
-                v-if="images.length < 4"
-                class="img-add"
-                @tap="addImage"
-              >
-                <AppIcon
-                  name="camera"
-                  :size="40"
-                  color="#999999"
-                />
-                <text class="img-add-text">
-                  添加图片
-                </text>
-              </view>
-            </view>
-            <text class="field-hint">
-              最多上传4张图片
-            </text>
-          </view>
-
-          <!-- 联系方式 -->
-          <view class="field">
-            <text class="field-label">
-              联系方式（选填）
-            </text>
-            <input
-              class="input"
-              :value="contact"
-              placeholder="手机号或邮箱，方便我们与您联系"
-              placeholder-class="ph"
-              @input="onContactInput"
+      <!-- 表单 -->
+      <view v-else class="form">
+        <!-- 反馈类型 -->
+        <view class="field">
+          <text class="field-label">反馈类型</text>
+          <view class="type-grid">
+            <view
+              v-for="type in feedbackTypes"
+              :key="type.id"
+              class="type-cell"
+              :class="{ 'type-active': selectedType === type.id }"
+              @tap="selectedType = type.id"
             >
+              <view class="type-icon" :style="{ background: type.bgColor }">
+                <AppIcon :name="type.icon" :size="16" :color="type.color" />
+              </view>
+              <text class="type-label">{{ type.label }}</text>
+            </view>
           </view>
+        </view>
 
-          <!-- 提交按钮 -->
-          <view
-            class="submit-btn"
-            :class="{ 'submit-disabled': !canSubmit || isSubmitting }"
-            @tap="handleSubmit"
-          >
-            <text class="submit-text">
-              {{ isSubmitting ? '提交中...' : '提交反馈' }}
-            </text>
+        <!-- 详细描述 -->
+        <view class="field">
+          <text class="field-label">详细描述 <text class="required">*</text></text>
+          <textarea
+            class="textarea"
+            :value="content"
+            placeholder="请详细描述您遇到的问题或建议，我们会认真处理每一条反馈..."
+            placeholder-class="ph"
+            :maxlength="500"
+            @input="onContentInput"
+          />
+          <text class="char-count">{{ content.length }}/500</text>
+        </view>
+
+        <!-- 上传截图 -->
+        <view class="field">
+          <text class="field-label">上传截图（选填）</text>
+          <view class="img-row">
+            <view v-for="(img, i) in images" :key="i" class="img-cell">
+              <image class="img-thumb" :src="img" mode="aspectFill" />
+              <view class="img-del" @tap="removeImage(i)">
+                <AppIcon name="x" :size="12" color="#ffffff" />
+              </view>
+            </view>
+            <view v-if="images.length < 4" class="img-add" @tap="addImage">
+              <AppIcon name="camera" :size="20" color="#999999" />
+              <text class="img-add-text">添加图片</text>
+            </view>
           </view>
+          <text class="field-hint">最多上传4张图片</text>
+        </view>
+
+        <!-- 联系方式 -->
+        <view class="field">
+          <text class="field-label">联系方式（选填）</text>
+          <input
+            class="input"
+            :value="contact"
+            placeholder="手机号或邮箱，方便我们与您联系"
+            placeholder-class="ph"
+            @input="onContactInput"
+          />
+        </view>
+
+        <!-- 提交按钮 -->
+        <view
+          class="submit-btn"
+          :class="{ 'submit-disabled': !canSubmit || isSubmitting }"
+          @tap="handleSubmit"
+        >
+          <text class="submit-text">{{ isSubmitting ? '提交中...' : '提交反馈' }}</text>
         </view>
       </view>
+    </view>
 
-      <!-- 历史反馈 -->
-      <view
-        v-else
-        class="tab-pane"
-      >
-        <view
-          v-if="historyFeedbacks.length === 0"
-          class="empty-box"
-        >
-          <AppIcon
-            name="message-circle"
-            :size="96"
-            color="#cccccc"
-          />
-          <text class="empty-text">
-            暂无反馈记录
-          </text>
-        </view>
-        <view
-          v-else
-          class="history-list"
-        >
-          <view
-            v-for="item in historyFeedbacks"
-            :key="item.id"
-            class="history-card"
-          >
-            <view class="history-head">
-              <view
-                class="history-icon"
-                :style="{ background: typeOf(item.type)?.bgColor }"
-              >
-                <AppIcon
-                  :name="typeOf(item.type)?.icon || 'help-circle'"
-                  :size="40"
-                  :color="typeOf(item.type)?.color"
-                />
+    <!-- 历史反馈 -->
+    <view v-else class="tab-pane">
+      <view v-if="historyFeedbacks.length === 0" class="empty-box">
+        <AppIcon name="message-circle" :size="48" color="#cccccc" />
+        <text class="empty-text">暂无反馈记录</text>
+      </view>
+      <view v-else class="history-list">
+        <view v-for="item in historyFeedbacks" :key="item.id" class="history-card">
+          <view class="history-head">
+            <view class="history-icon" :style="{ background: typeOf(item.type)?.bgColor }">
+              <AppIcon :name="typeOf(item.type)?.icon || 'help-circle'" :size="20" :color="typeOf(item.type)?.color" />
+            </view>
+            <view class="history-body">
+              <view class="history-title-row">
+                <text class="history-title">{{ item.title }}</text>
+                <view class="status-badge" :style="{ background: statusOf(item.status).bg }">
+                  <text class="status-text" :style="{ color: statusOf(item.status).color }">{{ statusOf(item.status).label }}</text>
+                </view>
               </view>
-              <view class="history-body">
-                <view class="history-title-row">
-                  <text class="history-title">
-                    {{ item.title }}
-                  </text>
-                  <view
-                    class="status-badge"
-                    :style="{ background: statusOf(item.status).bg }"
-                  >
-                    <text
-                      class="status-text"
-                      :style="{ color: statusOf(item.status).color }"
-                    >
-                      {{ statusOf(item.status).label }}
-                    </text>
-                  </view>
-                </view>
-                <text class="history-content">
-                  {{ item.content }}
-                </text>
-                <text class="history-time">
-                  {{ item.time }}
-                </text>
+              <text class="history-content">{{ item.content }}</text>
+              <text class="history-time">{{ item.time }}</text>
 
-                <!-- 官方回复 -->
-                <view
-                  v-if="item.reply"
-                  class="reply-box"
-                >
-                  <text class="reply-label">
-                    官方回复
-                  </text>
-                  <text class="reply-content">
-                    {{ item.reply }}
-                  </text>
-                </view>
+              <!-- 官方回复 -->
+              <view v-if="item.reply" class="reply-box">
+                <text class="reply-label">官方回复</text>
+                <text class="reply-content">{{ item.reply }}</text>
+              </view>
 
-                <!-- 处理中提示 -->
-                <view
-                  v-if="item.status === 'processing'"
-                  class="processing-row"
-                >
-                  <AppIcon
-                    name="clock"
-                    :size="24"
-                    color="#2563eb"
-                  />
-                  <text class="processing-text">
-                    工作人员正在处理中，请耐心等待
-                  </text>
-                </view>
+              <!-- 处理中提示 -->
+              <view v-if="item.status === 'processing'" class="processing-row">
+                <AppIcon name="clock" :size="12" color="#2563eb" />
+                <text class="processing-text">工作人员正在处理中，请耐心等待</text>
               </view>
             </view>
           </view>
         </view>
       </view>
-    </template>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
-import { mineSettingsApi } from '@/lib/mine-data'
-
-// 数据状态
-const dataLoading = ref(true)
-const dataError = ref('')
-const feedbackTypes = ref<any[]>([])
-const feedbackStatusConfig = ref<Record<string, any>>({})
-const historyFeedbacks = ref<any[]>([])
+import { feedbackTypes, feedbackStatusConfig, historyFeedbacks } from '@/lib/mine-data'
 
 // UI 临时状态
 const activeTab = ref<'submit' | 'history'>('submit')
@@ -358,31 +164,11 @@ const submitted = ref(false)
 const canSubmit = computed(() => !!selectedType.value && content.value.trim().length > 0)
 
 function typeOf(id: string) {
-  return feedbackTypes.value.find((t) => t.id === id)
+  return feedbackTypes.find((t) => t.id === id)
 }
 function statusOf(status: string) {
-  return feedbackStatusConfig.value[status] || feedbackStatusConfig.value.pending || { label: '未知', color: '#999', bg: 'rgba(0,0,0,0.05)' }
+  return feedbackStatusConfig[status] || feedbackStatusConfig.pending
 }
-
-async function loadData() {
-  dataLoading.value = true
-  dataError.value = ''
-  try {
-    const [typesRes, historyRes] = await Promise.all([
-      mineSettingsApi.getFeedbackTypes(),
-      mineSettingsApi.getHistoryFeedbacks(),
-    ])
-    feedbackTypes.value = typesRes.types
-    feedbackStatusConfig.value = typesRes.statusConfig
-    historyFeedbacks.value = historyRes
-  } catch {
-    dataError.value = '数据加载失败'
-  } finally {
-    dataLoading.value = false
-  }
-}
-
-onMounted(loadData)
 function onContentInput(e: any) {
   content.value = e.detail.value
 }
@@ -396,22 +182,14 @@ function addImage() {
   // 选图交互交给 @/lib 层(uni.chooseImage)
 }
 
-async function handleSubmit() {
+// @data-needs: 提交意见反馈, 参数 {type, content, contact, images}, 返回 {code, message}
+function handleSubmit() {
   if (!canSubmit.value || isSubmitting.value) return
   isSubmitting.value = true
-  try {
-    await mineSettingsApi.submitFeedback({
-      type: selectedType.value!,
-      content: content.value,
-      contact: contact.value,
-      images: images.value,
-    })
-    submitted.value = true
-  } catch {
-    // 提交失败，可展示 toast
-  } finally {
+  setTimeout(() => {
     isSubmitting.value = false
-  }
+    submitted.value = true
+  }, 1500)
 }
 
 function resetForm() {
@@ -619,44 +397,6 @@ function resetForm() {
 }
 .submit-disabled {
   opacity: 0.5;
-}
-.load-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 160rpx 32rpx;
-}
-.loading-spinner {
-  width: 64rpx;
-  height: 64rpx;
-  border: 6rpx solid #eee;
-  border-top-color: #c41e3a;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin-bottom: 24rpx;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-.loading-text {
-  font-size: 28rpx;
-  color: #999;
-}
-.load-error-text {
-  font-size: 28rpx;
-  color: #ef4444;
-  margin-bottom: 24rpx;
-}
-.retry-btn {
-  padding: 16rpx 48rpx;
-  border-radius: 16rpx;
-  background: #c41e3a;
-}
-.retry-btn-text {
-  font-size: 26rpx;
-  color: #fff;
-  font-weight: 500;
 }
 .submit-text {
   font-size: 30rpx;

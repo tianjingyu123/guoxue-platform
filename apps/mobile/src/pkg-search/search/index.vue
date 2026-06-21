@@ -1,108 +1,51 @@
 <template>
   <view class="search-page">
     <!-- 顶部搜索栏 -->
-    <view
-      class="search-header"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="search-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="search-bar-row">
-        <view
-          class="back-btn"
-          @click="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="var(--text-main)"
-          />
+        <view class="back-btn" @click="goBack">
+          <app-icon name="arrow-left" :size="40" color="var(--text-main)" />
         </view>
         <view class="search-input-wrap">
-          <app-icon
-            name="search"
-            :size="32"
-            color="var(--text-soft)"
-          />
+          <app-icon name="search" :size="32" color="var(--text-soft)" />
           <input
-            v-model="keyword"
             class="search-input"
+            v-model="keyword"
             placeholder="搜索国学课程、文章、命理师"
             placeholder-class="search-input-ph"
             confirm-type="search"
             :focus="autoFocus"
             @confirm="doSearch(keyword)"
-          >
-          <view
-            v-if="keyword"
-            class="clear-btn"
-            @click="keyword = ''"
-          >
-            <app-icon
-              name="x"
-              :size="28"
-              color="var(--text-soft)"
-            />
+          />
+          <view v-if="keyword" class="clear-btn" @click="keyword = ''">
+            <app-icon name="x" :size="28" color="var(--text-soft)" />
           </view>
         </view>
-        <view
-          class="search-action"
-          @click="doSearch(keyword)"
-        >
-          <text class="search-action-text">
-            搜索
-          </text>
+        <view class="search-action" @click="doSearch(keyword)">
+          <text class="search-action-text">搜索</text>
         </view>
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="search-body"
-    >
+    <scroll-view scroll-y class="search-body">
       <!-- AI 智能搜索入口 -->
-      <view
-        class="ai-entry"
-        @click="aiModalOpen = true"
-      >
+      <view class="ai-entry" @click="aiModalOpen = true">
         <view class="ai-entry-icon">
-          <app-icon
-            name="sparkles"
-            :size="36"
-            color="#ffffff"
-          />
+          <app-icon name="sparkles" :size="36" color="#ffffff" />
         </view>
         <view class="ai-entry-text">
-          <text class="ai-entry-title">
-            AI智能搜索
-          </text>
-          <text class="ai-entry-desc">
-            用自然语言提问，获取精准答案
-          </text>
+          <text class="ai-entry-title">AI智能搜索</text>
+          <text class="ai-entry-desc">用自然语言提问，获取精准答案</text>
         </view>
-        <app-icon
-          name="arrow-right"
-          :size="32"
-          color="var(--gold)"
-        />
+        <app-icon name="arrow-right" :size="32" color="var(--gold)" />
       </view>
 
       <!-- 搜索历史 -->
-      <view
-        v-if="historyList.length"
-        class="sec"
-      >
+      <view v-if="historyList.length" class="sec">
         <view class="sec-head">
-          <text class="sec-title">
-            搜索历史
-          </text>
-          <view
-            class="sec-clear"
-            @click="clearHistory"
-          >
-            <app-icon
-              name="trash-2"
-              :size="28"
-              color="var(--text-soft)"
-            />
+          <text class="sec-title">搜索历史</text>
+          <view class="sec-clear" @click="clearHistory">
+            <app-icon name="trash-2" :size="28" color="var(--text-soft)" />
           </view>
         </view>
         <view class="tag-wrap">
@@ -112,9 +55,7 @@
             class="tag tag--history"
             @click="doSearch(h)"
           >
-            <text class="tag-text">
-              {{ h }}
-            </text>
+            <text class="tag-text">{{ h }}</text>
           </view>
         </view>
       </view>
@@ -123,14 +64,8 @@
       <view class="sec">
         <view class="sec-head">
           <view class="sec-title-row">
-            <app-icon
-              name="flame"
-              :size="32"
-              color="#e8743b"
-            />
-            <text class="sec-title">
-              热门搜索
-            </text>
+            <app-icon name="flame" :size="32" color="#e8743b" />
+            <text class="sec-title">热门搜索</text>
           </view>
         </view>
         <view class="hot-list">
@@ -140,31 +75,13 @@
             class="hot-item"
             @click="doSearch(item.keyword)"
           >
-            <text
-              class="hot-rank"
-              :class="{ 'hot-rank--top': idx < 3 }"
-            >
-              {{ idx + 1 }}
-            </text>
-            <text class="hot-keyword">
-              {{ item.keyword }}
-            </text>
-            <view
-              v-if="item.hot"
-              class="hot-badge"
-            >
-              <app-icon
-                name="trending-up"
-                :size="22"
-                color="#e8743b"
-              />
-              <text class="hot-badge-text">
-                热
-              </text>
+            <text class="hot-rank" :class="{ 'hot-rank--top': idx < 3 }">{{ idx + 1 }}</text>
+            <text class="hot-keyword">{{ item.keyword }}</text>
+            <view v-if="item.hot" class="hot-badge">
+              <app-icon name="trending-up" :size="22" color="#e8743b" />
+              <text class="hot-badge-text">热</text>
             </view>
-            <text class="hot-count">
-              {{ item.count }}
-            </text>
+            <text class="hot-count">{{ item.count }}</text>
           </view>
         </view>
       </view>
@@ -172,9 +89,7 @@
       <!-- 猜你想搜 -->
       <view class="sec">
         <view class="sec-head">
-          <text class="sec-title">
-            猜你想搜
-          </text>
+          <text class="sec-title">猜你想搜</text>
         </view>
         <view class="tag-wrap">
           <view
@@ -183,9 +98,7 @@
             class="tag tag--guess"
             @click="doSearch(g)"
           >
-            <text class="tag-text tag-text--guess">
-              {{ g }}
-            </text>
+            <text class="tag-text tag-text--guess">{{ g }}</text>
           </view>
         </view>
       </view>
@@ -194,10 +107,7 @@
     </scroll-view>
 
     <!-- AI 搜索弹窗 -->
-    <ai-search-modal
-      :is-open="aiModalOpen"
-      @close="aiModalOpen = false"
-    />
+    <ai-search-modal :is-open="aiModalOpen" @close="aiModalOpen = false" />
   </view>
 </template>
 

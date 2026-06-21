@@ -26,66 +26,26 @@ function toggleBook() {
 </script>
 
 <template>
-  <view
-    class="lc"
-    hover-class="lc-press"
-    @tap="open"
-  >
+  <view class="lc" hover-class="lc-press" @tap="open">
     <!-- 封面 -->
-    <view
-      class="cover"
-      :class="data.orientation === 'horizontal' ? 'r-169' : 'r-34'"
-    >
-      <image
-        v-if="data.cover"
-        class="cover-img"
-        :src="data.cover"
-        mode="aspectFill"
-      />
+    <view class="cover" :class="data.orientation === 'horizontal' ? 'r-169' : 'r-34'">
+      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
       <view class="grad" />
       <!-- 类型标签 左上 -->
-      <text
-        class="type-badge"
-        :class="data.type === 'knowledge' ? 'tb-know' : 'tb-comm'"
-      >
-        {{ typeLabel }}
-      </text>
+      <text class="type-badge" :class="data.type === 'knowledge' ? 'tb-know' : 'tb-comm'">{{ typeLabel }}</text>
       <!-- 状态标签 右上 -->
-      <view
-        v-if="data.status === 'live'"
-        class="st-badge st-live"
-      >
-        <view class="live-dot" /><text class="st-txt">
-          直播中
-        </text>
+      <view v-if="data.status === 'live'" class="st-badge st-live">
+        <view class="live-dot" /><text class="st-txt">直播中</text>
       </view>
-      <view
-        v-else-if="data.status === 'upcoming'"
-        class="st-badge st-up"
-      >
-        <AppIcon
-          name="clock"
-          :size="20"
-          color="#ffffff"
-        /><text class="st-txt">
-          {{ data.scheduledTime }}
-        </text>
+      <view v-else-if="data.status === 'upcoming'" class="st-badge st-up">
+        <AppIcon name="clock" :size="20" color="#ffffff" /><text class="st-txt">{{ data.scheduledTime }}</text>
       </view>
-      <view
-        v-else
-        class="st-badge st-replay"
-      >
-        <text class="st-txt">
-          {{ data.duration || '回放' }}
-        </text>
+      <view v-else class="st-badge st-replay">
+        <text class="st-txt">{{ data.duration || '回放' }}</text>
       </view>
       <!-- 人数 左下 -->
       <view class="viewers">
-        <AppIcon
-          :name="data.status === 'upcoming' ? 'users' : 'eye'"
-          :size="20"
-          color="rgba(255,255,255,0.8)"
-        />
+        <AppIcon :name="data.status === 'upcoming' ? 'users' : 'eye'" :size="20" color="rgba(255,255,255,0.8)" />
         <text class="viewers-txt">
           {{ data.status === 'live' ? viewerText : data.status === 'upcoming' ? data.viewerCount + '人预约' : data.viewerCount + '次观看' }}
         </text>
@@ -97,67 +57,24 @@ function toggleBook() {
         :class="booked ? 'book-on' : 'book-off'"
         @tap.stop="toggleBook"
       >
-        <AppIcon
-          name="bell"
-          :size="20"
-          color="#ffffff"
-        /><text class="book-txt">
-          {{ booked ? '已预约' : '预约' }}
-        </text>
+        <AppIcon name="bell" :size="20" color="#ffffff" /><text class="book-txt">{{ booked ? '已预约' : '预约' }}</text>
       </view>
     </view>
     <!-- 信息区 -->
     <view class="body">
-      <text class="title">
-        {{ data.title }}
-      </text>
+      <text class="title">{{ data.title }}</text>
       <view class="host">
         <view class="avatar">
-          <image
-            v-if="data.hostAvatar"
-            class="avatar-img"
-            :src="data.hostAvatar"
-            mode="aspectFill"
-          />
-          <text
-            v-else
-            class="avatar-ph"
-          >
-            {{ data.hostName.charAt(0) }}
-          </text>
+          <image v-if="data.hostAvatar" class="avatar-img" :src="data.hostAvatar" mode="aspectFill" />
+          <text v-else class="avatar-ph">{{ data.hostName.charAt(0) }}</text>
         </view>
-        <text class="host-name">
-          {{ data.hostName }}
-        </text>
-        <text
-          v-if="data.priceType === 'paid'"
-          class="price"
-        >
-          ¥{{ data.price }}
-        </text>
-        <text
-          v-else
-          class="free"
-        >
-          免费
-        </text>
+        <text class="host-name">{{ data.hostName }}</text>
+        <text v-if="data.priceType === 'paid'" class="price">¥{{ data.price }}</text>
+        <text v-else class="free">免费</text>
       </view>
-      <view
-        v-if="showSecondRow"
-        class="sub-row"
-      >
-        <text
-          v-if="data.circleFree"
-          class="circle-free"
-        >
-          圈内免费
-        </text>
-        <text
-          v-if="data.type === 'commerce' && data.productCount"
-          class="goods"
-        >
-          {{ data.productCount }}件好物
-        </text>
+      <view v-if="showSecondRow" class="sub-row">
+        <text v-if="data.circleFree" class="circle-free">圈内免费</text>
+        <text v-if="data.type === 'commerce' && data.productCount" class="goods">{{ data.productCount }}件好物</text>
       </view>
     </view>
   </view>

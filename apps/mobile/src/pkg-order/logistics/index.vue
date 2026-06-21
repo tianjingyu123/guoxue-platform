@@ -1,128 +1,60 @@
 <template>
   <view class="page">
-    <app-nav-bar
-      title="物流详情"
-      :back-size="40"
-      :title-size="36"
-      :bar-height="106"
-      title-align="left"
-    />
+    <app-nav-bar title="物流详情" :back-size="40" :title-size="36" :bar-height="106" title-align="left" />
 
-    <scroll-view
-      scroll-y
-      class="scroll-area"
-    >
+    <scroll-view scroll-y class="scroll-area">
       <!-- 物流状态卡 -->
       <view class="status-card">
         <view class="status-head">
           <view class="status-icon">
-            <app-icon
-              name="truck"
-              :size="48"
-              color="#FFFFFF"
-            />
+            <app-icon name="truck" :size="48" color="#FFFFFF" />
           </view>
           <view class="status-info">
-            <text
-              class="status-name"
-              :style="{ color: statusMeta.color }"
-            >
-              {{ statusMeta.label }}
-            </text>
-            <text class="status-est">
-              预计 {{ data.estimatedDelivery }} 送达
-            </text>
+            <text class="status-name" :style="{ color: statusMeta.color }">{{ statusMeta.label }}</text>
+            <text class="status-est">预计 {{ data.estimatedDelivery }} 送达</text>
           </view>
         </view>
         <view class="company-row">
           <view class="company-item">
-            <text class="company-label">
-              承运
-            </text>
-            <text class="company-value">
-              {{ data.company }}
-            </text>
+            <text class="company-label">承运</text>
+            <text class="company-value">{{ data.company }}</text>
           </view>
           <view class="company-item">
-            <text class="company-label">
-              单号
-            </text>
-            <text class="company-value">
-              {{ data.trackingNo }}
-            </text>
+            <text class="company-label">单号</text>
+            <text class="company-value">{{ data.trackingNo }}</text>
           </view>
-          <view
-            class="copy-btn"
-            @tap="copyNo"
-          >
-            <app-icon
-              name="copy"
-              :size="28"
-              color="#C41E3A"
-            />
-            <text class="copy-text">
-              复制
-            </text>
+          <view class="copy-btn" @tap="copyNo">
+            <app-icon name="copy" :size="28" color="#C41E3A" />
+            <text class="copy-text">复制</text>
           </view>
         </view>
         <view class="action-row">
-          <view
-            class="action-btn"
-            @tap="callCompany"
-          >
-            <app-icon
-              name="phone"
-              :size="28"
-              color="#666666"
-            />
-            <text class="action-text">
-              联系快递公司
-            </text>
+          <view class="action-btn" @tap="callCompany">
+            <app-icon name="phone" :size="28" color="#666666" />
+            <text class="action-text">联系快递公司</text>
           </view>
-          <view
-            v-if="data.courierPhone"
-            class="action-btn"
-            @tap="callCourier"
-          >
-            <app-icon
-              name="user"
-              :size="28"
-              color="#666666"
-            />
-            <text class="action-text">
-              联系快递员 {{ data.courierName }}
-            </text>
+          <view v-if="data.courierPhone" class="action-btn" @tap="callCourier">
+            <app-icon name="user" :size="28" color="#666666" />
+            <text class="action-text">联系快递员 {{ data.courierName }}</text>
           </view>
         </view>
       </view>
 
       <!-- 收货信息 -->
       <view class="receiver-card">
-        <app-icon
-          name="map-pin"
-          :size="36"
-          color="#C41E3A"
-        />
+        <app-icon name="map-pin" :size="36" color="#C41E3A" />
         <view class="receiver-info">
           <view class="receiver-head">
-            <text class="receiver-name">
-              {{ data.receiver.name }}
-            </text>
-            <text class="receiver-phone">
-              {{ data.receiver.phone }}
-            </text>
+            <text class="receiver-name">{{ data.receiver.name }}</text>
+            <text class="receiver-phone">{{ data.receiver.phone }}</text>
           </view>
-          <text class="receiver-addr">
-            {{ data.receiver.address }}
-          </text>
+          <text class="receiver-addr">{{ data.receiver.address }}</text>
         </view>
       </view>
 
       <!-- 物流轨迹时间轴 -->
       <view class="track-card">
-        <text class="track-title">
-          物流轨迹
-        </text>
+        <text class="track-title">物流轨迹</text>
         <view class="timeline">
           <view
             v-for="(t, idx) in data.tracks"
@@ -130,36 +62,16 @@
             class="track-node"
           >
             <view class="track-line-col">
-              <view
-                class="track-dot"
-                :class="{ current: t.isCurrent }"
-              >
-                <app-icon
-                  v-if="t.isCurrent"
-                  name="truck"
-                  :size="24"
-                  color="#FFFFFF"
-                />
+              <view class="track-dot" :class="{ current: t.isCurrent }">
+                <app-icon v-if="t.isCurrent" name="truck" :size="24" color="#FFFFFF" />
               </view>
-              <view
-                v-if="idx < data.tracks.length - 1"
-                class="track-line"
-              />
+              <view v-if="idx < data.tracks.length - 1" class="track-line" />
             </view>
             <view class="track-body">
-              <text
-                class="track-desc"
-                :class="{ current: t.isCurrent }"
-              >
-                {{ t.description }}
-              </text>
+              <text class="track-desc" :class="{ current: t.isCurrent }">{{ t.description }}</text>
               <view class="track-meta">
-                <text class="track-loc">
-                  {{ t.location }}
-                </text>
-                <text class="track-time">
-                  {{ t.time }}
-                </text>
+                <text class="track-loc">{{ t.location }}</text>
+                <text class="track-time">{{ t.time }}</text>
               </view>
             </view>
           </view>
@@ -173,30 +85,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
-import { orderApi, logisticsStatusMap } from '@/lib/order-data'
+import { mockLogistics as logisticsDetail, logisticsStatusMap } from '@/lib/order-data'
 
-const data = ref({
-  orderId: '', orderNo: '', company: '', companyPhone: '', trackingNo: '',
-  status: 'in_transit', estimatedDelivery: '',
-  courierName: '', courierPhone: '',
-  receiver: { name: '', phone: '', address: '' },
-  tracks: [] as any[],
-})
+const data = ref(logisticsDetail)
 const statusMeta = computed(
   () => logisticsStatusMap[data.value.status] || { label: '运输中', color: '#C41E3A' },
 )
-const loadError = ref(false)
-
-onLoad(async (opts: any) => {
-  try {
-    const orderId = opts?.orderId || '1'
-    const res = await orderApi.getLogistics(orderId)
-    data.value = res
-  } catch (e) {
-    loadError.value = true
-  }
-})
 
 function copyNo() {
   uni.setClipboardData({

@@ -1,3 +1,4 @@
+import { apiGet, useMock } from '@/utils/request'
 import type { CoverColor } from '@/lib/classics-cover'
 
 // ===================== 首页 classics/home =====================
@@ -592,44 +593,17 @@ export const notesData: NoteItem[] = [
   { id: '2', bookId: '2', bookTitle: '道德经', bookAuthor: '老子', dynasty: '春秋', chapter: '第一章', originalText: '道可道，非常道。名可名，非常名。', noteContent: "老子开篇即点明'道'的不可言说性。真正的大道是超越语言文字的，任何试图用语言定义的'道'都不是永恒的道。这与佛教'不可说'的理念相通。", tags: ['道家', '哲学'], page: 1, createdAt: '2024-01-14 10:15', updatedAt: '2024-01-14 10:15' },
   { id: '3', bookId: '3', bookTitle: '论语', bookAuthor: '孔子门人', dynasty: '春秋', chapter: '学而篇', originalText: '学而时习之，不亦说乎？', noteContent: "学习不仅是获取知识，更重要的是'时习'——在合适的时机反复实践。'说'通'悦'，是内心深处的喜悦。", tags: ['学习方法', '儒家'], page: 5, createdAt: '2024-01-13 09:00', updatedAt: '2024-01-13 11:30' },
 ]
-import { apiGet, useMock } from '@/utils/request'
 
-// ============================================
-// API 层（所有页面必须通过此层获取数据）
-// ============================================
+// ── API ──
 export const classicsApi = {
-  async home() {
-    if (useMock()) return { libraryStats, categories, todayFeature, lastReading, weeklyMinutes, bookLists, rankingData, audioBooks, featuredBooks, filterTypes }
-    try { const data = await apiGet<any>('/classics/home'); return { libraryStats: data.libraryStats || libraryStats, categories: data.categories || categories, todayFeature: data.todayFeature || todayFeature, lastReading: data.lastReading || lastReading, weeklyMinutes: data.weeklyMinutes ?? weeklyMinutes, bookLists: data.bookLists || bookLists, rankingData: data.rankingData || rankingData, audioBooks: data.audioBooks || audioBooks, featuredBooks: data.featuredBooks || featuredBooks, filterTypes: data.filterTypes || filterTypes } }
-    catch { return { libraryStats, categories, todayFeature, lastReading, weeklyMinutes, bookLists, rankingData, audioBooks, featuredBooks, filterTypes } }
+  /** 古籍列表 GET /classic */
+  async list(params?: Record<string, any>): Promise<any[]> {
+    if (useMock()) return []
+    try { return await apiGet<any[]>(`/classic${params ? '?' + new URLSearchParams(params).toString() : ''}`) } catch { return [] }
   },
-  async category(catId: string) {
-    if (useMock()) return { config: CAT_CONFIG[catId as CatId], books: CAT_BOOKS[catId as CatId] || [], filterTypes }
-    try { const data = await apiGet<any>(`/classics/categories/${catId}`); return { config: data.config || CAT_CONFIG[catId as CatId], books: data.books || CAT_BOOKS[catId as CatId] || [], filterTypes: data.filterTypes || filterTypes } }
-    catch { return { config: CAT_CONFIG[catId as CatId], books: CAT_BOOKS[catId as CatId] || [], filterTypes } }
+  /** 古籍详情 GET /classic/:id */
+  async detail(id: string): Promise<any> {
+    if (useMock()) return null
+    try { return await apiGet<any>(`/classic/${id}`) } catch { return null }
   },
-  async search(keyword: string) {
-    if (useMock()) return { results: searchResultsData, suggestions: searchSuggestionsData, hotSearches: hotSearchData, history: searchHistoryData }
-    try { const data = await apiGet<any>(`/classics/search?q=${encodeURIComponent(keyword)}`); return { results: data.results || searchResultsData, suggestions: data.suggestions || searchSuggestionsData, hotSearches: data.hotSearches || hotSearchData, history: data.history || searchHistoryData } }
-    catch { return { results: searchResultsData, suggestions: searchSuggestionsData, hotSearches: hotSearchData, history: searchHistoryData } }
-  },
-  async detail(id: string) {
-    if (useMock()) return { book: bookData[id], aiFeatures: AI_FEATURES, discussions: bookDiscussions }
-    try { const data = await apiGet<any>(`/classics/${id}`); return { book: data.book || bookData[id], aiFeatures: data.aiFeatures || AI_FEATURES, discussions: data.discussions || bookDiscussions } }
-    catch { return { book: bookData[id], aiFeatures: AI_FEATURES, discussions: bookDiscussions } }
-  },
-  async bookshelf() {
-    if (useMock()) return { shelfBooks: bookshelfData, groups: groupsData, readingHistory: readingHistoryData }
-    try { const data = await apiGet<any>('/classics/bookshelf'); return { shelfBooks: data.shelfBooks || bookshelfData, groups: data.groups || groupsData, readingHistory: data.readingHistory || readingHistoryData } }
-    catch { return { shelfBooks: bookshelfData, groups: groupsData, readingHistory: readingHistoryData } }
-  },
-  async audiobooks() { return { items: mockAudioBooks } },
-  async audiobookDetail(id: string) { return { detail: audioBookPlayerData[id] || audioBookPlayerData.default } },
-  async ranking() { return { books: rankingPageBooks, tabs: rankTabs } },
-  async lists() { return { items: listsPageData } },
-  async collections() { return { items: mockCollections, typeMeta: collectionTypeMeta, filters: collectionFilters } },
-  async collection(id: string) { return { detail: collectionsDetailData[id] } },
-  async bookmarks() { return { items: bookmarksData } },
-  async notes() { return { items: notesData } },
-  async aiAssistant() { return { features: AI_FEATURES } },
 }

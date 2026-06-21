@@ -1,45 +1,24 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view
-      class="nav"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
         <view class="nav-left">
-          <view
-            class="nav-btn"
-            @tap="onBack"
-          >
-            <AppIcon
-              name="chevron-left"
-              :size="40"
-              color="#2C2C2C"
-            />
+          <view class="nav-btn" @tap="onBack">
+            <AppIcon name="chevron-left" :size="40" color="#2C2C2C" />
           </view>
-          <text class="nav-title">
-            OBS推流设置
-          </text>
+          <text class="nav-title">OBS推流设置</text>
         </view>
         <view class="nav-dl">
-          <AppIcon
-            name="external-link"
-            :size="28"
-            color="#666"
-          />
-          <text class="nav-dl-txt">
-            下载OBS
-          </text>
+          <AppIcon name="external-link" :size="28" color="#666" />
+          <text class="nav-dl-txt">下载OBS</text>
         </view>
       </view>
     </view>
 
     <view class="body">
       <!-- 推流状态卡片 -->
-      <view
-        class="card status-card"
-        :class="statusClass"
-      >
+      <view class="card status-card" :class="statusClass">
         <view class="status-head">
           <view class="status-left">
             <AppIcon
@@ -48,17 +27,10 @@
               :color="streamStatus === 'online' ? '#16a34a' : streamStatus === 'connecting' ? '#f59e0b' : '#999'"
               :class="{ pulse: streamStatus === 'connecting' }"
             />
-            <text class="status-title">
-              推流状态
-            </text>
+            <text class="status-title">推流状态</text>
           </view>
-          <view
-            class="status-badge"
-            :class="statusClass"
-          >
-            <text class="status-badge-txt">
-              {{ statusText }}
-            </text>
+          <view class="status-badge" :class="statusClass">
+            <text class="status-badge-txt">{{ statusText }}</text>
           </view>
         </view>
 
@@ -66,85 +38,43 @@
           <view class="stat-grid">
             <view class="stat-item">
               <view class="stat-label">
-                <AppIcon
-                  name="clock"
-                  :size="24"
-                  color="#999"
-                />
-                <text class="stat-label-txt">
-                  时长
-                </text>
+                <AppIcon name="clock" :size="24" color="#999" />
+                <text class="stat-label-txt">时长</text>
               </view>
-              <text class="stat-value mono">
-                {{ formatDuration(duration) }}
-              </text>
+              <text class="stat-value mono">{{ formatDuration(duration) }}</text>
             </view>
             <view class="stat-item">
               <view class="stat-label">
-                <AppIcon
-                  name="activity"
-                  :size="24"
-                  color="#999"
-                />
-                <text class="stat-label-txt">
-                  帧率
-                </text>
+                <AppIcon name="activity" :size="24" color="#999" />
+                <text class="stat-label-txt">帧率</text>
               </view>
-              <text class="stat-value">
-                {{ stream.fps }} fps
-              </text>
+              <text class="stat-value">{{ stream.fps }} fps</text>
             </view>
             <view class="stat-item">
               <view class="stat-label">
-                <AppIcon
-                  name="gauge"
-                  :size="24"
-                  color="#999"
-                />
-                <text class="stat-label-txt">
-                  码率
-                </text>
+                <AppIcon name="gauge" :size="24" color="#999" />
+                <text class="stat-label-txt">码率</text>
               </view>
-              <text class="stat-value">
-                {{ stream.bitrate }} kbps
-              </text>
+              <text class="stat-value">{{ stream.bitrate }} kbps</text>
             </view>
             <view class="stat-item">
               <view class="stat-label">
-                <AppIcon
-                  name="monitor"
-                  :size="24"
-                  color="#999"
-                />
-                <text class="stat-label-txt">
-                  分辨率
-                </text>
+                <AppIcon name="monitor" :size="24" color="#999" />
+                <text class="stat-label-txt">分辨率</text>
               </view>
-              <text class="stat-value">
-                {{ stream.resolution }}
-              </text>
+              <text class="stat-value">{{ stream.resolution }}</text>
             </view>
           </view>
           <view class="drop-row">
-            <text class="drop-label">
-              丢帧率
-            </text>
-            <text
-              class="drop-value"
-              :class="{ good: dropRate < 0.001 }"
-            >
+            <text class="drop-label">丢帧率</text>
+            <text class="drop-value" :class="{ good: dropRate < 0.001 }">
               {{ (dropRate * 100).toFixed(3) }}%
-              <text class="drop-frames">
-                ({{ stream.droppedFrames }}帧)
-              </text>
+              <text class="drop-frames">({{ stream.droppedFrames }}帧)</text>
             </text>
           </view>
         </template>
 
-        <text
-          v-else-if="streamStatus === 'offline'"
-          class="status-offline-tip"
-        >
+        <text v-else-if="streamStatus === 'offline'" class="status-offline-tip">
           当前未检测到推流，请在OBS中开始推流
         </text>
       </view>
@@ -152,89 +82,43 @@
       <!-- 推流配置信息 -->
       <view class="card">
         <view class="card-head">
-          <AppIcon
-            name="settings"
-            :size="32"
-            color="#C41E3A"
-          />
-          <text class="card-head-txt">
-            推流配置信息
-          </text>
+          <AppIcon name="settings" :size="32" color="#C41E3A" />
+          <text class="card-head-txt">推流配置信息</text>
         </view>
 
         <!-- 服务器地址 -->
         <view class="field">
-          <text class="field-label">
-            服务器地址（Server URL）
-          </text>
+          <text class="field-label">服务器地址（Server URL）</text>
           <view class="field-row">
-            <view class="field-value mono">
-              {{ stream.serverUrl }}
-            </view>
-            <view
-              class="field-btn"
-              @tap="copyField(stream.serverUrl, 'server')"
-            >
-              <AppIcon
-                :name="copiedField === 'server' ? 'check' : 'copy'"
-                :size="32"
-                :color="copiedField === 'server' ? '#16a34a' : '#666'"
-              />
+            <view class="field-value mono">{{ stream.serverUrl }}</view>
+            <view class="field-btn" @tap="copyField(stream.serverUrl, 'server')">
+              <AppIcon :name="copiedField === 'server' ? 'check' : 'copy'" :size="32" :color="copiedField === 'server' ? '#16a34a' : '#666'" />
             </view>
           </view>
         </view>
 
         <!-- 串流密钥 -->
         <view class="field">
-          <text class="field-label">
-            串流密钥（Stream Key）
-          </text>
+          <text class="field-label">串流密钥（Stream Key）</text>
           <view class="field-row">
             <view class="field-value-wrap">
-              <view class="field-value mono">
-                {{ showKey ? stream.streamKey : maskedKey }}
-              </view>
-              <view
-                class="field-eye"
-                @tap="showKey = !showKey"
-              >
-                <AppIcon
-                  :name="showKey ? 'eye-off' : 'eye'"
-                  :size="32"
-                  color="#999"
-                />
+              <view class="field-value mono">{{ showKey ? stream.streamKey : maskedKey }}</view>
+              <view class="field-eye" @tap="showKey = !showKey">
+                <AppIcon :name="showKey ? 'eye-off' : 'eye'" :size="32" color="#999" />
               </view>
             </view>
-            <view
-              class="field-btn"
-              @tap="copyField(stream.streamKey, 'key')"
-            >
-              <AppIcon
-                :name="copiedField === 'key' ? 'check' : 'copy'"
-                :size="32"
-                :color="copiedField === 'key' ? '#16a34a' : '#666'"
-              />
+            <view class="field-btn" @tap="copyField(stream.streamKey, 'key')">
+              <AppIcon :name="copiedField === 'key' ? 'check' : 'copy'" :size="32" :color="copiedField === 'key' ? '#16a34a' : '#666'" />
             </view>
           </view>
         </view>
 
         <!-- 重新生成 -->
         <view class="reset-row">
-          <text class="reset-tip">
-            密钥泄露？点击重新生成
-          </text>
-          <view
-            class="reset-btn"
-            @tap="showResetDialog = true"
-          >
-            <AppIcon
-              name="refresh-cw"
-              :size="28"
-              color="#2C2C2C"
-            />
-            <text class="reset-btn-txt">
-              重新生成
-            </text>
+          <text class="reset-tip">密钥泄露？点击重新生成</text>
+          <view class="reset-btn" @tap="showResetDialog = true">
+            <AppIcon name="refresh-cw" :size="28" color="#2C2C2C" />
+            <text class="reset-btn-txt">重新生成</text>
           </view>
         </view>
       </view>
@@ -242,49 +126,25 @@
       <!-- OBS配置指南 -->
       <view class="card">
         <view class="card-head">
-          <AppIcon
-            name="info"
-            :size="32"
-            color="#3b82f6"
-          />
-          <text class="card-head-txt">
-            OBS配置指南
-          </text>
+          <AppIcon name="info" :size="32" color="#3b82f6" />
+          <text class="card-head-txt">OBS配置指南</text>
         </view>
         <view class="steps">
-          <view
-            v-for="item in obsSteps"
-            :key="item.step"
-            class="step-row"
-          >
+          <view v-for="item in obsSteps" :key="item.step" class="step-row">
             <view class="step-num">
-              <text class="step-num-txt">
-                {{ item.step }}
-              </text>
+              <text class="step-num-txt">{{ item.step }}</text>
             </view>
             <view class="step-info">
-              <text class="step-title">
-                {{ item.title }}
-              </text>
-              <text class="step-desc">
-                {{ item.desc }}
-              </text>
+              <text class="step-title">{{ item.title }}</text>
+              <text class="step-desc">{{ item.desc }}</text>
             </view>
           </view>
         </view>
         <view class="warn-box">
-          <AppIcon
-            name="alert-triangle"
-            :size="32"
-            color="#f59e0b"
-          />
+          <AppIcon name="alert-triangle" :size="32" color="#f59e0b" />
           <view class="warn-text">
-            <text class="warn-title">
-              安全提示
-            </text>
-            <text class="warn-desc">
-              请勿将串流密钥分享给他人，泄露可能导致直播间被盗用。如已泄露，请立即重新生成。
-            </text>
+            <text class="warn-title">安全提示</text>
+            <text class="warn-desc">请勿将串流密钥分享给他人，泄露可能导致直播间被盗用。如已泄露，请立即重新生成。</text>
           </view>
         </view>
       </view>
@@ -292,18 +152,10 @@
       <!-- 画质配置建议 -->
       <view class="card">
         <view class="card-head">
-          <AppIcon
-            name="zap"
-            :size="32"
-            color="#f59e0b"
-          />
-          <text class="card-head-txt">
-            画质配置建议
-          </text>
+          <AppIcon name="zap" :size="32" color="#f59e0b" />
+          <text class="card-head-txt">画质配置建议</text>
         </view>
-        <text class="card-sub">
-          根据您的网络情况选择合适的画质配置
-        </text>
+        <text class="card-sub">根据您的网络情况选择合适的画质配置</text>
 
         <view class="quality-list">
           <view
@@ -315,65 +167,32 @@
           >
             <view class="quality-head">
               <view class="quality-name-row">
-                <text class="quality-name">
-                  {{ preset.name }}
-                </text>
-                <view
-                  v-if="preset.recommended"
-                  class="quality-rec"
-                >
-                  <text class="quality-rec-txt">
-                    推荐
-                  </text>
+                <text class="quality-name">{{ preset.name }}</text>
+                <view v-if="preset.recommended" class="quality-rec">
+                  <text class="quality-rec-txt">推荐</text>
                 </view>
               </view>
-              <view
-                class="quality-radio"
-                :class="{ active: selectedQuality === preset.id }"
-              >
-                <AppIcon
-                  v-if="selectedQuality === preset.id"
-                  name="check"
-                  :size="24"
-                  color="#fff"
-                />
+              <view class="quality-radio" :class="{ active: selectedQuality === preset.id }">
+                <AppIcon v-if="selectedQuality === preset.id" name="check" :size="24" color="#fff" />
               </view>
             </view>
-            <text class="quality-desc">
-              {{ preset.desc }}
-            </text>
+            <text class="quality-desc">{{ preset.desc }}</text>
             <view class="quality-grid">
               <view class="quality-cell">
-                <text class="quality-cell-label">
-                  分辨率
-                </text>
-                <text class="quality-cell-value">
-                  {{ preset.resolution }}
-                </text>
+                <text class="quality-cell-label">分辨率</text>
+                <text class="quality-cell-value">{{ preset.resolution }}</text>
               </view>
               <view class="quality-cell">
-                <text class="quality-cell-label">
-                  码率
-                </text>
-                <text class="quality-cell-value">
-                  {{ preset.bitrate }}
-                </text>
+                <text class="quality-cell-label">码率</text>
+                <text class="quality-cell-value">{{ preset.bitrate }}</text>
               </view>
               <view class="quality-cell">
-                <text class="quality-cell-label">
-                  帧率
-                </text>
-                <text class="quality-cell-value">
-                  {{ preset.fps }}fps
-                </text>
+                <text class="quality-cell-label">帧率</text>
+                <text class="quality-cell-value">{{ preset.fps }}fps</text>
               </view>
               <view class="quality-cell">
-                <text class="quality-cell-label">
-                  网络要求
-                </text>
-                <text class="quality-cell-value">
-                  {{ preset.network }}
-                </text>
+                <text class="quality-cell-label">网络要求</text>
+                <text class="quality-cell-value">{{ preset.network }}</text>
               </view>
             </view>
           </view>
@@ -381,19 +200,11 @@
 
         <view class="speed-row">
           <view class="speed-left">
-            <AppIcon
-              name="signal"
-              :size="32"
-              color="#C41E3A"
-            />
-            <text class="speed-txt">
-              不确定网络情况？
-            </text>
+            <AppIcon name="signal" :size="32" color="#C41E3A" />
+            <text class="speed-txt">不确定网络情况？</text>
           </view>
           <view class="speed-btn">
-            <text class="speed-btn-txt">
-              测试网速
-            </text>
+            <text class="speed-btn-txt">测试网速</text>
           </view>
         </view>
       </view>
@@ -401,14 +212,8 @@
       <!-- OBS输出设置参考 -->
       <view class="card">
         <view class="card-head">
-          <AppIcon
-            name="monitor"
-            :size="32"
-            color="#06b6d4"
-          />
-          <text class="card-head-txt">
-            OBS输出设置参考
-          </text>
+          <AppIcon name="monitor" :size="32" color="#06b6d4" />
+          <text class="card-head-txt">OBS输出设置参考</text>
         </view>
         <view class="output-list">
           <view
@@ -417,86 +222,38 @@
             class="output-row"
             :class="{ last: idx === outputSettings.length - 1 }"
           >
-            <text class="output-label">
-              {{ item.label }}
-            </text>
-            <text class="output-value">
-              {{ item.value }}
-            </text>
+            <text class="output-label">{{ item.label }}</text>
+            <text class="output-value">{{ item.value }}</text>
           </view>
         </view>
       </view>
 
       <!-- 常见问题 -->
       <view class="card">
-        <text class="faq-title">
-          常见问题
-        </text>
+        <text class="faq-title">常见问题</text>
         <view class="faq-list">
-          <view
-            v-for="(item, idx) in faq"
-            :key="idx"
-            class="faq-item"
-          >
-            <view
-              class="faq-q"
-              @tap="toggleFaq(idx)"
-            >
-              <text class="faq-q-txt">
-                {{ item.q }}
-              </text>
-              <AppIcon
-                name="chevron-left"
-                :size="32"
-                color="#999"
-                :class="openFaq === idx ? 'rot-up' : 'rot-down'"
-              />
+          <view v-for="(item, idx) in faq" :key="idx" class="faq-item">
+            <view class="faq-q" @tap="toggleFaq(idx)">
+              <text class="faq-q-txt">{{ item.q }}</text>
+              <AppIcon name="chevron-left" :size="32" color="#999" :class="openFaq === idx ? 'rot-up' : 'rot-down'" />
             </view>
-            <text
-              v-if="openFaq === idx"
-              class="faq-a"
-            >
-              {{ item.a }}
-            </text>
+            <text v-if="openFaq === idx" class="faq-a">{{ item.a }}</text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 重新生成确认对话框 -->
-    <view
-      v-if="showResetDialog"
-      class="dialog-mask"
-      @tap="closeReset"
-    >
-      <view
-        class="dialog"
-        @tap.stop
-      >
-        <text class="dialog-title">
-          重新生成串流密钥？
-        </text>
-        <text class="dialog-desc">
-          重新生成后，旧密钥将立即失效。如果正在推流，将会断开连接，需要使用新密钥重新配置OBS。
-        </text>
+    <view v-if="showResetDialog" class="dialog-mask" @tap="closeReset">
+      <view class="dialog" @tap.stop>
+        <text class="dialog-title">重新生成串流密钥？</text>
+        <text class="dialog-desc">重新生成后，旧密钥将立即失效。如果正在推流，将会断开连接，需要使用新密钥重新配置OBS。</text>
         <view class="dialog-foot">
-          <view
-            class="dialog-btn cancel"
-            :class="{ disabled: isResetting }"
-            @tap="closeReset"
-          >
-            <text class="dialog-btn-txt">
-              取消
-            </text>
+          <view class="dialog-btn cancel" :class="{ disabled: isResetting }" @tap="closeReset">
+            <text class="dialog-btn-txt">取消</text>
           </view>
-          <view
-            class="dialog-btn confirm"
-            :class="{ disabled: isResetting }"
-            @tap="handleResetKey"
-          >
-            <text class="dialog-btn-txt confirm-txt">
-              {{ isResetting ? '生成中...' : '确认重新生成' }}
-            </text>
+          <view class="dialog-btn confirm" :class="{ disabled: isResetting }" @tap="handleResetKey">
+            <text class="dialog-btn-txt confirm-txt">{{ isResetting ? '生成中...' : '确认重新生成' }}</text>
           </view>
         </view>
       </view>
@@ -509,38 +266,28 @@ import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { liveApi } from '@/lib/live-data'
+import {
+  obsStreamData,
+  obsQualityPresets,
+  obsPageSteps,
+  obsOutputSettings,
+  obsPageFaq,
+} from '@/lib/live-data'
 
 const statusBarHeight = ref(0)
-const stream = ref<any>({ status: '', duration: 0, fps: 0, bitrate: 0, resolution: '', droppedFrames: 0, totalFrames: 0, serverUrl: '', streamKey: '' })
-const obsSteps = ref<any[]>([])
-const qualityPresets = ref<any[]>([])
-const outputSettings = ref<any[]>([])
-const faq = ref<any[]>([])
-const loading = ref(true)
+const stream = ref(obsStreamData)
+const obsSteps = ref(obsPageSteps)
+const qualityPresets = ref(obsQualityPresets)
+const outputSettings = ref(obsOutputSettings)
+const faq = ref(obsPageFaq)
 
 const showKey = ref(false)
 const copiedField = ref<string | null>(null)
 const showResetDialog = ref(false)
 const isResetting = ref(false)
 const selectedQuality = ref('high')
-const streamStatus = ref('')
-const duration = ref(0)
-
-onLoad(async () => {
-  try {
-    loading.value = true
-    const data = await liveApi.getObsPage()
-    stream.value = data.stream
-    obsSteps.value = data.steps
-    qualityPresets.value = data.qualityPresets
-    outputSettings.value = data.outputSettings
-    faq.value = data.faq
-    streamStatus.value = data.stream.status
-    duration.value = data.stream.duration
-  } catch (e) { /* useMock fallback */ }
-  finally { loading.value = false }
-})
+const streamStatus = ref(obsStreamData.status)
+const duration = ref(obsStreamData.duration)
 const openFaq = ref<number | null>(null)
 
 let timer: ReturnType<typeof setInterval> | null = null

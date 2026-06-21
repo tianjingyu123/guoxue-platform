@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { classicsApi, type AudioBookDetail } from '@/lib/classics-data'
+import { audioBookPlayerData } from '@/lib/classics-data'
 
 const bookId = ref('default')
-const book = ref<AudioBookDetail>({
-  title: '', author: '', narrator: '', dynasty: '', chapters: [],
-})
+const book = computed(() => audioBookPlayerData[bookId.value] || audioBookPlayerData.default)
 
 const isPlaying = ref(false)
 const progress = ref(0)
@@ -15,10 +13,7 @@ const speed = ref(1)
 const liked = ref(false)
 const showChapters = ref(false)
 
-const chapter = computed(() => {
-  if (!book.value) return { title: '', duration: '' }
-  return book.value.chapters[currentChapter.value]
-})
+const chapter = computed(() => book.value.chapters[currentChapter.value])
 
 const curMin = computed(() => Math.floor((progress.value / 100) * 8))
 const curSec = computed(() =>
@@ -36,10 +31,8 @@ watch(isPlaying, (playing) => {
 })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 
-onLoad(async (q) => {
+onLoad((q) => {
   if (q && q.id) bookId.value = q.id
-  const res = await classicsApi.audiobookDetail(bookId.value)
-  book.value = res.detail
 })
 
 function goBack() {
@@ -73,71 +66,40 @@ function nextChapter() {
     <view class="ap-header">
       <view class="ap-statusbar" />
       <view class="ap-header-inner">
-        <view
-          class="ap-circle-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#2c2c2c"
-          />
+        <view class="ap-circle-btn" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#2c2c2c" />
         </view>
-        <text class="ap-header-title">
-          听书
-        </text>
+        <text class="ap-header-title">听书</text>
         <view class="ap-circle-btn">
-          <app-icon
-            name="share-2"
-            :size="40"
-            color="#2c2c2c"
-          />
+          <app-icon name="share-2" :size="40" color="#2c2c2c" />
         </view>
       </view>
     </view>
 
     <view class="ap-main">
       <!-- 旋转唱片封面 -->
-      <view
-        class="ap-disc"
-        :class="{ 'ap-disc--spin': isPlaying }"
-      >
+      <view class="ap-disc" :class="{ 'ap-disc--spin': isPlaying }">
         <view class="ap-disc-ring ap-disc-ring1" />
         <view class="ap-disc-ring ap-disc-ring2" />
         <view class="ap-disc-book">
           <view class="ap-disc-spine" />
           <view class="ap-disc-title">
-            <text
-              v-for="(ch, i) in book.title.split('')"
-              :key="i"
-              class="ap-disc-char"
-            >
-              {{ ch }}
-            </text>
+            <text v-for="(ch, i) in book.title.split('')" :key="i" class="ap-disc-char">{{ ch }}</text>
           </view>
         </view>
       </view>
 
       <!-- 书名 + 朗读者 -->
       <view class="ap-titlebox">
-        <text class="ap-title">
-          {{ book.title }}
-        </text>
-        <text class="ap-sub">
-          {{ book.dynasty }} · {{ book.author }} 著 · {{ book.narrator }} 朗读
-        </text>
-        <text class="ap-chapter">
-          {{ chapter.title }}
-        </text>
+        <text class="ap-title">{{ book.title }}</text>
+        <text class="ap-sub">{{ book.dynasty }} · {{ book.author }} 著 · {{ book.narrator }} 朗读</text>
+        <text class="ap-chapter">{{ chapter.title }}</text>
       </view>
 
       <!-- 进度条 -->
       <view class="ap-progress">
         <view class="ap-progress-track">
-          <view
-            class="ap-progress-fill"
-            :style="{ width: progress + '%' }"
-          />
+          <view class="ap-progress-fill" :style="{ width: progress + '%' }" />
         </view>
         <view class="ap-progress-time">
           <text>{{ curMin }}:{{ curSec }}</text>
@@ -147,119 +109,46 @@ function nextChapter() {
 
       <!-- 播放控制 -->
       <view class="ap-controls">
-        <view
-          class="ap-speed"
-          @tap="changeSpeed"
-        >
-          {{ speed }}x
+        <view class="ap-speed" @tap="changeSpeed">{{ speed }}x</view>
+        <view class="ap-ctrl-icon" @tap="prevChapter">
+          <app-icon name="skip-back" :size="56" color="#2c2c2c" />
         </view>
-        <view
-          class="ap-ctrl-icon"
-          @tap="prevChapter"
-        >
-          <app-icon
-            name="skip-back"
-            :size="56"
-            color="#2c2c2c"
-          />
+        <view class="ap-play" @tap="togglePlay">
+          <app-icon :name="isPlaying ? 'pause' : 'play'" :size="56" color="#ffffff" :fill="isPlaying" />
         </view>
-        <view
-          class="ap-play"
-          @tap="togglePlay"
-        >
-          <app-icon
-            :name="isPlaying ? 'pause' : 'play'"
-            :size="56"
-            color="#ffffff"
-            :fill="isPlaying"
-          />
+        <view class="ap-ctrl-icon" @tap="nextChapter">
+          <app-icon name="skip-forward" :size="56" color="#2c2c2c" />
         </view>
-        <view
-          class="ap-ctrl-icon"
-          @tap="nextChapter"
-        >
-          <app-icon
-            name="skip-forward"
-            :size="56"
-            color="#2c2c2c"
-          />
-        </view>
-        <view
-          class="ap-like"
-          @tap="liked = !liked"
-        >
-          <app-icon
-            name="heart"
-            :size="48"
-            :color="liked ? '#ef4444' : '#2c2c2c'"
-            :fill="liked"
-          />
+        <view class="ap-like" @tap="liked = !liked">
+          <app-icon name="heart" :size="48" :color="liked ? '#ef4444' : '#2c2c2c'" :fill="liked" />
         </view>
       </view>
 
       <!-- 底部操作 -->
       <view class="ap-actions">
-        <view
-          class="ap-action"
-          @tap="showChapters = true"
-        >
-          <app-icon
-            name="list"
-            :size="40"
-            color="#999999"
-          />
-          <text class="ap-action-txt">
-            目录
-          </text>
+        <view class="ap-action" @tap="showChapters = true">
+          <app-icon name="list" :size="40" color="#999999" />
+          <text class="ap-action-txt">目录</text>
         </view>
         <view class="ap-action">
-          <app-icon
-            name="repeat"
-            :size="40"
-            color="#999999"
-          />
-          <text class="ap-action-txt">
-            循环
-          </text>
+          <app-icon name="repeat" :size="40" color="#999999" />
+          <text class="ap-action-txt">循环</text>
         </view>
         <view class="ap-action">
-          <app-icon
-            name="moon"
-            :size="40"
-            color="#999999"
-          />
-          <text class="ap-action-txt">
-            定时
-          </text>
+          <app-icon name="moon" :size="40" color="#999999" />
+          <text class="ap-action-txt">定时</text>
         </view>
       </view>
     </view>
 
     <!-- 章节目录抽屉 -->
-    <view
-      v-if="showChapters"
-      class="ap-mask"
-      @tap="showChapters = false"
-    >
-      <view
-        class="ap-sheet"
-        @tap.stop
-      >
+    <view v-if="showChapters" class="ap-mask" @tap="showChapters = false">
+      <view class="ap-sheet" @tap.stop>
         <view class="ap-sheet-head">
-          <text class="ap-sheet-title">
-            目录 · 共{{ book.chapters.length }}章
-          </text>
-          <text
-            class="ap-sheet-close"
-            @tap="showChapters = false"
-          >
-            关闭
-          </text>
+          <text class="ap-sheet-title">目录 · 共{{ book.chapters.length }}章</text>
+          <text class="ap-sheet-close" @tap="showChapters = false">关闭</text>
         </view>
-        <scroll-view
-          scroll-y
-          class="ap-sheet-list"
-        >
+        <scroll-view scroll-y class="ap-sheet-list">
           <view
             v-for="(ch, index) in book.chapters"
             :key="ch.id"
@@ -270,12 +159,8 @@ function nextChapter() {
             <text
               class="ap-sheet-item-title"
               :class="{ 'ap-sheet-item-title--on': index === currentChapter }"
-            >
-              {{ ch.title }}
-            </text>
-            <text class="ap-sheet-item-dur">
-              {{ ch.duration }}
-            </text>
+            >{{ ch.title }}</text>
+            <text class="ap-sheet-item-dur">{{ ch.duration }}</text>
           </view>
         </scroll-view>
       </view>

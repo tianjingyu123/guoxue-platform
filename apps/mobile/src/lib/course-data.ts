@@ -1,7 +1,6 @@
 // 课程模块数据(从原型 app/courses/page.tsx 迁移)
 import type { CourseCardData } from '@/lib/card-utils'
 import type { BannerItem } from '@/lib/home-data'
-import { apiGet, useMock } from '@/utils/request'
 
 // 课程首页 Banner
 export const courseBanners: BannerItem[] = [
@@ -174,13 +173,13 @@ export const learnProgress: LearnProgress = {
 export interface LearnLesson { id: string; title: string; duration: number; isFree: boolean; isCompleted: boolean }
 export interface LearnChapter { id: string; title: string; duration: number; isFree: boolean; lessons: LearnLesson[] }
 export const learnChapters: LearnChapter[] = [
-  { id: 'c1', title: '第一�� 八字基础概念', duration: 180, isFree: true, lessons: [
+  { id: 'c1', title: '第一章 八字基础概念', duration: 180, isFree: true, lessons: [
     { id: 'l1', title: '什么是八字命理', duration: 15, isFree: true, isCompleted: true },
     { id: 'l2', title: '八字的起源与发展', duration: 18, isFree: true, isCompleted: true },
     { id: 'l3', title: '四柱八字的构成', duration: 20, isFree: true, isCompleted: true },
   ] },
   { id: 'c2', title: '第二章 天干地支详解', duration: 240, isFree: false, lessons: [
-    { id: 'l4', title: '������干基础', duration: 25, isFree: false, isCompleted: true },
+    { id: 'l4', title: '十天干基础', duration: 25, isFree: false, isCompleted: true },
     { id: 'l5', title: '十二地支基础', duration: 25, isFree: false, isCompleted: true },
     { id: 'l6', title: '天干地支的阴阳属性', duration: 22, isFree: false, isCompleted: false },
     { id: 'l7', title: '干支的五行属性', duration: 28, isFree: false, isCompleted: false },
@@ -239,18 +238,18 @@ export const saleSessions: SaleSession[] = [
 // @data-needs: 特惠课程, 参数 sessionId, 返回 [{id,title,instructor,cover,originalPrice,salePrice,discount,students,rating,sessionId,sold,total,category}]
 export interface SaleCourse { id: string; title: string; instructor: string; cover: string; originalPrice: number; salePrice: number; discount: number; students: number; rating: number; sessionId: string; sold: number; total: number; category: string }
 export const saleCourses: SaleCourse[] = [
-  { id: '1', title: '八字入门实战课', instructor: '周易大师', cover: '/marketing/course.png', originalPrice: 299, salePrice: 99, discount: 33, students: 2680, rating: 4.9, sessionId: '2', sold: 180, total: 200, category: '八字' },
-  { id: '2', title: '紫微斗数精讲班', instructor: '张玄风', cover: '/marketing/course.png', originalPrice: 499, salePrice: 149, discount: 30, students: 1520, rating: 4.8, sessionId: '2', sold: 95, total: 100, category: '紫微' },
-  { id: '3', title: '奇门遁甲高阶课', instructor: '林奇门', cover: '/marketing/luopan.png', originalPrice: 399, salePrice: 128, discount: 32, students: 980, rating: 4.7, sessionId: '2', sold: 48, total: 80, category: '奇门' },
-  { id: '4', title: '风水堪舆实操班', instructor: '王德华', cover: '/marketing/luopan.png', originalPrice: 599, salePrice: 199, discount: 33, students: 860, rating: 4.8, sessionId: '3', sold: 0, total: 50, category: '风水' },
-  { id: '5', title: '易经六十四卦速解', instructor: '李玄机', cover: '/marketing/course.png', originalPrice: 199, salePrice: 59, discount: 30, students: 3400, rating: 4.6, sessionId: '3', sold: 0, total: 100, category: '易经' },
+  { id: '1', title: '八字入门实战课', instructor: '周易大师', cover: '/static/marketing/course.png', originalPrice: 299, salePrice: 99, discount: 33, students: 2680, rating: 4.9, sessionId: '2', sold: 180, total: 200, category: '八字' },
+  { id: '2', title: '紫微斗数精讲班', instructor: '张玄风', cover: '/static/marketing/course.png', originalPrice: 499, salePrice: 149, discount: 30, students: 1520, rating: 4.8, sessionId: '2', sold: 95, total: 100, category: '紫微' },
+  { id: '3', title: '奇门遁甲高阶课', instructor: '林奇门', cover: '/static/marketing/luopan.png', originalPrice: 399, salePrice: 128, discount: 32, students: 980, rating: 4.7, sessionId: '2', sold: 48, total: 80, category: '奇门' },
+  { id: '4', title: '风水堪舆实操班', instructor: '王德华', cover: '/static/marketing/luopan.png', originalPrice: 599, salePrice: 199, discount: 33, students: 860, rating: 4.8, sessionId: '3', sold: 0, total: 50, category: '风水' },
+  { id: '5', title: '易经六十四卦速解', instructor: '李玄机', cover: '/static/marketing/course.png', originalPrice: 199, salePrice: 59, discount: 30, students: 3400, rating: 4.6, sessionId: '3', sold: 0, total: 100, category: '易经' },
 ]
 
 // ============ 课程购买确认页(purchase-confirm) mock(从原型 courses/purchase-confirm 迁移) ============
 // @data-needs: 待购课程信息, 参数 courseId, 返回 {id,title,cover,instructorName,chapters,price,originalPrice}
 export interface PurchaseCourse { id: string; title: string; cover: string; instructorName: string; chapters: number; price: number; originalPrice: number }
 export const purchaseCourse: PurchaseCourse = {
-  id: '1', title: '八字命理入门到精通', cover: '/marketing/course.png',
+  id: '1', title: '八字命理入门到精通', cover: '/static/marketing/course.png',
   instructorName: '张老师', chapters: 32, price: 299, originalPrice: 599,
 }
 // @data-needs: 可用优惠券, 参数 scope=course, 返回 [{id,name,type,value,minAmount,maxDiscount,expireAt,isAvailable}], type∈amount|percent
@@ -276,9 +275,9 @@ export const studyGoal: StudyGoal = { daysPerWeek: 5, minutesPerDay: 30 }
 // @data-needs: 计划中的课程, 参数 无, 返回 PlannedCourse[]（scheduledDays:0=周日…6=周六）
 export interface PlannedCourse { id: string; courseId: string; title: string; cover: string; totalLessons: number; completedLessons: number; scheduledDays: number[]; order: number }
 export const plannedCourses: PlannedCourse[] = [
-  { id: 'pc1', courseId: 'c1', title: '八字命理入门精讲', cover: '/marketing/course.png', totalLessons: 32, completedLessons: 12, scheduledDays: [1, 3, 5], order: 0 },
-  { id: 'pc2', courseId: 'c2', title: '紫微斗数基础课', cover: '/marketing/course.png', totalLessons: 24, completedLessons: 6, scheduledDays: [2, 4], order: 1 },
-  { id: 'pc3', courseId: 'c3', title: '周易易经入门', cover: '/marketing/course.png', totalLessons: 18, completedLessons: 0, scheduledDays: [6], order: 2 },
+  { id: 'pc1', courseId: 'c1', title: '八字命理入门精讲', cover: '/static/marketing/course.png', totalLessons: 32, completedLessons: 12, scheduledDays: [1, 3, 5], order: 0 },
+  { id: 'pc2', courseId: 'c2', title: '紫微斗数基础课', cover: '/static/marketing/course.png', totalLessons: 24, completedLessons: 6, scheduledDays: [2, 4], order: 1 },
+  { id: 'pc3', courseId: 'c3', title: '周易易经入门', cover: '/static/marketing/course.png', totalLessons: 18, completedLessons: 0, scheduledDays: [6], order: 2 },
 ]
 // @data-needs: 连续打卡天数, 参数 无, 返回 number
 export const studyStreak = 7
@@ -334,179 +333,12 @@ export const workResult: WorkResult = {
   id: '1', chapterId: 'c1', status: 'graded',
   chapterTitle: '第一章：八字基础', courseTitle: '八字命理入门精讲',
   content: '通过本章学习，我对八字命理有了初步的认识。八字由年柱、月柱、日柱、时柱组成，每柱包含一个天干和一个地支。天干有甲、乙、丙、丁、戊、己、庚、辛、壬、癸十个，地支有子、丑、寅、卯、辰、巳、午、未、申、酉、戌、亥十二个。\n\n日主代表命主本人，是分析的核心。',
-  images: ['/marketing/course.png', '/marketing/course.png'],
+  images: ['/static/marketing/course.png', '/static/marketing/course.png'],
   submittedAt: '2024-01-15 14:30',
   score: 85, maxScore: 100,
-  gradedBy: { name: '周易大师', avatar: '/marketing/course.png' },
+  gradedBy: { name: '周易大师', avatar: '/static/marketing/course.png' },
   teacherComment: '作业完成得很好！对八字的基本概念理解准确，举例也很恰当。建议在后续学习中多练习排盘，加深对天干地支的记忆。',
   gradedAt: '2024-01-16 09:15',
   suggestions: ['建议补充五行生克关系的说明', '可以尝试分析自己的八字加深理解'],
   canResubmit: true,
-}
-
-// ============================================
-// API 层：useMock 开关控制真实/模拟数据切换
-// ============================================
-
-export const courseApi = {
-  /** 课程列表 */
-  async list(params?: { category?: string; page?: number; pageSize?: number }) {
-    const page = params?.page ?? 1
-    const pageSize = params?.pageSize ?? 20
-    const category = params?.category ? `&category=${params.category}` : ''
-    if (useMock())
-      return { courses: allCourses as Course[], total: allCourses.length, page, pageSize }
-    try {
-      const data = await apiGet<any>(`/courses?page=${page}&pageSize=${pageSize}${category}`)
-      return {
-        courses: (data.items || data.data || []).map((c: any) => ({
-          id: c.id, category: c.category, title: c.title, cover: c.cover,
-          teacher: c.instructor?.name || c.teacher, price: c.price,
-          originalPrice: c.originalPrice, students: c.students || c.enrollmentCount,
-          lessons: c.chapters || c.lessonCount, rating: c.rating, tag: c.tag,
-          flashSale: c.flashSale, isNew: c.isNew, free: c.free,
-        })),
-        total: data.total ?? 0, page: data.page ?? page, pageSize: data.pageSize ?? pageSize,
-      }
-    } catch {
-      return { courses: allCourses as Course[], total: allCourses.length, page: 1, pageSize: 20 }
-    }
-  },
-
-  /** 课程详情 */
-  async detail(id: string) {
-    if (useMock()) return courseDetail
-    try {
-      const c = await apiGet<any>(`/courses/${id}`)
-      return {
-        id: c.id, title: c.title, cover: c.cover,
-        instructor: c.instructor || { id: '', name: c.teacher || '', avatar: '', title: '' },
-        price: c.price, originalPrice: c.originalPrice, students: c.students || c.enrollmentCount,
-        rating: c.rating, chapters: c.chapterCount || c.chapters, category: c.category,
-        tag: c.tag, isFree: c.free || c.price === 0,
-        description: c.description, objectives: c.objectives || [],
-        suitable: c.suitable || c.targetAudience || [],
-        isEnrolled: c.isEnrolled ?? false, progress: c.progress ?? 0,
-      }
-    } catch { return courseDetail }
-  },
-
-  /** 课程章节 */
-  async chapters(courseId: string) {
-    if (useMock()) return courseChapters
-    try {
-      const data = await apiGet<any[]>(`/courses/${courseId}/chapters`)
-      return data.map((ch: any) => ({
-        id: ch.id, title: ch.title, duration: ch.duration || 0,
-        isFree: ch.isFree ?? false,
-        lessons: (ch.lessons || []).map((l: any) => ({
-          id: l.id, title: l.title, duration: l.duration || 0,
-          isFree: l.isFree ?? false, isCompleted: l.isCompleted,
-        })),
-      }))
-    } catch { return courseChapters }
-  },
-
-  /** 课程评价 */
-  async reviews(courseId: string) {
-    if (useMock()) return courseReviews
-    try {
-      const data = await apiGet<any[]>(`/courses/${courseId}/reviews`)
-      return data.map((r: any) => ({
-        id: r.id, user: r.user || r.author || {}, rating: r.rating,
-        content: r.content, createdAt: r.createdAt || r.created_at,
-      }))
-    } catch { return courseReviews }
-  },
-
-  /** 学习进度 */
-  async progress(courseId: string) {
-    if (useMock()) return { courseProgress, progressChapters }
-    try {
-      const data = await apiGet<any>(`/courses/${courseId}/progress`)
-      return { courseProgress: data, progressChapters: data.chapters || progressChapters }
-    } catch { return { courseProgress, progressChapters } }
-  },
-
-  /** 分类列表 */
-  async categories() {
-    if (useMock()) return categoryNav
-    try {
-      const data = await apiGet<any[]>('/courses/categories')
-      return data.map((c: any) => ({ id: c.id, label: c.name || c.label, icon: c.icon, color: c.color }))
-    } catch { return categoryNav }
-  },
-
-  /** 限时特惠场次 */
-  async saleSessions() {
-    if (useMock()) return { sessions: saleSessions, courses: saleCourses }
-    try {
-      const data = await apiGet<any>('/courses/flash-sales')
-      return { sessions: data.sessions || data || saleSessions, courses: data.courses || saleCourses }
-    } catch { return { sessions: saleSessions, courses: saleCourses } }
-  },
-
-  /** 购买确认 */
-  async purchaseInfo(courseId: string) {
-    if (useMock()) return { course: purchaseCourse, coupons: purchaseCoupons }
-    try {
-      const data = await apiGet<any>(`/courses/${courseId}/purchase`)
-      return { course: data.course || purchaseCourse, coupons: data.coupons || purchaseCoupons }
-    } catch { return { course: purchaseCourse, coupons: purchaseCoupons } }
-  },
-
-  /** 学习中心聚合数据 */
-  async learnData(courseId: string) {
-    if (useMock()) return { course: learnCourse, progress: learnProgress, chapters: learnChapters, notes: learnNotes, questions: learnQuestions }
-    try {
-      const data = await apiGet<any>(`/courses/${courseId}/learn`)
-      return { course: data.course || learnCourse, progress: data.progress || learnProgress, chapters: data.chapters || learnChapters, notes: data.notes || [], questions: data.questions || [] }
-    } catch { return { course: learnCourse, progress: learnProgress, chapters: learnChapters, notes: learnNotes, questions: learnQuestions } }
-  },
-
-  /** 播放器内容 + 章节目录 */
-  async player(lessonId: string) {
-    if (useMock()) return { content: playerContent, chapters: playerChapters }
-    try {
-      const data = await apiGet<any>(`/courses/lessons/${lessonId}/player`)
-      return { content: data.content || playerContent, chapters: data.chapters || playerChapters }
-    } catch { return { content: playerContent, chapters: playerChapters } }
-  },
-
-  /** 结业证书 */
-  async certificate(courseId: string) {
-    if (useMock()) return courseCertificate
-    try { return await apiGet<any>(`/courses/${courseId}/certificate`) }
-    catch { return courseCertificate }
-  },
-
-  /** 学习计划 */
-  async studyPlan() {
-    if (useMock()) return { goal: studyGoal, courses: plannedCourses, streak: studyStreak, checkInLevels }
-    try {
-      const data = await apiGet<any>('/courses/study-plan')
-      return { goal: data.goal || studyGoal, courses: data.courses || [], streak: data.streak ?? 0, checkInLevels: data.checkInLevels || [] }
-    } catch { return { goal: studyGoal, courses: plannedCourses, streak: studyStreak, checkInLevels } }
-  },
-
-  /** 作业要求 */
-  async workRequirement(chapterId: string) {
-    if (useMock()) return workRequirement
-    try { return await apiGet<any>(`/courses/chapters/${chapterId}/work`) }
-    catch { return workRequirement }
-  },
-
-  /** 作业提交列表 */
-  async workSubmissions(courseId: string) {
-    if (useMock()) return workSubmissions
-    try { return await apiGet<any[]>(`/courses/${courseId}/submissions`) }
-    catch { return workSubmissions }
-  },
-
-  /** 作业批改结果 */
-  async workResult(workId: string) {
-    if (useMock()) return workResult
-    try { return await apiGet<any>(`/courses/submissions/${workId}/result`) }
-    catch { return workResult }
-  },
 }

@@ -1,323 +1,148 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view
-      class="header"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
-        <view
-          class="nav-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="44"
-            color="#FFFFFF"
-          />
+        <view class="nav-back" @tap="goBack">
+          <app-icon name="chevron-left" :size="44" color="#FFFFFF" />
         </view>
-        <text class="nav-title">
-          售后结果
-        </text>
+        <text class="nav-title">售后结果</text>
         <view class="nav-placeholder" />
       </view>
     </view>
 
-    <!-- Loading -->
-    <view
-      v-if="loading"
-      class="load-state"
-      :style="{ paddingTop: navHeight + 'px' }"
-    >
-      <view class="load-spinner" />
-      <text class="load-text">
-        加载中...
-      </text>
-    </view>
-
-    <!-- Error -->
-    <view
-      v-else-if="error"
-      class="err-state"
-      :style="{ paddingTop: navHeight + 'px' }"
-    >
-      <app-icon
-        name="alert-circle"
-        :size="80"
-        color="#CCCCCC"
-      />
-      <text class="err-text">
-        加载失败
-      </text>
-      <view
-        class="err-btn"
-        @tap="loadData"
-      >
-        重新加载
+    <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
+      <!-- 结果横幅 -->
+      <view class="result-banner">
+        <view class="result-icon">
+          <app-icon name="x-circle" :size="64" color="#FFFFFF" />
+        </view>
+        <text class="result-title">售后申请已驳回</text>
+        <text class="result-sub">您的售后申请未通过审核</text>
       </view>
-    </view>
 
-    <!-- Content -->
-    <template v-else>
-      <scroll-view
-        scroll-y
-        class="scroll-area"
-        :style="{ paddingTop: navHeight + 'px' }"
-      >
-        <!-- 结果横幅 -->
-        <view class="result-banner">
-          <view class="result-icon">
-            <app-icon
-              name="x-circle"
-              :size="64"
-              color="#FFFFFF"
-            />
-          </view>
-          <text class="result-title">
-            售后申请已驳回
-          </text>
-          <text class="result-sub">
-            您的售后申请未通过审核
-          </text>
+      <!-- 驳回原因 -->
+      <view class="reason-card">
+        <view class="reason-head">
+          <app-icon name="alert-triangle" :size="36" color="#C41E3A" />
+          <text class="reason-head-text">驳回原因</text>
+        </view>
+        <text class="reason-body">{{ detail.rejectReason }}</text>
+        <view class="reason-foot">
+          <text class="reason-foot-label">处理时间</text>
+          <text class="reason-foot-value">{{ rejectedTime }}</text>
+        </view>
+      </view>
+
+      <!-- 售后信息 -->
+      <view class="card">
+        <view class="card-title-row">
+          <app-icon name="file-text" :size="34" color="#C9A96E" />
+          <text class="card-title">售后信息</text>
         </view>
 
-        <!-- 驳回原因 -->
-        <view class="reason-card">
-          <view class="reason-head">
-            <app-icon
-              name="alert-triangle"
-              :size="36"
-              color="#9A2D2D"
-            />
-            <text class="reason-head-text">
-              驳回原因
-            </text>
-          </view>
-          <text class="reason-body">
-            {{ detail.rejectReason }}
-          </text>
-          <view class="reason-foot">
-            <text class="reason-foot-label">
-              处理时间
-            </text>
-            <text class="reason-foot-value">
-              {{ rejectedTime }}
-            </text>
+        <view class="product-row">
+          <image class="product-cover" :src="detail.product.cover" mode="aspectFill" />
+          <view class="product-info">
+            <text class="product-name">{{ detail.product.name }}</text>
+            <text class="product-sku">{{ detail.product.skuName }}</text>
+            <view class="product-foot">
+              <text class="product-price">¥{{ detail.product.price }}</text>
+              <text class="product-qty">x{{ detail.product.quantity }}</text>
+            </view>
           </view>
         </view>
 
-        <!-- 售后信息 -->
-        <view class="card">
-          <view class="card-title-row">
-            <app-icon
-              name="file-text"
-              :size="34"
-              color="#C9A96E"
-            />
-            <text class="card-title">
-              售后信息
-            </text>
+        <view class="info-list">
+          <view class="info-item">
+            <text class="info-label">售后类型</text>
+            <text class="info-value">{{ detail.type === 'refund_only' ? '仅退款' : '退货退款' }}</text>
           </view>
-
-          <view class="product-row">
-            <image
-              class="product-cover"
-              :src="detail.product.cover"
-              mode="aspectFill"
-            />
-            <view class="product-info">
-              <text class="product-name">
-                {{ detail.product.name }}
-              </text>
-              <text class="product-sku">
-                {{ detail.product.skuName }}
-              </text>
-              <view class="product-foot">
-                <text class="product-price">
-                  ¥{{ detail.product.price }}
-                </text>
-                <text class="product-qty">
-                  x{{ detail.product.quantity }}
-                </text>
-              </view>
-            </view>
+          <view class="info-item">
+            <text class="info-label">退款金额</text>
+            <text class="info-value price">¥{{ detail.amount.toFixed(2) }}</text>
           </view>
-
-          <view class="info-list">
-            <view class="info-item">
-              <text class="info-label">
-                售后类型
-              </text>
-              <text class="info-value">
-                {{ detail.type === 'refund_only' ? '仅退款' : '退货退款' }}
-              </text>
-            </view>
-            <view class="info-item">
-              <text class="info-label">
-                退款金额
-              </text>
-              <text class="info-value price">
-                ¥{{ detail.amount.toFixed(2) }}
-              </text>
-            </view>
-            <view class="info-item">
-              <text class="info-label">
-                退款原因
-              </text>
-              <text class="info-value">
-                {{ detail.reason }}
-              </text>
-            </view>
-            <view class="info-item">
-              <text class="info-label">
-                售后单号
-              </text>
-              <view class="info-copy">
-                <text class="info-value">
-                  {{ detail.id }}
-                </text>
-                <view
-                  class="copy-btn"
-                  @tap="copyId"
-                >
-                  <app-icon
-                    :name="copied ? 'check-circle' : 'copy'"
-                    :size="28"
-                    color="#C9A96E"
-                  />
-                </view>
+          <view class="info-item">
+            <text class="info-label">退款原因</text>
+            <text class="info-value">{{ detail.reason }}</text>
+          </view>
+          <view class="info-item">
+            <text class="info-label">售后单号</text>
+            <view class="info-copy">
+              <text class="info-value">{{ detail.id }}</text>
+              <view class="copy-btn" @tap="copyId">
+                <app-icon :name="copied ? 'check-circle' : 'copy'" :size="28" color="#C9A96E" />
               </view>
             </view>
           </view>
         </view>
+      </view>
 
-        <!-- 问题描述 -->
-        <view
-          v-if="detail.description"
-          class="card"
-        >
-          <text class="card-title">
-            问题描述
-          </text>
-          <text class="desc-text">
-            {{ detail.description }}
-          </text>
-        </view>
+      <!-- 问题描述 -->
+      <view v-if="detail.description" class="card">
+        <text class="card-title">问题描述</text>
+        <text class="desc-text">{{ detail.description }}</text>
+      </view>
 
-        <!-- 凭证图片 -->
-        <view
-          v-if="detail.images && detail.images.length"
-          class="card"
-        >
-          <text class="card-title">
-            凭证图片
-          </text>
-          <view class="img-grid">
-            <image
-              v-for="(img, idx) in detail.images"
-              :key="idx"
-              class="evidence-img"
-              :src="img"
-              mode="aspectFill"
-              @tap="previewImage(idx)"
-            />
-          </view>
-        </view>
-
-        <!-- 申诉提示 -->
-        <view class="appeal-card">
-          <view class="appeal-icon">
-            <app-icon
-              name="message-circle"
-              :size="36"
-              color="#E8820C"
-            />
-          </view>
-          <view class="appeal-text">
-            <text class="appeal-title">
-              对结果有异议？
-            </text>
-            <text class="appeal-desc">
-              如果您对驳回结果有疑问，可以发起申诉，我们会安排专人重新审核您的售后申请。
-            </text>
-          </view>
-        </view>
-
-        <!-- 联系客服 -->
-        <view
-          class="service-card"
-          @tap="contactService"
-        >
-          <view class="service-left">
-            <view class="service-icon">
-              <app-icon
-                name="phone"
-                :size="34"
-                color="#C9A96E"
-              />
-            </view>
-            <view class="service-text">
-              <text class="service-title">
-                联系客服
-              </text>
-              <text class="service-desc">
-                在线客服为您解答
-              </text>
-            </view>
-          </view>
-          <app-icon
-            name="chevron-right"
-            :size="30"
-            color="#CCCCCC"
+      <!-- 凭证图片 -->
+      <view v-if="detail.images && detail.images.length" class="card">
+        <text class="card-title">凭证图片</text>
+        <view class="img-grid">
+          <image
+            v-for="(img, idx) in detail.images"
+            :key="idx"
+            class="evidence-img"
+            :src="img"
+            mode="aspectFill"
+            @tap="previewImage(idx)"
           />
         </view>
+      </view>
 
-        <view class="bottom-gap" />
-      </scroll-view>
-
-      <!-- 底部按钮 -->
-      <view
-        class="footer"
-        :style="{ paddingBottom: safeBottom + 'px' }"
-      >
-        <view class="footer-row">
-          <view
-            class="footer-btn ghost"
-            @tap="reApply"
-          >
-            <app-icon
-              name="refresh-cw"
-              :size="30"
-              color="#9A2D2D"
-            />
-            <text class="footer-btn-text-ghost">
-              重新申请
-            </text>
-          </view>
-          <view
-            class="footer-btn primary"
-            @tap="appeal"
-          >
-            <app-icon
-              name="alert-triangle"
-              :size="30"
-              color="#FFFFFF"
-            />
-            <text class="footer-btn-text-primary">
-              我要申诉
-            </text>
-          </view>
+      <!-- 申诉提示 -->
+      <view class="appeal-card">
+        <view class="appeal-icon">
+          <app-icon name="message-circle" :size="36" color="#E8820C" />
         </view>
-        <view
-          class="footer-link"
-          @tap="viewOrder"
-        >
-          <text class="footer-link-text">
-            查看订单详情
-          </text>
+        <view class="appeal-text">
+          <text class="appeal-title">对结果有异议？</text>
+          <text class="appeal-desc">如果您对驳回结果有疑问，可以发起申诉，我们会安排专人重新审核您的售后申请。</text>
         </view>
       </view>
-    </template>
+
+      <!-- 联系客服 -->
+      <view class="service-card" @tap="contactService">
+        <view class="service-left">
+          <view class="service-icon">
+            <app-icon name="phone" :size="34" color="#C9A96E" />
+          </view>
+          <view class="service-text">
+            <text class="service-title">联系客服</text>
+            <text class="service-desc">在线客服为您解答</text>
+          </view>
+        </view>
+        <app-icon name="chevron-right" :size="30" color="#CCCCCC" />
+      </view>
+
+      <view class="bottom-gap" />
+    </scroll-view>
+
+    <!-- 底部按钮 -->
+    <view class="footer" :style="{ paddingBottom: safeBottom + 'px' }">
+      <view class="footer-row">
+        <view class="footer-btn ghost" @tap="reApply">
+          <app-icon name="refresh-cw" :size="30" color="#C41E3A" />
+          <text class="footer-btn-text-ghost">重新申请</text>
+        </view>
+        <view class="footer-btn primary" @tap="appeal">
+          <app-icon name="alert-triangle" :size="30" color="#FFFFFF" />
+          <text class="footer-btn-text-primary">我要申诉</text>
+        </view>
+      </view>
+      <view class="footer-link" @tap="viewOrder">
+        <text class="footer-link-text">查看订单详情</text>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -325,24 +150,21 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { afterSaleApi } from '@/lib/account-data'
+import { afterSaleRejectedDetail } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
 const safeBottom = ref(0)
 const copied = ref(false)
-const loading = ref(true)
-const error = ref(false)
 
-const detail = ref<any>(null)
+const detail = ref({ ...afterSaleRejectedDetail })
 
 const rejectedTime = computed(() => {
-  if (!detail.value) return ''
-  const node = detail.value.timeline?.find((t: any) => t.status === 'rejected')
+  const node = detail.value.timeline.find((t) => t.status === 'rejected')
   return node?.time || detail.value.createdAt
 })
 
-onLoad(async () => {
+onLoad(() => {
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 20
@@ -352,24 +174,9 @@ onLoad(async () => {
     statusBarHeight.value = 20
     navHeight.value = 64
   }
-  await loadData()
 })
 
-async function loadData() {
-  loading.value = true
-  error.value = false
-  try {
-    const res = await afterSaleApi.getAfterSaleDetail('current', 'rejected')
-    detail.value = res
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-}
-
 function copyId() {
-  if (!detail.value) return
   uni.setClipboardData({
     data: detail.value.id,
     success: () => {
@@ -388,17 +195,14 @@ function contactService() {
 }
 
 function reApply() {
-  if (!detail.value) return
   navigateTo(`/shop/after-sale?orderId=${detail.value.orderId}&prefill=true`)
 }
 
 function appeal() {
-  if (!detail.value) return
   navigateTo(`/orders/dispute?afterSaleId=${detail.value.id}`)
 }
 
 function viewOrder() {
-  if (!detail.value) return
   navigateTo(`/orders/${detail.value.orderId}`)
 }
 </script>
@@ -408,40 +212,13 @@ function viewOrder() {
   min-height: 100vh;
   background: #FAF8F5;
 }
-.load-state, .err-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  gap: 20rpx;
-}
-.load-spinner {
-  width: 64rpx;
-  height: 64rpx;
-  border: 4rpx solid #F0F0F0;
-  border-top-color: #9A2D2D;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.load-text { font-size: 28rpx; color: #999; }
-.err-text { font-size: 28rpx; color: #999; margin-top: 16rpx; }
-.err-btn {
-  margin-top: 24rpx;
-  padding: 16rpx 48rpx;
-  border: 1rpx solid #DDD;
-  border-radius: 999rpx;
-  font-size: 26rpx;
-  color: #666;
-}
 .header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 100;
-  background: linear-gradient(90deg, #9A2D2D 0%, #B83A3A 100%);
+  background: linear-gradient(90deg, #C41E3A 0%, #B83A3A 100%);
 }
 .nav-bar {
   height: 44px;
@@ -472,7 +249,7 @@ function viewOrder() {
 }
 
 .result-banner {
-  background: linear-gradient(135deg, #9A2D2D 0%, #B83A3A 100%);
+  background: linear-gradient(135deg, #C41E3A 0%, #B83A3A 100%);
   padding: 48rpx 24rpx 96rpx;
   display: flex;
   flex-direction: column;
@@ -514,7 +291,7 @@ function viewOrder() {
 .reason-head-text {
   font-size: 30rpx;
   font-weight: 600;
-  color: #9A2D2D;
+  color: #C41E3A;
 }
 .reason-body {
   display: block;
@@ -596,7 +373,7 @@ function viewOrder() {
 .product-price {
   font-size: 28rpx;
   font-weight: 600;
-  color: #9A2D2D;
+  color: #C41E3A;
 }
 .product-qty {
   font-size: 22rpx;
@@ -623,7 +400,7 @@ function viewOrder() {
   color: #2C2C2C;
 }
 .info-value.price {
-  color: #9A2D2D;
+  color: #C41E3A;
   font-weight: 600;
 }
 .info-copy {
@@ -753,15 +530,15 @@ function viewOrder() {
   gap: 10rpx;
 }
 .footer-btn.ghost {
-  border: 1rpx solid #9A2D2D;
+  border: 1rpx solid #C41E3A;
 }
 .footer-btn.primary {
-  background: linear-gradient(90deg, #9A2D2D 0%, #B83A3A 100%);
+  background: linear-gradient(90deg, #C41E3A 0%, #B83A3A 100%);
 }
 .footer-btn-text-ghost {
   font-size: 28rpx;
   font-weight: 600;
-  color: #9A2D2D;
+  color: #C41E3A;
 }
 .footer-btn-text-primary {
   font-size: 28rpx;

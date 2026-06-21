@@ -41,173 +41,55 @@ function deleteNoteItem(key: string) {
 </script>
 
 <template>
-  <view
-    v-if="open"
-    class="np"
-  >
+  <view v-if="open" class="np">
     <!-- 顶栏 -->
     <view class="np-hdr">
-      <view
-        class="np-icon"
-        @tap="emit('close')"
-      >
-        <app-icon
-          name="x"
-          :size="34"
-          color="#666666"
-        />
-      </view>
-      <text class="np-title">
-        奇门笔记
-      </text>
-      <view
-        class="np-icon"
-        @tap="showSettings = true"
-      >
-        <app-icon
-          name="settings"
-          :size="34"
-          color="#666666"
-        />
-      </view>
+      <view class="np-icon" @tap="emit('close')"><app-icon name="x" :size="34" color="#666666" /></view>
+      <text class="np-title">奇门笔记</text>
+      <view class="np-icon" @tap="showSettings = true"><app-icon name="settings" :size="34" color="#666666" /></view>
     </view>
 
     <!-- 内容区 -->
-    <scroll-view
-      scroll-y
-      class="np-body"
-    >
-      <view
-        v-for="item in visibleItems"
-        :key="item.key"
-        class="np-row"
-      >
-        <view
-          class="np-row-head"
-          @tap="expandedItem = expandedItem === item.key ? null : item.key"
-        >
-          <text class="np-row-label">
-            {{ item.label }}
-          </text>
+    <scroll-view scroll-y class="np-body">
+      <view v-for="item in visibleItems" :key="item.key" class="np-row">
+        <view class="np-row-head" @tap="expandedItem = expandedItem === item.key ? null : item.key">
+          <text class="np-row-label">{{ item.label }}</text>
           <view class="np-row-right">
-            <view
-              class="np-del"
-              @tap.stop="deleteNoteItem(item.key)"
-            >
-              <app-icon
-                name="trash-2"
-                :size="28"
-                color="#9ca3af"
-              />
-            </view>
-            <view
-              class="np-chev"
-              :class="{ rot: expandedItem === item.key }"
-            >
-              <app-icon
-                name="chevron-right"
-                :size="28"
-                color="#9ca3af"
-              />
-            </view>
+            <view class="np-del" @tap.stop="deleteNoteItem(item.key)"><app-icon name="trash-2" :size="28" color="#9ca3af" /></view>
+            <view class="np-chev" :class="{ rot: expandedItem === item.key }"><app-icon name="chevron-right" :size="28" color="#9ca3af" /></view>
           </view>
         </view>
-        <view
-          v-if="expandedItem === item.key"
-          class="np-row-body"
-        >
-          <textarea
-            v-model="notes[item.key]"
-            class="np-textarea"
-            placeholder="请输入"
-            :auto-height="false"
-          />
-          <attachment-bar
-            :note-key="item.key"
-            :media="media"
-          />
+        <view v-if="expandedItem === item.key" class="np-row-body">
+          <textarea v-model="notes[item.key]" class="np-textarea" placeholder="请输入" :auto-height="false" />
+          <attachment-bar :note-key="item.key" :media="media" />
         </view>
       </view>
 
       <!-- 添加笔记项 -->
-      <view
-        class="np-add"
-        @tap="showSettings = true"
-      >
-        <app-icon
-          name="plus"
-          :size="28"
-          color="#c41e3a"
-        />
-        <text class="np-add-text">
-          添加笔记项
-        </text>
+      <view class="np-add" @tap="showSettings = true">
+        <app-icon name="plus" :size="28" color="#c41e3a" />
+        <text class="np-add-text">添加笔记项</text>
       </view>
     </scroll-view>
 
     <!-- 设置弹窗 -->
-    <view
-      v-if="showSettings"
-      class="np-mask"
-      @tap="showSettings = false"
-    >
-      <view
-        class="np-sheet"
-        @tap.stop
-      >
+    <view v-if="showSettings" class="np-mask" @tap="showSettings = false">
+      <view class="np-sheet" @tap.stop>
         <view class="np-sheet-head">
-          <text class="np-sheet-title">
-            管理笔记项
-          </text>
-          <view
-            class="np-icon"
-            @tap="showSettings = false"
-          >
-            <app-icon
-              name="x"
-              :size="34"
-              color="#666666"
-            />
-          </view>
+          <text class="np-sheet-title">管理笔记项</text>
+          <view class="np-icon" @tap="showSettings = false"><app-icon name="x" :size="34" color="#666666" /></view>
         </view>
-        <scroll-view
-          scroll-y
-          class="np-sheet-body"
-        >
-          <text class="np-sheet-tip">
-            选择要显示的笔记项目：
-          </text>
-          <view
-            v-for="item in NOTE_ITEMS"
-            :key="item.key"
-            class="np-set-row"
-            @tap="toggleVisibility(item.key)"
-          >
-            <text class="np-set-label">
-              {{ item.label }}
-            </text>
-            <view
-              class="np-radio"
-              :class="{ on: itemVisible[item.key] }"
-            >
-              <app-icon
-                v-if="itemVisible[item.key]"
-                name="check"
-                :size="20"
-                color="#ffffff"
-              />
+        <scroll-view scroll-y class="np-sheet-body">
+          <text class="np-sheet-tip">选择要显示的笔记项目：</text>
+          <view v-for="item in NOTE_ITEMS" :key="item.key" class="np-set-row" @tap="toggleVisibility(item.key)">
+            <text class="np-set-label">{{ item.label }}</text>
+            <view class="np-radio" :class="{ on: itemVisible[item.key] }">
+              <app-icon v-if="itemVisible[item.key]" name="check" :size="20" color="#ffffff" />
             </view>
           </view>
         </scroll-view>
         <view class="np-sheet-foot">
-          <view
-            class="np-done"
-            @tap="showSettings = false"
-          >
-            <text class="np-done-text">
-              完成
-            </text>
-          </view>
+          <view class="np-done" @tap="showSettings = false"><text class="np-done-text">完成</text></view>
         </view>
       </view>
     </view>

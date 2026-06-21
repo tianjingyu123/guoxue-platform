@@ -4,159 +4,52 @@
 -->
 <template>
   <view class="page">
-    <view
-      class="hdr"
-      :style="{ paddingTop: statusBarH + 'px' }"
-    >
-      <view
-        class="hdr-btn"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="36"
-          color="#2C2C2C"
-        />
-      </view>
-      <text class="hdr-title">
-        内容分析
-      </text>
+    <view class="hdr" :style="{ paddingTop: statusBarH + 'px' }">
+      <view class="hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#2C2C2C" /></view>
+      <text class="hdr-title">内容分析</text>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <view class="body">
         <!-- KPI -->
         <view class="kpis">
-          <view
-            v-for="k in kpis"
-            :key="k.label"
-            class="kpi"
-          >
-            <view
-              class="kpi-icon"
-              :style="{ background: k.bg }"
-            >
-              <app-icon
-                :name="k.icon"
-                :size="24"
-                :color="k.color"
-              />
-            </view>
-            <text class="kpi-val">
-              {{ k.value }}
-            </text>
-            <text class="kpi-label">
-              {{ k.label }}
-            </text>
+          <view v-for="k in kpis" :key="k.label" class="kpi">
+            <view class="kpi-icon" :style="{ background: k.bg }"><app-icon :name="k.icon" :size="24" :color="k.color" /></view>
+            <text class="kpi-val">{{ k.value }}</text>
+            <text class="kpi-label">{{ k.label }}</text>
           </view>
         </view>
 
         <!-- 趋势图 -->
-        <text class="sec-title">
-          本周浏览 & 点赞趋势
-        </text>
+        <text class="sec-title">本周浏览 & 点赞趋势</text>
         <view class="chart-card">
           <view class="chart">
-            <view
-              v-for="d in chartData"
-              :key="d.day"
-              class="chart-col"
-            >
+            <view v-for="d in chartData" :key="d.day" class="chart-col">
               <view class="bars">
-                <view
-                  class="bar views"
-                  :style="{ height: (d.views / maxVal * 100) + '%' }"
-                />
-                <view
-                  class="bar likes"
-                  :style="{ height: (d.likes / maxVal * 100) + '%' }"
-                />
+                <view class="bar views" :style="{ height: (d.views / maxVal * 100) + '%' }" />
+                <view class="bar likes" :style="{ height: (d.likes / maxVal * 100) + '%' }" />
               </view>
-              <text class="chart-x">
-                {{ d.day }}
-              </text>
+              <text class="chart-x">{{ d.day }}</text>
             </view>
           </view>
           <view class="legend">
-            <view class="lg">
-              <view class="lg-dot views" /><text class="lg-t">
-                浏览
-              </text>
-            </view>
-            <view class="lg">
-              <view class="lg-dot likes" /><text class="lg-t">
-                点赞
-              </text>
-            </view>
+            <view class="lg"><view class="lg-dot views" /><text class="lg-t">浏览</text></view>
+            <view class="lg"><view class="lg-dot likes" /><text class="lg-t">点赞</text></view>
           </view>
         </view>
 
         <!-- TOP5 -->
-        <view class="top-title">
-          <app-icon
-            name="trending-up"
-            :size="28"
-            color="#C41E3A"
-          /><text class="top-title-t">
-            热门内容 TOP 5
-          </text>
-        </view>
+        <view class="top-title"><app-icon name="trending-up" :size="28" color="#C41E3A" /><text class="top-title-t">热门内容 TOP 5</text></view>
         <view class="top-list">
-          <view
-            v-for="(post, idx) in topPosts"
-            :key="post.id"
-            class="post"
-          >
-            <text
-              class="post-rank"
-              :class="rankCls(idx)"
-            >
-              {{ idx + 1 }}
-            </text>
+          <view v-for="(post, idx) in topPosts" :key="post.id" class="post">
+            <text class="post-rank" :class="rankCls(idx)">{{ idx + 1 }}</text>
             <view class="post-main">
-              <text class="post-title">
-                {{ post.title }}
-              </text>
+              <text class="post-title">{{ post.title }}</text>
               <view class="post-meta">
-                <view class="post-author">
-                  <image
-                    class="post-avatar"
-                    :src="post.avatar"
-                    mode="aspectFill"
-                  /><text class="post-author-t">
-                    {{ post.author }}
-                  </text>
-                </view>
-                <view class="meta-item">
-                  <app-icon
-                    name="eye"
-                    :size="20"
-                    color="#999999"
-                  /><text class="meta-t">
-                    {{ post.views.toLocaleString() }}
-                  </text>
-                </view>
-                <view class="meta-item">
-                  <app-icon
-                    name="heart"
-                    :size="20"
-                    color="#999999"
-                  /><text class="meta-t">
-                    {{ post.likes }}
-                  </text>
-                </view>
-                <view class="meta-item">
-                  <app-icon
-                    name="message-circle"
-                    :size="20"
-                    color="#999999"
-                  /><text class="meta-t">
-                    {{ post.comments }}
-                  </text>
-                </view>
+                <view class="post-author"><image class="post-avatar" :src="post.avatar" mode="aspectFill" /><text class="post-author-t">{{ post.author }}</text></view>
+                <view class="meta-item"><app-icon name="eye" :size="20" color="#999999" /><text class="meta-t">{{ post.views.toLocaleString() }}</text></view>
+                <view class="meta-item"><app-icon name="heart" :size="20" color="#999999" /><text class="meta-t">{{ post.likes }}</text></view>
+                <view class="meta-item"><app-icon name="message-circle" :size="20" color="#999999" /><text class="meta-t">{{ post.comments }}</text></view>
               </view>
             </view>
           </view>

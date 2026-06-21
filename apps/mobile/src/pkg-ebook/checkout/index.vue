@@ -3,171 +3,75 @@
     <!-- Header -->
     <view class="hd">
       <view class="hd-bar">
-        <view
-          class="icon-btn"
-          @tap="goBack"
-        >
-          <AppIcon
-            name="arrow-left"
-            :size="40"
-            :color="C.text"
-          />
-        </view>
-        <text class="hd-title">
-          确认订单
-        </text>
+        <view class="icon-btn" @tap="goBack"><AppIcon name="arrow-left" :size="40" :color="C.text" /></view>
+        <text class="hd-title">确认订单</text>
         <view class="hd-spacer" />
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="body"
-    >
+    <scroll-view scroll-y class="body">
       <!-- 书籍信息 -->
       <view class="card book-card">
-        <view
-          class="book-cover"
-          :style="{ background: book.coverColor }"
-        >
+        <view class="book-cover" :style="{ background: book.coverColor }">
           <view class="cover-spine" />
-          <view class="cover-text-wrap">
-            <text class="cover-text">
-              {{ book.title }}
-            </text>
-          </view>
+          <view class="cover-text-wrap"><text class="cover-text">{{ book.title }}</text></view>
         </view>
         <view class="book-info">
-          <text class="book-title">
-            {{ book.title }}
-          </text>
-          <text class="book-author">
-            {{ book.author }}
-          </text>
-          <text class="book-tip">
-            数字商品 · 购买后永久可读
-          </text>
-          <view
-            v-if="book.isMemberFree"
-            class="member-row"
-          >
-            <AppIcon
-              name="crown"
-              :size="28"
-              :color="C.member"
-            />
-            <text class="member-tx">
-              会员可免费领取
-            </text>
-            <text class="member-link">
-              开通会员
-            </text>
+          <text class="book-title">{{ book.title }}</text>
+          <text class="book-author">{{ book.author }}</text>
+          <text class="book-tip">数字商品 · 购买后永久可读</text>
+          <view v-if="book.isMemberFree" class="member-row">
+            <AppIcon name="crown" :size="28" :color="C.member" />
+            <text class="member-tx">会员可免费领取</text>
+            <text class="member-link">开通会员</text>
           </view>
         </view>
       </view>
 
       <!-- 价格明细 -->
       <view class="card">
-        <view class="card-hd">
-          <text class="card-hd-tx">
-            价格明细
-          </text>
-        </view>
+        <view class="card-hd"><text class="card-hd-tx">价格明细</text></view>
         <view class="price-body">
           <view class="price-row">
-            <text class="price-label">
-              商品原价
-            </text>
-            <text class="price-del">
-              ¥{{ book.originalPrice }}
-            </text>
+            <text class="price-label">商品原价</text>
+            <text class="price-del">¥{{ book.originalPrice }}</text>
           </view>
           <view class="price-row">
-            <text class="price-label">
-              限时优惠
-            </text>
-            <text class="price-free">
-              -¥{{ book.originalPrice - book.price }}
-            </text>
+            <text class="price-label">限时优惠</text>
+            <text class="price-free">-¥{{ book.originalPrice - book.price }}</text>
           </view>
-          <view
-            v-if="couponApplied"
-            class="price-row"
-          >
-            <text class="price-label">
-              优惠券
-            </text>
-            <text class="price-free">
-              -¥10
-            </text>
+          <view v-if="couponApplied" class="price-row">
+            <text class="price-label">优惠券</text>
+            <text class="price-free">-¥10</text>
           </view>
           <view class="price-total">
-            <text class="price-total-label">
-              实付金额
-            </text>
-            <text class="price-total-val">
-              ¥{{ finalPrice }}
-            </text>
+            <text class="price-total-label">实付金额</text>
+            <text class="price-total-val">¥{{ finalPrice }}</text>
           </view>
         </view>
       </view>
 
       <!-- 优惠券 -->
       <view class="card">
-        <view
-          class="coupon-hd"
-          @tap="showCoupon = !showCoupon"
-        >
+        <view class="coupon-hd" @tap="showCoupon = !showCoupon">
           <view class="coupon-left">
-            <AppIcon
-              name="tag"
-              :size="32"
-              :color="C.price"
-            />
-            <text class="coupon-tx">
-              优惠券
-            </text>
+            <AppIcon name="tag" :size="32" :color="C.price" />
+            <text class="coupon-tx">优惠券</text>
           </view>
           <view class="coupon-right">
-            <text class="coupon-state">
-              {{ couponApplied ? '已使用 1 张' : '可用 1 张' }}
-            </text>
-            <AppIcon
-              name="chevron-down"
-              :size="32"
-              :color="C.textSoft"
-              :class="{ rotated: showCoupon }"
-            />
+            <text class="coupon-state">{{ couponApplied ? '已使用 1 张' : '可用 1 张' }}</text>
+            <AppIcon name="chevron-down" :size="32" :color="C.textSoft" :class="{ rotated: showCoupon }" />
           </view>
         </view>
-        <view
-          v-if="showCoupon"
-          class="coupon-body"
-        >
-          <input
-            v-model="couponCode"
-            class="coupon-input"
-            placeholder="输入优惠码"
-            placeholder-class="ph"
-          >
-          <view
-            class="coupon-use-btn"
-            @tap="applyCoupon"
-          >
-            <text class="coupon-use-tx">
-              使用
-            </text>
-          </view>
+        <view v-if="showCoupon" class="coupon-body">
+          <input v-model="couponCode" class="coupon-input" placeholder="输入优惠码" placeholder-class="ph" />
+          <view class="coupon-use-btn" @tap="applyCoupon"><text class="coupon-use-tx">使用</text></view>
         </view>
       </view>
 
       <!-- 支付方式 -->
       <view class="card">
-        <view class="card-hd">
-          <text class="card-hd-tx">
-            支付方式
-          </text>
-        </view>
+        <view class="card-hd"><text class="card-hd-tx">支付方式</text></view>
         <view
           v-for="(method, idx) in payMethods"
           :key="method.id"
@@ -176,76 +80,36 @@
           @tap="payMethod = method.id"
         >
           <view class="pay-left">
-            <AppIcon
-              :name="method.icon"
-              :size="40"
-              :color="method.iconColor"
-            />
-            <text class="pay-label">
-              {{ method.label }}
-            </text>
+            <AppIcon :name="method.icon" :size="40" :color="method.iconColor" />
+            <text class="pay-label">{{ method.label }}</text>
           </view>
-          <view
-            class="radio"
-            :class="{ 'radio-on': payMethod === method.id }"
-          >
-            <view
-              v-if="payMethod === method.id"
-              class="radio-dot"
-            />
+          <view class="radio" :class="{ 'radio-on': payMethod === method.id }">
+            <view v-if="payMethod === method.id" class="radio-dot" />
           </view>
         </view>
       </view>
 
       <!-- 安全提示 -->
       <view class="secure">
-        <AppIcon
-          name="shield"
-          :size="28"
-          :color="C.free"
-        />
-        <text class="secure-tx">
-          安全支付由平台保障 · 购买即同意服务协议
-        </text>
+        <AppIcon name="shield" :size="28" :color="C.free" />
+        <text class="secure-tx">安全支付由平台保障 · 购买即同意服务协议</text>
       </view>
     </scroll-view>
 
     <!-- 底部支付栏 -->
     <view class="pay-bar">
       <view class="pay-amount">
-        <text class="pay-amount-label">
-          应付
-        </text>
-        <text class="pay-amount-val">
-          ¥{{ finalPrice }}
-        </text>
+        <text class="pay-amount-label">应付</text>
+        <text class="pay-amount-val">¥{{ finalPrice }}</text>
       </view>
-      <view
-        class="pay-btn"
-        :class="{ disabled: isProcessing }"
-        @tap="handlePay"
-      >
-        <view
-          v-if="isProcessing"
-          class="pay-btn-inner"
-        >
+      <view class="pay-btn" :class="{ disabled: isProcessing }" @tap="handlePay">
+        <view v-if="isProcessing" class="pay-btn-inner">
           <view class="spinner" />
-          <text class="pay-btn-tx">
-            支付中...
-          </text>
+          <text class="pay-btn-tx">支付中...</text>
         </view>
-        <view
-          v-else
-          class="pay-btn-inner"
-        >
-          <AppIcon
-            name="lock"
-            :size="32"
-            color="#ffffff"
-          />
-          <text class="pay-btn-tx">
-            立即支付
-          </text>
+        <view v-else class="pay-btn-inner">
+          <AppIcon name="lock" :size="32" color="#ffffff" />
+          <text class="pay-btn-tx">立即支付</text>
         </view>
       </view>
     </view>
@@ -254,34 +118,22 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { ebookApi } from '@/lib/ebook-data'
+import { ebookCheckoutBook, ebookPayMethods } from '@/lib/ebook-data'
 
 const C = {
   text: '#1e293b', textSoft: '#64748b', member: '#7c3aed', price: '#dc2626', free: '#16a34a',
 }
 
-const book = ref<any>({})
-const payMethods = ref<any[]>([])
+const book = ebookCheckoutBook
+const payMethods = ebookPayMethods
 const payMethod = ref('wechat')
 const couponCode = ref('')
 const couponApplied = ref(false)
 const showCoupon = ref(false)
 const isProcessing = ref(false)
 
-const finalPrice = computed(() => (couponApplied.value ? book.value.price - 10 : book.value.price))
-
-onLoad((query) => {
-  const id = query.id || '1'
-  loadData(id)
-})
-
-async function loadData(id: string) {
-  const res = await ebookApi.checkout(id)
-  book.value = res.book
-  payMethods.value = res.payMethods
-}
+const finalPrice = computed(() => (couponApplied.value ? book.price - 10 : book.price))
 
 function applyCoupon() {
   if (couponCode.value) couponApplied.value = true
@@ -294,7 +146,7 @@ function handlePay() {
   isProcessing.value = true
   setTimeout(() => {
     isProcessing.value = false
-    uni.redirectTo({ url: `/pkg-ebook/checkout/success?id=${book.value.id}` })
+    uni.redirectTo({ url: `/pkg-ebook/checkout/success?id=${book.id}` })
   }, 1200)
 }
 </script>

@@ -1,33 +1,15 @@
 <script setup lang="ts">
 /** 直播广场页 - 从原型 app/live/page.tsx 迁移 */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import LiveCard from '@/components/live/live-card.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { liveApi, liveTabs, type LiveItem } from '@/lib/live-data'
+import { liveTabs, liveList, type LiveItem } from '@/lib/live-data'
 
 const activeTab = ref<string>('全部')
 
-const liveList = ref<LiveItem[]>([])
-const loading = ref(false)
-const error = ref('')
-
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await liveApi.list()
-    liveList.value = res.items
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-onMounted(() => { loadData() })
-
 const filtered = computed<LiveItem[]>(() => {
-  return liveList.value.filter((live) => {
+  return liveList.filter((live) => {
     if (activeTab.value === '全部') return true
     if (activeTab.value === '知识授课') return live.type === 'knowledge'
     if (activeTab.value === '电商带货') return live.type === 'commerce'
@@ -49,28 +31,12 @@ function onSearch() {
     <!-- 固定头部 -->
     <view class="header">
       <view class="title-bar">
-        <view
-          class="nav-back"
-          @tap="goBack"
-        >
-          <AppIcon
-            name="chevron-left"
-            :size="88"
-            color="#2c2c2c"
-          />
+        <view class="nav-back" @tap="goBack">
+          <AppIcon name="chevron-left" :size="88" color="#2c2c2c" />
         </view>
-        <text class="nav-title">
-          直播广场
-        </text>
-        <view
-          class="nav-search"
-          @tap="onSearch"
-        >
-          <AppIcon
-            name="search"
-            :size="80"
-            color="#666666"
-          />
+        <text class="nav-title">直播广场</text>
+        <view class="nav-search" @tap="onSearch">
+          <AppIcon name="search" :size="80" color="#666666" />
         </view>
       </view>
       <!-- 分类 tabs（下划线风格） -->
@@ -82,114 +48,55 @@ function onSearch() {
           :class="activeTab === tab && 'tab-on'"
           @tap="activeTab = tab"
         >
-          <text class="tab-txt">
-            {{ tab }}
-          </text>
-          <view
-            v-if="activeTab === tab"
-            class="tab-line"
-          />
+          <text class="tab-txt">{{ tab }}</text>
+          <view v-if="activeTab === tab" class="tab-line" />
         </view>
       </view>
     </view>
 
     <!-- 内容区 -->
-    <scroll-view
-      scroll-y
-      class="content"
-    >
-      <view
-        v-if="loading"
-        class="loading"
-      >
-        <text>加载中...</text>
-      </view>
-      <view
-        v-else-if="error"
-        class="err-msg"
-      >
-        <text>{{ error }}</text>
-        <view
-          class="retry-btn"
-          @tap="loadData"
-        >
-          重试
+    <scroll-view scroll-y class="content">
+      <!-- 正在直播 -->
+      <view v-if="livesNow.length > 0" class="section">
+        <view class="sec-head">
+          <view class="radio-dot"><AppIcon name="radio" :size="48" color="#ffffff" /></view>
+          <text class="sec-title">正在直播</text>
+          <text class="sec-count">({{ livesNow.length }})</text>
+        </view>
+        <view class="grid">
+          <view
+            v-for="live in livesNow"
+            :key="live.id"
+            class="grid-item"
+            :class="live.orientation === 'horizontal' && 'span-2'"
+          >
+            <LiveCard :data="live" />
+          </view>
         </view>
       </view>
-      <view v-else>
-        <!-- 正在直播 -->
-        <view
-          v-if="livesNow.length > 0"
-          class="section"
-        >
-          <view class="sec-head">
-            <view class="radio-dot">
-              <AppIcon
-                name="radio"
-                :size="48"
-                color="#ffffff"
-              />
-            </view>
-            <text class="sec-title">
-              正在直播
-            </text>
-            <text class="sec-count">
-              ({{ livesNow.length }})
-            </text>
-          </view>
-          <view class="grid">
-            <view
-              v-for="live in livesNow"
-              :key="live.id"
-              class="grid-item"
-              :class="live.orientation === 'horizontal' && 'span-2'"
-            >
-              <LiveCard :data="live" />
-            </view>
-          </view>
-        </view>
 
-        <!-- 直播预告 -->
-        <view
-          v-if="livesUpcoming.length > 0"
-          class="section"
-        >
-          <view class="sec-head">
-            <text class="sec-title">
-              直播预告
-            </text>
-            <text class="sec-count">
-              ({{ livesUpcoming.length }})
-            </text>
-          </view>
-          <view class="grid">
-            <view
-              v-for="live in livesUpcoming"
-              :key="live.id"
-              class="grid-item"
-              :class="live.orientation === 'horizontal' && 'span-2'"
-            >
-              <LiveCard :data="live" />
-            </view>
+      <!-- 直播预告 -->
+      <view v-if="livesUpcoming.length > 0" class="section">
+        <view class="sec-head">
+          <text class="sec-title">直播预告</text>
+          <text class="sec-count">({{ livesUpcoming.length }})</text>
+        </view>
+        <view class="grid">
+          <view
+            v-for="live in livesUpcoming"
+            :key="live.id"
+            class="grid-item"
+            :class="live.orientation === 'horizontal' && 'span-2'"
+          >
+            <LiveCard :data="live" />
           </view>
         </view>
+      </view>
 
-        <!-- 空态 -->
-        <view
-          v-if="filtered.length === 0"
-          class="empty"
-        >
-          <view class="empty-icon">
-            <AppIcon
-              name="radio"
-              :size="128"
-              color="#999999"
-            />
-          </view>
-          <text class="empty-txt">
-            暂无相关直播
-          </text>
-        </view>
+      <!-- 空态 -->
+      <view v-if="filtered.length === 0" class="empty">
+        <view class="empty-icon"><AppIcon name="radio" :size="128" color="#999999" /></view>
+        <text class="empty-txt">暂无相关直播</text>
       </view>
     </scroll-view>
   </view>
@@ -225,7 +132,4 @@ function onSearch() {
 .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; }
 .empty-icon { display: flex; align-items: center; justify-content: center; width: 160rpx; height: 160rpx; border-radius: 999rpx; background: #ffffff; margin-bottom: 32rpx; }
 .empty-txt { font-size: 28rpx; color: #999999; }
-.loading { display: flex; align-items: center; justify-content: center; padding: 160rpx 0; font-size: 28rpx; color: #999; }
-.err-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; gap: 24rpx; font-size: 28rpx; color: #ef4444; }
-.retry-btn { padding: 12rpx 48rpx; background: var(--brand); color: #fff; border-radius: 999rpx; font-size: 28rpx; }
 </style>

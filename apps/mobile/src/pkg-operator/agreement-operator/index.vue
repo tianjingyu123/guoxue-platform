@@ -1,74 +1,25 @@
 <template>
   <view class="ag-page">
-    <app-nav-bar
-      title="运营商协议"
-      :border="true"
-    />
-    <scroll-view
-      scroll-y
-      class="ag-scroll"
-    >
-      <view
-        v-if="loading"
-        class="ag-loading"
-      >
-        <view class="ag-loading-spinner" />
-        <text class="ag-loading-text">
-          加载中...
-        </text>
+    <app-nav-bar title="运营商协议" :border="true" />
+    <scroll-view scroll-y class="ag-scroll">
+      <!-- 重要提示 -->
+      <view class="ag-tip">
+        <text class="ag-tip-title">重要提示</text>
+        <text class="ag-tip-text">{{ operatorAgreementTip }}</text>
       </view>
-      <view
-        v-else-if="error"
-        class="ag-error"
-      >
-        <text class="ag-error-text">
-          {{ error }}
-        </text>
-        <view
-          class="ag-retry-btn"
-          @tap="loadData"
-        >
-          <text class="ag-retry-txt">
-            重试
-          </text>
+
+      <!-- 协议内容 -->
+      <view class="ag-list">
+        <view v-for="(s, i) in operatorAgreementSections" :key="i" class="ag-card">
+          <text class="ag-card-title">{{ s.title }}</text>
+          <text class="ag-card-content">{{ s.content }}</text>
         </view>
       </view>
-      <view v-else>
-        <!-- 重要提示 -->
-        <view class="ag-tip">
-          <text class="ag-tip-title">
-            重要提示
-          </text>
-          <text class="ag-tip-text">
-            {{ tip }}
-          </text>
-        </view>
 
-        <!-- 协议内容 -->
-        <view class="ag-list">
-          <view
-            v-for="(s, i) in sections"
-            :key="i"
-            class="ag-card"
-          >
-            <text class="ag-card-title">
-              {{ s.title }}
-            </text>
-            <text class="ag-card-content">
-              {{ s.content }}
-            </text>
-          </view>
-        </view>
-
-        <!-- 更新时间 -->
-        <view class="ag-footer">
-          <text class="ag-footer-text">
-            最后更新时间：2024年1月1日
-          </text>
-          <text class="ag-footer-text">
-            版本号：v1.0
-          </text>
-        </view>
+      <!-- 更新时间 -->
+      <view class="ag-footer">
+        <text class="ag-footer-text">最后更新时间：2024年1月1日</text>
+        <text class="ag-footer-text">版本号：v1.0</text>
       </view>
       <view class="ag-bottom-pad" />
     </scroll-view>
@@ -76,32 +27,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
-import { operatorApi } from '@/lib/operator-data'
-import type { AgreementSection } from '@/lib/operator-data'
-
-const loading = ref(true)
-const error = ref('')
-
-const sections = ref<AgreementSection[]>([])
-const tip = ref('')
-
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await operatorApi.operatorAgreement()
-    sections.value = res.sections
-    tip.value = res.tip
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => { loadData() })
+import { operatorAgreementSections, operatorAgreementTip } from '@/lib/operator-data'
 </script>
 
 <style scoped>
@@ -117,12 +44,4 @@ onMounted(() => { loadData() })
 .ag-footer { margin: 48rpx 32rpx 0; padding: 32rpx; background: rgba(138,129,120,0.1); border-radius: 16rpx; display: flex; flex-direction: column; align-items: center; gap: 16rpx; }
 .ag-footer-text { font-size: 22rpx; color: #8a8178; }
 .ag-bottom-pad { height: 48rpx; }
-
-.ag-loading, .ag-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80rpx 32rpx; }
-.ag-loading-spinner { width: 64rpx; height: 64rpx; border: 4rpx solid #EDE7DC; border-top-color: #7c3aed; border-radius: 50%; animation: ag-spin 0.8s linear infinite; }
-@keyframes ag-spin { to { transform: rotate(360deg); } }
-.ag-loading-text { font-size: 26rpx; color: #8a8178; margin-top: 24rpx; }
-.ag-error-text { font-size: 26rpx; color: #ef4444; margin-bottom: 24rpx; }
-.ag-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 16rpx; }
-.ag-retry-txt { font-size: 26rpx; color: #fff; }
 </style>

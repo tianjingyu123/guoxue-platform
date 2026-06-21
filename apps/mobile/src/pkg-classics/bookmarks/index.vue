@@ -4,50 +4,22 @@
     <view class="bm-header">
       <view class="bm-nav">
         <view class="bm-nav-left">
-          <view
-            class="bm-back"
-            @tap="goBack"
-          >
-            <app-icon
-              name="arrow-left"
-              :size="40"
-              color="#999999"
-            />
+          <view class="bm-back" @tap="goBack">
+            <app-icon name="arrow-left" :size="40" color="#999999" />
           </view>
-          <text class="bm-title">
-            我的书签
-          </text>
+          <text class="bm-title">我的书签</text>
         </view>
         <view class="bm-nav-right">
           <template v-if="isSelectMode">
-            <view
-              class="bm-tbtn"
-              @tap="exitSelect"
-            >
-              <text class="bm-tbtn-text">
-                取消
-              </text>
+            <view class="bm-tbtn" @tap="exitSelect">
+              <text class="bm-tbtn-text">取消</text>
             </view>
-            <view
-              class="bm-tbtn bm-tbtn--danger"
-              :class="{ 'bm-tbtn--disabled': selectedIds.size === 0 }"
-              @tap="batchDelete"
-            >
-              <text class="bm-tbtn-text bm-tbtn-text--danger">
-                删除 ({{ selectedIds.size }})
-              </text>
+            <view class="bm-tbtn bm-tbtn--danger" :class="{ 'bm-tbtn--disabled': selectedIds.size === 0 }" @tap="batchDelete">
+              <text class="bm-tbtn-text bm-tbtn-text--danger">删除 ({{ selectedIds.size }})</text>
             </view>
           </template>
-          <view
-            v-else
-            class="bm-icon-btn"
-            @tap="openManageMenu"
-          >
-            <app-icon
-              name="more-vertical"
-              :size="32"
-              color="#999999"
-            />
+          <view v-else class="bm-icon-btn" @tap="openManageMenu">
+            <app-icon name="more-vertical" :size="32" color="#999999" />
           </view>
         </view>
       </view>
@@ -55,42 +27,15 @@
       <!-- 搜索和视图切换 -->
       <view class="bm-toolbar">
         <view class="bm-search">
-          <app-icon
-            name="search"
-            :size="28"
-            color="#999999"
-          />
-          <input
-            v-model="searchValue"
-            class="bm-search-input"
-            placeholder="搜索书签内容..."
-            placeholder-class="bm-ph"
-          >
+          <app-icon name="search" :size="28" color="#999999" />
+          <input v-model="searchValue" class="bm-search-input" placeholder="搜索书签内容..." placeholder-class="bm-ph" />
         </view>
         <view class="bm-toggle">
-          <view
-            class="bm-toggle-btn"
-            :class="{ 'bm-toggle-btn--active': viewMode === 'timeline' }"
-            @tap="viewMode = 'timeline'"
-          >
-            <text
-              class="bm-toggle-text"
-              :class="{ 'bm-toggle-text--active': viewMode === 'timeline' }"
-            >
-              时间线
-            </text>
+          <view class="bm-toggle-btn" :class="{ 'bm-toggle-btn--active': viewMode === 'timeline' }" @tap="viewMode = 'timeline'">
+            <text class="bm-toggle-text" :class="{ 'bm-toggle-text--active': viewMode === 'timeline' }">时间线</text>
           </view>
-          <view
-            class="bm-toggle-btn"
-            :class="{ 'bm-toggle-btn--active': viewMode === 'book' }"
-            @tap="viewMode = 'book'"
-          >
-            <text
-              class="bm-toggle-text"
-              :class="{ 'bm-toggle-text--active': viewMode === 'book' }"
-            >
-              按书籍
-            </text>
+          <view class="bm-toggle-btn" :class="{ 'bm-toggle-btn--active': viewMode === 'book' }" @tap="viewMode = 'book'">
+            <text class="bm-toggle-text" :class="{ 'bm-toggle-text--active': viewMode === 'book' }">按书籍</text>
           </view>
         </view>
       </view>
@@ -99,38 +44,19 @@
     <!-- 列表 -->
     <view class="bm-body">
       <!-- 空状态 -->
-      <view
-        v-if="filtered.length === 0"
-        class="bm-empty"
-      >
+      <view v-if="filtered.length === 0" class="bm-empty">
         <view class="bm-empty-icon">
-          <app-icon
-            name="bookmark"
-            :size="64"
-            color="#999999"
-          />
+          <app-icon name="bookmark" :size="64" color="#999999" />
         </view>
-        <text class="bm-empty-title">
-          暂无书签
-        </text>
-        <text class="bm-empty-sub">
-          阅读时长按文字可添加书签
-        </text>
-        <view
-          class="bm-empty-btn"
-          @tap="goHome"
-        >
-          <text class="bm-empty-btn-text">
-            去阅读
-          </text>
+        <text class="bm-empty-title">暂无书签</text>
+        <text class="bm-empty-sub">阅读时长按文字可添加书签</text>
+        <view class="bm-empty-btn" @tap="goHome">
+          <text class="bm-empty-btn-text">去阅读</text>
         </view>
       </view>
 
       <!-- 时间线视图 -->
-      <view
-        v-else-if="viewMode === 'timeline'"
-        class="bm-list"
-      >
+      <view v-else-if="viewMode === 'timeline'" class="bm-list">
         <view
           v-for="bm in filtered"
           :key="bm.id"
@@ -140,79 +66,37 @@
         >
           <view class="bm-card-main">
             <view class="bm-card-head">
-              <text class="bm-card-book">
-                《{{ bm.bookTitle }}》
-              </text>
-              <text class="bm-card-loc">
-                {{ bm.chapter }} · 第{{ bm.page }}页
-              </text>
+              <text class="bm-card-book">《{{ bm.bookTitle }}》</text>
+              <text class="bm-card-loc">{{ bm.chapter }} · 第{{ bm.page }}页</text>
             </view>
-            <text class="bm-card-content">
-              {{ bm.content }}
-            </text>
+            <text class="bm-card-content">{{ bm.content }}</text>
             <view class="bm-card-time">
-              <app-icon
-                name="clock"
-                :size="22"
-                color="#999999"
-              />
-              <text class="bm-card-time-text">
-                {{ bm.createdAt }}
-              </text>
+              <app-icon name="clock" :size="22" color="#999999" />
+              <text class="bm-card-time-text">{{ bm.createdAt }}</text>
             </view>
           </view>
-          <view
-            v-if="!isSelectMode"
-            class="bm-icon-btn bm-card-more"
-            @tap.stop="openItemMenu(bm.id)"
-          >
-            <app-icon
-              name="more-vertical"
-              :size="32"
-              color="#999999"
-            />
+          <view v-if="!isSelectMode" class="bm-icon-btn bm-card-more" @tap.stop="openItemMenu(bm.id)">
+            <app-icon name="more-vertical" :size="32" color="#999999" />
           </view>
         </view>
       </view>
 
       <!-- 按书籍分组视图 -->
-      <view
-        v-else
-        class="bm-groups"
-      >
-        <view
-          v-for="group in grouped"
-          :key="group.bookId"
-          class="bm-group"
-        >
-          <view
-            class="bm-group-head"
-            @tap="goBook(group.bookId)"
-          >
+      <view v-else class="bm-groups">
+        <view v-for="group in grouped" :key="group.bookId" class="bm-group">
+          <view class="bm-group-head" @tap="goBook(group.bookId)">
             <view class="bm-group-left">
               <view class="bm-group-cover">
-                <text class="bm-group-cover-text">
-                  {{ group.bookTitle.slice(0, 2) }}
-                </text>
+                <text class="bm-group-cover-text">{{ group.bookTitle.slice(0, 2) }}</text>
               </view>
               <view class="bm-group-info">
-                <text class="bm-group-title">
-                  《{{ group.bookTitle }}》
-                </text>
-                <text class="bm-group-author">
-                  [{{ group.dynasty }}] {{ group.bookAuthor }}
-                </text>
+                <text class="bm-group-title">《{{ group.bookTitle }}》</text>
+                <text class="bm-group-author">[{{ group.dynasty }}] {{ group.bookAuthor }}</text>
               </view>
             </view>
             <view class="bm-group-right">
-              <text class="bm-group-count">
-                {{ group.count }}个书签
-              </text>
-              <app-icon
-                name="chevron-right"
-                :size="28"
-                color="#999999"
-              />
+              <text class="bm-group-count">{{ group.count }}个书签</text>
+              <app-icon name="chevron-right" :size="28" color="#999999" />
             </view>
           </view>
           <view class="bm-group-items">
@@ -223,12 +107,8 @@
               :class="[`bm-card--${bm.color}`, { 'bm-card--selected': selectedIds.has(bm.id) }]"
               @tap="isSelectMode && toggleSelect(bm.id)"
             >
-              <text class="bm-subcard-loc">
-                {{ bm.chapter }} · 第{{ bm.page }}页
-              </text>
-              <text class="bm-subcard-content">
-                {{ bm.content }}
-              </text>
+              <text class="bm-subcard-loc">{{ bm.chapter }} · 第{{ bm.page }}页</text>
+              <text class="bm-subcard-content">{{ bm.content }}</text>
             </view>
           </view>
         </view>
@@ -238,19 +118,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { classicsApi, type BookmarkItem } from '@/lib/classics-data'
+import { bookmarksData, type BookmarkItem } from '@/lib/classics-data'
 
 const searchValue = ref('')
 const selectedIds = ref<Set<string>>(new Set())
 const isSelectMode = ref(false)
-const bookmarks = ref<BookmarkItem[]>([])
-
-onMounted(async () => {
-  const res = await classicsApi.bookmarks()
-  bookmarks.value = res.items
-})
+const bookmarks = ref<BookmarkItem[]>([...bookmarksData])
 const viewMode = ref<'timeline' | 'book'>('timeline')
 
 const filtered = computed(() =>

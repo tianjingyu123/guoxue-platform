@@ -83,6 +83,23 @@
   --muted: var(--xuan-paper-3);
   --muted-foreground: var(--ink-3);
   --border: var(--hairline);
+
+  /* 古籍馆专属底色（原型 #f4f2ee 暖灰米，区别于全局宣纸 #faf8f5） */
+  --classics-bg: #f4f2ee;
+
+  /* 电子书城专属主题（知识蓝，区别于古籍故宫红） */
+  --ebook-primary: #2563eb;
+  --ebook-primary-soft: #dbeafe;
+  --ebook-accent: #0ea5e9;
+  --ebook-member: #7c3aed;
+  --ebook-member-soft: #ede9fe;
+  --ebook-price: #dc2626;
+  --ebook-free: #16a34a;
+  --ebook-bg: #f8fafc;
+  --ebook-card: #ffffff;
+  --ebook-border: #e2e8f0;
+  --ebook-text: #1e293b;
+  --ebook-text-soft: #64748b;
 }
 
 /* ---------- ② 语义令牌 · 深色（与原型一致的整套覆盖） ---------- */
@@ -98,6 +115,7 @@
     --hairline: #353029;
     --gugong-red: #d94452;
     --jewel-gold: #d4b87d;
+    --classics-bg: #1a1815;
   }
 }
 /* 手动暗色 class（小程序无 prefers-color-scheme 时用） */
@@ -110,6 +128,7 @@
   --hairline: #353029;
   --gugong-red: #d94452;
   --jewel-gold: #d4b87d;
+  --classics-bg: #1a1815;
 }
 
 /* ---------- 字族 ---------- */
@@ -156,3 +175,24 @@
 .wxb-earth { background: rgba(184,134,11,0.1); color: var(--wuxing-earth); }
 .wxb-metal { background: rgba(201,169,110,0.1); color: var(--wuxing-metal); }
 .wxb-water { background: rgba(26,111,199,0.1); color: var(--wuxing-water); }
+
+/* ============================================================
+   诗词板块专属配色系统（从原型 globals.css 1:1 迁移）
+   定位：深色沉浸式文化体验——深棕夜色为底，琥珀金为点缀
+   ============================================================ */
+:root {
+  --poem-bg:          #1c1208;   /* 页面底色：深夜棕黑 */
+  --poem-bg-2:        #241a0e;   /* 次级背景 */
+  --poem-surface:     #2e1f10;   /* 卡片/面板底色 */
+  --poem-border:      rgba(255, 210, 140, 0.12); /* 边框：琥珀金半透明 */
+  --poem-gold:        #e8c07a;   /* 主强调色：琥珀金 */
+  --poem-gold-soft:   rgba(232, 192, 122, 0.15); /* 金色浅底 */
+  --poem-gold-dim:    rgba(232, 192, 122, 0.35); /* 金色中等透明 */
+  --poem-text:        #f5ead8;   /* 主文字：暖白 */
+  --poem-text-soft:   rgba(245, 234, 216, 0.55); /* 次级文字 */
+  --poem-text-muted:  rgba(245, 234, 216, 0.30); /* 更弱辅助文字 */
+  --poem-ai:          #9b7ec8;   /* AI 功能色：淡紫 */
+  --poem-ai-soft:     rgba(155, 126, 200, 0.18); /* AI 浅底 */
+  --poem-red:         #c0433a;   /* 点赞红 */
+  --poem-line:        rgba(255, 210, 140, 0.08); /* 分隔线 */
+}

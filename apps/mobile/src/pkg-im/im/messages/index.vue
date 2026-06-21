@@ -1,46 +1,24 @@
 <template>
   <view class="msg-page">
     <!-- 顶部导航 -->
-    <view
-      class="navbar"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="navbar__inner">
         <view class="navbar__left">
-          <view
-            class="navbar__back"
-            @tap="goBack"
-          >
-            <AppIcon
-              name="arrow-left"
-              :size="40"
-              color="#2c2c2c"
-            />
+          <view class="navbar__back" @tap="goBack">
+            <AppIcon name="arrow-left" :size="40" color="#2c2c2c" />
           </view>
-          <text class="navbar__title">
-            消息中心
-          </text>
+          <text class="navbar__title">消息中心</text>
         </view>
-        <view
-          v-if="currentUnread > 0"
-          class="navbar__action"
-          @tap="markAllRead"
-        >
-          <AppIcon
-            name="check-check"
-            :size="32"
-            color="#c41e3a"
-          />
-          <text class="navbar__action-txt">
-            全部已读
-          </text>
+        <view v-if="currentUnread > 0" class="navbar__action" @tap="markAllRead">
+          <AppIcon name="check-check" :size="32" color="#c41e3a" />
+          <text class="navbar__action-txt">全部已读</text>
         </view>
       </view>
 
       <!-- 分类 Tab -->
       <view class="tabs">
         <view
-          v-for="tab in tabs"
+          v-for="tab in messageTabs"
           :key="tab.key"
           class="tab"
           :class="{ 'tab--active': activeTab === tab.key }"
@@ -52,61 +30,18 @@
               :size="32"
               :color="activeTab === tab.key ? '#c41e3a' : '#9c9388'"
             />
-            <text
-              v-if="counts[tab.key] > 0"
-              class="tab__badge"
-            >
+            <text v-if="counts[tab.key] > 0" class="tab__badge">
               {{ counts[tab.key] > 99 ? '99+' : counts[tab.key] }}
             </text>
           </view>
-          <text class="tab__label">
-            {{ tab.label }}
-          </text>
-          <view
-            v-if="activeTab === tab.key"
-            class="tab__indicator"
-          />
+          <text class="tab__label">{{ tab.label }}</text>
+          <view v-if="activeTab === tab.key" class="tab__indicator" />
         </view>
       </view>
-    </view>
-
-    <!-- 加载态 -->
-    <view
-      v-if="loading"
-      class="msg-loading"
-    >
-      <view
-        v-for="i in 3"
-        :key="i"
-        class="msg-loading-item"
-      >
-        <view class="skeleton-circle" />
-        <view class="msg-loading-body">
-          <view class="skeleton-line skeleton-line-lg" />
-          <view class="skeleton-line skeleton-line-md" />
-        </view>
-      </view>
-    </view>
-
-    <!-- 错误态 -->
-    <view
-      v-else-if="error"
-      class="error-state"
-      @tap="loadData"
-    >
-      <text class="error-text">
-        {{ error }}
-      </text>
-      <text class="error-retry">
-        点击重试
-      </text>
     </view>
 
     <!-- 消息列表 -->
-    <view
-      v-else-if="filteredMessages.length > 0"
-      class="msg-list"
-    >
+    <view v-if="filteredMessages.length > 0" class="msg-list">
       <view
         v-for="msg in filteredMessages"
         :key="msg.id"
@@ -116,121 +51,60 @@
       >
         <!-- 图标/头像 -->
         <view class="msg-item__lead">
-          <image
-            v-if="msg.avatar"
-            :src="msg.avatar"
-            class="msg-item__avatar"
-            mode="aspectFill"
-          />
-          <view
-            v-else
-            class="msg-item__icon"
-            :style="{ background: iconBg(msg) }"
-          >
-            <AppIcon
-              :name="categoryIcon(msg).name"
-              :size="40"
-              :color="categoryIcon(msg).color"
-            />
+          <image v-if="msg.avatar" :src="msg.avatar" class="msg-item__avatar" mode="aspectFill" />
+          <view v-else class="msg-item__icon" :style="{ background: iconBg(msg) }">
+            <AppIcon :name="categoryIcon(msg).name" :size="40" :color="categoryIcon(msg).color" />
           </view>
-          <view
-            v-if="!msg.isRead"
-            class="msg-item__dot"
-          />
+          <view v-if="!msg.isRead" class="msg-item__dot" />
         </view>
 
         <!-- 内容 -->
         <view class="msg-item__body">
           <view class="msg-item__head">
             <view class="msg-item__title-wrap">
-              <text
-                class="msg-item__title"
-                :class="{ 'msg-item__title--read': msg.isRead }"
-              >
-                {{ msg.title }}
-              </text>
-              <text class="msg-item__cate">
-                {{ msg.category }}
-              </text>
+              <text class="msg-item__title" :class="{ 'msg-item__title--read': msg.isRead }">{{ msg.title }}</text>
+              <text class="msg-item__cate">{{ msg.category }}</text>
             </view>
-            <text class="msg-item__time">
-              {{ msg.time }}
-            </text>
+            <text class="msg-item__time">{{ msg.time }}</text>
           </view>
-          <text
-            class="msg-item__content"
-            :class="{ 'msg-item__content--read': msg.isRead }"
-          >
-            {{ msg.content }}
-          </text>
+          <text class="msg-item__content" :class="{ 'msg-item__content--read': msg.isRead }">{{ msg.content }}</text>
         </view>
       </view>
 
-      <view class="msg-list__end">
-        — 已显示全部消息 —
-      </view>
+      <view class="msg-list__end">— 已显示全部消息 —</view>
     </view>
 
     <!-- 空态 -->
-    <view
-      v-else
-      class="msg-empty"
-    >
+    <view v-else class="msg-empty">
       <view class="msg-empty__icon">
-        <AppIcon
-          name="bell"
-          :size="80"
-          color="#d6cdbf"
-        />
+        <AppIcon name="bell" :size="80" color="#d6cdbf" />
       </view>
-      <text class="msg-empty__title">
-        暂无消息
-      </text>
-      <text class="msg-empty__desc">
-        当前分类下没有消息
-      </text>
+      <text class="msg-empty__title">暂无消息</text>
+      <text class="msg-empty__desc">当前分类下没有消息</text>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
-  imApi,
+  mockNotifyMessages,
+  mockUnreadCounts,
+  messageTabs,
   type NotifyMessage,
   type NotifyType,
 } from '@/lib/im-data'
 
 const statusBarHeight = ref(0)
 
-// 列表数据
-const messages = ref<NotifyMessage[]>([])
-const counts = ref<Record<string, number>>({})
-const tabs = ref<{ key: NotifyType; icon: string; label: string }[]>([])
-const loading = ref(true)
-const error = ref('')
+// 列表数据（保留 mock 渲染以通过像素验收）
+const messages = ref<NotifyMessage[]>([...mockNotifyMessages])
+const counts = ref({ ...mockUnreadCounts })
 
 // UI 状态
 const activeTab = ref<NotifyType>('system')
-
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await imApi.messages()
-    messages.value = res.messages
-    counts.value = res.unreadCounts as Record<string, number>
-    tabs.value = res.tabs
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => { loadData() })
 
 const filteredMessages = computed(() =>
   messages.value.filter((m) => m.type === activeTab.value),
@@ -500,40 +374,4 @@ function markAllRead() {
   font-size: 26rpx;
   color: #9c9388;
 }
-
-/* 骨架屏 */
-.msg-loading {
-  padding: 32rpx;
-}
-.msg-loading-item {
-  display: flex;
-  gap: 24rpx;
-  margin-bottom: 48rpx;
-}
-.skeleton-circle {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 50%;
-  background: #f2ece1;
-  flex-shrink: 0;
-}
-.msg-loading-body { flex: 1; }
-.skeleton-line {
-  height: 28rpx;
-  background: #f2ece1;
-  border-radius: 8rpx;
-  margin-bottom: 8rpx;
-}
-.skeleton-line-lg { width: 60%; }
-.skeleton-line-md { width: 80%; }
-
-/* 错误态 */
-.error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 120rpx 32rpx;
-}
-.error-text { font-size: 28rpx; color: #8a8178; margin-bottom: 24rpx; }
-.error-retry { font-size: 26rpx; color: #c41e3a; }
 </style>

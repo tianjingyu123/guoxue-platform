@@ -3,95 +3,39 @@
     <!-- 顶部控制栏 -->
     <view class="header">
       <view class="header-left">
-        <view
-          class="nav-btn"
-          @tap="goBack"
-        >
-          <AppIcon
-            name="chevron-left"
-            :size="40"
-            color="#2C2C2C"
-          />
+        <view class="nav-btn" @tap="goBack">
+          <AppIcon name="chevron-left" :size="40" color="#2C2C2C" />
         </view>
         <view class="title-group">
-          <view
-            v-if="isLive"
-            class="badge-live"
-          >
-            <AppIcon
-              name="radio"
-              :size="24"
-              color="#fff"
-            />
-            <text class="badge-live-txt">
-              直播中
-            </text>
+          <view v-if="isLive" class="badge-live">
+            <AppIcon name="radio" :size="24" color="#fff" />
+            <text class="badge-live-txt">直播中</text>
           </view>
-          <view
-            v-else
-            class="badge-ended"
-          >
-            已结束
-          </view>
-          <text class="room-name">
-            八字命理入门精讲
-          </text>
+          <view v-else class="badge-ended">已结束</view>
+          <text class="room-name">八字命理入门精讲</text>
         </view>
       </view>
 
       <view class="header-right">
         <!-- 直播时长 -->
         <view class="timer">
-          <AppIcon
-            name="clock"
-            :size="32"
-            color="#999"
-          />
-          <text class="timer-txt">
-            {{ formatTime(liveTime) }}
-          </text>
+          <AppIcon name="clock" :size="32" color="#999" />
+          <text class="timer-txt">{{ formatTime(liveTime) }}</text>
         </view>
         <!-- 控制按钮 -->
         <view class="ctrl-group">
-          <view
-            class="ctrl-btn"
-            @tap="isMuted = !isMuted"
-          >
-            <AppIcon
-              :name="isMuted ? 'volume-x' : 'volume-2'"
-              :size="32"
-              color="#2C2C2C"
-            />
+          <view class="ctrl-btn" @tap="isMuted = !isMuted">
+            <AppIcon :name="isMuted ? 'volume-x' : 'volume-2'" :size="32" color="#2C2C2C" />
           </view>
-          <view
-            class="ctrl-btn"
-            @tap="showTeleprompter = !showTeleprompter"
-          >
-            <AppIcon
-              name="file-text"
-              :size="32"
-              color="#2C2C2C"
-            />
+          <view class="ctrl-btn" @tap="showTeleprompter = !showTeleprompter">
+            <AppIcon name="file-text" :size="32" color="#2C2C2C" />
           </view>
           <view class="ctrl-btn">
-            <AppIcon
-              name="settings"
-              :size="32"
-              color="#2C2C2C"
-            />
+            <AppIcon name="settings" :size="32" color="#2C2C2C" />
           </view>
-          <view
-            class="end-btn"
-            @tap="showEndDialog = true"
-          >
-            <AppIcon
-              name="stop-circle"
-              :size="32"
-              color="#fff"
-            />
-            <text class="end-btn-txt">
-              结束直播
-            </text>
+          <view class="end-btn" @tap="showEndDialog = true">
+            <AppIcon name="stop-circle" :size="32" color="#fff" />
+            <text class="end-btn-txt">结束直播</text>
           </view>
         </view>
       </view>
@@ -105,229 +49,89 @@
           <view class="stats-grid">
             <view class="stat-card blue">
               <view class="stat-head">
-                <AppIcon
-                  name="users"
-                  :size="32"
-                  color="#3b82f6"
-                />
-                <text class="stat-label">
-                  在线人数
-                </text>
+                <AppIcon name="users" :size="32" color="#3b82f6" />
+                <text class="stat-label">在线人数</text>
               </view>
               <view class="stat-value-row">
-                <text class="stat-value c-blue">
-                  {{ formatNum(stats.onlineCount) }}
-                </text>
-                <text class="stat-delta">
-                  +12
-                </text>
+                <text class="stat-value c-blue">{{ formatNum(stats.onlineCount) }}</text>
+                <text class="stat-delta">+12</text>
               </view>
             </view>
 
             <view class="stat-card purple">
               <view class="stat-head">
-                <AppIcon
-                  name="eye"
-                  :size="32"
-                  color="#a855f7"
-                />
-                <text class="stat-label">
-                  累计观看
-                </text>
+                <AppIcon name="eye" :size="32" color="#a855f7" />
+                <text class="stat-label">累计观看</text>
               </view>
               <view class="stat-value-row">
-                <text class="stat-value c-purple">
-                  {{ formatNum(stats.totalViews) }}
-                </text>
+                <text class="stat-value c-purple">{{ formatNum(stats.totalViews) }}</text>
               </view>
             </view>
 
             <view class="stat-card amber">
               <view class="stat-head">
-                <AppIcon
-                  name="gift"
-                  :size="32"
-                  color="#f59e0b"
-                />
-                <text class="stat-label">
-                  打赏收入
-                </text>
+                <AppIcon name="gift" :size="32" color="#f59e0b" />
+                <text class="stat-label">打赏收入</text>
               </view>
               <view class="stat-value-row">
-                <text class="stat-value c-amber">
-                  ¥{{ formatNum(stats.totalGift) }}
-                </text>
+                <text class="stat-value c-amber">¥{{ formatNum(stats.totalGift) }}</text>
               </view>
             </view>
 
             <view class="stat-card red">
               <view class="stat-head">
-                <AppIcon
-                  name="shopping-bag"
-                  :size="32"
-                  color="#ef4444"
-                />
-                <text class="stat-label">
-                  带货成交
-                </text>
+                <AppIcon name="shopping-bag" :size="32" color="#ef4444" />
+                <text class="stat-label">带货成交</text>
               </view>
               <view class="stat-value-row">
-                <text class="stat-value c-red">
-                  ¥{{ formatNum(stats.totalSales) }}
-                </text>
+                <text class="stat-value c-red">¥{{ formatNum(stats.totalSales) }}</text>
               </view>
             </view>
           </view>
 
           <!-- 次要数据 -->
           <view class="sub-stats">
-            <text class="sub-item">
-              峰值在线: <text class="sub-strong">
-                {{ stats.peakOnline }}
-              </text>
-            </text>
-            <text class="sub-item">
-              新增粉丝: <text class="sub-strong c-green">
-                +{{ stats.newFollowers }}
-              </text>
-            </text>
-            <text class="sub-item">
-              平均观看: <text class="sub-strong">
-                {{ stats.avgWatchTime }}
-              </text>
-            </text>
-            <text class="sub-item">
-              互动率: <text class="sub-strong">
-                {{ stats.interactionRate }}
-              </text>
-            </text>
+            <text class="sub-item">峰值在线: <text class="sub-strong">{{ stats.peakOnline }}</text></text>
+            <text class="sub-item">新增粉丝: <text class="sub-strong c-green">+{{ stats.newFollowers }}</text></text>
+            <text class="sub-item">平均观看: <text class="sub-strong">{{ stats.avgWatchTime }}</text></text>
+            <text class="sub-item">互动率: <text class="sub-strong">{{ stats.interactionRate }}</text></text>
           </view>
         </view>
 
         <!-- 弹幕/连麦 Tab区 -->
         <view class="tab-area">
           <view class="tab-bar">
-            <view
-              class="tab"
-              :class="{ active: activeTab === 'danmaku' }"
-              @tap="activeTab = 'danmaku'"
-            >
-              <AppIcon
-                name="message-circle"
-                :size="28"
-                :color="activeTab === 'danmaku' ? '#2C2C2C' : '#999'"
-              />
-              <text class="tab-txt">
-                实时弹幕
-              </text>
-              <view class="tab-badge">
-                {{ danmakuList.length }}
-              </view>
+            <view class="tab" :class="{ active: activeTab === 'danmaku' }" @tap="activeTab = 'danmaku'">
+              <AppIcon name="message-circle" :size="28" :color="activeTab === 'danmaku' ? '#2C2C2C' : '#999'" />
+              <text class="tab-txt">实时弹幕</text>
+              <view class="tab-badge">{{ danmakuList.length }}</view>
             </view>
-            <view
-              class="tab"
-              :class="{ active: activeTab === 'connect' }"
-              @tap="activeTab = 'connect'"
-            >
-              <AppIcon
-                name="phone"
-                :size="28"
-                :color="activeTab === 'connect' ? '#2C2C2C' : '#999'"
-              />
-              <text class="tab-txt">
-                连麦申请
-              </text>
-              <view
-                v-if="connectRequests.length > 0"
-                class="tab-badge red"
-              >
-                {{ connectRequests.length }}
-              </view>
+            <view class="tab" :class="{ active: activeTab === 'connect' }" @tap="activeTab = 'connect'">
+              <AppIcon name="phone" :size="28" :color="activeTab === 'connect' ? '#2C2C2C' : '#999'" />
+              <text class="tab-txt">连麦申请</text>
+              <view v-if="connectRequests.length > 0" class="tab-badge red">{{ connectRequests.length }}</view>
             </view>
           </view>
 
           <!-- 弹幕列表 -->
-          <view
-            v-show="activeTab === 'danmaku'"
-            class="danmaku-panel"
-          >
-            <scroll-view
-              scroll-y
-              class="danmaku-list"
-              :scroll-top="danmakuScrollTop"
-              :scroll-with-animation="false"
-            >
-              <view
-                v-for="item in danmakuList"
-                :key="item.id"
-                class="danmaku-item"
-              >
-                <view class="dm-level">
-                  {{ item.level }}
-                </view>
+          <view v-show="activeTab === 'danmaku'" class="danmaku-panel">
+            <scroll-view scroll-y class="danmaku-list" :scroll-top="danmakuScrollTop" :scroll-with-animation="false">
+              <view v-for="item in danmakuList" :key="item.id" class="danmaku-item">
+                <view class="dm-level">{{ item.level }}</view>
                 <view class="dm-body">
                   <view class="dm-head">
-                    <text
-                      class="dm-user"
-                      :class="{ vip: item.isVip }"
-                    >
-                      <AppIcon
-                        v-if="item.isVip"
-                        name="crown"
-                        :size="24"
-                        color="#f59e0b"
-                        class="dm-crown"
-                      />{{ item.user }}
+                    <text class="dm-user" :class="{ vip: item.isVip }">
+                      <AppIcon v-if="item.isVip" name="crown" :size="24" color="#f59e0b" class="dm-crown" />{{ item.user }}
                     </text>
-                    <text class="dm-time">
-                      {{ item.time }}
-                    </text>
+                    <text class="dm-time">{{ item.time }}</text>
                   </view>
-                  <text class="dm-content">
-                    {{ item.content }}
-                  </text>
+                  <text class="dm-content">{{ item.content }}</text>
                 </view>
                 <view class="dm-actions">
-                  <view
-                    class="dm-act"
-                    @tap="onPinDanmaku(item.id)"
-                  >
-                    <AppIcon
-                      name="pin"
-                      :size="24"
-                      color="#666"
-                    />
-                  </view>
-                  <view
-                    class="dm-act"
-                    @tap="onReplyDanmaku(item.id)"
-                  >
-                    <AppIcon
-                      name="reply"
-                      :size="24"
-                      color="#666"
-                    />
-                  </view>
-                  <view
-                    class="dm-act"
-                    @tap="handleDeleteDanmaku(item.id)"
-                  >
-                    <AppIcon
-                      name="trash-2"
-                      :size="24"
-                      color="#ef4444"
-                    />
-                  </view>
-                  <view
-                    class="dm-act"
-                    @tap="handleBanUser(item.id)"
-                  >
-                    <AppIcon
-                      name="ban"
-                      :size="24"
-                      color="#ef4444"
-                    />
-                  </view>
+                  <view class="dm-act" @tap="onPinDanmaku(item.id)"><AppIcon name="pin" :size="24" color="#666" /></view>
+                  <view class="dm-act" @tap="onReplyDanmaku(item.id)"><AppIcon name="reply" :size="24" color="#666" /></view>
+                  <view class="dm-act" @tap="handleDeleteDanmaku(item.id)"><AppIcon name="trash-2" :size="24" color="#ef4444" /></view>
+                  <view class="dm-act" @tap="handleBanUser(item.id)"><AppIcon name="ban" :size="24" color="#ef4444" /></view>
                 </view>
               </view>
             </scroll-view>
@@ -335,30 +139,13 @@
             <!-- 快捷回复 -->
             <view class="danmaku-input-area">
               <view class="input-row">
-                <input
-                  v-model="danmakuDraft"
-                  class="dm-input"
-                  placeholder="发送弹幕..."
-                  placeholder-class="dm-input-ph"
-                >
-                <view
-                  class="send-btn"
-                  @tap="onSendDanmaku"
-                >
-                  <AppIcon
-                    name="send"
-                    :size="32"
-                    color="#fff"
-                  />
+                <input v-model="danmakuDraft" class="dm-input" placeholder="发送弹幕..." placeholder-class="dm-input-ph" />
+                <view class="send-btn" @tap="onSendDanmaku">
+                  <AppIcon name="send" :size="32" color="#fff" />
                 </view>
               </view>
               <view class="quick-replies">
-                <view
-                  v-for="text in quickReplies"
-                  :key="text"
-                  class="quick-reply"
-                  @tap="onQuickReply(text)"
-                >
+                <view v-for="text in quickReplies" :key="text" class="quick-reply" @tap="onQuickReply(text)">
                   {{ text }}
                 </view>
               </view>
@@ -366,74 +153,28 @@
           </view>
 
           <!-- 连麦申请 -->
-          <scroll-view
-            v-show="activeTab === 'connect'"
-            scroll-y
-            class="connect-panel"
-          >
-            <view
-              v-if="connectRequests.length === 0"
-              class="connect-empty"
-            >
-              <AppIcon
-                name="phone"
-                :size="96"
-                color="#ccc"
-              />
-              <text class="empty-txt">
-                暂无连麦申请
-              </text>
+          <scroll-view v-show="activeTab === 'connect'" scroll-y class="connect-panel">
+            <view v-if="connectRequests.length === 0" class="connect-empty">
+              <AppIcon name="phone" :size="96" color="#ccc" />
+              <text class="empty-txt">暂无连麦申请</text>
             </view>
-            <view
-              v-else
-              class="connect-list"
-            >
-              <view
-                v-for="request in connectRequests"
-                :key="request.id"
-                class="connect-card"
-              >
-                <view class="connect-avatar">
-                  {{ request.user[0] }}
-                </view>
+            <view v-else class="connect-list">
+              <view v-for="request in connectRequests" :key="request.id" class="connect-card">
+                <view class="connect-avatar">{{ request.user[0] }}</view>
                 <view class="connect-body">
                   <view class="connect-head">
-                    <text class="connect-user">
-                      {{ request.user }}
-                    </text>
-                    <text class="connect-wait">
-                      等待 {{ request.waitTime }}
-                    </text>
+                    <text class="connect-user">{{ request.user }}</text>
+                    <text class="connect-wait">等待 {{ request.waitTime }}</text>
                   </view>
-                  <text class="connect-reason">
-                    {{ request.reason }}
-                  </text>
+                  <text class="connect-reason">{{ request.reason }}</text>
                   <view class="connect-actions">
-                    <view
-                      class="connect-accept"
-                      @tap="handleAcceptConnect(request.id)"
-                    >
-                      <AppIcon
-                        name="phone"
-                        :size="24"
-                        color="#fff"
-                      />
-                      <text class="connect-accept-txt">
-                        接通
-                      </text>
+                    <view class="connect-accept" @tap="handleAcceptConnect(request.id)">
+                      <AppIcon name="phone" :size="24" color="#fff" />
+                      <text class="connect-accept-txt">接通</text>
                     </view>
-                    <view
-                      class="connect-reject"
-                      @tap="handleRejectConnect(request.id)"
-                    >
-                      <AppIcon
-                        name="phone-off"
-                        :size="24"
-                        color="#2C2C2C"
-                      />
-                      <text class="connect-reject-txt">
-                        拒绝
-                      </text>
+                    <view class="connect-reject" @tap="handleRejectConnect(request.id)">
+                      <AppIcon name="phone-off" :size="24" color="#2C2C2C" />
+                      <text class="connect-reject-txt">拒绝</text>
                     </view>
                   </view>
                 </view>
@@ -449,235 +190,99 @@
         <view class="product-area">
           <view class="product-head">
             <view class="product-head-left">
-              <AppIcon
-                name="shopping-bag"
-                :size="32"
-                color="#C41E3A"
-              />
-              <text class="product-head-title">
-                商品管理
-              </text>
-              <view class="product-count">
-                {{ products.length }}件
-              </view>
+              <AppIcon name="shopping-bag" :size="32" color="#C41E3A" />
+              <text class="product-head-title">商品管理</text>
+              <view class="product-count">{{ products.length }}件</view>
             </view>
-            <view
-              class="refresh-stock"
-              @tap="onRefreshStock"
-            >
-              <AppIcon
-                name="refresh-cw"
-                :size="24"
-                color="#666"
-              />
-              <text class="refresh-stock-txt">
-                刷新库存
-              </text>
+            <view class="refresh-stock" @tap="onRefreshStock">
+              <AppIcon name="refresh-cw" :size="24" color="#666" />
+              <text class="refresh-stock-txt">刷新库存</text>
             </view>
           </view>
 
           <!-- 当前讲解商品 -->
-          <view
-            v-if="liveProduct"
-            class="live-product"
-          >
+          <view v-if="liveProduct" class="live-product">
             <view class="live-product-tag">
-              <AppIcon
-                name="radio"
-                :size="24"
-                color="#C41E3A"
-              />
-              <text class="live-product-tag-txt">
-                正在讲解
-              </text>
+              <AppIcon name="radio" :size="24" color="#C41E3A" />
+              <text class="live-product-tag-txt">正在讲解</text>
             </view>
             <view class="live-product-row">
               <view class="live-product-img">
-                <AppIcon
-                  name="package"
-                  :size="48"
-                  color="#ccc"
-                />
+                <AppIcon name="package" :size="48" color="#ccc" />
               </view>
               <view class="live-product-info">
-                <text class="live-product-name">
-                  {{ liveProduct.name }}
-                </text>
+                <text class="live-product-name">{{ liveProduct.name }}</text>
                 <view class="live-product-meta">
-                  <text class="live-product-price">
-                    ¥{{ liveProduct.price }}
-                  </text>
-                  <text class="live-product-sold">
-                    已售{{ liveProduct.sold }}
-                  </text>
+                  <text class="live-product-price">¥{{ liveProduct.price }}</text>
+                  <text class="live-product-sold">已售{{ liveProduct.sold }}</text>
                 </view>
               </view>
-              <view
-                class="live-product-stop"
-                @tap="handleProductLive(0)"
-              >
-                结束讲解
-              </view>
+              <view class="live-product-stop" @tap="handleProductLive(0)">结束讲解</view>
             </view>
           </view>
 
           <!-- 商品列表 -->
-          <scroll-view
-            scroll-y
-            class="product-list"
-          >
-            <view
-              v-for="product in offlineProducts"
-              :key="product.id"
-              class="product-item"
-            >
+          <scroll-view scroll-y class="product-list">
+            <view v-for="product in offlineProducts" :key="product.id" class="product-item">
               <view class="product-img">
-                <AppIcon
-                  name="package"
-                  :size="32"
-                  color="#ccc"
-                />
+                <AppIcon name="package" :size="32" color="#ccc" />
               </view>
               <view class="product-info">
                 <view class="product-name-row">
-                  <text class="product-name">
-                    {{ product.name }}
-                  </text>
-                  <view
-                    v-if="product.isHot"
-                    class="product-hot"
-                  >
-                    爆
-                  </view>
+                  <text class="product-name">{{ product.name }}</text>
+                  <view v-if="product.isHot" class="product-hot">爆</view>
                 </view>
                 <view class="product-meta">
-                  <text class="product-price">
-                    ¥{{ product.price }}
-                  </text>
-                  <text class="product-stock">
-                    库存: <text :class="{ 'c-red': product.stock <= 10 }">
-                      {{ product.stock }}
-                    </text>
-                  </text>
+                  <text class="product-price">¥{{ product.price }}</text>
+                  <text class="product-stock">库存: <text :class="{ 'c-red': product.stock <= 10 }">{{ product.stock }}</text></text>
                 </view>
               </view>
-              <view
-                class="product-on"
-                @tap="handleProductLive(product.id)"
-              >
-                上架讲解
-              </view>
+              <view class="product-on" @tap="handleProductLive(product.id)">上架讲解</view>
             </view>
           </scroll-view>
 
           <!-- 库存预警 -->
-          <view
-            v-if="lowStockCount > 0"
-            class="stock-warn"
-          >
-            <AppIcon
-              name="alert-triangle"
-              :size="28"
-              color="#d97706"
-            />
-            <text class="stock-warn-txt">
-              {{ lowStockCount }}件商品库存不足
-            </text>
-            <text
-              class="stock-warn-link"
-              @tap="onRestock"
-            >
-              去补货
-            </text>
+          <view v-if="lowStockCount > 0" class="stock-warn">
+            <AppIcon name="alert-triangle" :size="28" color="#d97706" />
+            <text class="stock-warn-txt">{{ lowStockCount }}件商品库存不足</text>
+            <text class="stock-warn-link" @tap="onRestock">去补货</text>
           </view>
         </view>
 
         <!-- 营销工具 -->
         <view class="marketing-area">
           <view class="marketing-head">
-            <AppIcon
-              name="sparkles"
-              :size="32"
-              color="#f59e0b"
-            />
-            <text class="marketing-title">
-              营销工具
-            </text>
+            <AppIcon name="sparkles" :size="32" color="#f59e0b" />
+            <text class="marketing-title">营销工具</text>
           </view>
           <view class="marketing-grid">
-            <view
-              class="marketing-btn"
-              @tap="showLotteryDialog = true"
-            >
-              <AppIcon
-                name="gift"
-                :size="40"
-                color="#a855f7"
-              />
-              <text class="marketing-btn-txt">
-                发起抽奖
-              </text>
+            <view class="marketing-btn" @tap="showLotteryDialog = true">
+              <AppIcon name="gift" :size="40" color="#a855f7" />
+              <text class="marketing-btn-txt">发起抽奖</text>
             </view>
-            <view
-              class="marketing-btn"
-              @tap="showCouponDialog = true"
-            >
-              <AppIcon
-                name="ticket"
-                :size="40"
-                color="#ef4444"
-              />
-              <text class="marketing-btn-txt">
-                发放优惠券
-              </text>
+            <view class="marketing-btn" @tap="showCouponDialog = true">
+              <AppIcon name="ticket" :size="40" color="#ef4444" />
+              <text class="marketing-btn-txt">发放优惠券</text>
             </view>
-            <view
-              class="marketing-btn"
-              @tap="onPushFlashSale"
-            >
-              <AppIcon
-                name="zap"
-                :size="40"
-                color="#f59e0b"
-              />
-              <text class="marketing-btn-txt">
-                推送秒杀
-              </text>
+            <view class="marketing-btn" @tap="onPushFlashSale">
+              <AppIcon name="zap" :size="40" color="#f59e0b" />
+              <text class="marketing-btn-txt">推送秒杀</text>
             </view>
           </view>
         </view>
 
         <!-- 提词器 -->
-        <view
-          v-if="showTeleprompter"
-          class="teleprompter-area"
-        >
+        <view v-if="showTeleprompter" class="teleprompter-area">
           <view class="teleprompter-head">
             <view class="teleprompter-head-left">
-              <AppIcon
-                name="file-text"
-                :size="32"
-                color="#3b82f6"
-              />
-              <text class="teleprompter-title">
-                提词器
-              </text>
+              <AppIcon name="file-text" :size="32" color="#3b82f6" />
+              <text class="teleprompter-title">提词器</text>
             </view>
-            <view
-              class="teleprompter-collapse"
-              @tap="showTeleprompter = false"
-            >
-              <AppIcon
-                name="chevron-down"
-                :size="32"
-                color="#666"
-              />
+            <view class="teleprompter-collapse" @tap="showTeleprompter = false">
+              <AppIcon name="chevron-down" :size="32" color="#666" />
             </view>
           </view>
-          <scroll-view
-            scroll-y
-            class="teleprompter-list"
-          >
+          <scroll-view scroll-y class="teleprompter-list">
             <view
               v-for="item in script"
               :key="item.id"
@@ -685,31 +290,11 @@
               :class="{ current: item.isCurrent, done: item.done }"
             >
               <view class="script-meta">
-                <text
-                  class="script-time"
-                  :class="{ current: item.isCurrent }"
-                >
-                  {{ item.time }}
-                </text>
-                <view
-                  v-if="item.isCurrent"
-                  class="script-tag-current"
-                >
-                  当前
-                </view>
-                <view
-                  v-if="item.done"
-                  class="script-tag-done"
-                >
-                  已完成
-                </view>
+                <text class="script-time" :class="{ current: item.isCurrent }">{{ item.time }}</text>
+                <view v-if="item.isCurrent" class="script-tag-current">当前</view>
+                <view v-if="item.done" class="script-tag-done">已完成</view>
               </view>
-              <text
-                class="script-content"
-                :class="{ current: item.isCurrent }"
-              >
-                {{ item.content }}
-              </text>
+              <text class="script-content" :class="{ current: item.isCurrent }">{{ item.content }}</text>
             </view>
           </scroll-view>
         </view>
@@ -717,204 +302,90 @@
     </view>
 
     <!-- 抽奖对话框 -->
-    <view
-      v-if="showLotteryDialog"
-      class="dialog-mask"
-      @tap="showLotteryDialog = false"
-    >
-      <view
-        class="dialog"
-        @tap.stop
-      >
+    <view v-if="showLotteryDialog" class="dialog-mask" @tap="showLotteryDialog = false">
+      <view class="dialog" @tap.stop>
         <view class="dialog-header">
-          <text class="dialog-title">
-            发起抽奖
-          </text>
-          <text class="dialog-desc">
-            设置抽奖规则和奖品
-          </text>
+          <text class="dialog-title">发起抽奖</text>
+          <text class="dialog-desc">设置抽奖规则和奖品</text>
         </view>
         <view class="dialog-body">
           <view class="field">
-            <text class="field-label">
-              奖品名称
-            </text>
-            <input
-              class="field-input"
-              placeholder="如：八字精批课程"
-              placeholder-class="field-ph"
-            >
+            <text class="field-label">奖品名称</text>
+            <input class="field-input" placeholder="如：八字精批课程" placeholder-class="field-ph" />
           </view>
           <view class="field-grid">
             <view class="field">
-              <text class="field-label">
-                中奖人数
-              </text>
-              <input
-                type="number"
-                class="field-input"
-                placeholder="1"
-                placeholder-class="field-ph"
-              >
+              <text class="field-label">中奖人数</text>
+              <input type="number" class="field-input" placeholder="1" placeholder-class="field-ph" />
             </view>
             <view class="field">
-              <text class="field-label">
-                参与条件
-              </text>
-              <input
-                class="field-input"
-                placeholder="如：发送弹幕"
-                placeholder-class="field-ph"
-              >
+              <text class="field-label">参与条件</text>
+              <input class="field-input" placeholder="如：发送弹幕" placeholder-class="field-ph" />
             </view>
           </view>
           <view class="field">
-            <text class="field-label">
-              开奖时间（分钟后）
-            </text>
-            <input
-              type="number"
-              class="field-input"
-              placeholder="5"
-              placeholder-class="field-ph"
-            >
+            <text class="field-label">开奖时间（分钟后）</text>
+            <input type="number" class="field-input" placeholder="5" placeholder-class="field-ph" />
           </view>
         </view>
         <view class="dialog-footer">
-          <view
-            class="dialog-btn outline"
-            @tap="showLotteryDialog = false"
-          >
-            取消
-          </view>
-          <view
-            class="dialog-btn primary"
-            @tap="showLotteryDialog = false"
-          >
-            开始抽奖
-          </view>
+          <view class="dialog-btn outline" @tap="showLotteryDialog = false">取消</view>
+          <view class="dialog-btn primary" @tap="showLotteryDialog = false">开始抽奖</view>
         </view>
       </view>
     </view>
 
     <!-- 优惠券对话框 -->
-    <view
-      v-if="showCouponDialog"
-      class="dialog-mask"
-      @tap="showCouponDialog = false"
-    >
-      <view
-        class="dialog"
-        @tap.stop
-      >
+    <view v-if="showCouponDialog" class="dialog-mask" @tap="showCouponDialog = false">
+      <view class="dialog" @tap.stop>
         <view class="dialog-header">
-          <text class="dialog-title">
-            发放优惠券
-          </text>
-          <text class="dialog-desc">
-            向直播间观众发放优惠券
-          </text>
+          <text class="dialog-title">发放优惠券</text>
+          <text class="dialog-desc">向直播间观众发放优惠券</text>
         </view>
         <view class="dialog-body">
           <view class="field">
-            <text class="field-label">
-              选择优惠券
-            </text>
+            <text class="field-label">选择优惠券</text>
             <view class="coupon-grid">
-              <view
-                v-for="coupon in coupons"
-                :key="coupon.name"
-                class="coupon-card"
-              >
-                <text class="coupon-name">
-                  {{ coupon.name }}
-                </text>
-                <text class="coupon-count">
-                  剩余{{ coupon.count }}张
-                </text>
+              <view v-for="coupon in coupons" :key="coupon.name" class="coupon-card">
+                <text class="coupon-name">{{ coupon.name }}</text>
+                <text class="coupon-count">剩余{{ coupon.count }}张</text>
               </view>
             </view>
           </view>
           <view class="field">
-            <text class="field-label">
-              发放数量
-            </text>
-            <input
-              type="number"
-              class="field-input"
-              placeholder="10"
-              placeholder-class="field-ph"
-            >
+            <text class="field-label">发放数量</text>
+            <input type="number" class="field-input" placeholder="10" placeholder-class="field-ph" />
           </view>
         </view>
         <view class="dialog-footer">
-          <view
-            class="dialog-btn outline"
-            @tap="showCouponDialog = false"
-          >
-            取消
-          </view>
-          <view
-            class="dialog-btn primary"
-            @tap="showCouponDialog = false"
-          >
-            立即发放
-          </view>
+          <view class="dialog-btn outline" @tap="showCouponDialog = false">取消</view>
+          <view class="dialog-btn primary" @tap="showCouponDialog = false">立即发放</view>
         </view>
       </view>
     </view>
 
     <!-- 结束直播确认 -->
-    <view
-      v-if="showEndDialog"
-      class="dialog-mask"
-      @tap="showEndDialog = false"
-    >
-      <view
-        class="dialog"
-        @tap.stop
-      >
+    <view v-if="showEndDialog" class="dialog-mask" @tap="showEndDialog = false">
+      <view class="dialog" @tap.stop>
         <view class="dialog-header">
-          <text class="dialog-title">
-            确认结束直播？
-          </text>
-          <text class="dialog-desc">
-            本场直播已进行 {{ formatTime(liveTime) }}，累计观看 {{ stats.totalViews }} 人次
-          </text>
+          <text class="dialog-title">确认结束直播？</text>
+          <text class="dialog-desc">本场直播已进行 {{ formatTime(liveTime) }}，累计观看 {{ stats.totalViews }} 人次</text>
         </view>
         <view class="dialog-body">
           <view class="end-stats">
             <view class="end-stat-card">
-              <text class="end-stat-value c-primary">
-                {{ stats.newFollowers }}
-              </text>
-              <text class="end-stat-label">
-                新增粉丝
-              </text>
+              <text class="end-stat-value c-primary">{{ stats.newFollowers }}</text>
+              <text class="end-stat-label">新增粉丝</text>
             </view>
             <view class="end-stat-card">
-              <text class="end-stat-value c-amber">
-                ¥{{ stats.totalGift + stats.totalSales }}
-              </text>
-              <text class="end-stat-label">
-                总收入
-              </text>
+              <text class="end-stat-value c-amber">¥{{ stats.totalGift + stats.totalSales }}</text>
+              <text class="end-stat-label">总收入</text>
             </view>
           </view>
         </view>
         <view class="dialog-footer">
-          <view
-            class="dialog-btn outline"
-            @tap="showEndDialog = false"
-          >
-            继续直播
-          </view>
-          <view
-            class="dialog-btn danger"
-            @tap="onConfirmEnd"
-          >
-            确认结束
-          </view>
+          <view class="dialog-btn outline" @tap="showEndDialog = false">继续直播</view>
+          <view class="dialog-btn danger" @tap="onConfirmEnd">确认结束</view>
         </view>
       </view>
     </view>
@@ -926,15 +397,23 @@ import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { liveApi, type ConsoleDanmaku, type ConsoleConnectRequest, type ConsoleProductItem, type ConsoleScriptItem, type ConsoleCouponItem, type ConsoleStats } from '@/lib/live-data'
+import {
+  consoleLiveStats,
+  consoleDanmaku,
+  consoleConnectRequests,
+  consoleProducts,
+  consoleScript,
+  consoleCoupons,
+  type ConsoleDanmaku,
+} from '@/lib/live-data'
 
-// ===== 数据（通过 API 层获取）=====
-const stats = ref<ConsoleStats>({ onlineCount: 0, totalViews: 0, totalGift: 0, totalSales: 0, peakOnline: 0, newFollowers: 0, avgWatchTime: '', interactionRate: '' })
-const danmakuList = ref<ConsoleDanmaku[]>([])
-const connectRequests = ref<ConsoleConnectRequest[]>([])
-const products = ref<ConsoleProductItem[]>([])
-const script = ref<ConsoleScriptItem[]>([])
-const coupons = ref<ConsoleCouponItem[]>([])
+// ===== 静态 mock（照抄原型，真实数据由后端注入）=====
+const stats = ref(consoleLiveStats)
+const danmakuList = ref<ConsoleDanmaku[]>([...consoleDanmaku])
+const connectRequests = ref([...consoleConnectRequests])
+const products = ref([...consoleProducts])
+const script = ref(consoleScript)
+const coupons = ref(consoleCoupons)
 
 // ===== UI 状态 ref =====
 const isLive = ref(true)
@@ -978,17 +457,7 @@ function scrollDanmakuToBottom() {
   danmakuScrollTop.value = danmakuList.value.length * 9999
 }
 
-onLoad(async () => {
-  try {
-    const data = await liveApi.getConsoleData()
-    stats.value = data.stats
-    danmakuList.value = [...data.danmaku]
-    connectRequests.value = [...data.connectRequests]
-    products.value = [...data.products]
-    script.value = data.script
-    coupons.value = data.coupons
-  } catch (_) { /* API 层已有兜底 */ }
-
+onLoad(() => {
   liveTimer = setInterval(() => {
     if (isLive.value) liveTime.value += 1
   }, 1000)

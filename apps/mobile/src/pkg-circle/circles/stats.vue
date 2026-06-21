@@ -102,124 +102,51 @@ onMounted(() => { nextTick(() => setTimeout(drawLineChart, 100)) })
   <view class="st">
     <!-- 顶栏 -->
     <view class="st-hdr">
-      <view
-        class="st-hdr-btn"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="40"
-          color="#1a1a1a"
-        />
-      </view>
-      <text class="st-hdr-title">
-        圈子统计
-      </text>
+      <view class="st-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#1a1a1a" /></view>
+      <text class="st-hdr-title">圈子统计</text>
       <view class="st-hdr-btn" />
     </view>
 
-    <scroll-view
-      scroll-y
-      class="st-body"
-    >
+    <scroll-view scroll-y class="st-body">
       <!-- KPI 卡片 -->
       <view class="st-kpis">
-        <view
-          v-for="k in kpis"
-          :key="k.label"
-          class="st-kpi"
-        >
+        <view v-for="k in kpis" :key="k.label" class="st-kpi">
           <view class="st-kpi-top">
-            <view
-              class="st-kpi-icon"
-              :style="{ background: k.bg }"
-            >
-              <app-icon
-                :name="k.icon"
-                :size="28"
-                :color="k.color"
-              />
-            </view>
-            <view
-              class="st-kpi-trend"
-              :class="{ up: k.trend >= 0 }"
-            >
-              <app-icon
-                :name="k.trend >= 0 ? 'trending-up' : 'trending-down'"
-                :size="22"
-                :color="k.trend >= 0 ? '#16a34a' : '#ef4444'"
-              />
-              <text
-                class="st-kpi-trend-t"
-                :class="{ up: k.trend >= 0 }"
-              >
-                {{ Math.abs(k.trend) }}%
-              </text>
+            <view class="st-kpi-icon" :style="{ background: k.bg }"><app-icon :name="k.icon" :size="28" :color="k.color" /></view>
+            <view class="st-kpi-trend" :class="{ up: k.trend >= 0 }">
+              <app-icon :name="k.trend >= 0 ? 'trending-up' : 'trending-down'" :size="22" :color="k.trend >= 0 ? '#16a34a' : '#ef4444'" />
+              <text class="st-kpi-trend-t" :class="{ up: k.trend >= 0 }">{{ Math.abs(k.trend) }}%</text>
             </view>
           </view>
-          <text class="st-kpi-value">
-            {{ k.value }}
-          </text>
-          <text class="st-kpi-label">
-            {{ k.label }}
-          </text>
+          <text class="st-kpi-value">{{ k.value }}</text>
+          <text class="st-kpi-label">{{ k.label }}</text>
         </view>
       </view>
 
       <!-- 成员增长折线 -->
       <view class="st-sec">
-        <text class="st-sec-title">
-          成员增长（本周）
-        </text>
+        <text class="st-sec-title">成员增长（本周）</text>
         <view class="st-card">
-          <canvas
-            id="stats-line"
-            canvas-id="stats-line"
-            type="2d"
-            class="st-canvas"
-            :style="{ width: LINE_W + 'px', height: LINE_H + 'px' }"
-          />
+          <canvas id="stats-line" canvas-id="stats-line" type="2d" class="st-canvas" :style="{ width: LINE_W + 'px', height: LINE_H + 'px' }" />
         </view>
       </view>
 
       <!-- 帖子 & 浏览柱状 -->
       <view class="st-sec">
-        <text class="st-sec-title">
-          帖子 &amp; 浏览（本周）
-        </text>
+        <text class="st-sec-title">帖子 &amp; 浏览（本周）</text>
         <view class="st-card">
           <view class="st-bars">
-            <view
-              v-for="d in weeklyData"
-              :key="d.day"
-              class="st-bar-group"
-            >
+            <view v-for="d in weeklyData" :key="d.day" class="st-bar-group">
               <view class="st-bar-pair">
-                <view
-                  class="st-bar posts"
-                  :style="{ height: postH(d.posts) + '%' }"
-                />
-                <view
-                  class="st-bar views"
-                  :style="{ height: viewH(d.views) + '%' }"
-                />
+                <view class="st-bar posts" :style="{ height: postH(d.posts) + '%' }" />
+                <view class="st-bar views" :style="{ height: viewH(d.views) + '%' }" />
               </view>
-              <text class="st-bar-label">
-                {{ d.day }}
-              </text>
+              <text class="st-bar-label">{{ d.day }}</text>
             </view>
           </view>
           <view class="st-legend">
-            <view class="st-legend-item">
-              <view class="st-legend-dot posts" /><text class="st-legend-t">
-                帖子
-              </text>
-            </view>
-            <view class="st-legend-item">
-              <view class="st-legend-dot views" /><text class="st-legend-t">
-                浏览
-              </text>
-            </view>
+            <view class="st-legend-item"><view class="st-legend-dot posts" /><text class="st-legend-t">帖子</text></view>
+            <view class="st-legend-item"><view class="st-legend-dot views" /><text class="st-legend-t">浏览</text></view>
           </view>
         </view>
       </view>

@@ -3,35 +3,16 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { homeApi } from '@/lib/home-data'
+import { marketingBanners } from '@/lib/home-data'
 
-const loading = ref(true)
-const loadError = ref('')
-const banners = ref<any[]>([])
 const idx = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
-const banner = computed(() => banners.value[idx.value])
+const banner = computed(() => marketingBanners[idx.value])
 
-async function loadData() {
-  loading.value = true
-  loadError.value = ''
-  try {
-    const res = await homeApi.getHome()
-    banners.value = res.marketing || []
-  } catch {
-    loadError.value = '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(async () => {
-  await loadData()
-  if (banners.value.length > 1) {
-    timer = setInterval(() => {
-      idx.value = (idx.value + 1) % banners.value.length
-    }, 5000)
-  }
+onMounted(() => {
+  timer = setInterval(() => {
+    idx.value = (idx.value + 1) % marketingBanners.length
+  }, 5000)
 })
 onUnmounted(() => {
   if (timer) clearInterval(timer)
@@ -39,77 +20,26 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- 加载骨架 -->
   <view
-    v-if="loading"
-    class="mk-card mk-card-skeleton"
-  />
-  <!-- 错误状态 -->
-  <view
-    v-else-if="loadError"
-    class="mk-card mk-card-error"
-    @tap="loadData"
-  >
-    <text class="mk-card-error-text">
-      加载失败，点击重试
-    </text>
-  </view>
-  <view
-    v-else
     class="mk-card card-press"
     :style="{ background: `linear-gradient(135deg, ${banner.bgFrom} 0%, ${banner.bgTo} 100%)`, boxShadow: `0 8rpx 40rpx ${banner.bgFrom}40` }"
     @tap="navigateTo(banner.href)"
   >
-    <view
-      class="deco deco-1"
-      :style="{ background: banner.accent }"
-    />
-    <view
-      class="deco deco-2"
-      :style="{ background: banner.accent }"
-    />
+    <view class="deco deco-1" :style="{ background: banner.accent }" />
+    <view class="deco deco-2" :style="{ background: banner.accent }" />
 
     <view class="left">
-      <text
-        class="label"
-        :style="{ background: banner.accent }"
-      >
-        {{ banner.label }}
-      </text>
-      <text class="title">
-        {{ banner.title }}
-      </text>
-      <text class="subtitle">
-        {{ banner.subtitle }}
-      </text>
+      <text class="label" :style="{ background: banner.accent }">{{ banner.label }}</text>
+      <text class="title">{{ banner.title }}</text>
+      <text class="subtitle">{{ banner.subtitle }}</text>
     </view>
-    <view
-      class="cta"
-      :style="{ background: banner.accent, color: banner.bgTo }"
-    >
-      <text
-        class="cta-text"
-        :style="{ color: banner.bgTo }"
-      >
-        立即领取
-      </text>
-      <app-icon
-        name="chevron-right"
-        :size="26"
-        :color="banner.bgTo"
-      />
+    <view class="cta" :style="{ background: banner.accent, color: banner.bgTo }">
+      <text class="cta-text" :style="{ color: banner.bgTo }">立即领取</text>
+      <app-icon name="chevron-right" :size="26" :color="banner.bgTo" />
     </view>
 
-    <view
-      v-if="banners.length > 1"
-      class="dots"
-    >
-      <view
-        v-for="(_, i) in banners"
-        :key="i"
-        class="dot"
-        :class="{ active: i === idx }"
-      />
+    <view v-if="marketingBanners.length > 1" class="dots">
+      <view v-for="(_, i) in marketingBanners" :key="i" class="dot" :class="{ active: i === idx }" />
     </view>
   </view>
 </template>
@@ -148,23 +78,4 @@ onUnmounted(() => {
 }
 .dot { width: 12rpx; height: 8rpx; border-radius: 999rpx; background: rgba(255, 255, 255, 0.4); transition: all 0.3s ease; }
 .dot.active { width: 32rpx; background: #fff; }
-.mk-card-skeleton {
-  margin: 0 32rpx 12rpx;
-  height: 140rpx;
-  border-radius: 24rpx;
-  background: linear-gradient(135deg, #f0ece5 0%, #e8e3db 100%);
-}
-.mk-card-error {
-  margin: 0 32rpx 12rpx;
-  height: 140rpx;
-  border-radius: 24rpx;
-  background: #fcebeb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.mk-card-error-text {
-  font-size: 24rpx;
-  color: #ef4444;
-}
 </style>

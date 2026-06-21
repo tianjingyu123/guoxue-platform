@@ -1,22 +1,15 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { mineWalletApi, type WithdrawMethod, type WithdrawAccount } from '@/lib/mine-data'
+import {
+  withdrawBalanceInfo,
+  type WithdrawMethod,
+  type WithdrawAccount,
+} from '@/lib/mine-data'
 
-const info = ref({
-  availableBalance: 0, frozenBalance: 0, pendingBalance: 0,
-  minWithdraw: 10, maxWithdraw: 50000, feeRate: 0.006, minFee: 1,
-  savedAccounts: [] as WithdrawAccount[],
-})
-
-onMounted(async () => {
-  try {
-    const data = await mineWalletApi.getWithdrawInfo()
-    if (data) info.value = data
-  } catch (e) {}
-})
+const info = withdrawBalanceInfo
 
 // 表单状态
 const amount = ref('')
@@ -40,12 +33,12 @@ function fillAccount(acc: WithdrawAccount) {
     form.bankHolder = acc.bankHolder || ''
   }
 }
-const savedAlipay = info.value.savedAccounts.find((a) => a.method === 'alipay')
+const savedAlipay = info.savedAccounts.find((a) => a.method === 'alipay')
 if (savedAlipay) fillAccount(savedAlipay)
 
 function switchMethod(m: WithdrawMethod) {
   method.value = m
-  const saved = info.value.savedAccounts.find((a) => a.method === m)
+  const saved = info.savedAccounts.find((a) => a.method === m)
   if (saved) {
     fillAccount(saved)
   } else if (m === 'alipay') {
@@ -59,14 +52,14 @@ function switchMethod(m: WithdrawMethod) {
 }
 
 const amountNum = computed(() => parseFloat(amount.value) || 0)
-const fee = computed(() => Math.max(amountNum.value * info.value.feeRate, info.value.minFee))
+const fee = computed(() => Math.max(amountNum.value * info.feeRate, info.minFee))
 const actualAmount = computed(() => Math.max(amountNum.value - fee.value, 0))
 
 const isValidAmount = computed(
   () =>
-    amountNum.value >= info.value.minWithdraw &&
-    amountNum.value <= info.value.availableBalance &&
-    amountNum.value <= info.value.maxWithdraw,
+    amountNum.value >= info.minWithdraw &&
+    amountNum.value <= info.availableBalance &&
+    amountNum.value <= info.maxWithdraw,
 )
 const isValidAccount = computed(() =>
   method.value === 'alipay'
@@ -76,7 +69,7 @@ const isValidAccount = computed(() =>
 const canSubmit = computed(() => isValidAmount.value && isValidAccount.value)
 
 function withdrawAll() {
-  amount.value = String(Math.min(info.value.availableBalance, info.value.maxWithdraw))
+  amount.value = String(Math.min(info.availableBalance, info.maxWithdraw))
 }
 
 // 支付密码弹窗
@@ -89,7 +82,7 @@ function openPwd() {
   pwd.value = ['', '', '', '', '', '']
   showPwd.value = true
 }
-function onPwdInput(e: any) {
+function onPwdInput(e: { detail: { value: string } }) {
   const v = e.detail.value.replace(/\D/g, '')
   const arr = ['', '', '', '', '', '']
   for (let i = 0; i < v.length && i < 6; i++) arr[i] = v[i]
@@ -127,125 +120,64 @@ function continueWithdraw() {
 
 <template>
   <!-- 成功态 -->
-  <view
-    v-if="success"
-    class="page"
-  >
-    <app-nav-bar
-      title="提现结果"
-      back-icon="arrow-left"
-      @back="backToWallet"
-    />
+  <view v-if="success" class="page">
+    <app-nav-bar title="提现结果" back-icon="arrow-left" @back="backToWallet" />
     <view class="success-wrap">
       <view class="success-icon">
-        <app-icon
-          name="check"
-          :size="40"
-          color="#16a34a"
-        />
+        <app-icon name="check" :size="40" color="#16a34a" />
       </view>
-      <text class="success-title">
-        提现申请已提交
-      </text>
-      <text class="success-sub">
-        {{ result.estimatedArrival }}
-      </text>
+      <text class="success-title">提现申请已提交</text>
+      <text class="success-sub">{{ result.estimatedArrival }}</text>
 
       <view class="result-card">
         <view class="result-row">
-          <text class="result-label">
-            提现金额
-          </text>
-          <text class="result-val">
-            ¥{{ result.amount.toFixed(2) }}
-          </text>
+          <text class="result-label">提现金额</text>
+          <text class="result-val">¥{{ result.amount.toFixed(2) }}</text>
         </view>
         <view class="result-row">
-          <text class="result-label">
-            手续费
-          </text>
-          <text class="result-val">
-            -¥{{ result.fee.toFixed(2) }}
-          </text>
+          <text class="result-label">手续费</text>
+          <text class="result-val">-¥{{ result.fee.toFixed(2) }}</text>
         </view>
         <view class="result-divider" />
         <view class="result-row">
-          <text class="result-label">
-            实际到账
-          </text>
-          <text class="result-amount">
-            ¥{{ result.actualAmount.toFixed(2) }}
-          </text>
+          <text class="result-label">实际到账</text>
+          <text class="result-amount">¥{{ result.actualAmount.toFixed(2) }}</text>
         </view>
       </view>
 
       <view class="success-btns">
-        <view
-          class="btn-outline"
-          @tap="backToWallet"
-        >
-          返回钱包
-        </view>
-        <view
-          class="btn-primary"
-          @tap="continueWithdraw"
-        >
-          继续提现
-        </view>
+        <view class="btn-outline" @tap="backToWallet">返回钱包</view>
+        <view class="btn-primary" @tap="continueWithdraw">继续提现</view>
       </view>
     </view>
   </view>
 
   <!-- 表单态 -->
-  <view
-    v-else
-    class="page"
-  >
-    <app-nav-bar
-      title="提现"
-      back-icon="arrow-left"
-      @back="goBack"
-    />
+  <view v-else class="page">
+    <app-nav-bar title="提现" back-icon="arrow-left" @back="goBack" />
 
     <view class="body">
       <!-- 可提现余额 -->
       <view class="balance-card">
         <view class="bal-head">
-          <app-icon
-            name="wallet"
-            :size="36"
-            color="rgba(255,255,255,0.8)"
-          />
-          <text class="bal-label">
-            可提现余额
-          </text>
+          <app-icon name="wallet" :size="36" color="rgba(255,255,255,0.8)" />
+          <text class="bal-label">可提现余额</text>
         </view>
-        <text class="bal-amount">
-          ¥{{ info.value.availableBalance.toFixed(2) }}
-        </text>
+        <text class="bal-amount">¥{{ info.availableBalance.toFixed(2) }}</text>
         <view class="bal-extra">
-          <text>冻结中: ¥{{ info.value.frozenBalance.toFixed(2) }}</text>
-          <text>待结算: ¥{{ info.value.pendingBalance.toFixed(2) }}</text>
+          <text>冻结中: ¥{{ info.frozenBalance.toFixed(2) }}</text>
+          <text>待结算: ¥{{ info.pendingBalance.toFixed(2) }}</text>
         </view>
       </view>
 
       <!-- 提现金额 -->
       <view class="card">
         <view class="card-head">
-          <text class="card-label">
-            提现金额
-          </text>
-          <text
-            class="all-btn"
-            @tap="withdrawAll"
-          >
-            全部提现
-          </text>
+          <text class="card-label">提现金额</text>
+          <text class="all-btn" @tap="withdrawAll">全部提现</text>
         </view>
         <view class="amount-input-wrap">
-          <text class="amount-yen">
-            ¥
-          </text>
+          <text class="amount-yen">¥</text>
           <input
             class="amount-input"
             type="digit"
@@ -253,23 +185,17 @@ function continueWithdraw() {
             placeholder="0.00"
             placeholder-class="amount-ph"
             @input="(e: any) => (amount = e.detail.value)"
-          >
+          />
         </view>
         <view class="amount-tip">
-          <app-icon
-            name="alert-circle"
-            :size="26"
-            color="rgba(92,64,51,0.6)"
-          />
-          <text>单笔最低{{ info.value.minWithdraw }}元，最高{{ info.value.maxWithdraw }}元</text>
+          <app-icon name="alert-circle" :size="26" color="rgba(92,64,51,0.6)" />
+          <text>单笔最低{{ info.minWithdraw }}元，最高{{ info.maxWithdraw }}元</text>
         </view>
       </view>
 
       <!-- 收款方式 -->
       <view class="card">
-        <text class="card-label block">
-          收款方式
-        </text>
+        <text class="card-label block">收款方式</text>
         <view class="method-grid">
           <view
             class="method-btn"
@@ -281,9 +207,7 @@ function continueWithdraw() {
               :size="36"
               :color="method === 'alipay' ? '#c41e3a' : 'rgba(92,64,51,0.6)'"
             />
-            <text :class="method === 'alipay' ? 'm-active' : 'm-normal'">
-              支付宝
-            </text>
+            <text :class="method === 'alipay' ? 'm-active' : 'm-normal'">支付宝</text>
           </view>
           <view
             class="method-btn"
@@ -295,64 +219,48 @@ function continueWithdraw() {
               :size="36"
               :color="method === 'bank' ? '#c41e3a' : 'rgba(92,64,51,0.6)'"
             />
-            <text :class="method === 'bank' ? 'm-active' : 'm-normal'">
-              银行卡
-            </text>
+            <text :class="method === 'bank' ? 'm-active' : 'm-normal'">银行卡</text>
           </view>
         </view>
 
         <!-- 支付宝表单 -->
-        <view
-          v-if="method === 'alipay'"
-          class="form-fields"
-        >
+        <view v-if="method === 'alipay'" class="form-fields">
           <view class="field">
-            <text class="field-label">
-              支付宝账号
-            </text>
+            <text class="field-label">支付宝账号</text>
             <input
               class="field-input"
               :value="form.alipayAccount"
               placeholder="请输入支付宝账号"
               placeholder-class="field-ph"
               @input="(e: any) => (form.alipayAccount = e.detail.value)"
-            >
+            />
           </view>
           <view class="field">
-            <text class="field-label">
-              真实姓名
-            </text>
+            <text class="field-label">真实姓名</text>
             <input
               class="field-input"
               :value="form.alipayName"
               placeholder="请输入支付宝实名姓名"
               placeholder-class="field-ph"
               @input="(e: any) => (form.alipayName = e.detail.value)"
-            >
+            />
           </view>
         </view>
 
         <!-- 银行卡表单 -->
-        <view
-          v-else
-          class="form-fields"
-        >
+        <view v-else class="form-fields">
           <view class="field">
-            <text class="field-label">
-              开户银行
-            </text>
+            <text class="field-label">开户银行</text>
             <input
               class="field-input"
               :value="form.bankName"
               placeholder="请输入开户银行名称"
               placeholder-class="field-ph"
               @input="(e: any) => (form.bankName = e.detail.value)"
-            >
+            />
           </view>
           <view class="field">
-            <text class="field-label">
-              银行卡号
-            </text>
+            <text class="field-label">银行卡号</text>
             <input
               class="field-input"
               type="number"
@@ -360,52 +268,37 @@ function continueWithdraw() {
               placeholder="请输入银行卡号"
               placeholder-class="field-ph"
               @input="(e: any) => (form.bankAccount = e.detail.value)"
-            >
+            />
           </view>
           <view class="field">
-            <text class="field-label">
-              持卡人姓名
-            </text>
+            <text class="field-label">持卡人姓名</text>
             <input
               class="field-input"
               :value="form.bankHolder"
               placeholder="请输入持卡人姓名"
               placeholder-class="field-ph"
               @input="(e: any) => (form.bankHolder = e.detail.value)"
-            >
+            />
           </view>
         </view>
       </view>
 
       <!-- 费用预览 -->
-      <view
-        v-if="amountNum > 0"
-        class="card"
-      >
+      <view v-if="amountNum > 0" class="card">
         <view class="fee-row">
-          <text class="fee-label">
-            提现金额
-          </text>
-          <text class="fee-val">
-            ¥{{ amountNum.toFixed(2) }}
-          </text>
+          <text class="fee-label">提现金额</text>
+          <text class="fee-val">¥{{ amountNum.toFixed(2) }}</text>
         </view>
         <view class="fee-row">
-          <text class="fee-label">
-            手续费 ({{ (info.value.feeRate * 100).toFixed(1) }}%，最低{{ info.value.minFee }}元)
-          </text>
-          <text class="fee-val">
-            -¥{{ fee.toFixed(2) }}
-          </text>
+          <text class="fee-label"
+            >手续费 ({{ (info.feeRate * 100).toFixed(1) }}%，最低{{ info.minFee }}元)</text
+          >
+          <text class="fee-val">-¥{{ fee.toFixed(2) }}</text>
         </view>
         <view class="result-divider" />
         <view class="fee-row">
-          <text class="fee-label">
-            预计到账
-          </text>
-          <text class="result-amount">
-            ¥{{ actualAmount.toFixed(2) }}
-          </text>
+          <text class="fee-label">预计到账</text>
+          <text class="result-amount">¥{{ actualAmount.toFixed(2) }}</text>
         </view>
       </view>
 
@@ -414,9 +307,8 @@ function continueWithdraw() {
         class="submit-btn"
         :class="{ disabled: !canSubmit }"
         @tap="openPwd"
+        >确认提现</view
       >
-        确认提现
-      </view>
 
       <view class="hints">
         <text>• 支付宝提现预计2小时内到账</text>
@@ -426,37 +318,18 @@ function continueWithdraw() {
     </view>
 
     <!-- 支付密码弹窗 -->
-    <view
-      v-if="showPwd"
-      class="pwd-mask"
-    >
+    <view v-if="showPwd" class="pwd-mask">
       <view class="pwd-sheet">
         <view class="pwd-head">
           <view class="pwd-spacer" />
-          <text class="pwd-title">
-            请输入支付密码
-          </text>
-          <view
-            class="pwd-close"
-            @tap="showPwd = false"
-          >
-            <app-icon
-              name="x"
-              :size="36"
-              color="rgba(92,64,51,0.6)"
-            />
+          <text class="pwd-title">请输入支付密码</text>
+          <view class="pwd-close" @tap="showPwd = false">
+            <app-icon name="x" :size="36" color="rgba(92,64,51,0.6)" />
           </view>
         </view>
         <view class="pwd-boxes">
-          <view
-            v-for="(p, i) in pwd"
-            :key="i"
-            class="pwd-box"
-          >
-            <view
-              v-if="p"
-              class="pwd-dot"
-            />
+          <view v-for="(p, i) in pwd" :key="i" class="pwd-box">
+            <view v-if="p" class="pwd-dot" />
           </view>
         </view>
         <input
@@ -467,16 +340,11 @@ function continueWithdraw() {
           :focus="showPwd"
           :disabled="verifying"
           @input="onPwdInput"
-        >
-        <view
-          v-if="verifying"
-          class="pwd-verifying"
-        >
+        />
+        <view v-if="verifying" class="pwd-verifying">
           <text>验证中...</text>
         </view>
-        <text class="pwd-forget">
-          忘记支付密码？
-        </text>
+        <text class="pwd-forget">忘记支付密码？</text>
       </view>
     </view>
   </view>

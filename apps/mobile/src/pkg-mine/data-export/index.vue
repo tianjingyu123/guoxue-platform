@@ -1,27 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
-import { exportDataTypes, mineSettingsApi, type ExportRecord, type ExportRecordStatus } from '@/lib/mine-data'
+import { exportDataTypes, exportRecords, type ExportRecord, type ExportRecordStatus } from '@/lib/mine-data'
 
 const activeTab = ref<'create' | 'records'>('create')
 const selectedTypes = ref<string[]>([])
-const records = ref<ExportRecord[]>([])
+const records = ref<ExportRecord[]>(exportRecords.map((r) => ({ ...r })))
 const submitting = ref(false)
-const loading = ref(true)
-const error = ref(false)
-
-async function loadRecords() {
-  loading.value = true
-  error.value = false
-  try {
-    records.value = await mineSettingsApi.getExportRecords()
-  } catch { error.value = true }
-  finally { loading.value = false }
-}
-function reload() { loadRecords() }
-
-onMounted(loadRecords)
 
 const completedCount = computed(() => records.value.filter((r) => r.status === 'completed').length)
 const allSelected = computed(() => selectedTypes.value.length === exportDataTypes.length)
@@ -37,11 +22,10 @@ function selectAll() {
   selectedTypes.value = allSelected.value ? [] : exportDataTypes.map((t) => t.id)
 }
 
-async function submit() {
+function submit() {
   if (selectedTypes.value.length === 0 || submitting.value) return
   submitting.value = true
-  try {
-    await mineSettingsApi.requestExport(selectedTypes.value)
+  setTimeout(() => {
     records.value = [
       { id: String(Date.now()), types: [...selectedTypes.value], status: 'processing', createdAt: new Date().toISOString() },
       ...records.value,
@@ -50,10 +34,7 @@ async function submit() {
     submitting.value = false
     activeTab.value = 'records'
     uni.showToast({ title: '已提交导出申请', icon: 'none' })
-  } catch {
-    uni.showToast({ title: '提交失败，请重试', icon: 'none' })
-    submitting.value = false
-  }
+  }, 1000)
 }
 
 function statusConfig(s: ExportRecordStatus) {
@@ -82,145 +63,56 @@ function reapply(r: ExportRecord) {
 
 <template>
   <view class="page">
-    <view class="nav">
-      <view
-        class="nav-btn"
-        @tap="goBack"
-      >
-        <AppIcon
-          name="chevron-left"
-          :size="22"
-          color="#2C2C2C"
-        />
-      </view>
-      <text class="nav-title">
-        数据导出
-      </text>
-      <view class="nav-btn" />
-    </view>
+    <app-nav-bar title="数据导出" />
 
     <!-- Tab -->
     <view class="tabs">
-      <view
-        class="tab"
-        :class="{ active: activeTab === 'create' }"
-        @tap="activeTab = 'create'"
-      >
-        <text class="tab-text">
-          申请导出
-        </text>
+      <view class="tab" :class="{ active: activeTab === 'create' }" @tap="activeTab = 'create'">
+        <text class="tab-text">申请导出</text>
       </view>
-      <view
-        class="tab"
-        :class="{ active: activeTab === 'records' }"
-        @tap="activeTab = 'records'"
-      >
-        <text class="tab-text">
-          导出记录
-        </text>
-        <text
-          v-if="completedCount > 0"
-          class="tab-badge"
-        >
-          {{ completedCount }}
-        </text>
+      <view class="tab" :class="{ active: activeTab === 'records' }" @tap="activeTab = 'records'">
+        <text class="tab-text">导出记录</text>
+        <text v-if="completedCount > 0" class="tab-badge">{{ completedCount }}</text>
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <!-- 申请导出 -->
       <template v-if="activeTab === 'create'">
         <view class="info">
-          <AppIcon
-            name="info"
-            :size="18"
-            color="#2563eb"
-          />
+          <AppIcon name="info" :size="18" color="#2563eb" />
           <view class="info-body">
-            <text class="info-title">
-              数据导出说明
-            </text>
-            <text class="info-item">
-              · 导出文件为 ZIP 压缩包格式
-            </text>
-            <text class="info-item">
-              · 处理时间约 5-30 分钟，完成后通知您
-            </text>
-            <text class="info-item">
-              · 文件有效期 7 天，请及时下载
-            </text>
-            <text class="info-item">
-              · 每月最多申请 3 次导出
-            </text>
+            <text class="info-title">数据导出说明</text>
+            <text class="info-item">· 导出文件为 ZIP 压缩包格式</text>
+            <text class="info-item">· 处理时间约 5-30 分钟，完成后通知您</text>
+            <text class="info-item">· 文件有效期 7 天，请及时下载</text>
+            <text class="info-item">· 每月最多申请 3 次导出</text>
           </view>
         </view>
 
         <view class="card">
           <view class="card-head">
-            <text class="card-head-title">
-              选择导出数据
-            </text>
-            <text
-              class="select-all"
-              @tap="selectAll"
-            >
-              {{ allSelected ? '取消全选' : '全选' }}
-            </text>
+            <text class="card-head-title">选择导出数据</text>
+            <text class="select-all" @tap="selectAll">{{ allSelected ? '取消全选' : '全选' }}</text>
           </view>
-          <view
-            v-for="t in exportDataTypes"
-            :key="t.id"
-            class="row"
-            @tap="toggleType(t.id)"
-          >
-            <view
-              class="row-icon"
-              :class="{ 'icon-active': selectedTypes.includes(t.id) }"
-            >
-              <AppIcon
-                :name="t.icon"
-                :size="20"
-                :color="selectedTypes.includes(t.id) ? '#fff' : '#9b948a'"
-              />
+          <view v-for="t in exportDataTypes" :key="t.id" class="row" @tap="toggleType(t.id)">
+            <view class="row-icon" :class="{ 'icon-active': selectedTypes.includes(t.id) }">
+              <AppIcon :name="t.icon" :size="20" :color="selectedTypes.includes(t.id) ? '#fff' : '#9b948a'" />
             </view>
             <view class="row-body">
-              <text class="row-name">
-                {{ t.name }}
-              </text>
-              <text class="row-sub">
-                {{ t.description }}
-              </text>
+              <text class="row-name">{{ t.name }}</text>
+              <text class="row-sub">{{ t.description }}</text>
             </view>
-            <text class="row-size">
-              {{ t.estimatedSize }}
-            </text>
-            <view
-              class="check"
-              :class="{ checked: selectedTypes.includes(t.id) }"
-            >
-              <AppIcon
-                v-if="selectedTypes.includes(t.id)"
-                name="check"
-                :size="14"
-                color="#fff"
-              />
+            <text class="row-size">{{ t.estimatedSize }}</text>
+            <view class="check" :class="{ checked: selectedTypes.includes(t.id) }">
+              <AppIcon v-if="selectedTypes.includes(t.id)" name="check" :size="14" color="#fff" />
             </view>
           </view>
         </view>
 
-        <view
-          v-if="selectedTypes.length > 0"
-          class="estimate"
-        >
-          <text class="estimate-left">
-            已选 {{ selectedTypes.length }} 项数据
-          </text>
-          <text class="estimate-right">
-            预估大小: 约 {{ selectedTypes.length * 2 }}MB
-          </text>
+        <view v-if="selectedTypes.length > 0" class="estimate">
+          <text class="estimate-left">已选 {{ selectedTypes.length }} 项数据</text>
+          <text class="estimate-right">预估大小: 约 {{ selectedTypes.length * 2 }}MB</text>
         </view>
 
         <view class="safe-bottom-lg" />
@@ -228,124 +120,34 @@ function reapply(r: ExportRecord) {
 
       <!-- 导出记录 -->
       <template v-else>
-        <!-- 加载中 -->
-        <view
-          v-if="loading"
-          class="loading-wrap"
-        >
-          <text class="loading-text">
-            加载中...
-          </text>
-        </view>
-
-        <!-- 加载失败 -->
-        <view
-          v-else-if="error"
-          class="loading-wrap"
-        >
-          <text class="loading-text">
-            加载失败
-          </text>
-          <view
-            class="retry-btn"
-            @tap="reload"
-          >
-            <text class="retry-btn-text">
-              重试
-            </text>
-          </view>
-        </view>
-
-        <!-- 空状态 -->
-        <view
-          v-else-if="records.length === 0"
-          class="empty"
-        >
-          <view class="empty-icon">
-            <AppIcon
-              name="download"
-              :size="32"
-              color="#C9C2B6"
-            />
-          </view>
-          <text class="empty-text">
-            暂无导出记录
-          </text>
-          <text
-            class="empty-link"
-            @tap="activeTab = 'create'"
-          >
-            去申请导出
-          </text>
+        <view v-if="records.length === 0" class="empty">
+          <view class="empty-icon"><AppIcon name="download" :size="32" color="#C9C2B6" /></view>
+          <text class="empty-text">暂无导出记录</text>
+          <text class="empty-link" @tap="activeTab = 'create'">去申请导出</text>
         </view>
         <template v-else>
-          <view
-            v-for="r in records"
-            :key="r.id"
-            class="rec"
-          >
+          <view v-for="r in records" :key="r.id" class="rec">
             <view class="rec-head">
-              <view
-                class="rec-status"
-                :style="{ color: statusConfig(r.status).color, background: statusConfig(r.status).bg }"
-              >
-                <AppIcon
-                  :name="statusConfig(r.status).icon"
-                  :size="14"
-                  :color="statusConfig(r.status).color"
-                />
-                <text class="rec-status-text">
-                  {{ statusConfig(r.status).label }}
-                </text>
+              <view class="rec-status" :style="{ color: statusConfig(r.status).color, background: statusConfig(r.status).bg }">
+                <AppIcon :name="statusConfig(r.status).icon" :size="14" :color="statusConfig(r.status).color" />
+                <text class="rec-status-text">{{ statusConfig(r.status).label }}</text>
               </view>
-              <text class="rec-time">
-                {{ fmtDate(r.createdAt) }}
-              </text>
+              <text class="rec-time">{{ fmtDate(r.createdAt) }}</text>
             </view>
-            <text class="rec-types">
-              {{ typeNames(r.types) }}
-            </text>
-            <text
-              v-if="r.status === 'completed' && r.expireAt"
-              class="rec-meta"
-            >
-              文件大小: {{ r.fileSize }} · 有效期至 {{ fmtDate(r.expireAt) }}
-            </text>
+            <text class="rec-types">{{ typeNames(r.types) }}</text>
+            <text v-if="r.status === 'completed' && r.expireAt" class="rec-meta">文件大小: {{ r.fileSize }} · 有效期至 {{ fmtDate(r.expireAt) }}</text>
 
-            <view
-              v-if="r.status === 'processing'"
-              class="progress"
-            >
-              <view class="progress-bar">
-                <view class="progress-fill" />
-              </view>
-              <text class="progress-text">
-                处理中...
-              </text>
+            <view v-if="r.status === 'processing'" class="progress">
+              <view class="progress-bar"><view class="progress-fill" /></view>
+              <text class="progress-text">处理中...</text>
             </view>
 
-            <view
-              v-if="r.status === 'completed'"
-              class="btn-download"
-              @tap="download"
-            >
-              <AppIcon
-                name="download"
-                :size="16"
-                color="#fff"
-              />
-              <text class="btn-download-text">
-                下载文件
-              </text>
+            <view v-if="r.status === 'completed'" class="btn-download" @tap="download">
+              <AppIcon name="download" :size="16" color="#fff" />
+              <text class="btn-download-text">下载文件</text>
             </view>
-            <view
-              v-if="r.status === 'expired'"
-              class="btn-reapply"
-              @tap="reapply(r)"
-            >
-              <text class="btn-reapply-text">
-                重新申请
-              </text>
+            <view v-if="r.status === 'expired'" class="btn-reapply" @tap="reapply(r)">
+              <text class="btn-reapply-text">重新申请</text>
             </view>
           </view>
         </template>
@@ -353,23 +155,10 @@ function reapply(r: ExportRecord) {
     </scroll-view>
 
     <!-- 底部提交 -->
-    <view
-      v-if="activeTab === 'create'"
-      class="footer-bar"
-    >
-      <view
-        class="btn-submit"
-        :class="{ disabled: selectedTypes.length === 0 || submitting }"
-        @tap="submit"
-      >
-        <AppIcon
-          name="download"
-          :size="18"
-          color="#fff"
-        />
-        <text class="btn-submit-text">
-          {{ submitting ? '提交中...' : `申请导出 (${selectedTypes.length} 项)` }}
-        </text>
+    <view v-if="activeTab === 'create'" class="footer-bar">
+      <view class="btn-submit" :class="{ disabled: selectedTypes.length === 0 || submitting }" @tap="submit">
+        <AppIcon name="download" :size="18" color="#fff" />
+        <text class="btn-submit-text">{{ submitting ? '提交中...' : `申请导出 (${selectedTypes.length} 项)` }}</text>
       </view>
     </view>
   </view>
@@ -377,9 +166,6 @@ function reapply(r: ExportRecord) {
 
 <style scoped>
 .page { min-height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
-.nav { height: 88rpx; display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx; background: #fff; border-bottom: 1rpx solid #EDE7DC; position: sticky; top: 0; z-index: 10; }
-.nav-btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
-.nav-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
 
 .tabs { display: flex; background: #fff; border-bottom: 1rpx solid #EDE7DC; }
 .tab { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; gap: 8rpx; border-bottom: 4rpx solid transparent; }
@@ -420,11 +206,6 @@ function reapply(r: ExportRecord) {
 .empty-icon { width: 140rpx; height: 140rpx; border-radius: 50%; background: #F2ECE1; display: flex; align-items: center; justify-content: center; margin-bottom: 8rpx; }
 .empty-text { font-size: 28rpx; color: #8a8178; }
 .empty-link { font-size: 26rpx; color: #C41E3A; margin-top: 8rpx; }
-
-.loading-wrap { padding: 200rpx 0; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
-.loading-text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; border: 1rpx solid #C41E3A; border-radius: 999rpx; }
-.retry-btn-text { font-size: 26rpx; color: #C41E3A; }
 
 .rec { background: #fff; border-radius: 24rpx; padding: 28rpx; margin-bottom: 24rpx; }
 .rec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }

@@ -1,42 +1,8 @@
 <template>
   <view class="cd-page">
-    <classics-header
-      :title="book.title"
-      right-type="share"
-      @back="goBack"
-      @right="onShare"
-    />
+    <classics-header :title="book.title" right-type="share" @back="goBack" @right="onShare" />
 
-    <!-- Loading -->
-    <view
-      v-if="loading"
-      class="cd-main"
-    >
-      <view class="cd-loading">
-        <view class="loading-spinner" />
-      </view>
-    </view>
-    <!-- Error -->
-    <view
-      v-else-if="error"
-      class="cd-main"
-    >
-      <view class="err-wrap">
-        <text class="err-msg">
-          {{ error }}
-        </text>
-        <view
-          class="retry-btn"
-          @tap="loadData"
-        >
-          重新加载
-        </view>
-      </view>
-    </view>
-    <view
-      v-else
-      class="cd-main"
-    >
+    <view class="cd-main">
       <!-- 封面区 -->
       <view class="cd-cover-sec">
         <view class="cd-cover-row">
@@ -50,61 +16,26 @@
           />
           <view class="cd-info">
             <view>
-              <text class="cd-title">
-                {{ book.title }}
-              </text>
-              <text class="cd-author">
-                [{{ book.dynasty }}] {{ book.author }}
-              </text>
+              <text class="cd-title">{{ book.title }}</text>
+              <text class="cd-author">[{{ book.dynasty }}] {{ book.author }}</text>
               <view class="cd-tags">
-                <text class="cd-tag cd-tag-muted">
-                  {{ book.version }}
-                </text>
-                <text
-                  v-if="book.hasTranslation"
-                  class="cd-tag cd-tag-amber"
-                >
-                  译文
-                </text>
-                <text
-                  v-if="book.isFree"
-                  class="cd-tag cd-tag-green"
-                >
-                  免费
-                </text>
+                <text class="cd-tag cd-tag-muted">{{ book.version }}</text>
+                <text v-if="book.hasTranslation" class="cd-tag cd-tag-amber">译文</text>
+                <text v-if="book.isFree" class="cd-tag cd-tag-green">免费</text>
               </view>
             </view>
             <view class="cd-stats">
               <view class="cd-stat">
-                <app-icon
-                  name="star"
-                  :size="26"
-                  color="#f59e0b"
-                  :fill="true"
-                />
-                <text class="cd-stat-text">
-                  {{ book.rating }}
-                </text>
+                <app-icon name="star" :size="26" color="#f59e0b" :fill="true" />
+                <text class="cd-stat-text">{{ book.rating }}</text>
               </view>
               <view class="cd-stat">
-                <app-icon
-                  name="eye"
-                  :size="26"
-                  color="#999999"
-                />
-                <text class="cd-stat-text">
-                  {{ (book.reads / 10000).toFixed(1) }}万
-                </text>
+                <app-icon name="eye" :size="26" color="#999999" />
+                <text class="cd-stat-text">{{ (book.reads / 10000).toFixed(1) }}万</text>
               </view>
               <view class="cd-stat">
-                <app-icon
-                  name="file-text"
-                  :size="26"
-                  color="#999999"
-                />
-                <text class="cd-stat-text">
-                  {{ book.totalChapters }}篇
-                </text>
+                <app-icon name="file-text" :size="26" color="#999999" />
+                <text class="cd-stat-text">{{ book.totalChapters }}篇</text>
               </view>
             </view>
           </view>
@@ -116,99 +47,49 @@
         <view class="cd-card cd-ai">
           <view class="cd-ai-head">
             <view class="cd-ai-badge">
-              <app-icon
-                name="sparkles"
-                :size="22"
-                color="#ffffff"
-              />
+              <app-icon name="sparkles" :size="22" color="#ffffff" />
             </view>
-            <text class="cd-ai-title">
-              AI 智能导读
-            </text>
+            <text class="cd-ai-title">AI 智能导读</text>
           </view>
-          <text class="cd-ai-text">
-            {{ book.aiSummary }}
-          </text>
+          <text class="cd-ai-text">{{ book.aiSummary }}</text>
         </view>
       </view>
 
       <!-- AI 功能亮点 -->
-      <view
-        v-if="book.hasAI"
-        class="cd-sec"
-      >
+      <view v-if="book.hasAI" class="cd-sec">
         <view class="cd-features">
-          <view
-            v-for="feat in aiFeatures"
-            :key="feat.label"
-            class="cd-feature"
-          >
+          <view v-for="feat in AI_FEATURES" :key="feat.label" class="cd-feature">
             <view class="cd-feature-icon">
-              <app-icon
-                :name="feat.icon"
-                :size="34"
-                color="#c41e3a"
-              />
+              <app-icon :name="feat.icon" :size="34" color="#c41e3a" />
             </view>
-            <text class="cd-feature-label">
-              {{ feat.label }}
-            </text>
+            <text class="cd-feature-label">{{ feat.label }}</text>
           </view>
         </view>
       </view>
 
       <!-- 听书入口 -->
-      <view
-        v-if="book.hasAudio"
-        class="cd-sec"
-      >
-        <view
-          class="cd-card cd-audio"
-          @tap="toReader('audio')"
-        >
+      <view v-if="book.hasAudio" class="cd-sec">
+        <view class="cd-card cd-audio" @tap="toReader('audio')">
           <view class="cd-audio-icon">
-            <app-icon
-              name="headphones"
-              :size="38"
-              color="#ffffff"
-            />
+            <app-icon name="headphones" :size="38" color="#ffffff" />
           </view>
           <view class="cd-audio-body">
-            <text class="cd-audio-title">
-              听书版本
-            </text>
-            <text class="cd-audio-sub">
-              名家朗读 · 全本
-            </text>
+            <text class="cd-audio-title">听书版本</text>
+            <text class="cd-audio-sub">名家朗读 · 全本</text>
           </view>
-          <app-icon
-            name="chevron-right"
-            :size="36"
-            color="#cccccc"
-          />
+          <app-icon name="chevron-right" :size="36" color="#cccccc" />
         </view>
       </view>
 
       <!-- 目录 -->
       <view class="cd-sec">
         <view class="cd-sec-head">
-          <text class="cd-sec-title">
-            目录
-          </text>
-          <text class="cd-sec-meta">
-            共 {{ book.totalChapters }} 卷
-          </text>
+          <text class="cd-sec-title">目录</text>
+          <text class="cd-sec-meta">共 {{ book.totalChapters }} 卷</text>
         </view>
         <view class="cd-card cd-toc">
-          <view
-            v-for="(chapter, index) in displayedChapters"
-            :key="chapter.id"
-            :class="{ 'cd-toc-divider': index > 0 }"
-          >
-            <view
-              class="cd-toc-item"
-              @tap="chapter.hasChildren ? toggleChapter(chapter.id) : toReader(chapter.id)"
-            >
+          <view v-for="(chapter, index) in displayedChapters" :key="chapter.id" :class="{ 'cd-toc-divider': index > 0 }">
+            <view class="cd-toc-item" @tap="chapter.hasChildren ? toggleChapter(chapter.id) : toReader(chapter.id)">
               <app-icon
                 v-if="chapter.hasChildren"
                 name="chevron-down"
@@ -217,35 +98,16 @@
                 class="cd-toc-chevron"
                 :class="{ 'cd-toc-chevron-open': expandedChapters.has(chapter.id) }"
               />
-              <view
-                v-else
-                class="cd-toc-spacer"
-              />
-              <text class="cd-toc-title">
-                {{ chapter.title }}
-              </text>
+              <view v-else class="cd-toc-spacer" />
+              <text class="cd-toc-title">{{ chapter.title }}</text>
             </view>
-            <view
-              v-if="chapter.hasChildren && chapter.children && expandedChapters.has(chapter.id)"
-              class="cd-toc-children"
-            >
-              <view
-                v-for="child in chapter.children"
-                :key="child.id"
-                class="cd-toc-child"
-                @tap="toReader(child.id)"
-              >
-                <text class="cd-toc-child-text">
-                  {{ child.title }}
-                </text>
+            <view v-if="chapter.hasChildren && chapter.children && expandedChapters.has(chapter.id)" class="cd-toc-children">
+              <view v-for="child in chapter.children" :key="child.id" class="cd-toc-child" @tap="toReader(child.id)">
+                <text class="cd-toc-child-text">{{ child.title }}</text>
               </view>
             </view>
           </view>
-          <view
-            v-if="!showAllChapters && book.chapters.length > 6"
-            class="cd-toc-more"
-            @tap="showAllChapters = true"
-          >
+          <view v-if="!showAllChapters && book.chapters.length > 6" class="cd-toc-more" @tap="showAllChapters = true">
             查看全部 {{ book.chapters.length }} 个章节
           </view>
         </view>
@@ -254,84 +116,37 @@
       <!-- 书友讨论 -->
       <view class="cd-sec">
         <view class="cd-sec-head">
-          <text class="cd-sec-title">
-            书友讨论
-          </text>
-          <text class="cd-sec-meta">
-            {{ commentCount }} 条
-          </text>
+          <text class="cd-sec-title">书友讨论</text>
+          <text class="cd-sec-meta">{{ commentCount }} 条</text>
         </view>
-        <view
-          class="cd-card cd-disc"
-          @tap="showComments = true"
-        >
+        <view class="cd-card cd-disc" @tap="showComments = true">
           <view class="cd-disc-preview">
-            <view
-              class="cd-disc-avatar"
-              :style="{ background: '#a06a38' }"
-            >
-              {{ firstDiscussion.author.name.charAt(0) }}
-            </view>
+            <view class="cd-disc-avatar" :style="{ background: '#a06a38' }">{{ firstDiscussion.author.name.charAt(0) }}</view>
             <view class="cd-disc-body">
-              <text class="cd-disc-name">
-                {{ firstDiscussion.author.name }}
-              </text>
-              <text class="cd-disc-content">
-                {{ firstDiscussion.content }}
-              </text>
+              <text class="cd-disc-name">{{ firstDiscussion.author.name }}</text>
+              <text class="cd-disc-content">{{ firstDiscussion.content }}</text>
               <view class="cd-disc-like">
-                <app-icon
-                  name="heart"
-                  :size="26"
-                  color="#999999"
-                />
-                <text class="cd-disc-like-text">
-                  {{ firstDiscussion.likeCount }}
-                </text>
+                <app-icon name="heart" :size="26" color="#999999" />
+                <text class="cd-disc-like-text">{{ firstDiscussion.likeCount }}</text>
               </view>
             </view>
           </view>
           <view class="cd-disc-all">
-            <app-icon
-              name="message-square"
-              :size="28"
-              color="#c41e3a"
-            />
-            <text class="cd-disc-all-text">
-              查看全部 {{ commentCount }} 条讨论
-            </text>
+            <app-icon name="message-square" :size="28" color="#c41e3a" />
+            <text class="cd-disc-all-text">查看全部 {{ commentCount }} 条讨论</text>
           </view>
         </view>
       </view>
 
       <!-- 相关推荐 -->
       <view class="cd-sec cd-related-sec">
-        <text class="cd-sec-title cd-related-title">
-          相关推荐
-        </text>
-        <scroll-view
-          scroll-x
-          class="cd-related-scroll"
-        >
+        <text class="cd-sec-title cd-related-title">相关推荐</text>
+        <scroll-view scroll-x class="cd-related-scroll">
           <view class="cd-related-row">
-            <view
-              v-for="rb in book.relatedBooks"
-              :key="rb.id"
-              class="cd-related-item"
-              @tap="toBook(rb.id)"
-            >
-              <flat-cover
-                :title="rb.title"
-                :cover-color="coverColorForBook(rb.title)"
-                title-size="30rpx"
-                class="cd-related-cover"
-              />
-              <text class="cd-related-name">
-                {{ rb.title }}
-              </text>
-              <text class="cd-related-author">
-                {{ rb.author }}
-              </text>
+            <view v-for="rb in book.relatedBooks" :key="rb.id" class="cd-related-item" @tap="toBook(rb.id)">
+              <flat-cover :title="rb.title" :cover-color="coverColorForBook(rb.title)" title-size="30rpx" class="cd-related-cover" />
+              <text class="cd-related-name">{{ rb.title }}</text>
+              <text class="cd-related-author">{{ rb.author }}</text>
             </view>
           </view>
         </scroll-view>
@@ -341,36 +156,13 @@
     <!-- 底部固定操作栏 -->
     <view class="cd-bottom">
       <view class="cd-bottom-row">
-        <view
-          class="cd-shelf-btn"
-          :class="{ 'cd-shelf-on': isInBookshelf }"
-          @tap="isInBookshelf = !isInBookshelf"
-        >
-          <app-icon
-            :name="isInBookshelf ? 'bookmark-check' : 'bookmark-plus'"
-            :size="34"
-            :color="isInBookshelf ? '#c41e3a' : '#2c2c2c'"
-          />
-          <text
-            class="cd-shelf-text"
-            :style="{ color: isInBookshelf ? '#c41e3a' : '#2c2c2c' }"
-          >
-            {{ isInBookshelf ? '已在书架' : '加入书架' }}
-          </text>
+        <view class="cd-shelf-btn" :class="{ 'cd-shelf-on': isInBookshelf }" @tap="isInBookshelf = !isInBookshelf">
+          <app-icon :name="isInBookshelf ? 'bookmark-check' : 'bookmark-plus'" :size="34" :color="isInBookshelf ? '#c41e3a' : '#2c2c2c'" />
+          <text class="cd-shelf-text" :style="{ color: isInBookshelf ? '#c41e3a' : '#2c2c2c' }">{{ isInBookshelf ? '已在书架' : '加入书架' }}</text>
         </view>
-        <view
-          class="cd-read-btn"
-          @tap="toReader()"
-        >
-          <app-icon
-            name="play"
-            :size="34"
-            color="#ffffff"
-            :fill="true"
-          />
-          <text class="cd-read-text">
-            开始阅读
-          </text>
+        <view class="cd-read-btn" @tap="toReader()">
+          <app-icon name="play" :size="34" color="#ffffff" :fill="true" />
+          <text class="cd-read-text">开始阅读</text>
         </view>
       </view>
     </view>
@@ -379,7 +171,7 @@
     <discussion-sheet
       :open="showComments"
       :config="discussionConfig"
-      :items="discussions"
+      :items="BOOK_DISCUSSIONS"
       :enable-a-i-assist="true"
       @close="showComments = false"
     />
@@ -387,42 +179,140 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import { classicsApi } from '@/lib/classics-data'
 import type { DiscussionConfig, DiscussionItem } from '@/lib/discussion-types'
+import type { CoverColor } from '@/lib/classics-cover'
 
-const loading = ref(true)
-const error = ref('')
+interface Chapter {
+  id: string
+  title: string
+  hasChildren?: boolean
+  children?: { id: string; title: string }[]
+}
+interface BookInfo {
+  id: string
+  title: string
+  author: string
+  dynasty: string
+  version: string
+  description: string
+  aiSummary: string
+  reads: number
+  rating: number
+  totalChapters: number
+  hasAI: boolean
+  hasAudio: boolean
+  hasTranslation: boolean
+  isFree: boolean
+  isInBookshelf: boolean
+  color: CoverColor
+  chapters: Chapter[]
+  relatedBooks: { id: string; title: string; author: string; dynasty: string; color: CoverColor }[]
+}
+
+const bookData: Record<string, BookInfo> = {
+  '1': {
+    id: '1', title: '周易', author: '伏羲/周文王/孔子', dynasty: '周', version: '通行本', color: 'cream',
+    description: '《周易》即《易经》，是传统经典之一，相传系周文王姬昌所作，内容包括《经》和《传》两个部分。',
+    aiSummary: '群经之首，大道之源。《周易》以六十四卦推演天地万物的变化之理，既是占筮之书，更是一部蕴含宇宙观与处世智慧的哲学经典，读懂它便读懂了中国人的思维底层。',
+    reads: 128600, rating: 4.9, totalChapters: 64, hasAI: true, hasAudio: true, hasTranslation: true, isFree: true, isInBookshelf: false,
+    chapters: [
+      { id: 'c1', title: '扉页' },
+      { id: 'c2', title: '序跋', hasChildren: true, children: [{ id: 'c2-1', title: '周易序' }, { id: 'c2-2', title: '周易正义序' }] },
+      { id: 'c3', title: '周易卷首目次' },
+      { id: 'c4', title: '周易卷首', hasChildren: true },
+      { id: 'c5', title: '周易上经', hasChildren: true, children: [{ id: 'c5-1', title: '乾卦第一' }, { id: 'c5-2', title: '坤卦第二' }, { id: 'c5-3', title: '屯卦第三' }] },
+      { id: 'c6', title: '周易下经', hasChildren: true },
+      { id: 'c7', title: '系辞上传' },
+      { id: 'c8', title: '系辞下传' },
+      { id: 'c9', title: '说卦传' },
+      { id: 'c10', title: '序卦传' },
+      { id: 'c11', title: '杂卦传' },
+      { id: 'c12', title: '结束页' },
+    ],
+    relatedBooks: [
+      { id: '2', title: '道德经', author: '老子', dynasty: '春秋', color: 'brown' },
+      { id: '6', title: '论语', author: '孔子门人', dynasty: '春秋', color: 'red' },
+      { id: '4', title: '易传', author: '孔子', dynasty: '春秋', color: 'green' },
+    ],
+  },
+  '2': {
+    id: '2', title: '道德经', author: '老子', dynasty: '春秋', version: '王弼注本', color: 'brown',
+    description: '《道德经》又称《老子》，是道家学派的经典著作，分《道经》和《德经》上下两篇，共八十一章。',
+    aiSummary: '道法自然，无为而治。老子用五千字道出宇宙至理，引领人们探寻生命本真，是道家思想的源头活水。',
+    reads: 145600, rating: 4.9, totalChapters: 81, hasAI: true, hasAudio: true, hasTranslation: true, isFree: true, isInBookshelf: true,
+    chapters: [
+      { id: 'c1', title: '扉页' },
+      { id: 'c2', title: '序跋' },
+      { id: 'c3', title: '道经（第一至第三十七章）', hasChildren: true },
+      { id: 'c4', title: '德经（第三十八至第八十一章）', hasChildren: true },
+      { id: 'c5', title: '结束页' },
+    ],
+    relatedBooks: [
+      { id: '1', title: '周易', author: '伏羲', dynasty: '周', color: 'cream' },
+      { id: '30', title: '庄子', author: '庄周', dynasty: '战国', color: 'green' },
+    ],
+  },
+}
+
+const AI_FEATURES = [
+  { icon: 'file-text', label: '文白翻译' },
+  { icon: 'sparkles', label: '智能查词' },
+  { icon: 'headphones', label: 'AI 听书' },
+  { icon: 'network', label: '知识图谱' },
+]
+
+const BOOK_DISCUSSIONS: DiscussionItem[] = [
+  {
+    id: 'b1',
+    author: { id: 1, name: '山间煮茶', badge: 'master' },
+    content: '读了三遍才慢慢咂摸出味道。古人讲『书读百遍其义自见』，诚不我欺。建议配合注疏一起看，单读原文容易囫囵吞枣。',
+    time: '3天前', likeCount: 128, featured: true,
+    quote: { text: '书读百遍，其义自见。', source: '读后总评' },
+    replies: [
+      { id: 'b1r1', author: { id: 11, name: '知秋' }, content: '同感，第一遍真的看不懂，坚持下来豁然开朗。', time: '2天前', likeCount: 12, replyToName: '山间煮茶' },
+      { id: 'b1r2', author: { id: 12, name: '未名' }, content: '请问您看的是哪个注本？', time: '2天前', likeCount: 3, replyToName: '山间煮茶' },
+    ],
+    replyCount: 2,
+  },
+  {
+    id: 'b2',
+    author: { id: 2, name: '竹影清风', badge: 'teacher' },
+    content: '这个版本的排版和句读做得很用心，AI 译文也比较克制，没有过度发挥，对初学者很友好。',
+    time: '5天前', likeCount: 86, replies: [],
+  },
+  {
+    id: 'b3',
+    author: { id: 3, name: '归园田居', level: 5 },
+    content: '开篇即是高峰。能把如此深奥的道理用这般简练的文字道出，足见先贤功力。每读一次都有新的体会。',
+    time: '1周前', likeCount: 54,
+    quote: { text: '大道至简。', source: '卷首' },
+    replies: [
+      { id: 'b3r1', author: { id: 31, name: '听雨轩主' }, content: '『大道至简』四个字概括得好。', time: '6天前', likeCount: 8, replyToName: '归园田居' },
+    ],
+    replyCount: 1,
+  },
+]
+
 const bookId = ref('1')
-const book = ref<any>(null)
-const aiFeatures = ref<any[]>([])
-const discussions = ref<DiscussionItem[]>([])
+const book = computed(() => bookData[bookId.value] || bookData['1'])
 
 const isInBookshelf = ref(false)
 const expandedChapters = ref<Set<string>>(new Set())
 const showAllChapters = ref(false)
 const showComments = ref(false)
 
-const firstDiscussion = computed(() => {
-  if (!discussions.value || discussions.value.length === 0) {
-    return { author: { id: 0, name: '' }, content: '', likeCount: 0, replies: [] } as any
-  }
-  return discussions.value[0]
-})
-const commentCount = computed(() =>
-  (discussions.value || []).reduce((n: number, c: any) => n + 1 + (c.replies?.length || 0), 0),
-)
+const firstDiscussion = BOOK_DISCUSSIONS[0]
+const commentCount = BOOK_DISCUSSIONS.reduce((n, c) => n + 1 + c.replies.length, 0)
 
-const displayedChapters = computed(() => {
-  if (!book.value) return []
-  const chs = book.value.chapters || []
-  return showAllChapters.value ? chs : chs.slice(0, 6)
-})
+const displayedChapters = computed(() =>
+  showAllChapters.value ? book.value.chapters : book.value.chapters.slice(0, 6),
+)
 
 const discussionConfig: DiscussionConfig = {
   scene: 'classic',
@@ -432,36 +322,10 @@ const discussionConfig: DiscussionConfig = {
   placeholder: '各抒己见，友善交流…',
 }
 
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await classicsApi.detail(bookId.value)
-    book.value = res.book || null
-    aiFeatures.value = res.aiFeatures || []
-    if (res.discussions) {
-      discussions.value = res.discussions.map((d: any) => ({
-        id: d.id,
-        author: { id: 0, name: d.authorName, badge: d.badge },
-        content: d.content,
-        time: d.time,
-        likeCount: d.likeCount,
-        featured: d.featured,
-        replies: [],
-        replyCount: 0,
-      }))
-    }
-    isInBookshelf.value = res.book?.isInBookshelf || false
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally { loading.value = false }
-}
-
 onLoad((q) => {
   if (q && q.id) bookId.value = String(q.id)
+  isInBookshelf.value = book.value.isInBookshelf
 })
-
-onMounted(() => { loadData() })
 
 function toggleChapter(id: string) {
   const next = new Set(expandedChapters.value)
@@ -478,12 +342,12 @@ function onShare() {
 function toReader(_chapter?: string) {
   uni.showToast({ title: '阅读器即将上线', icon: 'none' })
 }
-async function toBook(id: string) {
+function toBook(id: string) {
   bookId.value = id
+  isInBookshelf.value = book.value.isInBookshelf
   showAllChapters.value = false
   expandedChapters.value = new Set()
   uni.pageScrollTo({ scrollTop: 0, duration: 0 })
-  await loadData()
 }
 </script>
 
@@ -880,49 +744,5 @@ async function toBook(id: string) {
   font-size: 30rpx;
   font-weight: 600;
   color: #ffffff;
-}
-
-/* Loading & Error */
-.cd-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 240rpx 0;
-}
-.loading-spinner {
-  width: 64rpx;
-  height: 64rpx;
-  border: 4rpx solid #c41e3a;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: cd-spin 0.8s linear infinite;
-}
-@keyframes cd-spin {
-  to { transform: rotate(360deg); }
-}
-.err-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24rpx;
-  text-align: center;
-  padding: 240rpx 40rpx;
-}
-.err-msg {
-  font-size: 28rpx;
-  color: var(--muted-foreground);
-}
-.retry-btn {
-  height: 72rpx;
-  padding: 0 48rpx;
-  border-radius: 999rpx;
-  background: #c41e3a;
-  color: #fff;
-  font-size: 28rpx;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 72rpx;
 }
 </style>

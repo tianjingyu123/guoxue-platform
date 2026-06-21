@@ -3,29 +3,14 @@
     <!-- 顶部导航 -->
     <view class="nav-bar">
       <view class="nav-left">
-        <view
-          class="nav-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#1a1a1a"
-          />
+        <view class="nav-back" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#1a1a1a" />
         </view>
-        <text class="nav-title">
-          直播收益
-        </text>
+        <text class="nav-title">直播收益</text>
       </view>
       <view class="nav-export">
-        <app-icon
-          name="download"
-          :size="32"
-          color="#999"
-        />
-        <text class="nav-export-text">
-          导出
-        </text>
+        <app-icon name="download" :size="32" color="#999" />
+        <text class="nav-export-text">导出</text>
       </view>
     </view>
 
@@ -45,17 +30,10 @@
 
       <!-- 收益总览卡片 -->
       <view class="overview-card">
-        <text class="overview-label">
-          总收益（元）
-        </text>
+        <text class="overview-label">总收益（元）</text>
         <view class="overview-total">
-          <text class="total-num">
-            {{ stats.total.toLocaleString() }}
-          </text>
-          <view
-            class="trend"
-            :class="stats.trend >= 0 ? 'trend-up' : 'trend-down'"
-          >
+          <text class="total-num">{{ stats.total.toLocaleString() }}</text>
+          <view class="trend" :class="stats.trend >= 0 ? 'trend-up' : 'trend-down'">
             <app-icon
               :name="stats.trend >= 0 ? 'trending-up' : 'trending-down'"
               :size="28"
@@ -67,68 +45,35 @@
         <view class="overview-grid">
           <view class="overview-item">
             <view class="item-head">
-              <app-icon
-                name="gift"
-                :size="28"
-                color="#d4a017"
-              />
-              <text class="item-label">
-                打赏收益
-              </text>
+              <app-icon name="gift" :size="28" color="#d4a017" />
+              <text class="item-label">打赏收益</text>
             </view>
-            <text class="item-value">
-              ¥{{ stats.reward.toLocaleString() }}
-            </text>
+            <text class="item-value">¥{{ stats.reward.toLocaleString() }}</text>
           </view>
           <view class="overview-item">
             <view class="item-head">
-              <app-icon
-                name="shopping-bag"
-                :size="28"
-                color="#C41E3A"
-              />
-              <text class="item-label">
-                带货收益
-              </text>
+              <app-icon name="shopping-bag" :size="28" color="#C41E3A" />
+              <text class="item-label">带货收益</text>
             </view>
-            <text class="item-value">
-              ¥{{ stats.goods.toLocaleString() }}
-            </text>
+            <text class="item-value">¥{{ stats.goods.toLocaleString() }}</text>
           </view>
         </view>
       </view>
 
       <!-- 提现入口 -->
-      <view
-        class="withdraw-card"
-        @tap="goWithdraw"
-      >
+      <view class="withdraw-card" @tap="goWithdraw">
         <view class="withdraw-left">
           <view class="withdraw-icon">
-            <app-icon
-              name="credit-card"
-              :size="36"
-              color="#C41E3A"
-            />
+            <app-icon name="credit-card" :size="36" color="#C41E3A" />
           </view>
           <view>
-            <text class="withdraw-title">
-              可提现金额
-            </text>
-            <text class="withdraw-desc">
-              T+1 结算，最低100元可提
-            </text>
+            <text class="withdraw-title">可提现金额</text>
+            <text class="withdraw-desc">T+1 结算，最低100元可提</text>
           </view>
         </view>
         <view class="withdraw-right">
-          <text class="withdraw-amount">
-            ¥{{ (stats.total * 0.7).toFixed(0) }}
-          </text>
-          <app-icon
-            name="chevron-right"
-            :size="32"
-            color="#999"
-          />
+          <text class="withdraw-amount">¥{{ (stats.total * 0.7).toFixed(0) }}</text>
+          <app-icon name="chevron-right" :size="32" color="#999" />
         </view>
       </view>
 
@@ -148,11 +93,7 @@
         </view>
 
         <view class="record-list">
-          <view
-            v-for="record in filtered"
-            :key="record.id"
-            class="record-card"
-          >
+          <view v-for="record in filtered" :key="record.id" class="record-card">
             <view class="record-left">
               <view
                 class="record-icon"
@@ -165,20 +106,12 @@
                 />
               </view>
               <view class="record-info">
-                <text class="record-desc">
-                  {{ record.desc }}
-                </text>
-                <text class="record-live">
-                  {{ record.live }}
-                </text>
-                <text class="record-date">
-                  {{ record.date }}
-                </text>
+                <text class="record-desc">{{ record.desc }}</text>
+                <text class="record-live">{{ record.live }}</text>
+                <text class="record-date">{{ record.date }}</text>
               </view>
             </view>
-            <text class="record-amount">
-              +¥{{ record.amount }}
-            </text>
+            <text class="record-amount">+¥{{ record.amount }}</text>
           </view>
         </view>
       </view>

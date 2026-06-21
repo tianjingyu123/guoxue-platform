@@ -4,10 +4,10 @@
  * 主题色沿用原型 #C41E3A
  */
 
-import { apiGet, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
-
 /* —— 头像生成辅助（沿用工程 dicebear 约定） —— */
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
+/* —— 商品/封面图基址（沿用 shop-data 约定） —— */
+const P = '/static/images/products'
 
 /* —— 通用账户资料 —— */
 export const mineProfile = {
@@ -286,8 +286,6 @@ export const deleteAccountAssets = {
    资产与互动（钱包 / 积分 / 浏览历史 / 我的点赞 / 我的评论 / 收到的评论）
    ============================================================ */
 
-const IMG = '/marketing'
-
 /* —— 我的钱包 —— */
 export interface WalletInfo {
   balance: number
@@ -458,23 +456,23 @@ export const historyGroups: HistoryGroup[] = [
   {
     date: '2026-06-03', label: '今天',
     items: [
-      { id: '1', type: 'course', title: '周易入门：从零开始学习易经', cover: `${IMG}/course.png`, progress: 45, duration: 3600, viewedAt: '14:30' },
-      { id: '2', type: 'video', title: '梅花易数实战案例分析', cover: `${IMG}/course.png`, progress: 100, duration: 1200, viewedAt: '12:15' },
+      { id: '1', type: 'course', title: '周易入门：从零开始学习易经', cover: `${P}/book1.jpg`, progress: 45, duration: 3600, viewedAt: '14:30' },
+      { id: '2', type: 'video', title: '梅花易数实战案例分析', cover: `${P}/item4.jpg`, progress: 100, duration: 1200, viewedAt: '12:15' },
       { id: '3', type: 'article', title: '八字命理中的十神详解', viewedAt: '10:20' },
     ],
   },
   {
     date: '2026-06-02', label: '昨天',
     items: [
-      { id: '4', type: 'live', title: '风水布局直播答疑', cover: `${IMG}/course.png`, viewedAt: '20:00' },
-      { id: '5', type: 'product', title: '开光铜葫芦摆件', cover: `${IMG}/course.png`, viewedAt: '16:45' },
+      { id: '4', type: 'live', title: '风水布局直播答疑', cover: `${P}/item5.jpg`, viewedAt: '20:00' },
+      { id: '5', type: 'product', title: '开光铜葫芦摆件', cover: `${P}/item3.jpg`, viewedAt: '16:45' },
     ],
   },
   {
     date: '2026-05-31', label: '5月31日',
     items: [
-      { id: '6', type: 'course', title: '六爻预测高级班', cover: `${IMG}/course.png`, progress: 30, duration: 7200, viewedAt: '19:30' },
-      { id: '7', type: 'circle', title: '易学爱好者交流圈', cover: `${IMG}/course.png`, viewedAt: '15:00' },
+      { id: '6', type: 'course', title: '六爻预测高级班', cover: `${P}/book2.jpg`, progress: 30, duration: 7200, viewedAt: '19:30' },
+      { id: '7', type: 'circle', title: '易学爱好者交流圈', cover: `${P}/item2.jpg`, viewedAt: '15:00' },
       { id: '8', type: 'article', title: '紫微斗数入门指南', viewedAt: '11:20' },
     ],
   },
@@ -547,10 +545,10 @@ export interface MyCommentItem {
   target: { id: number; type: CommentTargetType; title: string; cover?: string }
 }
 export const myComments: MyCommentItem[] = [
-  { id: 1, content: '老师讲得太透彻了，把天干地支的关系讲得很清楚，受益匪浅！', createdAt: '2026-06-03 15:20', likeCount: 28, replyCount: 3, hasReply: true, target: { id: 201, type: 'course', title: '八字命理基础精讲班', cover: `${IMG}/course.png` } },
+  { id: 1, content: '老师讲得太透彻了，把天干地支的关系讲得很清楚，受益匪浅！', createdAt: '2026-06-03 15:20', likeCount: 28, replyCount: 3, hasReply: true, target: { id: 201, type: 'course', title: '八字命理基础精讲班', cover: `${P}/book1.jpg` } },
   { id: 2, content: '这篇文章关于五行生克的解读很有深度，收藏了。', createdAt: '2026-06-02 10:30', likeCount: 12, replyCount: 0, hasReply: false, target: { id: 202, type: 'article', title: '五行生克与人生运势' } },
-  { id: 3, content: '案例分析很实用，期待更多实战内容。', createdAt: '2026-06-01 19:45', likeCount: 6, replyCount: 1, hasReply: false, target: { id: 203, type: 'video', title: '风水实战案例第三期', cover: `${IMG}/course.png` } },
-  { id: 4, content: '请问这个摆件适合摆放在客厅哪个方位？', createdAt: '2026-05-29 14:00', likeCount: 2, replyCount: 5, hasReply: true, target: { id: 204, type: 'product', title: '开光铜葫芦摆件', cover: `${IMG}/course.png` } },
+  { id: 3, content: '案例分析很实用，期待更多实战内容。', createdAt: '2026-06-01 19:45', likeCount: 6, replyCount: 1, hasReply: false, target: { id: 203, type: 'video', title: '风水实战案例第三期', cover: `${P}/item4.jpg` } },
+  { id: 4, content: '请问这个摆件适合摆放在客厅哪个方位？', createdAt: '2026-05-29 14:00', likeCount: 2, replyCount: 5, hasReply: true, target: { id: 204, type: 'product', title: '开光铜葫芦摆件', cover: `${P}/item3.jpg` } },
 ]
 export interface ReceivedCommentItem {
   id: number
@@ -569,6 +567,7 @@ export const receivedComments: ReceivedCommentItem[] = [
 ]
 
 /* —— 意见反馈(feedback) —— */
+// 反馈类型(图标/颜色与原型一致)
 export interface FeedbackType {
   id: string
   label: string
@@ -594,6 +593,7 @@ export const feedbackStatusConfig: Record<string, FeedbackStatusConfig> = {
   resolved: { label: '已解决', color: '#16a34a', bg: 'rgba(34,197,94,0.1)' },
 }
 
+// @data-needs: 我的历史反馈列表, 参数 {}, 返回 [{id,type,title,content,time,status,reply}]
 export interface HistoryFeedbackItem {
   id: number
   type: string
@@ -643,6 +643,7 @@ export const editCities: Record<string, string[]> = {
   浙江省: ['杭州市', '宁波市', '温州市', '嘉兴市', '湖州市'],
 }
 
+// @data-needs: 当前用户资料, 参数 {}, 返回 {avatar,nickname,bio,gender,birthday,province,city,tags[]}
 export interface EditProfileData {
   avatar: string
   nickname: string
@@ -698,6 +699,7 @@ export interface WithdrawBalanceInfo {
   minFee: number
   savedAccounts: WithdrawAccount[]
 }
+// @data-needs: 提现余额与已存收款账户，返回 [{availableBalance,frozenBalance,pendingBalance,minWithdraw,maxWithdraw,feeRate,minFee,savedAccounts}]
 export const withdrawBalanceInfo: WithdrawBalanceInfo = {
   availableBalance: 2580.5,
   frozenBalance: 200.0,
@@ -731,11 +733,13 @@ export interface WalletBalanceBrief {
   points: number
   frozen: number
 }
+// @data-needs: 钱包币/积分余额，返回 [{coin,points,frozen}]
 export const walletBalanceBrief: WalletBalanceBrief = {
   coin: 2580,
   points: 12600,
   frozen: 100,
 }
+// @data-needs: 交易流水（支持按type收支/月份筛选），返回 [{id,type,category,title,description,amount,balance,createdAt,orderNo}]
 export const walletTxRecords: WalletTxRecord[] = [
   { id: '1', type: 'expense', category: 'purchase', title: '购买课程', description: '紫微斗数入门精讲', amount: -299, balance: 2580, createdAt: '2024-01-15 14:30', orderNo: '202401151430001' },
   { id: '2', type: 'income', category: 'refund', title: '退款到账', description: '订单退款', amount: 199, balance: 2879, createdAt: '2024-01-14 10:20', orderNo: '202401141020001' },
@@ -744,328 +748,3 @@ export const walletTxRecords: WalletTxRecord[] = [
   { id: '5', type: 'income', category: 'reward', title: '签到奖励', description: '连续签到7天奖励', amount: 50, balance: 2348, createdAt: '2024-01-11 08:00' },
   { id: '6', type: 'expense', category: 'transfer', title: '打赏作者', description: '打赏文章《八字命理基础》', amount: -20, balance: 2298, createdAt: '2024-01-10 20:30' },
 ]
-
-// ============================================
-// API 层：useMock 开关控制真实/模拟数据切换
-// ============================================
-
-export const mineSettingsApi = {
-  async getNotifySettings() {
-    if (useMock()) return settingNotifyItems
-    try {
-      return await apiGet<any>('/users/notify-settings')
-    } catch { return settingNotifyItems }
-  },
-
-  async updateNotifySettings(key: string, value: boolean) {
-    if (useMock()) return { success: true }
-    return apiPut<any>('/users/notify-settings', { key, value })
-  },
-
-  async getSecurityInfo() {
-    if (useMock()) return { ...mineProfile, loginItems: securityLoginItems, paymentItems: securityPaymentItems, deviceItems: securityDeviceItems, scoreItems: securityScoreItems }
-    try {
-      const profile = await apiGet<any>('/auth/me')
-      return {
-        phone: profile.phone ? profile.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : mineProfile.phone,
-        phoneFull: profile.phone || mineProfile.phoneFull,
-        email: profile.email || mineProfile.email,
-        passwordUpdatedAt: mineProfile.passwordUpdatedAt,
-        payPasswordSet: mineProfile.payPasswordSet,
-        realNameVerified: mineProfile.realNameVerified,
-        realName: mineProfile.realName,
-        securityScore: mineProfile.securityScore,
-        loginItems: securityLoginItems,
-        paymentItems: securityPaymentItems,
-        deviceItems: securityDeviceItems,
-        scoreItems: securityScoreItems,
-      }
-    } catch { return { ...mineProfile, loginItems: securityLoginItems, paymentItems: securityPaymentItems, deviceItems: securityDeviceItems, scoreItems: securityScoreItems } }
-  },
-
-  /** 获取当前用户基础资料 */
-  async profile() {
-    if (useMock()) return { profile: mineProfile }
-    try {
-      const data = await apiGet<any>('/auth/me')
-      return { profile: data }
-    } catch {
-      return { profile: mineProfile }
-    }
-  },
-
-  async changePassword(params: { oldPassword: string; newPassword: string }) {
-    if (useMock()) return { success: true }
-    return apiPut<any>('/auth/password', params)
-  },
-
-  async setPayPassword(params: { password: string }) {
-    if (useMock()) return { success: true }
-    return apiPost<any>('/users/pay-password', params)
-  },
-
-  async getBlocklist() {
-    if (useMock()) return { items: blacklistUsers, total: blacklistUsers.length }
-    try {
-      const res = await apiGet<any>('/users/blacklist/list')
-      return { items: res.items || res.list || [], total: res.total || 0 }
-    } catch { return { items: blacklistUsers, total: blacklistUsers.length } }
-  },
-
-  async addToBlocklist(userId: number) {
-    if (useMock()) return { success: true }
-    return apiPost<any>(`/users/${userId}/block`)
-  },
-
-  async removeFromBlocklist(userId: number) {
-    if (useMock()) return { success: true }
-    return apiDelete<any>(`/users/${userId}/block`)
-  },
-
-  async getBoundAccounts() {
-    if (useMock()) return boundAccounts
-    try {
-      return await apiGet<any>('/users/bound-accounts')
-    } catch { return boundAccounts }
-  },
-
-  async getExportRecords() {
-    if (useMock()) return exportRecords
-    try {
-      const res = await apiGet<any>('/users/export-records')
-      return res.items || res.list || res || []
-    } catch { return exportRecords }
-  },
-
-  async requestExport(types: string[]) {
-    if (useMock()) return { success: true, id: `exp-${Date.now()}` }
-    return apiPost<any>('/users/export', { types })
-  },
-
-  async deleteAccount(reason: string, description?: string) {
-    if (useMock()) return { success: true }
-    return apiPost<any>('/users/delete-request', { reason, description })
-  },
-
-  /** 获取注销账号相关信息 */
-  async getDeleteAccountInfo() {
-    if (useMock()) return { reasons: deleteAccountReasons, dataItems: deleteAccountDataItems, assets: deleteAccountAssets, phone: mineProfile.phone }
-    try {
-      const [deleteInfo, profile] = await Promise.all([
-        apiGet<any>('/users/delete-account/info'),
-        apiGet<any>('/auth/me'),
-      ])
-      return {
-        reasons: deleteInfo.reasons || deleteAccountReasons,
-        dataItems: deleteInfo.dataItems || deleteAccountDataItems,
-        assets: deleteInfo.assets || deleteAccountAssets,
-        phone: profile?.phone || mineProfile.phone,
-      }
-    } catch {
-      return { reasons: deleteAccountReasons, dataItems: deleteAccountDataItems, assets: deleteAccountAssets, phone: mineProfile.phone }
-    }
-  },
-
-  /** 签到 — 今日状态 */
-  async getCheckinStatus() {
-    if (useMock()) return { todayChecked: false, continuousDays: 7, totalPoints: 350 }
-    try { return await apiGet<any>('/users/me/checkin/status') } catch { return { todayChecked: false, continuousDays: 0, totalPoints: 0 } }
-  },
-
-  /** 签到 — 日历 */
-  async getCheckinCalendar(month?: string) {
-    if (useMock()) {
-      const days = Array.from({ length: 30 }, (_, i) => ({ date: i + 1, checked: i < 7, isToday: i === 7 }))
-      return { days, continuousDays: 7, totalPoints: 350 }
-    }
-    try { return await apiGet<any>(`/users/me/checkin/calendar${month ? `?month=${month}` : ''}`) } catch { return { days: [], continuousDays: 0, totalPoints: 0 } }
-  },
-
-  /** 签到 — 执行签到 */
-  async doCheckin() {
-    if (useMock()) return { success: true, points: 10 }
-    return apiPost<any>('/users/me/checkin')
-  },
-
-  /** 积分 — 获取积分信息 */
-  async getPoints() {
-    if (useMock()) return { total: 1280, available: 850, frozen: 430 }
-    try { return await apiGet<any>('/users/me/points') } catch { return { total: 0, available: 0, frozen: 0 } }
-  },
-
-  /** 积分 — 积分记录 */
-  async getPointsRecords(params?: { page?: number; pageSize?: number }) {
-    const qs = `page=${params?.page || 1}&pageSize=${params?.pageSize || 20}`
-    if (useMock()) return { items: [], total: 0 }
-    try { return await apiGet<any>(`/users/me/points/records?${qs}`) } catch { return { items: [], total: 0 } }
-  },
-
-  /** 积分 — 积分兑换 */
-  async exchangePoints(data: { itemId: string }) {
-    if (useMock()) return { success: true }
-    return apiPost<any>('/users/me/points/exchange', data)
-  },
-
-  /** 青少年模式 — 获取状态 */
-  async getTeenMode() {
-    if (useMock()) return { enabled: false, timeLimit: 0, filterLevel: 'moderate' }
-    try { return await apiGet<any>('/users/me/teen-mode') } catch { return { enabled: false, timeLimit: 0, filterLevel: 'moderate' } }
-  },
-
-  /** 青少年模式 — 更新设置 */
-  async updateTeenMode(data: { enabled?: boolean; timeLimit?: number; filterLevel?: string }) {
-    if (useMock()) return { success: true }
-    return apiPut<any>('/users/me/teen-mode', data)
-  },
-
-  /** 获取反馈类型列表 */
-  async getFeedbackTypes() {
-    if (useMock()) return { types: feedbackTypes, statusConfig: feedbackStatusConfig }
-    try {
-      const data = await apiGet<any>('/users/feedback/types')
-      return { types: data.types || feedbackTypes, statusConfig: data.statusConfig || feedbackStatusConfig }
-    } catch {
-      return { types: feedbackTypes, statusConfig: feedbackStatusConfig }
-    }
-  },
-
-  /** 获取历史反馈列表 */
-  async getHistoryFeedbacks() {
-    if (useMock()) return historyFeedbacks
-    try {
-      const data = await apiGet<any>('/users/feedback/history')
-      return data.items || data.list || data || []
-    } catch {
-      return historyFeedbacks
-    }
-  },
-
-  /** 提交意见反馈 */
-  async submitFeedback(feedback: { type: string; content: string; contact?: string; images?: string[] }) {
-    if (useMock()) return { success: true, id: Date.now() }
-    return apiPost<any>('/users/feedback', feedback)
-  },
-
-  /** 获取关于我们信息 */
-  async getAboutInfo() {
-    if (useMock()) return { stats: aboutStats, features: aboutFeatures }
-    try {
-      return await apiGet<any>('/system/about')
-    } catch {
-      return { stats: aboutStats, features: aboutFeatures }
-    }
-  },
-}
-
-// ============================================
-// 钱包 API 层
-// ============================================
-
-export const mineWalletApi = {
-  /** 钱包首页 - 余额概览 */
-  async getBalanceBrief() {
-    if (useMock()) return { coin: walletBalanceBrief.coin, points: walletBalanceBrief.points, frozen: walletBalanceBrief.frozen }
-    try { return await apiGet<any>('/users/wallet/balance') }
-    catch { return { coin: 0, points: 0, frozen: 0 } }
-  },
-
-  /** 钱包交易记录 */
-  async getTransactions(params?: { type?: string; month?: string; page?: number; pageSize?: number }) {
-    if (useMock()) return { items: walletTxRecords, total: walletTxRecords.length }
-    const qs = new URLSearchParams()
-    if (params?.type) qs.set('type', params.type)
-    if (params?.month) qs.set('month', params.month)
-    if (params?.page) qs.set('page', String(params.page || 1))
-    if (params?.pageSize) qs.set('pageSize', String(params.pageSize || 20))
-    try { return await apiGet<any>('/users/wallet/transactions?' + qs.toString()) }
-    catch { return { items: [], total: 0 } }
-  },
-
-  /** 充值选项 */
-  async getRechargeOptions() {
-    if (useMock()) return rechargeOptions
-    try { return await apiGet<any>('/users/wallet/recharge-options') }
-    catch { return rechargeOptions }
-  },
-
-  /** 提现信息 */
-  async getWithdrawInfo() {
-    if (useMock()) return withdrawBalanceInfo
-    try { return await apiGet<any>('/users/wallet/withdraw-info') }
-    catch { return withdrawBalanceInfo }
-  },
-
-  /** 提交提现 */
-  async submitWithdraw(data: { amount: number; method: string; account: Record<string, string> }) {
-    if (useMock()) return { success: true }
-    return apiPost<any>('/users/wallet/withdraw', data)
-  },
-}
-
-// ============================================
-// 内容互动 API 层（历史 / 点赞 / 评论）
-// ============================================
-
-export const mineContentApi = {
-  /** 浏览历史 */
-  async getHistory(params?: { page?: number; pageSize?: number }) {
-    if (useMock()) return { groups: historyGroups, typeConfig: historyTypeConfig }
-    const qs = 'page=' + (params?.page || 1) + '&pageSize=' + (params?.pageSize || 20)
-    try { return await apiGet<any>('/users/history?' + qs) }
-    catch { return { groups: [], typeConfig: historyTypeConfig } }
-  },
-
-  /** 我的点赞 */
-  async getMyLikes(params?: { type?: string; page?: number; pageSize?: number }) {
-    if (useMock()) return { items: myLikes, total: myLikes.length, typeStyles: likeTypeStyles, filterOptions: likeFilterOptions }
-    const qs = new URLSearchParams()
-    if (params?.type && params.type !== 'all') qs.set('type', params.type)
-    qs.set('page', String(params?.page || 1))
-    qs.set('pageSize', String(params?.pageSize || 20))
-    try { return await apiGet<any>('/users/me/likes?' + qs.toString()) }
-    catch { return { items: [], total: 0, typeStyles: likeTypeStyles, filterOptions: likeFilterOptions } }
-  },
-
-  /** 我的评论 */
-  async getMyComments(params?: { page?: number; pageSize?: number }) {
-    if (useMock()) return { items: myComments, total: myComments.length, typeStyles: commentTypeStyles }
-    const qs = 'page=' + (params?.page || 1) + '&pageSize=' + (params?.pageSize || 20)
-    try { return await apiGet<any>('/users/me/comments?' + qs) }
-    catch { return { items: [], total: 0, typeStyles: commentTypeStyles } }
-  },
-
-  /** 收到的评论 */
-  async getReceivedComments(params?: { page?: number; pageSize?: number }) {
-    if (useMock()) return { items: receivedComments, total: receivedComments.length }
-    const qs = 'page=' + (params?.page || 1) + '&pageSize=' + (params?.pageSize || 20)
-    try { return await apiGet<any>('/users/me/received-comments?' + qs) }
-    catch { return { items: [], total: 0 } }
-  },
-
-  /** 回复评论 */
-  async replyComment(commentId: number, content: string) {
-    if (useMock()) return { success: true }
-    return apiPost<any>('/users/me/received-comments/' + commentId + '/reply', { content })
-  },
-}
-
-// ============================================
-// 积分 API 层
-// ============================================
-
-export const minePointsApi = {
-  /** 积分概览 */
-  async getPointsOverview() {
-    if (useMock()) return { pointsInfo, growthInfo, earnRules: pointsEarnRules, growthRules, growthLevels }
-    try { return await apiGet<any>('/users/me/points/overview') }
-    catch { return { pointsInfo, growthInfo, earnRules: pointsEarnRules, growthRules, growthLevels } }
-  },
-
-  /** 积分记录 */
-  async getPointsRecords(params?: { page?: number; pageSize?: number }) {
-    if (useMock()) return { items: pointsRecords, total: pointsRecords.length }
-    const qs = 'page=' + (params?.page || 1) + '&pageSize=' + (params?.pageSize || 20)
-    try { return await apiGet<any>('/users/me/points/records?' + qs) }
-    catch { return { items: [], total: 0 } }
-  },
-}

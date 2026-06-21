@@ -3,7 +3,7 @@
  *  每日首次进入首页淡入展示一句名句+节气，数秒后自动收起。uni storage 控制每日一次。 */
 import { ref, onMounted } from 'vue'
 import { getStorage, setStorage } from '@/utils/storage'
-import { homeApi, type DailyVerseData } from '@/lib/home-data'
+import { getTodayVerse } from '@/lib/home-data'
 
 const props = withDefaults(defineProps<{ duration?: number; storageKey?: string }>(), {
   duration: 4000,
@@ -11,13 +11,12 @@ const props = withDefaults(defineProps<{ duration?: number; storageKey?: string 
 })
 
 const phase = ref<'hidden' | 'in' | 'out'>('hidden')
-const verse = ref<DailyVerseData>({ text: '', source: '' })
+const verse = getTodayVerse()
 
-onMounted(async () => {
+onMounted(() => {
   const today = new Date().toDateString()
   if (getStorage(props.storageKey) === today) return
   setStorage(props.storageKey, today)
-  verse.value = await homeApi.getDailyVerse()
   setTimeout(() => (phase.value = 'in'), 200)
   setTimeout(() => (phase.value = 'out'), props.duration)
   setTimeout(() => (phase.value = 'hidden'), props.duration + 700)
@@ -31,18 +30,9 @@ onMounted(async () => {
     :class="phase === 'in' ? 'shown' : 'fading'"
   >
     <view class="card">
-      <text
-        v-if="verse.solarTerm"
-        class="term"
-      >
-        {{ verse.solarTerm }}
-      </text>
-      <text class="text">
-        {{ verse.text }}
-      </text>
-      <text class="source">
-        {{ verse.source }}
-      </text>
+      <text v-if="verse.solarTerm" class="term">{{ verse.solarTerm }}</text>
+      <text class="text">{{ verse.text }}</text>
+      <text class="source">{{ verse.source }}</text>
     </view>
   </view>
 </template>

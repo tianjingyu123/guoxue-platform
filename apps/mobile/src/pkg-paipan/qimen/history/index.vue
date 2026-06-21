@@ -52,111 +52,34 @@ function pickMenu(mode: SelectMode) { selectMode.value = mode; showMenu.value = 
     <!-- 顶部导航 -->
     <view class="hdr">
       <view class="hdr-inner">
-        <view
-          class="hdr-back"
-          @tap="navigateTo('/paipan/qimen')"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="40"
-            color="var(--text-ink)"
-          />
-        </view>
-        <text class="hdr-title">
-          排盘记录
-        </text>
-        <view
-          class="hdr-more"
-          @tap="showMenu = !showMenu"
-        >
-          <app-icon
-            name="more-vertical"
-            :size="32"
-            color="var(--text-ink)"
-          />
-        </view>
+        <view class="hdr-back" @tap="navigateTo('/paipan/qimen')"><app-icon name="chevron-left" :size="40" color="var(--text-ink)" /></view>
+        <text class="hdr-title">排盘记录</text>
+        <view class="hdr-more" @tap="showMenu = !showMenu"><app-icon name="more-vertical" :size="32" color="var(--text-ink)" /></view>
       </view>
       <!-- 下拉菜单 -->
-      <view
-        v-if="showMenu"
-        class="menu-mask"
-        @tap="showMenu = false"
-      />
-      <view
-        v-if="showMenu"
-        class="menu"
-      >
-        <view
-          class="menu-item"
-          @tap="navigateTo('/paipan/qimen/history/groups'); showMenu = false"
-        >
-          <app-icon
-            name="users"
-            :size="28"
-            color="var(--text-soft)"
-          /><text class="menu-text">
-            分组管理
-          </text>
+      <view v-if="showMenu" class="menu-mask" @tap="showMenu = false" />
+      <view v-if="showMenu" class="menu">
+        <view class="menu-item" @tap="navigateTo('/paipan/qimen/history/groups'); showMenu = false">
+          <app-icon name="users" :size="28" color="var(--text-soft)" /><text class="menu-text">分组管理</text>
         </view>
-        <view
-          class="menu-item"
-          @tap="pickMenu('group')"
-        >
-          <app-icon
-            name="folder-pen"
-            :size="28"
-            color="var(--text-soft)"
-          /><text class="menu-text">
-            修改分组
-          </text>
+        <view class="menu-item" @tap="pickMenu('group')">
+          <app-icon name="folder-pen" :size="28" color="var(--text-soft)" /><text class="menu-text">修改分组</text>
         </view>
-        <view
-          class="menu-item"
-          @tap="pickMenu('pin')"
-        >
-          <app-icon
-            name="pin"
-            :size="28"
-            color="var(--text-soft)"
-          /><text class="menu-text">
-            批量置顶
-          </text>
+        <view class="menu-item" @tap="pickMenu('pin')">
+          <app-icon name="pin" :size="28" color="var(--text-soft)" /><text class="menu-text">批量置顶</text>
         </view>
-        <view
-          class="menu-item"
-          @tap="pickMenu('delete')"
-        >
-          <app-icon
-            name="trash-2"
-            :size="28"
-            color="var(--text-soft)"
-          /><text class="menu-text">
-            批量删除
-          </text>
+        <view class="menu-item" @tap="pickMenu('delete')">
+          <app-icon name="trash-2" :size="28" color="var(--text-soft)" /><text class="menu-text">批量删除</text>
         </view>
       </view>
     </view>
 
     <!-- 分组标签 -->
     <view class="groups">
-      <scroll-view
-        scroll-x
-        class="groups-scroll"
-      >
+      <scroll-view scroll-x class="groups-scroll">
         <view class="groups-row">
-          <view
-            v-for="g in groups"
-            :key="g"
-            class="grp"
-            :class="{ on: activeGroup === g }"
-            @tap="activeGroup = g"
-          >
-            <text
-              class="grp-t"
-              :class="{ on: activeGroup === g }"
-            >
-              {{ g }}
-            </text>
+          <view v-for="g in groups" :key="g" class="grp" :class="{ on: activeGroup === g }" @tap="activeGroup = g">
+            <text class="grp-t" :class="{ on: activeGroup === g }">{{ g }}</text>
           </view>
         </view>
       </scroll-view>
@@ -165,88 +88,40 @@ function pickMenu(mode: SelectMode) { selectMode.value = mode; showMenu.value = 
     <!-- 搜索栏 -->
     <view class="search">
       <view class="search-box">
-        <app-icon
-          name="search"
-          :size="28"
-          color="var(--text-soft)"
-        />
-        <input
-          v-model="searchQuery"
-          class="search-input"
-          placeholder="搜索事项、时间、局数..."
-          placeholder-class="search-ph"
-        >
+        <app-icon name="search" :size="28" color="var(--text-soft)" />
+        <input v-model="searchQuery" class="search-input" placeholder="搜索事项、时间、局数..." placeholder-class="search-ph" />
       </view>
     </view>
 
     <!-- 记录列表 -->
-    <scroll-view
-      scroll-y
-      class="body"
-    >
-      <view
-        v-if="filteredRecords.length === 0"
-        class="empty"
-      >
-        <text class="empty-title">
-          暂无记录
-        </text>
-        <text class="empty-sub">
-          开始排盘后，记录会显示在这里
-        </text>
+    <scroll-view scroll-y class="body">
+      <view v-if="filteredRecords.length === 0" class="empty">
+        <text class="empty-title">暂无记录</text>
+        <text class="empty-sub">开始排盘后，记录会显示在这里</text>
       </view>
-      <view
-        v-else
-        class="list"
-      >
+      <view v-else class="list">
         <view
-          v-for="r in filteredRecords"
-          :key="r.id"
-          class="rec"
-          :class="{ sel: selectedIds.includes(r.id), pinned: r.pinned }"
+          v-for="r in filteredRecords" :key="r.id"
+          class="rec" :class="{ sel: selectedIds.includes(r.id), pinned: r.pinned }"
           @tap="openRecord(r)"
         >
           <view class="rec-bar" />
           <view class="rec-body">
-            <view
-              v-if="selectMode !== 'none'"
-              class="rec-check"
-              :class="{ on: selectedIds.includes(r.id) }"
-            >
-              <app-icon
-                v-if="selectedIds.includes(r.id)"
-                name="check"
-                :size="20"
-                color="#ffffff"
-              />
+            <view v-if="selectMode !== 'none'" class="rec-check" :class="{ on: selectedIds.includes(r.id) }">
+              <app-icon v-if="selectedIds.includes(r.id)" name="check" :size="20" color="#ffffff" />
             </view>
             <view class="rec-content">
               <view class="rec-top">
                 <view class="rec-name-wrap">
-                  <app-icon
-                    v-if="r.pinned"
-                    name="pin"
-                    :size="24"
-                    color="#f59e0b"
-                  />
-                  <text class="rec-name">
-                    {{ r.matter || '未命名事项' }}
-                  </text>
+                  <app-icon v-if="r.pinned" name="pin" :size="24" color="#f59e0b" />
+                  <text class="rec-name">{{ r.matter || '未命名事项' }}</text>
                 </view>
-                <text class="rec-group">
-                  {{ r.group }}
-                </text>
+                <text class="rec-group">{{ r.group }}</text>
               </view>
               <view class="rec-meta">
-                <text class="rec-time">
-                  {{ r.dateTime }}
-                </text>
-                <text class="rec-ju">
-                  {{ r.ju }}
-                </text>
-                <text class="rec-pan">
-                  {{ r.panMethod }}
-                </text>
+                <text class="rec-time">{{ r.dateTime }}</text>
+                <text class="rec-ju">{{ r.ju }}</text>
+                <text class="rec-pan">{{ r.panMethod }}</text>
               </view>
             </view>
           </view>
@@ -255,110 +130,36 @@ function pickMenu(mode: SelectMode) { selectMode.value = mode; showMenu.value = 
     </scroll-view>
 
     <!-- 批量操作栏 -->
-    <view
-      v-if="selectMode !== 'none'"
-      class="bulk"
-    >
-      <view
-        class="bulk-all"
-        @tap="selectAll"
-      >
-        <view
-          class="bulk-check"
-          :class="{ on: allSelected }"
-        >
-          <app-icon
-            v-if="allSelected"
-            name="check"
-            :size="20"
-            color="#ffffff"
-          />
-        </view>
-        <text class="bulk-all-t">
-          全选
-        </text>
+    <view v-if="selectMode !== 'none'" class="bulk">
+      <view class="bulk-all" @tap="selectAll">
+        <view class="bulk-check" :class="{ on: allSelected }"><app-icon v-if="allSelected" name="check" :size="20" color="#ffffff" /></view>
+        <text class="bulk-all-t">全选</text>
       </view>
       <view class="bulk-actions">
-        <view
-          class="bulk-btn cancel"
-          @tap="resetMode"
-        >
-          <text class="bulk-btn-t soft">
-            取消
-          </text>
+        <view class="bulk-btn cancel" @tap="resetMode"><text class="bulk-btn-t soft">取消</text></view>
+        <view v-if="selectMode === 'delete'" class="bulk-btn danger" :class="{ disabled: !selectedIds.length }" @tap="handleDelete">
+          <text class="bulk-btn-t light">删除 {{ selectedIds.length ? `(${selectedIds.length})` : '' }}</text>
         </view>
-        <view
-          v-if="selectMode === 'delete'"
-          class="bulk-btn danger"
-          :class="{ disabled: !selectedIds.length }"
-          @tap="handleDelete"
-        >
-          <text class="bulk-btn-t light">
-            删除 {{ selectedIds.length ? `(${selectedIds.length})` : '' }}
-          </text>
+        <view v-else-if="selectMode === 'pin'" class="bulk-btn brand" :class="{ disabled: !selectedIds.length }" @tap="handlePin">
+          <text class="bulk-btn-t light">置顶 {{ selectedIds.length ? `(${selectedIds.length})` : '' }}</text>
         </view>
-        <view
-          v-else-if="selectMode === 'pin'"
-          class="bulk-btn brand"
-          :class="{ disabled: !selectedIds.length }"
-          @tap="handlePin"
-        >
-          <text class="bulk-btn-t light">
-            置顶 {{ selectedIds.length ? `(${selectedIds.length})` : '' }}
-          </text>
-        </view>
-        <view
-          v-else
-          class="bulk-btn brand"
-          :class="{ disabled: !selectedIds.length }"
-          @tap="selectedIds.length && (showGroupPicker = true)"
-        >
-          <text class="bulk-btn-t light">
-            移动到分组
-          </text>
+        <view v-else class="bulk-btn brand" :class="{ disabled: !selectedIds.length }" @tap="selectedIds.length && (showGroupPicker = true)">
+          <text class="bulk-btn-t light">移动到分组</text>
         </view>
       </view>
     </view>
 
     <!-- 分组选择弹窗 -->
-    <view
-      v-if="showGroupPicker"
-      class="gp-mask"
-      @tap="showGroupPicker = false"
-    >
-      <view
-        class="gp-sheet"
-        @tap.stop
-      >
-        <view class="gp-head">
-          <text class="gp-head-t">
-            选择分组
-          </text>
-        </view>
-        <scroll-view
-          scroll-y
-          class="gp-list"
-        >
-          <view
-            v-for="g in groups.filter(x => x !== '全部')"
-            :key="g"
-            class="gp-item"
-            @tap="handleChangeGroup(g)"
-          >
-            <text class="gp-item-t">
-              {{ g }}
-            </text>
+    <view v-if="showGroupPicker" class="gp-mask" @tap="showGroupPicker = false">
+      <view class="gp-sheet" @tap.stop>
+        <view class="gp-head"><text class="gp-head-t">选择分组</text></view>
+        <scroll-view scroll-y class="gp-list">
+          <view v-for="g in groups.filter(x => x !== '全部')" :key="g" class="gp-item" @tap="handleChangeGroup(g)">
+            <text class="gp-item-t">{{ g }}</text>
           </view>
         </scroll-view>
         <view class="gp-foot">
-          <view
-            class="gp-cancel"
-            @tap="showGroupPicker = false"
-          >
-            <text class="gp-cancel-t">
-              取消
-            </text>
-          </view>
+          <view class="gp-cancel" @tap="showGroupPicker = false"><text class="gp-cancel-t">取消</text></view>
         </view>
       </view>
     </view>

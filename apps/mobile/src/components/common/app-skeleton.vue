@@ -1,4 +1,9 @@
 <script setup lang="ts">
+/**
+ * 通用骨架屏占位块
+ * 用法：<AppSkeleton width="200rpx" height="32rpx" radius="8rpx" />
+ *      <AppSkeleton circle :size="80" />
+ */
 withDefaults(defineProps<{
   width?: string
   height?: string

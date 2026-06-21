@@ -120,7 +120,7 @@ function daysAgo(n: number): string {
 }
 
 // Mock：当前用户在某圈子的会员信息（用于退出申请页计算）
-const mockMembership = {
+export const mockMembership = {
   circleId: '1',
   circleName: '八字命理研习社',
   joinMethod: 'paid' as 'free' | 'paid',
@@ -131,7 +131,7 @@ const mockMembership = {
 }
 
 // Mock：圈主端待审核 / 已处理的退出申请
-const mockExitRequests: ExitApplication[] = [
+export const mockExitRequests: ExitApplication[] = [
   {
     id: 'e1',
     circleId: '1',
@@ -184,7 +184,7 @@ const mockExitRequests: ExitApplication[] = [
 ]
 
 // Mock：当前用户提交的退出申请（用于"我的申请"页）
-const mockMyExitApps: ExitApplication[] = [
+export const mockMyExitApps: ExitApplication[] = [
   {
     id: 'me1',
     circleId: '2',
@@ -226,31 +226,3 @@ const mockMyExitApps: ExitApplication[] = [
     platformReviewedAt: '2024-06-04',
   },
 ]
-
-import { apiGet, apiPost, useMock } from '@/utils/request'
-
-export const circleExitApi = {
-  /** 获取当前用户在指定圈子的会员信息（含退款资格） */
-  getMyMembership: async (circleId: string) => {
-    if (useMock()) return { ...mockMembership, circleId }
-    return apiGet(`/circles/${circleId}/my-membership`)
-  },
-
-  /** 提交退出申请 */
-  submitExit: async (circleId: string, reason: string) => {
-    if (useMock()) return { id: `exit-${Date.now()}`, status: 'pending' }
-    return apiPost(`/circles/${circleId}/exit`, { reason })
-  },
-
-  /** 圈主/管理员：获取待审核的退出申请列表 */
-  getExitRequests: async (circleId: string) => {
-    if (useMock()) return mockExitRequests
-    return apiGet(`/circles/${circleId}/exit-requests`)
-  },
-
-  /** 当前用户：查看我提交的退出申请 */
-  getMyExitApps: async () => {
-    if (useMock()) return mockMyExitApps
-    return apiGet('/circles/my-exit-apps')
-  },
-}

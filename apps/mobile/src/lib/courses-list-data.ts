@@ -1,6 +1,5 @@
 // 课程列表页数据（从原型 app/courses-list/page.tsx 迁移，mock 照抄原型）
 import type { CourseCardData } from '@/lib/card-utils'
-import { apiGet, useMock } from '@/utils/request'
 
 // 分类 - 纯文字，不带图标
 export interface CourseListCategory { id: string; name: string }
@@ -67,34 +66,3 @@ export const courseListMock: (CourseCardData & { category: string; free: boolean
   { id: '7', title: '奇门遁甲入门班', teacher: '玄学居士', teacherAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80', price: 299, originalPrice: 499, students: 980, rating: 4.8, lessons: 24, category: 'qimen', tag: '高阶', free: false, cover: 'https://images.unsplash.com/photo-1471107340929-a87cd0f5b5f3?w=400&q=80', coverRatio: '3:4' },
   { id: '8', title: '六爻预测实战技法', teacher: '张玄风', teacherAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80', price: 199, originalPrice: 299, students: 1520, rating: 4.7, lessons: 20, category: 'liuyao', free: false, cover: 'https://images.unsplash.com/photo-1519791883288-dc8bd696e667?w=400&q=80', coverRatio: '3:4' },
 ]
-
-// ============================================
-// API 层
-// ============================================
-export const coursesListApi = {
-  async list(params?: { category?: string; sort?: string; page?: number }) {
-    if (useMock()) {
-      let list = courseListMock
-      if (params?.category && params.category !== 'all') list = list.filter(c => c.category === params.category)
-      return { courses: list, categories: courseListCategories, sortOptions: courseSortOptions, flashSale: flashSaleCourses, recommended: recommendedCourses }
-    }
-    try {
-      const qs = [`page=${params?.page || 1}`, params?.category ? `category=${params.category}` : '', params?.sort ? `sort=${params.sort}` : ''].filter(Boolean).join('&')
-      const data = await apiGet<any>(`/courses?${qs}`)
-      return {
-        courses: (data.items || data.data || []).map((c: any) => ({
-          id: c.id, title: c.title, cover: c.cover, teacher: c.instructor?.name || c.teacher,
-          price: c.price, originalPrice: c.originalPrice, students: c.students || c.enrollmentCount,
-          rating: c.rating, lessons: c.chapters || c.lessonCount, category: c.category,
-          tag: c.tag, free: c.free || c.price === 0, coverRatio: c.coverRatio || '3:4',
-        })),
-        categories: data.categories || courseListCategories,
-        sortOptions: data.sortOptions || courseSortOptions,
-        flashSale: data.flashSale || flashSaleCourses,
-        recommended: data.recommended || recommendedCourses,
-      }
-    } catch {
-      return { courses: courseListMock, categories: courseListCategories, sortOptions: courseSortOptions, flashSale: flashSaleCourses, recommended: recommendedCourses }
-    }
-  },
-}

@@ -3,136 +3,55 @@
     <view class="sc-row">
       <!-- 封面占位 -->
       <view class="sc-cover">
-        <app-icon
-          :name="schedule.type === 'knowledge' ? 'book-open' : 'shopping-bag'"
-          :size="24"
-          color="rgba(196,30,58,0.5)"
-        />
-        <text
-          v-if="schedule.seriesName"
-          class="sc-series-tag"
-        >
-          {{ schedule.seriesIndex }}/{{ schedule.seriesTotal }}
-        </text>
+        <app-icon :name="schedule.type === 'knowledge' ? 'book-open' : 'shopping-bag'" :size="24" color="rgba(196,30,58,0.5)" />
+        <text v-if="schedule.seriesName" class="sc-series-tag">{{ schedule.seriesIndex }}/{{ schedule.seriesTotal }}</text>
       </view>
 
       <!-- 内容 -->
       <view class="sc-content">
         <view class="sc-head">
           <view class="sc-title-wrap">
-            <text class="sc-title">
-              {{ schedule.title }}
-            </text>
-            <text
-              v-if="schedule.seriesName"
-              class="sc-series-name"
-            >
-              {{ schedule.seriesName }}
-            </text>
+            <text class="sc-title">{{ schedule.title }}</text>
+            <text v-if="schedule.seriesName" class="sc-series-name">{{ schedule.seriesName }}</text>
           </view>
-          <view
-            class="sc-badge"
-            :style="badgeStyle"
-          >
-            {{ statusLabel }}
-          </view>
+          <view class="sc-badge" :style="badgeStyle">{{ statusLabel }}</view>
         </view>
         <view class="sc-meta">
-          <view
-            v-if="showDate"
-            class="sc-meta-item"
-          >
-            <app-icon
-              name="calendar"
-              :size="12"
-              color="#999"
-            />
-            <text class="sc-meta-text">
-              {{ formatDate(schedule.date) }}
-            </text>
+          <view v-if="showDate" class="sc-meta-item">
+            <app-icon name="calendar" :size="12" color="#999" />
+            <text class="sc-meta-text">{{ formatDate(schedule.date) }}</text>
           </view>
           <view class="sc-meta-item">
-            <app-icon
-              name="clock"
-              :size="12"
-              color="#999"
-            />
-            <text class="sc-meta-text">
-              {{ schedule.time }}
-            </text>
+            <app-icon name="clock" :size="12" color="#999" />
+            <text class="sc-meta-text">{{ schedule.time }}</text>
           </view>
-          <text class="sc-meta-text">
-            {{ schedule.duration }}分钟
-          </text>
+          <text class="sc-meta-text">{{ schedule.duration }}分钟</text>
           <view class="sc-meta-item">
-            <app-icon
-              name="eye"
-              :size="12"
-              color="#999"
-            />
-            <text class="sc-meta-text">
-              {{ schedule.status === 'completed' ? schedule.actualViewers : `预计${schedule.viewerEstimate}` }}
-            </text>
+            <app-icon name="eye" :size="12" color="#999" />
+            <text class="sc-meta-text">{{ schedule.status === 'completed' ? schedule.actualViewers : `预计${schedule.viewerEstimate}` }}</text>
           </view>
         </view>
       </view>
 
       <!-- 操作菜单 -->
       <view class="sc-menu-wrap">
-        <view
-          class="sc-menu-btn"
-          @tap.stop="showMenu = !showMenu"
-        >
-          <app-icon
-            name="more-horizontal"
-            :size="16"
-            color="#1a1a1a"
-          />
+        <view class="sc-menu-btn" @tap.stop="showMenu = !showMenu">
+          <app-icon name="more-horizontal" :size="16" color="#1a1a1a" />
         </view>
         <template v-if="showMenu">
-          <view
-            class="sc-menu-mask"
-            @tap.stop="showMenu = false"
-          />
+          <view class="sc-menu-mask" @tap.stop="showMenu = false" />
           <view class="sc-menu">
-            <view
-              class="sc-menu-item"
-              @tap.stop="onItem('edit')"
-            >
-              <app-icon
-                name="edit-3"
-                :size="16"
-                color="#1a1a1a"
-              />
-              <text class="sc-menu-text">
-                编辑
-              </text>
+            <view class="sc-menu-item" @tap.stop="onItem('edit')">
+              <app-icon name="edit-3" :size="16" color="#1a1a1a" />
+              <text class="sc-menu-text">编辑</text>
             </view>
-            <view
-              class="sc-menu-item"
-              @tap.stop="onItem('copy')"
-            >
-              <app-icon
-                name="copy"
-                :size="16"
-                color="#1a1a1a"
-              />
-              <text class="sc-menu-text">
-                复制
-              </text>
+            <view class="sc-menu-item" @tap.stop="onItem('copy')">
+              <app-icon name="copy" :size="16" color="#1a1a1a" />
+              <text class="sc-menu-text">复制</text>
             </view>
-            <view
-              class="sc-menu-item"
-              @tap.stop="onItem('del')"
-            >
-              <app-icon
-                name="trash-2"
-                :size="16"
-                color="#dc2626"
-              />
-              <text class="sc-menu-text sc-menu-text-danger">
-                删除
-              </text>
+            <view class="sc-menu-item" @tap.stop="onItem('del')">
+              <app-icon name="trash-2" :size="16" color="#dc2626" />
+              <text class="sc-menu-text sc-menu-text-danger">删除</text>
             </view>
           </view>
         </template>

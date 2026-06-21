@@ -1,32 +1,18 @@
 <template>
-  <view
-    v-if="open"
-    class="gp-mask"
-    @tap="onClose"
-  >
-    <view
-      class="gp-sheet"
-      @tap.stop
-    >
+  <view v-if="open" class="gp-mask" @tap="onClose">
+    <view class="gp-sheet" @tap.stop>
+      <!-- 拖拽条 -->
       <view class="gp-handle-row">
         <view class="gp-handle" />
       </view>
       <view class="gp-head">
-        <text class="gp-title">
-          国学风礼物
-        </text>
-        <view
-          class="gp-close"
-          @tap="onClose"
-        >
-          <AppIcon
-            name="x"
-            :size="40"
-            color="rgba(255,255,255,0.6)"
-          />
+        <text class="gp-title">国学风礼物</text>
+        <view class="gp-close" @tap="onClose">
+          <AppIcon name="x" :size="20" color="rgba(255,255,255,0.6)" />
         </view>
       </view>
 
+      <!-- 礼物网格 -->
       <view class="gp-grid">
         <view
           v-for="gift in gifts"
@@ -35,61 +21,26 @@
           :class="{ 'gp-cell--sel': gift.id === selectedId }"
           @tap="selectedId = gift.id"
         >
-          <text
-            v-if="gift.level === 3"
-            class="gp-level"
-          >
-            {{ levelLabel[gift.level] }}
-          </text>
-          <text class="gp-emoji">
-            {{ gift.icon }}
-          </text>
-          <text class="gp-name">
-            {{ gift.name }}
-          </text>
+          <text v-if="gift.level === 3" class="gp-level">{{ levelLabel[gift.level] }}</text>
+          <text class="gp-emoji">{{ gift.icon }}</text>
+          <text class="gp-name">{{ gift.name }}</text>
           <view class="gp-price-row">
-            <AppIcon
-              name="coins"
-              :size="24"
-              color="#F59E0B"
-            />
-            <text class="gp-price">
-              {{ gift.price }}
-            </text>
+            <AppIcon name="coins" :size="12" color="#F59E0B" />
+            <text class="gp-price">{{ gift.price }}</text>
           </view>
         </view>
       </view>
 
+      <!-- 底部：余额 + 发送 -->
       <view class="gp-foot">
         <view class="gp-balance">
-          <AppIcon
-            name="coins"
-            :size="32"
-            color="#F59E0B"
-          />
-          <text class="gp-balance-txt">
-            余额 {{ balance.toLocaleString() }}
-          </text>
-          <text
-            class="gp-recharge"
-            @tap="showInsufficient = true"
-          >
-            充值
-          </text>
+          <AppIcon name="coins" :size="16" color="#F59E0B" />
+          <text class="gp-balance-txt">余额 {{ balance.toLocaleString() }}</text>
+          <text class="gp-recharge" @tap="showInsufficient = true">充值</text>
         </view>
-        <view
-          class="gp-send"
-          :class="{ 'gp-send--on': !!selected }"
-          @tap="handleSend"
-        >
-          <AppIcon
-            name="sparkles"
-            :size="32"
-            color="#fff"
-          />
-          <text class="gp-send-txt">
-            {{ selected ? `送出 ${selected.price}币` : '选择礼物' }}
-          </text>
+        <view class="gp-send" :class="{ 'gp-send--on': !!selected }" @tap="handleSend">
+          <AppIcon name="sparkles" :size="16" color="#fff" />
+          <text class="gp-send-txt">{{ selected ? `送出 ${selected.price}币` : '选择礼物' }}</text>
         </view>
       </view>
       <view class="gp-safe" />

@@ -3,311 +3,131 @@
  * 排盘工具入口页（从原型 app/paipan/page.tsx 1:1 高保真迁移）
  * 结构：顶栏 / AI智能解盘卡 / 排盘工具网格(展开收起) / 中医工具 / AI智能体横滚 / 合规提示 / 底部导航
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolIcon from '@/components/paipan/tool-icon.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
-import { toolsApi } from '@/lib/tools-data'
-import type { Tool, MedicalTool, Agent } from '@/lib/tools-data'
+import { tools, medicalTools, agents, AGENT_AVATAR_GRADIENT } from '@/lib/tools-data'
 import { navigateTo } from '@/utils/router'
-
-const loading = ref(true)
-const error = ref<string | null>(null)
-const tools = ref<Tool[]>([])
-const medicalTools = ref<MedicalTool[]>([])
-const agents = ref<Agent[]>([])
-const agentGradients = ref<Record<string, [string, string]>>({})
 
 const showAllTools = ref(false)
 const showMedical = ref(false)
 
-const displayTools = computed(() => (showAllTools.value ? tools.value : tools.value.slice(0, 32)))
-const displayMedical = computed(() => (showMedical.value ? medicalTools.value : medicalTools.value.slice(0, 8)))
-const displayAgents = computed(() => agents.value.slice(0, 6))
-
-async function loadData() {
-  loading.value = true
-  error.value = null
-  try {
-    const res = await toolsApi.directory()
-    tools.value = res.tools
-    medicalTools.value = res.medicalTools
-    agents.value = res.agents
-    agentGradients.value = res.agentGradients
-  } catch (e: any) {
-    error.value = e.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
+const displayTools = computed(() => (showAllTools.value ? tools : tools.slice(0, 32)))
+const displayMedical = computed(() => (showMedical.value ? medicalTools : medicalTools.slice(0, 8)))
+const displayAgents = computed(() => agents.slice(0, 6))
 
 function gradientStyle(avatar: string) {
-  const g = agentGradients.value[avatar] || agentGradients.value['master']
-  return g ? { background: `linear-gradient(135deg, ${g[0]}, ${g[1]})` } : {}
+  const g = AGENT_AVATAR_GRADIENT[avatar] || AGENT_AVATAR_GRADIENT.master
+  return { background: `linear-gradient(135deg, ${g[0]}, ${g[1]})` }
 }
-
-onMounted(loadData)
 </script>
 
 <template>
   <view class="paipan">
     <!-- 顶部标题栏 -->
     <view class="header">
-      <text class="header-title">
-        排盘工具
-      </text>
-      <view
-        class="header-action"
-        @tap="navigateTo('/paipan/history')"
-      >
-        <app-icon
-          name="history"
-          :size="40"
-          color="#999999"
-        />
+      <text class="header-title">排盘工具</text>
+      <view class="header-action" @tap="navigateTo('/paipan/history')">
+        <app-icon name="history" :size="40" color="#999999" />
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="content"
-    >
-      <!-- loading -->
-      <view
-        v-if="loading"
-        class="state-wrap"
-      >
-        <view class="spinner" />
-        <text class="state-text">
-          加载中...
-        </text>
-      </view>
-
-      <!-- error -->
-      <view
-        v-else-if="error"
-        class="state-wrap"
-      >
-        <text class="state-text">
-          {{ error }}
-        </text>
-        <view
-          class="retry-btn"
-          @tap="loadData"
-        >
-          重试
+    <scroll-view scroll-y class="content">
+      <!-- AI 智能解盘入口 -->
+      <view class="section-px ai-wrap">
+        <view class="ai-card" @tap="navigateTo('/paipan/ai')">
+          <view class="ai-blob ai-blob-1" />
+          <view class="ai-blob ai-blob-2" />
+          <view class="ai-row">
+            <view class="ai-icon">
+              <app-icon name="sparkles" :size="56" color="#ffffff" />
+            </view>
+            <view class="ai-text">
+              <view class="ai-title-row">
+                <text class="ai-title">AI 智能解盘</text>
+                <text class="ai-badge">新功能</text>
+              </view>
+              <text class="ai-sub">输入命盘信息，AI 为您深度解析</text>
+            </view>
+            <app-icon name="chevron-right" :size="40" color="rgba(255,255,255,0.6)" />
+          </view>
         </view>
       </view>
 
-      <!-- content -->
-      <template v-else>
-        <!-- AI 智能解盘入口 -->
-        <view class="section-px ai-wrap">
-          <view
-            class="ai-card"
-            @tap="navigateTo('/paipan/ai')"
-          >
-            <view class="ai-blob ai-blob-1" />
-            <view class="ai-blob ai-blob-2" />
-            <view class="ai-row">
-              <view class="ai-icon">
-                <app-icon
-                  name="sparkles"
-                  :size="56"
-                  color="#ffffff"
-                />
-              </view>
-              <view class="ai-text">
-                <view class="ai-title-row">
-                  <text class="ai-title">
-                    AI 智能解盘
-                  </text>
-                  <text class="ai-badge">
-                    新功能
-                  </text>
-                </view>
-                <text class="ai-sub">
-                  输入命盘信息，AI 为您深度解析
-                </text>
-              </view>
-              <app-icon
-                name="chevron-right"
-                :size="40"
-                color="rgba(255,255,255,0.6)"
-              />
-            </view>
+      <!-- 排盘工具网格 -->
+      <view class="section-px section-tools">
+        <view class="sec-head">
+          <text class="sec-title">排盘工具</text>
+          <view class="sec-link" @tap="navigateTo('/paipan/history')">
+            <text class="sec-link-text">历史记录</text>
+            <app-icon name="chevron-right" :size="28" color="#c41e3a" />
           </view>
         </view>
+        <view class="grid">
+          <view v-for="tool in displayTools" :key="tool.id" class="cell" @tap="navigateTo(tool.href)">
+            <view class="cell-icon">
+              <tool-icon :icon-id="tool.iconId" :size="88" />
+              <view v-if="tool.badge" class="badge badge-red" />
+            </view>
+            <text class="cell-name">{{ tool.name }}</text>
+          </view>
+        </view>
+        <view v-if="tools.length > 32" class="toggle" @tap="showAllTools = !showAllTools">
+          <text class="toggle-text">{{ showAllTools ? '收起' : '展开更多' }}</text>
+          <app-icon :name="showAllTools ? 'chevron-up' : 'chevron-down'" :size="32" color="#999999" />
+        </view>
+      </view>
 
-        <!-- 排盘工具网格 -->
-        <view class="section-px section-tools">
-          <view class="sec-head">
-            <text class="sec-title">
-              排盘工具
-            </text>
-            <view
-              class="sec-link"
-              @tap="navigateTo('/paipan/history')"
-            >
-              <text class="sec-link-text">
-                历史记录
-              </text>
-              <app-icon
-                name="chevron-right"
-                :size="28"
-                color="#c41e3a"
-              />
-            </view>
-          </view>
-          <view class="grid">
-            <view
-              v-for="tool in displayTools"
-              :key="tool.id"
-              class="cell"
-              @tap="navigateTo(tool.href)"
-            >
-              <view class="cell-icon">
-                <tool-icon
-                  :icon-id="tool.iconId"
-                  :size="88"
-                />
-                <view
-                  v-if="tool.badge"
-                  class="badge badge-red"
-                />
-              </view>
-              <text class="cell-name">
-                {{ tool.name }}
-              </text>
-            </view>
-          </view>
-          <view
-            v-if="tools.length > 32"
-            class="toggle"
-            @tap="showAllTools = !showAllTools"
-          >
-            <text class="toggle-text">
-              {{ showAllTools ? '收起' : '展开更多' }}
-            </text>
-            <app-icon
-              :name="showAllTools ? 'chevron-up' : 'chevron-down'"
-              :size="32"
-              color="#999999"
-            />
+      <!-- 中医工具 -->
+      <view class="section-px section-mt">
+        <view class="sec-head">
+          <view class="sec-title-row">
+            <app-icon name="stethoscope" :size="32" color="#059669" />
+            <text class="sec-title">中医工具</text>
           </view>
         </view>
+        <view class="grid">
+          <view v-for="tool in displayMedical" :key="tool.id" class="cell" @tap="navigateTo(tool.href)">
+            <view class="cell-icon">
+              <tool-icon :icon-id="tool.iconId" :size="88" />
+              <view v-if="tool.badge" class="badge badge-green" />
+            </view>
+            <text class="cell-name">{{ tool.name }}</text>
+          </view>
+        </view>
+        <view v-if="medicalTools.length > 8" class="toggle" @tap="showMedical = !showMedical">
+          <text class="toggle-text">{{ showMedical ? '收起' : '展开更多' }}</text>
+          <app-icon :name="showMedical ? 'chevron-up' : 'chevron-down'" :size="32" color="#999999" />
+        </view>
+      </view>
 
-        <!-- 中医工具 -->
-        <view class="section-px section-mt">
-          <view class="sec-head">
-            <view class="sec-title-row">
-              <app-icon
-                name="stethoscope"
-                :size="32"
-                color="#059669"
-              />
-              <text class="sec-title">
-                中医工具
-              </text>
-            </view>
+      <!-- AI 智能体 -->
+      <view class="section-px section-mt">
+        <view class="sec-head">
+          <text class="sec-title">AI 智能体</text>
+          <view class="sec-link" @tap="navigateTo('/agents')">
+            <text class="sec-link-text">查看全部</text>
+            <app-icon name="chevron-right" :size="28" color="#c41e3a" />
           </view>
-          <view class="grid">
-            <view
-              v-for="tool in displayMedical"
-              :key="tool.id"
-              class="cell"
-              @tap="navigateTo(tool.href)"
-            >
-              <view class="cell-icon">
-                <tool-icon
-                  :icon-id="tool.iconId"
-                  :size="88"
-                />
-                <view
-                  v-if="tool.badge"
-                  class="badge badge-green"
-                />
+        </view>
+        <scroll-view scroll-x class="agents-scroll">
+          <view class="agents-row">
+            <view v-for="agent in displayAgents" :key="agent.id" class="agent-card" @tap="navigateTo(agent.href)">
+              <view class="agent-avatar" :style="gradientStyle(agent.avatar)">
+                <app-icon name="sparkles" :size="40" color="#ffffff" />
               </view>
-              <text class="cell-name">
-                {{ tool.name }}
-              </text>
+              <text class="agent-name">{{ agent.name }}</text>
+              <text class="agent-desc">{{ agent.description }}</text>
             </view>
           </view>
-          <view
-            v-if="medicalTools.length > 8"
-            class="toggle"
-            @tap="showMedical = !showMedical"
-          >
-            <text class="toggle-text">
-              {{ showMedical ? '收起' : '展开更多' }}
-            </text>
-            <app-icon
-              :name="showMedical ? 'chevron-up' : 'chevron-down'"
-              :size="32"
-              color="#999999"
-            />
-          </view>
-        </view>
+        </scroll-view>
+      </view>
 
-        <!-- AI 智能体 -->
-        <view class="section-px section-mt">
-          <view class="sec-head">
-            <text class="sec-title">
-              AI 智能体
-            </text>
-            <view
-              class="sec-link"
-              @tap="navigateTo('/agents')"
-            >
-              <text class="sec-link-text">
-                查看全部
-              </text>
-              <app-icon
-                name="chevron-right"
-                :size="28"
-                color="#c41e3a"
-              />
-            </view>
-          </view>
-          <scroll-view
-            scroll-x
-            class="agents-scroll"
-          >
-            <view class="agents-row">
-              <view
-                v-for="agent in displayAgents"
-                :key="agent.id"
-                class="agent-card"
-                @tap="navigateTo(agent.href)"
-              >
-                <view
-                  class="agent-avatar"
-                  :style="gradientStyle(agent.avatar)"
-                >
-                  <app-icon
-                    name="sparkles"
-                    :size="40"
-                    color="#ffffff"
-                  />
-                </view>
-                <text class="agent-name">
-                  {{ agent.name }}
-                </text>
-                <text class="agent-desc">
-                  {{ agent.description }}
-                </text>
-              </view>
-            </view>
-          </scroll-view>
-        </view>
-
-        <!-- 合规提示 -->
-        <view class="section-px disclaimer">
-          <text class="disclaimer-text">
-            平台命理工具仅供传统文化爱好者研究学习，排盘与分析结果不构成任何决策建议。
-          </text>
-        </view>
-      </template>
+      <!-- 合规提示 -->
+      <view class="section-px disclaimer">
+        <text class="disclaimer-text">平台命理工具仅供传统文化爱好者研究学习，排盘与分析结果不构成任何决策建议。</text>
+      </view>
     </scroll-view>
 
     <bottom-nav active="paipan" />
@@ -330,23 +150,6 @@ onMounted(loadData)
 
 .content { position: absolute; top: 88rpx; bottom: 112rpx; left: 0; right: 0; }
 .section-px { padding-left: 32rpx; padding-right: 32rpx; }
-
-/* 加载/错误状态 */
-.state-wrap {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 120rpx 40rpx; gap: 24rpx;
-}
-.spinner {
-  width: 48rpx; height: 48rpx; border: 4rpx solid var(--line, #e8e0d5);
-  border-top-color: var(--brand, #c41e3a); border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.state-text { font-size: 28rpx; color: var(--text-soft, #999); }
-.retry-btn {
-  padding: 16rpx 48rpx; background: var(--brand, #c41e3a); border-radius: 999rpx;
-  color: #fff; font-size: 28rpx;
-}
 
 /* AI 解盘卡 */
 .ai-wrap { padding-top: 32rpx; }

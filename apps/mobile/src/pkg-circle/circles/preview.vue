@@ -1,10 +1,7 @@
 <template>
   <view class="pv-page">
     <!-- 骨架屏 -->
-    <view
-      v-if="isLoading"
-      class="pv-skel"
-    >
+    <view v-if="isLoading" class="pv-skel">
       <view class="pv-skel-cover" />
       <view class="pv-skel-body">
         <view class="pv-skel-card h32" /><view class="pv-skel-card h48" /><view class="pv-skel-card h48" />
@@ -14,46 +11,15 @@
     <template v-else>
       <!-- 封面 -->
       <view class="pv-cover">
-        <image
-          class="pv-cover-img"
-          :src="circle.cover"
-          mode="aspectFill"
-        />
+        <image class="pv-cover-img" :src="circle.cover" mode="aspectFill" />
         <view class="pv-cover-mask" />
         <view class="pv-nav">
-          <view
-            class="pv-nav-btn"
-            @tap="goBack"
-          >
-            <app-icon
-              name="chevron-left"
-              :size="36"
-              color="#ffffff"
-            />
-          </view>
-          <view
-            class="pv-nav-btn"
-            @tap="onShare"
-          >
-            <app-icon
-              name="share-2"
-              :size="34"
-              color="#ffffff"
-            />
-          </view>
+          <view class="pv-nav-btn" @tap="goBack"><app-icon name="chevron-left" :size="36" color="#ffffff" /></view>
+          <view class="pv-nav-btn" @tap="onShare"><app-icon name="share-2" :size="34" color="#ffffff" /></view>
         </view>
-        <view
-          v-if="joinStatus.discount"
-          class="pv-discount"
-        >
-          <app-icon
-            name="sparkles"
-            :size="28"
-            color="#fde047"
-          />
-          <text class="pv-discount-t">
-            {{ joinStatus.discount }}
-          </text>
+        <view v-if="joinStatus.discount" class="pv-discount">
+          <app-icon name="sparkles" :size="28" color="#fde047" />
+          <text class="pv-discount-t">{{ joinStatus.discount }}</text>
         </view>
       </view>
 
@@ -62,64 +28,21 @@
         <view class="pv-info-card">
           <view class="pv-info-row">
             <view class="pv-avatar-wrap">
-              <image
-                class="pv-avatar"
-                :src="circle.owner.avatar"
-                mode="aspectFill"
-              />
-              <view class="pv-crown">
-                <app-icon
-                  name="crown"
-                  :size="24"
-                  color="#ffffff"
-                />
-              </view>
+              <image class="pv-avatar" :src="circle.owner.avatar" mode="aspectFill" />
+              <view class="pv-crown"><app-icon name="crown" :size="24" color="#ffffff" /></view>
             </view>
             <view class="pv-info-main">
-              <text class="pv-name">
-                {{ circle.name }}
-              </text>
-              <text class="pv-desc">
-                {{ circle.description }}
-              </text>
+              <text class="pv-name">{{ circle.name }}</text>
+              <text class="pv-desc">{{ circle.description }}</text>
               <view class="pv-stats">
-                <view class="pv-stat">
-                  <app-icon
-                    name="users"
-                    :size="24"
-                    color="#999999"
-                  /><text class="pv-stat-t">
-                    {{ circle.members.toLocaleString() }} 成员
-                  </text>
-                </view>
-                <view class="pv-stat">
-                  <app-icon
-                    name="file-text"
-                    :size="24"
-                    color="#999999"
-                  /><text class="pv-stat-t">
-                    {{ circle.posts.toLocaleString() }} 帖子
-                  </text>
-                </view>
-                <view class="pv-stat active">
-                  <view class="pv-dot" /><text class="pv-stat-t red">
-                    今日活跃 {{ circle.todayActive }}
-                  </text>
-                </view>
+                <view class="pv-stat"><app-icon name="users" :size="24" color="#999999" /><text class="pv-stat-t">{{ circle.members.toLocaleString() }} 成员</text></view>
+                <view class="pv-stat"><app-icon name="file-text" :size="24" color="#999999" /><text class="pv-stat-t">{{ circle.posts.toLocaleString() }} 帖子</text></view>
+                <view class="pv-stat active"><view class="pv-dot" /><text class="pv-stat-t red">今日活跃 {{ circle.todayActive }}</text></view>
               </view>
             </view>
           </view>
-          <view
-            v-if="circle.tags"
-            class="pv-tags"
-          >
-            <text
-              v-for="tag in circle.tags"
-              :key="tag"
-              class="pv-tag"
-            >
-              #{{ tag }}
-            </text>
+          <view v-if="circle.tags" class="pv-tags">
+            <text v-for="tag in circle.tags" :key="tag" class="pv-tag">#{{ tag }}</text>
           </view>
         </view>
       </view>
@@ -127,123 +50,45 @@
       <!-- 精华内容 -->
       <view class="pv-section">
         <view class="pv-section-head">
-          <app-icon
-            name="star"
-            :size="34"
-            color="#C9A96E"
-            :fill="true"
-          />
-          <text class="pv-section-title">
-            精华内容预览
-          </text>
-          <text class="pv-section-sub">
-            加入后解锁全部
-          </text>
+          <app-icon name="star" :size="34" color="#C9A96E" :fill="true" />
+          <text class="pv-section-title">精华内容预览</text>
+          <text class="pv-section-sub">加入后解锁全部</text>
         </view>
         <view class="pv-posts">
-          <view
-            v-for="(post, index) in featuredPosts"
-            :key="post.id"
-            class="pv-post"
-            @tap="handlePostClick(post.id)"
-          >
-            <view
-              v-if="showLockTip === post.id"
-              class="pv-lock-overlay"
-            >
-              <app-icon
-                name="lock"
-                :size="56"
-                color="#ffffff"
-              />
-              <text class="pv-lock-t">
-                加入圈子后查看详情
-              </text>
+          <view v-for="(post, index) in featuredPosts" :key="post.id" class="pv-post" @tap="handlePostClick(post.id)">
+            <view v-if="showLockTip === post.id" class="pv-lock-overlay">
+              <app-icon name="lock" :size="56" color="#ffffff" />
+              <text class="pv-lock-t">加入圈子后查看详情</text>
             </view>
-            <view
-              class="pv-rank"
-              :class="rankClass(index)"
-            >
-              <text class="pv-rank-n">
-                {{ index + 1 }}
-              </text>
-            </view>
+            <view class="pv-rank" :class="rankClass(index)"><text class="pv-rank-n">{{ index + 1 }}</text></view>
             <view class="pv-post-author">
-              <image
-                class="pv-post-avatar"
-                :src="post.author.avatar"
-                mode="aspectFill"
-              />
-              <text class="pv-post-name">
-                {{ post.author.name }}
-              </text>
+              <image class="pv-post-avatar" :src="post.author.avatar" mode="aspectFill" />
+              <text class="pv-post-name">{{ post.author.name }}</text>
             </view>
             <view class="pv-post-content">
-              <text class="pv-post-text">
-                {{ post.preview }}
-              </text>
+              <text class="pv-post-text">{{ post.preview }}</text>
               <view class="pv-post-fade" />
             </view>
             <view class="pv-post-meta">
-              <view class="pv-pm">
-                <app-icon
-                  name="heart"
-                  :size="26"
-                  color="#999999"
-                /><text class="pv-pm-t">
-                  {{ post.likes }}
-                </text>
-              </view>
-              <view class="pv-pm">
-                <app-icon
-                  name="message-circle"
-                  :size="26"
-                  color="#999999"
-                /><text class="pv-pm-t">
-                  {{ post.comments }}
-                </text>
-              </view>
+              <view class="pv-pm"><app-icon name="heart" :size="26" color="#999999" /><text class="pv-pm-t">{{ post.likes }}</text></view>
+              <view class="pv-pm"><app-icon name="message-circle" :size="26" color="#999999" /><text class="pv-pm-t">{{ post.comments }}</text></view>
             </view>
           </view>
         </view>
         <view class="pv-more">
-          <app-icon
-            name="lock"
-            :size="44"
-            color="#C9A96E"
-          />
-          <text class="pv-more-t">
-            还有 <text class="pv-more-n">
-              {{ circle.posts - featuredPosts.length }}
-            </text> 篇精彩内容
-          </text>
-          <text class="pv-more-sub">
-            加入圈子立即解锁
-          </text>
+          <app-icon name="lock" :size="44" color="#C9A96E" />
+          <text class="pv-more-t">还有 <text class="pv-more-n">{{ circle.posts - featuredPosts.length }}</text> 篇精彩内容</text>
+          <text class="pv-more-sub">加入圈子立即解锁</text>
         </view>
       </view>
 
       <!-- 圈子权益 -->
       <view class="pv-section">
-        <text class="pv-benefit-title">
-          加入后享有
-        </text>
+        <text class="pv-benefit-title">加入后享有</text>
         <view class="pv-benefits">
-          <view
-            v-for="(item, i) in benefits"
-            :key="i"
-            class="pv-benefit"
-          >
-            <view class="pv-benefit-icon">
-              <app-icon
-                :name="item.icon"
-                :size="28"
-                color="#C41E3A"
-              />
-            </view>
-            <text class="pv-benefit-t">
-              {{ item.text }}
-            </text>
+          <view v-for="(item, i) in benefits" :key="i" class="pv-benefit">
+            <view class="pv-benefit-icon"><app-icon :name="item.icon" :size="28" color="#C41E3A" /></view>
+            <text class="pv-benefit-t">{{ item.text }}</text>
           </view>
         </view>
       </view>
@@ -251,142 +96,47 @@
       <!-- 底部加入栏 -->
       <view class="pv-footer">
         <view class="pv-footer-info">
-          <view
-            v-if="joinMethod === 'paid'"
-            class="pv-price-row"
-          >
-            <text class="pv-price">
-              ¥{{ joinStatus.price }}
-            </text>
-            <text
-              v-if="joinStatus.originalPrice"
-              class="pv-price-old"
-            >
-              ¥{{ joinStatus.originalPrice }}
-            </text>
-            <text class="pv-price-days">
-              / {{ joinStatus.membershipDays ?? 365 }}天
-            </text>
+          <view v-if="joinMethod === 'paid'" class="pv-price-row">
+            <text class="pv-price">¥{{ joinStatus.price }}</text>
+            <text v-if="joinStatus.originalPrice" class="pv-price-old">¥{{ joinStatus.originalPrice }}</text>
+            <text class="pv-price-days">/ {{ joinStatus.membershipDays ?? 365 }}天</text>
           </view>
-          <text
-            v-else-if="joinMethod === 'approval'"
-            class="pv-method"
-          >
-            审核制圈子
-          </text>
-          <text
-            v-else
-            class="pv-method"
-          >
-            免费加入
-          </text>
-          <text
-            v-if="joinMethod === 'approval'"
-            class="pv-method-sub"
-          >
-            需圈主审核通过
-          </text>
+          <text v-else-if="joinMethod === 'approval'" class="pv-method">审核制圈子</text>
+          <text v-else class="pv-method">免费加入</text>
+          <text v-if="joinMethod === 'approval'" class="pv-method-sub">需圈主审核通过</text>
         </view>
-        <view
-          class="pv-join-btn"
-          :class="{ disabled: approvalSubmitted }"
-          @tap="handleJoin"
-        >
+        <view class="pv-join-btn" :class="{ disabled: approvalSubmitted }" @tap="handleJoin">
           {{ joinMethod === 'paid' ? '立即加入' : joinMethod === 'approval' ? (approvalSubmitted ? '申请已提交' : '申请加入') : '免费加入' }}
         </view>
       </view>
 
       <!-- 付费加入弹窗 -->
-      <view
-        v-if="showJoinModal"
-        class="pv-modal-mask"
-        @tap="showJoinModal = false"
-      >
-        <view
-          class="pv-modal"
-          @tap.stop
-        >
+      <view v-if="showJoinModal" class="pv-modal-mask" @tap="showJoinModal = false">
+        <view class="pv-modal" @tap.stop>
           <view class="pv-modal-bar" />
-          <text class="pv-modal-title">
-            加入{{ circle.name }}
-          </text>
-          <text class="pv-modal-sub">
-            开启您的学习之旅
-          </text>
+          <text class="pv-modal-title">加入{{ circle.name }}</text>
+          <text class="pv-modal-sub">开启您的学习之旅</text>
           <view class="pv-pay-card">
+            <view class="pv-pay-row"><text class="pv-pay-label">会员时长</text><text class="pv-pay-val">{{ joinStatus.membershipDays }} 天</text></view>
             <view class="pv-pay-row">
-              <text class="pv-pay-label">
-                会员时长
-              </text><text class="pv-pay-val">
-                {{ joinStatus.membershipDays }} 天
-              </text>
-            </view>
-            <view class="pv-pay-row">
-              <text class="pv-pay-label">
-                支付金额
-              </text>
-              <view class="pv-price-row">
-                <text class="pv-price">
-                  ¥{{ joinStatus.price }}
-                </text><text
-                  v-if="joinStatus.originalPrice"
-                  class="pv-price-old"
-                >
-                  ¥{{ joinStatus.originalPrice }}
-                </text>
-              </view>
+              <text class="pv-pay-label">支付金额</text>
+              <view class="pv-price-row"><text class="pv-price">¥{{ joinStatus.price }}</text><text v-if="joinStatus.originalPrice" class="pv-price-old">¥{{ joinStatus.originalPrice }}</text></view>
             </view>
           </view>
-          <view
-            class="pv-pay-btn"
-            @tap="toComingSoon"
-          >
-            确认支付
-          </view>
-          <text class="pv-agreement">
-            点击确认即表示同意<text class="pv-link">
-              《用户协议》
-            </text>
-          </text>
+          <view class="pv-pay-btn" @tap="toComingSoon">确认支付</view>
+          <text class="pv-agreement">点击确认即表示同意<text class="pv-link">《用户协议》</text></text>
         </view>
       </view>
 
       <!-- 审核提交提示 -->
-      <view
-        v-if="approvalSubmitted"
-        class="pv-approval-mask"
-        @tap="approvalSubmitted = false"
-      >
-        <view
-          class="pv-approval"
-          @tap.stop
-        >
-          <view class="pv-approval-icon">
-            <app-icon
-              name="check-circle"
-              :size="44"
-              color="#3D7A5C"
-            />
-          </view>
-          <text class="pv-approval-title">
-            申请已提交
-          </text>
-          <text class="pv-approval-sub">
-            你的入圈申请已提交给圈主审核，审核结果将在"我的申请"中通知你。
-          </text>
+      <view v-if="approvalSubmitted" class="pv-approval-mask" @tap="approvalSubmitted = false">
+        <view class="pv-approval" @tap.stop>
+          <view class="pv-approval-icon"><app-icon name="check-circle" :size="44" color="#3D7A5C" /></view>
+          <text class="pv-approval-title">申请已提交</text>
+          <text class="pv-approval-sub">你的入圈申请已提交给圈主审核，审核结果将在"我的申请"中通知你。</text>
           <view class="pv-approval-btns">
-            <view
-              class="pv-ab outline"
-              @tap="approvalSubmitted = false"
-            >
-              我知道了
-            </view>
-            <view
-              class="pv-ab primary"
-              @tap="toComingSoon"
-            >
-              查看申请
-            </view>
+            <view class="pv-ab outline" @tap="approvalSubmitted = false">我知道了</view>
+            <view class="pv-ab primary" @tap="toComingSoon">查看申请</view>
           </view>
         </view>
       </view>

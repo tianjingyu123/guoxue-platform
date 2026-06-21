@@ -182,7 +182,6 @@ export interface DailyVerseData {
   text: string
   source: string
   solarTerm?: string
-  author?: string
 }
 
 const VERSES: DailyVerseData[] = [
@@ -234,154 +233,11 @@ export function buildFeedItems(): RenderItem[] {
   return result
 }
 
-// ============================================
-// API 层：useMock 开关控制真实/模拟数据切换
-// ============================================
-
-/** 后端 DailyVerse → 前端兼容格式 */
-function mapDailyVerse(dv: { source: string; content: string; author?: string }): DailyVerseData {
-  return { text: dv.content, source: dv.source, author: dv.author }
-}
-
-/** 后端 FeedItemDto → 前端 FeedItem 映射 */
-function mapFeedItem(raw: any): FeedItem {
-  const type = raw.type === 'circle_post' ? 'post' : raw.type
-  const id = typeof raw.id === 'string' ? hashId(raw.id) : Number(raw.id)
-  return {
-    id: isNaN(id) ? 0 : id,
-    type,
-    title: raw.title,
-    author: raw.author,
-    authorAvatar: raw.authorAvatar,
-    cover: raw.cover ?? null,
-    excerpt: raw.excerpt,
-    price: raw.price,
-    originalPrice: raw.originalPrice,
-    tag: raw.tag,
-  }
-}
-
-/** 推荐圈子 → FeedItem（circle 类型） */
-function mapCircleToFeedItem(c: any): FeedItem {
-  return {
-    id: typeof c.id === 'string' ? hashId(c.id) : Number(c.id),
-    type: 'circle',
-    circleName: c.name,
-    cover: c.cover,
-    content: c.intro,
-    members: c.memberCount,
-    todayPosts: c.postCount,
-  }
-}
-
-/** 简单字符串哈希 → 正整數 */
-function hashId(s: string): number {
-  let h = 0
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0
-  return Math.abs(h)
-}
-
-/** 将 API feed + 推荐圈子 + 智能体混排为 RenderItem[] */
-function mergeApiFeedWithAgents(
-  apiFeed: any[],
-  recommendedCircles: any[],
-): RenderItem[] {
-  const mappedFeed = apiFeed.map(mapFeedItem)
-  const circleItems = recommendedCircles.map(mapCircleToFeedItem)
-  const allFeed = [...mappedFeed, ...circleItems].sort((a, b) => b.id - a.id)
-
-  const result: RenderItem[] = []
-  let feedIdx = 0
-  let agentIdx = 0
-  let pos = 0
-  const cap = Math.min(allFeed.length + agents.length, 32)
-
-  while (pos < cap) {
-    if (pos > 0 && pos % 12 === 0 && agentIdx < agents.length) {
-      result.push({ kind: 'agent', key: `agent-${agents[agentIdx].id}`, agent: agents[agentIdx] })
-      agentIdx++
-      pos++
-      continue
-    }
-    if (feedIdx < allFeed.length) {
-      result.push({ kind: 'feed', key: `feed-${allFeed[feedIdx].id}`, item: allFeed[feedIdx] })
-      feedIdx++
-    }
-    pos++
-  }
-  return result
-}
-
+// ── API ──
 export const homeApi = {
-  /** 获取今日小语 */
-  async getDailyVerse() {
-    if (useMock()) return getTodayVerse()
-    try {
-      const data = await apiGet<any>('/home/daily-verse')
-      return data ? mapDailyVerse(data) : getTodayVerse()
-    } catch { return getTodayVerse() }
-  },
-
-  /**
-   * 获取首页聚合数据
-   * mock 模式：返回内置 mock 数据
-   * 真实模式：调用 GET /api/v1/home
-   */
-  async getHome(params?: { page?: number; pageSize?: number }) {
-    const page = params?.page ?? 1
-    const pageSize = params?.pageSize ?? 20
-
-    if (useMock()) {
-      return {
-        banners: defaultBanners,
-        marketing: marketingBanners,
-        dailyVerse: getTodayVerse(),
-        recommendedCircles: [] as any[],
-        feed: buildFeedItems(),
-        total: feedItems.length,
-        page,
-        pageSize,
-      }
-    }
-
-    try {
-      const data = await apiGet<any>(`/home?page=${page}&pageSize=${pageSize}`)
-      return {
-        banners: (data.banners?.length ? data.banners : defaultBanners) as BannerItem[],
-        marketing: data.marketing || marketingBanners,
-        dailyVerse: data.dailyVerse ? mapDailyVerse(data.dailyVerse) : getTodayVerse(),
-        recommendedCircles: data.recommendedCircles || [],
-        feed: mergeApiFeedWithAgents(data.feed || [], data.recommendedCircles || []),
-        total: data.total ?? 0,
-        page: data.page ?? page,
-        pageSize: data.pageSize ?? pageSize,
-      }
-    } catch {
-      // 网络异常时 fallback 到 mock
-      return {
-        banners: defaultBanners,
-        marketing: marketingBanners,
-        dailyVerse: getTodayVerse(),
-        recommendedCircles: [] as any[],
-        feed: buildFeedItems(),
-        total: feedItems.length,
-        page: 1,
-        pageSize: 20,
-      }
-    }
-  },
-
-  /** 加载更多 Feed */
-  async loadMore(page: number, pageSize = 20) {
-    if (useMock()) return { items: buildFeedItems(), total: feedItems.length }
-    try {
-      const data = await apiGet<any>(`/home?page=${page}&pageSize=${pageSize}`)
-      return {
-        items: mergeApiFeedWithAgents(data.feed || [], data.recommendedCircles || []),
-        total: data.total ?? 0,
-      }
-    } catch {
-      return { items: [] as RenderItem[], total: 0 }
-    }
+  /** 获取首页聚合数据 GET /home */
+  async getHomeData(): Promise<Record<string, any>> {
+    if (useMock()) return { banners: defaultBanners, feedItems }
+    try { return await apiGet<any>('/home') } catch { return { banners: defaultBanners, feedItems: [] } }
   },
 }

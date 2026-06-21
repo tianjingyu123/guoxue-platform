@@ -1,6 +1,4 @@
 // 我的主页数据层（1:1 迁移自原型 app/profile/page.tsx）
-import { apiGet, apiPut, useMock } from '@/utils/request'
-import { getToken } from '@/utils/storage'
 export type UserRole = 'user' | 'circle_owner' | 'teacher' | 'station_owner' | 'streamer' | 'creator'
 
 export interface RoleEntry {
@@ -61,7 +59,7 @@ export const roleConfig: Record<UserRole, { label: string; icon: string; color: 
 export const quickFunctions: { icon: string; label: string; href: string; color: string }[] = [
   { icon: 'compass', label: '排盘记录', href: '/paipan', color: '#C41E3A' },
   { icon: 'book-open', label: '我的课程', href: '/learning', color: '#4A90D9' },
-  { icon: 'users', label: '我的圈子', href: '/pages/circles/mine', color: '#722ED1' },
+  { icon: 'users', label: '我的圈子', href: '/pkg-circle/circles/mine', color: '#722ED1' },
   { icon: 'sticky-note', label: '我的笔记', href: '/ebook/notes', color: '#C9A96E' },
   { icon: 'heart', label: '我的收藏', href: '/favorites', color: '#C41E3A' },
   { icon: 'file-text', label: '我的电子书', href: '/downloads', color: '#52C41A' },
@@ -80,7 +78,7 @@ export const recommendations: { id: number; type: 'course' | 'product'; title: s
 
 // 全部可开通角色
 export const allRoleTypes: { type: UserRole; applyHref: string }[] = [
-  { type: 'circle_owner', applyHref: '/pages/circles/create' },
+  { type: 'circle_owner', applyHref: '/pkg-circle/circles/create' },
   { type: 'teacher', applyHref: '/institute/apply' },
   { type: 'station_owner', applyHref: '/join/station' },
   { type: 'streamer', applyHref: '/creator/live/console' },
@@ -89,7 +87,7 @@ export const allRoleTypes: { type: UserRole; applyHref: string }[] = [
 // 已开通身份点击进入的后台路由
 export function roleHref(type: UserRole, id: number): string {
   switch (type) {
-    case 'circle_owner': return `/pages/circles/manage?id=${id}`
+    case 'circle_owner': return `/pkg-circle/circles/manage?id=${id}`
     case 'teacher': return '/teacher/dashboard'
     case 'streamer': return '/creator/live/console'
     case 'creator': return '/videos/creator'
@@ -100,133 +98,3 @@ export function roleHref(type: UserRole, id: number): string {
 
 export const totalMessages =
   userData.messages.system + userData.messages.interaction + userData.messages.transaction
-
-// ============================================
-// API 层：useMock 开关控制真实/模拟数据切换
-// ============================================
-
-/** 简单 JWT 解码（不验证签名），取 payload 中的 userId */
-export function getUserIdFromToken(): string | null {
-  try {
-    const token = getToken()
-    if (!token) return null
-    const parts = token.split('.')
-    if (parts.length < 2) return null
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
-    return payload?.sub || payload?.userId || payload?.id || null
-  } catch { return null }
-}
-
-/** 后端 RoleType → 前端 UserRole */
-function mapRoleType(rt: string): UserRole | null {
-  const map: Record<string, UserRole> = {
-    CIRCLE_OWNER: 'circle_owner',
-    LECTURER: 'teacher',
-    STATION_MASTER: 'station_owner',
-  }
-  return map[rt] || null
-}
-
-/** VIP 等级标签映射 */
-function mapVipLevel(level: string | null): { isVip: boolean; vipLevel: string } {
-  if (!level || level === 'NONE') return { isVip: false, vipLevel: '' }
-  const labels: Record<string, string> = {
-    MONTHLY: '黄金会员',
-    YEARLY: '铂金会员',
-    LIFETIME: '终身会员',
-  }
-  return { isVip: true, vipLevel: labels[level] || '会员' }
-}
-
-/** 计算剩余天数 */
-function daysLeft(expireStr: string | null): number {
-  if (!expireStr) return 0
-  const d = Math.ceil((new Date(expireStr).getTime() - Date.now()) / 86400000)
-  return d > 0 ? d : 0
-}
-
-export const profileApi = {
-  async getMyProfile() {
-    const userId = getUserIdFromToken()
-
-    if (useMock() || !userId) {
-      return { ...userData, _isMock: true }
-    }
-
-    try {
-      const [userRes, statsRes, profileRes] = await Promise.allSettled([
-        apiGet<any>(`/users/${userId}`),
-        apiGet<any>(`/users/${userId}/stats`),
-        apiGet<any>(`/users/${userId}/profile`),
-      ])
-
-      const user = userRes.status === 'fulfilled' ? userRes.value : null
-      const stats = statsRes.status === 'fulfilled' ? statsRes.value : null
-      const profile = profileRes.status === 'fulfilled' ? profileRes.value : null
-
-      const { isVip, vipLevel } = mapVipLevel(user?.memberLevel ?? null)
-
-      // 角色映射
-      const roles: RoleEntry[] = (user?.roles || [])
-        .map((r: any) => {
-          const type = mapRoleType(r.roleType)
-          return type ? { type, name: user.nickname, id: Number(r.bindId) || 0 } : null
-        })
-        .filter(Boolean)
-
-      // 学习进度
-      const firstProgress = profile?.learningProgress?.[0]
-      const continueLearning = firstProgress ? {
-        id: 1,
-        title: `课程 #${firstProgress.courseId}`,
-        progress: firstProgress.progress || 0,
-        lastLesson: `上次学习: ${firstProgress.updatedAt?.slice(0, 10) || '--'}`,
-      } : userData.continueLearning
-
-      return {
-        name: user?.nickname || userData.name,
-        avatar: user?.avatar || '',
-        bio: user?.bio || userData.bio,
-        isVip,
-        vipLevel,
-        vipExpiry: user?.memberExpire ? new Date(user.memberExpire).toISOString().slice(0, 10) : '',
-        vipDaysLeft: daysLeft(user?.memberExpire ?? null),
-        isVerified: user?.status === 'ACTIVE',
-        roles: roles.length > 0 ? roles : userData.roles,
-        messages: userData.messages,
-        checkIn: userData.checkIn,
-        stats: {
-          following: stats?.following ?? userData.stats.following,
-          followers: stats?.followers ?? userData.stats.followers,
-          likes: stats?.totalLikes ?? userData.stats.likes,
-        },
-        coins: profile?.coinBalance ?? userData.coins,
-        coupons: userData.coupons,
-        points: userData.points,
-        orders: userData.orders,
-        continueLearning,
-        _isMock: false,
-      }
-    } catch {
-      return { ...userData, _isMock: true }
-    }
-  },
-
-  /** 更新个人资料 */
-  async updateProfile(data: Record<string, unknown>) {
-    if (useMock()) {
-      return { ok: true }
-    }
-    try {
-      return await apiPut<any>('/users/profile', data)
-    } catch {
-      return { ok: false }
-    }
-  },
-
-  /** 获取当前用户 ID，未登录返回 null */
-  getUserId: getUserIdFromToken,
-
-  /** 是否已登录 */
-  isLoggedIn: () => !!getToken(),
-}

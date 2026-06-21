@@ -36,105 +36,40 @@ function pct(b: BadgeItem) { return Math.min(100, (b.progress! / b.total!) * 100
 <template>
   <view class="bg">
     <view class="bg-header">
-      <view @tap="goBack">
-        <app-icon
-          name="arrow-left"
-          :size="40"
-          color="#2C2C2C"
-        />
-      </view>
-      <text class="bg-title">
-        我的徽章
-      </text>
-      <text class="bg-count">
-        {{ earned.length }}/{{ badges.length }}
-      </text>
+      <view @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
+      <text class="bg-title">我的徽章</text>
+      <text class="bg-count">{{ earned.length }}/{{ badges.length }}</text>
     </view>
 
     <view class="bg-body">
       <!-- 已获得 -->
-      <text class="bg-section">
-        已获得 {{ earned.length }} 枚
-      </text>
+      <text class="bg-section">已获得 {{ earned.length }} 枚</text>
       <view class="bg-grid">
-        <view
-          v-for="b in earned"
-          :key="b.id"
-          class="bg-card"
-          :class="RARITY_CFG[b.rarity].cls"
-        >
-          <image
-            class="bg-badge-img"
-            :src="b.image"
-            mode="aspectFit"
-          />
-          <text class="bg-name">
-            {{ b.name }}
-          </text>
-          <text
-            class="bg-rarity"
-            :class="RARITY_CFG[b.rarity].cls"
-          >
-            {{ RARITY_CFG[b.rarity].label }}
-          </text>
-          <text class="bg-date">
-            {{ b.earnedAt }}
-          </text>
+        <view v-for="b in earned" :key="b.id" class="bg-card" :class="RARITY_CFG[b.rarity].cls">
+          <image class="bg-badge-img" :src="b.image" mode="aspectFit" />
+          <text class="bg-name">{{ b.name }}</text>
+          <text class="bg-rarity" :class="RARITY_CFG[b.rarity].cls">{{ RARITY_CFG[b.rarity].label }}</text>
+          <text class="bg-date">{{ b.earnedAt }}</text>
         </view>
       </view>
 
       <!-- 待解锁 -->
-      <text class="bg-section mt">
-        待解锁 {{ locked.length }} 枚
-      </text>
+      <text class="bg-section mt">待解锁 {{ locked.length }} 枚</text>
       <view class="bg-locked-list">
-        <view
-          v-for="b in locked"
-          :key="b.id"
-          class="bg-locked"
-        >
-          <view class="bg-locked-icon">
-            <image
-              class="bg-locked-img"
-              :src="b.image"
-              mode="aspectFit"
-            />
-          </view>
+        <view v-for="b in locked" :key="b.id" class="bg-locked">
+          <view class="bg-locked-icon"><image class="bg-locked-img" :src="b.image" mode="aspectFit" /></view>
           <view class="bg-locked-main">
             <view class="bg-locked-top">
-              <text class="bg-locked-name">
-                {{ b.name }}
-              </text>
-              <text
-                class="bg-rarity-tag"
-                :class="RARITY_CFG[b.rarity].cls"
-              >
-                {{ RARITY_CFG[b.rarity].label }}
-              </text>
+              <text class="bg-locked-name">{{ b.name }}</text>
+              <text class="bg-rarity-tag" :class="RARITY_CFG[b.rarity].cls">{{ RARITY_CFG[b.rarity].label }}</text>
             </view>
-            <text class="bg-locked-desc">
-              {{ b.desc }}
-            </text>
-            <view
-              v-if="b.progress !== undefined"
-              class="bg-progress-row"
-            >
-              <view class="bg-progress">
-                <view
-                  class="bg-progress-bar"
-                  :style="{ width: pct(b) + '%' }"
-                />
-              </view>
-              <text class="bg-progress-txt">
-                {{ b.progress }}/{{ b.total }}
-              </text>
+            <text class="bg-locked-desc">{{ b.desc }}</text>
+            <view v-if="b.progress !== undefined" class="bg-progress-row">
+              <view class="bg-progress"><view class="bg-progress-bar" :style="{ width: pct(b) + '%' }" /></view>
+              <text class="bg-progress-txt">{{ b.progress }}/{{ b.total }}</text>
             </view>
           </view>
-          <app-icon
-            name="lock"
-            :size="28"
-            color="#999999"
-          />
+          <app-icon name="lock" :size="28" color="#999999" />
         </view>
       </view>
     </view>

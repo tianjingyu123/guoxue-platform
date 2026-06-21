@@ -17,10 +17,10 @@ export interface CanvasHandle {
 /** 获取小程序 Canvas 2D node 并按 dpr 初始化（H5 下退化为标准 canvas） */
 export function getCanvas(selector: string, width: number, height: number, comp?: any): Promise<CanvasHandle> {
   return new Promise((resolve, reject) => {
-    const query: any = comp ? uni.createSelectorQuery().in(comp) : uni.createSelectorQuery()
+    const query = comp ? uni.createSelectorQuery().in(comp) : uni.createSelectorQuery()
     query
       .select(selector)
-      .fields({ node: true, size: true })
+      .fields({ node: true, size: true } as any)
       .exec((res: any[]) => {
         const node = res?.[0]?.node
         if (!node) { reject(new Error(`canvas node 未找到: ${selector}`)); return }

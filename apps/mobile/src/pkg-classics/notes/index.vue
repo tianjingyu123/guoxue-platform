@@ -4,50 +4,22 @@
     <view class="nt-header">
       <view class="nt-nav">
         <view class="nt-nav-left">
-          <view
-            class="nt-back"
-            @tap="goBack"
-          >
-            <app-icon
-              name="arrow-left"
-              :size="40"
-              color="#999999"
-            />
+          <view class="nt-back" @tap="goBack">
+            <app-icon name="arrow-left" :size="40" color="#999999" />
           </view>
-          <text class="nt-title">
-            我的笔记
-          </text>
+          <text class="nt-title">我的笔记</text>
         </view>
         <view class="nt-nav-right">
           <template v-if="isSelectMode">
-            <view
-              class="nt-tbtn"
-              @tap="exitSelect"
-            >
-              <text class="nt-tbtn-text">
-                取消
-              </text>
+            <view class="nt-tbtn" @tap="exitSelect">
+              <text class="nt-tbtn-text">取消</text>
             </view>
-            <view
-              class="nt-tbtn nt-tbtn--danger"
-              :class="{ 'nt-tbtn--disabled': selectedIds.size === 0 }"
-              @tap="batchDelete"
-            >
-              <text class="nt-tbtn-text nt-tbtn-text--danger">
-                删除 ({{ selectedIds.size }})
-              </text>
+            <view class="nt-tbtn nt-tbtn--danger" :class="{ 'nt-tbtn--disabled': selectedIds.size === 0 }" @tap="batchDelete">
+              <text class="nt-tbtn-text nt-tbtn-text--danger">删除 ({{ selectedIds.size }})</text>
             </view>
           </template>
-          <view
-            v-else
-            class="nt-icon-btn"
-            @tap="openManageMenu"
-          >
-            <app-icon
-              name="more-vertical"
-              :size="32"
-              color="#999999"
-            />
+          <view v-else class="nt-icon-btn" @tap="openManageMenu">
+            <app-icon name="more-vertical" :size="32" color="#999999" />
           </view>
         </view>
       </view>
@@ -55,42 +27,15 @@
       <!-- 搜索和视图切换 -->
       <view class="nt-toolbar">
         <view class="nt-search">
-          <app-icon
-            name="search"
-            :size="28"
-            color="#999999"
-          />
-          <input
-            v-model="searchValue"
-            class="nt-search-input"
-            placeholder="搜索笔记内容..."
-            placeholder-class="nt-ph"
-          >
+          <app-icon name="search" :size="28" color="#999999" />
+          <input v-model="searchValue" class="nt-search-input" placeholder="搜索笔记内容..." placeholder-class="nt-ph" />
         </view>
         <view class="nt-toggle">
-          <view
-            class="nt-toggle-btn"
-            :class="{ 'nt-toggle-btn--active': viewMode === 'timeline' }"
-            @tap="viewMode = 'timeline'"
-          >
-            <text
-              class="nt-toggle-text"
-              :class="{ 'nt-toggle-text--active': viewMode === 'timeline' }"
-            >
-              时间线
-            </text>
+          <view class="nt-toggle-btn" :class="{ 'nt-toggle-btn--active': viewMode === 'timeline' }" @tap="viewMode = 'timeline'">
+            <text class="nt-toggle-text" :class="{ 'nt-toggle-text--active': viewMode === 'timeline' }">时间线</text>
           </view>
-          <view
-            class="nt-toggle-btn"
-            :class="{ 'nt-toggle-btn--active': viewMode === 'book' }"
-            @tap="viewMode = 'book'"
-          >
-            <text
-              class="nt-toggle-text"
-              :class="{ 'nt-toggle-text--active': viewMode === 'book' }"
-            >
-              按书籍
-            </text>
+          <view class="nt-toggle-btn" :class="{ 'nt-toggle-btn--active': viewMode === 'book' }" @tap="viewMode = 'book'">
+            <text class="nt-toggle-text" :class="{ 'nt-toggle-text--active': viewMode === 'book' }">按书籍</text>
           </view>
         </view>
       </view>
@@ -99,38 +44,19 @@
     <!-- 列表 -->
     <view class="nt-body">
       <!-- 空状态 -->
-      <view
-        v-if="filtered.length === 0"
-        class="nt-empty"
-      >
+      <view v-if="filtered.length === 0" class="nt-empty">
         <view class="nt-empty-icon">
-          <app-icon
-            name="file-text"
-            :size="64"
-            color="#999999"
-          />
+          <app-icon name="file-text" :size="64" color="#999999" />
         </view>
-        <text class="nt-empty-title">
-          暂无笔记
-        </text>
-        <text class="nt-empty-sub">
-          阅读时选中文字可添加笔记
-        </text>
-        <view
-          class="nt-empty-btn"
-          @tap="goHome"
-        >
-          <text class="nt-empty-btn-text">
-            去阅读
-          </text>
+        <text class="nt-empty-title">暂无笔记</text>
+        <text class="nt-empty-sub">阅读时选中文字可添加笔记</text>
+        <view class="nt-empty-btn" @tap="goHome">
+          <text class="nt-empty-btn-text">去阅读</text>
         </view>
       </view>
 
       <!-- 时间线视图 -->
-      <view
-        v-else-if="viewMode === 'timeline'"
-        class="nt-list"
-      >
+      <view v-else-if="viewMode === 'timeline'" class="nt-list">
         <view
           v-for="note in filtered"
           :key="note.id"
@@ -140,108 +66,54 @@
         >
           <view class="nt-card-head">
             <view class="nt-card-book">
-              <text class="nt-card-book-title">
-                《{{ note.bookTitle }}》
-              </text>
-              <text class="nt-card-loc">
-                {{ note.chapter }} · 第{{ note.page }}页
-              </text>
+              <text class="nt-card-book-title">《{{ note.bookTitle }}》</text>
+              <text class="nt-card-loc">{{ note.chapter }} · 第{{ note.page }}页</text>
             </view>
-            <view
-              v-if="!isSelectMode"
-              class="nt-icon-btn"
-              @tap.stop="openItemMenu(note.id)"
-            >
-              <app-icon
-                name="more-vertical"
-                :size="32"
-                color="#999999"
-              />
+            <view v-if="!isSelectMode" class="nt-icon-btn" @tap.stop="openItemMenu(note.id)">
+              <app-icon name="more-vertical" :size="32" color="#999999" />
             </view>
           </view>
 
           <!-- 原文引用 -->
           <view class="nt-quote">
-            <text class="nt-quote-text">
-              {{ note.originalText }}
-            </text>
+            <text class="nt-quote-text">{{ note.originalText }}</text>
           </view>
 
           <!-- 笔记内容 -->
-          <text class="nt-content">
-            {{ note.noteContent }}
-          </text>
+          <text class="nt-content">{{ note.noteContent }}</text>
 
           <!-- 标签和时间 -->
           <view class="nt-meta">
             <view class="nt-tags">
-              <app-icon
-                name="tag"
-                :size="22"
-                color="#999999"
-              />
-              <view
-                v-for="(tag, i) in note.tags"
-                :key="i"
-                class="nt-tag"
-              >
-                <text class="nt-tag-text">
-                  {{ tag }}
-                </text>
+              <app-icon name="tag" :size="22" color="#999999" />
+              <view v-for="(tag, i) in note.tags" :key="i" class="nt-tag">
+                <text class="nt-tag-text">{{ tag }}</text>
               </view>
             </view>
             <view class="nt-time">
-              <app-icon
-                name="clock"
-                :size="22"
-                color="#999999"
-              />
-              <text class="nt-time-text">
-                {{ note.updatedAt }}
-              </text>
+              <app-icon name="clock" :size="22" color="#999999" />
+              <text class="nt-time-text">{{ note.updatedAt }}</text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 按书籍分组视图 -->
-      <view
-        v-else
-        class="nt-groups"
-      >
-        <view
-          v-for="group in grouped"
-          :key="group.bookId"
-          class="nt-group"
-        >
-          <view
-            class="nt-group-head"
-            @tap="goBook(group.bookId)"
-          >
+      <view v-else class="nt-groups">
+        <view v-for="group in grouped" :key="group.bookId" class="nt-group">
+          <view class="nt-group-head" @tap="goBook(group.bookId)">
             <view class="nt-group-left">
               <view class="nt-group-cover">
-                <text class="nt-group-cover-text">
-                  {{ group.bookTitle.slice(0, 2) }}
-                </text>
+                <text class="nt-group-cover-text">{{ group.bookTitle.slice(0, 2) }}</text>
               </view>
               <view class="nt-group-info">
-                <text class="nt-group-title">
-                  《{{ group.bookTitle }}》
-                </text>
-                <text class="nt-group-author">
-                  [{{ group.dynasty }}] {{ group.bookAuthor }}
-                </text>
+                <text class="nt-group-title">《{{ group.bookTitle }}》</text>
+                <text class="nt-group-author">[{{ group.dynasty }}] {{ group.bookAuthor }}</text>
               </view>
             </view>
             <view class="nt-group-right">
-              <text class="nt-group-count">
-                {{ group.count }}条笔记
-              </text>
-              <app-icon
-                name="chevron-right"
-                :size="28"
-                color="#999999"
-              />
+              <text class="nt-group-count">{{ group.count }}条笔记</text>
+              <app-icon name="chevron-right" :size="28" color="#999999" />
             </view>
           </view>
           <view class="nt-group-items">
@@ -252,15 +124,9 @@
               :class="{ 'nt-card--selected': selectedIds.has(note.id) }"
               @tap="isSelectMode && toggleSelect(note.id)"
             >
-              <text class="nt-subcard-loc">
-                {{ note.chapter }} · 第{{ note.page }}页
-              </text>
-              <text class="nt-subcard-quote">
-                {{ note.originalText }}
-              </text>
-              <text class="nt-subcard-content">
-                {{ note.noteContent }}
-              </text>
+              <text class="nt-subcard-loc">{{ note.chapter }} · 第{{ note.page }}页</text>
+              <text class="nt-subcard-quote">{{ note.originalText }}</text>
+              <text class="nt-subcard-content">{{ note.noteContent }}</text>
             </view>
           </view>
         </view>
@@ -270,19 +136,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { classicsApi, type NoteItem } from '@/lib/classics-data'
+import { notesData, type NoteItem } from '@/lib/classics-data'
 
 const searchValue = ref('')
 const selectedIds = ref<Set<string>>(new Set())
 const isSelectMode = ref(false)
-const notes = ref<NoteItem[]>([])
-
-onMounted(async () => {
-  const res = await classicsApi.notes()
-  notes.value = res.items
-})
+const notes = ref<NoteItem[]>([...notesData])
 const viewMode = ref<'timeline' | 'book'>('timeline')
 
 const filtered = computed(() =>

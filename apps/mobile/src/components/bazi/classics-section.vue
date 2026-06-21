@@ -1,148 +1,42 @@
 <script setup lang="ts">
 /** 古籍参考（书封网格 + 原文/译文/对照切换）——对应原型 ClassicsSection */
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import SectionTitle from './section-title.vue'
-import { baziApi } from '@/lib/bazi-result-data'
-
-const loading = ref(true)
-const error = ref<string | null>(null)
-const classicsList = ref<any[]>([])
-const classicsContentMap = ref<Record<string, { title: string; original: string; translation: string }>>({})
+import { classics, classicsContent } from '@/lib/bazi-result-data'
 
 const selected = ref<string | null>(null)
 const mode = ref<'原文' | '译文' | '对照'>('原文')
-
 function toggle(id: string) { selected.value = selected.value === id ? null : id }
-
-async function loadData() {
-  loading.value = true
-  error.value = null
-  try {
-    const res = await baziApi.getClassics('bazi')
-    classicsList.value = res.list
-    classicsContentMap.value = res.content
-  } catch (e: any) {
-    error.value = e.message || '加载古籍失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(loadData)
 </script>
 
 <template>
   <view class="cs">
     <section-title title="古籍参考">
-      <template #extra>
-        <text class="cs-more">
-          更多古籍
-        </text>
-      </template>
+      <template #extra><text class="cs-more">更多古籍</text></template>
     </section-title>
-
-    <!-- loading -->
-    <view
-      v-if="loading"
-      class="state-wrap"
-    >
-      <view class="spinner" />
-    </view>
-
-    <!-- error -->
-    <view
-      v-else-if="error"
-      class="state-wrap"
-    >
-      <text class="state-text">
-        加载失败
-      </text>
-      <view
-        class="retry-btn"
-        @tap="loadData"
-      >
-        重试
+    <view class="cs-grid">
+      <view v-for="b in classics" :key="b.id" class="cs-book" @tap="toggle(b.id)">
+        <view class="cs-cover" :class="{ 'cs-cover-on': selected === b.id }">
+          <view class="cs-cover-bg" />
+          <view class="cs-spine" />
+          <view class="cs-frame"><text class="cs-name-v">{{ b.name }}</text></view>
+        </view>
+        <text class="cs-label" :class="{ 'cs-label-on': selected === b.id }">{{ b.name }}</text>
       </view>
     </view>
-
-    <!-- content -->
-    <template v-else>
-      <view class="cs-grid">
-        <view
-          v-for="b in classicsList"
-          :key="b.id"
-          class="cs-book"
-          @tap="toggle(b.id)"
-        >
-          <view
-            class="cs-cover"
-            :class="{ 'cs-cover-on': selected === b.id }"
-          >
-            <view class="cs-cover-bg" />
-            <view class="cs-spine" />
-            <view class="cs-frame">
-              <text class="cs-name-v">
-                {{ b.name }}
-              </text>
-            </view>
-          </view>
-          <text
-            class="cs-label"
-            :class="{ 'cs-label-on': selected === b.id }"
-          >
-            {{ b.name }}
-          </text>
+    <view v-if="selected && classicsContent[selected]" class="cs-detail">
+      <view class="cs-modes">
+        <view v-for="m in (['原文','译文','对照'] as const)" :key="m" class="cs-mode" :class="{ 'cs-mode-on': mode === m }" @tap="mode = m">
+          <text class="cs-mode-text" :class="{ 'cs-mode-text-on': mode === m }">{{ m }}</text>
         </view>
       </view>
-      <view
-        v-if="selected && classicsContentMap[selected]"
-        class="cs-detail"
-      >
-        <view class="cs-modes">
-          <view
-            v-for="m in (['原文','译文','对照'] as const)"
-            :key="m"
-            class="cs-mode"
-            :class="{ 'cs-mode-on': mode === m }"
-            @tap="mode = m"
-          >
-            <text
-              class="cs-mode-text"
-              :class="{ 'cs-mode-text-on': mode === m }"
-            >
-              {{ m }}
-            </text>
-          </view>
-        </view>
-        <view class="cs-card">
-          <text class="cs-title">
-            {{ classicsContentMap[selected].title }}
-          </text>
-          <text
-            v-if="mode === '原文'"
-            class="cs-body"
-          >
-            {{ classicsContentMap[selected].original }}
-          </text>
-          <text
-            v-else-if="mode === '译文'"
-            class="cs-body"
-          >
-            {{ classicsContentMap[selected].translation }}
-          </text>
-          <text
-            v-else
-            class="cs-body"
-          >
-            <text class="cs-tag-ink">
-              【原文】
-            </text>{{ classicsContentMap[selected].original }}{{ '\n\n' }}<text class="cs-tag-brand">
-              【译文】
-            </text>{{ classicsContentMap[selected].translation }}
-          </text>
-        </view>
+      <view class="cs-card">
+        <text class="cs-title">{{ classicsContent[selected].title }}</text>
+        <text v-if="mode === '原文'" class="cs-body">{{ classicsContent[selected].original }}</text>
+        <text v-else-if="mode === '译文'" class="cs-body">{{ classicsContent[selected].translation }}</text>
+        <text v-else class="cs-body"><text class="cs-tag-ink">【原文】</text>{{ classicsContent[selected].original }}{{ '\n\n' }}<text class="cs-tag-brand">【译文】</text>{{ classicsContent[selected].translation }}</text>
       </view>
-    </template>
+    </view>
   </view>
 </template>
 
@@ -170,21 +64,4 @@ onMounted(loadData)
 .cs-body { font-size: 28rpx; line-height: 1.7; color: var(--text-soft); white-space: pre-line; }
 .cs-tag-ink { color: var(--text-ink); font-weight: 500; }
 .cs-tag-brand { color: var(--brand); font-weight: 500; }
-
-/* 加载/错误状态 */
-.state-wrap {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 48rpx 40rpx; gap: 16rpx;
-}
-.spinner {
-  width: 48rpx; height: 48rpx; border: 4rpx solid var(--border, rgba(0,0,0,0.08));
-  border-top-color: var(--brand); border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.state-text { font-size: 28rpx; color: var(--text-soft); }
-.retry-btn {
-  padding: 12rpx 40rpx; background: var(--brand); border-radius: 999rpx;
-  color: #fff; font-size: 26rpx;
-}
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 拼团信息卡 - 从原型 components/marketing/marketing-slot.tsx GroupBuyInfoCard 迁移 */
+/** 拼团信息卡 - 从原型 components/static/marketing/marketing-slot.tsx GroupBuyInfoCard 迁移 */
 import { ref, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{
@@ -35,43 +35,23 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
   <view class="gb-card">
     <view class="gb-top">
       <view class="gb-info">
-        <text class="gb-icon">
-          拼
-        </text>
+        <text class="gb-icon">拼</text>
         <view>
           <view class="gb-price-row">
-            <text class="gb-price">
-              ¥{{ groupPrice }}
-            </text>
-            <text class="gb-orig">
-              ¥{{ originalPrice }}
-            </text>
-            <text class="gb-tag">
-              {{ peopleNeeded }}人团
-            </text>
+            <text class="gb-price">¥{{ groupPrice }}</text>
+            <text class="gb-orig">¥{{ originalPrice }}</text>
+            <text class="gb-tag">{{ peopleNeeded }}人团</text>
           </view>
-          <text class="gb-desc">
-            已有{{ currentPeople }}人参团，还差{{ peopleNeeded - currentPeople }}人成团
-          </text>
+          <text class="gb-desc">已有{{ currentPeople }}人参团，还差{{ peopleNeeded - currentPeople }}人成团</text>
         </view>
       </view>
       <view class="gb-time">
-        <text class="gb-time-label">
-          剩余时间
-        </text>
-        <text class="gb-time-val">
-          {{ h }}:{{ m }}:{{ s }}
-        </text>
+        <text class="gb-time-label">剩余时间</text>
+        <text class="gb-time-val">{{ h }}:{{ m }}:{{ s }}</text>
       </view>
     </view>
-    <view
-      class="gb-btn"
-      hover-class="gb-btn-press"
-      @tap="emit('join')"
-    >
-      <text class="gb-btn-text">
-        立即参团，省¥{{ originalPrice - groupPrice }}
-      </text>
+    <view class="gb-btn" hover-class="gb-btn-press" @tap="emit('join')">
+      <text class="gb-btn-text">立即参团，省¥{{ originalPrice - groupPrice }}</text>
     </view>
   </view>
 </template>

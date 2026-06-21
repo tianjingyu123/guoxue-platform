@@ -1,71 +1,30 @@
 <template>
-  <view
-    v-if="open"
-    class="ibd-mask"
-    @tap="onClose"
-  >
-    <view
-      class="ibd-card"
-      @tap.stop
-    >
+  <view v-if="open" class="ibd-mask" @tap="onClose">
+    <view class="ibd-card" @tap.stop>
       <view class="ibd-inner">
         <view class="ibd-icon">
-          <AppIcon
-            name="coins"
-            :size="56"
-            color="#C9A96E"
-          />
+          <AppIcon name="coins" :size="28" color="var(--gold, #C9A96E)" />
         </view>
-        <text class="ibd-title">
-          国学币余额不足
-        </text>
+        <text class="ibd-title">国学币余额不足</text>
         <view class="ibd-desc">
-          <text class="ibd-desc-txt">
-            本次需支付
-          </text>
-          <text class="ibd-desc-strong">
-            {{ required }}
-          </text>
-          <text class="ibd-desc-txt">
-            国学币，当前余额
-          </text>
-          <text class="ibd-desc-strong">
-            {{ balance }}
-          </text>
-          <text class="ibd-desc-txt">
-            国学币
-          </text>
+          <text class="ibd-desc-txt">本次需支付 </text>
+          <text class="ibd-desc-strong">{{ required }}</text>
+          <text class="ibd-desc-txt"> 国学币，当前余额 </text>
+          <text class="ibd-desc-strong">{{ balance }}</text>
+          <text class="ibd-desc-txt"> 国学币</text>
         </view>
 
         <view class="ibd-shortfall">
-          <text class="ibd-shortfall-label">
-            还需充值
-          </text>
-          <text class="ibd-shortfall-num">
-            {{ shortfall }} 国学币
-          </text>
+          <text class="ibd-shortfall-label">还需充值</text>
+          <text class="ibd-shortfall-num">{{ shortfall }} 国学币</text>
         </view>
 
-        <view
-          class="ibd-recharge"
-          @tap="goRecharge"
-        >
-          <AppIcon
-            name="wallet"
-            :size="20"
-            color="#fff"
-          />
-          <text class="ibd-recharge-txt">
-            去充值
-          </text>
+        <view class="ibd-recharge" @tap="goRecharge">
+          <AppIcon name="wallet" :size="20" color="#fff" />
+          <text class="ibd-recharge-txt">去充值</text>
         </view>
-        <view
-          class="ibd-cancel"
-          @tap="onClose"
-        >
-          <text class="ibd-cancel-txt">
-            稍后再说
-          </text>
+        <view class="ibd-cancel" @tap="onClose">
+          <text class="ibd-cancel-txt">稍后再说</text>
         </view>
       </view>
     </view>
@@ -103,7 +62,7 @@ function goRecharge() { navigateTo('/wallet/recharge') }
 .ibd-card {
   position: relative;
   width: 100%;
-  background-color: #fff;
+  background-color: var(--card, #fff);
   border-radius: 32rpx 32rpx 0 0;
   padding: 48rpx;
 }
@@ -126,18 +85,18 @@ function goRecharge() { navigateTo('/wallet/recharge') }
 .ibd-title {
   font-size: 36rpx;
   font-weight: 700;
-  color: #2C2C2C;
+  color: var(--foreground, #1a1a1a);
   margin-bottom: 8rpx;
 }
 .ibd-desc {
   font-size: 28rpx;
-  color: #999;
+  color: var(--muted-foreground, #999);
   margin-bottom: 40rpx;
   line-height: 1.5;
 }
 .ibd-desc-strong {
   font-weight: 600;
-  color: #2C2C2C;
+  color: var(--foreground, #1a1a1a);
 }
 .ibd-shortfall {
   width: 100%;
@@ -151,7 +110,7 @@ function goRecharge() { navigateTo('/wallet/recharge') }
 }
 .ibd-shortfall-label {
   font-size: 28rpx;
-  color: #999;
+  color: var(--muted-foreground, #999);
 }
 .ibd-shortfall-num {
   font-size: 40rpx;
@@ -183,6 +142,6 @@ function goRecharge() { navigateTo('/wallet/recharge') }
 }
 .ibd-cancel-txt {
   font-size: 28rpx;
-  color: #999;
+  color: var(--muted-foreground, #999);
 }
 </style>

@@ -52,205 +52,54 @@ function diZhiCls(r: string) {
   <view class="am">
     <!-- 基本信息 -->
     <view class="card info">
-      <text class="info-text">
-        <text class="info-k">
-          名称：
-        </text>{{ data.name }}<text class="info-k ml">
-          性别：
-        </text>{{ data.gender }}<text class="ml">
-          出生于{{ data.solarDate }}（{{ data.lunarDate }}）
-        </text>
-      </text>
-      <view
-        class="info-edit"
-        @tap="emit('edit')"
-      >
-        <app-icon
-          name="pencil"
-          :size="26"
-          color="#9ca3af"
-        />
-      </view>
+      <text class="info-text"><text class="info-k">名称：</text>{{ data.name }}<text class="info-k ml">性别：</text>{{ data.gender }}<text class="ml">出生于{{ data.solarDate }}（{{ data.lunarDate }}）</text></text>
+      <view class="info-edit" @tap="emit('edit')"><app-icon name="pencil" :size="26" color="#9ca3af" /></view>
     </view>
 
     <!-- 八柱总表（横向滚动） -->
     <view class="card">
-      <scroll-view
-        scroll-x
-        class="x-scroll"
-      >
+      <scroll-view scroll-x class="x-scroll">
         <view class="bz-table">
           <view class="bz-head">
             <text class="bz-h bz-h-narrow" />
-            <text
-              v-for="(n, i) in COL_NAMES"
-              :key="n"
-              class="bz-h"
-              :class="{ 'is-brand': i === 2 }"
-            >
-              {{ n }}
-            </text>
-            <text class="bz-h bz-h-sub">
-              大运
-            </text><text class="bz-h bz-h-sub">
-              流年
-            </text><text class="bz-h bz-h-sub">
-              流月
-            </text><text class="bz-h bz-h-sub">
-              流日
-            </text>
+            <text v-for="(n, i) in COL_NAMES" :key="n" class="bz-h" :class="{ 'is-brand': i === 2 }">{{ n }}</text>
+            <text class="bz-h bz-h-sub">大运</text><text class="bz-h bz-h-sub">流年</text><text class="bz-h bz-h-sub">流月</text><text class="bz-h bz-h-sub">流日</text>
           </view>
           <!-- 十神 -->
           <view class="bz-row soft xs">
-            <text class="bz-c narrow">
-              十神
-            </text>
-            <text
-              v-for="k in COLS"
-              :key="k"
-              class="bz-c"
-            >
-              {{ data.siZhu[k].shiShen }}
-            </text>
-            <text class="bz-c sub">
-              {{ currentDaYun.shiShen }}
-            </text><text class="bz-c sub">
-              {{ currentLiuNian.shiShen }}
-            </text>
-            <text class="bz-c sub">
-              {{ GAN_SHI_SHEN[currentLiuYue.gan] }}
-            </text><text class="bz-c sub">
-              {{ GAN_SHI_SHEN[currentLiuRi.gan] }}
-            </text>
+            <text class="bz-c narrow">十神</text>
+            <text v-for="k in COLS" :key="k" class="bz-c">{{ data.siZhu[k].shiShen }}</text>
+            <text class="bz-c sub">{{ currentDaYun.shiShen }}</text><text class="bz-c sub">{{ currentLiuNian.shiShen }}</text>
+            <text class="bz-c sub">{{ GAN_SHI_SHEN[currentLiuYue.gan] }}</text><text class="bz-c sub">{{ GAN_SHI_SHEN[currentLiuRi.gan] }}</text>
           </view>
           <!-- 天干 -->
           <view class="bz-row tint">
-            <text class="bz-c narrow brand xs">
-              {{ data.qianKun }}
-            </text>
-            <text
-              v-for="k in COLS"
-              :key="k"
-              class="bz-c bz-gz"
-              :class="wuxingColorClass[data.siZhu[k].gan]"
-            >
-              {{ data.siZhu[k].gan }}
-            </text>
-            <text
-              class="bz-c sub bz-gz"
-              :class="wuxingColorClass[currentDaYun.gan]"
-            >
-              {{ currentDaYun.gan }}
-            </text>
-            <text
-              class="bz-c sub bz-gz"
-              :class="wuxingColorClass[currentLiuNian.gan]"
-            >
-              {{ currentLiuNian.gan }}
-            </text>
-            <text
-              class="bz-c sub bz-gz"
-              :class="wuxingColorClass[currentLiuYue.gan]"
-            >
-              {{ currentLiuYue.gan }}
-            </text>
-            <text
-              class="bz-c sub bz-gz"
-              :class="wuxingColorClass[currentLiuRi.gan]"
-            >
-              {{ currentLiuRi.gan }}
-            </text>
+            <text class="bz-c narrow brand xs">{{ data.qianKun }}</text>
+            <text v-for="k in COLS" :key="k" class="bz-c bz-gz" :class="wuxingColorClass[data.siZhu[k].gan]">{{ data.siZhu[k].gan }}</text>
+            <text class="bz-c sub bz-gz" :class="wuxingColorClass[currentDaYun.gan]">{{ currentDaYun.gan }}</text>
+            <text class="bz-c sub bz-gz" :class="wuxingColorClass[currentLiuNian.gan]">{{ currentLiuNian.gan }}</text>
+            <text class="bz-c sub bz-gz" :class="wuxingColorClass[currentLiuYue.gan]">{{ currentLiuYue.gan }}</text>
+            <text class="bz-c sub bz-gz" :class="wuxingColorClass[currentLiuRi.gan]">{{ currentLiuRi.gan }}</text>
           </view>
           <!-- 地支 -->
           <view class="bz-row tint">
             <text class="bz-c narrow" />
-            <text
-              v-for="k in COLS"
-              :key="k"
-              class="bz-c bz-gz"
-              :class="wuxingColorClass[data.siZhu[k].zhi]"
-            >
-              {{ data.siZhu[k].zhi }}
-            </text>
-            <text
-              class="bz-c sub bz-gz"
-              :class="wuxingColorClass[currentDaYun.zhi]"
-            >
-              {{ currentDaYun.zhi }}
-            </text>
-            <text
-              class="bz-c sub bz-gz"
-              :class="wuxingColorClass[currentLiuNian.zhi]"
-            >
-              {{ currentLiuNian.zhi }}
-            </text>
-            <text
-              class="bz-c sub bz-gz"
-              :class="wuxingColorClass[currentLiuYue.zhi]"
-            >
-              {{ currentLiuYue.zhi }}
-            </text>
-            <text
-              class="bz-c sub bz-gz"
-              :class="wuxingColorClass[currentLiuRi.zhi]"
-            >
-              {{ currentLiuRi.zhi }}
-            </text>
+            <text v-for="k in COLS" :key="k" class="bz-c bz-gz" :class="wuxingColorClass[data.siZhu[k].zhi]">{{ data.siZhu[k].zhi }}</text>
+            <text class="bz-c sub bz-gz" :class="wuxingColorClass[currentDaYun.zhi]">{{ currentDaYun.zhi }}</text>
+            <text class="bz-c sub bz-gz" :class="wuxingColorClass[currentLiuNian.zhi]">{{ currentLiuNian.zhi }}</text>
+            <text class="bz-c sub bz-gz" :class="wuxingColorClass[currentLiuYue.zhi]">{{ currentLiuYue.zhi }}</text>
+            <text class="bz-c sub bz-gz" :class="wuxingColorClass[currentLiuRi.zhi]">{{ currentLiuRi.zhi }}</text>
           </view>
           <!-- 藏干 -->
           <view class="bz-row xs">
-            <text class="bz-c narrow brand">
-              藏干
-            </text>
-            <view
-              v-for="k in COLS"
-              :key="k"
-              class="bz-c cang"
-            >
-              <view class="cang-gan">
-                <text
-                  v-for="(c, i) in data.siZhu[k].cangGan"
-                  :key="i"
-                  class="cang-char"
-                  :class="wuxingColorClass[c.gan]"
-                >
-                  {{ c.gan }}
-                </text>
-              </view>
-              <view class="cang-shen">
-                <text
-                  v-for="(c, i) in data.siZhu[k].cangGan"
-                  :key="i"
-                  class="cang-shen-t"
-                >
-                  {{ c.shen }}
-                </text>
-              </view>
+            <text class="bz-c narrow brand">藏干</text>
+            <view v-for="k in COLS" :key="k" class="bz-c cang">
+              <view class="cang-gan"><text v-for="(c, i) in data.siZhu[k].cangGan" :key="i" class="cang-char" :class="wuxingColorClass[c.gan]">{{ c.gan }}</text></view>
+              <view class="cang-shen"><text v-for="(c, i) in data.siZhu[k].cangGan" :key="i" class="cang-shen-t">{{ c.shen }}</text></view>
             </view>
-            <view
-              v-for="(item, idx) in [currentDaYun, currentLiuNian, currentLiuYue, currentLiuRi]"
-              :key="idx"
-              class="bz-c sub cang"
-            >
-              <view class="cang-gan">
-                <text
-                  v-for="(c, i) in cangOf(item.zhi)"
-                  :key="i"
-                  class="cang-char"
-                  :class="wuxingColorClass[c.gan]"
-                >
-                  {{ c.gan }}
-                </text>
-              </view>
-              <view class="cang-shen">
-                <text
-                  v-for="(c, i) in cangOf(item.zhi)"
-                  :key="i"
-                  class="cang-shen-t"
-                >
-                  {{ c.shen }}
-                </text>
-              </view>
+            <view v-for="(item, idx) in [currentDaYun, currentLiuNian, currentLiuYue, currentLiuRi]" :key="idx" class="bz-c sub cang">
+              <view class="cang-gan"><text v-for="(c, i) in cangOf(item.zhi)" :key="i" class="cang-char" :class="wuxingColorClass[c.gan]">{{ c.gan }}</text></view>
+              <view class="cang-shen"><text v-for="(c, i) in cangOf(item.zhi)" :key="i" class="cang-shen-t">{{ c.shen }}</text></view>
             </view>
           </view>
         </view>
@@ -261,90 +110,25 @@ function diZhiCls(r: string) {
     <view class="card">
       <section-title title="提示" />
       <view class="rel">
-        <view class="rel-row">
-          <text
-            v-for="(r, i) in data.relations.tianGan"
-            :key="i"
-            class="rel-tag wxb-wood"
-          >
-            【{{ r }}】
-          </text>
-        </view>
-        <view class="rel-row">
-          <text
-            v-for="(r, i) in data.relations.diZhi"
-            :key="i"
-            class="rel-tag"
-            :class="diZhiCls(r)"
-          >
-            【{{ r }}】
-          </text>
-        </view>
-        <view class="rel-row">
-          <text
-            v-for="(r, i) in data.relations.zhengZhu"
-            :key="i"
-            class="rel-tag wxb-water"
-          >
-            【{{ r }}】
-          </text>
-        </view>
+        <view class="rel-row"><text v-for="(r, i) in data.relations.tianGan" :key="i" class="rel-tag wxb-wood">【{{ r }}】</text></view>
+        <view class="rel-row"><text v-for="(r, i) in data.relations.diZhi" :key="i" class="rel-tag" :class="diZhiCls(r)">【{{ r }}】</text></view>
+        <view class="rel-row"><text v-for="(r, i) in data.relations.zhengZhu" :key="i" class="rel-tag wxb-water">【{{ r }}】</text></view>
       </view>
     </view>
 
     <!-- 大运选择 -->
     <view class="card">
-      <section-title title="大运">
-        <template #extra>
-          <text class="hint">
-            点击选择
-          </text>
-        </template>
-      </section-title>
+      <section-title title="大运"><template #extra><text class="hint">点击选择</text></template></section-title>
       <view class="sel-table">
-        <view class="sel-row years">
-          <text
-            v-for="(d, i) in data.daYun"
-            :key="i"
-            class="sel-c"
-          >
-            {{ d.year }}
-          </text>
-        </view>
+        <view class="sel-row years"><text v-for="(d, i) in data.daYun" :key="i" class="sel-c">{{ d.year }}</text></view>
         <view class="sel-row">
-          <view
-            v-for="(d, i) in data.daYun"
-            :key="i"
-            class="sel-c click"
-            :class="{ selp: selectedDaYun === i, active: d.active }"
-            @tap="selectDaYun(i)"
-          >
-            <text
-              class="sel-char"
-              :class="selectedDaYun === i ? 'c-brand' : wuxingColorClass[d.gan]"
-            >
-              {{ d.gan }}
-            </text><text class="sel-shen">
-              {{ d.shiShen }}
-            </text>
+          <view v-for="(d, i) in data.daYun" :key="i" class="sel-c click" :class="{ selp: selectedDaYun === i, active: d.active }" @tap="selectDaYun(i)">
+            <text class="sel-char" :class="selectedDaYun === i ? 'c-brand' : wuxingColorClass[d.gan]">{{ d.gan }}</text><text class="sel-shen">{{ d.shiShen }}</text>
           </view>
         </view>
         <view class="sel-row">
-          <view
-            v-for="(d, i) in data.daYun"
-            :key="i"
-            class="sel-c click"
-            :class="{ selp: selectedDaYun === i, active: d.active }"
-            @tap="selectDaYun(i)"
-          >
-            <text
-              class="sel-char"
-              :class="selectedDaYun === i ? 'c-brand' : wuxingColorClass[d.zhi]"
-            >
-              {{ d.zhi }}
-            </text><text class="sel-shen">
-              {{ d.shiShenZhi }}
-            </text>
+          <view v-for="(d, i) in data.daYun" :key="i" class="sel-c click" :class="{ selp: selectedDaYun === i, active: d.active }" @tap="selectDaYun(i)">
+            <text class="sel-char" :class="selectedDaYun === i ? 'c-brand' : wuxingColorClass[d.zhi]">{{ d.zhi }}</text><text class="sel-shen">{{ d.shiShenZhi }}</text>
           </view>
         </view>
       </view>
@@ -352,69 +136,20 @@ function diZhiCls(r: string) {
 
     <!-- 流年 -->
     <view class="card">
-      <section-title title="流年">
-        <template #extra>
-          <text class="hint">
-            {{ data.daYun[selectedDaYun]?.year }}-{{ data.daYun[selectedDaYun]?.year + 9 }}
-          </text>
-        </template>
-      </section-title>
+      <section-title title="流年"><template #extra><text class="hint">{{ data.daYun[selectedDaYun]?.year }}-{{ data.daYun[selectedDaYun]?.year + 9 }}</text></template></section-title>
       <view class="sel-table">
-        <view class="sel-row years">
-          <text
-            v-for="(n, i) in dynamicLiuNian"
-            :key="i"
-            class="sel-c"
-          >
-            {{ n.year }}
-          </text>
-        </view>
+        <view class="sel-row years"><text v-for="(n, i) in dynamicLiuNian" :key="i" class="sel-c">{{ n.year }}</text></view>
         <view class="sel-row">
-          <view
-            v-for="(n, i) in dynamicLiuNian"
-            :key="i"
-            class="sel-c click"
-            :class="{ selw: selectedLiuNian === i, active: n.active }"
-            @tap="selectedLiuNian = i"
-          >
-            <text
-              class="sel-char sm"
-              :class="selectedLiuNian === i ? 'c-water' : wuxingColorClass[n.gan]"
-            >
-              {{ n.gan }}
-            </text><text class="sel-shen">
-              {{ n.shiShen }}
-            </text>
+          <view v-for="(n, i) in dynamicLiuNian" :key="i" class="sel-c click" :class="{ selw: selectedLiuNian === i, active: n.active }" @tap="selectedLiuNian = i">
+            <text class="sel-char sm" :class="selectedLiuNian === i ? 'c-water' : wuxingColorClass[n.gan]">{{ n.gan }}</text><text class="sel-shen">{{ n.shiShen }}</text>
           </view>
         </view>
         <view class="sel-row">
-          <view
-            v-for="(n, i) in dynamicLiuNian"
-            :key="i"
-            class="sel-c click"
-            :class="{ selw: selectedLiuNian === i, active: n.active }"
-            @tap="selectedLiuNian = i"
-          >
-            <text
-              class="sel-char sm"
-              :class="selectedLiuNian === i ? 'c-water' : wuxingColorClass[n.zhi]"
-            >
-              {{ n.zhi }}
-            </text><text class="sel-shen">
-              {{ n.shiShenZhi }}
-            </text>
+          <view v-for="(n, i) in dynamicLiuNian" :key="i" class="sel-c click" :class="{ selw: selectedLiuNian === i, active: n.active }" @tap="selectedLiuNian = i">
+            <text class="sel-char sm" :class="selectedLiuNian === i ? 'c-water' : wuxingColorClass[n.zhi]">{{ n.zhi }}</text><text class="sel-shen">{{ n.shiShenZhi }}</text>
           </view>
         </view>
-        <view class="sel-row years">
-          <text
-            v-for="(n, i) in dynamicLiuNian"
-            :key="i"
-            class="sel-c"
-            :class="{ selw: selectedLiuNian === i }"
-          >
-            {{ n.age }}岁
-          </text>
-        </view>
+        <view class="sel-row years"><text v-for="(n, i) in dynamicLiuNian" :key="i" class="sel-c" :class="{ selw: selectedLiuNian === i }">{{ n.age }}岁</text></view>
       </view>
     </view>
 
@@ -422,49 +157,15 @@ function diZhiCls(r: string) {
     <view class="card">
       <section-title title="流月" />
       <view class="sel-table">
-        <view class="sel-row years">
-          <text
-            v-for="(m, i) in liuYueData"
-            :key="i"
-            class="sel-c"
-          >
-            {{ m.month }}月
-          </text>
-        </view>
+        <view class="sel-row years"><text v-for="(m, i) in liuYueData" :key="i" class="sel-c">{{ m.month }}月</text></view>
         <view class="sel-row">
-          <view
-            v-for="(m, i) in liuYueData"
-            :key="i"
-            class="sel-c click"
-            :class="{ sele: selectedLiuYue === i }"
-            @tap="selectedLiuYue = i"
-          >
-            <text
-              class="sel-char sm"
-              :class="selectedLiuYue === i ? 'c-earth' : wuxingColorClass[m.gan]"
-            >
-              {{ m.gan }}
-            </text><text class="sel-shen">
-              {{ m.shiShen }}
-            </text>
+          <view v-for="(m, i) in liuYueData" :key="i" class="sel-c click" :class="{ sele: selectedLiuYue === i }" @tap="selectedLiuYue = i">
+            <text class="sel-char sm" :class="selectedLiuYue === i ? 'c-earth' : wuxingColorClass[m.gan]">{{ m.gan }}</text><text class="sel-shen">{{ m.shiShen }}</text>
           </view>
         </view>
         <view class="sel-row">
-          <view
-            v-for="(m, i) in liuYueData"
-            :key="i"
-            class="sel-c click"
-            :class="{ sele: selectedLiuYue === i }"
-            @tap="selectedLiuYue = i"
-          >
-            <text
-              class="sel-char sm"
-              :class="selectedLiuYue === i ? 'c-earth' : wuxingColorClass[m.zhi]"
-            >
-              {{ m.zhi }}
-            </text><text class="sel-shen">
-              {{ m.shiShenZhi }}
-            </text>
+          <view v-for="(m, i) in liuYueData" :key="i" class="sel-c click" :class="{ sele: selectedLiuYue === i }" @tap="selectedLiuYue = i">
+            <text class="sel-char sm" :class="selectedLiuYue === i ? 'c-earth' : wuxingColorClass[m.zhi]">{{ m.zhi }}</text><text class="sel-shen">{{ m.shiShenZhi }}</text>
           </view>
         </view>
       </view>
@@ -474,51 +175,20 @@ function diZhiCls(r: string) {
     <view class="card">
       <section-title title="流日" />
       <view class="lr-grid">
-        <view
-          v-for="(d, i) in liuRiData"
-          :key="i"
-          class="lr-cell"
-          :class="{ selp: selectedLiuRi === i }"
-          @tap="selectedLiuRi = i"
-        >
-          <text class="lr-day">
-            {{ d.day }}
-          </text>
-          <text
-            class="lr-char"
-            :class="selectedLiuRi === i ? 'c-brand' : wuxingColorClass[d.gan]"
-          >
-            {{ d.gan }}
-          </text>
-          <text
-            class="lr-char"
-            :class="selectedLiuRi === i ? 'c-brand' : wuxingColorClass[d.zhi]"
-          >
-            {{ d.zhi }}
-          </text>
+        <view v-for="(d, i) in liuRiData" :key="i" class="lr-cell" :class="{ selp: selectedLiuRi === i }" @tap="selectedLiuRi = i">
+          <text class="lr-day">{{ d.day }}</text>
+          <text class="lr-char" :class="selectedLiuRi === i ? 'c-brand' : wuxingColorClass[d.gan]">{{ d.gan }}</text>
+          <text class="lr-char" :class="selectedLiuRi === i ? 'c-brand' : wuxingColorClass[d.zhi]">{{ d.zhi }}</text>
         </view>
-        <view
-          v-for="i in emptyTail"
-          :key="'e' + i"
-          class="lr-cell lr-empty"
-        />
+        <view v-for="i in emptyTail" :key="'e' + i" class="lr-cell lr-empty" />
       </view>
     </view>
 
     <!-- 五行状态 -->
     <view class="card pad">
-      <text class="blk-title">
-        五行状态
-      </text>
+      <text class="blk-title">五行状态</text>
       <view class="wx-around">
-        <text
-          v-for="([el, st]) in Object.entries(data.wuxingState)"
-          :key="el"
-          class="wx-tag-lg"
-          :class="wuxingBgClass[el]"
-        >
-          {{ el }}{{ st }}
-        </text>
+        <text v-for="([el, st]) in Object.entries(data.wuxingState)" :key="el" class="wx-tag-lg" :class="wuxingBgClass[el]">{{ el }}{{ st }}</text>
       </view>
     </view>
 
@@ -526,27 +196,9 @@ function diZhiCls(r: string) {
     <view class="card">
       <section-title title="四柱神煞" />
       <view class="ss-list">
-        <view
-          v-for="k in COLS"
-          :key="k"
-          class="ss-line"
-        >
-          <view class="ss-gz">
-            <text
-              class="ss-gz-char"
-              :class="wuxingColorClass[data.siZhu[k].gan]"
-            >
-              {{ data.siZhu[k].gan }}
-            </text><text
-              class="ss-gz-char"
-              :class="wuxingColorClass[data.siZhu[k].zhi]"
-            >
-              {{ data.siZhu[k].zhi }}
-            </text>
-          </view>
-          <text class="ss-text">
-            {{ data.shenSha[k].join('、') }}
-          </text>
+        <view v-for="k in COLS" :key="k" class="ss-line">
+          <view class="ss-gz"><text class="ss-gz-char" :class="wuxingColorClass[data.siZhu[k].gan]">{{ data.siZhu[k].gan }}</text><text class="ss-gz-char" :class="wuxingColorClass[data.siZhu[k].zhi]">{{ data.siZhu[k].zhi }}</text></view>
+          <text class="ss-text">{{ data.shenSha[k].join('、') }}</text>
         </view>
       </view>
     </view>
@@ -555,63 +207,23 @@ function diZhiCls(r: string) {
     <view class="card">
       <section-title title="大运神煞" />
       <view class="ss-single">
-        <view class="ss-gz">
-          <text
-            class="ss-gz-char"
-            :class="wuxingColorClass[currentDaYun.gan]"
-          >
-            {{ currentDaYun.gan }}
-          </text><text
-            class="ss-gz-char"
-            :class="wuxingColorClass[currentDaYun.zhi]"
-          >
-            {{ currentDaYun.zhi }}
-          </text>
-        </view>
-        <text class="ss-text">
-          天乙贵人、太极贵人、德秀贵人、文昌贵人、天德秀贵
-        </text>
+        <view class="ss-gz"><text class="ss-gz-char" :class="wuxingColorClass[currentDaYun.gan]">{{ currentDaYun.gan }}</text><text class="ss-gz-char" :class="wuxingColorClass[currentDaYun.zhi]">{{ currentDaYun.zhi }}</text></view>
+        <text class="ss-text">天乙贵人、太极贵人、德秀贵人、文昌贵人、天德秀贵</text>
       </view>
     </view>
     <view class="card">
       <section-title title="流年神煞" />
       <view class="ss-single">
-        <view class="ss-gz">
-          <text
-            class="ss-gz-char"
-            :class="wuxingColorClass[currentLiuNian.gan]"
-          >
-            {{ currentLiuNian.gan }}
-          </text><text
-            class="ss-gz-char"
-            :class="wuxingColorClass[currentLiuNian.zhi]"
-          >
-            {{ currentLiuNian.zhi }}
-          </text>
-        </view>
-        <text class="ss-text">
-          德秀贵人、将星、桃花、血刃、羊刃
-        </text>
+        <view class="ss-gz"><text class="ss-gz-char" :class="wuxingColorClass[currentLiuNian.gan]">{{ currentLiuNian.gan }}</text><text class="ss-gz-char" :class="wuxingColorClass[currentLiuNian.zhi]">{{ currentLiuNian.zhi }}</text></view>
+        <text class="ss-text">德秀贵人、将星、桃花、血刃、羊刃</text>
       </view>
     </view>
 
     <classics-section />
 
     <view class="btn-pair">
-      <view class="pair-btn brand">
-        <app-icon
-          name="sparkles"
-          :size="36"
-          color="#ffffff"
-        /><text class="pair-text">
-          AI辅助分析
-        </text>
-      </view>
-      <view class="pair-btn accent">
-        <text class="pair-text">
-          命理奇门局
-        </text>
-      </view>
+      <view class="pair-btn brand"><app-icon name="sparkles" :size="36" color="#ffffff" /><text class="pair-text">AI辅助分析</text></view>
+      <view class="pair-btn accent"><text class="pair-text">命理奇门局</text></view>
     </view>
   </view>
 </template>

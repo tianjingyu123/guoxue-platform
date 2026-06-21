@@ -9,79 +9,27 @@ function open() { navigateTo(`/classics/${props.data.id}`) }
 </script>
 
 <template>
-  <view
-    class="card"
-    hover-class="card-press"
-    @tap="open"
-  >
+  <view class="card" hover-class="card-press" @tap="open">
     <!-- 印章装饰 -->
-    <view class="seal">
-      <text class="seal-txt">
-        典藏
-      </text>
-    </view>
+    <view class="seal"><text class="seal-txt">典藏</text></view>
     <view class="inner">
       <!-- 标签 -->
       <view class="tags">
-        <text
-          v-if="data.isFree"
-          class="tag tag-free"
-        >
-          免费
-        </text>
-        <view
-          v-if="data.hasAudio"
-          class="tag tag-audio"
-        >
-          <AppIcon
-            name="mic"
-            :size="18"
-            color="#ffffff"
-          /><text>有声</text>
-        </view>
-        <text
-          v-if="data.dynasty"
-          class="tag-dynasty"
-        >
-          {{ data.dynasty }}代
-        </text>
+        <text v-if="data.isFree" class="tag tag-free">免费</text>
+        <view v-if="data.hasAudio" class="tag tag-audio"><AppIcon name="mic" :size="18" color="#ffffff" /><text>有声</text></view>
+        <text v-if="data.dynasty" class="tag-dynasty">{{ data.dynasty }}代</text>
       </view>
       <!-- 书名区 -->
       <view class="title-area">
-        <text class="book-title">
-          {{ data.title }}
-        </text>
-        <text
-          v-if="data.author"
-          class="book-author"
-        >
-          {{ data.author }} 著
-        </text>
+        <text class="book-title">{{ data.title }}</text>
+        <text v-if="data.author" class="book-author">{{ data.author }} 著</text>
       </view>
       <!-- 底部 -->
-      <text
-        v-if="data.description"
-        class="desc"
-      >
-        {{ data.description }}
-      </text>
+      <text v-if="data.description" class="desc">{{ data.description }}</text>
       <view class="foot">
-        <text
-          v-if="data.readers"
-          class="readers"
-        >
-          {{ formatCount(data.readers) }}人阅读
-        </text>
+        <text v-if="data.readers" class="readers">{{ formatCount(data.readers) }}人阅读</text>
         <text v-else />
-        <view class="read-btn">
-          <AppIcon
-            name="book-open"
-            :size="22"
-            color="#c41e3a"
-          /><text class="read-txt">
-            开始阅读
-          </text>
-        </view>
+        <view class="read-btn"><AppIcon name="book-open" :size="22" color="#c41e3a" /><text class="read-txt">开始阅读</text></view>
       </view>
     </view>
   </view>

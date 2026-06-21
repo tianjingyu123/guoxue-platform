@@ -1,38 +1,92 @@
 <template>
-  <view
-    v-if="visible"
-    class="ds-mask"
-    @tap="$emit('close')"
-  >
-    <view
-      class="ds-sheet"
-      @tap.stop
-    >
-      <text class="ds-title">
-        讨论区
-      </text>
-      <view class="ds-body">
-        <text class="ds-empty">
-          暂无讨论
-        </text>
+  <view>
+    <!-- 遮罩 -->
+    <view class="ds-mask" :class="{ 'ds-mask-on': open }" @tap="emit('close')" />
+    <!-- 弹层主体 -->
+    <view class="ds-sheet" :class="{ 'ds-sheet-on': open }">
+      <view class="ds-grab-wrap">
+        <view class="ds-grab" />
+        <view class="ds-close" @tap="emit('close')">
+          <app-icon name="x" :size="40" color="#999999" />
+        </view>
       </view>
+      <discussion-panel
+        :config="config"
+        :items="items"
+        :inline="true"
+        :enable-a-i-assist="enableAIAssist"
+        class="ds-panel"
+      />
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-defineProps<{ visible: boolean }>()
-defineEmits<{ close: [] }>()
+import DiscussionPanel from '@/components/common/discussion-panel.vue'
+import type { DiscussionConfig, DiscussionItem } from '@/lib/discussion-types'
+
+defineProps<{
+  open: boolean
+  config: DiscussionConfig
+  items: DiscussionItem[]
+  enableAIAssist?: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'close'): void
+}>()
 </script>
 
 <style scoped>
 .ds-mask {
-  position: fixed; inset: 0; background: rgba(0,0,0,.5);
-  display: flex; align-items: flex-end; z-index: 1000;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.ds-mask-on {
+  opacity: 1;
+  pointer-events: auto;
 }
 .ds-sheet {
-  width: 100%; height: 60%; background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 40rpx;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  height: 80vh;
+  border-radius: 32rpx 32rpx 0 0;
+  background: var(--card);
+  transform: translateY(100%);
+  transition: transform 0.3s;
 }
-.ds-title { font-size: 36rpx; font-weight: 600; }
-.ds-empty { color: #999; margin-top: 40rpx; text-align: center; }
+.ds-sheet-on {
+  transform: translateY(0);
+}
+.ds-grab-wrap {
+  position: relative;
+  flex-shrink: 0;
+  padding: 16rpx 32rpx 0;
+}
+.ds-grab {
+  width: 80rpx;
+  height: 8rpx;
+  border-radius: 999rpx;
+  background: rgba(150, 150, 150, 0.3);
+  margin: 0 auto;
+}
+.ds-close {
+  position: absolute;
+  right: 32rpx;
+  top: 12rpx;
+}
+.ds-panel {
+  min-height: 0;
+  flex: 1;
+}
 </style>

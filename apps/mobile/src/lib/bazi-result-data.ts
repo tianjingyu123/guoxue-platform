@@ -1,5 +1,7 @@
 /** 八字结果页示例数据（从原型 result/page.tsx 1:1 迁移） */
+import { GAN_SHI_SHEN } from './bazi-constants'
 import { apiGet, apiPost, useMock } from '@/utils/request'
+
 export const baziData = {
   name: '未知', gender: '男', zodiac: '猪', qianKun: '乾造', birthYear: 1983,
   solarDate: '1983年6月18日 14时31分', lunarDate: '五月初八',
@@ -83,36 +85,37 @@ export const classicsContent: Record<string, { title: string; original: string; 
   },
 }
 
-// ============================================
-// API 层：useMock 开关控制真实/模拟数据切换
-// ============================================
+// ── API ──
 
 export const baziApi = {
-  /** 排盘计算（八字/紫微/奇门等） */
-  async calculate(toolId: string, params: Record<string, any>) {
+  /** 八字排盘计算 POST /paipan/bazi */
+  async calculate(input: Record<string, unknown>): Promise<any> {
     if (useMock()) return baziData
-    try {
-      const data = await apiPost<any>(`/tools/${toolId}/calculate`, params)
-      return data.result || data
-    } catch { return baziData }
+    try { return await apiPost<any>('/paipan/bazi', input) } catch { return baziData }
   },
-
-  /** 获取古籍参考 */
-  async getClassics(toolId: string) {
-    if (useMock()) return { list: classics, content: classicsContent }
-    try {
-      const data = await apiGet<any>(`/tools/${toolId}/classics`)
-      return { list: data.list || classics, content: data.content || classicsContent }
-    } catch { return { list: classics, content: classicsContent } }
+  /** 八字排盘预览 POST /paipan/bazi/preview */
+  async preview(input: Record<string, unknown>): Promise<any> {
+    if (useMock()) return baziData
+    try { return await apiPost<any>('/paipan/bazi/preview', input) } catch { return baziData }
   },
-
-  /** 获取排盘历史 — GET /tools/analysis/history/mine */
-  async history(toolId?: string) {
-    if (useMock()) return [baziData]
-    try {
-      const qs = toolId ? `?toolId=${toolId}` : ''
-      const data = await apiGet<any[]>(`/tools/analysis/history/mine${qs}`)
-      return data.length ? data : [baziData]
-    } catch { return [baziData] }
+  /** 保存排盘记录 */
+  async save(input: Record<string, unknown>): Promise<{ id: string }> {
+    if (useMock()) return { id: 'mock-bazi-id' }
+    return await apiPost<{ id: string }>('/paipan/bazi', input)
+  },
+  /** 获取单条记录 GET /paipan/bazi/:id */
+  async detail(id: string): Promise<any> {
+    if (useMock()) return { ...baziData, id }
+    try { return await apiGet<any>(`/paipan/bazi/${id}`) } catch { return { ...baziData, id } }
+  },
+  /** 排盘历史 GET /paipan/bazi */
+  async history(page = 1, pageSize = 20): Promise<{ records: any[]; total: number }> {
+    if (useMock()) return { records: [{ id: 'mock-1', createdAt: new Date().toISOString() }], total: 1 }
+    try { return await apiGet<any>(`/paipan/bazi?page=${page}&pageSize=${pageSize}`) } catch { return { records: [], total: 0 } }
+  },
+  /** 八字分析 POST /paipan/bazi/analyze */
+  async analyze(id: string): Promise<any> {
+    if (useMock()) return { analysis: '命局分析mock结果' }
+    try { return await apiPost<any>('/paipan/bazi/analyze', { id }) } catch { return { analysis: '加载失败' } }
   },
 }

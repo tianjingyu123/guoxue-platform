@@ -1,23 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { mineContentApi, historyTypeConfig, type HistoryGroup, type HistoryItem } from '@/lib/mine-data'
+import {
+  historyGroups as seedGroups,
+  historyTypeConfig,
+  type HistoryGroup,
+  type HistoryItem,
+} from '@/lib/mine-data'
 
-const groups = ref<HistoryGroup[]>([])
-const loading = ref(true)
-const error = ref('')
-
-onMounted(async () => {
-  try {
-    const data = await mineContentApi.getHistory()
-    groups.value = (data.groups || data || []).map((g: any) => ({ ...g, items: (g.items || []).map((i: any) => ({ ...i })) }))
-  } catch (e) {
-    groups.value = []
-  } finally {
-    loading.value = false
-  }
-})
+const groups = ref<HistoryGroup[]>(seedGroups.map((g) => ({ ...g, items: g.items.map((i) => ({ ...i })) })))
 const showClearConfirm = ref(false)
 const activeId = ref<string | null>(null)
 
@@ -65,95 +57,37 @@ function openItem() {
 
 <template>
   <view class="page">
-    <app-nav-bar
-      title="浏览历史"
-      :back-size="40"
-    >
+    <app-nav-bar title="浏览历史" :back-size="40">
       <template #right>
-        <text
-          v-if="totalCount > 0"
-          class="nav-action"
-          @tap="showClearConfirm = true"
-        >
-          清空
-        </text>
+        <text v-if="totalCount > 0" class="nav-action" @tap="showClearConfirm = true">清空</text>
       </template>
     </app-nav-bar>
 
     <!-- 统计条 -->
-    <view
-      v-if="totalCount > 0"
-      class="stat-bar"
-    >
+    <view v-if="totalCount > 0" class="stat-bar">
       <view class="stat-cell">
-        <AppIcon
-          name="clock"
-          :size="32"
-          color="#8a8178"
-        />
-        <text class="stat-text">
-          共 {{ totalCount }} 条记录
-        </text>
+        <AppIcon name="clock" :size="16" color="#8a8178" />
+        <text class="stat-text">共 {{ totalCount }} 条记录</text>
       </view>
       <view class="stat-cell">
-        <AppIcon
-          name="calendar"
-          :size="32"
-          color="#8a8178"
-        />
-        <text class="stat-text">
-          近30天
-        </text>
+        <AppIcon name="calendar" :size="16" color="#8a8178" />
+        <text class="stat-text">近30天</text>
       </view>
     </view>
 
     <!-- 空态 -->
-    <view
-      v-if="totalCount === 0"
-      class="empty"
-    >
-      <view class="empty-icon">
-        <AppIcon
-          name="clock"
-          :size="88"
-          color="#C9C2B6"
-        />
-      </view>
-      <text class="empty-title">
-        暂无浏览记录
-      </text>
-      <text class="empty-desc">
-        去发现更多精彩内容吧
-      </text>
-      <view
-        class="empty-btn"
-        @tap="goBack"
-      >
-        <text class="empty-btn-text">
-          去逛逛
-        </text>
-      </view>
+    <view v-if="totalCount === 0" class="empty">
+      <view class="empty-icon"><AppIcon name="clock" :size="44" color="#C9C2B6" /></view>
+      <text class="empty-title">暂无浏览记录</text>
+      <text class="empty-desc">去发现更多精彩内容吧</text>
+      <view class="empty-btn" @tap="goBack"><text class="empty-btn-text">去逛逛</text></view>
     </view>
 
-    <scroll-view
-      v-else
-      scroll-y
-      class="scroll"
-    >
-      <view
-        v-for="group in groups"
-        :key="group.date"
-        class="group"
-      >
-        <text class="group-label">
-          {{ group.label }}
-        </text>
+    <scroll-view v-else scroll-y class="scroll">
+      <view v-for="group in groups" :key="group.date" class="group">
+        <text class="group-label">{{ group.label }}</text>
         <view class="item-list">
-          <view
-            v-for="item in group.items"
-            :key="item.id"
-            class="item-wrap"
-          >
+          <view v-for="item in group.items" :key="item.id" class="item-wrap">
             <view
               class="item"
               :style="{ transform: activeId === item.id ? 'translateX(-160rpx)' : 'translateX(0)' }"
@@ -163,33 +97,16 @@ function openItem() {
               @touchend="onTouchEnd(item.id)"
             >
               <!-- 封面或图标 -->
-              <view
-                v-if="item.cover"
-                class="cover"
-              >
-                <image
-                  class="cover-img"
-                  :src="item.cover"
-                  mode="aspectFill"
-                />
+              <view v-if="item.cover" class="cover">
+                <image class="cover-img" :src="item.cover" mode="aspectFill" />
                 <view
                   v-if="item.progress !== undefined && item.progress < 100"
                   class="cover-prog"
                 >
-                  <view
-                    class="cover-prog-fill"
-                    :style="{ width: item.progress + '%' }"
-                  />
+                  <view class="cover-prog-fill" :style="{ width: item.progress + '%' }" />
                 </view>
-                <view
-                  v-if="item.type === 'video'"
-                  class="cover-play"
-                >
-                  <AppIcon
-                    name="play"
-                    :size="36"
-                    color="#fff"
-                  />
+                <view v-if="item.type === 'video'" class="cover-play">
+                  <AppIcon name="play" :size="18" color="#fff" />
                 </view>
               </view>
               <view
@@ -197,37 +114,24 @@ function openItem() {
                 class="icon-box"
                 :style="{ background: historyTypeConfig[item.type].color }"
               >
-                <AppIcon
-                  :name="historyTypeConfig[item.type].icon"
-                  :size="52"
-                  color="#fff"
-                />
+                <AppIcon :name="historyTypeConfig[item.type].icon" :size="26" color="#fff" />
               </view>
 
               <!-- 信息 -->
               <view class="item-body">
                 <view class="item-title-row">
-                  <text
-                    class="type-tag"
-                    :style="{ background: historyTypeConfig[item.type].color }"
-                  >
+                  <text class="type-tag" :style="{ background: historyTypeConfig[item.type].color }">
                     {{ historyTypeConfig[item.type].label }}
                   </text>
-                  <text class="item-title">
-                    {{ item.title }}
-                  </text>
+                  <text class="item-title">{{ item.title }}</text>
                 </view>
                 <view class="item-meta">
-                  <text class="item-time">
-                    {{ item.viewedAt }}
-                  </text>
+                  <text class="item-time">{{ item.viewedAt }}</text>
                   <text
                     v-if="formatProgress(item)"
                     class="item-prog"
                     :class="{ done: item.progress! >= 100 }"
-                  >
-                    · {{ formatProgress(item) }}
-                  </text>
+                  >· {{ formatProgress(item) }}</text>
                 </view>
               </view>
 
@@ -237,71 +141,29 @@ function openItem() {
                 class="continue-btn"
                 @tap.stop="openItem"
               >
-                <text class="continue-text">
-                  继续
-                </text>
+                <text class="continue-text">继续</text>
               </view>
             </view>
 
             <!-- 左滑删除块 -->
-            <view
-              class="swipe-del"
-              @tap="deleteItem(item.id)"
-            >
-              <AppIcon
-                name="trash-2"
-                :size="40"
-                color="#fff"
-              />
+            <view class="swipe-del" @tap="deleteItem(item.id)">
+              <AppIcon name="trash-2" :size="20" color="#fff" />
             </view>
           </view>
         </view>
       </view>
-      <view class="list-foot">
-        仅展示近30天的浏览记录
-      </view>
+      <view class="list-foot">仅展示近30天的浏览记录</view>
     </scroll-view>
 
     <!-- 清空确认弹窗 -->
-    <view
-      v-if="showClearConfirm"
-      class="mask center mask-fade-in"
-      @tap="showClearConfirm = false"
-    >
-      <view
-        class="dialog dialog-pop-in"
-        @tap.stop
-      >
-        <view class="dialog-icon">
-          <AppIcon
-            name="trash-2"
-            :size="60"
-            color="#C41E3A"
-          />
-        </view>
-        <text class="dialog-title">
-          清空浏览历史
-        </text>
-        <text class="dialog-desc">
-          确定要清空所有浏览记录吗？此操作不可恢复
-        </text>
+    <view v-if="showClearConfirm" class="mask center mask-fade-in" @tap="showClearConfirm = false">
+      <view class="dialog dialog-pop-in" @tap.stop>
+        <view class="dialog-icon"><AppIcon name="trash-2" :size="30" color="#C41E3A" /></view>
+        <text class="dialog-title">清空浏览历史</text>
+        <text class="dialog-desc">确定要清空所有浏览记录吗？此操作不可恢复</text>
         <view class="dialog-actions">
-          <view
-            class="dialog-btn ghost"
-            @tap="showClearConfirm = false"
-          >
-            <text class="dialog-btn-text">
-              取消
-            </text>
-          </view>
-          <view
-            class="dialog-btn solid"
-            @tap="clearAll"
-          >
-            <text class="dialog-btn-text solid-text">
-              清空
-            </text>
-          </view>
+          <view class="dialog-btn ghost" @tap="showClearConfirm = false"><text class="dialog-btn-text">取消</text></view>
+          <view class="dialog-btn solid" @tap="clearAll"><text class="dialog-btn-text solid-text">清空</text></view>
         </view>
       </view>
     </view>

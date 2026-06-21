@@ -1,64 +1,27 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view
-      class="header"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
-        <view
-          class="nav-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="44"
-            color="#2C2C2C"
-          />
+        <view class="nav-back" @tap="goBack">
+          <app-icon name="chevron-left" :size="44" color="#2C2C2C" />
         </view>
-        <text class="nav-title">
-          收货地址
-        </text>
-        <view
-          class="nav-add"
-          @tap="goEdit()"
-        >
-          <app-icon
-            name="plus"
-            :size="40"
-            color="#9A2D2D"
-          />
+        <text class="nav-title">收货地址</text>
+        <view class="nav-add" @tap="goEdit()">
+          <app-icon name="plus" :size="40" color="#C41E3A" />
         </view>
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="scroll-area"
-      :style="{ paddingTop: navHeight + 'px' }"
-    >
+    <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
       <!-- 空态 -->
-      <view
-        v-if="addresses.length === 0"
-        class="empty"
-      >
+      <view v-if="addresses.length === 0" class="empty">
         <view class="empty-icon">
-          <app-icon
-            name="map-pin"
-            :size="80"
-            color="#999999"
-          />
+          <app-icon name="map-pin" :size="80" color="#999999" />
         </view>
-        <text class="empty-text">
-          暂无收货地址
-        </text>
-        <view
-          class="empty-btn"
-          @tap="goEdit()"
-        >
-          <text class="empty-btn-text">
-            添加地址
-          </text>
+        <text class="empty-text">暂无收货地址</text>
+        <view class="empty-btn" @tap="goEdit()">
+          <text class="empty-btn-text">添加地址</text>
         </view>
       </view>
 
@@ -70,15 +33,8 @@
           class="addr-wrap"
         >
           <!-- 删除按钮 -->
-          <view
-            class="delete-zone"
-            @tap="confirmDelete(addr.id)"
-          >
-            <app-icon
-              name="trash-2"
-              :size="44"
-              color="#FFFFFF"
-            />
+          <view class="delete-zone" @tap="confirmDelete(addr.id)">
+            <app-icon name="trash-2" :size="44" color="#FFFFFF" />
           </view>
           <!-- 地址卡片 -->
           <view
@@ -90,69 +46,30 @@
             @tap="goEdit(addr.id)"
           >
             <view class="addr-top">
-              <view
-                class="addr-pin"
-                :class="{ active: addr.isDefault }"
-              >
-                <app-icon
-                  name="map-pin"
-                  :size="32"
-                  :color="addr.isDefault ? '#9A2D2D' : '#999999'"
-                />
+              <view class="addr-pin" :class="{ active: addr.isDefault }">
+                <app-icon name="map-pin" :size="32" :color="addr.isDefault ? '#C41E3A' : '#999999'" />
               </view>
               <view class="addr-main">
                 <view class="addr-line1">
-                  <text class="addr-name">
-                    {{ addr.name }}
-                  </text>
-                  <text class="addr-phone">
-                    {{ addr.phone }}
-                  </text>
-                  <view
-                    v-if="addr.isDefault"
-                    class="addr-tag"
-                  >
-                    <text class="addr-tag-text">
-                      默认
-                    </text>
+                  <text class="addr-name">{{ addr.name }}</text>
+                  <text class="addr-phone">{{ addr.phone }}</text>
+                  <view v-if="addr.isDefault" class="addr-tag">
+                    <text class="addr-tag-text">默认</text>
                   </view>
                 </view>
-                <text class="addr-detail">
-                  {{ addr.province }}{{ addr.city }}{{ addr.district }}{{ addr.address }}
-                </text>
+                <text class="addr-detail">{{ addr.province }}{{ addr.city }}{{ addr.district }}{{ addr.address }}</text>
               </view>
             </view>
 
             <view class="addr-foot">
-              <view
-                class="foot-default"
-                @tap.stop="setDefault(addr)"
-              >
-                <view
-                  class="radio"
-                  :class="{ checked: addr.isDefault }"
-                >
-                  <app-icon
-                    v-if="addr.isDefault"
-                    name="check"
-                    :size="18"
-                    color="#FFFFFF"
-                  />
+              <view class="foot-default" @tap.stop="setDefault(addr)">
+                <view class="radio" :class="{ checked: addr.isDefault }">
+                  <app-icon v-if="addr.isDefault" name="check" :size="18" color="#FFFFFF" />
                 </view>
-                <text
-                  class="foot-default-text"
-                  :class="{ active: addr.isDefault }"
-                >
-                  设为默认
-                </text>
+                <text class="foot-default-text" :class="{ active: addr.isDefault }">设为默认</text>
               </view>
-              <view
-                class="foot-edit"
-                @tap.stop="goEdit(addr.id)"
-              >
-                <text class="foot-edit-text">
-                  编辑
-                </text>
+              <view class="foot-edit" @tap.stop="goEdit(addr.id)">
+                <text class="foot-edit-text">编辑</text>
               </view>
             </view>
           </view>
@@ -163,58 +80,24 @@
     </scroll-view>
 
     <!-- 底部新增 -->
-    <view
-      v-if="addresses.length > 0"
-      class="footer"
-      :style="{ paddingBottom: safeBottom + 'px' }"
-    >
-      <view
-        class="add-btn"
-        @tap="goEdit()"
-      >
-        <app-icon
-          name="plus"
-          :size="34"
-          color="#FFFFFF"
-        />
-        <text class="add-btn-text">
-          新增收货地址
-        </text>
+    <view v-if="addresses.length > 0" class="footer" :style="{ paddingBottom: safeBottom + 'px' }">
+      <view class="add-btn" @tap="goEdit()">
+        <app-icon name="plus" :size="34" color="#FFFFFF" />
+        <text class="add-btn-text">新增收货地址</text>
       </view>
     </view>
 
     <!-- 删除确认弹窗 -->
-    <view
-      v-if="deleteId"
-      class="mask"
-      @tap="cancelDelete"
-    >
-      <view
-        class="confirm-box"
-        @tap.stop
-      >
-        <text class="confirm-title">
-          删除地址
-        </text>
-        <text class="confirm-desc">
-          确定要删除这个收货地址吗？
-        </text>
+    <view v-if="deleteId" class="mask mask-fade-in" @tap="cancelDelete">
+      <view class="confirm-box dialog-pop-in" @tap.stop>
+        <text class="confirm-title">删除地址</text>
+        <text class="confirm-desc">确定要删除这个收货地址吗？</text>
         <view class="confirm-actions">
-          <view
-            class="confirm-btn ghost"
-            @tap="cancelDelete"
-          >
-            <text class="confirm-btn-text">
-              取消
-            </text>
+          <view class="confirm-btn ghost" @tap="cancelDelete">
+            <text class="confirm-btn-text">取消</text>
           </view>
-          <view
-            class="confirm-btn danger"
-            @tap="doDelete"
-          >
-            <text class="confirm-btn-text-danger">
-              删除
-            </text>
+          <view class="confirm-btn danger" @tap="doDelete">
+            <text class="confirm-btn-text-danger">删除</text>
           </view>
         </view>
       </view>
@@ -226,19 +109,19 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { addressApi, type ShippingAddressItem } from '@/lib/account-data'
+import { shippingAddressList, type ShippingAddressItem } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
 const safeBottom = ref(0)
 
-const addresses = ref<ShippingAddressItem[]>([])
+const addresses = ref<ShippingAddressItem[]>([...shippingAddressList])
 const swipedId = ref('')
 const deleteId = ref('')
 
 let touchStartX = 0
 
-onLoad(async () => {
+onLoad(() => {
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 20
@@ -248,9 +131,6 @@ onLoad(async () => {
     statusBarHeight.value = 20
     navHeight.value = 64
   }
-  try {
-    addresses.value = await addressApi.getAddresses()
-  } catch { /* keep empty */ }
 })
 
 function onTouchStart(e: any) {
@@ -268,13 +148,10 @@ function onTouchEnd() {
   touchStartX = 0
 }
 
-async function setDefault(addr: ShippingAddressItem) {
+function setDefault(addr: ShippingAddressItem) {
   if (addr.isDefault) return
-  try {
-    await addressApi.setDefault(addr.id)
-    addresses.value = addresses.value.map((a) => ({ ...a, isDefault: a.id === addr.id }))
-    uni.showToast({ title: '已设为默认', icon: 'none' })
-  } catch { uni.showToast({ title: '操作失败，请重试', icon: 'none' }) }
+  addresses.value = addresses.value.map((a) => ({ ...a, isDefault: a.id === addr.id }))
+  uni.showToast({ title: '已设为默认', icon: 'none' })
 }
 
 function confirmDelete(id: string) {
@@ -284,14 +161,11 @@ function cancelDelete() {
   deleteId.value = ''
   swipedId.value = ''
 }
-async function doDelete() {
-  try {
-    await addressApi.deleteAddress(deleteId.value)
-    addresses.value = addresses.value.filter((a) => a.id !== deleteId.value)
-    deleteId.value = ''
-    swipedId.value = ''
-    uni.showToast({ title: '已删除', icon: 'none' })
-  } catch { uni.showToast({ title: '操作失败，请重试', icon: 'none' }) }
+function doDelete() {
+  addresses.value = addresses.value.filter((a) => a.id !== deleteId.value)
+  deleteId.value = ''
+  swipedId.value = ''
+  uni.showToast({ title: '已删除', icon: 'none' })
 }
 
 function goEdit(id?: string) {
@@ -369,7 +243,7 @@ function goEdit(id?: string) {
 .empty-btn {
   padding: 0 48rpx;
   height: 72rpx;
-  background: #9A2D2D;
+  background: #C41E3A;
   border-radius: 36rpx;
   display: flex;
   align-items: center;
@@ -428,7 +302,7 @@ function goEdit(id?: string) {
   flex-shrink: 0;
 }
 .addr-pin.active {
-  background: rgba(154, 45, 45, 0.1);
+  background: rgba(196, 30, 58, 0.1);
 }
 .addr-main {
   flex: 1;
@@ -451,7 +325,7 @@ function goEdit(id?: string) {
 }
 .addr-tag {
   padding: 2rpx 12rpx;
-  background: #9A2D2D;
+  background: #C41E3A;
   border-radius: 6rpx;
 }
 .addr-tag-text {
@@ -486,15 +360,15 @@ function goEdit(id?: string) {
   justify-content: center;
 }
 .radio.checked {
-  border-color: #9A2D2D;
-  background: #9A2D2D;
+  border-color: #C41E3A;
+  background: #C41E3A;
 }
 .foot-default-text {
   font-size: 26rpx;
   color: #666666;
 }
 .foot-default-text.active {
-  color: #9A2D2D;
+  color: #C41E3A;
 }
 .foot-edit {
   padding: 4rpx 8rpx;
@@ -519,7 +393,7 @@ function goEdit(id?: string) {
 }
 .add-btn {
   height: 88rpx;
-  background: #9A2D2D;
+  background: #C41E3A;
   border-radius: 44rpx;
   display: flex;
   align-items: center;

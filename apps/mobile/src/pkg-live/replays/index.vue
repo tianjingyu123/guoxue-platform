@@ -1,180 +1,70 @@
 <template>
   <view class="page">
     <!-- 头部 -->
-    <view
-      class="nav"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
-        <view
-          class="nav-btn"
-          @tap="goBack"
-        >
-          <AppIcon
-            name="chevron-left"
-            :size="44"
-            color="#2c2c2c"
-          />
+        <view class="nav-btn" @tap="goBack">
+          <AppIcon name="chevron-left" :size="44" color="#2c2c2c" />
         </view>
-        <text class="nav-title">
-          直播回放
-        </text>
-        <view
-          class="nav-btn"
-          @tap="onSearch"
-        >
-          <AppIcon
-            name="search"
-            :size="40"
-            color="#2c2c2c"
-          />
+        <text class="nav-title">直播回放</text>
+        <view class="nav-btn" @tap="onSearch">
+          <AppIcon name="search" :size="40" color="#2c2c2c" />
         </view>
       </view>
     </view>
 
     <!-- 排序栏 -->
     <view class="sort-bar">
-      <text class="sort-count">
-        全部回放 {{ replays.length }} 个
-      </text>
-      <view
-        class="sort-trigger"
-        @tap="showSort = true"
-      >
-        <AppIcon
-          name="sliders-horizontal"
-          :size="28"
-          color="#666"
-        />
-        <text class="sort-label">
-          {{ currentSortLabel }}
-        </text>
+      <text class="sort-count">全部回放 {{ replays.length }} 个</text>
+      <view class="sort-trigger" @tap="showSort = true">
+        <AppIcon name="sliders-horizontal" :size="28" color="#666" />
+        <text class="sort-label">{{ currentSortLabel }}</text>
       </view>
     </view>
 
-    <view
-      v-if="loading"
-      class="loading"
-    >
-      <text>加载中...</text>
-    </view>
-    <view
-      v-else-if="error"
-      class="err-msg"
-    >
-      <text>{{ error }}</text>
-      <view
-        class="retry-btn"
-        @tap="loadData"
-      >
-        重试
-      </view>
-    </view>
-    <view
-      v-else-if="replays.length === 0"
-      class="empty"
-    >
-      <text>暂无回放</text>
-    </view>
     <!-- 回放列表(单列横向卡) -->
-    <view
-      v-else
-      class="list"
-    >
-      <view
-        v-for="item in replays"
-        :key="item.id"
-        class="card"
-        @tap="openReplay(item)"
-      >
+    <view class="list">
+      <view v-for="item in replays" :key="item.id" class="card" @tap="openReplay(item)">
         <view class="card-inner">
           <!-- 封面 -->
           <view class="cover">
-            <image
-              class="cover-img"
-              :src="item.cover"
-              mode="aspectFill"
-            />
+            <image class="cover-img" :src="item.cover" mode="aspectFill" />
             <view class="replay-tag">
-              <AppIcon
-                name="play"
-                :size="20"
-                color="#fff"
-              />
-              <text class="replay-txt">
-                回放
-              </text>
+              <AppIcon name="play" :size="20" color="#fff" />
+              <text class="replay-txt">回放</text>
             </view>
-            <view class="dur-tag">
-              {{ formatLiveDuration(item.duration) }}
-            </view>
+            <view class="dur-tag">{{ formatLiveDuration(item.duration) }}</view>
           </view>
           <!-- 信息 -->
           <view class="info">
-            <text class="title">
-              {{ item.title }}
-            </text>
+            <text class="title">{{ item.title }}</text>
             <view class="info-bottom">
               <view class="host-row">
-                <image
-                  class="host-avatar"
-                  :src="item.hostAvatar"
-                  mode="aspectFill"
-                />
-                <text class="host-name">
-                  {{ item.hostName }}
-                </text>
-                <text class="cat-tag">
-                  {{ item.category }}
-                </text>
+                <image class="host-avatar" :src="item.hostAvatar" mode="aspectFill" />
+                <text class="host-name">{{ item.hostName }}</text>
+                <text class="cat-tag">{{ item.category }}</text>
               </view>
               <view class="data-row">
                 <view class="data-views">
-                  <AppIcon
-                    name="eye"
-                    :size="24"
-                    color="#999"
-                  />
-                  <text class="data-txt">
-                    {{ formatLiveViews(item.viewers) }}次播放
-                  </text>
+                  <AppIcon name="eye" :size="24" color="#999" />
+                  <text class="data-txt">{{ formatLiveViews(item.viewers) }}次播放</text>
                 </view>
-                <text class="data-date">
-                  {{ item.dateText }}
-                </text>
+                <text class="data-date">{{ item.dateText }}</text>
               </view>
             </view>
           </view>
         </view>
       </view>
-      <text class="list-end">
-        已显示全部回放
-      </text>
+      <text class="list-end">已显示全部回放</text>
     </view>
 
     <!-- 排序弹层 -->
-    <view
-      v-if="showSort"
-      class="sheet-mask"
-      @tap="showSort = false"
-    >
-      <view
-        class="sheet"
-        @tap.stop
-      >
+    <view v-if="showSort" class="sheet-mask" @tap="showSort = false">
+      <view class="sheet" @tap.stop>
         <view class="sheet-header">
-          <text class="sheet-title">
-            排序方式
-          </text>
-          <view
-            class="sheet-close"
-            @tap="showSort = false"
-          >
-            <AppIcon
-              name="x"
-              :size="36"
-              color="#999"
-            />
+          <text class="sheet-title">排序方式</text>
+          <view class="sheet-close" @tap="showSort = false">
+            <AppIcon name="x" :size="36" color="#999" />
           </view>
         </view>
         <view class="sheet-options">
@@ -185,9 +75,7 @@
             :class="{ 'sheet-item-active': sortBy === opt.value }"
             @tap="selectSort(opt.value)"
           >
-            <text class="sheet-item-label">
-              {{ opt.label }}
-            </text>
+            <text class="sheet-item-label">{{ opt.label }}</text>
           </view>
         </view>
       </view>
@@ -196,32 +84,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { liveApi, replaySortOptions, formatLiveDuration, formatLiveViews } from '@/lib/live-data'
+import { liveReplays, replaySortOptions, formatLiveDuration, formatLiveViews } from '@/lib/live-data'
 
 const statusBarHeight = ref(20)
 
 // UI 临时状态
-const replays = ref<any[]>([])
+const replays = ref(liveReplays)
 const sortBy = ref<string>('latest')
 const showSort = ref(false)
-const loading = ref(false)
-const error = ref('')
-
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    replays.value = await liveApi.replays({ sortBy: sortBy.value })
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-onMounted(() => { loadData() })
 
 const currentSortLabel = computed(
   () => replaySortOptions.find((o) => o.value === sortBy.value)?.label || '最新发布',
@@ -230,7 +103,6 @@ const currentSortLabel = computed(
 function selectSort(v: string) {
   sortBy.value = v
   showSort.value = false
-  loadData()
 }
 
 function onSearch() {}
@@ -428,10 +300,6 @@ function openReplay(_item: { id: string }) {}
   color: #ccc;
   padding: 16rpx 0;
 }
-.loading { display: flex; align-items: center; justify-content: center; padding: 160rpx 0; font-size: 28rpx; color: #999; }
-.err-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; gap: 24rpx; font-size: 28rpx; color: #ef4444; }
-.retry-btn { padding: 12rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 999rpx; font-size: 28rpx; }
-.empty { display: flex; align-items: center; justify-content: center; padding: 160rpx 0; font-size: 28rpx; color: #999; }
 
 /* 排序弹层 */
 .sheet-mask {

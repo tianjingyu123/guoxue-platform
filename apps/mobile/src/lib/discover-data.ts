@@ -2,7 +2,6 @@ import type {
   ProductCardData, CourseCardData, LiveCardData,
   AgentCardData, ClassicCardData, VideoCardData,
 } from '@/lib/card-utils'
-import { apiGet, useMock } from '@/utils/request'
 
 // 核心入口宫格 - 商业变现板块入口（高频在前）
 export const coreEntries = [
@@ -67,46 +66,3 @@ export const feedItems: FeedItem[] = [
   { kind: 'product', data: { id: 'p3', title: '开光五帝钱挂件 镇宅化煞', cover: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&q=80', coverRatio: '1:1', price: 58, originalPrice: 128, sales: 4500, tag: '新品' } },
   { kind: 'course', data: { id: 'c3', title: '六爻预测从零开始', cover: 'https://images.unsplash.com/photo-1519791883288-dc8bd696e667?w=400&q=80', coverRatio: '3:4', teacher: '陈老师', teacherAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80', price: 128, originalPrice: 299, students: 1300, lessons: 24 } },
 ]
-
-// ============================================
-// API 层：useMock 开关控制真实/模拟数据切换
-// ============================================
-
-export const discoverApi = {
-  async getDiscover(params?: { page?: number; pageSize?: number; type?: string }) {
-    if (useMock()) {
-      return { items: feedItems, total: feedItems.length, page: params?.page || 1, pageSize: params?.pageSize || 10 }
-    }
-    try {
-      const qs = `page=${params?.page || 1}&pageSize=${params?.pageSize || 10}${params?.type ? `&type=${params.type}` : ''}`
-      return await apiGet<any>(`/discover?${qs}`)
-    } catch {
-      return { items: feedItems, total: feedItems.length, page: 1, pageSize: 10 }
-    }
-  },
-
-  async getCategories() {
-    if (useMock()) return categories
-    try {
-      return await apiGet<any>('/discover/categories')
-    } catch { return categories }
-  },
-
-  async getHotContent(params?: { page?: number; pageSize?: number }) {
-    if (useMock()) return { items: feedItems.slice(0, 5), total: 5 }
-    try {
-      return await apiGet<any>(`/discover/hot?page=${params?.page || 1}&pageSize=${params?.pageSize || 10}`)
-    } catch {
-      return { items: feedItems.slice(0, 5), total: 5 }
-    }
-  },
-
-  async getRecommendations(params?: { page?: number; pageSize?: number }) {
-    if (useMock()) return { items: feedItems.slice(5), total: feedItems.length - 5 }
-    try {
-      return await apiGet<any>(`/discover/recommendations?page=${params?.page || 1}&pageSize=${params?.pageSize || 10}`)
-    } catch {
-      return { items: feedItems.slice(5), total: feedItems.length - 5 }
-    }
-  },
-}

@@ -1,33 +1,16 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view
-      class="nav"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
         <view class="nav-left">
-          <view
-            class="nav-btn"
-            @tap="onBack"
-          >
-            <AppIcon
-              name="chevron-left"
-              :size="40"
-              color="#2C2C2C"
-            />
+          <view class="nav-btn" @tap="onBack">
+            <AppIcon name="chevron-left" :size="40" color="#2C2C2C" />
           </view>
-          <text class="nav-title">
-            直播间装修
-          </text>
+          <text class="nav-title">直播间装修</text>
         </view>
-        <view
-          class="save-btn"
-          @tap="onSave"
-        >
-          <text class="save-btn-txt">
-            保存配置
-          </text>
+        <view class="save-btn" @tap="onSave">
+          <text class="save-btn-txt">保存配置</text>
         </view>
       </view>
     </view>
@@ -42,29 +25,15 @@
           :class="{ active: activeTab === tab.key }"
           @tap="activeTab = tab.key"
         >
-          <AppIcon
-            :name="tab.icon"
-            :size="28"
-            :color="activeTab === tab.key ? '#fff' : '#666'"
-          />
-          <text
-            class="tab-txt"
-            :class="{ active: activeTab === tab.key }"
-          >
-            {{ tab.label }}
-          </text>
+          <AppIcon :name="tab.icon" :size="28" :color="activeTab === tab.key ? '#fff' : '#666'" />
+          <text class="tab-txt" :class="{ active: activeTab === tab.key }">{{ tab.label }}</text>
         </view>
       </view>
 
       <!-- 主题模版 Tab -->
-      <view
-        v-if="activeTab === 'templates'"
-        class="tab-content"
-      >
+      <view v-if="activeTab === 'templates'" class="tab-content">
         <view class="section">
-          <text class="section-title">
-            预设氛围模版
-          </text>
+          <text class="section-title">预设氛围模版</text>
           <view class="theme-grid">
             <view
               v-for="theme in themeTemplates"
@@ -73,64 +42,26 @@
               :class="{ selected: selectedTheme === theme.id }"
               @tap="selectedTheme = theme.id"
             >
-              <view
-                class="theme-preview"
-                :style="{ background: `linear-gradient(135deg, ${theme.bg1}, ${theme.bg2})` }"
-              >
-                <text class="theme-emoji">
-                  {{ theme.preview }}
-                </text>
-                <view
-                  v-if="selectedTheme === theme.id"
-                  class="theme-check"
-                >
-                  <AppIcon
-                    name="check"
-                    :size="24"
-                    color="#fff"
-                  />
+              <view class="theme-preview" :style="{ background: `linear-gradient(135deg, ${theme.bg1}, ${theme.bg2})` }">
+                <text class="theme-emoji">{{ theme.preview }}</text>
+                <view v-if="selectedTheme === theme.id" class="theme-check">
+                  <AppIcon name="check" :size="24" color="#fff" />
                 </view>
-                <view
-                  v-if="!theme.isFree"
-                  class="theme-vip"
-                >
-                  <AppIcon
-                    name="crown"
-                    :size="20"
-                    color="#fff"
-                  />
-                  <text class="theme-vip-txt">
-                    会员
-                  </text>
+                <view v-if="!theme.isFree" class="theme-vip">
+                  <AppIcon name="crown" :size="20" color="#fff" />
+                  <text class="theme-vip-txt">会员</text>
                 </view>
-                <view
-                  v-if="theme.isUsing"
-                  class="theme-using"
-                >
-                  <text class="theme-using-txt">
-                    使用中
-                  </text>
+                <view v-if="theme.isUsing" class="theme-using">
+                  <text class="theme-using-txt">使用中</text>
                 </view>
               </view>
               <view class="theme-info">
-                <text class="theme-name">
-                  {{ theme.name }}
-                </text>
-                <text class="theme-desc">
-                  {{ theme.desc }}
-                </text>
+                <text class="theme-name">{{ theme.name }}</text>
+                <text class="theme-desc">{{ theme.desc }}</text>
                 <view class="theme-colors">
-                  <view
-                    class="color-dot"
-                    :style="{ backgroundColor: theme.primaryColor }"
-                  />
-                  <view
-                    class="color-dot"
-                    :style="{ backgroundColor: theme.secondaryColor }"
-                  />
-                  <text class="theme-color-label">
-                    主色调
-                  </text>
+                  <view class="color-dot" :style="{ backgroundColor: theme.primaryColor }" />
+                  <view class="color-dot" :style="{ backgroundColor: theme.secondaryColor }" />
+                  <text class="theme-color-label">主色调</text>
                 </view>
               </view>
             </view>
@@ -140,48 +71,28 @@
         <!-- 自定义主题 -->
         <view class="card">
           <view class="card-head-row">
-            <text class="card-title">
-              自定义主题
-            </text>
+            <text class="card-title">自定义主题</text>
             <view class="vip-tag">
-              <AppIcon
-                name="crown"
-                :size="20"
-                color="#d97706"
-              />
-              <text class="vip-tag-txt">
-                高级会员专享
-              </text>
+              <AppIcon name="crown" :size="20" color="#d97706" />
+              <text class="vip-tag-txt">高级会员专享</text>
             </view>
           </view>
 
           <view class="field-block">
-            <text class="field-label">
-              品牌Logo
-            </text>
+            <text class="field-label">品牌Logo</text>
             <view class="logo-row">
               <view class="logo-upload">
-                <AppIcon
-                  name="upload"
-                  :size="40"
-                  color="#999"
-                />
+                <AppIcon name="upload" :size="40" color="#999" />
               </view>
               <view class="logo-tip">
-                <text class="logo-tip-txt">
-                  支持PNG/JPG格式
-                </text>
-                <text class="logo-tip-txt">
-                  建议尺寸200x200px
-                </text>
+                <text class="logo-tip-txt">支持PNG/JPG格式</text>
+                <text class="logo-tip-txt">建议尺寸200x200px</text>
               </view>
             </view>
           </view>
 
           <view class="field-block">
-            <text class="field-label">
-              主色调
-            </text>
+            <text class="field-label">主色调</text>
             <view class="color-pick-row">
               <view
                 v-for="color in customColors"
@@ -192,44 +103,24 @@
                 @tap="customColor = color"
               />
               <view class="color-pick-add">
-                <AppIcon
-                  name="plus"
-                  :size="32"
-                  color="#999"
-                />
+                <AppIcon name="plus" :size="32" color="#999" />
               </view>
             </view>
           </view>
 
           <view class="field-block last">
-            <text class="field-label">
-              自定义背景
-            </text>
+            <text class="field-label">自定义背景</text>
             <view class="bg-grid">
               <view class="bg-cell dashed">
-                <AppIcon
-                  name="upload"
-                  :size="40"
-                  color="#999"
-                />
-                <text class="bg-cell-txt">
-                  上传图片
-                </text>
+                <AppIcon name="upload" :size="40" color="#999" />
+                <text class="bg-cell-txt">上传图片</text>
               </view>
               <view class="bg-cell dashed">
-                <AppIcon
-                  name="play"
-                  :size="40"
-                  color="#999"
-                />
-                <text class="bg-cell-txt">
-                  上传视频
-                </text>
+                <AppIcon name="play" :size="40" color="#999" />
+                <text class="bg-cell-txt">上传视频</text>
               </view>
               <view class="bg-cell green">
-                <text class="bg-cell-green-txt">
-                  绿幕
-                </text>
+                <text class="bg-cell-green-txt">绿幕</text>
               </view>
             </view>
           </view>
@@ -237,66 +128,31 @@
       </view>
 
       <!-- 视觉元素 Tab -->
-      <view
-        v-if="activeTab === 'elements'"
-        class="tab-content"
-      >
+      <view v-if="activeTab === 'elements'" class="tab-content">
         <view class="card">
-          <text class="card-title block">
-            背景设置
-          </text>
+          <text class="card-title block">背景设置</text>
           <view class="slider-row">
-            <text class="slider-label">
-              背景模糊
-            </text>
-            <view
-              class="slider-track"
-              @tap="setSlider('blur', $event)"
-            >
-              <view
-                class="slider-fill"
-                :style="{ width: blur + '%' }"
-              />
-              <view
-                class="slider-thumb"
-                :style="{ left: blur + '%' }"
-              />
+            <text class="slider-label">背景模糊</text>
+            <view class="slider-track" @tap="setSlider('blur', $event)">
+              <view class="slider-fill" :style="{ width: blur + '%' }" />
+              <view class="slider-thumb" :style="{ left: blur + '%' }" />
             </view>
           </view>
           <view class="slider-row">
-            <text class="slider-label">
-              背景暗度
-            </text>
-            <view
-              class="slider-track"
-              @tap="setSlider('dark', $event)"
-            >
-              <view
-                class="slider-fill"
-                :style="{ width: dark + '%' }"
-              />
-              <view
-                class="slider-thumb"
-                :style="{ left: dark + '%' }"
-              />
+            <text class="slider-label">背景暗度</text>
+            <view class="slider-track" @tap="setSlider('dark', $event)">
+              <view class="slider-fill" :style="{ width: dark + '%' }" />
+              <view class="slider-thumb" :style="{ left: dark + '%' }" />
             </view>
           </view>
         </view>
 
         <view class="card">
           <view class="card-head-row">
-            <text class="card-title">
-              直播间挂件
-            </text>
+            <text class="card-title">直播间挂件</text>
             <view class="ghost-btn">
-              <AppIcon
-                name="plus"
-                :size="24"
-                color="#666"
-              />
-              <text class="ghost-btn-txt">
-                添加挂件
-              </text>
+              <AppIcon name="plus" :size="24" color="#666" />
+              <text class="ghost-btn-txt">添加挂件</text>
             </view>
           </view>
           <view class="pendant-grid">
@@ -308,22 +164,13 @@
               @tap="togglePendant(p.id)"
             >
               <view class="pendant-icon">
-                <text class="pendant-icon-txt">
-                  {{ p.icon }}
-                </text>
+                <text class="pendant-icon-txt">{{ p.icon }}</text>
               </view>
               <view class="pendant-info">
-                <text class="pendant-name">
-                  {{ p.name }}
-                </text>
-                <text class="pendant-pos">
-                  位置：{{ p.position }}
-                </text>
+                <text class="pendant-name">{{ p.name }}</text>
+                <text class="pendant-pos">位置：{{ p.position }}</text>
               </view>
-              <view
-                class="switch"
-                :class="{ on: activePendants.includes(p.id) }"
-              >
+              <view class="switch" :class="{ on: activePendants.includes(p.id) }">
                 <view class="switch-knob" />
               </view>
             </view>
@@ -331,29 +178,15 @@
         </view>
 
         <view class="card">
-          <text class="card-title block">
-            UI组件样式
-          </text>
+          <text class="card-title block">UI组件样式</text>
           <view class="comp-list">
-            <view
-              v-for="c in componentStyles"
-              :key="c.label"
-              class="comp-row"
-            >
+            <view v-for="c in componentStyles" :key="c.label" class="comp-row">
               <view class="comp-left">
-                <AppIcon
-                  :name="c.icon"
-                  :size="32"
-                  color="#999"
-                />
-                <text class="comp-label">
-                  {{ c.label }}
-                </text>
+                <AppIcon :name="c.icon" :size="32" color="#999" />
+                <text class="comp-label">{{ c.label }}</text>
               </view>
               <view class="comp-tag">
-                <text class="comp-tag-txt">
-                  {{ c.tag }}
-                </text>
+                <text class="comp-tag-txt">{{ c.tag }}</text>
               </view>
             </view>
           </view>
@@ -361,45 +194,21 @@
       </view>
 
       <!-- 动效配置 Tab -->
-      <view
-        v-if="activeTab === 'effects'"
-        class="tab-content"
-      >
+      <view v-if="activeTab === 'effects'" class="tab-content">
         <view class="card">
-          <text class="card-title block">
-            动效开关
-          </text>
+          <text class="card-title block">动效开关</text>
           <view class="effect-list">
-            <view
-              v-for="e in effects"
-              :key="e.id"
-              class="effect-row"
-            >
+            <view v-for="e in effects" :key="e.id" class="effect-row">
               <view class="effect-left">
-                <view
-                  class="effect-icon"
-                  :class="{ on: effectSettings[e.type] }"
-                >
-                  <AppIcon
-                    :name="e.icon"
-                    :size="36"
-                    :color="effectSettings[e.type] ? '#C41E3A' : '#999'"
-                  />
+                <view class="effect-icon" :class="{ on: effectSettings[e.type] }">
+                  <AppIcon :name="e.icon" :size="36" :color="effectSettings[e.type] ? '#C41E3A' : '#999'" />
                 </view>
                 <view class="effect-info">
-                  <text class="effect-name">
-                    {{ e.name }}
-                  </text>
-                  <text class="effect-desc">
-                    {{ e.desc }}
-                  </text>
+                  <text class="effect-name">{{ e.name }}</text>
+                  <text class="effect-desc">{{ e.desc }}</text>
                 </view>
               </view>
-              <view
-                class="switch"
-                :class="{ on: effectSettings[e.type] }"
-                @tap="toggleEffect(e.type)"
-              >
+              <view class="switch" :class="{ on: effectSettings[e.type] }" @tap="toggleEffect(e.type)">
                 <view class="switch-knob" />
               </view>
             </view>
@@ -407,9 +216,7 @@
         </view>
 
         <view class="card">
-          <text class="card-title block">
-            入场特效样式
-          </text>
+          <text class="card-title block">入场特效样式</text>
           <view class="enter-grid">
             <view
               v-for="(s, idx) in enterStyles"
@@ -418,21 +225,15 @@
               :class="{ active: idx === 0 }"
             >
               <view class="enter-emoji-wrap">
-                <text class="enter-emoji">
-                  {{ s.emoji }}
-                </text>
+                <text class="enter-emoji">{{ s.emoji }}</text>
               </view>
-              <text class="enter-name">
-                {{ s.name }}
-              </text>
+              <text class="enter-name">{{ s.name }}</text>
             </view>
           </view>
         </view>
 
         <view class="card">
-          <text class="card-title block">
-            点赞动效样式
-          </text>
+          <text class="card-title block">点赞动效样式</text>
           <view class="like-grid">
             <view
               v-for="(s, idx) in likeStyles"
@@ -440,9 +241,7 @@
               class="like-cell"
               :class="{ active: idx === 0 }"
             >
-              <text class="like-txt">
-                {{ s }}
-              </text>
+              <text class="like-txt">{{ s }}</text>
             </view>
           </view>
         </view>
@@ -451,186 +250,78 @@
       <!-- 实时预览 -->
       <view class="card preview-card">
         <view class="preview-head">
-          <text class="preview-head-txt">
-            实时预览
-          </text>
+          <text class="preview-head-txt">实时预览</text>
           <view class="preview-ctrls">
-            <view
-              class="preview-ctrl"
-              @tap="isPreviewPlaying = !isPreviewPlaying"
-            >
-              <AppIcon
-                :name="isPreviewPlaying ? 'pause' : 'play'"
-                :size="28"
-                color="#666"
-              />
+            <view class="preview-ctrl" @tap="isPreviewPlaying = !isPreviewPlaying">
+              <AppIcon :name="isPreviewPlaying ? 'pause' : 'play'" :size="28" color="#666" />
             </view>
             <view class="preview-ctrl">
-              <AppIcon
-                name="rotate-ccw"
-                :size="28"
-                color="#666"
-              />
+              <AppIcon name="rotate-ccw" :size="28" color="#666" />
             </view>
           </view>
         </view>
-        <view
-          class="preview-screen"
-          :style="{ background: `linear-gradient(135deg, ${currentTheme.bg1}, ${currentTheme.bg2})` }"
-        >
+        <view class="preview-screen" :style="{ background: `linear-gradient(135deg, ${currentTheme.bg1}, ${currentTheme.bg2})` }">
           <!-- 顶部信息栏 -->
           <view class="pv-top">
             <view class="pv-anchor">
-              <view class="pv-avatar">
-                <text class="pv-avatar-txt">
-                  主
-                </text>
-              </view>
-              <text class="pv-anchor-name">
-                主播昵称
-              </text>
+              <view class="pv-avatar"><text class="pv-avatar-txt">主</text></view>
+              <text class="pv-anchor-name">主播昵称</text>
             </view>
             <view class="pv-viewers">
-              <AppIcon
-                name="eye"
-                :size="24"
-                color="rgba(255,255,255,0.7)"
-              />
-              <text class="pv-viewers-txt">
-                1.2万
-              </text>
+              <AppIcon name="eye" :size="24" color="rgba(255,255,255,0.7)" />
+              <text class="pv-viewers-txt">1.2万</text>
             </view>
           </view>
           <!-- 挂件 -->
-          <text
-            v-if="activePendants.includes(1)"
-            class="pv-pendant-fu"
-          >
-            福
-          </text>
-          <text
-            v-if="activePendants.includes(4)"
-            class="pv-pendant-coin"
-          >
-            🪙
-          </text>
+          <text v-if="activePendants.includes(1)" class="pv-pendant-fu">福</text>
+          <text v-if="activePendants.includes(4)" class="pv-pendant-coin">🪙</text>
           <!-- 弹幕 -->
           <view class="pv-danmaku">
-            <view class="pv-dm">
-              <text class="pv-dm-txt">
-                <text class="pv-dm-user">
-                  用户A
-                </text> 老师讲得真好！
-              </text>
-            </view>
-            <view class="pv-dm">
-              <text class="pv-dm-txt">
-                <text class="pv-dm-user">
-                  用户B
-                </text> 涨知识了
-              </text>
-            </view>
+            <view class="pv-dm"><text class="pv-dm-txt"><text class="pv-dm-user">用户A</text> 老师讲得真好！</text></view>
+            <view class="pv-dm"><text class="pv-dm-txt"><text class="pv-dm-user">用户B</text> 涨知识了</text></view>
           </view>
           <!-- 点赞 -->
-          <view
-            v-if="effectSettings.like && isPreviewPlaying"
-            class="pv-likes"
-          >
-            <AppIcon
-              name="heart"
-              :size="40"
-              color="#ef4444"
-            />
-            <AppIcon
-              name="heart"
-              :size="32"
-              color="#ef4444"
-            />
-            <AppIcon
-              name="heart"
-              :size="24"
-              color="#ef4444"
-            />
+          <view v-if="effectSettings.like && isPreviewPlaying" class="pv-likes">
+            <AppIcon name="heart" :size="40" color="#ef4444" />
+            <AppIcon name="heart" :size="32" color="#ef4444" />
+            <AppIcon name="heart" :size="24" color="#ef4444" />
           </view>
           <!-- 主题色条 -->
-          <view
-            class="pv-color-bar"
-            :style="{ backgroundColor: currentTheme.primaryColor }"
-          />
+          <view class="pv-color-bar" :style="{ backgroundColor: currentTheme.primaryColor }" />
           <!-- 底部栏 -->
           <view class="pv-bottom">
-            <view class="pv-input">
-              <text class="pv-input-txt">
-                说点什么...
-              </text>
-            </view>
-            <view class="pv-act">
-              <AppIcon
-                name="heart"
-                :size="32"
-                color="#fff"
-              />
-            </view>
-            <view class="pv-act">
-              <AppIcon
-                name="gift"
-                :size="32"
-                color="#fff"
-              />
-            </view>
+            <view class="pv-input"><text class="pv-input-txt">说点什么...</text></view>
+            <view class="pv-act"><AppIcon name="heart" :size="32" color="#fff" /></view>
+            <view class="pv-act"><AppIcon name="gift" :size="32" color="#fff" /></view>
           </view>
         </view>
       </view>
 
       <!-- 当前配置摘要 -->
       <view class="card summary-card">
-        <text class="summary-title">
-          当前配置
-        </text>
+        <text class="summary-title">当前配置</text>
         <view class="summary-row">
-          <text class="summary-label">
-            主题模版
-          </text>
-          <text class="summary-value">
-            {{ currentTheme.name }}
-          </text>
+          <text class="summary-label">主题模版</text>
+          <text class="summary-value">{{ currentTheme.name }}</text>
         </view>
         <view class="summary-row">
-          <text class="summary-label">
-            已启用挂件
-          </text>
-          <text class="summary-value">
-            {{ activePendants.length }}个
-          </text>
+          <text class="summary-label">已启用挂件</text>
+          <text class="summary-value">{{ activePendants.length }}个</text>
         </view>
         <view class="summary-row">
-          <text class="summary-label">
-            已启用动效
-          </text>
-          <text class="summary-value">
-            {{ enabledEffectCount }}个
-          </text>
+          <text class="summary-label">已启用动效</text>
+          <text class="summary-value">{{ enabledEffectCount }}个</text>
         </view>
       </view>
     </view>
 
     <!-- 底部固定操作栏 -->
     <view class="footer">
-      <view
-        class="footer-btn outline"
-        @tap="onReset"
-      >
-        <text class="footer-btn-txt">
-          重置默认
-        </text>
+      <view class="footer-btn outline" @tap="onReset">
+        <text class="footer-btn-txt">重置默认</text>
       </view>
-      <view
-        class="footer-btn primary"
-        @tap="onSave"
-      >
-        <text class="footer-btn-txt primary-txt">
-          保存并应用
-        </text>
+      <view class="footer-btn primary" @tap="onSave">
+        <text class="footer-btn-txt primary-txt">保存并应用</text>
       </view>
     </view>
   </view>

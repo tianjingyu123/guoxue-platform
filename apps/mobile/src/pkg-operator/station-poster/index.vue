@@ -1,34 +1,19 @@
 <template>
   <view class="poster-page">
     <!-- 顶部导航 -->
-    <view
-      class="poster-nav"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="poster-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="poster-nav-inner">
-        <view
-          class="poster-nav-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#1f1f1f"
-          />
+        <view class="poster-nav-btn" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#1f1f1f" />
         </view>
-        <text class="poster-nav-title">
-          分享海报
-        </text>
+        <text class="poster-nav-title">分享海报</text>
         <view class="poster-nav-btn" />
       </view>
     </view>
 
     <!-- 海报预览 -->
     <view class="poster-preview-wrap">
-      <view
-        class="poster-card"
-        :style="posterBgStyle"
-      >
+      <view class="poster-card" :style="posterBgStyle">
         <!-- 装饰圆 -->
         <view class="poster-deco poster-deco-1" />
         <view class="poster-deco poster-deco-2" />
@@ -36,111 +21,44 @@
         <view class="poster-content">
           <!-- 顶部 Logo -->
           <view class="poster-logo-row">
-            <view
-              class="poster-logo"
-              :style="{ background: station.themeColor }"
-            >
-              <text class="poster-logo-txt">
-                {{ station.name.charAt(0) }}
-              </text>
+            <view class="poster-logo" :style="{ background: station.themeColor }">
+              <text class="poster-logo-txt">{{ station.name.charAt(0) }}</text>
             </view>
-            <text
-              class="poster-brand"
-              :style="{ color: tpl.textColor }"
-            >
-              热卜国学
-            </text>
+            <text class="poster-brand" :style="{ color: tpl.textColor }">热卜国学</text>
           </view>
 
           <!-- 主内容 -->
           <view class="poster-main">
-            <view
-              class="poster-avatar"
-              :style="{ background: station.themeColor }"
-            >
-              <image
-                v-if="station.masterAvatar"
-                :src="station.masterAvatar"
-                class="poster-avatar-img"
-                mode="aspectFill"
-              />
-              <text
-                v-else
-                class="poster-avatar-txt"
-              >
-                {{ station.masterName.charAt(0) }}
-              </text>
+            <view class="poster-avatar" :style="{ background: station.themeColor }">
+              <image v-if="station.masterAvatar" :src="station.masterAvatar" class="poster-avatar-img" mode="aspectFill" />
+              <text v-else class="poster-avatar-txt">{{ station.masterName.charAt(0) }}</text>
             </view>
-            <text
-              class="poster-name"
-              :style="{ color: tpl.textColor }"
-            >
-              {{ station.name }}
-            </text>
-            <text
-              class="poster-sub"
-              :style="{ color: tpl.textColor }"
-            >
-              {{ station.masterName }} · 诚邀您加入
-            </text>
+            <text class="poster-name" :style="{ color: tpl.textColor }">{{ station.name }}</text>
+            <text class="poster-sub" :style="{ color: tpl.textColor }">{{ station.masterName }} · 诚邀您加入</text>
 
             <view class="poster-stats">
               <view class="poster-stat">
-                <text
-                  class="poster-stat-num"
-                  :style="{ color: tpl.accentColor }"
-                >
-                  {{ station.memberCount }}
-                </text>
-                <text
-                  class="poster-stat-label"
-                  :style="{ color: tpl.textColor }"
-                >
-                  成员
-                </text>
+                <text class="poster-stat-num" :style="{ color: tpl.accentColor }">{{ station.memberCount }}</text>
+                <text class="poster-stat-label" :style="{ color: tpl.textColor }">成员</text>
               </view>
               <view class="poster-stat-divider" />
               <view class="poster-stat">
-                <text
-                  class="poster-stat-num"
-                  :style="{ color: tpl.accentColor }"
-                >
-                  {{ station.contentCount }}
-                </text>
-                <text
-                  class="poster-stat-label"
-                  :style="{ color: tpl.textColor }"
-                >
-                  精选
-                </text>
+                <text class="poster-stat-num" :style="{ color: tpl.accentColor }">{{ station.contentCount }}</text>
+                <text class="poster-stat-label" :style="{ color: tpl.textColor }">精选</text>
               </view>
             </view>
 
-            <text
-              class="poster-intro"
-              :style="{ color: tpl.textColor }"
-            >
-              {{ station.masterIntro }}
-            </text>
+            <text class="poster-intro" :style="{ color: tpl.textColor }">{{ station.masterIntro }}</text>
           </view>
 
           <!-- 底部二维码 -->
           <view class="poster-qr-wrap">
             <view class="poster-qr">
               <view class="poster-qr-inner">
-                <app-icon
-                  name="qr-code"
-                  :size="96"
-                  color="#9ca3af"
-                />
+                <app-icon name="qr-code" :size="96" color="#9ca3af" />
               </view>
             </view>
-            <text
-              class="poster-qr-txt"
-              :style="{ color: tpl.textColor }"
-            >
-              扫码加入{{ station.name }}
-            </text>
+            <text class="poster-qr-txt" :style="{ color: tpl.textColor }">扫码加入{{ station.name }}</text>
           </view>
         </view>
       </view>
@@ -148,9 +66,7 @@
 
     <!-- 模板选择 -->
     <view class="poster-tpl-section">
-      <text class="poster-section-title">
-        选择风格
-      </text>
+      <text class="poster-section-title">选择风格</text>
       <view class="poster-tpl-row">
         <view
           v-for="t in posterTemplates"
@@ -159,10 +75,7 @@
           :class="{ active: selectedId === t.id }"
           @tap="selectedId = t.id"
         >
-          <view
-            class="poster-tpl-thumb"
-            :style="thumbBg(t)"
-          >
+          <view class="poster-tpl-thumb" :style="thumbBg(t)">
             <view class="poster-tpl-dot" />
             <view class="poster-tpl-bar1" />
             <view class="poster-tpl-bar2" />
@@ -175,65 +88,30 @@
           :key="t.id"
           class="poster-tpl-label"
           :class="{ active: selectedId === t.id }"
-        >
-          {{ t.name }}
-        </text>
+        >{{ t.name }}</text>
       </view>
     </view>
 
     <!-- 操作按钮 -->
     <view class="poster-actions">
       <view class="poster-action-row">
-        <view
-          class="poster-btn poster-btn-outline"
-          :class="{ disabled: isSaving }"
-          @tap="handleSave"
-        >
-          <app-icon
-            v-if="saved"
-            name="check"
-            :size="32"
-            color="#1f1f1f"
-          />
-          <app-icon
-            v-else
-            name="download"
-            :size="32"
-            color="#1f1f1f"
-            :class="{ 'icon-bounce': isSaving }"
-          />
-          <text class="poster-btn-txt">
-            {{ saved ? '已保存' : isSaving ? '保存中...' : '保存图片' }}
-          </text>
+        <view class="poster-btn poster-btn-outline" :class="{ disabled: isSaving }" @tap="handleSave">
+          <app-icon v-if="saved" name="check" :size="32" color="#1f1f1f" />
+          <app-icon v-else name="download" :size="32" color="#1f1f1f" :class="{ 'icon-bounce': isSaving }" />
+          <text class="poster-btn-txt">{{ saved ? '已保存' : isSaving ? '保存中...' : '保存图片' }}</text>
         </view>
-        <view
-          class="poster-btn poster-btn-primary"
-          :style="{ background: station.themeColor }"
-          @tap="handleShare"
-        >
-          <app-icon
-            name="share-2"
-            :size="32"
-            color="#ffffff"
-          />
-          <text
-            class="poster-btn-txt"
-            style="color:#fff"
-          >
-            分享海报
-          </text>
+        <view class="poster-btn poster-btn-primary" :style="{ background: station.themeColor }" @tap="handleShare">
+          <app-icon name="share-2" :size="32" color="#ffffff" />
+          <text class="poster-btn-txt" style="color:#fff">分享海报</text>
         </view>
       </view>
-      <text class="poster-tip">
-        分享海报邀请好友，好友通过您的专属链接加入平台后将永久归属您的分站
-      </text>
+      <text class="poster-tip">分享海报邀请好友，好友通过您的专属链接加入平台后将永久归属您的分站</text>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { operatorApi } from '@/lib/operator-data'
+import { ref, computed } from 'vue'
 
 const statusBarHeight = ref(20)
 try {
@@ -241,27 +119,16 @@ try {
   statusBarHeight.value = info.statusBarHeight || 20
 } catch (e) {}
 
-const station = ref({
-  id: '',
-  name: '',
+const station = {
+  id: 'station-demo',
+  name: '青云国学小站',
   themeColor: '#8B5CF6',
-  masterName: '',
-  masterAvatar: '',
-  masterIntro: '',
-  memberCount: 0,
-  contentCount: 0,
-})
-
-onMounted(async () => {
-  try {
-    const data = await operatorApi.stationMasterPanel()
-    if (data?.info) {
-      station.value.name = data.info.name || ''
-      station.value.memberCount = 0
-      station.value.contentCount = 0
-    }
-  } catch (e) {}
-})
+  masterName: '青云道长',
+  masterAvatar: '/static/experts/expert-1.jpg',
+  masterIntro: '从事国学研究20余年，专注八字命理与风水堪舆',
+  memberCount: 3680,
+  contentCount: 156,
+}
 
 interface PosterTemplate {
   id: string

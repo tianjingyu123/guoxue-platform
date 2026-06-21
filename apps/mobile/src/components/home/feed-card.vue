@@ -58,15 +58,15 @@ function go() {
     if (it.type === 'circle') {
       navigateTo(
         it.isMember
-          ? `/pages/circles/detail?id=${it.id}`
-          : `/pages/circles/preview?id=${it.id}`,
+          ? `/pkg-circle/circles/detail?id=${it.id}`
+          : `/pkg-circle/circles/preview?id=${it.id}`,
       )
       return
     }
     navigateTo(map[it.type] || `/pages/article/detail?id=${it.id}`)
     return
   }
-  if (agent.value) navigateTo(`/pages/agent/chat?id=${agent.value.id}`)
+  if (agent.value) navigateTo(`/pkg-agent/agent/chat?id=${agent.value.id}`)
 }
 
 const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agentThemes.general)
@@ -74,491 +74,181 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
 
 <template>
   <!-- ============ 智能体卡 ============ -->
-  <view
-    v-if="isAgent && agent"
-    class="card card-press"
-    @tap="go"
-  >
-    <view
-      class="agent-cover gradient-flow"
-      :class="theme.gradientClass"
-    >
+  <view v-if="isAgent && agent" class="card card-press" @tap="go">
+    <view class="agent-cover gradient-flow" :class="theme.gradientClass">
       <view class="agent-mask" />
-      <text class="ai-badge">
-        AI
-      </text>
-      <text
-        v-if="agent.isHot"
-        class="hot-badge badge-flash"
-      >
-        HOT
-      </text>
+      <text class="ai-badge">AI</text>
+      <text v-if="agent.isHot" class="hot-badge badge-flash">HOT</text>
       <view class="agent-center">
         <view class="agent-icon agent-icon-glow">
-          <app-icon
-            :name="theme.icon"
-            :size="56"
-            color="#ffffff"
-          />
+          <app-icon :name="theme.icon" :size="56" color="#ffffff" />
         </view>
-        <text class="agent-intro">
-          {{ agent.intro }}
-        </text>
-        <view
-          v-if="agent.online"
-          class="online"
-        >
+        <text class="agent-intro">{{ agent.intro }}</text>
+        <view v-if="agent.online" class="online">
           <view class="online-dot animate-online-glow" />
-          <text class="online-text">
-            在线
-          </text>
+          <text class="online-text">在线</text>
         </view>
       </view>
     </view>
     <view class="info">
-      <text class="agent-name">
-        {{ agent.name }}
-      </text>
-      <text class="agent-desc">
-        {{ agent.desc }}
-      </text>
+      <text class="agent-name">{{ agent.name }}</text>
+      <text class="agent-desc">{{ agent.desc }}</text>
       <view class="agent-foot">
-        <text class="agent-users">
-          {{ agent.users }}人使用
-        </text>
-        <text class="agent-chat">
-          立即对话
-        </text>
+        <text class="agent-users">{{ agent.users }}人使用</text>
+        <text class="agent-chat">立即对话</text>
       </view>
     </view>
   </view>
 
   <!-- ============ 视觉卡：课程/商品/直播/视频/电子书 ============ -->
-  <view
-    v-else-if="item && isVisual"
-    class="card card-press"
-    :class="{ 'live-card-glow': isLiveNow }"
-    @tap="go"
-  >
-    <view
-      class="cover"
-      :style="{ aspectRatio: aspect }"
-    >
-      <image
-        :src="item.cover!"
-        class="cover-img"
-        mode="aspectFill"
-      />
-      <text
-        v-if="badge"
-        class="type-badge"
-        :style="{ background: badge.bg }"
-      >
-        {{ badge.label }}
-      </text>
+  <view v-else-if="item && isVisual" class="card card-press" :class="{ 'live-card-glow': isLiveNow }" @tap="go">
+    <view class="cover" :style="{ aspectRatio: aspect }">
+      <image :src="item.cover!" class="cover-img" mode="aspectFill" />
+      <text v-if="badge" class="type-badge" :style="{ background: badge.bg }">{{ badge.label }}</text>
       <!-- 直播中呼吸灯 -->
-      <view
-        v-if="isLiveNow"
-        class="live-tag live-indicator"
-      >
-        <view class="live-dot" /><text class="live-text">
-          直播中
-        </text>
+      <view v-if="isLiveNow" class="live-tag live-indicator">
+        <view class="live-dot" /><text class="live-text">直播中</text>
       </view>
       <!-- 直播预约时间 -->
-      <view
-        v-if="cardType === 'live' && !item.isLive && item.time"
-        class="time-tag"
-      >
-        <app-icon
-          name="clock"
-          :size="20"
-          color="#ffffff"
-        /><text class="time-text">
-          {{ item.time }}
-        </text>
+      <view v-if="cardType === 'live' && !item.isLive && item.time" class="time-tag">
+        <app-icon name="clock" :size="20" color="#ffffff" /><text class="time-text">{{ item.time }}</text>
       </view>
       <!-- 商品标签 -->
       <text
         v-if="cardType === 'product' && item.tag"
         class="goods-tag"
         :class="item.tag === '秒杀' ? 'tag-danger' : item.tag === '热销' ? 'tag-brand' : 'tag-dim'"
-      >
-        {{ item.tag }}
-      </text>
+      >{{ item.tag }}</text>
       <!-- 视频播放按钮 + 时长 -->
       <template v-if="cardType === 'video'">
-        <view class="play-btn">
-          <app-icon
-            name="play"
-            :size="36"
-            color="#ffffff"
-            :fill="true"
-          />
-        </view>
-        <text class="duration">
-          {{ item.duration }}
-        </text>
+        <view class="play-btn"><app-icon name="play" :size="36" color="#ffffff" :fill="true" /></view>
+        <text class="duration">{{ item.duration }}</text>
       </template>
       <!-- 直播观看/预约数 -->
-      <view
-        v-if="cardType === 'live'"
-        class="viewers"
-      >
-        <app-icon
-          name="eye"
-          :size="20"
-          color="#ffffff"
-        />
-        <text class="viewers-text">
-          {{ formatCount(item.isLive ? item.viewers : item.reservations) }}
-        </text>
+      <view v-if="cardType === 'live'" class="viewers">
+        <app-icon name="eye" :size="20" color="#ffffff" />
+        <text class="viewers-text">{{ formatCount(item.isLive ? item.viewers : item.reservations) }}</text>
       </view>
       <!-- 电子书价格 -->
-      <text
-        v-if="cardType === 'ebook'"
-        class="ebook-price"
-      >
-        {{ item.price ? '¥' + item.price : '会员免费' }}
-      </text>
+      <text v-if="cardType === 'ebook'" class="ebook-price">{{ item.price ? '¥' + item.price : '会员免费' }}</text>
     </view>
     <view class="info">
-      <text class="title clamp-2">
-        {{ item.title }}
-      </text>
+      <text class="title clamp-2">{{ item.title }}</text>
       <!-- 价格行 -->
-      <view
-        v-if="cardType === 'course' || cardType === 'product'"
-        class="price-row"
-      >
-        <text class="price">
-          ¥{{ item.price }}
-        </text>
-        <text
-          v-if="item.originalPrice"
-          class="origin"
-        >
-          ¥{{ item.originalPrice }}
-        </text>
+      <view v-if="cardType === 'course' || cardType === 'product'" class="price-row">
+        <text class="price">¥{{ item.price }}</text>
+        <text v-if="item.originalPrice" class="origin">¥{{ item.originalPrice }}</text>
       </view>
-      <view
-        v-if="cardType === 'ebook'"
-        class="ebook-row"
-      >
-        <text class="ebook-p">
-          {{ item.price ? '¥' + item.price : '免费' }}
-        </text>
-        <text class="ebook-readers">
-          {{ formatCount(item.readers) }}人读过
-        </text>
+      <view v-if="cardType === 'ebook'" class="ebook-row">
+        <text class="ebook-p">{{ item.price ? '¥' + item.price : '免费' }}</text>
+        <text class="ebook-readers">{{ formatCount(item.readers) }}人读过</text>
       </view>
       <view class="foot">
-        <text
-          v-if="cardType === 'course'"
-          class="meta"
-        >
-          {{ formatCount(item.students) }}人已学
-        </text>
-        <text
-          v-else-if="cardType === 'product'"
-          class="meta"
-        >
-          已售{{ formatCount(item.sales) }}
-        </text>
-        <view
-          v-else
-          class="author"
-        >
-          <view class="avatar">
-            <text class="avatar-char">
-              {{ avatarChar }}
-            </text>
-          </view>
-          <text class="author-name">
-            {{ item.author }}
-          </text>
+        <text v-if="cardType === 'course'" class="meta">{{ formatCount(item.students) }}人已学</text>
+        <text v-else-if="cardType === 'product'" class="meta">已售{{ formatCount(item.sales) }}</text>
+        <view v-else class="author">
+          <view class="avatar"><text class="avatar-char">{{ avatarChar }}</text></view>
+          <text class="author-name">{{ item.author }}</text>
         </view>
-        <view
-          v-if="cardType === 'video'"
-          class="like"
-        >
-          <app-icon
-            name="heart"
-            :size="26"
-            color="#999999"
-          /><text class="like-num">
-            {{ item.likes }}
-          </text>
+        <view v-if="cardType === 'video'" class="like">
+          <app-icon name="heart" :size="26" color="#999999" /><text class="like-num">{{ item.likes }}</text>
         </view>
-        <text
-          v-if="cardType === 'ebook'"
-          class="ebook-author"
-        >
-          {{ item.author }}
-        </text>
+        <text v-if="cardType === 'ebook'" class="ebook-author">{{ item.author }}</text>
       </view>
     </view>
   </view>
 
   <!-- ============ 文章卡（带封面） ============ -->
-  <view
-    v-else-if="item && isArticle"
-    class="card card-press"
-    @tap="go"
-  >
-    <view
-      class="cover"
-      :style="{ aspectRatio: aspect }"
-    >
-      <image
-        :src="item.cover!"
-        class="cover-img"
-        mode="aspectFill"
-      />
-      <text
-        class="type-badge"
-        :style="{ background: typeConfig.article.bg }"
-      >
-        文章
-      </text>
+  <view v-else-if="item && isArticle" class="card card-press" @tap="go">
+    <view class="cover" :style="{ aspectRatio: aspect }">
+      <image :src="item.cover!" class="cover-img" mode="aspectFill" />
+      <text class="type-badge" :style="{ background: typeConfig.article.bg }">文章</text>
     </view>
     <view class="info">
-      <text class="title-serif clamp-2">
-        {{ item.title }}
-      </text>
-      <text
-        v-if="item.excerpt"
-        class="excerpt clamp-2"
-      >
-        {{ item.excerpt }}
-      </text>
+      <text class="title-serif clamp-2">{{ item.title }}</text>
+      <text v-if="item.excerpt" class="excerpt clamp-2">{{ item.excerpt }}</text>
       <view class="foot">
         <view class="author">
-          <view class="avatar">
-            <text class="avatar-char">
-              {{ avatarChar }}
-            </text>
-          </view>
-          <text class="author-name">
-            {{ item.author }}
-          </text>
+          <view class="avatar"><text class="avatar-char">{{ avatarChar }}</text></view>
+          <text class="author-name">{{ item.author }}</text>
         </view>
-        <view class="like">
-          <app-icon
-            name="heart"
-            :size="22"
-            color="#999999"
-          /><text class="like-num">
-            {{ item.likes }}
-          </text>
-        </view>
+        <view class="like"><app-icon name="heart" :size="22" color="#999999" /><text class="like-num">{{ item.likes }}</text></view>
       </view>
     </view>
   </view>
 
   <!-- ============ 纯文字卡（无封面 文章/帖子） ============ -->
-  <view
-    v-else-if="item && isTextOnly"
-    class="card card-press text-card"
-    @tap="go"
-  >
+  <view v-else-if="item && isTextOnly" class="card card-press text-card" @tap="go">
     <view class="text-head">
-      <text
-        class="mini-badge"
-        :style="{ background: (badge || typeConfig.article).bg }"
-      >
-        {{ (badge || typeConfig.article).label }}
-      </text>
+      <text class="mini-badge" :style="{ background: (badge || typeConfig.article).bg }">{{ (badge || typeConfig.article).label }}</text>
       <view class="author">
-        <view class="avatar">
-          <text class="avatar-char">
-            {{ avatarChar }}
-          </text>
-        </view>
-        <text class="author-name">
-          {{ item.author }}
-        </text>
+        <view class="avatar"><text class="avatar-char">{{ avatarChar }}</text></view>
+        <text class="author-name">{{ item.author }}</text>
       </view>
     </view>
-    <text class="title-serif clamp-3">
-      {{ item.title }}
-    </text>
-    <text
-      v-if="item.excerpt || item.content"
-      class="text-body clamp-5"
-    >
-      {{ item.excerpt || item.content }}
-    </text>
+    <text class="title-serif clamp-3">{{ item.title }}</text>
+    <text v-if="item.excerpt || item.content" class="text-body clamp-5">{{ item.excerpt || item.content }}</text>
     <view class="text-foot">
-      <view class="like">
-        <app-icon
-          name="heart"
-          :size="22"
-          color="#999999"
-        /><text class="like-num">
-          {{ item.likes }}
-        </text>
-      </view>
-      <view class="like">
-        <app-icon
-          name="message-circle"
-          :size="22"
-          color="#999999"
-        /><text class="like-num">
-          {{ item.comments }}
-        </text>
-      </view>
+      <view class="like"><app-icon name="heart" :size="22" color="#999999" /><text class="like-num">{{ item.likes }}</text></view>
+      <view class="like"><app-icon name="message-circle" :size="22" color="#999999" /><text class="like-num">{{ item.comments }}</text></view>
     </view>
   </view>
 
   <!-- ============ 每日一首（深色书页风） ============ -->
-  <view
-    v-else-if="item && isPoemDaily"
-    class="card card-press poem-daily"
-    @tap="go"
-  >
+  <view v-else-if="item && isPoemDaily" class="card card-press poem-daily" @tap="go">
     <view class="spine" />
     <view class="poem-inner">
       <view class="poem-head">
-        <text class="seal">
-          每日
-        </text>
-        <text class="dynasty">
-          〔{{ item.dynasty }}〕{{ item.author }}
-        </text>
+        <text class="seal">每日</text>
+        <text class="dynasty">〔{{ item.dynasty }}〕{{ item.author }}</text>
       </view>
       <view class="poem-lines">
-        <text
-          v-for="(line, i) in item.lines"
-          :key="i"
-          class="poem-line"
-        >
-          {{ line }}
-        </text>
+        <text v-for="(line, i) in item.lines" :key="i" class="poem-line">{{ line }}</text>
       </view>
       <view class="poem-foot">
-        <text class="poem-title">
-          {{ item.title }}
-        </text>
-        <view class="like">
-          <app-icon
-            name="heart"
-            :size="22"
-            color="#999999"
-          /><text class="like-num">
-            {{ formatLikes(item.likes) }}
-          </text>
-        </view>
+        <text class="poem-title">{{ item.title }}</text>
+        <view class="like"><app-icon name="heart" :size="22" color="#999999" /><text class="like-num">{{ formatLikes(item.likes) }}</text></view>
       </view>
     </view>
   </view>
 
   <!-- ============ 普通诗词卡（书签风） ============ -->
-  <view
-    v-else-if="item && isPoem"
-    class="card card-press poem-card"
-    @tap="go"
-  >
+  <view v-else-if="item && isPoem" class="card card-press poem-card" @tap="go">
     <view class="poem-bar" />
     <view class="poem-body">
       <view class="poem-title-row">
-        <text class="poem-name">
-          {{ item.title }}
-        </text>
-        <text class="poem-author">
-          · {{ item.author }}
-        </text>
-        <text
-          v-if="item.form"
-          class="poem-form"
-        >
-          {{ item.form }}
-        </text>
+        <text class="poem-name">{{ item.title }}</text>
+        <text class="poem-author">· {{ item.author }}</text>
+        <text v-if="item.form" class="poem-form">{{ item.form }}</text>
       </view>
-      <text class="poem-preview">
-        {{ item.preview }}
-      </text>
+      <text class="poem-preview">{{ item.preview }}</text>
       <view class="poem-foot">
         <view class="poem-tags">
-          <text
-            v-for="t in item.tags"
-            :key="t"
-            class="poem-tag"
-          >
-            {{ t }}
-          </text>
+          <text v-for="t in item.tags" :key="t" class="poem-tag">{{ t }}</text>
         </view>
-        <view class="like">
-          <app-icon
-            name="heart"
-            :size="20"
-            color="#999999"
-          /><text class="like-num">
-            {{ formatLikes(item.likes) }}
-          </text>
-        </view>
+        <view class="like"><app-icon name="heart" :size="20" color="#999999" /><text class="like-num">{{ formatLikes(item.likes) }}</text></view>
       </view>
     </view>
   </view>
 
   <!-- ============ 圈子卡（masonry 简版） ============ -->
-  <view
-    v-else-if="item && isCircle"
-    class="card card-press"
-    @tap="go"
-  >
-    <view
-      class="cover"
-      :style="{ aspectRatio: aspect }"
-    >
-      <image
-        :src="item.cover!"
-        class="cover-img"
-        mode="aspectFill"
-      />
-      <text
-        class="type-badge"
-        :style="{ background: typeConfig.circle.bg }"
-      >
-        圈子
-      </text>
+  <view v-else-if="item && isCircle" class="card card-press" @tap="go">
+    <view class="cover" :style="{ aspectRatio: aspect }">
+      <image :src="item.cover!" class="cover-img" mode="aspectFill" />
+      <text class="type-badge" :style="{ background: typeConfig.circle.bg }">圈子</text>
     </view>
     <view class="info">
       <view class="circle-name-row">
-        <text class="title clamp-1">
-          {{ item.circleName }}
-        </text>
-        <app-icon
-          v-if="item.isVerified"
-          name="badge-check"
-          :size="26"
-          color="#c9a96e"
-        />
+        <text class="title clamp-1">{{ item.circleName }}</text>
+        <app-icon v-if="item.isVerified" name="badge-check" :size="26" color="#c9a96e" />
       </view>
-      <text class="excerpt clamp-2">
-        {{ item.content }}
-      </text>
+      <text class="excerpt clamp-2">{{ item.content }}</text>
       <view class="circle-meta">
-        <view class="cm-stat">
-          <app-icon
-            name="users"
-            :size="22"
-            color="#999999"
-          /><text class="cm-num">
-            {{ formatCount(item.members) }}
-          </text>
-        </view>
-        <text class="cm-price">
-          {{ item.price ? '¥' + item.price : '免费' }}
-        </text>
+        <view class="cm-stat"><app-icon name="users" :size="22" color="#999999" /><text class="cm-num">{{ formatCount(item.members) }}</text></view>
+        <text class="cm-price">{{ item.price ? '¥' + item.price : '免费' }}</text>
       </view>
       <view class="circle-foot">
-        <text
-          class="join-btn"
-          :class="{ joined: item.isMember }"
-        >
-          {{ item.isMember ? '已加入' : '加入' }}
-        </text>
+        <text class="join-btn" :class="{ joined: item.isMember }">{{ item.isMember ? '已加入' : '加入' }}</text>
       </view>
     </view>
   </view>

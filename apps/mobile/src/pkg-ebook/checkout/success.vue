@@ -3,39 +3,17 @@
     <!-- 成功 Hero -->
     <view class="hero">
       <view class="check-circle">
-        <AppIcon
-          name="check-circle"
-          :size="80"
-          :color="C.primary"
-        />
+        <AppIcon name="check-circle" :size="80" :color="C.primary" />
       </view>
-      <text class="hero-title">
-        支付成功！
-      </text>
-      <text class="hero-sub">
-        《{{ order.successBookTitle }}》已添加到你的书架
-      </text>
+      <text class="hero-title">支付成功！</text>
+      <text class="hero-sub">《{{ order.successBookTitle }}》已添加到你的书架</text>
       <view class="hero-actions">
-        <view
-          class="btn-primary"
-          @tap="goReader"
-        >
-          <AppIcon
-            name="book-open"
-            :size="32"
-            color="#ffffff"
-          />
-          <text class="btn-primary-tx">
-            立即阅读
-          </text>
+        <view class="btn-primary" @tap="goReader">
+          <AppIcon name="book-open" :size="32" color="#ffffff" />
+          <text class="btn-primary-tx">立即阅读</text>
         </view>
-        <view
-          class="btn-outline"
-          @tap="goShelf"
-        >
-          <text class="btn-outline-tx">
-            去书架
-          </text>
+        <view class="btn-outline" @tap="goShelf">
+          <text class="btn-outline-tx">去书架</text>
         </view>
       </view>
     </view>
@@ -44,36 +22,20 @@
     <view class="section">
       <view class="order-card">
         <view class="order-row">
-          <text class="order-label">
-            订单号
-          </text>
-          <text class="order-val mono">
-            {{ order.orderNo }}
-          </text>
+          <text class="order-label">订单号</text>
+          <text class="order-val mono">{{ order.orderNo }}</text>
         </view>
         <view class="order-row">
-          <text class="order-label">
-            支付方式
-          </text>
-          <text class="order-val">
-            {{ order.payLabel }}
-          </text>
+          <text class="order-label">支付方式</text>
+          <text class="order-val">{{ order.payLabel }}</text>
         </view>
         <view class="order-row">
-          <text class="order-label">
-            实付金额
-          </text>
-          <text class="order-val price">
-            ¥{{ order.amount }}
-          </text>
+          <text class="order-label">实付金额</text>
+          <text class="order-val price">¥{{ order.amount }}</text>
         </view>
         <view class="order-row">
-          <text class="order-label">
-            购买时间
-          </text>
-          <text class="order-val">
-            {{ order.payTime }}
-          </text>
+          <text class="order-label">购买时间</text>
+          <text class="order-val">{{ order.payTime }}</text>
         </view>
       </view>
     </view>
@@ -81,51 +43,21 @@
     <!-- 相关推荐 -->
     <view class="section">
       <view class="rec-hd">
-        <text class="rec-title">
-          买了此书的人还买了
-        </text>
-        <view
-          class="rec-more"
-          @tap="goStore"
-        >
-          <text class="rec-more-tx">
-            更多
-          </text>
-          <AppIcon
-            name="chevron-right"
-            :size="32"
-            :color="C.primary"
-          />
+        <text class="rec-title">买了此书的人还买了</text>
+        <view class="rec-more" @tap="goStore">
+          <text class="rec-more-tx">更多</text>
+          <AppIcon name="chevron-right" :size="32" :color="C.primary" />
         </view>
       </view>
-      <scroll-view
-        scroll-x
-        class="rec-scroll"
-      >
+      <scroll-view scroll-x class="rec-scroll">
         <view class="rec-list">
-          <view
-            v-for="rb in related"
-            :key="rb.id"
-            class="rec-item"
-            @tap="goDetail(rb.id)"
-          >
-            <view
-              class="rec-cover"
-              :style="{ background: rb.coverColor }"
-            >
+          <view v-for="rb in related" :key="rb.id" class="rec-item" @tap="goDetail(rb.id)">
+            <view class="rec-cover" :style="{ background: rb.coverColor }">
               <view class="cover-spine" />
-              <view class="cover-text-wrap">
-                <text class="cover-text">
-                  {{ rb.title }}
-                </text>
-              </view>
+              <view class="cover-text-wrap"><text class="cover-text">{{ rb.title }}</text></view>
             </view>
-            <text class="rec-name">
-              {{ rb.title }}
-            </text>
-            <text class="rec-price">
-              ¥{{ rb.price }}
-            </text>
+            <text class="rec-name">{{ rb.title }}</text>
+            <text class="rec-price">¥{{ rb.price }}</text>
           </view>
         </view>
       </scroll-view>
@@ -134,19 +66,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { ebookApi } from '@/lib/ebook-data'
+import { ebookOrderInfo, ebookRelatedBuy } from '@/lib/ebook-data'
 
 const C = { primary: '#2563eb' }
-const order = ref<any>({})
-const related = ref<any[]>([])
-
-onMounted(async () => {
-  const res = await ebookApi.checkoutSuccess()
-  order.value = res.order
-  related.value = res.related
-})
+const order = ebookOrderInfo
+const related = ebookRelatedBuy
 
 function goReader() {
   uni.redirectTo({ url: '/pkg-ebook/reader/index?id=1' })

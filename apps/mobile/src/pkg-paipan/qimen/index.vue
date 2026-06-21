@@ -85,295 +85,102 @@ function handleSubmit() {
     <!-- 顶部导航 -->
     <view class="hdr">
       <view class="hdr-inner">
-        <view
-          class="hdr-back"
-          @tap="navigateTo('/paipan')"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="40"
-            color="var(--text-ink)"
-          />
+        <view class="hdr-back" @tap="navigateTo('/paipan')">
+          <app-icon name="chevron-left" :size="40" color="var(--text-ink)" />
         </view>
-        <text class="hdr-title">
-          热卜奇门遁甲
-        </text>
+        <text class="hdr-title">热卜奇门遁甲</text>
         <view class="hdr-spacer" />
       </view>
     </view>
 
     <!-- 标题横幅 -->
     <view class="banner">
-      <text class="banner-title">
-        奇门遁甲
-      </text>
+      <text class="banner-title">奇门遁甲</text>
       <view class="banner-share">
-        <app-icon
-          name="share-2"
-          :size="28"
-          color="rgba(255,255,255,0.9)"
-        />
-        <text class="banner-share-text">
-          分享
-        </text>
+        <app-icon name="share-2" :size="28" color="rgba(255,255,255,0.9)" />
+        <text class="banner-share-text">分享</text>
       </view>
     </view>
 
     <!-- 表单 -->
-    <scroll-view
-      scroll-y
-      class="body"
-    >
+    <scroll-view scroll-y class="body">
       <view class="body-inner">
         <view class="card">
           <!-- 事项内容 -->
           <view class="row row-border">
-            <text class="row-label">
-              事项内容
-            </text>
-            <input
-              v-model="matter"
-              class="row-input"
-              placeholder="请输入事项(选填)"
-              placeholder-class="row-input-ph"
-            >
+            <text class="row-label">事项内容</text>
+            <input v-model="matter" class="row-input" placeholder="请输入事项(选填)" placeholder-class="row-input-ph" />
           </view>
 
           <!-- 排盘时间 -->
-          <view
-            class="row row-border row-tap"
-            @tap="showDatePicker = true"
-          >
+          <view class="row row-border row-tap" @tap="showDatePicker = true">
             <view class="row-left">
-              <text class="row-label">
-                排盘时间
-              </text>
-              <view
-                class="row-refresh"
-                @tap.stop="syncNow"
-              >
-                <app-icon
-                  name="refresh-cw"
-                  :size="28"
-                  color="var(--text-soft)"
-                />
+              <text class="row-label">排盘时间</text>
+              <view class="row-refresh" @tap.stop="syncNow">
+                <app-icon name="refresh-cw" :size="28" color="var(--text-soft)" />
               </view>
             </view>
             <view class="row-right">
-              <text class="row-value">
-                {{ formatDateTime }}
-              </text>
-              <app-icon
-                name="chevron-down"
-                :size="28"
-                color="var(--text-soft)"
-              />
+              <text class="row-value">{{ formatDateTime }}</text>
+              <app-icon name="chevron-down" :size="28" color="var(--text-soft)" />
             </view>
           </view>
 
           <!-- 排盘方式 -->
           <view class="row row-border">
-            <text class="row-label">
-              排盘方式
-            </text>
+            <text class="row-label">排盘方式</text>
             <view class="opts">
-              <view
-                class="opt"
-                :class="{ on: panMethod === 'zhuan' }"
-                @tap="panMethod = 'zhuan'"
-              >
-                <text
-                  class="opt-t"
-                  :class="{ on: panMethod === 'zhuan' }"
-                >
-                  转盘
-                </text>
-              </view>
-              <view
-                class="opt"
-                :class="{ on: panMethod === 'fei' }"
-                @tap="panMethod = 'fei'"
-              >
-                <text
-                  class="opt-t"
-                  :class="{ on: panMethod === 'fei' }"
-                >
-                  飞盘
-                </text>
-              </view>
+              <view class="opt" :class="{ on: panMethod === 'zhuan' }" @tap="panMethod = 'zhuan'"><text class="opt-t" :class="{ on: panMethod === 'zhuan' }">转盘</text></view>
+              <view class="opt" :class="{ on: panMethod === 'fei' }" @tap="panMethod = 'fei'"><text class="opt-t" :class="{ on: panMethod === 'fei' }">飞盘</text></view>
             </view>
           </view>
 
           <!-- 飞宫方式 -->
           <view class="row row-border">
-            <text class="row-label">
-              飞宫方式
-            </text>
+            <text class="row-label">飞宫方式</text>
             <view class="opts">
-              <view
-                class="opt"
-                :class="{ on: flyMethod === 'yangshun' }"
-                @tap="flyMethod = 'yangshun'"
-              >
-                <text
-                  class="opt-t"
-                  :class="{ on: flyMethod === 'yangshun' }"
-                >
-                  阳顺阴逆
-                </text>
-              </view>
-              <view
-                class="opt"
-                :class="{ on: flyMethod === 'yinyang' }"
-                @tap="flyMethod = 'yinyang'"
-              >
-                <text
-                  class="opt-t"
-                  :class="{ on: flyMethod === 'yinyang' }"
-                >
-                  阴阳皆顺
-                </text>
-              </view>
+              <view class="opt" :class="{ on: flyMethod === 'yangshun' }" @tap="flyMethod = 'yangshun'"><text class="opt-t" :class="{ on: flyMethod === 'yangshun' }">阳顺阴逆</text></view>
+              <view class="opt" :class="{ on: flyMethod === 'yinyang' }" @tap="flyMethod = 'yinyang'"><text class="opt-t" :class="{ on: flyMethod === 'yinyang' }">阴阳皆顺</text></view>
             </view>
           </view>
 
           <!-- 起局方式 -->
           <view class="row row-border row-col">
-            <text class="row-label">
-              起局方式
-            </text>
+            <text class="row-label">起局方式</text>
             <view class="opts opts-wrap">
-              <view
-                class="opt"
-                :class="{ on: startMethod === 'chaibu' }"
-                @tap="startMethod = 'chaibu'"
-              >
-                <text
-                  class="opt-t"
-                  :class="{ on: startMethod === 'chaibu' }"
-                >
-                  拆补
-                </text>
-              </view>
-              <view
-                class="opt"
-                :class="{ on: startMethod === 'maoshan' }"
-                @tap="startMethod = 'maoshan'"
-              >
-                <text
-                  class="opt-t"
-                  :class="{ on: startMethod === 'maoshan' }"
-                >
-                  茅山
-                </text>
-              </view>
-              <view
-                class="opt"
-                :class="{ on: startMethod === 'zhirun' }"
-                @tap="startMethod = 'zhirun'"
-              >
-                <text
-                  class="opt-t"
-                  :class="{ on: startMethod === 'zhirun' }"
-                >
-                  置闰
-                </text>
-              </view>
-              <view
-                class="opt"
-                :class="{ on: startMethod === 'custom' }"
-                @tap="startMethod = 'custom'"
-              >
-                <text
-                  class="opt-t"
-                  :class="{ on: startMethod === 'custom' }"
-                >
-                  自选局数
-                </text>
-              </view>
+              <view class="opt" :class="{ on: startMethod === 'chaibu' }" @tap="startMethod = 'chaibu'"><text class="opt-t" :class="{ on: startMethod === 'chaibu' }">拆补</text></view>
+              <view class="opt" :class="{ on: startMethod === 'maoshan' }" @tap="startMethod = 'maoshan'"><text class="opt-t" :class="{ on: startMethod === 'maoshan' }">茅山</text></view>
+              <view class="opt" :class="{ on: startMethod === 'zhirun' }" @tap="startMethod = 'zhirun'"><text class="opt-t" :class="{ on: startMethod === 'zhirun' }">置闰</text></view>
+              <view class="opt" :class="{ on: startMethod === 'custom' }" @tap="startMethod = 'custom'"><text class="opt-t" :class="{ on: startMethod === 'custom' }">自选局数</text></view>
             </view>
           </view>
 
           <!-- 自选局数下拉 -->
-          <view
-            v-if="startMethod === 'custom'"
-            class="ju-wrap"
-          >
-            <view
-              class="ju-trigger"
-              @tap="showJuPicker = true"
-            >
-              <text class="ju-val">
-                {{ customJu }}
-              </text>
-              <app-icon
-                name="chevron-down"
-                :size="28"
-                color="var(--text-soft)"
-              />
+          <view v-if="startMethod === 'custom'" class="ju-wrap">
+            <view class="ju-trigger" @tap="showJuPicker = true">
+              <text class="ju-val">{{ customJu }}</text>
+              <app-icon name="chevron-down" :size="28" color="var(--text-soft)" />
             </view>
           </view>
 
           <!-- 暗干起法 -->
           <view class="row row-border">
-            <text class="row-label">
-              暗干起法
-            </text>
+            <text class="row-label">暗干起法</text>
             <view class="opts">
-              <view
-                class="opt"
-                :class="{ on: anganMethod === 'zhishi' }"
-                @tap="anganMethod = 'zhishi'"
-              >
-                <text
-                  class="opt-t"
-                  :class="{ on: anganMethod === 'zhishi' }"
-                >
-                  值使门起
-                </text>
-              </view>
-              <view
-                class="opt"
-                :class="{ on: anganMethod === 'dipan' }"
-                @tap="anganMethod = 'dipan'"
-              >
-                <text
-                  class="opt-t"
-                  :class="{ on: anganMethod === 'dipan' }"
-                >
-                  门地盘起
-                </text>
-              </view>
+              <view class="opt" :class="{ on: anganMethod === 'zhishi' }" @tap="anganMethod = 'zhishi'"><text class="opt-t" :class="{ on: anganMethod === 'zhishi' }">值使门起</text></view>
+              <view class="opt" :class="{ on: anganMethod === 'dipan' }" @tap="anganMethod = 'dipan'"><text class="opt-t" :class="{ on: anganMethod === 'dipan' }">门地盘起</text></view>
             </view>
           </view>
 
           <!-- 时间类型 -->
           <view class="row">
-            <text class="row-label">
-              时间类型
-            </text>
+            <text class="row-label">时间类型</text>
             <view class="row-right">
-              <text
-                v-if="useTrueSolar"
-                class="row-coord"
-              >
-                北纬{{ coordinates.lat }}东经{{ coordinates.lng }}
-              </text>
-              <view
-                class="check"
-                @tap="useTrueSolar = !useTrueSolar"
-              >
-                <text class="check-label">
-                  真太阳时
-                </text>
-                <view
-                  class="switch"
-                  :class="{ on: useTrueSolar }"
-                >
-                  <view
-                    class="switch-dot"
-                    :class="{ on: useTrueSolar }"
-                  />
+              <text v-if="useTrueSolar" class="row-coord">北纬{{ coordinates.lat }}东经{{ coordinates.lng }}</text>
+              <view class="check" @tap="useTrueSolar = !useTrueSolar">
+                <text class="check-label">真太阳时</text>
+                <view class="switch" :class="{ on: useTrueSolar }">
+                  <view class="switch-dot" :class="{ on: useTrueSolar }" />
                 </view>
               </view>
             </view>
@@ -382,22 +189,8 @@ function handleSubmit() {
 
         <!-- 底部按钮 -->
         <view class="actions">
-          <view
-            class="btn-primary"
-            @tap="handleSubmit"
-          >
-            <text class="btn-primary-t">
-              开始排盘
-            </text>
-          </view>
-          <view
-            class="btn-ghost"
-            @tap="navigateTo('/paipan/qimen/history')"
-          >
-            <text class="btn-ghost-t">
-              排盘记录
-            </text>
-          </view>
+          <view class="btn-primary" @tap="handleSubmit"><text class="btn-primary-t">开始排盘</text></view>
+          <view class="btn-ghost" @tap="navigateTo('/paipan/qimen/history')"><text class="btn-ghost-t">排盘记录</text></view>
         </view>
       </view>
     </scroll-view>
@@ -412,48 +205,21 @@ function handleSubmit() {
     />
 
     <!-- 局数选择弹窗 -->
-    <view
-      v-if="showJuPicker"
-      class="ju-modal"
-      @tap="showJuPicker = false"
-    >
-      <view
-        class="ju-sheet"
-        @tap.stop
-      >
+    <view v-if="showJuPicker" class="ju-modal" @tap="showJuPicker = false">
+      <view class="ju-sheet" @tap.stop>
         <view class="ju-head">
-          <text
-            class="ju-cancel"
-            @tap="showJuPicker = false"
-          >
-            取消
-          </text>
-          <text class="ju-head-title">
-            选择局数
-          </text>
-          <text
-            class="ju-confirm"
-            @tap="showJuPicker = false"
-          >
-            确定
-          </text>
+          <text class="ju-cancel" @tap="showJuPicker = false">取消</text>
+          <text class="ju-head-title">选择局数</text>
+          <text class="ju-confirm" @tap="showJuPicker = false">确定</text>
         </view>
-        <scroll-view
-          scroll-y
-          class="ju-list"
-        >
+        <scroll-view scroll-y class="ju-list">
           <view
             v-for="ju in JU_OPTIONS"
             :key="ju"
             class="ju-item"
             @tap="pickJu(ju)"
           >
-            <text
-              class="ju-item-t"
-              :class="{ on: customJu === ju }"
-            >
-              {{ ju }}
-            </text>
+            <text class="ju-item-t" :class="{ on: customJu === ju }">{{ ju }}</text>
           </view>
         </scroll-view>
       </view>

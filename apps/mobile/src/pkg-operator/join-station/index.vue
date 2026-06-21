@@ -1,344 +1,167 @@
 <template>
   <view class="js-page">
-    <app-nav-bar
-      title="成为分站站长"
-      :border="true"
-    />
+    <app-nav-bar title="成为分站站长" :border="true" />
 
-    <scroll-view
-      scroll-y
-      class="js-scroll"
-    >
-      <view
-        v-if="loading"
-        class="js-loading"
-      >
-        <view class="js-loading-spinner" />
-        <text class="js-loading-text">
-          加载中...
-        </text>
-      </view>
-      <view
-        v-else-if="error"
-        class="js-error"
-      >
-        <text class="js-error-text">
-          {{ error }}
-        </text>
-        <view
-          class="js-retry-btn"
-          @tap="loadData"
-        >
-          <text class="js-retry-txt">
-            重试
-          </text>
+    <scroll-view scroll-y class="js-scroll">
+      <!-- Hero -->
+      <view class="js-hero">
+        <view class="js-hero-deco1" />
+        <view class="js-hero-deco2" />
+        <view class="js-hero-inner">
+          <view class="js-hero-icon">
+            <app-icon name="award" :size="64" color="#ffffff" />
+          </view>
+          <view class="js-hero-badge">
+            <app-icon name="zap" :size="22" color="#ffffff" />
+            <text class="js-hero-badge-text">限时优惠</text>
+          </view>
+          <text class="js-hero-title">成为热卜分站站长</text>
+          <text class="js-hero-sub">建立专属入口，享受平台分佣收益</text>
+          <view class="js-hero-price">
+            <text class="js-hero-price-now">¥{{ stationPricing.price }}</text>
+            <text class="js-hero-price-old">¥{{ stationPricing.originalPrice }}</text>
+            <text class="js-hero-price-unit">/年</text>
+          </view>
         </view>
       </view>
-      <view v-else>
-        <!-- Hero -->
-        <view class="js-hero">
-          <view class="js-hero-deco1" />
-          <view class="js-hero-deco2" />
-          <view class="js-hero-inner">
-            <view class="js-hero-icon">
-              <app-icon
-                name="award"
-                :size="64"
-                color="#ffffff"
-              />
-            </view>
-            <view class="js-hero-badge">
-              <app-icon
-                name="zap"
-                :size="22"
-                color="#ffffff"
-              />
-              <text class="js-hero-badge-text">
-                限时优惠
-              </text>
-            </view>
-            <text class="js-hero-title">
-              成为热卜分站站长
-            </text>
-            <text class="js-hero-sub">
-              建立专属入口，享受平台分佣收益
-            </text>
-            <view class="js-hero-price">
-              <text class="js-hero-price-now">
-                ¥{{ pricing.price }}
-              </text>
-              <text class="js-hero-price-old">
-                ¥{{ pricing.originalPrice }}
-              </text>
-              <text class="js-hero-price-unit">
-                /年
-              </text>
-            </view>
-          </view>
-        </view>
 
-        <!-- 站长专属权益 -->
-        <view class="js-sec">
-          <view class="js-card">
-            <view class="js-card-title">
-              <app-icon
-                name="crown"
-                :size="28"
-                color="#C9A96E"
-              />
-              <text class="js-card-title-text">
-                站长专属权益
-              </text>
-            </view>
-            <view class="js-benefits">
-              <view
-                v-for="(b, i) in stationBenefits"
-                :key="i"
-                class="js-benefit"
-                :class="{ hl: b.highlight }"
-              >
-                <view
-                  class="js-benefit-icon"
-                  :class="{ hl: b.highlight }"
-                >
-                  <app-icon
-                    :name="b.icon"
-                    :size="36"
-                    :color="b.highlight ? '#16a34a' : '#8a8178'"
-                  />
-                </view>
-                <view class="js-benefit-body">
-                  <view class="js-benefit-head">
-                    <text class="js-benefit-title">
-                      {{ b.title }}
-                    </text>
-                    <text
-                      v-if="b.highlight"
-                      class="js-benefit-tag"
-                    >
-                      核心
-                    </text>
-                  </view>
-                  <text class="js-benefit-desc">
-                    {{ b.desc }}
-                  </text>
-                </view>
-              </view>
-            </view>
+      <!-- 站长专属权益 -->
+      <view class="js-sec">
+        <view class="js-card">
+          <view class="js-card-title">
+            <app-icon name="crown" :size="28" color="#C9A96E" />
+            <text class="js-card-title-text">站长专属权益</text>
           </view>
-        </view>
-
-        <!-- 分佣收益说明 -->
-        <view class="js-sec">
-          <view class="js-card js-commission">
-            <view class="js-card-title">
-              <app-icon
-                name="trending-up"
-                :size="28"
-                color="#16a34a"
-              />
-              <text class="js-card-title-text">
-                分佣收益说明
-              </text>
-            </view>
-            <view class="js-comm-rows">
-              <view class="js-comm-row">
-                <text class="js-comm-label">
-                  入圈费用分佣
-                </text>
-                <text class="js-comm-val green">
-                  10%-30%
-                </text>
-              </view>
-              <view class="js-comm-row">
-                <text class="js-comm-label">
-                  用户永久归属
-                </text>
-                <text class="js-comm-val green">
-                  终身绑定
-                </text>
-              </view>
-              <view class="js-comm-row">
-                <text class="js-comm-label">
-                  结算周期
-                </text>
-                <text class="js-comm-val dark">
-                  每月15日
-                </text>
-              </view>
-            </view>
-            <text class="js-comm-note">
-              * 用户通过您的分站链接注册后永久归属您，其入圈消费您都将获得分佣
-            </text>
-          </view>
-        </view>
-
-        <!-- 站长收益案例 -->
-        <view class="js-sec">
-          <view class="js-card">
-            <view class="js-card-title">
-              <app-icon
-                name="sparkles"
-                :size="28"
-                color="#C9A96E"
-              />
-              <text class="js-card-title-text">
-                站长收益案例
-              </text>
-            </view>
-            <view class="js-cases">
-              <view
-                v-for="(c, i) in stationEarningCases"
-                :key="i"
-                class="js-case"
-              >
-                <view class="js-case-icon">
-                  <app-icon
-                    name="award"
-                    :size="36"
-                    color="#16a34a"
-                  />
-                </view>
-                <view class="js-case-body">
-                  <text class="js-case-name">
-                    {{ c.name }}
-                  </text>
-                  <text class="js-case-meta">
-                    入驻{{ c.days }}天 · {{ c.users }}位用户
-                  </text>
-                </view>
-                <view class="js-case-right">
-                  <text class="js-case-earn">
-                    ¥{{ c.earnings.toLocaleString() }}
-                  </text>
-                  <text class="js-case-label">
-                    累计收益
-                  </text>
-                </view>
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <!-- 运营商邀请码 -->
-        <view class="js-sec">
-          <view class="js-card">
-            <text class="js-invite-title">
-              运营商邀请码（选填）
-            </text>
-            <input
-              v-model="inviteCode"
-              class="js-invite-input"
-              placeholder="如有运营商邀请码请填写"
-              placeholder-class="js-invite-ph"
+          <view class="js-benefits">
+            <view
+              v-for="(b, i) in stationBenefits"
+              :key="i"
+              class="js-benefit"
+              :class="{ hl: b.highlight }"
             >
-            <text class="js-invite-note">
-              填写邀请码可加入运营商团队，享受团队支持和培训
-            </text>
-          </view>
-        </view>
-
-        <!-- 常见问题 -->
-        <view class="js-sec">
-          <view class="js-card">
-            <text class="js-card-title-text plain">
-              常见问题
-            </text>
-            <view class="js-faqs">
-              <view
-                v-for="(f, i) in stationFaqs"
-                :key="i"
-                class="js-faq"
-              >
-                <view
-                  class="js-faq-q"
-                  @tap="toggleFaq(i)"
-                >
-                  <text class="js-faq-q-text">
-                    {{ f.q }}
-                  </text>
-                  <view
-                    class="js-faq-arrow"
-                    :class="{ open: expandedFaq === i }"
-                  >
-                    <app-icon
-                      name="chevron-right"
-                      :size="26"
-                      color="#8a8178"
-                    />
-                  </view>
+              <view class="js-benefit-icon" :class="{ hl: b.highlight }">
+                <app-icon :name="b.icon" :size="36" :color="b.highlight ? '#16a34a' : '#8a8178'" />
+              </view>
+              <view class="js-benefit-body">
+                <view class="js-benefit-head">
+                  <text class="js-benefit-title">{{ b.title }}</text>
+                  <text v-if="b.highlight" class="js-benefit-tag">核心</text>
                 </view>
-                <view
-                  v-if="expandedFaq === i"
-                  class="js-faq-a"
-                >
-                  <text class="js-faq-a-text">
-                    {{ f.a }}
-                  </text>
-                </view>
+                <text class="js-benefit-desc">{{ b.desc }}</text>
               </view>
             </view>
           </view>
         </view>
       </view>
+
+      <!-- 分佣收益说明 -->
+      <view class="js-sec">
+        <view class="js-card js-commission">
+          <view class="js-card-title">
+            <app-icon name="trending-up" :size="28" color="#16a34a" />
+            <text class="js-card-title-text">分佣收益说明</text>
+          </view>
+          <view class="js-comm-rows">
+            <view class="js-comm-row">
+              <text class="js-comm-label">入圈费用分佣</text>
+              <text class="js-comm-val green">10%-30%</text>
+            </view>
+            <view class="js-comm-row">
+              <text class="js-comm-label">用户永久归属</text>
+              <text class="js-comm-val green">终身绑定</text>
+            </view>
+            <view class="js-comm-row">
+              <text class="js-comm-label">结算周期</text>
+              <text class="js-comm-val dark">每月15日</text>
+            </view>
+          </view>
+          <text class="js-comm-note">* 用户通过您的分站链接注册后永久归属您，其入圈消费您都将获得分佣</text>
+        </view>
+      </view>
+
+      <!-- 站长收益案例 -->
+      <view class="js-sec">
+        <view class="js-card">
+          <view class="js-card-title">
+            <app-icon name="sparkles" :size="28" color="#C9A96E" />
+            <text class="js-card-title-text">站长收益案例</text>
+          </view>
+          <view class="js-cases">
+            <view v-for="(c, i) in stationEarningCases" :key="i" class="js-case">
+              <view class="js-case-icon">
+                <app-icon name="award" :size="36" color="#16a34a" />
+              </view>
+              <view class="js-case-body">
+                <text class="js-case-name">{{ c.name }}</text>
+                <text class="js-case-meta">入驻{{ c.days }}天 · {{ c.users }}位用户</text>
+              </view>
+              <view class="js-case-right">
+                <text class="js-case-earn">¥{{ c.earnings.toLocaleString() }}</text>
+                <text class="js-case-label">累计收益</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 运营商邀请码 -->
+      <view class="js-sec">
+        <view class="js-card">
+          <text class="js-invite-title">运营商邀请码（选填）</text>
+          <input
+            v-model="inviteCode"
+            class="js-invite-input"
+            placeholder="如有运营商邀请码请填写"
+            placeholder-class="js-invite-ph"
+          />
+          <text class="js-invite-note">填写邀请码可加入运营商团队，享受团队支持和培训</text>
+        </view>
+      </view>
+
+      <!-- 常见问题 -->
+      <view class="js-sec">
+        <view class="js-card">
+          <text class="js-card-title-text plain">常见问题</text>
+          <view class="js-faqs">
+            <view v-for="(f, i) in stationFaqs" :key="i" class="js-faq">
+              <view class="js-faq-q" @tap="toggleFaq(i)">
+                <text class="js-faq-q-text">{{ f.q }}</text>
+                <view class="js-faq-arrow" :class="{ open: expandedFaq === i }">
+                  <app-icon name="chevron-right" :size="26" color="#8a8178" />
+                </view>
+              </view>
+              <view v-if="expandedFaq === i" class="js-faq-a">
+                <text class="js-faq-a-text">{{ f.a }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <view class="js-bottom-pad" />
     </scroll-view>
 
     <!-- 底部购买栏 -->
     <view class="js-buybar">
-      <view
-        class="js-agree"
-        @tap="agreed = !agreed"
-      >
-        <view
-          class="js-agree-box"
-          :class="{ on: agreed }"
-        >
-          <app-icon
-            v-if="agreed"
-            name="check"
-            :size="22"
-            color="#ffffff"
-          />
+      <view class="js-agree" @tap="agreed = !agreed">
+        <view class="js-agree-box" :class="{ on: agreed }">
+          <app-icon v-if="agreed" name="check" :size="22" color="#ffffff" />
         </view>
-        <text class="js-agree-text">
-          我已阅读并同意<text
-            class="js-agree-link"
-            @tap.stop="openAgreement"
-          >
-            《分站服务协议》
-          </text>
-        </text>
+        <text class="js-agree-text">我已阅读并同意<text class="js-agree-link" @tap.stop="openAgreement">《分站服务协议》</text></text>
       </view>
       <view class="js-buybar-row">
         <view class="js-buybar-price">
           <view class="js-buybar-price-line">
-            <text class="js-buybar-price-now">
-              ¥{{ pricing.price }}
-            </text>
-            <text class="js-buybar-price-old">
-              ¥{{ pricing.originalPrice }}
-            </text>
+            <text class="js-buybar-price-now">¥{{ stationPricing.price }}</text>
+            <text class="js-buybar-price-old">¥{{ stationPricing.originalPrice }}</text>
           </view>
           <view class="js-buybar-valid">
-            <app-icon
-              name="clock"
-              :size="22"
-              color="#8a8178"
-            />
-            <text class="js-buybar-valid-text">
-              有效期1年
-            </text>
+            <app-icon name="clock" :size="22" color="#8a8178" />
+            <text class="js-buybar-valid-text">有效期1年</text>
           </view>
         </view>
-        <view
-          class="js-buybar-btn"
-          :class="{ disabled: !agreed }"
-          @tap="handleBuy"
-        >
-          <text class="js-buybar-btn-text">
-            立即开通
-          </text>
+        <view class="js-buybar-btn" :class="{ disabled: !agreed }" @tap="handleBuy">
+          <text class="js-buybar-btn-text">立即开通</text>
         </view>
       </view>
     </view>
@@ -346,42 +169,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { operatorApi } from '@/lib/operator-data'
-import type { OperatorBenefit, StationEarningCase, FaqItem } from '@/lib/operator-data'
-
-const loading = ref(true)
-const error = ref('')
-
-const pricing = ref({ price: 0, originalPrice: 0 })
-const stationBenefits = ref<OperatorBenefit[]>([])
-const stationEarningCases = ref<StationEarningCase[]>([])
-const stationFaqs = ref<FaqItem[]>([])
+import {
+  stationPricing,
+  stationBenefits,
+  stationEarningCases,
+  stationFaqs,
+} from '@/lib/operator-data'
 
 const inviteCode = ref('')
 const expandedFaq = ref<number | null>(null)
 const agreed = ref(false)
-
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await operatorApi.joinStation()
-    pricing.value = res.pricing
-    stationBenefits.value = res.benefits
-    stationEarningCases.value = res.earningCases
-    stationFaqs.value = res.faqs
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => { loadData() })
 
 function toggleFaq(i: number) {
   expandedFaq.value = expandedFaq.value === i ? null : i
@@ -494,12 +295,4 @@ function handleBuy() {
 .js-buybar-btn { flex: 1; height: 96rpx; background: #16a34a; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
 .js-buybar-btn.disabled { opacity: 0.5; }
 .js-buybar-btn-text { font-size: 30rpx; color: #fff; font-weight: 500; }
-
-.js-loading, .js-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 32rpx; }
-.js-loading-spinner { width: 64rpx; height: 64rpx; border: 4rpx solid #EDE7DC; border-top-color: #16a34a; border-radius: 50%; animation: js-spin 0.8s linear infinite; }
-@keyframes js-spin { to { transform: rotate(360deg); } }
-.js-loading-text { font-size: 26rpx; color: #8a8178; margin-top: 24rpx; }
-.js-error-text { font-size: 26rpx; color: #ef4444; margin-bottom: 24rpx; }
-.js-retry-btn { padding: 16rpx 48rpx; background: #16a34a; border-radius: 16rpx; }
-.js-retry-txt { font-size: 26rpx; color: #fff; }
 </style>

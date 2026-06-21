@@ -1,44 +1,17 @@
 <script setup lang="ts">
 /** 讲师详情页 - 从原型 institute/instructors/[id]/page.tsx 迁移 */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import {
-  instructorApi,
+  instructorDetail as detail,
   getInstructorLevelLabel,
   getInstructorLevelStyle,
-  type InstructorDetail,
 } from '@/lib/instructor-data'
 
-const detail = ref<InstructorDetail | null>(null)
-const loading = ref(true)
-const error = ref('')
-const dataReady = ref(false)
-const instructorId = ref('1')
-
-onLoad((opts?: Record<string, any>) => {
-  if (opts?.id) instructorId.value = opts.id
-})
-
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    const data = await instructorApi.detail(instructorId.value)
-    detail.value = data
-    following.value = data.isFollowing
-    dataReady.value = true
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally { loading.value = false }
-}
-onMounted(() => { loadData() })
-
 const tab = ref<'intro' | 'courses' | 'reviews'>('intro')
-const following = ref(false)
-
-const levelStyle = computed(() => detail.value ? getInstructorLevelStyle(detail.value.level) : { color: '#C41E3A', bg: '#FBE8EA' })
+const following = ref(detail.isFollowing)
+const levelStyle = getInstructorLevelStyle(detail.level)
 
 const tabs = [
   { key: 'intro' as const, label: '简介' },
@@ -50,8 +23,7 @@ function toggleFollow() {
   following.value = !following.value
 }
 function onBooking() {
-  if (!detail.value) return
-  navigateTo(`/offline/teacher-booking?instructorId=${detail.value.id}`)
+  navigateTo(`/offline/teacher-booking?instructorId=${detail.id}`)
 }
 </script>
 
@@ -59,372 +31,179 @@ function onBooking() {
   <view class="page">
     <!-- 顶栏 -->
     <view class="nav">
-      <view
-        class="nav-back"
-        @tap="goBack"
-      >
-        <app-icon
-          name="chevron-left"
-          :size="44"
-          color="#1F1F1F"
-        />
+      <view class="nav-back" @tap="goBack">
+        <app-icon name="chevron-left" :size="44" color="#1F1F1F" />
       </view>
-      <text class="nav-title">
-        讲师详情
-      </text>
+      <text class="nav-title">讲师详情</text>
       <view class="nav-right" />
     </view>
 
-    <!-- 三态模式 -->
-    <view
-      v-if="loading"
-      class="pl-skeleton"
-    >
-      <view class="sk-header">
-        <view class="sk-avatar" /><view class="sk-info">
-          <view class="sk-line w-60" /><view class="sk-line w-40" /><view class="sk-line w-50" />
+    <!-- 头部信息 -->
+    <view class="header">
+      <view class="hd-top">
+        <view class="avatar-wrap">
+          <image class="avatar" :src="detail.avatar" mode="aspectFill" />
+          <view v-if="detail.verified" class="verified">
+            <app-icon name="badge-check" :size="28" color="#C41E3A" />
+          </view>
+        </view>
+        <view class="hd-info">
+          <view class="hd-name-row">
+            <text class="hd-name">{{ detail.name }}</text>
+            <text class="hd-level" :style="{ color: levelStyle.color, background: levelStyle.bg }">
+              {{ getInstructorLevelLabel(detail.level) }}
+            </text>
+          </view>
+          <text class="hd-title">{{ detail.title }}</text>
+          <view class="hd-tags">
+            <text v-for="s in detail.specialties" :key="s" class="hd-tag">{{ s }}</text>
+          </view>
         </view>
       </view>
-      <view class="sk-stats" />
-      <view class="sk-tabs">
-        <view class="sk-tab" /><view class="sk-tab" /><view class="sk-tab" />
+
+      <!-- 统计 -->
+      <view class="stats">
+        <view class="stat">
+          <text class="stat-num">{{ detail.studentCount }}</text>
+          <text class="stat-label">学员</text>
+        </view>
+        <view class="stat">
+          <text class="stat-num">{{ detail.courseCount }}</text>
+          <text class="stat-label">课程</text>
+        </view>
+        <view class="stat">
+          <view class="stat-num stat-rating">
+            <app-icon name="star" :size="28" color="#F59E0B" :fill="true" />
+            <text>{{ detail.rating }}</text>
+          </view>
+          <text class="stat-label">{{ detail.reviewCount }}条评价</text>
+        </view>
       </view>
     </view>
-    <app-error
-      v-else-if="error"
-      :desc="error"
-      @retry="loadData"
-    />
-    <view v-else-if="detail">
-      <!-- 头部信息 -->
-      <view class="header">
-        <view class="hd-top">
-          <view class="avatar-wrap">
-            <image
-              class="avatar"
-              :src="detail.avatar"
-              mode="aspectFill"
-            />
-            <view
-              v-if="detail.verified"
-              class="verified"
-            >
-              <app-icon
-                name="badge-check"
-                :size="28"
-                color="#C41E3A"
-              />
-            </view>
-          </view>
-          <view class="hd-info">
-            <view class="hd-name-row">
-              <text class="hd-name">
-                {{ detail.name }}
-              </text>
-              <text
-                class="hd-level"
-                :style="{ color: levelStyle.color, background: levelStyle.bg }"
-              >
-                {{ getInstructorLevelLabel(detail.level) }}
-              </text>
-            </view>
-            <text class="hd-title">
-              {{ detail.title }}
-            </text>
-            <view class="hd-tags">
-              <text
-                v-for="s in detail.specialties"
-                :key="s"
-                class="hd-tag"
-              >
-                {{ s }}
-              </text>
-            </view>
-          </view>
-        </view>
 
-        <!-- 统计 -->
-        <view class="stats">
-          <view class="stat">
-            <text class="stat-num">
-              {{ detail.studentCount }}
-            </text>
-            <text class="stat-label">
-              学员
-            </text>
-          </view>
-          <view class="stat">
-            <text class="stat-num">
-              {{ detail.courseCount }}
-            </text>
-            <text class="stat-label">
-              课程
-            </text>
-          </view>
-          <view class="stat">
-            <view class="stat-num stat-rating">
-              <app-icon
-                name="star"
-                :size="28"
-                color="#F59E0B"
-                :fill="true"
-              />
-              <text>{{ detail.rating }}</text>
-            </view>
-            <text class="stat-label">
-              {{ detail.reviewCount }}条评价
-            </text>
-          </view>
-        </view>
-      </view>
-
-      <!-- Tab -->
-      <view class="tabs">
-        <view
-          v-for="t in tabs"
-          :key="t.key"
-          class="tab"
-          :class="{ 'tab-active': tab === t.key }"
-          @tap="tab = t.key"
-        >
-          <text>{{ t.label }}</text>
-        </view>
-      </view>
-
-      <!-- 简介 -->
+    <!-- Tab -->
+    <view class="tabs">
       <view
-        v-if="tab === 'intro'"
-        class="content"
+        v-for="t in tabs"
+        :key="t.key"
+        class="tab"
+        :class="{ 'tab-active': tab === t.key }"
+        @tap="tab = t.key"
       >
-        <view class="section">
-          <text class="sec-title">
-            个人简介
-          </text>
-          <text class="sec-text">
-            {{ detail.introduction }}
-          </text>
+        <text>{{ t.label }}</text>
+      </view>
+    </view>
+
+    <!-- 简介 -->
+    <view v-if="tab === 'intro'" class="content">
+      <view class="section">
+        <text class="sec-title">个人简介</text>
+        <text class="sec-text">{{ detail.introduction }}</text>
+      </view>
+      <view v-if="detail.education.length" class="section">
+        <view class="sec-title sec-title-icon">
+          <app-icon name="graduation-cap" :size="30" color="#C41E3A" />
+          <text>学术背景</text>
         </view>
-        <view
-          v-if="detail.education.length"
-          class="section"
-        >
-          <view class="sec-title sec-title-icon">
-            <app-icon
-              name="graduation-cap"
-              :size="30"
-              color="#C41E3A"
-            />
-            <text>学术背景</text>
-          </view>
-          <view class="sec-list">
-            <text
-              v-for="(e, i) in detail.education"
-              :key="i"
-              class="sec-li"
-            >
-              · {{ e }}
-            </text>
-          </view>
+        <view class="sec-list">
+          <text v-for="(e, i) in detail.education" :key="i" class="sec-li">· {{ e }}</text>
         </view>
-        <view
-          v-if="detail.experience.length"
-          class="section"
-        >
-          <view class="sec-title sec-title-icon">
-            <app-icon
-              name="briefcase"
-              :size="30"
-              color="#C41E3A"
-            />
-            <text>从业经历</text>
-          </view>
-          <view class="sec-list">
-            <text
-              v-for="(e, i) in detail.experience"
-              :key="i"
-              class="sec-li"
-            >
-              · {{ e }}
-            </text>
-          </view>
+      </view>
+      <view v-if="detail.experience.length" class="section">
+        <view class="sec-title sec-title-icon">
+          <app-icon name="briefcase" :size="30" color="#C41E3A" />
+          <text>从业经历</text>
         </view>
-        <view
-          v-if="detail.certificates.length"
-          class="section"
-        >
-          <view class="sec-title sec-title-icon">
-            <app-icon
-              name="award"
-              :size="30"
-              color="#C41E3A"
-            />
-            <text>资质证书</text>
-          </view>
-          <view class="cert-list">
-            <view
-              v-for="(c, i) in detail.certificates"
-              :key="i"
-              class="cert-item"
-            >
-              <text class="cert-name">
-                {{ c.name }}
-              </text>
-              <text class="cert-meta">
-                {{ c.issuer }} · {{ c.year }}
-              </text>
-            </view>
+        <view class="sec-list">
+          <text v-for="(e, i) in detail.experience" :key="i" class="sec-li">· {{ e }}</text>
+        </view>
+      </view>
+      <view v-if="detail.certificates.length" class="section">
+        <view class="sec-title sec-title-icon">
+          <app-icon name="award" :size="30" color="#C41E3A" />
+          <text>资质证书</text>
+        </view>
+        <view class="cert-list">
+          <view v-for="(c, i) in detail.certificates" :key="i" class="cert-item">
+            <text class="cert-name">{{ c.name }}</text>
+            <text class="cert-meta">{{ c.issuer }} · {{ c.year }}</text>
           </view>
         </view>
       </view>
+    </view>
 
-      <!-- 课程 -->
-      <view
-        v-else-if="tab === 'courses'"
-        class="content"
-      >
+    <!-- 课程 -->
+    <view v-else-if="tab === 'courses'" class="content">
+      <view v-if="detail.featuredCourses.length" class="course-list">
         <view
-          v-if="detail.featuredCourses.length"
-          class="course-list"
+          v-for="c in detail.featuredCourses"
+          :key="c.id"
+          class="course-item"
+          @tap="navigateTo(`/courses/${c.id}`)"
         >
-          <view
-            v-for="c in detail.featuredCourses"
-            :key="c.id"
-            class="course-item"
-            @tap="navigateTo(`/courses/${c.id}`)"
-          >
-            <image
-              class="course-cover"
-              :src="c.cover"
-              mode="aspectFill"
-            />
-            <view class="course-info">
-              <text class="course-title">
-                {{ c.title }}
-              </text>
-              <view class="course-meta">
-                <view class="cm-item">
-                  <app-icon
-                    name="users"
-                    :size="24"
-                    color="#9CA3AF"
-                  />
-                  <text>{{ c.studentCount }}</text>
-                </view>
-                <view class="cm-item">
-                  <app-icon
-                    name="star"
-                    :size="24"
-                    color="#F59E0B"
-                    :fill="true"
-                  />
-                  <text>{{ c.rating }}</text>
-                </view>
+          <image class="course-cover" :src="c.cover" mode="aspectFill" />
+          <view class="course-info">
+            <text class="course-title">{{ c.title }}</text>
+            <view class="course-meta">
+              <view class="cm-item">
+                <app-icon name="users" :size="24" color="#9CA3AF" />
+                <text>{{ c.studentCount }}</text>
+              </view>
+              <view class="cm-item">
+                <app-icon name="star" :size="24" color="#F59E0B" :fill="true" />
+                <text>{{ c.rating }}</text>
               </view>
             </view>
           </view>
         </view>
-        <view
-          v-else
-          class="empty"
-        >
-          <app-icon
-            name="book-open"
-            :size="80"
-            color="#D1D5DB"
-          />
-          <text class="empty-txt">
-            暂无公开课程
-          </text>
-        </view>
       </view>
+      <view v-else class="empty">
+        <app-icon name="book-open" :size="80" color="#D1D5DB" />
+        <text class="empty-txt">暂无公开课程</text>
+      </view>
+    </view>
 
-      <!-- 评价 -->
-      <view
-        v-else
-        class="content"
-      >
-        <view
-          v-if="detail.reviews.length"
-          class="review-list"
-        >
-          <view
-            v-for="r in detail.reviews"
-            :key="r.id"
-            class="review-item"
-          >
-            <view class="rv-head">
-              <image
-                class="rv-avatar"
-                :src="r.user.avatar"
-                mode="aspectFill"
-              />
-              <view class="rv-meta">
-                <text class="rv-name">
-                  {{ r.user.name }}
-                </text>
-                <view class="rv-stars">
-                  <app-icon
-                    v-for="i in 5"
-                    :key="i"
-                    name="star"
-                    :size="22"
-                    :color="i <= r.rating ? '#F59E0B' : '#E5E7EB'"
-                    :fill="i <= r.rating"
-                  />
-                </view>
+    <!-- 评价 -->
+    <view v-else class="content">
+      <view v-if="detail.reviews.length" class="review-list">
+        <view v-for="r in detail.reviews" :key="r.id" class="review-item">
+          <view class="rv-head">
+            <image class="rv-avatar" :src="r.user.avatar" mode="aspectFill" />
+            <view class="rv-meta">
+              <text class="rv-name">{{ r.user.name }}</text>
+              <view class="rv-stars">
+                <app-icon
+                  v-for="i in 5"
+                  :key="i"
+                  name="star"
+                  :size="22"
+                  :color="i <= r.rating ? '#F59E0B' : '#E5E7EB'"
+                  :fill="i <= r.rating"
+                />
               </view>
-              <text class="rv-time">
-                {{ r.time }}
-              </text>
             </view>
-            <text class="rv-content">
-              {{ r.content }}
-            </text>
+            <text class="rv-time">{{ r.time }}</text>
           </view>
-        </view>
-        <view
-          v-else
-          class="empty"
-        >
-          <app-icon
-            name="star"
-            :size="80"
-            color="#D1D5DB"
-          />
-          <text class="empty-txt">
-            暂无评价
-          </text>
+          <text class="rv-content">{{ r.content }}</text>
         </view>
       </view>
+      <view v-else class="empty">
+        <app-icon name="star" :size="80" color="#D1D5DB" />
+        <text class="empty-txt">暂无评价</text>
+      </view>
+    </view>
 
-      <!-- 底部操作栏 -->
-      <view class="footer">
-        <view
-          class="ft-follow"
-          :class="{ 'ft-follow-active': following }"
-          @tap="toggleFollow"
-        >
-          <app-icon
-            name="heart"
-            :size="32"
-            :color="following ? '#C41E3A' : '#6B7280'"
-            :fill="following"
-          />
-          <text>{{ following ? '已关注' : '关注' }}</text>
-        </view>
-        <view
-          class="ft-book"
-          @tap="onBooking"
-        >
-          <app-icon
-            name="calendar"
-            :size="32"
-            color="#ffffff"
-          />
-          <text>预约授课</text>
-        </view>
+    <!-- 底部操作栏 -->
+    <view class="footer">
+      <view class="ft-follow" :class="{ 'ft-follow-active': following }" @tap="toggleFollow">
+        <app-icon name="heart" :size="32" :color="following ? '#C41E3A' : '#6B7280'" :fill="following" />
+        <text>{{ following ? '已关注' : '关注' }}</text>
       </view>
-    </view><!-- end v-else -->
+      <view class="ft-book" @tap="onBooking">
+        <app-icon name="calendar" :size="32" color="#ffffff" />
+        <text>预约授课</text>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -555,18 +334,4 @@ function onBooking() {
   height: 88rpx; background: #C41E3A; border-radius: 16rpx;
   font-size: 30rpx; font-weight: 600; color: #ffffff;
 }
-
-/* 骨架屏 */
-@keyframes sk-pulse { 0%,100%{ opacity: 0.3 } 50%{ opacity: 0.6 } }
-.pl-skeleton { display: flex; flex-direction: column; gap: 16rpx; animation: sk-pulse 1.5s ease-in-out infinite; }
-.sk-header { display: flex; gap: 28rpx; padding: 32rpx; background: #fff; }
-.sk-avatar { width: 144rpx; height: 144rpx; border-radius: 50%; background: #E8E3DB; flex-shrink: 0; }
-.sk-info { flex: 1; display: flex; flex-direction: column; gap: 12rpx; justify-content: center; }
-.sk-line { height: 24rpx; border-radius: 8rpx; background: #E8E3DB; }
-.w-60 { width: 60%; }
-.w-40 { width: 40%; }
-.w-50 { width: 50%; }
-.sk-stats { height: 96rpx; margin: 16rpx 32rpx; border-radius: 16rpx; background: #E8E3DB; }
-.sk-tabs { display: flex; gap: 16rpx; padding: 0 32rpx; }
-.sk-tab { flex: 1; height: 56rpx; border-radius: 8rpx; background: #E8E3DB; }
 </style>

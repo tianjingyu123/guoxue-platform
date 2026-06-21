@@ -101,233 +101,86 @@ function ignoreItem(id: string) {
     <!-- 顶部固定区 -->
     <view class="kb-top">
       <view class="kb-nav">
-        <view
-          class="kb-nav-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="44"
-            color="#2C2C2C"
-          />
-        </view>
-        <text class="kb-nav-title">
-          知识库
-        </text>
+        <view class="kb-nav-btn" @tap="goBack"><app-icon name="chevron-left" :size="44" color="#2C2C2C" /></view>
+        <text class="kb-nav-title">知识库</text>
         <view class="kb-nav-btn" />
       </view>
 
       <!-- 搜索框 -->
       <view class="kb-search-wrap">
         <view class="kb-search">
-          <app-icon
-            name="search"
-            :size="30"
-            color="#999999"
-          />
-          <input
-            v-model="keyword"
-            class="kb-search-input"
-            placeholder="搜索知识..."
-            placeholder-class="kb-ph"
-          >
+          <app-icon name="search" :size="30" color="#999999" />
+          <input v-model="keyword" class="kb-search-input" placeholder="搜索知识..." placeholder-class="kb-ph" />
         </view>
       </view>
 
       <!-- Tab -->
       <view class="kb-tabs">
-        <view
-          class="kb-tab"
-          :class="{ on: activeTab === 'confirmed' }"
-          @tap="activeTab = 'confirmed'"
-        >
-          <app-icon
-            name="book-open"
-            :size="28"
-            :color="activeTab === 'confirmed' ? '#C41E3A' : '#666666'"
-          />
-          <text
-            class="kb-tab-t"
-            :class="{ on: activeTab === 'confirmed' }"
-          >
-            已入库
-          </text>
+        <view class="kb-tab" :class="{ on: activeTab === 'confirmed' }" @tap="activeTab = 'confirmed'">
+          <app-icon name="book-open" :size="28" :color="activeTab === 'confirmed' ? '#C41E3A' : '#666666'" />
+          <text class="kb-tab-t" :class="{ on: activeTab === 'confirmed' }">已入库</text>
         </view>
-        <view
-          v-if="isOwner"
-          class="kb-tab"
-          :class="{ on: activeTab === 'pending' }"
-          @tap="activeTab = 'pending'"
-        >
-          <text
-            class="kb-tab-t"
-            :class="{ on: activeTab === 'pending' }"
-          >
-            待确认
-          </text>
-          <view
-            v-if="pendingCount > 0"
-            class="kb-badge"
-          >
-            <text class="kb-badge-t">
-              {{ pendingCount }}
-            </text>
-          </view>
+        <view v-if="isOwner" class="kb-tab" :class="{ on: activeTab === 'pending' }" @tap="activeTab = 'pending'">
+          <text class="kb-tab-t" :class="{ on: activeTab === 'pending' }">待确认</text>
+          <view v-if="pendingCount > 0" class="kb-badge"><text class="kb-badge-t">{{ pendingCount }}</text></view>
         </view>
       </view>
     </view>
 
     <!-- 内容区 -->
-    <scroll-view
-      scroll-y
-      class="kb-body"
-    >
-      <view
-        v-if="filteredItems.length === 0"
-        class="kb-empty"
-      >
-        <view class="kb-empty-icon">
-          <app-icon
-            name="book-open"
-            :size="48"
-            color="#C9A96E"
-          />
-        </view>
-        <text class="kb-empty-t">
-          {{ activeTab === 'confirmed' ? '暂无知识内容' : '暂无待确认内容' }}
-        </text>
+    <scroll-view scroll-y class="kb-body">
+      <view v-if="filteredItems.length === 0" class="kb-empty">
+        <view class="kb-empty-icon"><app-icon name="book-open" :size="48" color="#C9A96E" /></view>
+        <text class="kb-empty-t">{{ activeTab === 'confirmed' ? '暂无知识内容' : '暂无待确认内容' }}</text>
       </view>
 
-      <view
-        v-else
-        class="kb-list"
-      >
-        <view
-          v-for="item in filteredItems"
-          :key="item.id"
-          class="kb-card"
-        >
+      <view v-else class="kb-list">
+        <view v-for="item in filteredItems" :key="item.id" class="kb-card">
           <view class="kb-card-body">
             <!-- 标题行 -->
             <view class="kb-card-head">
-              <text class="kb-card-title">
-                {{ item.title }}
-              </text>
-              <view
-                v-if="item.status === 'pending'"
-                class="kb-pending"
-              >
-                <text class="kb-pending-t">
-                  待确认
-                </text>
-              </view>
+              <text class="kb-card-title">{{ item.title }}</text>
+              <view v-if="item.status === 'pending'" class="kb-pending"><text class="kb-pending-t">待确认</text></view>
             </view>
             <!-- 摘要 -->
-            <text class="kb-card-summary">
-              {{ item.summary }}
-            </text>
+            <text class="kb-card-summary">{{ item.summary }}</text>
             <!-- 标签 -->
-            <view
-              v-if="item.tags.length"
-              class="kb-tags"
-            >
-              <view
-                v-for="(t, i) in item.tags.slice(0, 3)"
-                :key="i"
-                class="kb-tag"
-              >
-                <app-icon
-                  name="tag"
-                  :size="20"
-                  color="#666666"
-                />
-                <text class="kb-tag-t">
-                  {{ t }}
-                </text>
+            <view v-if="item.tags.length" class="kb-tags">
+              <view v-for="(t, i) in item.tags.slice(0, 3)" :key="i" class="kb-tag">
+                <app-icon name="tag" :size="20" color="#666666" />
+                <text class="kb-tag-t">{{ t }}</text>
               </view>
-              <text
-                v-if="item.tags.length > 3"
-                class="kb-tag-more"
-              >
-                +{{ item.tags.length - 3 }}
-              </text>
+              <text v-if="item.tags.length > 3" class="kb-tag-more">+{{ item.tags.length - 3 }}</text>
             </view>
             <!-- 来源与时间 -->
             <view class="kb-meta">
               <view class="kb-meta-l">
-                <app-icon
-                  name="file-text"
-                  :size="24"
-                  color="#999999"
-                />
-                <text class="kb-meta-t">
-                  {{ SOURCE_LABEL[item.source.type] }}：{{ item.source.name }}
-                </text>
+                <app-icon name="file-text" :size="24" color="#999999" />
+                <text class="kb-meta-t">{{ SOURCE_LABEL[item.source.type] }}：{{ item.source.name }}</text>
               </view>
               <view class="kb-meta-r">
-                <app-icon
-                  name="clock"
-                  :size="24"
-                  color="#999999"
-                />
-                <text class="kb-meta-t">
-                  {{ fmtDate(item.createdAt) }}
-                </text>
+                <app-icon name="clock" :size="24" color="#999999" />
+                <text class="kb-meta-t">{{ fmtDate(item.createdAt) }}</text>
               </view>
             </view>
             <!-- 展开详情 -->
-            <view
-              v-if="expandedId === item.id"
-              class="kb-detail"
-            >
-              <text class="kb-detail-t">
-                {{ item.content }}
-              </text>
+            <view v-if="expandedId === item.id" class="kb-detail">
+              <text class="kb-detail-t">{{ item.content }}</text>
             </view>
             <!-- 展开/收起 -->
-            <view
-              class="kb-toggle"
-              @tap="toggleExpand(item.id)"
-            >
-              <text class="kb-toggle-t">
-                {{ expandedId === item.id ? '收起' : '查看详情' }}
-              </text>
-              <app-icon
-                :name="expandedId === item.id ? 'chevron-up' : 'chevron-down'"
-                :size="28"
-                color="#C41E3A"
-              />
+            <view class="kb-toggle" @tap="toggleExpand(item.id)">
+              <text class="kb-toggle-t">{{ expandedId === item.id ? '收起' : '查看详情' }}</text>
+              <app-icon :name="expandedId === item.id ? 'chevron-up' : 'chevron-down'" :size="28" color="#C41E3A" />
             </view>
           </view>
           <!-- 圈主操作 -->
-          <view
-            v-if="isOwner && item.status === 'pending'"
-            class="kb-actions"
-          >
-            <view
-              class="kb-action"
-              @tap="ignoreItem(item.id)"
-            >
-              <app-icon
-                name="x"
-                :size="28"
-                color="#999999"
-              /><text class="kb-action-t ignore">
-                忽略
-              </text>
+          <view v-if="isOwner && item.status === 'pending'" class="kb-actions">
+            <view class="kb-action" @tap="ignoreItem(item.id)">
+              <app-icon name="x" :size="28" color="#999999" /><text class="kb-action-t ignore">忽略</text>
             </view>
             <view class="kb-action-div" />
-            <view
-              class="kb-action"
-              @tap="confirmItem(item.id)"
-            >
-              <app-icon
-                name="check"
-                :size="28"
-                color="#C41E3A"
-              /><text class="kb-action-t confirm">
-                确认入库
-              </text>
+            <view class="kb-action" @tap="confirmItem(item.id)">
+              <app-icon name="check" :size="28" color="#C41E3A" /><text class="kb-action-t confirm">确认入库</text>
             </view>
           </view>
         </view>

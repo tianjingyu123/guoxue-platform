@@ -1,284 +1,130 @@
 <template>
   <view class="page">
-    <view
-      class="nav-bar"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
-      <view
-        class="nav-back"
-        @tap="goBack"
-      >
-        <app-icon
-          name="chevron-left"
-          :size="44"
-          color="#2C2C2C"
-        />
+    <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="nav-back" @tap="goBack">
+        <app-icon name="chevron-left" :size="44" color="#2C2C2C" />
       </view>
-      <text class="nav-title">
-        申请售后
-      </text>
+      <text class="nav-title">申请售后</text>
       <view class="nav-placeholder" />
     </view>
 
-    <scroll-view
-      scroll-y
-      class="scroll-area"
-      :style="{ paddingTop: navHeight + 'px' }"
-    >
+    <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
       <!-- 售后类型 -->
       <view class="card">
-        <text class="card-title">
-          售后类型
-        </text>
+        <text class="card-title">售后类型</text>
         <view class="type-row">
           <view
             class="type-btn"
             :class="{ active: type === 'refund_only' }"
             @tap="type = 'refund_only'"
           >
-            <text
-              class="type-name"
-              :class="{ active: type === 'refund_only' }"
-            >
-              仅退款
-            </text>
-            <text class="type-desc">
-              无需退货
-            </text>
+            <text class="type-name" :class="{ active: type === 'refund_only' }">仅退款</text>
+            <text class="type-desc">无需退货</text>
           </view>
           <view
             class="type-btn"
             :class="{ active: type === 'refund_with_return' }"
             @tap="type = 'refund_with_return'"
           >
-            <text
-              class="type-name"
-              :class="{ active: type === 'refund_with_return' }"
-            >
-              退货退款
-            </text>
-            <text class="type-desc">
-              需寄回商品
-            </text>
+            <text class="type-name" :class="{ active: type === 'refund_with_return' }">退货退款</text>
+            <text class="type-desc">需寄回商品</text>
           </view>
         </view>
       </view>
 
       <!-- 退款原因 -->
       <view class="card">
-        <text class="card-title">
-          退款原因 <text class="req">
-            *
-          </text>
-        </text>
-        <view
-          class="select-row"
-          :class="{ error: errors.reason }"
-          @tap="showReasonPicker = true"
-        >
-          <text
-            class="select-text"
-            :class="{ placeholder: !reason }"
-          >
-            {{ reason || '请选择退款原因' }}
-          </text>
-          <app-icon
-            name="chevron-down"
-            :size="36"
-            color="#999999"
-          />
+        <text class="card-title">退款原因 <text class="req">*</text></text>
+        <view class="select-row" :class="{ error: errors.reason }" @tap="showReasonPicker = true">
+          <text class="select-text" :class="{ placeholder: !reason }">{{ reason || '请选择退款原因' }}</text>
+          <app-icon name="chevron-down" :size="36" color="#999999" />
         </view>
-        <view
-          v-if="errors.reason"
-          class="err-tip"
-        >
-          <app-icon
-            name="alert-circle"
-            :size="24"
-            color="#E74C3C"
-          />
-          <text class="err-text">
-            {{ errors.reason }}
-          </text>
+        <view v-if="errors.reason" class="err-tip">
+          <app-icon name="alert-circle" :size="24" color="#E74C3C" />
+          <text class="err-text">{{ errors.reason }}</text>
         </view>
       </view>
 
       <!-- 退款金额 -->
       <view class="card">
-        <text class="card-title">
-          退款金额 <text class="req">
-            *
-          </text><text class="sub">
-            最多可退 ¥{{ maxAmount.toFixed(2) }}
-          </text>
-        </text>
-        <view
-          class="amount-row"
-          :class="{ error: errors.amount }"
-        >
-          <text class="amount-symbol">
-            ¥
-          </text>
-          <input
-            v-model="amount"
-            class="amount-input"
-            type="digit"
-            placeholder="0.00"
-          >
-          <view
-            class="full-btn"
-            @tap="amount = String(maxAmount)"
-          >
-            <text class="full-text">
-              全额退款
-            </text>
+        <text class="card-title">退款金额 <text class="req">*</text><text class="sub">最多可退 ¥{{ maxAmount.toFixed(2) }}</text></text>
+        <view class="amount-row" :class="{ error: errors.amount }">
+          <text class="amount-symbol">¥</text>
+          <input class="amount-input" type="digit" v-model="amount" placeholder="0.00" />
+          <view class="full-btn" @tap="amount = String(maxAmount)">
+            <text class="full-text">全额退款</text>
           </view>
         </view>
-        <view
-          v-if="errors.amount"
-          class="err-tip"
-        >
-          <app-icon
-            name="alert-circle"
-            :size="24"
-            color="#E74C3C"
-          />
-          <text class="err-text">
-            {{ errors.amount }}
-          </text>
+        <view v-if="errors.amount" class="err-tip">
+          <app-icon name="alert-circle" :size="24" color="#E74C3C" />
+          <text class="err-text">{{ errors.amount }}</text>
         </view>
       </view>
 
       <!-- 问题描述 -->
       <view class="card">
-        <text class="card-title">
-          问题描述
-        </text>
+        <text class="card-title">问题描述</text>
         <textarea
-          v-model="description"
           class="desc-input"
+          v-model="description"
           placeholder="请详细描述您遇到的问题，以便我们更好地处理..."
           :maxlength="500"
           placeholder-class="ph"
         />
-        <text class="word-count">
-          {{ description.length }}/500
-        </text>
+        <text class="word-count">{{ description.length }}/500</text>
       </view>
 
       <!-- 上传凭证 -->
       <view class="card">
-        <text class="card-title">
-          上传凭证 <text class="sub">
-            （最多5张）
-          </text>
-        </text>
+        <text class="card-title">上传凭证 <text class="sub">（最多5张）</text></text>
         <view class="upload-wrap">
-          <view
-            v-for="(img, i) in images"
-            :key="i"
-            class="upload-item"
-          >
-            <image
-              class="upload-img"
-              :src="img"
-              mode="aspectFill"
-            />
-            <view
-              class="upload-del"
-              @tap="removeImage(i)"
-            >
-              <app-icon
-                name="x"
-                :size="24"
-                color="#FFFFFF"
-              />
+          <view v-for="(img, i) in images" :key="i" class="upload-item">
+            <image class="upload-img" :src="img" mode="aspectFill" />
+            <view class="upload-del" @tap="removeImage(i)">
+              <app-icon name="x" :size="24" color="#FFFFFF" />
             </view>
           </view>
-          <view
-            v-if="images.length < 5"
-            class="upload-add"
-            @tap="addImage"
-          >
-            <app-icon
-              name="camera"
-              :size="48"
-              color="#999999"
-            />
-            <text class="upload-hint">
-              上传
-            </text>
+          <!-- 上传中占位 -->
+          <view v-for="n in uploadingCount" :key="'up' + n" class="upload-item upload-loading">
+            <view class="upload-spinner" />
+            <text class="upload-loading-text">上传中</text>
+          </view>
+          <view v-if="images.length + uploadingCount < 5" class="upload-add" @tap="addImage">
+            <app-icon name="camera" :size="48" color="#999999" />
+            <text class="upload-hint">上传</text>
           </view>
         </view>
       </view>
 
       <!-- 退货说明 -->
-      <view
-        v-if="type === 'refund_with_return'"
-        class="tips-card"
-      >
-        <text class="tips-title">
-          退货说明
-        </text>
-        <text class="tips-line">
-          1. 请在收到退货地址后7天内寄回商品
-        </text>
-        <text class="tips-line">
-          2. 请保持商品原状，附带所有包装和配件
-        </text>
-        <text class="tips-line">
-          3. 建议使用有物流追踪的快递方式
-        </text>
-        <text class="tips-line">
-          4. 退款将在收到商品后1-3个工作日内处理
-        </text>
+      <view v-if="type === 'refund_with_return'" class="tips-card">
+        <text class="tips-title">退货说明</text>
+        <text class="tips-line">1. 请在收到退货地址后7天内寄回商品</text>
+        <text class="tips-line">2. 请保持商品原状，附带所有包装和配件</text>
+        <text class="tips-line">3. 建议使用有物流追踪的快递方式</text>
+        <text class="tips-line">4. 退款将在收到商品后1-3个工作日内处理</text>
       </view>
 
       <view class="bottom-gap" />
     </scroll-view>
 
     <!-- 底部提交 -->
-    <view
-      class="submit-bar"
-      :style="{ paddingBottom: safeBottom + 'px' }"
-    >
-      <view
-        class="submit-btn"
-        :class="{ disabled: submitting }"
-        @tap="submit"
-      >
-        <text class="submit-text">
-          {{ submitting ? '提交中...' : '提交申请' }}
-        </text>
+    <view class="submit-bar" :style="{ paddingBottom: safeBottom + 'px' }">
+      <view class="submit-btn" :class="{ disabled: submitting }" @tap="submit">
+        <text class="submit-text">{{ submitting ? '提交中...' : '提交申请' }}</text>
       </view>
     </view>
 
     <!-- 原因选择弹窗 -->
-    <view
-      v-if="showReasonPicker"
-      class="mask"
-      @tap="showReasonPicker = false"
-    >
-      <view
-        class="reason-sheet"
-        @tap.stop
-      >
+    <view v-if="showReasonPicker" class="mask mask-fade-in" @tap="showReasonPicker = false">
+      <view class="reason-sheet sheet-slide-up" @tap.stop>
         <view class="sheet-head">
-          <text class="sheet-title">
-            选择退款原因
-          </text>
+          <text class="sheet-title">选择退款原因</text>
           <view @tap="showReasonPicker = false">
-            <app-icon
-              name="x"
-              :size="36"
-              color="#999999"
-            />
+            <app-icon name="x" :size="36" color="#999999" />
           </view>
         </view>
-        <scroll-view
-          scroll-y
-          class="reason-list"
-        >
+        <scroll-view scroll-y class="reason-list">
           <view
             v-for="r in reasons"
             :key="r"
@@ -286,12 +132,7 @@
             :class="{ active: reason === r }"
             @tap="selectReason(r)"
           >
-            <text
-              class="reason-text"
-              :class="{ active: reason === r }"
-            >
-              {{ r }}
-            </text>
+            <text class="reason-text" :class="{ active: reason === r }">{{ r }}</text>
           </view>
         </scroll-view>
       </view>
@@ -303,22 +144,23 @@
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, redirectTo } from '@/utils/router'
-import { afterSaleReasons, afterSaleApi } from '@/lib/account-data'
+import { afterSaleReasons, afterSaleApplyContext } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
 const safeBottom = ref(0)
 
 const reasons = afterSaleReasons
-const maxAmount = ref(0)
-const orderId = ref('')
+const maxAmount = ref(afterSaleApplyContext.maxAmount)
+const orderId = ref(afterSaleApplyContext.orderId)
 
 const type = ref<'refund_only' | 'refund_with_return'>('refund_only')
 const reason = ref('')
 const showReasonPicker = ref(false)
-const amount = ref('')
+const amount = ref(String(afterSaleApplyContext.maxAmount))
 const description = ref('')
 const images = ref<string[]>([])
+const uploadingCount = ref(0)
 const submitting = ref(false)
 const errors = reactive<{ reason?: string; amount?: string }>({})
 
@@ -348,7 +190,17 @@ function selectReason(r: string) {
 function addImage() {
   uni.chooseImage({
     count: 5 - images.value.length,
-    success: (res) => images.value.push(...(res.tempFilePaths as string[])),
+    success: (res) => {
+      const paths = res.tempFilePaths as string[]
+      // 模拟上传中状态：逐张占位 -> 上传完成
+      paths.forEach((p) => {
+        uploadingCount.value++
+        setTimeout(() => {
+          images.value.push(p)
+          uploadingCount.value--
+        }, 800)
+      })
+    },
   })
 }
 function removeImage(i: number) {
@@ -374,26 +226,15 @@ function validate() {
   return ok
 }
 
-async function submit() {
+function submit() {
   if (submitting.value) return
   if (!validate()) return
   submitting.value = true
-  try {
-    await afterSaleApi.submitAfterSale({
-      orderId: orderId.value,
-      type: type.value,
-      reason: reason.value,
-      amount: parseFloat(amount.value),
-      description: description.value,
-      images: images.value,
-    })
+  setTimeout(() => {
     submitting.value = false
     uni.showToast({ title: '申请已提交', icon: 'success' })
     setTimeout(() => redirectTo('/shop/my-after-sales'), 1200)
-  } catch {
-    uni.showToast({ title: '提交失败，请重试', icon: 'none' })
-    submitting.value = false
-  }
+  }, 1000)
 }
 </script>
 
@@ -450,7 +291,7 @@ async function submit() {
   color: #2C2C2C;
 }
 .req {
-  color: #9A2D2D;
+  color: #C41E3A;
 }
 .sub {
   margin-left: 12rpx;
@@ -476,8 +317,8 @@ async function submit() {
   gap: 8rpx;
 }
 .type-btn.active {
-  border-color: #9A2D2D;
-  background: rgba(154, 45, 45, 0.05);
+  border-color: #C41E3A;
+  background: rgba(196, 30, 58, 0.05);
 }
 .type-name {
   font-size: 28rpx;
@@ -485,7 +326,7 @@ async function submit() {
   color: #2C2C2C;
 }
 .type-name.active {
-  color: #9A2D2D;
+  color: #C41E3A;
 }
 .type-desc {
   font-size: 22rpx;
@@ -539,7 +380,7 @@ async function submit() {
 .amount-symbol {
   font-size: 40rpx;
   font-weight: 700;
-  color: #9A2D2D;
+  color: #C41E3A;
 }
 .amount-input {
   flex: 1;
@@ -549,12 +390,12 @@ async function submit() {
 }
 .full-btn {
   padding: 8rpx 16rpx;
-  background: rgba(154, 45, 45, 0.08);
+  background: rgba(196, 30, 58, 0.08);
   border-radius: 8rpx;
 }
 .full-text {
   font-size: 22rpx;
-  color: #9A2D2D;
+  color: #C41E3A;
 }
 
 .desc-input {
@@ -625,6 +466,30 @@ async function submit() {
   font-size: 22rpx;
   color: #999999;
 }
+.upload-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  background: #F5F5F5;
+  border-radius: 12rpx;
+}
+.upload-spinner {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  border: 5rpx solid #E8E3DB;
+  border-top-color: #C41E3A;
+  animation: spin 0.8s linear infinite;
+}
+.upload-loading-text {
+  font-size: 22rpx;
+  color: #999999;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 .tips-card {
   margin: 24rpx 24rpx 0;
@@ -663,7 +528,7 @@ async function submit() {
 .submit-btn {
   height: 88rpx;
   border-radius: 16rpx;
-  background: #9A2D2D;
+  background: #C41E3A;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -716,14 +581,14 @@ async function submit() {
   border: 1rpx solid transparent;
 }
 .reason-item.active {
-  background: rgba(154, 45, 45, 0.06);
-  border-color: #9A2D2D;
+  background: rgba(196, 30, 58, 0.06);
+  border-color: #C41E3A;
 }
 .reason-text {
   font-size: 28rpx;
   color: #2C2C2C;
 }
 .reason-text.active {
-  color: #9A2D2D;
+  color: #C41E3A;
 }
 </style>

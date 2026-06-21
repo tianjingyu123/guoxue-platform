@@ -3,142 +3,52 @@
     <!-- Header -->
     <view class="hd">
       <view class="hd-bar">
-        <view
-          class="icon-btn"
-          @tap="goBack"
-        >
-          <AppIcon
-            name="arrow-left"
-            :size="40"
-            :color="C.text"
-          />
-        </view>
-        <text class="hd-title">
-          书签管理
-        </text>
-        <text class="hd-count">
-          {{ items.length }} 个
-        </text>
+        <view class="icon-btn" @tap="goBack"><AppIcon name="arrow-left" :size="40" :color="C.text" /></view>
+        <text class="hd-title">书签管理</text>
+        <text class="hd-count">{{ items.length }} 个</text>
       </view>
       <view class="hd-search">
         <view class="search-box">
-          <AppIcon
-            name="search"
-            :size="32"
-            :color="C.slate400"
-            class="search-icon"
-          />
-          <input
-            v-model="search"
-            class="search-input"
-            placeholder="搜索书签..."
-            placeholder-class="ph"
-          >
+          <AppIcon name="search" :size="32" :color="C.slate400" class="search-icon" />
+          <input v-model="search" class="search-input" placeholder="搜索书签..." placeholder-class="ph" />
         </view>
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="body"
-    >
+    <scroll-view scroll-y class="body">
       <!-- 空状态 -->
-      <view
-        v-if="groupedKeys.length === 0"
-        class="empty"
-      >
-        <AppIcon
-          name="bookmark"
-          :size="96"
-          :color="C.slate200"
-        />
-        <text class="empty-title">
-          暂无书签
-        </text>
-        <text class="empty-sub">
-          在阅读时点击书签按钮保存位置
-        </text>
-        <view
-          class="empty-btn"
-          @tap="goShelf"
-        >
-          <text class="empty-btn-tx">
-            去阅读
-          </text>
-        </view>
+      <view v-if="groupedKeys.length === 0" class="empty">
+        <AppIcon name="bookmark" :size="96" :color="C.slate200" />
+        <text class="empty-title">暂无书签</text>
+        <text class="empty-sub">在阅读时点击书签按钮保存位置</text>
+        <view class="empty-btn" @tap="goShelf"><text class="empty-btn-tx">去阅读</text></view>
       </view>
 
       <!-- 按书分组 -->
-      <view
-        v-for="g in grouped"
-        :key="g.bookId"
-        class="group"
-      >
+      <view v-for="g in grouped" :key="g.bookId" class="group">
         <view class="book-hd">
-          <view
-            class="book-cover"
-            :style="{ background: g.book.bookCoverColor }"
-          >
+          <view class="book-cover" :style="{ background: g.book.bookCoverColor }">
             <view class="cover-spine" />
           </view>
           <view class="book-meta">
-            <text class="book-title">
-              {{ g.book.bookTitle }}
-            </text>
-            <text class="book-sub">
-              {{ g.list.length }} 个书签
-            </text>
+            <text class="book-title">{{ g.book.bookTitle }}</text>
+            <text class="book-sub">{{ g.list.length }} 个书签</text>
           </view>
-          <view
-            class="continue"
-            @tap="goReader(g.bookId)"
-          >
-            <text class="continue-tx">
-              继续读
-            </text>
-            <AppIcon
-              name="chevron-right"
-              :size="28"
-              :color="C.primary"
-            />
+          <view class="continue" @tap="goReader(g.bookId)">
+            <text class="continue-tx">继续读</text>
+            <AppIcon name="chevron-right" :size="28" :color="C.primary" />
           </view>
         </view>
 
         <view class="card">
-          <view
-            v-for="(bm, idx) in g.list"
-            :key="bm.id"
-            class="bm-item"
-            :class="{ 'no-border': idx === 0 }"
-            @tap="goReaderChapter(bm)"
-          >
-            <AppIcon
-              name="bookmark"
-              :size="32"
-              :color="C.primary"
-              class="bm-icon"
-            />
+          <view v-for="(bm, idx) in g.list" :key="bm.id" class="bm-item" :class="{ 'no-border': idx === 0 }" @tap="goReaderChapter(bm)">
+            <AppIcon name="bookmark" :size="32" :color="C.primary" class="bm-icon" />
             <view class="bm-body">
-              <text class="bm-chapter">
-                {{ bm.chapterTitle }} · 第{{ bm.pageNum }}页
-              </text>
-              <text class="bm-text">
-                {{ bm.text }}
-              </text>
-              <text class="bm-time">
-                {{ bm.createdAt }}
-              </text>
+              <text class="bm-chapter">{{ bm.chapterTitle }} · 第{{ bm.pageNum }}页</text>
+              <text class="bm-text">{{ bm.text }}</text>
+              <text class="bm-time">{{ bm.createdAt }}</text>
             </view>
-            <view
-              class="del-btn"
-              @tap.stop="del(bm.id)"
-            >
-              <AppIcon
-                name="trash-2"
-                :size="28"
-                :color="C.slate400"
-              />
-            </view>
+            <view class="del-btn" @tap.stop="del(bm.id)"><AppIcon name="trash-2" :size="28" :color="C.slate400" /></view>
           </view>
         </view>
       </view>
@@ -147,21 +57,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { ebookApi, type EbookBookmark } from '@/lib/ebook-data'
+import { ebookBookmarks, type EbookBookmark } from '@/lib/ebook-data'
 
 const C = {
   text: '#1e293b', primary: '#2563eb', slate400: '#94a3b8', slate200: '#e2e8f0',
 }
 
 const search = ref('')
-const items = ref<EbookBookmark[]>([])
-
-onMounted(async () => {
-  const res = await ebookApi.bookmarks()
-  items.value = res.items
-})
+const items = ref<EbookBookmark[]>([...ebookBookmarks])
 
 const filtered = computed(() =>
   items.value.filter(

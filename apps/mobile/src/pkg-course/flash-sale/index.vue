@@ -3,41 +3,14 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppError from '@/components/common/app-error.vue'
 // @data-needs: 限时特惠聚合, 参数 无, 返回 { sessions:SaleSession[], courses:SaleCourse[] }
 // mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { courseApi } from '@/lib/course-data'
+import { saleSessions as sessions, saleCourses as courses } from '@/lib/course-data'
 
-const sessions = ref<any[]>([])
-const courses = ref<any[]>([])
 const activeSession = ref('2')
 const secs = ref(3600)
 let timer: any = null
-
-const loading = ref(false)
-const error = ref('')
-const dataReady = ref(false)
-
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await courseApi.saleSessions()
-    sessions.value = res.sessions ?? res
-    if (res.courses) courses.value = res.courses
-    if (sessions.value.length > 0) activeSession.value = sessions.value[0].id
-    dataReady.value = true
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => {
-  loadData()
-  timer = setInterval(() => { secs.value = Math.max(0, secs.value - 1) }, 1000)
-})
+onMounted(() => { timer = setInterval(() => { secs.value = Math.max(0, secs.value - 1) }, 1000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -47,8 +20,8 @@ const cd = computed(() => {
   const s = secs.value % 60
   return [pad(h), pad(m), pad(s)]
 })
-const session = computed(() => sessions.value.find((s) => s.id === activeSession.value))
-const sessionCourses = computed(() => courses.value.filter((c) => c.sessionId === activeSession.value))
+const session = computed(() => sessions.find((s) => s.id === activeSession.value))
+const sessionCourses = computed(() => courses.filter((c) => c.sessionId === activeSession.value))
 
 function sessionTip(status?: string) {
   return status === 'active' ? '距本场结束' : status === 'past' ? '本场已结束' : '本场即将开始'
@@ -63,229 +36,83 @@ function sessionState(status: string) {
     <!-- 顶部品牌渐变 -->
     <view class="header">
       <view class="nav">
-        <view
-          class="nav-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#ffffff"
-          />
-        </view>
+        <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
         <view class="nav-title">
-          <app-icon
-            name="flame"
-            :size="32"
-            color="#d4b87d"
-          />
-          <text class="nav-title-txt">
-            限时特惠
-          </text>
+          <app-icon name="flame" :size="32" color="#d4b87d" />
+          <text class="nav-title-txt">限时特惠</text>
         </view>
       </view>
 
       <!-- 倒计时条 -->
       <view class="cd-bar">
         <view class="cd-left">
-          <text class="cd-sub">
-            每日三场 · 错过再等一天
-          </text>
-          <text class="cd-main">
-            限时抢购
-          </text>
+          <text class="cd-sub">每日三场 · 错过再等一天</text>
+          <text class="cd-main">限时抢购</text>
         </view>
         <view class="cd-right">
-          <text class="cd-label">
-            {{ sessionTip(session?.status) }}
-          </text>
-          <view
-            v-if="session?.status === 'active'"
-            class="cd-nums"
-          >
-            <template
-              v-for="(v, i) in cd"
-              :key="i"
-            >
-              <text class="cd-cell">
-                {{ v }}
-              </text>
-              <text
-                v-if="i < 2"
-                class="cd-colon"
-              >
-                :
-              </text>
+          <text class="cd-label">{{ sessionTip(session?.status) }}</text>
+          <view v-if="session?.status === 'active'" class="cd-nums">
+            <template v-for="(v, i) in cd" :key="i">
+              <text class="cd-cell">{{ v }}</text>
+              <text v-if="i < 2" class="cd-colon">:</text>
             </template>
           </view>
-          <text
-            v-else
-            class="cd-placeholder"
-          >
-            --:--:--
-          </text>
+          <text v-else class="cd-placeholder">--:--:--</text>
         </view>
       </view>
 
       <!-- 场次切换 -->
       <view class="seg">
         <view
-          v-for="s in sessions"
-          :key="s.id"
-          class="seg-item"
-          :class="{ active: activeSession === s.id }"
+          v-for="s in sessions" :key="s.id"
+          class="seg-item" :class="{ active: activeSession === s.id }"
           @tap="activeSession = s.id"
         >
-          <text
-            class="seg-time"
-            :class="{ active: activeSession === s.id }"
-          >
-            {{ s.startTime }}
-          </text>
-          <text
-            class="seg-state"
-            :class="{ active: activeSession === s.id }"
-          >
-            {{ sessionState(s.status) }}
-          </text>
+          <text class="seg-time" :class="{ active: activeSession === s.id }">{{ s.startTime }}</text>
+          <text class="seg-state" :class="{ active: activeSession === s.id }">{{ sessionState(s.status) }}</text>
         </view>
       </view>
     </view>
 
-    <!-- 课程列表（三态包裹） -->
-    <view
-      v-if="loading"
-      class="pl-skeleton"
-    >
-      <view class="sk-card">
-        <view class="sk-cover" />
-        <view class="sk-body">
-          <view class="sk-line w-70" />
-          <view class="sk-line w-50" />
-          <view class="sk-line w-30" />
-          <view class="sk-line w-90" />
-          <view class="sk-line w-60" />
-        </view>
-      </view>
-      <view class="sk-card">
-        <view class="sk-cover" />
-        <view class="sk-body">
-          <view class="sk-line w-70" />
-          <view class="sk-line w-50" />
-          <view class="sk-line w-30" />
-          <view class="sk-line w-90" />
-          <view class="sk-line w-60" />
-        </view>
-      </view>
-    </view>
-    <app-error
-      v-else-if="error"
-      :desc="error"
-      @retry="loadData"
-    />
-    <view
-      v-else
-      class="list"
-    >
-      <view
-        v-for="course in sessionCourses"
-        :key="course.id"
-        class="card"
-      >
+    <!-- 课程列表 -->
+    <view class="list">
+      <view v-for="course in sessionCourses" :key="course.id" class="card">
         <view class="card-cover">
-          <image
-            class="cover-img"
-            :src="course.cover"
-            mode="aspectFill"
-          />
+          <image class="cover-img" :src="course.cover" mode="aspectFill" />
           <view class="cover-tags">
             <view class="tag-discount">
-              <app-icon
-                name="tag"
-                :size="20"
-                color="#1a1815"
-              />
-              <text class="tag-discount-txt">
-                {{ course.discount }}折
-              </text>
+              <app-icon name="tag" :size="20" color="#1a1815" />
+              <text class="tag-discount-txt">{{ course.discount }}折</text>
             </view>
-            <text class="tag-cat">
-              {{ course.category }}
-            </text>
+            <text class="tag-cat">{{ course.category }}</text>
           </view>
         </view>
         <view class="card-body">
-          <text class="card-title">
-            {{ course.title }}
-          </text>
+          <text class="card-title">{{ course.title }}</text>
           <view class="card-meta">
-            <text class="meta-ins">
-              {{ course.instructor }}
-            </text>
-            <view class="meta-item">
-              <app-icon
-                name="star"
-                :size="20"
-                color="#d4b87d"
-                :fill="true"
-              /><text class="meta-txt">
-                {{ course.rating }}
-              </text>
-            </view>
-            <view class="meta-item">
-              <app-icon
-                name="users"
-                :size="20"
-                color="#9a8c80"
-              /><text class="meta-txt">
-                {{ (course.students / 1000).toFixed(1) }}k
-              </text>
-            </view>
+            <text class="meta-ins">{{ course.instructor }}</text>
+            <view class="meta-item"><app-icon name="star" :size="20" color="#d4b87d" :fill="true" /><text class="meta-txt">{{ course.rating }}</text></view>
+            <view class="meta-item"><app-icon name="users" :size="20" color="#9a8c80" /><text class="meta-txt">{{ (course.students / 1000).toFixed(1) }}k</text></view>
           </view>
           <view class="card-price-row">
             <view class="price-group">
-              <text class="price-now">
-                ¥{{ course.salePrice }}
-              </text>
-              <text class="price-old">
-                ¥{{ course.originalPrice }}
-              </text>
+              <text class="price-now">¥{{ course.salePrice }}</text>
+              <text class="price-old">¥{{ course.originalPrice }}</text>
             </view>
-            <text
-              class="price-stock"
-              :class="{ low: (course.total - course.sold) > 0 && (course.total - course.sold) <= course.total * 0.2 }"
-            >
+            <text class="price-stock" :class="{ low: (course.total - course.sold) > 0 && (course.total - course.sold) <= course.total * 0.2 }">
               {{ session?.status === 'upcoming' ? `共 ${course.total} 名额` : `仅剩 ${course.total - course.sold} 名额` }}
             </text>
           </view>
-          <view
-            v-if="session?.status !== 'upcoming'"
-            class="progress"
-          >
-            <view
-              class="progress-fill"
-              :style="{ width: Math.round((course.sold / course.total) * 100) + '%' }"
-            />
-            <text class="progress-txt">
-              已抢 {{ Math.round((course.sold / course.total) * 100) }}%
-            </text>
+          <view v-if="session?.status !== 'upcoming'" class="progress">
+            <view class="progress-fill" :style="{ width: Math.round((course.sold / course.total) * 100) + '%' }" />
+            <text class="progress-txt">已抢 {{ Math.round((course.sold / course.total) * 100) }}%</text>
           </view>
           <view
-            class="btn"
-            :class="{ disabled: session?.status === 'upcoming' }"
+            class="btn" :class="{ disabled: session?.status === 'upcoming' }"
             @tap="session?.status !== 'upcoming' && navigateTo(`/courses/${course.id}`)"
           >
-            <app-icon
-              :name="session?.status === 'upcoming' ? 'clock' : 'shopping-cart'"
-              :size="28"
-              :color="session?.status === 'upcoming' ? '#9a8c80' : '#ffffff'"
-            />
-            <text
-              class="btn-txt"
-              :class="{ disabled: session?.status === 'upcoming' }"
-            >
-              {{ session?.status === 'upcoming' ? '即将开抢' : '立即抢购' }}
-            </text>
+            <app-icon :name="session?.status === 'upcoming' ? 'clock' : 'shopping-cart'" :size="28" :color="session?.status === 'upcoming' ? '#9a8c80' : '#ffffff'" />
+            <text class="btn-txt" :class="{ disabled: session?.status === 'upcoming' }">{{ session?.status === 'upcoming' ? '即将开抢' : '立即抢购' }}</text>
           </view>
         </view>
       </view>
@@ -347,17 +174,4 @@ function sessionState(status: string) {
 .btn.disabled { background: #F2EFEA; }
 .btn-txt { font-size: 28rpx; font-weight: 600; color: #fff; }
 .btn-txt.disabled { color: #9a8c80; }
-
-/* 骨架屏 */
-@keyframes sk-pulse { 0%,100%{opacity:0.3} 50%{opacity:0.6} }
-.pl-skeleton { display: flex; flex-direction: column; gap: 32rpx; padding: 32rpx 32rpx 160rpx; animation: sk-pulse 1.5s ease-in-out infinite; }
-.sk-card { background: #fff; border-radius: 32rpx; overflow: hidden; }
-.sk-cover { height: 320rpx; background: #F2EFEA; }
-.sk-body { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
-.sk-line { height: 24rpx; border-radius: 8rpx; background: #F2EFEA; }
-.w-70 { width: 70%; }
-.w-50 { width: 50%; }
-.w-30 { width: 30%; }
-.w-90 { width: 90%; }
-.w-60 { width: 60%; }
 </style>

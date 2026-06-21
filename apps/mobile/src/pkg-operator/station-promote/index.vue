@@ -1,33 +1,14 @@
 <template>
   <view class="promote-page">
     <!-- 导航栏 -->
-    <view
-      class="promote-nav"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="promote-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="promote-nav-inner">
-        <view
-          class="promote-nav-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#374151"
-          />
+        <view class="promote-nav-btn" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#374151" />
         </view>
-        <text class="promote-nav-title">
-          推广中心
-        </text>
-        <view
-          class="promote-nav-btn"
-          @tap="goMaterials"
-        >
-          <app-icon
-            name="image"
-            :size="40"
-            color="#374151"
-          />
+        <text class="promote-nav-title">推广中心</text>
+        <view class="promote-nav-btn" @tap="goMaterials">
+          <app-icon name="image" :size="40" color="#374151" />
         </view>
       </view>
     </view>
@@ -35,75 +16,35 @@
     <!-- 推广模式切换 -->
     <view class="promote-tabs-wrap">
       <view class="promote-tabs">
-        <view
-          class="promote-tab"
-          :class="{ active: activeTab === 'permanent' }"
-          @tap="activeTab = 'permanent'"
-        >
-          <text class="promote-tab-txt">
-            永久推广
-          </text>
+        <view class="promote-tab" :class="{ active: activeTab === 'permanent' }" @tap="activeTab = 'permanent'">
+          <text class="promote-tab-txt">永久推广</text>
         </view>
-        <view
-          class="promote-tab"
-          :class="{ active: activeTab === 'temporary' }"
-          @tap="activeTab = 'temporary'"
-        >
-          <text class="promote-tab-txt">
-            临时推荐
-          </text>
+        <view class="promote-tab" :class="{ active: activeTab === 'temporary' }" @tap="activeTab = 'temporary'">
+          <text class="promote-tab-txt">临时推荐</text>
         </view>
       </view>
     </view>
 
     <!-- 永久推广 -->
-    <view
-      v-if="activeTab === 'permanent'"
-      class="promote-body"
-    >
+    <view v-if="activeTab === 'permanent'" class="promote-body">
       <view class="promote-info-card promote-info-purple">
         <view class="promote-info-icon promote-icon-purple">
-          <app-icon
-            name="link-2"
-            :size="40"
-            color="#8B5CF6"
-          />
+          <app-icon name="link-2" :size="40" color="#8B5CF6" />
         </view>
         <view class="promote-info-text">
-          <text class="promote-info-title">
-            专属推广链接
-          </text>
+          <text class="promote-info-title">专属推广链接</text>
           <view class="promote-info-desc">
-            <text class="promote-info-desc-txt">
-              用户通过此链接注册后将
-            </text><text class="promote-hl-purple">
-              永久锁定
-            </text><text class="promote-info-desc-txt">
-              在您的分站名下，后续所有消费您都将获得推广佣金。
-            </text>
+            <text class="promote-info-desc-txt">用户通过此链接注册后将</text><text class="promote-hl-purple">永久锁定</text><text class="promote-info-desc-txt">在您的分站名下，后续所有消费您都将获得推广佣金。</text>
           </view>
         </view>
       </view>
 
       <view class="promote-field">
-        <text class="promote-label">
-          推广链接
-        </text>
+        <text class="promote-label">推广链接</text>
         <view class="promote-input-row">
-          <view class="promote-input">
-            <text class="promote-input-txt">
-              {{ stationInfo.promoteUrl }}
-            </text>
-          </view>
-          <view
-            class="promote-copy-btn promote-bg-purple"
-            @tap="handleCopy(stationInfo.promoteUrl, 'link')"
-          >
-            <app-icon
-              :name="copied === 'link' ? 'check' : 'copy'"
-              :size="32"
-              color="#ffffff"
-            />
+          <view class="promote-input"><text class="promote-input-txt">{{ stationInfo.promoteUrl }}</text></view>
+          <view class="promote-copy-btn promote-bg-purple" @tap="handleCopy(stationInfo.promoteUrl, 'link')">
+            <app-icon :name="copied === 'link' ? 'check' : 'copy'" :size="32" color="#ffffff" />
           </view>
         </view>
       </view>
@@ -111,78 +52,38 @@
       <view class="promote-qr-card">
         <view class="promote-qr">
           <view class="promote-qr-inner">
-            <app-icon
-              name="qr-code"
-              :size="160"
-              color="#9ca3af"
-            />
+            <app-icon name="qr-code" :size="160" color="#9ca3af" />
           </view>
         </view>
-        <text class="promote-qr-txt">
-          扫码进入「{{ stationInfo.name }}」
-        </text>
+        <text class="promote-qr-txt">扫码进入「{{ stationInfo.name }}」</text>
         <view class="promote-qr-actions">
-          <view
-            class="promote-btn promote-btn-outline"
-            @tap="handleCopy(stationInfo.promoteUrl, 'qr')"
-          >
-            <text class="promote-btn-txt">
-              {{ copied === 'qr' ? '已复制链接' : '复制链接' }}
-            </text>
+          <view class="promote-btn promote-btn-outline" @tap="handleCopy(stationInfo.promoteUrl, 'qr')">
+            <text class="promote-btn-txt">{{ copied === 'qr' ? '已复制链接' : '复制链接' }}</text>
           </view>
-          <view
-            class="promote-btn promote-bg-purple"
-            @tap="goPoster"
-          >
-            <app-icon
-              name="share-2"
-              :size="32"
-              color="#ffffff"
-            />
-            <text
-              class="promote-btn-txt"
-              style="color:#fff"
-            >
-              生成海报
-            </text>
+          <view class="promote-btn promote-bg-purple" @tap="goPoster">
+            <app-icon name="share-2" :size="32" color="#ffffff" />
+            <text class="promote-btn-txt" style="color:#fff">生成海报</text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 临时推荐 -->
-    <view
-      v-if="activeTab === 'temporary'"
-      class="promote-body"
-    >
+    <view v-if="activeTab === 'temporary'" class="promote-body">
       <view class="promote-info-card promote-info-amber">
         <view class="promote-info-icon promote-icon-amber">
-          <app-icon
-            name="clock"
-            :size="40"
-            color="#d97706"
-          />
+          <app-icon name="clock" :size="40" color="#d97706" />
         </view>
         <view class="promote-info-text">
-          <text class="promote-info-title">
-            临时推荐链接
-          </text>
+          <text class="promote-info-title">临时推荐链接</text>
           <view class="promote-info-desc">
-            <text class="promote-info-desc-txt">
-              分享指定内容，用户点击后
-            </text><text class="promote-hl-amber">
-              24小时内
-            </text><text class="promote-info-desc-txt">
-              购买，佣金归您。不影响用户已有的永久锁定关系。
-            </text>
+            <text class="promote-info-desc-txt">分享指定内容，用户点击后</text><text class="promote-hl-amber">24小时内</text><text class="promote-info-desc-txt">购买，佣金归您。不影响用户已有的永久锁定关系。</text>
           </view>
         </view>
       </view>
 
       <view class="promote-field">
-        <text class="promote-label">
-          选择推荐内容
-        </text>
+        <text class="promote-label">选择推荐内容</text>
         <view class="promote-content-list">
           <view
             v-for="c in recommendableContent"
@@ -191,75 +92,32 @@
             :class="{ active: selectedContentId === c.id }"
             @tap="selectContent(c.id)"
           >
-            <text class="promote-content-type">
-              {{ c.type }}
-            </text>
+            <text class="promote-content-type">{{ c.type }}</text>
             <view class="promote-content-info">
-              <text class="promote-content-title">
-                {{ c.title }}
-              </text>
+              <text class="promote-content-title">{{ c.title }}</text>
               <view class="promote-content-meta">
-                <text class="promote-content-meta-txt">
-                  售价 ¥{{ c.price }} · 佣金
-                </text><text class="promote-content-commission">
-                  ¥{{ c.commission }}
-                </text>
+                <text class="promote-content-meta-txt">售价 ¥{{ c.price }} · 佣金 </text><text class="promote-content-commission">¥{{ c.commission }}</text>
               </view>
             </view>
-            <app-icon
-              v-if="selectedContentId === c.id"
-              name="check"
-              :size="32"
-              color="#f59e0b"
-            />
+            <app-icon v-if="selectedContentId === c.id" name="check" :size="32" color="#f59e0b" />
           </view>
         </view>
       </view>
 
       <block v-if="selectedContent">
-        <view
-          v-if="!tempLinkGenerated"
-          class="promote-gen-btn promote-bg-amber"
-          @tap="tempLinkGenerated = true"
-        >
-          <app-icon
-            name="sparkles"
-            :size="32"
-            color="#ffffff"
-          />
-          <text class="promote-gen-txt">
-            生成临时推荐链接
-          </text>
+        <view v-if="!tempLinkGenerated" class="promote-gen-btn promote-bg-amber" @tap="tempLinkGenerated = true">
+          <app-icon name="sparkles" :size="32" color="#ffffff" />
+          <text class="promote-gen-txt">生成临时推荐链接</text>
         </view>
-        <view
-          v-else
-          class="promote-temp-card"
-        >
+        <view v-else class="promote-temp-card">
           <view class="promote-temp-tip">
-            <app-icon
-              name="clock"
-              :size="28"
-              color="#d97706"
-            />
-            <text class="promote-temp-tip-txt">
-              有效期 24 小时，过期自动失效
-            </text>
+            <app-icon name="clock" :size="28" color="#d97706" />
+            <text class="promote-temp-tip-txt">有效期 24 小时，过期自动失效</text>
           </view>
           <view class="promote-input-row">
-            <view class="promote-input promote-input-gray">
-              <text class="promote-input-txt promote-input-sm">
-                {{ tempLink }}
-              </text>
-            </view>
-            <view
-              class="promote-copy-btn promote-bg-amber"
-              @tap="handleCopy(tempLink, 'temp')"
-            >
-              <app-icon
-                :name="copied === 'temp' ? 'check' : 'copy'"
-                :size="32"
-                color="#ffffff"
-              />
+            <view class="promote-input promote-input-gray"><text class="promote-input-txt promote-input-sm">{{ tempLink }}</text></view>
+            <view class="promote-copy-btn promote-bg-amber" @tap="handleCopy(tempLink, 'temp')">
+              <app-icon :name="copied === 'temp' ? 'check' : 'copy'" :size="32" color="#ffffff" />
             </view>
           </view>
         </view>
@@ -269,8 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { operatorApi } from '@/lib/operator-data'
+import { ref, computed } from 'vue'
 
 const statusBarHeight = ref(20)
 try {
@@ -278,37 +135,28 @@ try {
   statusBarHeight.value = info.statusBarHeight || 20
 } catch (e) {}
 
-const stationInfo = ref({
-  id: '',
-  name: '',
-  promoteUrl: 'https://recob.app/s/',
-})
+const stationInfo = {
+  id: 'qingyun',
+  name: '青云国学小站',
+  themeColor: '#8B5CF6',
+  promoteUrl: 'https://recob.app/s/qingyun',
+}
 
-const recommendableContent = ref<any[]>([])
-
-onMounted(async () => {
-  try {
-    const [panel, content] = await Promise.allSettled([
-      operatorApi.stationMasterPanel(),
-      operatorApi.recommendableContent(),
-    ])
-    if (panel.status === 'fulfilled' && panel.value?.info) {
-      stationInfo.value.name = panel.value.info.name || ''
-    }
-    if (content.status === 'fulfilled') {
-      recommendableContent.value = Array.isArray(content.value) ? content.value : []
-    }
-  } catch (e) {}
-})
+const recommendableContent = [
+  { id: 'c1', type: '课程', title: '八字命理入门到精通', price: 299, commission: 60 },
+  { id: 'c2', type: '课程', title: '紫微斗数实战班', price: 599, commission: 120 },
+  { id: 'c3', type: '商品', title: '开光紫水晶手串', price: 188, commission: 28 },
+  { id: 'c4', type: '圈子', title: '玄学研习社·年度会员', price: 365, commission: 73 },
+]
 
 const activeTab = ref<'permanent' | 'temporary'>('permanent')
 const copied = ref<string | null>(null)
 const selectedContentId = ref<string | null>(null)
 const tempLinkGenerated = ref(false)
 
-const selectedContent = computed(() => recommendableContent.value.find((c) => c.id === selectedContentId.value) || null)
+const selectedContent = computed(() => recommendableContent.find((c) => c.id === selectedContentId.value) || null)
 const tempLink = computed(() =>
-  selectedContent.value ? `${stationInfo.value.promoteUrl}/t/${selectedContent.value.id}?ref=qingyun&exp=24h` : '',
+  selectedContent.value ? `${stationInfo.promoteUrl}/t/${selectedContent.value.id}?ref=qingyun&exp=24h` : '',
 )
 
 function selectContent(id: string) {

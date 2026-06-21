@@ -49,68 +49,34 @@ const dateStr = computed(() => {
   <view class="ib-card">
     <view class="ib-head">
       <view class="ib-head-l">
-        <view class="ib-bar" /><text class="ib-title">
-          即时排盘
-        </text>
+        <view class="ib-bar" /><text class="ib-title">即时排盘</text>
       </view>
       <view class="ib-head-r">
-        <view class="ib-dot" /><text class="ib-live">
-          实时更新
-        </text>
+        <view class="ib-dot" /><text class="ib-live">实时更新</text>
       </view>
     </view>
     <view class="ib-body">
       <view class="ib-left">
         <view class="ib-pillars">
-          <view
-            v-for="(p, i) in pillars"
-            :key="i"
-            class="ib-pillar"
-          >
-            <text class="ib-plabel">
-              {{ p.label }}
-            </text>
+          <view v-for="(p, i) in pillars" :key="i" class="ib-pillar">
+            <text class="ib-plabel">{{ p.label }}</text>
             <view class="ib-pbox">
-              <text
-                class="ib-pchar"
-                :style="{ color: wxColor(p.gan) }"
-              >
-                {{ p.gan }}
-              </text>
-              <text
-                class="ib-pchar"
-                :style="{ color: wxColor(p.zhi) }"
-              >
-                {{ p.zhi }}
-              </text>
+              <text class="ib-pchar" :style="{ color: wxColor(p.gan) }">{{ p.gan }}</text>
+              <text class="ib-pchar" :style="{ color: wxColor(p.zhi) }">{{ p.zhi }}</text>
             </view>
           </view>
         </view>
         <view class="ib-info">
-          <text class="ib-info-line">
-            农历：2026年四月初一 {{ currentShiChen }}时
-          </text>
-          <text class="ib-info-line">
-            公历：{{ dateStr }} {{ timeStr }}
-          </text>
+          <text class="ib-info-line">农历：2026年四月初一 {{ currentShiChen }}时</text>
+          <text class="ib-info-line">公历：{{ dateStr }} {{ timeStr }}</text>
         </view>
       </view>
       <view class="ib-right">
-        <text class="ib-shichen">
-          {{ currentShiChen }}时
-        </text>
-        <text class="ib-clock">
-          {{ timeStr }}
-        </text>
+        <text class="ib-shichen">{{ currentShiChen }}时</text>
+        <text class="ib-clock">{{ timeStr }}</text>
         <view class="ib-btn">
-          <app-icon
-            name="zap"
-            :size="28"
-            color="#ffffff"
-          />
-          <text class="ib-btn-text">
-            即时排盘
-          </text>
+          <app-icon name="zap" :size="28" color="#ffffff" />
+          <text class="ib-btn-text">即时排盘</text>
         </view>
       </view>
     </view>

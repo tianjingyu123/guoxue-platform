@@ -1,84 +1,30 @@
 <template>
   <view class="cat-page">
-    <classics-header
-      :title="config.name"
-      right-type="search"
-      @back="goBack"
-    />
+    <classics-header :title="config.name" right-type="search" @back="goBack" />
 
-    <!-- Loading -->
-    <view
-      v-if="loading"
-      class="cat-main"
-    >
-      <view class="cat-loading">
-        <view class="loading-spinner" />
-      </view>
-    </view>
-    <!-- Error -->
-    <view
-      v-else-if="error"
-      class="cat-main"
-    >
-      <view class="err-wrap">
-        <text class="err-msg">
-          {{ error }}
-        </text>
-        <view
-          class="retry-btn"
-          @tap="loadData"
-        >
-          重新加载
-        </view>
-      </view>
-    </view>
-    <view
-      v-else
-      class="cat-main"
-    >
+    <view class="cat-main">
       <!-- 分类 Hero -->
       <view class="cat-hero-wrap">
-        <view
-          class="cat-hero"
-          :style="{ background: `linear-gradient(150deg, ${config.from}, ${config.to})` }"
-        >
+        <view class="cat-hero" :style="{ background: `linear-gradient(150deg, ${config.from}, ${config.to})` }">
           <view class="cat-hero-top">
             <view class="cat-hero-info">
-              <text class="cat-hero-cat">
-                四库 · {{ config.desc }}
-              </text>
-              <text class="cat-hero-name">
-                {{ config.name }}
-              </text>
-              <text class="cat-hero-intro">
-                {{ config.intro }}
-              </text>
+              <text class="cat-hero-cat">四库 · {{ config.desc }}</text>
+              <text class="cat-hero-name">{{ config.name }}</text>
+              <text class="cat-hero-intro">{{ config.intro }}</text>
             </view>
             <view class="cat-hero-icon">
-              <app-icon
-                :name="config.icon"
-                :size="48"
-                color="#ffffff"
-              />
+              <app-icon :name="config.icon" :size="48" color="#ffffff" />
             </view>
           </view>
           <view class="cat-hero-count">
-            <text class="cat-hero-num">
-              {{ config.count }}
-            </text>
-            <text class="cat-hero-unit">
-              部典籍
-            </text>
+            <text class="cat-hero-num">{{ config.count }}</text>
+            <text class="cat-hero-unit">部典籍</text>
           </view>
         </view>
       </view>
 
       <!-- 子门类筛选 -->
-      <scroll-view
-        class="cat-subs"
-        scroll-x
-        :show-scrollbar="false"
-      >
+      <scroll-view class="cat-subs" scroll-x :show-scrollbar="false">
         <view class="cat-subs-row">
           <view
             v-for="sub in config.subCats"
@@ -87,20 +33,14 @@
             :class="{ 'cat-sub-active': activeSub === sub }"
             @tap="activeSub = sub"
           >
-            <text class="cat-sub-text">
-              {{ sub }}
-            </text>
+            <text class="cat-sub-text">{{ sub }}</text>
           </view>
         </view>
       </scroll-view>
 
       <!-- 排序 -->
       <view class="cat-sort">
-        <text class="cat-sort-count">
-          共 <text class="cat-sort-num">
-            {{ books.length }}
-          </text> 部
-        </text>
+        <text class="cat-sort-count">共 <text class="cat-sort-num">{{ books.length }}</text> 部</text>
         <view class="cat-sort-toggle">
           <view
             v-for="s in sortOptions"
@@ -109,9 +49,7 @@
             :class="{ 'cat-sort-btn-active': sort === s.key }"
             @tap="sort = s.key"
           >
-            <text class="cat-sort-btn-text">
-              {{ s.label }}
-            </text>
+            <text class="cat-sort-btn-text">{{ s.label }}</text>
           </view>
         </view>
       </view>
@@ -124,42 +62,19 @@
           class="cat-card"
           @tap="goDetail(book.id)"
         >
-          <flat-cover
-            :title="book.title"
-            :label="book.dynasty"
-            :cover-color="config.cover"
-            title-size="28rpx"
-            class="cat-card-cover"
-          />
+          <flat-cover :title="book.title" :label="book.dynasty" :cover-color="config.cover" title-size="28rpx" class="cat-card-cover" />
           <view class="cat-card-body">
             <view class="cat-card-top">
               <view class="cat-card-title-row">
-                <text class="cat-card-title">
-                  {{ book.title }}
-                </text>
-                <view
-                  v-if="book.isFree"
-                  class="cat-card-free"
-                >
-                  <text class="cat-card-free-text">
-                    免费
-                  </text>
-                </view>
+                <text class="cat-card-title">{{ book.title }}</text>
+                <view v-if="book.isFree" class="cat-card-free"><text class="cat-card-free-text">免费</text></view>
               </view>
-              <text class="cat-card-desc">
-                {{ book.desc }}
-              </text>
+              <text class="cat-card-desc">{{ book.desc }}</text>
             </view>
-            <text class="cat-card-meta">
-              {{ book.author }} · {{ book.dynasty }} · {{ fmtReads(book.reads) }}人读
-            </text>
+            <text class="cat-card-meta">{{ book.author }} · {{ book.dynasty }} · {{ fmtReads(book.reads) }}人读</text>
           </view>
           <view class="cat-card-arrow">
-            <app-icon
-              name="chevron-right"
-              :size="40"
-              color="rgba(0,0,0,0.25)"
-            />
+            <app-icon name="chevron-right" :size="40" color="rgba(0,0,0,0.25)" />
           </view>
         </view>
       </view>
@@ -168,16 +83,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
-import { classicsApi, fmtReads } from '@/lib/classics-data'
-import type { CatId } from '@/lib/classics-data'
+import { CAT_CONFIG, CAT_BOOKS, fmtReads, type CatId } from '@/lib/classics-data'
 
 const catId = ref<CatId>('jing')
-const loading = ref(true)
-const error = ref('')
 const activeSub = ref('全部')
 const sort = ref<'hot' | 'new'>('hot')
 const sortOptions = [
@@ -185,22 +97,8 @@ const sortOptions = [
   { key: 'new' as const, label: '最新' },
 ]
 
-const config = ref<any>({})
-const books = ref<any[]>([])
-const filterTypes = ref<any[]>([])
-
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await classicsApi.category(catId.value)
-    config.value = res.config || {}
-    books.value = res.books || []
-    filterTypes.value = res.filterTypes || []
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally { loading.value = false }
-}
+const config = computed(() => CAT_CONFIG[catId.value])
+const books = computed(() => CAT_BOOKS[catId.value])
 
 onLoad((query) => {
   const cat = query?.cat
@@ -208,8 +106,6 @@ onLoad((query) => {
     catId.value = cat as CatId
   }
 })
-
-onMounted(() => { loadData() })
 
 function goBack() {
   uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/index/index', fail: () => {} }) })
@@ -436,49 +332,5 @@ function goDetail(id: string) {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-}
-
-/* Loading & Error */
-.cat-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 240rpx 0;
-}
-.loading-spinner {
-  width: 64rpx;
-  height: 64rpx;
-  border: 4rpx solid #c41e3a;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: cat-spin 0.8s linear infinite;
-}
-@keyframes cat-spin {
-  to { transform: rotate(360deg); }
-}
-.err-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24rpx;
-  text-align: center;
-  padding: 240rpx 40rpx;
-}
-.err-msg {
-  font-size: 28rpx;
-  color: var(--muted-foreground);
-}
-.retry-btn {
-  height: 72rpx;
-  padding: 0 48rpx;
-  border-radius: 999rpx;
-  background: #c41e3a;
-  color: #fff;
-  font-size: 28rpx;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 72rpx;
 }
 </style>

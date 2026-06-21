@@ -1,41 +1,13 @@
 <script setup lang="ts">
 /** 课程结业证书页 - 从原型 app/courses/certificate/page.tsx 迁移 */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppError from '@/components/common/app-error.vue'
-import { courseApi } from '@/lib/course-data'
+// @data-needs: 结业证书, 参数 courseId, 返回 Certificate。证书图建议由后端或 canvas 生成 imageUrl 填充 .cert-img
+// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
+import { courseCertificate as cert } from '@/lib/course-data'
 
-const courseId = ref('1')
-onLoad((opts?: Record<string, any>) => {
-  if (opts?.id) courseId.value = opts.id
-})
-
-const cert = ref<any>(null)
-
-const loading = ref(false)
-const error = ref('')
-const dataReady = ref(false)
-
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    cert.value = await courseApi.certificate(courseId.value)
-    dataReady.value = true
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => { loadData() })
-
-const dateStr = computed(() => cert.value?.completedAt)
+const dateStr = cert.completedAt
 function fmtDate(s: string) {
-  if (!s) return ''
   const d = new Date(s)
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
 }
@@ -45,198 +17,83 @@ function fmtDate(s: string) {
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
-      <view
-        class="nav-back"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="40"
-          color="#ffffff"
-        />
-      </view>
-      <text class="nav-title">
-        结业证书
-      </text>
+      <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
+      <text class="nav-title">结业证书</text>
       <view class="nav-right" />
     </view>
 
-    <!-- 三态包裹 -->
-    <view
-      v-if="loading"
-      class="pl-skeleton"
-    >
-      <view class="sk-dark-header" />
-      <view class="sk-cert-area">
-        <view class="sk-cert-card" />
-      </view>
-      <view class="sk-actions">
-        <view class="sk-btn" />
-        <view class="sk-btn" />
+    <!-- 恭喜提示 -->
+    <view class="congrats-wrap">
+      <view class="congrats">
+        <app-icon name="check-circle" :size="32" color="#C9A96E" />
+        <text class="congrats-txt">恭喜您完成课程学习！</text>
       </view>
     </view>
-    <app-error
-      v-else-if="error"
-      :desc="error"
-      @retry="loadData"
-    />
-    <view v-else>
-      <!-- 恭喜提示 -->
-      <view class="congrats-wrap">
-        <view class="congrats">
-          <app-icon
-            name="check-circle"
-            :size="32"
-            color="#C9A96E"
-          />
-          <text class="congrats-txt">
-            恭喜您完成课程学习！
-          </text>
-        </view>
-      </view>
 
-      <!-- 证书展示（产品中由 canvas 生成图填充；比对时图片被中和露出底色） -->
-      <view class="cert-area">
-        <view class="cert-card">
-          <view class="cert-inner">
-            <view class="cert-badge">
-              <text class="cert-star">
-                ★
-              </text>
+    <!-- 证书展示（产品中由 canvas 生成图填充；比对时图片被中和露出底色） -->
+    <view class="cert-area">
+      <view class="cert-card">
+        <view class="cert-inner">
+          <view class="cert-badge"><text class="cert-star">★</text></view>
+          <text class="cert-title">结业证书</text>
+          <text class="cert-en">CERTIFICATE OF COMPLETION</text>
+          <text class="cert-name">{{ cert.studentName }}</text>
+          <text class="cert-desc">已完成</text>
+          <text class="cert-course">《{{ cert.courseName }}》</text>
+          <text class="cert-hours">全部课程学习，共计 {{ cert.totalHours }} 学时</text>
+          <text v-if="cert.score" class="cert-score">综合评分：{{ cert.score }} 分</text>
+          <view class="cert-divider" />
+          <view class="cert-foot">
+            <view class="cert-foot-col left">
+              <text class="cert-foot-label">授课讲师</text>
+              <text class="cert-foot-val italic">{{ cert.instructor }}</text>
             </view>
-            <text class="cert-title">
-              结业证书
-            </text>
-            <text class="cert-en">
-              CERTIFICATE OF COMPLETION
-            </text>
-            <text class="cert-name">
-              {{ cert.studentName }}
-            </text>
-            <text class="cert-desc">
-              已完成
-            </text>
-            <text class="cert-course">
-              《{{ cert.courseName }}》
-            </text>
-            <text class="cert-hours">
-              全部课程学习，共计 {{ cert.totalHours }} 学时
-            </text>
-            <text
-              v-if="cert.score"
-              class="cert-score"
-            >
-              综合评分：{{ cert.score }} 分
-            </text>
-            <view class="cert-divider" />
-            <view class="cert-foot">
-              <view class="cert-foot-col left">
-                <text class="cert-foot-label">
-                  授课讲师
-                </text>
-                <text class="cert-foot-val italic">
-                  {{ cert.instructor }}
-                </text>
-              </view>
-              <view class="cert-foot-col right">
-                <text class="cert-foot-label">
-                  颁发日期
-                </text>
-                <text class="cert-foot-val">
-                  {{ fmtDate(dateStr) }}
-                </text>
-              </view>
+            <view class="cert-foot-col right">
+              <text class="cert-foot-label">颁发日期</text>
+              <text class="cert-foot-val">{{ fmtDate(dateStr) }}</text>
             </view>
-            <text class="cert-no">
-              证书编号：{{ cert.certificateNo }}
-            </text>
-            <text class="cert-platform">
-              热卜国学
-            </text>
           </view>
+          <text class="cert-no">证书编号：{{ cert.certificateNo }}</text>
+          <text class="cert-platform">热卜国学</text>
         </view>
       </view>
+    </view>
 
-      <!-- 证书信息 -->
-      <view class="info-card">
-        <view class="info-grid">
-          <view class="info-item">
-            <app-icon
-              name="user"
-              :size="28"
-              color="#C9A96E"
-            />
-            <text class="info-label">
-              学员：
-            </text>
-            <text class="info-val">
-              {{ cert.studentName }}
-            </text>
-          </view>
-          <view class="info-item">
-            <app-icon
-              name="clock"
-              :size="28"
-              color="#C9A96E"
-            />
-            <text class="info-label">
-              学时：
-            </text>
-            <text class="info-val">
-              {{ cert.totalHours }}小时
-            </text>
-          </view>
-          <view class="info-item">
-            <app-icon
-              name="calendar"
-              :size="28"
-              color="#C9A96E"
-            />
-            <text class="info-label">
-              日期：
-            </text>
-            <text class="info-val">
-              {{ fmtDate(dateStr) }}
-            </text>
-          </view>
-          <view class="info-item">
-            <app-icon
-              name="qr-code"
-              :size="28"
-              color="#C9A96E"
-            />
-            <text class="info-label">
-              编号：
-            </text>
-            <text class="info-val small">
-              {{ cert.certificateNo }}
-            </text>
-          </view>
+    <!-- 证书信息 -->
+    <view class="info-card">
+      <view class="info-grid">
+        <view class="info-item">
+          <app-icon name="user" :size="28" color="#C9A96E" />
+          <text class="info-label">学员：</text>
+          <text class="info-val">{{ cert.studentName }}</text>
+        </view>
+        <view class="info-item">
+          <app-icon name="clock" :size="28" color="#C9A96E" />
+          <text class="info-label">学时：</text>
+          <text class="info-val">{{ cert.totalHours }}小时</text>
+        </view>
+        <view class="info-item">
+          <app-icon name="calendar" :size="28" color="#C9A96E" />
+          <text class="info-label">日期：</text>
+          <text class="info-val">{{ fmtDate(dateStr) }}</text>
+        </view>
+        <view class="info-item">
+          <app-icon name="qr-code" :size="28" color="#C9A96E" />
+          <text class="info-label">编号：</text>
+          <text class="info-val small">{{ cert.certificateNo }}</text>
         </view>
       </view>
+    </view>
 
-      <!-- 底部操作 -->
-      <view class="actions">
-        <view class="btn-primary">
-          <app-icon
-            name="download"
-            :size="40"
-            color="#ffffff"
-          />
-          <text class="btn-primary-txt">
-            保存到相册
-          </text>
-        </view>
-        <view class="btn-secondary">
-          <app-icon
-            name="share-2"
-            :size="40"
-            color="#ffffff"
-          />
-          <text class="btn-secondary-txt">
-            分享给好友
-          </text>
-        </view>
+    <!-- 底部操作 -->
+    <view class="actions">
+      <view class="btn-primary">
+        <app-icon name="download" :size="40" color="#ffffff" />
+        <text class="btn-primary-txt">保存到相册</text>
+      </view>
+      <view class="btn-secondary">
+        <app-icon name="share-2" :size="40" color="#ffffff" />
+        <text class="btn-secondary-txt">分享给好友</text>
       </view>
     </view>
   </view>
@@ -288,13 +145,4 @@ function fmtDate(s: string) {
 .btn-primary-txt { font-size: 30rpx; font-weight: 500; color: #fff; }
 .btn-secondary { height: 96rpx; border-radius: 999rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; gap: 16rpx; }
 .btn-secondary-txt { font-size: 30rpx; font-weight: 500; color: #fff; }
-
-/* 骨架屏 */
-@keyframes sk-pulse { 0%,100%{opacity:0.3} 50%{opacity:0.6} }
-.pl-skeleton { flex: 1; display: flex; flex-direction: column; align-items: center; animation: sk-pulse 1.5s ease-in-out infinite; }
-.sk-dark-header { height: 120rpx; background: rgba(255,255,255,0.05); width: 100%; }
-.sk-cert-area { flex: 1; display: flex; align-items: center; justify-content: center; padding: 32rpx; width: 100%; }
-.sk-cert-card { width: 100%; max-width: 670rpx; aspect-ratio: 3 / 4; background: rgba(255,255,255,0.08); border-radius: 16rpx; }
-.sk-actions { padding: 32rpx; display: flex; flex-direction: column; gap: 24rpx; width: 100%; }
-.sk-btn { height: 96rpx; border-radius: 999rpx; background: rgba(255,255,255,0.08); width: 100%; }
 </style>

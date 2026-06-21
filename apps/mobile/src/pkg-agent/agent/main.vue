@@ -1,21 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
 import SimpleChat from '@/components/agent/simple-chat.vue'
-import { agentApi } from '@/lib/agent-data'
-
-const welcome = ref('')
-const quickPrompts = ref<string[]>([])
-const replyText = ref('')
-
-onMounted(async () => {
-  const data = await agentApi.main()
-  welcome.value = data.welcome
-  quickPrompts.value = data.quickPrompts
-  replyText.value = data.reply
-})
+import { zhixuanWelcome, zhixuanQuickPrompts, zhixuanReply } from '@/lib/agent-data'
 
 function resolveReply() {
-  return replyText.value
+  return zhixuanReply
 }
 </script>
 
@@ -25,8 +13,8 @@ function resolveReply() {
     icon-name="bot"
     icon-color="#c41e3a"
     icon-bg="rgba(196,30,58,0.1)"
-    :welcome="welcome"
-    :quick-prompts="quickPrompts"
+    :welcome="zhixuanWelcome"
+    :quick-prompts="zhixuanQuickPrompts"
     :resolve-reply="resolveReply"
     :delay="1200"
   />

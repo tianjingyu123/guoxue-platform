@@ -1,243 +1,89 @@
 <template>
   <view class="page">
-    <app-nav-bar
-      :title="isModifying ? '修改支付密码' : '设置支付密码'"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="32"
-      :title-weight="600"
-      :bar-height="112"
-    />
+    <app-nav-bar :title="isModifying ? '修改支付密码' : '设置支付密码'" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112" />
 
     <view class="container">
       <!-- 验证身份 -->
-      <view
-        v-if="step === 'verify' && isModifying"
-        class="block"
-      >
+      <view v-if="step === 'verify' && isModifying" class="block">
         <view class="head">
-          <view class="head-ic">
-            <app-icon
-              name="shield"
-              :size="40"
-              color="#c41e3a"
-            />
-          </view>
-          <text class="head-title">
-            验证身份
-          </text>
-          <text class="head-sub">
-            为保障账号安全，请验证您的手机号
-          </text>
+          <view class="head-ic"><app-icon name="shield" :size="40" color="#c41e3a" /></view>
+          <text class="head-title">验证身份</text>
+          <text class="head-sub">为保障账号安全，请验证您的手机号</text>
         </view>
         <view class="card">
           <view class="send-to">
-            <text class="send-to-label">
-              验证码将发送至
-            </text>
-            <text class="send-to-phone">
-              {{ phone }}
-            </text>
+            <text class="send-to-label">验证码将发送至</text>
+            <text class="send-to-phone">{{ phone }}</text>
           </view>
           <view class="code-row">
             <input
-              v-model="verifyCode"
-              class="code-input"
-              type="number"
-              maxlength="6"
-              placeholder="请输入验证码"
-              placeholder-class="ph"
-              @input="error = ''"
-            >
-            <view
-              class="code-btn"
-              :class="{ 'btn-dis': countdown > 0 }"
-              @click="handleSendCode"
-            >
-              <text
-                class="code-btn-txt"
-                :class="{ 'txt-dis': countdown > 0 }"
-              >
-                {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
-              </text>
+              class="code-input" type="number" maxlength="6" v-model="verifyCode"
+              placeholder="请输入验证码" placeholder-class="ph" @input="error = ''"
+            />
+            <view class="code-btn" :class="{ 'btn-dis': countdown > 0 }" @click="handleSendCode">
+              <text class="code-btn-txt" :class="{ 'txt-dis': countdown > 0 }">{{ countdown > 0 ? `${countdown}s` : '获取验证码' }}</text>
             </view>
           </view>
-          <text
-            v-if="error"
-            class="err-center"
-          >
-            {{ error }}
-          </text>
-          <view
-            class="next-btn"
-            :class="{ 'next-on': verifyCode.length === 6 }"
-            @click="handleVerifyCode"
-          >
-            <text
-              class="next-txt"
-              :class="{ 'next-txt-on': verifyCode.length === 6 }"
-            >
-              下一步
-            </text>
+          <text v-if="error" class="err-center">{{ error }}</text>
+          <view class="next-btn" :class="{ 'next-on': verifyCode.length === 6 }" @click="handleVerifyCode">
+            <text class="next-txt" :class="{ 'next-txt-on': verifyCode.length === 6 }">下一步</text>
           </view>
         </view>
       </view>
 
       <!-- 设置密码 -->
-      <view
-        v-if="step === 'set'"
-        class="block"
-      >
+      <view v-if="step === 'set'" class="block">
         <view class="head">
-          <view class="head-ic head-ic-accent">
-            <app-icon
-              name="shield"
-              :size="40"
-              color="#c41e3a"
-            />
-          </view>
-          <text class="head-title">
-            设置支付密码
-          </text>
-          <text class="head-sub">
-            请输入6位数字密码
-          </text>
+          <view class="head-ic head-ic-accent"><app-icon name="shield" :size="40" color="#c41e3a" /></view>
+          <text class="head-title">设置支付密码</text>
+          <text class="head-sub">请输入6位数字密码</text>
         </view>
         <view class="card card-pad">
-          <view
-            class="dots"
-            @click="focusHidden('set')"
-          >
-            <view
-              v-for="i in 6"
-              :key="i"
-              class="dot-box"
-              :class="{ 'dot-box-on': password.length >= i }"
-            >
-              <view
-                v-if="password.length >= i"
-                class="dot-fill"
-              />
+          <view class="dots" @click="focusHidden('set')">
+            <view v-for="i in 6" :key="i" class="dot-box" :class="{ 'dot-box-on': password.length >= i }">
+              <view v-if="password.length >= i" class="dot-fill" />
             </view>
           </view>
           <input
-            ref="setInput"
-            class="hidden-input"
-            type="number"
-            maxlength="6"
-            :value="password"
-            @input="onSetInput"
-          >
-          <text class="hint">
-            支付密码用于支付验证，请勿使用生日或简单数字
-          </text>
+            ref="setInput" class="hidden-input" type="number" maxlength="6"
+            :value="password" @input="onSetInput"
+          />
+          <text class="hint">支付密码用于支付验证，请勿使用生日或简单数字</text>
         </view>
       </view>
 
       <!-- 确认密码 -->
-      <view
-        v-if="step === 'confirm'"
-        class="block"
-      >
+      <view v-if="step === 'confirm'" class="block">
         <view class="head">
-          <view class="head-ic head-ic-accent">
-            <app-icon
-              name="shield"
-              :size="40"
-              color="#c41e3a"
-            />
-          </view>
-          <text class="head-title">
-            确认支付密码
-          </text>
-          <text class="head-sub">
-            请再次输入密码确认
-          </text>
+          <view class="head-ic head-ic-accent"><app-icon name="shield" :size="40" color="#c41e3a" /></view>
+          <text class="head-title">确认支付密码</text>
+          <text class="head-sub">请再次输入密码确认</text>
         </view>
         <view class="card card-pad">
-          <view
-            class="dots"
-            @click="focusHidden('confirm')"
-          >
-            <view
-              v-for="i in 6"
-              :key="i"
-              class="dot-box"
-              :class="{ 'dot-box-on': confirmPwd.length >= i }"
-            >
-              <view
-                v-if="confirmPwd.length >= i"
-                class="dot-fill"
-              />
+          <view class="dots" @click="focusHidden('confirm')">
+            <view v-for="i in 6" :key="i" class="dot-box" :class="{ 'dot-box-on': confirmPwd.length >= i }">
+              <view v-if="confirmPwd.length >= i" class="dot-fill" />
             </view>
           </view>
           <input
-            ref="confirmInput"
-            class="hidden-input"
-            type="number"
-            maxlength="6"
-            :value="confirmPwd"
-            @input="onConfirmInput"
-          >
-          <text
-            v-if="error"
-            class="err-center"
-          >
-            {{ error }}
-          </text>
-          <view
-            class="confirm-btn"
-            :class="{ 'confirm-on': confirmPwd.length === 6 && !isLoading }"
-            @click="handleConfirmPassword"
-          >
-            <app-icon
-              v-if="isLoading"
-              name="loader-2"
-              :size="28"
-              color="#fff"
-              class="spin"
-            />
-            <text class="confirm-txt">
-              {{ isLoading ? '设置中...' : '确认设置' }}
-            </text>
+            ref="confirmInput" class="hidden-input" type="number" maxlength="6"
+            :value="confirmPwd" @input="onConfirmInput"
+          />
+          <text v-if="error" class="err-center">{{ error }}</text>
+          <view class="confirm-btn" :class="{ 'confirm-on': confirmPwd.length === 6 && !isLoading }" @click="handleConfirmPassword">
+            <app-icon v-if="isLoading" name="loader-2" :size="28" color="#fff" class="spin" />
+            <text class="confirm-txt">{{ isLoading ? '设置中...' : '确认设置' }}</text>
           </view>
-          <view
-            class="back-step"
-            @click="backToSet"
-          >
-            <text class="back-step-txt">
-              返回上一步
-            </text>
-          </view>
+          <view class="back-step" @click="backToSet"><text class="back-step-txt">返回上一步</text></view>
         </view>
       </view>
 
       <!-- 成功 -->
-      <view
-        v-if="step === 'success'"
-        class="success"
-      >
-        <view class="success-ic">
-          <app-icon
-            name="check"
-            :size="56"
-            color="#2ecc71"
-          />
-        </view>
-        <text class="success-title">
-          支付密码设置成功
-        </text>
-        <text class="success-sub">
-          您可以使用支付密码进行安全支付
-        </text>
-        <view
-          class="back-settings"
-          @click="go('/settings')"
-        >
-          <text class="back-settings-txt">
-            返回设置
-          </text>
-        </view>
+      <view v-if="step === 'success'" class="success">
+        <view class="success-ic"><app-icon name="check" :size="56" color="#2ecc71" /></view>
+        <text class="success-title">支付密码设置成功</text>
+        <text class="success-sub">您可以使用支付密码进行安全支付</text>
+        <view class="back-settings" @click="go('/settings')"><text class="back-settings-txt">返回设置</text></view>
       </view>
     </view>
   </view>

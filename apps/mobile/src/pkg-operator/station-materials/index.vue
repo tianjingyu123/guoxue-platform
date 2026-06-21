@@ -1,24 +1,12 @@
 <template>
   <view class="mat-page">
     <!-- 导航栏 -->
-    <view
-      class="mat-nav"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="mat-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="mat-nav-inner">
-        <view
-          class="mat-nav-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#374151"
-          />
+        <view class="mat-nav-btn" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#374151" />
         </view>
-        <text class="mat-nav-title">
-          推广素材库
-        </text>
+        <text class="mat-nav-title">推广素材库</text>
         <view class="mat-nav-btn" />
       </view>
     </view>
@@ -26,48 +14,24 @@
     <!-- 搜索框 -->
     <view class="mat-search-wrap">
       <view class="mat-search">
-        <app-icon
-          name="search"
-          :size="32"
-          color="#9ca3af"
-        />
-        <input
-          v-model="searchKeyword"
-          class="mat-search-input"
-          placeholder="搜索素材..."
-          placeholder-class="mat-search-ph"
-        >
+        <app-icon name="search" :size="32" color="#9ca3af" />
+        <input v-model="searchKeyword" class="mat-search-input" placeholder="搜索素材..." placeholder-class="mat-search-ph" />
       </view>
     </view>
 
     <!-- 生成专属海报入口 -->
     <view class="mat-poster-entry-wrap">
-      <view
-        class="mat-poster-entry"
-        @tap="goPoster"
-      >
+      <view class="mat-poster-entry" @tap="goPoster">
         <view class="mat-poster-entry-left">
           <view class="mat-poster-entry-icon">
-            <app-icon
-              name="image"
-              :size="40"
-              color="#ffffff"
-            />
+            <app-icon name="image" :size="40" color="#ffffff" />
           </view>
           <view>
-            <text class="mat-poster-entry-title">
-              生成专属分站海报
-            </text>
-            <text class="mat-poster-entry-sub">
-              自定义风格，含专属二维码
-            </text>
+            <text class="mat-poster-entry-title">生成专属分站海报</text>
+            <text class="mat-poster-entry-sub">自定义风格，含专属二维码</text>
           </view>
         </view>
-        <app-icon
-          name="share-2"
-          :size="32"
-          color="#ffffff"
-        />
+        <app-icon name="share-2" :size="32" color="#ffffff" />
       </view>
     </view>
 
@@ -81,83 +45,38 @@
           :class="{ active: activeTab === t.value }"
           @tap="activeTab = t.value"
         >
-          <app-icon
-            v-if="t.icon"
-            :name="t.icon"
-            :size="24"
-            :color="activeTab === t.value ? '#111827' : '#6b7280'"
-          />
-          <text class="mat-tab-txt">
-            {{ t.label }}
-          </text>
+          <app-icon v-if="t.icon" :name="t.icon" :size="24" :color="activeTab === t.value ? '#111827' : '#6b7280'" />
+          <text class="mat-tab-txt">{{ t.label }}</text>
         </view>
       </view>
     </view>
 
     <!-- 内容区 -->
-    <view
-      v-if="filteredEmpty"
-      class="mat-empty"
-    >
-      <text class="mat-empty-txt">
-        暂无素材
-      </text>
+    <view v-if="filteredEmpty" class="mat-empty">
+      <text class="mat-empty-txt">暂无素材</text>
     </view>
-    <view
-      v-else
-      class="mat-body"
-    >
+    <view v-else class="mat-body">
       <!-- 海报区 -->
-      <view
-        v-if="(activeTab === 'all' || activeTab === 'poster') && filteredPosters.length"
-        class="mat-section"
-      >
+      <view v-if="(activeTab === 'all' | 'poster' | 'qrcode' | 'copywriting'|| activeTab === 'poster') && posters.length" class="mat-section">
         <view class="mat-section-title">
-          <app-icon
-            name="image"
-            :size="32"
-            color="#C41E3A"
-          />
-          <text class="mat-section-title-txt">
-            海报素材
-          </text>
-          <text class="mat-section-count">
-            ({{ filteredPosters.length }})
-          </text>
+          <app-icon name="image" :size="32" color="#C41E3A" />
+          <text class="mat-section-title-txt">海报素材</text>
+          <text class="mat-section-count">({{ posters.length }})</text>
         </view>
         <view class="mat-grid">
-          <view
-            v-for="p in filteredPosters"
-            :key="p.id"
-            class="mat-poster-card"
-            @tap="selectedPoster = p"
-          >
+          <view v-for="p in posters" :key="p.id" class="mat-poster-card" @tap="selectedPoster = p">
             <view class="mat-poster-thumb">
               <view class="mat-poster-ph">
-                <app-icon
-                  name="image"
-                  :size="64"
-                  color="#cbd5e1"
-                />
+                <app-icon name="image" :size="64" color="#cbd5e1" />
               </view>
               <view class="mat-poster-use">
-                <text class="mat-poster-use-txt">
-                  使用 {{ p.useCount }} 次
-                </text>
+                <text class="mat-poster-use-txt">使用 {{ p.useCount }} 次</text>
               </view>
             </view>
             <view class="mat-poster-info">
-              <text class="mat-poster-card-title">
-                {{ p.title }}
-              </text>
+              <text class="mat-poster-card-title">{{ p.title }}</text>
               <view class="mat-tags">
-                <text
-                  v-for="tag in p.tags.slice(0, 2)"
-                  :key="tag"
-                  class="mat-tag"
-                >
-                  {{ tag }}
-                </text>
+                <text v-for="tag in p.tags.slice(0, 2)" :key="tag" class="mat-tag">{{ tag }}</text>
               </view>
             </view>
           </view>
@@ -165,81 +84,32 @@
       </view>
 
       <!-- 文案区 -->
-      <view
-        v-if="(activeTab === 'all' || activeTab === 'copywriting') && filteredCopywritings.length"
-        class="mat-section"
-      >
+      <view v-if="(activeTab === 'all' | 'poster' | 'qrcode' | 'copywriting'|| activeTab ==='all' | 'poster' | 'qrcode' | 'copywriting') && copywritings.length" class="mat-section">
         <view class="mat-section-title">
-          <app-icon
-            name="file-text"
-            :size="32"
-            color="#C41E3A"
-          />
-          <text class="mat-section-title-txt">
-            文案素材
-          </text>
-          <text class="mat-section-count">
-            ({{ filteredCopywritings.length }})
-          </text>
+          <app-icon name="file-text" :size="32" color="#C41E3A" />
+          <text class="mat-section-title-txt">文案素材</text>
+          <text class="mat-section-count">({{ copywritings.length }})</text>
         </view>
         <view class="mat-copy-list">
-          <view
-            v-for="c in filteredCopywritings"
-            :key="c.id"
-            class="mat-copy-card"
-          >
+          <view v-for="c in copywritings" :key="c.id" class="mat-copy-card">
             <view class="mat-copy-head">
               <view>
-                <text class="mat-copy-title">
-                  {{ c.title }}
-                </text>
-                <text class="mat-copy-scene">
-                  适用: {{ c.scene }}
-                </text>
+                <text class="mat-copy-title">{{ c.title }}</text>
+                <text class="mat-copy-scene">适用: {{ c.scene }}</text>
               </view>
-              <view
-                class="mat-copy-btn"
-                :class="{ copied: copiedId === c.id }"
-                @tap="handleCopy(c)"
-              >
-                <app-icon
-                  :name="copiedId === c.id ? 'check' : 'copy'"
-                  :size="24"
-                  :color="copiedId === c.id ? '#ffffff' : '#374151'"
-                />
-                <text
-                  class="mat-copy-btn-txt"
-                  :style="{ color: copiedId === c.id ? '#fff' : '#374151' }"
-                >
-                  {{ copiedId === c.id ? '已复制' : '复制' }}
-                </text>
+              <view class="mat-copy-btn" :class="{ copied: copiedId === c.id }" @tap="handleCopy(c)">
+                <app-icon :name="copiedId === c.id ? 'check' : 'copy'" :size="24" :color="copiedId === c.id ? '#ffffff' : '#374151'" />
+                <text class="mat-copy-btn-txt" :style="{ color: copiedId === c.id ? '#fff' : '#374151' }">{{ copiedId === c.id ? '已复制' : '复制' }}</text>
               </view>
             </view>
-            <text
-              class="mat-copy-content"
-              :class="{ clamp: expandedCopy !== c.id }"
-            >
-              {{ c.content }}
-            </text>
-            <text
-              v-if="c.content.split('\n').length > 3"
-              class="mat-copy-toggle"
-              @tap="expandedCopy = expandedCopy === c.id ? null : c.id"
-            >
+            <text class="mat-copy-content" :class="{ clamp: expandedCopy !== c.id }">{{ c.content }}</text>
+            <text v-if="c.content.split('\n').length > 3" class="mat-copy-toggle" @tap="expandedCopy = expandedCopy === c.id ? null : c.id">
               {{ expandedCopy === c.id ? '收起' : '展开全文' }}
             </text>
             <view class="mat-copy-foot">
-              <text class="mat-copy-count">
-                已被复制 {{ c.copyCount }} 次
-              </text>
+              <text class="mat-copy-count">已被复制 {{ c.copyCount }} 次</text>
               <view class="mat-tags">
-                <text
-                  v-for="tag in c.tags"
-                  :key="tag"
-                  class="mat-tag mat-tag-red"
-                >
-                  {{ tag }}
-                </text>
+                <text v-for="tag in c.tags" :key="tag" class="mat-tag mat-tag-red">{{ tag }}</text>
               </view>
             </view>
           </view>
@@ -247,98 +117,40 @@
       </view>
 
       <!-- 二维码区 -->
-      <view
-        v-if="(activeTab === 'all' || activeTab === 'qrcode') && filteredQrcodes.length"
-        class="mat-section"
-      >
+      <view v-if="(activeTab === 'all' | 'poster' | 'qrcode' | 'copywriting'|| activeTab === 'qrcode') && qrcodes.length" class="mat-section">
         <view class="mat-section-title">
-          <app-icon
-            name="qr-code"
-            :size="32"
-            color="#C41E3A"
-          />
-          <text class="mat-section-title-txt">
-            二维码
-          </text>
-          <text class="mat-section-count">
-            ({{ filteredQrcodes.length }})
-          </text>
+          <app-icon name="qr-code" :size="32" color="#C41E3A" />
+          <text class="mat-section-title-txt">二维码</text>
+          <text class="mat-section-count">({{ qrcodes.length }})</text>
         </view>
         <view class="mat-grid">
-          <view
-            v-for="q in filteredQrcodes"
-            :key="q.id"
-            class="mat-qr-card"
-            @tap="selectedQrcode = q"
-          >
+          <view v-for="q in qrcodes" :key="q.id" class="mat-qr-card" @tap="selectedQrcode = q">
             <view class="mat-qr-thumb">
-              <app-icon
-                name="qr-code"
-                :size="96"
-                color="#9ca3af"
-              />
+              <app-icon name="qr-code" :size="96" color="#9ca3af" />
             </view>
-            <text class="mat-qr-title">
-              {{ q.title }}
-            </text>
-            <text class="mat-qr-scan">
-              扫描 {{ q.scanCount }} 次
-            </text>
+            <text class="mat-qr-title">{{ q.title }}</text>
+            <text class="mat-qr-scan">扫描 {{ q.scanCount }} 次</text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 海报预览弹层 -->
-    <view
-      v-if="selectedPoster"
-      class="mat-dialog-mask"
-      @tap="selectedPoster = null"
-    >
-      <view
-        class="mat-dialog"
-        @tap.stop
-      >
+    <view v-if="selectedPoster" class="mat-dialog-mask" @tap="selectedPoster = null">
+      <view class="mat-dialog" @tap.stop>
         <view class="mat-dialog-img">
-          <app-icon
-            name="image"
-            :size="200"
-            color="#6b7280"
-          />
+          <app-icon name="image" :size="200" color="#6b7280" />
         </view>
         <view class="mat-dialog-foot">
-          <text class="mat-dialog-title">
-            {{ selectedPoster.title }}
-          </text>
+          <text class="mat-dialog-title">{{ selectedPoster.title }}</text>
           <view class="mat-dialog-actions">
-            <view
-              class="mat-dialog-btn mat-dialog-btn-white"
-              @tap="savePoster"
-            >
-              <app-icon
-                name="download"
-                :size="32"
-                color="#111827"
-              />
-              <text class="mat-dialog-btn-txt">
-                保存图片
-              </text>
+            <view class="mat-dialog-btn mat-dialog-btn-white" @tap="savePoster">
+              <app-icon name="download" :size="32" color="#111827" />
+              <text class="mat-dialog-btn-txt">保存图片</text>
             </view>
-            <view
-              class="mat-dialog-btn mat-dialog-btn-red"
-              @tap="sharePoster"
-            >
-              <app-icon
-                name="share-2"
-                :size="32"
-                color="#ffffff"
-              />
-              <text
-                class="mat-dialog-btn-txt"
-                style="color:#fff"
-              >
-                分享
-              </text>
+            <view class="mat-dialog-btn mat-dialog-btn-red" @tap="sharePoster">
+              <app-icon name="share-2" :size="32" color="#ffffff" />
+              <text class="mat-dialog-btn-txt" style="color:#fff">分享</text>
             </view>
           </view>
         </view>
@@ -346,60 +158,22 @@
     </view>
 
     <!-- 二维码详情底部弹层 -->
-    <view
-      v-if="selectedQrcode"
-      class="mat-sheet-mask"
-      @tap="selectedQrcode = null"
-    >
-      <view
-        class="mat-sheet"
-        @tap.stop
-      >
-        <text class="mat-sheet-title">
-          {{ selectedQrcode.title }}
-        </text>
+    <view v-if="selectedQrcode" class="mat-sheet-mask" @tap="selectedQrcode = null">
+      <view class="mat-sheet" @tap.stop>
+        <text class="mat-sheet-title">{{ selectedQrcode.title }}</text>
         <view class="mat-sheet-qr">
-          <app-icon
-            name="qr-code"
-            :size="160"
-            color="#374151"
-          />
+          <app-icon name="qr-code" :size="160" color="#374151" />
         </view>
-        <text class="mat-sheet-tip">
-          长按二维码保存到相册
-        </text>
-        <text class="mat-sheet-scan">
-          扫描次数: {{ selectedQrcode.scanCount }}
-        </text>
+        <text class="mat-sheet-tip">长按二维码保存到相册</text>
+        <text class="mat-sheet-scan">扫描次数: {{ selectedQrcode.scanCount }}</text>
         <view class="mat-sheet-actions">
-          <view
-            class="mat-dialog-btn mat-sheet-btn-outline"
-            @tap="saveQrcode"
-          >
-            <app-icon
-              name="download"
-              :size="32"
-              color="#374151"
-            />
-            <text class="mat-dialog-btn-txt">
-              保存图片
-            </text>
+          <view class="mat-dialog-btn mat-sheet-btn-outline" @tap="saveQrcode">
+            <app-icon name="download" :size="32" color="#374151" />
+            <text class="mat-dialog-btn-txt">保存图片</text>
           </view>
-          <view
-            class="mat-dialog-btn mat-dialog-btn-red"
-            @tap="copyQrLink"
-          >
-            <app-icon
-              name="copy"
-              :size="32"
-              color="#ffffff"
-            />
-            <text
-              class="mat-dialog-btn-txt"
-              style="color:#fff"
-            >
-              复制链接
-            </text>
+          <view class="mat-dialog-btn mat-dialog-btn-red" @tap="copyQrLink">
+            <app-icon name="copy" :size="32" color="#ffffff" />
+            <text class="mat-dialog-btn-txt" style="color:#fff">复制链接</text>
           </view>
         </view>
       </view>
@@ -408,8 +182,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { operatorApi } from '@/lib/operator-data'
+import { ref, computed } from 'vue'
 
 const statusBarHeight = ref(20)
 try {
@@ -421,29 +194,31 @@ interface Poster { id: number; title: string; useCount: number; tags: string[] }
 interface Copy { id: number; title: string; content: string; copyCount: number; tags: string[]; scene: string }
 interface Qr { id: number; title: string; targetUrl: string; scanCount: number }
 
-const posters = ref<Poster[]>([])
-const copywritings = ref<Copy[]>([])
-const qrcodes = ref<Qr[]>([])
-const loading = ref(true)
+const mockPosters: Poster[] = [
+  { id: 1, title: '八字命理课程推广海报', useCount: 328, tags: ['八字', '课程', '推广'] },
+  { id: 2, title: '风水大师直播预告', useCount: 256, tags: ['风水', '直播', '预告'] },
+  { id: 3, title: '新人注册福利海报', useCount: 892, tags: ['新人', '福利', '注册'] },
+  { id: 4, title: '周易入门课程限时优惠', useCount: 445, tags: ['周易', '优惠', '课程'] },
+]
+const mockCopywritings: Copy[] = [
+  { id: 101, title: '八字课程推广文案', content: '🔮 想知道自己的命运密码吗？\n\n八字命理大师亲授，带你解读人生运势！\n\n✅ 零基础入门，通俗易懂\n✅ 实战案例分析，学完即用\n✅ 终身答疑群，持续进步\n\n限时优惠进行中，点击链接立即报名👇', copyCount: 1256, tags: ['八字', '课程'], scene: '朋友圈/社群推广' },
+  { id: 102, title: '风水服务推广文案', content: '🏠 家居风水布局，影响一家人的运势！\n\n专业风水师在线指导，帮您打造好风水：\n• 客厅布局优化\n• 卧室床位调整\n• 财位催旺方法\n• 煞气化解技巧\n\n现在咨询，享首次优惠价！', copyCount: 876, tags: ['风水', '服务'], scene: '私聊/群发' },
+  { id: 103, title: '平台注册邀请文案', content: '📚 发现一个超棒的国学学习平台！\n\n这里有：\n• 大师在线直播授课\n• 海量国学课程资源\n• 专业命理排盘工具\n• 同好交流圈子\n\n用我的邀请链接注册，新人还能领取专属福利哦~', copyCount: 2341, tags: ['注册', '邀请'], scene: '分享拉新' },
+]
+const mockQrcodes: Qr[] = [
+  { id: 201, title: '分站注册二维码', targetUrl: 'https://example.com/register?ref=station001', scanCount: 3256 },
+  { id: 202, title: '热门课程二维码', targetUrl: 'https://example.com/course/123', scanCount: 1892 },
+  { id: 203, title: '官方圈子二维码', targetUrl: 'https://example.com/circle/1', scanCount: 2156 },
+]
 
-onMounted(async () => {
-  try {
-    const data = await operatorApi.materials('')
-    posters.value = data.posters || []
-    copywritings.value = data.copywritings || []
-    qrcodes.value = data.qrcodes || []
-  } catch (e) {}
-  loading.value = false
-})
-
-const tabs: { value: 'all' | 'poster' | 'copywriting' | 'qrcode'; label: string; icon: string }[] = [
+const tabs = [
   { value: 'all', label: '全部', icon: '' },
   { value: 'poster', label: '海报', icon: 'image' },
-  { value: 'copywriting', label: '文案', icon: 'file-text' },
+  { value:'all' | 'poster' | 'qrcode' | 'copywriting', label: '文案', icon: 'file-text' },
   { value: 'qrcode', label: '二维码', icon: 'qr-code' },
 ]
 
-const activeTab = ref<'all' | 'poster' | 'copywriting' | 'qrcode'>('all')
+const activeTab = ref<'all' | 'poster' | 'qrcode' | 'copywriting'|'all' | 'poster' | 'qrcode' | 'copywriting'|'all' | 'poster' | 'qrcode' | 'copywriting' | 'qrcode'>('all')
 const searchKeyword = ref('')
 const expandedCopy = ref<number | null>(null)
 const copiedId = ref<number | null>(null)
@@ -451,19 +226,19 @@ const selectedPoster = ref<Poster | null>(null)
 const selectedQrcode = ref<Qr | null>(null)
 
 const kw = computed(() => searchKeyword.value.trim())
-const filteredPosters = computed(() => {
-  if (activeTab.value !== 'all' && activeTab.value !== 'poster') return []
-  return posters.value.filter((p) => !kw.value || p.title.includes(kw.value) || p.tags.some((t) => t.includes(kw.value)))
+const posters = computed(() => {
+  if (activeTab.value !== 'all' | 'poster' | 'qrcode' | 'copywriting'&& activeTab.value !== 'poster') return []
+  return mockPosters.filter((p) => !kw.value || p.title.includes(kw.value) || p.tags.some((t) => t.includes(kw.value)))
 })
-const filteredCopywritings = computed(() => {
-  if (activeTab.value !== 'all' && activeTab.value !== 'copywriting') return []
-  return copywritings.value.filter((c) => !kw.value || c.title.includes(kw.value) || c.content.includes(kw.value))
+const copywritings = computed(() => {
+  if (activeTab.value !== 'all' | 'poster' | 'qrcode' | 'copywriting'&& activeTab.value !=='all' | 'poster' | 'qrcode' | 'copywriting') return []
+  return mockCopywritings.filter((c) => !kw.value || c.title.includes(kw.value) || c.content.includes(kw.value))
 })
-const filteredQrcodes = computed(() => {
-  if (activeTab.value !== 'all' && activeTab.value !== 'qrcode') return []
-  return qrcodes.value.filter((q) => !kw.value || q.title.includes(kw.value))
+const qrcodes = computed(() => {
+  if (activeTab.value !== 'all' | 'poster' | 'qrcode' | 'copywriting'&& activeTab.value !== 'qrcode') return []
+  return mockQrcodes.filter((q) => !kw.value || q.title.includes(kw.value))
 })
-const filteredEmpty = computed(() => filteredPosters.value.length === 0 && filteredCopywritings.value.length === 0 && filteredQrcodes.value.length === 0)
+const filteredEmpty = computed(() => posters.value.length === 0 && copywritings.value.length === 0 && qrcodes.value.length === 0)
 
 function handleCopy(c: Copy) {
   uni.setClipboardData({

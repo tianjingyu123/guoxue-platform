@@ -1,119 +1,33 @@
 <template>
-  <view
-    v-if="loading"
-    class="dash-page"
-  >
-    <text>加载中...</text>
-  </view>
-  <view
-    v-else-if="error"
-    class="dash-page"
-  >
-    <text>{{ error }}</text>
-    <view @tap="loadData">
-      重试
-    </view>
-  </view>
-  <view
-    v-else
-    class="dash-page"
-  >
+  <view class="dash-page">
     <!-- 顶部导航 -->
-    <app-nav-bar
-      title="运营商中心"
-      :show-back="true"
-      background="#7c3aed"
-      color="#ffffff"
-      :no-border="true"
-    >
+    <app-nav-bar title="运营商中心" :show-back="true" background="#7c3aed" color="#ffffff" :no-border="true">
       <template #right>
-        <view
-          class="dash-nav-more"
-          @tap="goSettings"
-        >
-          <app-icon
-            name="more-horizontal"
-            :size="40"
-            color="#ffffff"
-          />
-        </view>
+        <view class="dash-nav-more" @tap="goSettings"><app-icon name="more-horizontal" :size="40" color="#ffffff" /></view>
       </template>
     </app-nav-bar>
 
     <!-- 运营商信息头部 -->
     <view class="dash-header">
       <view class="dash-header-top">
-        <view class="dash-avatar">
-          <app-icon
-            name="building-2"
-            :size="56"
-            color="#ffffff"
-          />
-        </view>
+        <view class="dash-avatar"><app-icon name="building-2" :size="56" color="#ffffff" /></view>
         <view>
-          <text class="dash-name">
-            {{ data.name }}
-          </text>
-          <view class="dash-level">
-            <app-icon
-              name="crown"
-              :size="22"
-              color="#ffffff"
-            /><text class="dash-level-txt">
-              {{ data.level }}
-            </text>
-          </view>
+          <text class="dash-name">{{ data.name }}</text>
+          <view class="dash-level"><app-icon name="crown" :size="22" color="#ffffff" /><text class="dash-level-txt">{{ data.level }}</text></view>
         </view>
       </view>
 
       <!-- 名额状态 -->
       <view class="dash-quota-card">
         <view class="dash-quota-head">
-          <text class="dash-quota-label">
-            分站名额
-          </text>
-          <view
-            class="dash-quota-more"
-            @tap="goQuota"
-          >
-            <text class="dash-quota-more-txt">
-              管理
-            </text><app-icon
-              name="chevron-right"
-              :size="26"
-              color="rgba(255,255,255,0.6)"
-            />
-          </view>
+          <text class="dash-quota-label">分站名额</text>
+          <view class="dash-quota-more" @tap="goQuota"><text class="dash-quota-more-txt">管理</text><app-icon name="chevron-right" :size="26" color="rgba(255,255,255,0.6)" /></view>
         </view>
         <view class="dash-quota-grid">
-          <view class="dash-quota-item">
-            <text class="dash-quota-num">
-              {{ data.quota.total }}
-            </text><text class="dash-quota-sub">
-              总名额
-            </text>
-          </view>
-          <view class="dash-quota-item">
-            <text class="dash-quota-num">
-              {{ data.quota.used }}
-            </text><text class="dash-quota-sub">
-              自用
-            </text>
-          </view>
-          <view class="dash-quota-item">
-            <text class="dash-quota-num c-success">
-              {{ data.quota.sold }}
-            </text><text class="dash-quota-sub">
-              已售
-            </text>
-          </view>
-          <view class="dash-quota-item">
-            <text class="dash-quota-num c-gold">
-              {{ data.quota.available }}
-            </text><text class="dash-quota-sub">
-              可售
-            </text>
-          </view>
+          <view class="dash-quota-item"><text class="dash-quota-num">{{ data.quota.total }}</text><text class="dash-quota-sub">总名额</text></view>
+          <view class="dash-quota-item"><text class="dash-quota-num">{{ data.quota.used }}</text><text class="dash-quota-sub">自用</text></view>
+          <view class="dash-quota-item"><text class="dash-quota-num c-success">{{ data.quota.sold }}</text><text class="dash-quota-sub">已售</text></view>
+          <view class="dash-quota-item"><text class="dash-quota-num c-gold">{{ data.quota.available }}</text><text class="dash-quota-sub">可售</text></view>
         </view>
       </view>
     </view>
@@ -122,72 +36,24 @@
     <view class="dash-sec dash-overview-wrap">
       <view class="dash-card dash-overview">
         <view class="dash-ov-item ov-bg1">
-          <view class="dash-ov-top">
-            <app-icon
-              name="wallet"
-              :size="28"
-              color="#C41E3A"
-            /><text class="dash-ov-label">
-              累计收益
-            </text>
-          </view>
-          <text class="dash-ov-val c-primary">
-            ¥{{ data.earnings.total.toLocaleString() }}
-          </text>
-          <text class="dash-ov-sub">
-            本月 +¥{{ data.earnings.thisMonth }}
-          </text>
+          <view class="dash-ov-top"><app-icon name="wallet" :size="28" color="#C41E3A" /><text class="dash-ov-label">累计收益</text></view>
+          <text class="dash-ov-val c-primary">¥{{ data.earnings.total.toLocaleString() }}</text>
+          <text class="dash-ov-sub">本月 +¥{{ data.earnings.thisMonth }}</text>
         </view>
         <view class="dash-ov-item ov-bg2">
-          <view class="dash-ov-top">
-            <app-icon
-              name="users"
-              :size="28"
-              color="#7c3aed"
-            /><text class="dash-ov-label">
-              团队站长
-            </text>
-          </view>
-          <text class="dash-ov-val c-operator">
-            {{ data.team.total }}人
-          </text>
-          <text class="dash-ov-sub">
-            本月 +{{ data.team.thisMonth }}人
-          </text>
+          <view class="dash-ov-top"><app-icon name="users" :size="28" color="#7c3aed" /><text class="dash-ov-label">团队站长</text></view>
+          <text class="dash-ov-val c-operator">{{ data.team.total }}人</text>
+          <text class="dash-ov-sub">本月 +{{ data.team.thisMonth }}人</text>
         </view>
         <view class="dash-ov-item ov-bg3">
-          <view class="dash-ov-top">
-            <app-icon
-              name="gift"
-              :size="28"
-              color="#C9A96E"
-            /><text class="dash-ov-label">
-              名额销售
-            </text>
-          </view>
-          <text class="dash-ov-val c-gold">
-            ¥{{ data.earnings.quotaSales.toLocaleString() }}
-          </text>
-          <text class="dash-ov-sub">
-            已售 {{ data.quota.sold }} 个名额
-          </text>
+          <view class="dash-ov-top"><app-icon name="gift" :size="28" color="#C9A96E" /><text class="dash-ov-label">名额销售</text></view>
+          <text class="dash-ov-val c-gold">¥{{ data.earnings.quotaSales.toLocaleString() }}</text>
+          <text class="dash-ov-sub">已售 {{ data.quota.sold }} 个名额</text>
         </view>
         <view class="dash-ov-item ov-bg4">
-          <view class="dash-ov-top">
-            <app-icon
-              name="trending-up"
-              :size="28"
-              color="#16a34a"
-            /><text class="dash-ov-label">
-              团队奖励
-            </text>
-          </view>
-          <text class="dash-ov-val c-success">
-            ¥{{ data.earnings.teamBonus.toLocaleString() }}
-          </text>
-          <text class="dash-ov-sub">
-            下级站长分佣5%
-          </text>
+          <view class="dash-ov-top"><app-icon name="trending-up" :size="28" color="#16a34a" /><text class="dash-ov-label">团队奖励</text></view>
+          <text class="dash-ov-val c-success">¥{{ data.earnings.teamBonus.toLocaleString() }}</text>
+          <text class="dash-ov-sub">下级站长分佣5%</text>
         </view>
       </view>
     </view>
@@ -195,279 +61,93 @@
     <!-- 推广链接 -->
     <view class="dash-sec">
       <view class="dash-card">
-        <view class="dash-link-title">
-          <app-icon
-            name="link-2"
-            :size="28"
-            color="#7c3aed"
-          /><text class="dash-link-title-txt">
-            站长招募链接
-          </text>
-        </view>
+        <view class="dash-link-title"><app-icon name="link-2" :size="28" color="#7c3aed" /><text class="dash-link-title-txt">站长招募链接</text></view>
         <view class="dash-link-row">
-          <view class="dash-link-box">
-            <text class="dash-link-txt">
-              {{ inviteLink }}
-            </text>
-          </view>
-          <view
-            class="dash-link-btn"
-            @tap="copyLink"
-          >
-            <app-icon
-              :name="copied ? 'check' : 'copy'"
-              :size="30"
-              :color="copied ? '#16a34a' : '#666'"
-            />
-          </view>
-          <view
-            class="dash-link-btn primary"
-            @tap="toastSoon"
-          >
-            <app-icon
-              name="qr-code"
-              :size="30"
-              color="#ffffff"
-            />
-          </view>
+          <view class="dash-link-box"><text class="dash-link-txt">{{ inviteLink }}</text></view>
+          <view class="dash-link-btn" @tap="copyLink"><app-icon :name="copied ? 'check' : 'copy'" :size="30" :color="copied ? '#16a34a' : '#666'" /></view>
+          <view class="dash-link-btn primary" @tap="toastSoon"><app-icon name="qr-code" :size="30" color="#ffffff" /></view>
         </view>
-        <text class="dash-link-hint">
-          通过此链接注册的站长将加入您的团队，您可获得5%团队奖励
-        </text>
+        <text class="dash-link-hint">通过此链接注册的站长将加入您的团队，您可获得5%团队奖励</text>
       </view>
     </view>
 
     <!-- Tab切换 -->
     <view class="dash-sec">
       <view class="dash-tabs">
-        <view
-          class="dash-tab"
-          :class="{ active: activeTab === 'team' }"
-          @tap="activeTab = 'team'"
-        >
-          <text class="dash-tab-txt">
-            团队管理
-          </text>
-        </view>
-        <view
-          class="dash-tab"
-          :class="{ active: activeTab === 'quota' }"
-          @tap="activeTab = 'quota'"
-        >
-          <text class="dash-tab-txt">
-            名额记录
-          </text>
-        </view>
+        <view class="dash-tab" :class="{ active: activeTab === 'team' }" @tap="activeTab = 'team'"><text class="dash-tab-txt">团队管理</text></view>
+        <view class="dash-tab" :class="{ active: activeTab === 'quota' }" @tap="activeTab = 'quota'"><text class="dash-tab-txt">名额记录</text></view>
       </view>
     </view>
 
     <!-- 团队列表 -->
-    <view
-      v-if="activeTab === 'team'"
-      class="dash-sec dash-list"
-    >
+    <view v-if="activeTab === 'team'" class="dash-sec dash-list">
       <!-- 运营管理快捷入口 -->
       <view class="dash-quick">
-        <view
-          class="dash-quick-item"
-          @tap="goTeam"
-        >
-          <app-icon
-            name="users"
-            :size="40"
-            color="#7c3aed"
-          /><text class="dash-quick-txt">
-            团队详情
-          </text>
-        </view>
-        <view
-          class="dash-quick-item"
-          @tap="goDormant"
-        >
-          <app-icon
-            name="clock"
-            :size="40"
-            color="#f59e0b"
-          /><text class="dash-quick-txt">
-            沉寂预警
-          </text>
-        </view>
-        <view
-          class="dash-quick-item"
-          @tap="goAnalysis"
-        >
-          <app-icon
-            name="trending-up"
-            :size="40"
-            color="#2563eb"
-          /><text class="dash-quick-txt">
-            业绩分析
-          </text>
-        </view>
+        <view class="dash-quick-item" @tap="goTeam"><app-icon name="users" :size="40" color="#7c3aed" /><text class="dash-quick-txt">团队详情</text></view>
+        <view class="dash-quick-item" @tap="goDormant"><app-icon name="clock" :size="40" color="#f59e0b" /><text class="dash-quick-txt">沉寂预警</text></view>
+        <view class="dash-quick-item" @tap="goAnalysis"><app-icon name="trending-up" :size="40" color="#2563eb" /><text class="dash-quick-txt">业绩分析</text></view>
       </view>
 
-      <view
-        v-for="m in teamMembers"
-        :key="m.id"
-        class="dash-card dash-member"
-      >
+      <view v-for="m in teamMembers" :key="m.id" class="dash-card dash-member">
         <view class="dash-member-row">
-          <view class="dash-member-icon">
-            <app-icon
-              name="award"
-              :size="48"
-              color="#16a34a"
-            />
-          </view>
+          <view class="dash-member-icon"><app-icon name="award" :size="48" color="#16a34a" /></view>
           <view class="dash-member-info">
             <view class="dash-member-name-row">
-              <text class="dash-member-name">
-                {{ m.name }}
-              </text>
-              <text
-                class="dash-badge"
-                :class="m.status === 'active' ? 'badge-success' : 'badge-amber'"
-              >
-                {{ m.status === 'active' ? '已激活' : '待激活' }}
-              </text>
+              <text class="dash-member-name">{{ m.name }}</text>
+              <text class="dash-badge" :class="m.status === 'active' ? 'badge-success' : 'badge-amber'">{{ m.status === 'active' ? '已激活' : '待激活' }}</text>
             </view>
-            <text class="dash-member-date">
-              加入于 {{ m.joinDate }}
-            </text>
+            <text class="dash-member-date">加入于 {{ m.joinDate }}</text>
           </view>
-          <view
-            class="dash-member-more"
-            @tap="toastSoon"
-          >
-            <app-icon
-              name="more-horizontal"
-              :size="32"
-              color="#999"
-            />
-          </view>
+          <view class="dash-member-more" @tap="toastSoon"><app-icon name="more-horizontal" :size="32" color="#999" /></view>
         </view>
-        <view
-          v-if="m.status === 'active'"
-          class="dash-member-stats"
-        >
-          <view class="dash-mstat">
-            <text class="dash-mstat-num">
-              {{ m.users }}
-            </text><text class="dash-mstat-label">
-              用户数
-            </text>
-          </view>
-          <view class="dash-mstat">
-            <text class="dash-mstat-num c-success">
-              ¥{{ m.earnings }}
-            </text><text class="dash-mstat-label">
-              产生收益
-            </text>
-          </view>
-          <view class="dash-mstat">
-            <text class="dash-mstat-num c-operator">
-              ¥{{ m.myBonus }}
-            </text><text class="dash-mstat-label">
-              我的奖励
-            </text>
-          </view>
+        <view v-if="m.status === 'active'" class="dash-member-stats">
+          <view class="dash-mstat"><text class="dash-mstat-num">{{ m.users }}</text><text class="dash-mstat-label">用户数</text></view>
+          <view class="dash-mstat"><text class="dash-mstat-num c-success">¥{{ m.earnings }}</text><text class="dash-mstat-label">产生收益</text></view>
+          <view class="dash-mstat"><text class="dash-mstat-num c-operator">¥{{ m.myBonus }}</text><text class="dash-mstat-label">我的奖励</text></view>
         </view>
       </view>
 
-      <view
-        v-if="data.quota.available > 0"
-        class="dash-invite-card"
-        @tap="goInvite"
-      >
-        <app-icon
-          name="plus"
-          :size="40"
-          color="#7c3aed"
-        />
-        <text class="dash-invite-txt">
-          邀请新站长（剩余{{ data.quota.available }}个名额）
-        </text>
+      <view v-if="data.quota.available > 0" class="dash-invite-card" @tap="goInvite">
+        <app-icon name="plus" :size="40" color="#7c3aed" />
+        <text class="dash-invite-txt">邀请新站长（剩余{{ data.quota.available }}个名额）</text>
       </view>
     </view>
 
     <!-- 名额记录 -->
-    <view
-      v-if="activeTab === 'quota'"
-      class="dash-sec dash-list"
-    >
-      <view
-        v-for="r in quotaRecords"
-        :key="r.id"
-        class="dash-card dash-record"
-      >
-        <view
-          class="dash-record-icon"
-          :class="r.type === 'self' ? 'icon-operator' : 'icon-gold'"
-        >
-          <app-icon
-            :name="r.type === 'self' ? 'building-2' : 'gift'"
-            :size="40"
-            :color="r.type === 'self' ? '#7c3aed' : '#C9A96E'"
-          />
+    <view v-if="activeTab === 'quota'" class="dash-sec dash-list">
+      <view v-for="r in quotaRecords" :key="r.id" class="dash-card dash-record">
+        <view class="dash-record-icon" :class="r.type === 'self' ? 'icon-operator' : 'icon-gold'">
+          <app-icon :name="r.type === 'self' ? 'building-2' : 'gift'" :size="40" :color="r.type === 'self' ? '#7c3aed' : '#C9A96E'" />
         </view>
         <view class="dash-record-info">
           <view class="dash-member-name-row">
-            <text class="dash-record-name">
-              {{ r.name }}
-            </text>
-            <text
-              class="dash-badge"
-              :class="r.status === 'active' ? 'badge-success' : 'badge-amber'"
-            >
-              {{ r.status === 'active' ? '已激活' : '待激活' }}
-            </text>
+            <text class="dash-record-name">{{ r.name }}</text>
+            <text class="dash-badge" :class="r.status === 'active' ? 'badge-success' : 'badge-amber'">{{ r.status === 'active' ? '已激活' : '待激活' }}</text>
           </view>
-          <text class="dash-member-date">
-            {{ r.type === 'self' ? '自用名额' : '售出名额' }} · {{ r.date }}
-          </text>
+          <text class="dash-member-date">{{ r.type === 'self' ? '自用名额' : '售出名额' }} · {{ r.date }}</text>
         </view>
-        <text
-          v-if="r.type === 'sold' && r.price"
-          class="dash-record-price"
-        >
-          +¥{{ r.price }}
-        </text>
+        <text v-if="r.type === 'sold' && r.price" class="dash-record-price">+¥{{ r.price }}</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { navigateTo } from '@/utils/router'
-import { operatorApi, type OperatorDashboardData, type DashboardTeamMember, type DashboardQuotaRecord } from '@/lib/operator-data'
-
-const loading = ref(true)
-const error = ref('')
-const data = ref<OperatorDashboardData>(null!)
-const teamMembers = ref<DashboardTeamMember[]>([])
-const quotaRecords = ref<DashboardQuotaRecord[]>([])
-const inviteLink = ref('')
-
-async function loadData() {
-  loading.value = true; error.value = ''
-  try {
-    const res = await operatorApi.dashboard()
-    data.value = res.dashboardData
-    teamMembers.value = res.teamMembers
-    quotaRecords.value = res.quotaRecords
-    inviteLink.value = res.inviteLink
-  } catch (e: any) { error.value = e?.message || '加载失败' }
-  finally { loading.value = false }
-}
-onMounted(() => { loadData() })
+import {
+  operatorDashboardData as data,
+  dashboardTeamMembers as teamMembers,
+  dashboardQuotaRecords as quotaRecords,
+  operatorInviteLink as inviteLink,
+} from '@/lib/operator-data'
 
 const activeTab = ref<'team' | 'quota'>('team')
 const copied = ref(false)
 
 function copyLink() {
   uni.setClipboardData({
-    data: inviteLink.value,
+    data: inviteLink,
     success: () => {
       copied.value = true
       setTimeout(() => (copied.value = false), 2000)

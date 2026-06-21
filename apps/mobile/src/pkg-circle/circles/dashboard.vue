@@ -100,75 +100,27 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
     <!-- 顶栏 -->
     <view class="db-hdr">
       <view class="db-hdr-l">
-        <view
-          class="db-hdr-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="34"
-            color="#2C2C2C"
-          />
-        </view>
-        <text class="db-hdr-title">
-          数据看板
-        </text>
+        <view class="db-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
+        <text class="db-hdr-title">数据看板</text>
       </view>
-      <view
-        class="db-hdr-btn"
-        @tap="refresh"
-      >
-        <app-icon
-          name="refresh-cw"
-          :size="34"
-          color="#666666"
-          :class="{ spin: refreshing }"
-        />
+      <view class="db-hdr-btn" @tap="refresh">
+        <app-icon name="refresh-cw" :size="34" color="#666666" :class="{ spin: refreshing }" />
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="db-body"
-    >
+    <scroll-view scroll-y class="db-body">
       <!-- 概览卡片 -->
       <view class="db-kpis">
-        <view
-          v-for="k in kpis"
-          :key="k.label"
-          class="db-kpi"
-        >
+        <view v-for="k in kpis" :key="k.label" class="db-kpi">
           <view class="db-kpi-top">
-            <view
-              class="db-kpi-icon"
-              :style="{ background: k.color + '15' }"
-            >
-              <app-icon
-                :name="k.icon"
-                :size="26"
-                :color="k.color"
-              />
-            </view>
-            <text class="db-kpi-label">
-              {{ k.label }}
-            </text>
+            <view class="db-kpi-icon" :style="{ background: k.color + '15' }"><app-icon :name="k.icon" :size="26" :color="k.color" /></view>
+            <text class="db-kpi-label">{{ k.label }}</text>
           </view>
           <view class="db-kpi-bot">
-            <text class="db-kpi-value">
-              {{ k.isPrice ? '¥' : '' }}{{ fmtNum(k.value) }}
-            </text>
+            <text class="db-kpi-value">{{ k.isPrice ? '¥' : '' }}{{ fmtNum(k.value) }}</text>
             <view class="db-kpi-growth">
-              <app-icon
-                :name="k.growth >= 0 ? 'trending-up' : 'trending-down'"
-                :size="22"
-                :color="k.growth >= 0 ? '#52C41A' : '#FF4D4F'"
-              />
-              <text
-                class="db-kpi-growth-t"
-                :style="{ color: k.growth >= 0 ? '#52C41A' : '#FF4D4F' }"
-              >
-                {{ Math.abs(k.growth) }}%
-              </text>
+              <app-icon :name="k.growth >= 0 ? 'trending-up' : 'trending-down'" :size="22" :color="k.growth >= 0 ? '#52C41A' : '#FF4D4F'" />
+              <text class="db-kpi-growth-t" :style="{ color: k.growth >= 0 ? '#52C41A' : '#FF4D4F' }">{{ Math.abs(k.growth) }}%</text>
             </view>
           </view>
         </view>
@@ -177,89 +129,39 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
       <!-- 趋势图 -->
       <view class="db-card">
         <view class="db-card-head">
-          <text class="db-card-title">
-            近30天趋势
-          </text>
+          <text class="db-card-title">近30天趋势</text>
           <view class="db-trend-tabs">
-            <view
-              v-for="t in trendTypes"
-              :key="t"
-              class="db-trend-tab"
-              :class="{ on: trendType === t }"
-              @tap="trendType = t"
-            >
-              <text
-                class="db-trend-tab-t"
-                :class="{ on: trendType === t }"
-              >
-                {{ TREND_LABEL[t] }}
-              </text>
+            <view v-for="t in trendTypes" :key="t" class="db-trend-tab" :class="{ on: trendType === t }" @tap="trendType = t">
+              <text class="db-trend-tab-t" :class="{ on: trendType === t }">{{ TREND_LABEL[t] }}</text>
             </view>
           </view>
         </view>
         <view class="db-chart">
           <view
-            v-for="(t, i) in trends"
-            :key="i"
-            class="db-bar"
+            v-for="(t, i) in trends" :key="i" class="db-bar"
             :class="{ last: i === trends.length - 1 }"
             :style="{ height: barHeight(t[trendType]) + '%' }"
           />
         </view>
-        <view class="db-chart-axis">
-          <text class="db-axis-t">
-            30天前
-          </text><text class="db-axis-t">
-            今日
-          </text>
-        </view>
+        <view class="db-chart-axis"><text class="db-axis-t">30天前</text><text class="db-axis-t">今日</text></view>
       </view>
 
       <!-- 活跃贡献者 -->
       <view class="db-card">
-        <text class="db-card-title">
-          活跃贡献者 TOP5
-        </text>
+        <text class="db-card-title">活跃贡献者 TOP5</text>
         <view class="db-list">
-          <view
-            v-for="(c, i) in contributors"
-            :key="c.id"
-            class="db-contrib"
-          >
+          <view v-for="(c, i) in contributors" :key="c.id" class="db-contrib">
             <view class="db-contrib-avatar-wrap">
-              <view class="db-contrib-avatar">
-                <text class="db-contrib-avatar-t">
-                  {{ c.name[0] }}
-                </text>
-              </view>
-              <view
-                v-if="i < 3"
-                class="db-contrib-rank"
-                :style="{ background: rankColor(i) }"
-              >
-                <text class="db-contrib-rank-t">
-                  {{ i + 1 }}
-                </text>
-              </view>
+              <view class="db-contrib-avatar"><text class="db-contrib-avatar-t">{{ c.name[0] }}</text></view>
+              <view v-if="i < 3" class="db-contrib-rank" :style="{ background: rankColor(i) }"><text class="db-contrib-rank-t">{{ i + 1 }}</text></view>
             </view>
             <view class="db-contrib-info">
-              <text class="db-contrib-name">
-                {{ c.name }}
-              </text>
-              <text class="db-contrib-posts">
-                {{ c.posts }}篇帖子
-              </text>
+              <text class="db-contrib-name">{{ c.name }}</text>
+              <text class="db-contrib-posts">{{ c.posts }}篇帖子</text>
             </view>
             <view class="db-contrib-likes">
-              <app-icon
-                name="heart"
-                :size="22"
-                color="#C41E3A"
-                :fill="true"
-              />
-              <text class="db-contrib-likes-t">
-                {{ fmtNum(c.likes) }}
-              </text>
+              <app-icon name="heart" :size="22" color="#C41E3A" :fill="true" />
+              <text class="db-contrib-likes-t">{{ fmtNum(c.likes) }}</text>
             </view>
           </view>
         </view>
@@ -267,59 +169,16 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
 
       <!-- 热门内容 -->
       <view class="db-card">
-        <text class="db-card-title">
-          热门内容 TOP5
-        </text>
+        <text class="db-card-title">热门内容 TOP5</text>
         <view class="db-list">
-          <view
-            v-for="(p, i) in hotPosts"
-            :key="p.id"
-            class="db-hot"
-            @tap="openPost(p.id)"
-          >
-            <view
-              class="db-hot-rank"
-              :style="{ background: hotBg(i), color: hotColor(i) }"
-            >
-              <text
-                class="db-hot-rank-t"
-                :style="{ color: hotColor(i) }"
-              >
-                {{ i + 1 }}
-              </text>
-            </view>
+          <view v-for="(p, i) in hotPosts" :key="p.id" class="db-hot" @tap="openPost(p.id)">
+            <view class="db-hot-rank" :style="{ background: hotBg(i), color: hotColor(i) }"><text class="db-hot-rank-t" :style="{ color: hotColor(i) }">{{ i + 1 }}</text></view>
             <view class="db-hot-info">
-              <text class="db-hot-title">
-                {{ p.title }}
-              </text>
+              <text class="db-hot-title">{{ p.title }}</text>
               <view class="db-hot-meta">
-                <view class="db-hot-stat">
-                  <app-icon
-                    name="eye"
-                    :size="20"
-                    color="#999999"
-                  /><text class="db-hot-stat-t">
-                    {{ fmtNum(p.views) }}
-                  </text>
-                </view>
-                <view class="db-hot-stat">
-                  <app-icon
-                    name="heart"
-                    :size="20"
-                    color="#999999"
-                  /><text class="db-hot-stat-t">
-                    {{ fmtNum(p.likes) }}
-                  </text>
-                </view>
-                <view class="db-hot-stat">
-                  <app-icon
-                    name="message-circle"
-                    :size="20"
-                    color="#999999"
-                  /><text class="db-hot-stat-t">
-                    {{ p.comments }}
-                  </text>
-                </view>
+                <view class="db-hot-stat"><app-icon name="eye" :size="20" color="#999999" /><text class="db-hot-stat-t">{{ fmtNum(p.views) }}</text></view>
+                <view class="db-hot-stat"><app-icon name="heart" :size="20" color="#999999" /><text class="db-hot-stat-t">{{ fmtNum(p.likes) }}</text></view>
+                <view class="db-hot-stat"><app-icon name="message-circle" :size="20" color="#999999" /><text class="db-hot-stat-t">{{ p.comments }}</text></view>
               </view>
             </view>
           </view>
@@ -327,47 +186,20 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
       </view>
 
       <!-- 流失预警 -->
-      <view
-        v-if="churnWarning.length"
-        class="db-churn"
-      >
+      <view v-if="churnWarning.length" class="db-churn">
         <view class="db-churn-head">
-          <app-icon
-            name="alert-triangle"
-            :size="26"
-            color="#FA8C16"
-          />
-          <text class="db-churn-title">
-            流失预警
-          </text>
-          <view class="db-churn-count">
-            <text class="db-churn-count-t">
-              {{ churnWarning.length }}人
-            </text>
-          </view>
+          <app-icon name="alert-triangle" :size="26" color="#FA8C16" />
+          <text class="db-churn-title">流失预警</text>
+          <view class="db-churn-count"><text class="db-churn-count-t">{{ churnWarning.length }}人</text></view>
         </view>
         <view class="db-churn-list">
-          <view
-            v-for="u in churnWarning"
-            :key="u.id"
-            class="db-churn-item"
-          >
-            <view class="db-churn-avatar">
-              <text class="db-churn-avatar-t">
-                {{ u.name[0] }}
-              </text>
-            </view>
+          <view v-for="u in churnWarning" :key="u.id" class="db-churn-item">
+            <view class="db-churn-avatar"><text class="db-churn-avatar-t">{{ u.name[0] }}</text></view>
             <view class="db-churn-info">
-              <text class="db-churn-name">
-                {{ u.name }}
-              </text>
-              <text class="db-churn-days">
-                已沉默{{ u.daysSilent }}天
-              </text>
+              <text class="db-churn-name">{{ u.name }}</text>
+              <text class="db-churn-days">已沉默{{ u.daysSilent }}天</text>
             </view>
-            <text class="db-churn-wake">
-              唤醒
-            </text>
+            <text class="db-churn-wake">唤醒</text>
           </view>
         </view>
       </view>
@@ -375,38 +207,20 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
       <!-- 收益构成 -->
       <view class="db-card">
         <view class="db-card-head">
-          <text class="db-card-title">
-            收益构成
-          </text>
-          <text class="db-revenue-total">
-            ¥{{ fmtNum(revenue.total) }}
-          </text>
+          <text class="db-card-title">收益构成</text>
+          <text class="db-revenue-total">¥{{ fmtNum(revenue.total) }}</text>
         </view>
         <view class="db-revenue-list">
-          <view
-            v-for="(item, i) in revenue.items"
-            :key="i"
-            class="db-revenue-item"
-          >
+          <view v-for="(item, i) in revenue.items" :key="i" class="db-revenue-item">
             <view class="db-revenue-row">
               <view class="db-revenue-name-wrap">
-                <view
-                  class="db-revenue-dot"
-                  :style="{ background: item.color }"
-                />
-                <text class="db-revenue-name">
-                  {{ item.name }}
-                </text>
+                <view class="db-revenue-dot" :style="{ background: item.color }" />
+                <text class="db-revenue-name">{{ item.name }}</text>
               </view>
-              <text class="db-revenue-value">
-                ¥{{ fmtNum(item.value) }}
-              </text>
+              <text class="db-revenue-value">¥{{ fmtNum(item.value) }}</text>
             </view>
             <view class="db-revenue-track">
-              <view
-                class="db-revenue-fill"
-                :style="{ width: item.percent + '%', background: item.color }"
-              />
+              <view class="db-revenue-fill" :style="{ width: item.percent + '%', background: item.color }" />
             </view>
           </view>
         </view>

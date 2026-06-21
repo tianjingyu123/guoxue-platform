@@ -34,44 +34,25 @@ function go(url: string, id: string) {
         @tap="go(tab.url, tab.id)"
       >
         <!-- 排盘居中凸起太极按钮 -->
-        <view
-          v-if="tab.id === 'paipan'"
-          class="paipan"
-        >
-          <view
-            class="taiji-wrap"
-            :class="{ 'taiji-breathing-glow': isActive('paipan') }"
-          >
+        <view v-if="tab.id === 'paipan'" class="paipan">
+          <view class="taiji-wrap" :class="{ 'taiji-breathing-glow': isActive('paipan') }">
             <image
               src="/static/taiji.svg"
               class="taiji"
               :class="{ 'taiji-slow-rotate': isActive('paipan') }"
             />
           </view>
-          <text
-            class="label bold"
-            :class="isActive('paipan') ? 'on' : 'off'"
-          >
-            {{ tab.label }}
-          </text>
+          <text class="label bold" :class="isActive('paipan') ? 'on' : 'off'">{{ tab.label }}</text>
         </view>
         <!-- 普通项 -->
-        <view
-          v-else
-          class="normal"
-        >
+        <view v-else class="normal">
           <app-icon
             :name="tab.icon"
             :size="44"
             :color="isActive(tab.id) ? BRAND_RED : MUTED"
             :stroke-width="isActive(tab.id) ? 2.5 : 1.5"
           />
-          <text
-            class="label bold"
-            :class="isActive(tab.id) ? 'on' : 'off'"
-          >
-            {{ tab.label }}
-          </text>
+          <text class="label bold" :class="isActive(tab.id) ? 'on' : 'off'">{{ tab.label }}</text>
         </view>
       </view>
     </view>

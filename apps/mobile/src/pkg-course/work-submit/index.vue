@@ -1,128 +1,46 @@
 <script setup lang="ts">
 /** 作业提交页 - 从原型 app/courses/work-submit/page.tsx 迁移 */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppNavBar from '@/components/common/app-nav-bar.vue'
-import { courseApi } from '@/lib/course-data'
+// @data-needs: 作业要求, 参数 chapterId, 返回 WorkRequirement
+// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
+import { workRequirement as requirement } from '@/lib/course-data'
 
-const chapterId = ref('1')
-onLoad((opts?: Record<string, any>) => {
-  if (opts?.chapterId) chapterId.value = opts.chapterId
-})
-
-const requirement = ref<any>(null)
 const content = ref('')
 const images = ref<string[]>([])
 
-const loading = ref(false)
-const error = ref('')
-const dataReady = ref(false)
-
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    requirement.value = await courseApi.workRequirement(chapterId.value)
-    dataReady.value = true
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => {
-  loadData()
-})
-
 const wordCount = computed(() => content.value.length)
-const canSubmit = computed(() => wordCount.value >= (requirement.value?.minWords ?? 0))
+const canSubmit = computed(() => wordCount.value >= requirement.minWords)
 
 function removeImage(index: number) {
   images.value = images.value.filter((_, i) => i !== index)
 }
 // 选图/提交为交互行为，交付时接 uploadApi/submitWork
 function onAddImage() {}
-const submitting = ref(false)
-function onSubmit() {
-  if (submitting.value) return
-  submitting.value = true
-  // 提交逻辑由交付时对接
-  submitting.value = false
-}
+function onSubmit() {}
 </script>
 
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <app-nav-bar
-      title="提交作业"
-      background="#fff"
-      color="#2C2C2C"
-    />
-
-    <view
-      v-if="loading"
-      class="body"
-    >
-      <!-- 骨架屏：2个白色卡片 + 1个输入区占位 -->
-      <view class="pl-skeleton">
-        <view class="sk-card">
-          <view class="sk-row">
-            <view class="sk-icon" /><view class="sk-info">
-              <view class="sk-title" /><view class="sk-desc" />
-            </view>
-          </view>
-        </view>
-        <view class="sk-card">
-          <view class="sk-title" /><view class="sk-paragraph" /><view class="sk-paragraph sk-short" />
-        </view>
-        <view class="sk-card">
-          <view class="sk-textarea" />
-        </view>
-      </view>
+    <view class="nav">
+      <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#2C2C2C" /></view>
+      <text class="nav-title">提交作业</text>
+      <view class="nav-ph" />
     </view>
-    <app-error
-      v-else-if="error"
-      :desc="error"
-      @retry="loadData"
-    />
-    <view
-      v-else
-      class="body"
-    >
+
+    <view class="body">
       <!-- 作业信息卡片 -->
       <view class="card">
         <view class="info-row">
-          <view class="info-ico">
-            <app-icon
-              name="file-text"
-              :size="36"
-              color="#C41E3A"
-            />
-          </view>
+          <view class="info-ico"><app-icon name="file-text" :size="36" color="#C41E3A" /></view>
           <view class="info-main">
-            <text class="info-title">
-              {{ requirement.title }}
-            </text>
-            <text class="info-sub">
-              {{ requirement.courseTitle }} · {{ requirement.chapterTitle }}
-            </text>
-            <view
-              v-if="requirement.deadline"
-              class="info-ddl"
-            >
-              <app-icon
-                name="clock"
-                :size="26"
-                color="#FF6B35"
-              />
-              <text class="info-ddl-txt">
-                截止时间：{{ requirement.deadline }}
-              </text>
+            <text class="info-title">{{ requirement.title }}</text>
+            <text class="info-sub">{{ requirement.courseTitle }} · {{ requirement.chapterTitle }}</text>
+            <view v-if="requirement.deadline" class="info-ddl">
+              <app-icon name="clock" :size="26" color="#FF6B35" />
+              <text class="info-ddl-txt">截止时间：{{ requirement.deadline }}</text>
             </view>
           </view>
         </view>
@@ -131,18 +49,10 @@ function onSubmit() {
       <!-- 作业要求 -->
       <view class="card">
         <view class="sec-title">
-          <app-icon
-            name="alert-circle"
-            :size="30"
-            color="#C9A96E"
-          />
-          <text class="sec-title-txt">
-            作业要求
-          </text>
+          <app-icon name="alert-circle" :size="30" color="#C9A96E" />
+          <text class="sec-title-txt">作业要求</text>
         </view>
-        <text class="req-desc">
-          {{ requirement.description }}
-        </text>
+        <text class="req-desc">{{ requirement.description }}</text>
       </view>
 
       <!-- 文字输入区 -->
@@ -155,10 +65,7 @@ function onSubmit() {
           :maxlength="-1"
         />
         <view class="ta-foot">
-          <text
-            class="ta-count"
-            :class="{ warn: wordCount < requirement.minWords }"
-          >
+          <text class="ta-count" :class="{ warn: wordCount < requirement.minWords }">
             {{ wordCount }}/{{ requirement.minWords }}字（最少）
           </text>
         </view>
@@ -167,53 +74,18 @@ function onSubmit() {
       <!-- 图片上传区 -->
       <view class="card">
         <view class="sec-title">
-          <app-icon
-            name="image"
-            :size="30"
-            color="#C9A96E"
-          />
-          <text class="sec-title-txt">
-            添加图片
-          </text>
-          <text class="sec-title-sub">
-            （{{ images.length }}/{{ requirement.maxImages }}）
-          </text>
+          <app-icon name="image" :size="30" color="#C9A96E" />
+          <text class="sec-title-txt">添加图片</text>
+          <text class="sec-title-sub">（{{ images.length }}/{{ requirement.maxImages }}）</text>
         </view>
         <view class="img-grid">
-          <view
-            v-for="(url, index) in images"
-            :key="index"
-            class="img-cell"
-          >
-            <image
-              class="img-thumb"
-              :src="url"
-              mode="aspectFill"
-            />
-            <view
-              class="img-del"
-              @tap="removeImage(index)"
-            >
-              <app-icon
-                name="x"
-                :size="22"
-                color="#ffffff"
-              />
-            </view>
+          <view v-for="(url, index) in images" :key="index" class="img-cell">
+            <image class="img-thumb" :src="url" mode="aspectFill" />
+            <view class="img-del" @tap="removeImage(index)"><app-icon name="x" :size="22" color="#ffffff" /></view>
           </view>
-          <view
-            v-if="images.length < requirement.maxImages"
-            class="img-add"
-            @tap="onAddImage"
-          >
-            <app-icon
-              name="image-plus"
-              :size="44"
-              color="#999999"
-            />
-            <text class="img-add-txt">
-              添加图片
-            </text>
+          <view v-if="images.length < requirement.maxImages" class="img-add" @tap="onAddImage">
+            <app-icon name="image-plus" :size="44" color="#999999" />
+            <text class="img-add-txt">添加图片</text>
           </view>
         </view>
       </view>
@@ -221,22 +93,9 @@ function onSubmit() {
 
     <!-- 底部提交按钮 -->
     <view class="submit-bar">
-      <view
-        class="submit-btn"
-        :class="{ disabled: !canSubmit }"
-        @tap="canSubmit && onSubmit()"
-      >
-        <app-icon
-          name="send"
-          :size="36"
-          :color="canSubmit ? '#ffffff' : '#999999'"
-        />
-        <text
-          class="submit-txt"
-          :class="{ disabled: !canSubmit }"
-        >
-          提交作业
-        </text>
+      <view class="submit-btn" :class="{ disabled: !canSubmit }" @tap="canSubmit && onSubmit()">
+        <app-icon name="send" :size="36" :color="canSubmit ? '#ffffff' : '#999999'" />
+        <text class="submit-txt" :class="{ disabled: !canSubmit }">提交作业</text>
       </view>
     </view>
   </view>
@@ -285,17 +144,4 @@ function onSubmit() {
 .submit-btn.disabled { background: #E8E3DB; box-shadow: none; }
 .submit-txt { font-size: 30rpx; font-weight: 600; color: #fff; }
 .submit-txt.disabled { color: #999; }
-
-/* 骨架屏 */
-@keyframes sk-pulse { 0%,100%{ opacity: 0.3 } 50%{ opacity: 0.6 } }
-.pl-skeleton { display: flex; flex-direction: column; gap: 32rpx; }
-.sk-card { background: #fff; border-radius: 24rpx; padding: 32rpx; animation: sk-pulse 1.5s ease-in-out infinite; }
-.sk-title { height: 32rpx; width: 40%; background: #E8E3DB; border-radius: 8rpx; margin-bottom: 24rpx; }
-.sk-row { display: flex; gap: 24rpx; align-items: center; }
-.sk-icon { width: 80rpx; height: 80rpx; border-radius: 16rpx; background: #E8E3DB; flex-shrink: 0; }
-.sk-info { flex: 1; display: flex; flex-direction: column; gap: 12rpx; }
-.sk-desc { height: 24rpx; width: 60%; background: #E8E3DB; border-radius: 8rpx; }
-.sk-paragraph { height: 28rpx; background: #E8E3DB; border-radius: 8rpx; margin-bottom: 16rpx; }
-.sk-paragraph.sk-short { width: 70%; }
-.sk-textarea { height: 384rpx; background: #F5F0E8; border-radius: 16rpx; }
 </style>

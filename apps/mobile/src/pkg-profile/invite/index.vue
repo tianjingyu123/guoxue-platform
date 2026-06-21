@@ -1,346 +1,145 @@
 <template>
   <view class="page">
-    <app-nav-bar
-      title="邀请好友"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="32"
-      :title-weight="600"
-      :bar-height="112"
-    />
+    <app-nav-bar title="邀请好友" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112" />
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <!-- 邀请奖励卡 -->
       <view class="reward-card">
         <view class="reward-deco">
-          <app-icon
-            name="gift"
-            :size="96"
-            color="#FFFFFF"
-          />
+          <app-icon name="gift" :size="96" color="#FFFFFF" />
         </view>
         <view class="reward-body">
           <view class="reward-title-row">
-            <app-icon
-              name="sparkles"
-              :size="36"
-              color="#FFFFFF"
-            />
-            <text class="reward-title">
-              邀请好友，双方有礼
-            </text>
+            <app-icon name="sparkles" :size="36" color="#FFFFFF" />
+            <text class="reward-title">邀请好友，双方有礼</text>
           </view>
-          <text class="reward-desc">
-            邀请1位好友注册，双方各得 7天会员体验。多邀多得，上不封顶。
-          </text>
+          <text class="reward-desc">邀请1位好友注册，双方各得 7天会员体验。多邀多得，上不封顶。</text>
           <view class="reward-stats">
             <view class="rstat">
-              <text class="rstat-num">
-                {{ invitedFriends.length }}
-              </text>
-              <text class="rstat-label">
-                已邀请
-              </text>
+              <text class="rstat-num">{{ invitedFriends.length }}</text>
+              <text class="rstat-label">已邀请</text>
             </view>
             <view class="rstat">
-              <text class="rstat-num">
-                {{ registeredCount }}
-              </text>
-              <text class="rstat-label">
-                已注册
-              </text>
+              <text class="rstat-num">{{ registeredCount }}</text>
+              <text class="rstat-label">已注册</text>
             </view>
             <view class="rstat">
-              <text class="rstat-num">
-                {{ registeredCount * 7 }}
-              </text>
-              <text class="rstat-label">
-                获得天数
-              </text>
+              <text class="rstat-num">{{ registeredCount * 7 }}</text>
+              <text class="rstat-label">获得天数</text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 邀请方式 -->
-      <text class="section-title">
-        邀请方式
-      </text>
+      <text class="section-title">邀请方式</text>
       <view class="ways">
-        <view
-          class="way"
-          @tap="onShare"
-        >
-          <view
-            class="way-icon"
-            style="background:rgba(196,30,45,0.1)"
-          >
-            <app-icon
-              name="share-2"
-              :size="40"
-              color="#C41E2D"
-            />
+        <view class="way" @tap="onShare">
+          <view class="way-icon" style="background:rgba(196,30,45,0.1)">
+            <app-icon name="share-2" :size="40" color="#C41E2D" />
           </view>
-          <text class="way-label">
-            分享链接
-          </text>
+          <text class="way-label">分享链接</text>
         </view>
-        <view
-          class="way"
-          @tap="showPoster = true"
-        >
-          <view
-            class="way-icon"
-            style="background:rgba(201,169,110,0.12)"
-          >
-            <app-icon
-              name="image"
-              :size="40"
-              color="#C9A96E"
-            />
+        <view class="way" @tap="showPoster = true">
+          <view class="way-icon" style="background:rgba(201,169,110,0.12)">
+            <app-icon name="image" :size="40" color="#C9A96E" />
           </view>
-          <text class="way-label">
-            生成海报
-          </text>
+          <text class="way-label">生成海报</text>
         </view>
-        <view
-          class="way"
-          @tap="onCopy"
-        >
-          <view
-            class="way-icon"
-            style="background:rgba(46,160,67,0.1)"
-          >
-            <app-icon
-              :name="copied ? 'check' : 'copy'"
-              :size="40"
-              :color="'#2EA043'"
-            />
+        <view class="way" @tap="onCopy">
+          <view class="way-icon" style="background:rgba(46,160,67,0.1)">
+            <app-icon :name="copied ? 'check' : 'copy'" :size="40" :color="'#2EA043'" />
           </view>
-          <text class="way-label">
-            {{ copied ? '已复制' : '复制邀请码' }}
-          </text>
+          <text class="way-label">{{ copied ? '已复制' : '复制邀请码' }}</text>
         </view>
       </view>
 
       <!-- 邀请码展示 -->
       <view class="code-card">
         <view class="code-left">
-          <text class="code-hint">
-            我的邀请码
-          </text>
-          <text class="code-val">
-            {{ inviteCode }}
-          </text>
+          <text class="code-hint">我的邀请码</text>
+          <text class="code-val">{{ inviteCode }}</text>
         </view>
-        <view
-          class="code-btn"
-          @tap="onCopy"
-        >
-          <text class="code-btn-txt">
-            {{ copied ? '已复制' : '复制' }}
-          </text>
+        <view class="code-btn" @tap="onCopy">
+          <text class="code-btn-txt">{{ copied ? '已复制' : '复制' }}</text>
         </view>
       </view>
 
       <!-- 排行榜 -->
       <view class="rank-head">
         <view class="rank-title-row">
-          <app-icon
-            name="crown"
-            :size="32"
-            color="#C9A96E"
-          />
-          <text class="section-title inline">
-            邀请排行榜
-          </text>
+          <app-icon name="crown" :size="32" color="#C9A96E" />
+          <text class="section-title inline">邀请排行榜</text>
         </view>
         <view class="seg">
-          <text
-            :class="['seg-item', leaderboardTab === 'today' && 'seg-on']"
-            @tap="leaderboardTab = 'today'"
-          >
-            今日
-          </text>
-          <text
-            :class="['seg-item', leaderboardTab === 'total' && 'seg-on']"
-            @tap="leaderboardTab = 'total'"
-          >
-            累计
-          </text>
+          <text :class="['seg-item', leaderboardTab === 'today' && 'seg-on']" @tap="leaderboardTab = 'today'">今日</text>
+          <text :class="['seg-item', leaderboardTab === 'total' && 'seg-on']" @tap="leaderboardTab = 'total'">累计</text>
         </view>
       </view>
       <view class="card">
-        <view
-          v-for="(u, i) in leaderboard"
-          :key="u.rank"
-          :class="['rank-row', i < leaderboard.length - 1 && 'bb']"
-        >
-          <text :class="['rank-no', u.rank === 1 && 'r1', u.rank === 2 && 'r2', u.rank === 3 && 'r3']">
-            {{ u.rank }}
-          </text>
-          <view class="avatar">
-            <text class="avatar-txt">
-              {{ u.name[0] }}
-            </text>
-          </view>
-          <text class="rank-name">
-            {{ u.name }}
-          </text>
-          <view class="rank-cnt">
-            <text class="rank-cnt-num">
-              {{ u.count }}
-            </text><text class="rank-cnt-unit">
-              人
-            </text>
-          </view>
+        <view v-for="(u, i) in leaderboard" :key="u.rank" :class="['rank-row', i < leaderboard.length - 1 && 'bb']">
+          <text :class="['rank-no', u.rank === 1 && 'r1', u.rank === 2 && 'r2', u.rank === 3 && 'r3']">{{ u.rank }}</text>
+          <view class="avatar"><text class="avatar-txt">{{ u.name[0] }}</text></view>
+          <text class="rank-name">{{ u.name }}</text>
+          <view class="rank-cnt"><text class="rank-cnt-num">{{ u.count }}</text><text class="rank-cnt-unit">人</text></view>
         </view>
       </view>
 
       <!-- 已邀请好友 -->
       <view class="rank-head">
         <view class="rank-title-row">
-          <app-icon
-            name="users"
-            :size="32"
-            color="#C41E2D"
-          />
-          <text class="section-title inline">
-            已邀请好友
-          </text>
-          <text class="badge">
-            {{ invitedFriends.length }}人
-          </text>
+          <app-icon name="users" :size="32" color="#C41E2D" />
+          <text class="section-title inline">已邀请好友</text>
+          <text class="badge">{{ invitedFriends.length }}人</text>
         </view>
-        <view
-          class="more"
-          @tap="go('/invite/history')"
-        >
-          <text class="more-txt">
-            全部记录
-          </text>
-          <app-icon
-            name="chevron-right"
-            :size="24"
-            color="#9A8F80"
-          />
+        <view class="more" @tap="go('/invite/history')">
+          <text class="more-txt">全部记录</text>
+          <app-icon name="chevron-right" :size="24" color="#9A8F80" />
         </view>
       </view>
-      <view
-        v-if="invitedFriends.length"
-        class="card"
-      >
-        <view
-          v-for="(f, i) in invitedFriends"
-          :key="f.id"
-          :class="['friend-row', i < invitedFriends.length - 1 && 'bb']"
-        >
-          <view class="avatar lg">
-            <text class="avatar-txt">
-              {{ f.name[0] }}
-            </text>
-          </view>
+      <view class="card" v-if="invitedFriends.length">
+        <view v-for="(f, i) in invitedFriends" :key="f.id" :class="['friend-row', i < invitedFriends.length - 1 && 'bb']">
+          <view class="avatar lg"><text class="avatar-txt">{{ f.name[0] }}</text></view>
           <view class="friend-info">
-            <text class="friend-name">
-              {{ f.name }}
-            </text>
-            <text class="friend-time">
-              {{ f.registerTime }}
-            </text>
+            <text class="friend-name">{{ f.name }}</text>
+            <text class="friend-time">{{ f.registerTime }}</text>
           </view>
           <text :class="['fstatus', f.status === 'registered' ? 'fs-ok' : 'fs-pend']">
             {{ f.status === 'registered' ? '已注册' : '待激活' }}
           </text>
         </view>
       </view>
-      <view
-        v-else
-        class="empty"
-      >
-        <view class="empty-icon">
-          <app-icon
-            name="users"
-            :size="64"
-            color="#9A8F80"
-          />
-        </view>
-        <text class="empty-t">
-          还没有邀请好友
-        </text>
-        <text class="empty-s">
-          快去分享邀请链接吧
-        </text>
+      <view class="empty" v-else>
+        <view class="empty-icon"><app-icon name="users" :size="64" color="#9A8F80" /></view>
+        <text class="empty-t">还没有邀请好友</text>
+        <text class="empty-s">快去分享邀请链接吧</text>
       </view>
 
       <view class="safe-bottom" />
     </scroll-view>
 
     <!-- 海报弹窗 -->
-    <view
-      v-if="showPoster"
-      class="mask"
-      @tap="showPoster = false"
-    >
-      <view
-        class="poster-wrap"
-        @tap.stop
-      >
+    <view class="mask" v-if="showPoster" @tap="showPoster = false">
+      <view class="poster-wrap" @tap.stop>
         <view class="poster">
           <view class="poster-top">
-            <view class="poster-logo">
-              <text class="poster-logo-txt">
-                卜
-              </text>
-            </view>
-            <text class="poster-brand">
-              热卜国学
-            </text>
-            <text class="poster-sub">
-              探索易学智慧
-            </text>
+            <view class="poster-logo"><text class="poster-logo-txt">卜</text></view>
+            <text class="poster-brand">热卜国学</text>
+            <text class="poster-sub">探索易学智慧</text>
           </view>
           <view class="poster-mid">
-            <text class="poster-mid-t">
-              邀请你一起学习国学
-            </text>
-            <text class="poster-mid-s">
-              注册即送7天会员体验
-            </text>
+            <text class="poster-mid-t">邀请你一起学习国学</text>
+            <text class="poster-mid-s">注册即送7天会员体验</text>
           </view>
           <view class="poster-qr">
-            <view class="qr-box">
-              <text class="qr-txt">
-                二维码
-              </text>
-            </view>
-            <text class="qr-hint">
-              长按识别二维码
-            </text>
-            <text class="qr-code">
-              邀请码: {{ inviteCode }}
-            </text>
+            <view class="qr-box"><text class="qr-txt">二维码</text></view>
+            <text class="qr-hint">长按识别二维码</text>
+            <text class="qr-code">邀请码: {{ inviteCode }}</text>
           </view>
         </view>
         <view class="poster-actions">
-          <view
-            class="pa-btn pa-cancel"
-            @tap="showPoster = false"
-          >
-            <text class="pa-cancel-txt">
-              取消
-            </text>
-          </view>
-          <view
-            class="pa-btn pa-save"
-            @tap="onSavePoster"
-          >
-            <text class="pa-save-txt">
-              保存海报
-            </text>
-          </view>
+          <view class="pa-btn pa-cancel" @tap="showPoster = false"><text class="pa-cancel-txt">取消</text></view>
+          <view class="pa-btn pa-save" @tap="onSavePoster"><text class="pa-save-txt">保存海报</text></view>
         </view>
       </view>
     </view>

@@ -2,78 +2,30 @@
   <view class="ai-page">
     <!-- 顶部导航 -->
     <view class="ai-header">
-      <view
-        class="ai-hd-btn"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="40"
-          color="#1a1a1a"
-        />
+      <view class="ai-hd-btn" @tap="goBack">
+        <app-icon name="arrow-left" :size="40" color="#1a1a1a" />
       </view>
       <view class="ai-hd-center">
-        <text class="ai-hd-title">
-          古籍AI助手
-        </text>
-        <text class="ai-hd-sub">
-          内容由AI生成
-        </text>
+        <text class="ai-hd-title">古籍AI助手</text>
+        <text class="ai-hd-sub">内容由AI生成</text>
       </view>
       <view class="ai-hd-btn">
-        <app-icon
-          name="history"
-          :size="40"
-          color="#1a1a1a"
-        />
+        <app-icon name="history" :size="40" color="#1a1a1a" />
       </view>
     </view>
 
     <!-- 消息区域 -->
-    <scroll-view
-      class="ai-body"
-      scroll-y
-      :scroll-into-view="scrollAnchor"
-    >
+    <scroll-view class="ai-body" scroll-y :scroll-into-view="scrollAnchor">
       <!-- 空状态 -->
-      <view
-        v-if="messages.length === 0"
-        class="ai-empty"
-      >
+      <view v-if="messages.length === 0" class="ai-empty">
         <!-- 最近一次AI回复（模拟） -->
         <view class="ai-card">
-          <text class="ai-card-text">
-            刃"的高超创作技艺——全书虽完全以虚构笔法展开，却做到了数万字内容境界不重复、主旨不偏离，兼具可读性与思想启发性，进一步印证了本篇对《西游记》艺术价值的评价。
-          </text>
+          <text class="ai-card-text">刃"的高超创作技艺——全书虽完全以虚构笔法展开，却做到了数万字内容境界不重复、主旨不偏离，兼具可读性与思想启发性，进一步印证了本篇对《西游记》艺术价值的评价。</text>
           <view class="ai-card-ops">
-            <view class="ai-op">
-              <app-icon
-                name="rotate-ccw"
-                :size="28"
-                color="#999999"
-              />
-            </view>
-            <view class="ai-op">
-              <app-icon
-                name="thumbs-up"
-                :size="28"
-                color="#999999"
-              />
-            </view>
-            <view class="ai-op">
-              <app-icon
-                name="thumbs-down"
-                :size="28"
-                color="#999999"
-              />
-            </view>
-            <view class="ai-op">
-              <app-icon
-                name="copy"
-                :size="28"
-                color="#999999"
-              />
-            </view>
+            <view class="ai-op"><app-icon name="rotate-ccw" :size="28" color="#999999" /></view>
+            <view class="ai-op"><app-icon name="thumbs-up" :size="28" color="#999999" /></view>
+            <view class="ai-op"><app-icon name="thumbs-down" :size="28" color="#999999" /></view>
+            <view class="ai-op"><app-icon name="copy" :size="28" color="#999999" /></view>
           </view>
         </view>
 
@@ -85,18 +37,14 @@
             class="ai-related-q"
             @tap="pickQuestion(q)"
           >
-            <text class="ai-related-q-text">
-              {{ q }}
-            </text>
+            <text class="ai-related-q-text">{{ q }}</text>
           </view>
         </view>
 
         <!-- 分隔线 -->
         <view class="ai-divider">
           <view class="ai-divider-line" />
-          <text class="ai-divider-text">
-            聊聊新话题
-          </text>
+          <text class="ai-divider-text">聊聊新话题</text>
           <view class="ai-divider-line" />
         </view>
 
@@ -104,24 +52,14 @@
         <view class="ai-intro">
           <view class="ai-intro-head">
             <view class="ai-avatar ai-avatar--lg">
-              <app-icon
-                name="sparkles"
-                :size="40"
-                color="#ffffff"
-              />
+              <app-icon name="sparkles" :size="40" color="#ffffff" />
             </view>
             <view>
-              <text class="ai-intro-title">
-                Hi~我是古籍AI助手
-              </text>
-              <text class="ai-intro-desc">
-                熟悉古籍内容，善于解释概念
-              </text>
+              <text class="ai-intro-title">Hi~我是古籍AI助手</text>
+              <text class="ai-intro-desc">熟悉古籍内容，善于解释概念</text>
             </view>
           </view>
-          <text class="ai-intro-tip">
-            有什么问题都可以问我哦！
-          </text>
+          <text class="ai-intro-tip">有什么问题都可以问我哦！</text>
         </view>
 
         <!-- 快捷问题 -->
@@ -132,96 +70,43 @@
             class="ai-suggested-q"
             @tap="pickQuestion(q)"
           >
-            <text class="ai-suggested-q-text">
-              {{ q }}
-            </text>
+            <text class="ai-suggested-q-text">{{ q }}</text>
           </view>
         </view>
       </view>
 
       <!-- 对话消息列表 -->
-      <view
-        v-else
-        class="ai-msgs"
-      >
+      <view v-else class="ai-msgs">
         <view
           v-for="m in messages"
           :key="m.id"
           class="ai-msg-row"
           :class="m.role === 'user' ? 'ai-msg-row--user' : ''"
         >
-          <view
-            v-if="m.role === 'assistant'"
-            class="ai-avatar"
-          >
-            <app-icon
-              name="sparkles"
-              :size="32"
-              color="#ffffff"
-            />
+          <view v-if="m.role === 'assistant'" class="ai-avatar">
+            <app-icon name="sparkles" :size="32" color="#ffffff" />
           </view>
 
-          <view
-            v-if="m.role === 'user'"
-            class="ai-bubble-user"
-          >
-            <text class="ai-bubble-user-text">
-              {{ m.content }}
-            </text>
+          <view v-if="m.role === 'user'" class="ai-bubble-user">
+            <text class="ai-bubble-user-text">{{ m.content }}</text>
           </view>
-          <view
-            v-else
-            class="ai-assist-wrap"
-          >
+          <view v-else class="ai-assist-wrap">
             <view class="ai-card ai-card--assist">
-              <text class="ai-card-text">
-                {{ m.content }}
-              </text>
+              <text class="ai-card-text">{{ m.content }}</text>
             </view>
             <view class="ai-card-ops ai-card-ops--bare">
-              <view class="ai-op">
-                <app-icon
-                  name="rotate-ccw"
-                  :size="28"
-                  color="#999999"
-                />
-              </view>
-              <view class="ai-op">
-                <app-icon
-                  name="thumbs-up"
-                  :size="28"
-                  :color="liked[m.id] === true ? '#22c55e' : '#999999'"
-                />
-              </view>
-              <view class="ai-op">
-                <app-icon
-                  name="thumbs-down"
-                  :size="28"
-                  :color="liked[m.id] === false ? '#ef4444' : '#999999'"
-                />
-              </view>
-              <view class="ai-op">
-                <app-icon
-                  name="copy"
-                  :size="28"
-                  color="#999999"
-                />
-              </view>
+              <view class="ai-op"><app-icon name="rotate-ccw" :size="28" color="#999999" /></view>
+              <view class="ai-op"><app-icon name="thumbs-up" :size="28" :color="liked[m.id] === true ? '#22c55e' : '#999999'" /></view>
+              <view class="ai-op"><app-icon name="thumbs-down" :size="28" :color="liked[m.id] === false ? '#ef4444' : '#999999'" /></view>
+              <view class="ai-op"><app-icon name="copy" :size="28" color="#999999" /></view>
             </view>
           </view>
         </view>
 
         <!-- 加载状态 -->
-        <view
-          v-if="isLoading"
-          class="ai-msg-row"
-        >
+        <view v-if="isLoading" class="ai-msg-row">
           <view class="ai-avatar">
-            <app-icon
-              name="sparkles"
-              :size="32"
-              color="#ffffff"
-            />
+            <app-icon name="sparkles" :size="32" color="#ffffff" />
           </view>
           <view class="ai-card ai-card--assist">
             <view class="ai-loading">
@@ -230,17 +115,12 @@
                 <view class="ai-dot" />
                 <view class="ai-dot" />
               </view>
-              <text class="ai-loading-text">
-                正在思考...
-              </text>
+              <text class="ai-loading-text">正在思考...</text>
             </view>
           </view>
         </view>
 
-        <view
-          id="ai-bottom"
-          class="ai-bottom-anchor"
-        />
+        <view id="ai-bottom" class="ai-bottom-anchor" />
       </view>
     </scroll-view>
 
@@ -257,11 +137,7 @@
           :show-confirm-bar="false"
         />
         <view class="ai-mic">
-          <app-icon
-            name="mic"
-            :size="32"
-            color="#999999"
-          />
+          <app-icon name="mic" :size="32" color="#999999" />
         </view>
       </view>
       <view
@@ -269,11 +145,7 @@
         :class="(!inputValue.trim() || isLoading) ? 'ai-send--disabled' : ''"
         @tap="handleSend"
       >
-        <app-icon
-          name="send"
-          :size="32"
-          color="#ffffff"
-        />
+        <app-icon name="send" :size="32" color="#ffffff" />
       </view>
     </view>
   </view>

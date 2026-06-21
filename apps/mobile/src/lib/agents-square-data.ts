@@ -2,7 +2,6 @@
  * AI 智能体广场数据（1:1 还原原型 proto-ref-app/agents/page.tsx）
  * 入口：排盘首页「AI 智能体」区块「更多」
  */
-import { apiGet, useMock } from '@/utils/request'
 
 export interface SquareBot {
   id: string
@@ -226,55 +225,3 @@ export const agentsRanking: RankingAgent[] = [
   { id: '4', name: '塔罗牌占卜', description: '塔罗解读、抽签分析、运势预测', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=tarot&backgroundColor=7c3aed', category: '占卜', users: 7240, sessions: 21850, rating: 4.6, verified: true },
   { id: '5', name: '中医养生顾问', description: '健康咨询、养生建议、体质分析', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=zhongyi&backgroundColor=ea580c', category: '健康', users: 5850, sessions: 18520, rating: 4.5, verified: false },
 ]
-
-// ============================================
-// API 层：useMock 开关控制真实/模拟数据切换
-// ============================================
-
-export const agentsSquareApi = {
-  /** 获取智能体广场列表 */
-  async bots(category?: string) {
-    if (useMock()) return hotBots
-    try {
-      const qs = category ? `?category=${category}` : ''
-      const data = await apiGet<SquareBot[]>(`/agents/bots${qs}`)
-      return data?.length ? data : hotBots
-    } catch { return hotBots }
-  },
-
-  /** 获取热门问答 */
-  async questions() {
-    if (useMock()) return hotQuestions
-    try {
-      const data = await apiGet<SquareQuestion[]>('/agents/questions/hot')
-      return data?.length ? data : hotQuestions
-    } catch { return hotQuestions }
-  },
-
-  /** 获取对话历史 */
-  async conversations() {
-    if (useMock()) return agentConversations
-    try {
-      const data = await apiGet<AgentConversation[]>('/agents/conversations')
-      return data?.length ? data : agentConversations
-    } catch { return agentConversations }
-  },
-
-  /** 获取常见问题 */
-  async faqs() {
-    if (useMock()) return agentFaqs
-    try {
-      const data = await apiGet<AgentFAQ[]>('/agents/faqs')
-      return data?.length ? data : agentFaqs
-    } catch { return agentFaqs }
-  },
-
-  /** 获取智能体热度榜 */
-  async ranking() {
-    if (useMock()) return agentsRanking
-    try {
-      const data = await apiGet<RankingAgent[]>('/agents/ranking')
-      return data?.length ? data : agentsRanking
-    } catch { return agentsRanking }
-  },
-}

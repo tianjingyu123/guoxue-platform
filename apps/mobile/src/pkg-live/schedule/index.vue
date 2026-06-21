@@ -3,46 +3,19 @@
     <!-- 顶部导航 -->
     <view class="nav-bar">
       <view class="nav-left">
-        <view
-          class="nav-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="48"
-            color="#1a1a1a"
-          />
+        <view class="nav-back" @tap="goBack">
+          <app-icon name="chevron-left" :size="48" color="#1a1a1a" />
         </view>
-        <text class="nav-title">
-          直播排期管理
-        </text>
+        <text class="nav-title">直播排期管理</text>
       </view>
       <view class="nav-right">
-        <view
-          class="nav-btn nav-btn-outline"
-          @tap="showImportDialog = true"
-        >
-          <app-icon
-            name="upload"
-            :size="32"
-            color="#1a1a1a"
-          />
-          <text class="nav-btn-text">
-            导入
-          </text>
+        <view class="nav-btn nav-btn-outline" @tap="showImportDialog = true">
+          <app-icon name="upload" :size="32" color="#1a1a1a" />
+          <text class="nav-btn-text">导入</text>
         </view>
-        <view
-          class="nav-btn nav-btn-primary"
-          @tap="goCreate()"
-        >
-          <app-icon
-            name="plus"
-            :size="32"
-            color="#fff"
-          />
-          <text class="nav-btn-text nav-btn-text-light">
-            新建场次
-          </text>
+        <view class="nav-btn nav-btn-primary" @tap="goCreate()">
+          <app-icon name="plus" :size="32" color="#fff" />
+          <text class="nav-btn-text nav-btn-text-light">新建场次</text>
         </view>
       </view>
     </view>
@@ -56,57 +29,25 @@
             :class="{ 'view-tab-active': viewMode === 'calendar' }"
             @tap="viewMode = 'calendar'"
           >
-            <app-icon
-              name="calendar-days"
-              :size="32"
-              :color="viewMode === 'calendar' ? '#1a1a1a' : '#999'"
-            />
-            <text
-              class="view-tab-text"
-              :class="{ 'view-tab-text-active': viewMode === 'calendar' }"
-            >
-              日历
-            </text>
+            <app-icon name="calendar-days" :size="32" :color="viewMode === 'calendar' ? '#1a1a1a' : '#999'" />
+            <text class="view-tab-text" :class="{ 'view-tab-text-active': viewMode === 'calendar' }">日历</text>
           </view>
           <view
             class="view-tab"
             :class="{ 'view-tab-active': viewMode === 'list' }"
             @tap="viewMode = 'list'"
           >
-            <app-icon
-              name="list"
-              :size="32"
-              :color="viewMode === 'list' ? '#1a1a1a' : '#999'"
-            />
-            <text
-              class="view-tab-text"
-              :class="{ 'view-tab-text-active': viewMode === 'list' }"
-            >
-              列表
-            </text>
+            <app-icon name="list" :size="32" :color="viewMode === 'list' ? '#1a1a1a' : '#999'" />
+            <text class="view-tab-text" :class="{ 'view-tab-text-active': viewMode === 'list' }">列表</text>
           </view>
         </view>
         <view class="search-box">
-          <app-icon
-            name="search"
-            :size="32"
-            color="#999"
-            class="search-icon"
-          />
-          <input
-            v-model="searchQuery"
-            class="search-input"
-            placeholder="搜索直播..."
-            placeholder-class="search-ph"
-          >
+          <app-icon name="search" :size="32" color="#999" class="search-icon" />
+          <input v-model="searchQuery" class="search-input" placeholder="搜索直播..." placeholder-class="search-ph" />
         </view>
       </view>
       <!-- 状态筛选 -->
-      <scroll-view
-        scroll-x
-        class="filter-scroll"
-        :show-scrollbar="false"
-      >
+      <scroll-view scroll-x class="filter-scroll" :show-scrollbar="false">
         <view class="filter-row">
           <view
             v-for="item in statusFilters"
@@ -122,44 +63,19 @@
     </view>
 
     <!-- 日历视图 -->
-    <view
-      v-if="viewMode === 'calendar'"
-      class="calendar-view"
-    >
+    <view v-if="viewMode === 'calendar'" class="calendar-view">
       <view class="month-switch">
-        <view
-          class="month-arrow"
-          @tap="changeMonth(-1)"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="40"
-            color="#1a1a1a"
-          />
+        <view class="month-arrow" @tap="changeMonth(-1)">
+          <app-icon name="chevron-left" :size="40" color="#1a1a1a" />
         </view>
-        <text class="month-title">
-          {{ year }}年{{ monthNames[month] }}
-        </text>
-        <view
-          class="month-arrow"
-          @tap="changeMonth(1)"
-        >
-          <app-icon
-            name="chevron-right"
-            :size="40"
-            color="#1a1a1a"
-          />
+        <text class="month-title">{{ year }}年{{ monthNames[month] }}</text>
+        <view class="month-arrow" @tap="changeMonth(1)">
+          <app-icon name="chevron-right" :size="40" color="#1a1a1a" />
         </view>
       </view>
 
       <view class="week-head">
-        <view
-          v-for="d in weekDays"
-          :key="d"
-          class="week-cell"
-        >
-          {{ d }}
-        </view>
+        <view v-for="d in weekDays" :key="d" class="week-cell">{{ d }}</view>
       </view>
 
       <view class="cal-grid">
@@ -174,71 +90,32 @@
           @tap="day && toggleDate(day)"
         >
           <template v-if="day">
-            <text
-              class="cal-day"
-              :class="{ 'cal-day-today': dateStrOf(day) === todayStr }"
-            >
-              {{ day }}
-            </text>
-            <view
-              v-if="getSchedulesForDate(day).length"
-              class="cal-dots"
-            >
+            <text class="cal-day" :class="{ 'cal-day-today': dateStrOf(day) === todayStr }">{{ day }}</text>
+            <view v-if="getSchedulesForDate(day).length" class="cal-dots">
               <view
                 v-for="(s, i) in getSchedulesForDate(day).slice(0, 3)"
                 :key="i"
                 class="cal-dot"
                 :style="{ background: statusConfig[s.status].dot }"
               />
-              <text
-                v-if="getSchedulesForDate(day).length > 3"
-                class="cal-dot-more"
-              >
-                +{{ getSchedulesForDate(day).length - 3 }}
-              </text>
+              <text v-if="getSchedulesForDate(day).length > 3" class="cal-dot-more">+{{ getSchedulesForDate(day).length - 3 }}</text>
             </view>
           </template>
         </view>
       </view>
 
       <!-- 选中日期场次 -->
-      <view
-        v-if="selectedDate"
-        class="selected-section"
-      >
-        <text class="selected-title">
-          {{ formatDate(selectedDate) }} 的直播 ({{ filteredSchedules.length }}场)
-        </text>
-        <view
-          v-if="filteredSchedules.length === 0"
-          class="empty-day"
-        >
-          <app-icon
-            name="calendar"
-            :size="64"
-            color="#ccc"
-          />
-          <text class="empty-day-text">
-            当日暂无直播排期
-          </text>
-          <view
-            class="empty-btn"
-            @tap="goCreate()"
-          >
-            <app-icon
-              name="plus"
-              :size="32"
-              color="#1a1a1a"
-            />
-            <text class="empty-btn-text">
-              新建场次
-            </text>
+      <view v-if="selectedDate" class="selected-section">
+        <text class="selected-title">{{ formatDate(selectedDate) }} 的直播 ({{ filteredSchedules.length }}场)</text>
+        <view v-if="filteredSchedules.length === 0" class="empty-day">
+          <app-icon name="calendar" :size="64" color="#ccc" />
+          <text class="empty-day-text">当日暂无直播排期</text>
+          <view class="empty-btn" @tap="goCreate()">
+            <app-icon name="plus" :size="32" color="#1a1a1a" />
+            <text class="empty-btn-text">新建场次</text>
           </view>
         </view>
-        <view
-          v-else
-          class="card-list"
-        >
+        <view v-else class="card-list">
           <schedule-card
             v-for="s in filteredSchedules"
             :key="s.id"
@@ -252,67 +129,31 @@
     </view>
 
     <!-- 列表视图 -->
-    <view
-      v-if="viewMode === 'list'"
-      class="list-view"
-    >
+    <view v-if="viewMode === 'list'" class="list-view">
       <view class="stat-grid">
         <view class="stat-card">
-          <text class="stat-num stat-num-blue">
-            {{ countByStatus('scheduled') }}
-          </text>
-          <text class="stat-label">
-            待开播
-          </text>
+          <text class="stat-num stat-num-blue">{{ countByStatus('scheduled') }}</text>
+          <text class="stat-label">待开播</text>
         </view>
         <view class="stat-card">
-          <text class="stat-num stat-num-red">
-            {{ countByStatus('live') }}
-          </text>
-          <text class="stat-label">
-            直播中
-          </text>
+          <text class="stat-num stat-num-red">{{ countByStatus('live') }}</text>
+          <text class="stat-label">直播中</text>
         </view>
         <view class="stat-card">
-          <text class="stat-num stat-num-gray">
-            {{ countByStatus('completed') }}
-          </text>
-          <text class="stat-label">
-            已结束
-          </text>
+          <text class="stat-num stat-num-gray">{{ countByStatus('completed') }}</text>
+          <text class="stat-label">已结束</text>
         </view>
       </view>
 
-      <view
-        v-if="filteredSchedules.length === 0"
-        class="empty-list"
-      >
-        <app-icon
-          name="calendar-days"
-          :size="96"
-          color="#e0e0e0"
-        />
-        <text class="empty-list-text">
-          暂无直播排期
-        </text>
-        <view
-          class="empty-list-btn"
-          @tap="goCreate()"
-        >
-          <app-icon
-            name="plus"
-            :size="32"
-            color="#fff"
-          />
-          <text class="empty-list-btn-text">
-            创建第一场直播
-          </text>
+      <view v-if="filteredSchedules.length === 0" class="empty-list">
+        <app-icon name="calendar-days" :size="96" color="#e0e0e0" />
+        <text class="empty-list-text">暂无直播排期</text>
+        <view class="empty-list-btn" @tap="goCreate()">
+          <app-icon name="plus" :size="32" color="#fff" />
+          <text class="empty-list-btn-text">创建第一场直播</text>
         </view>
       </view>
-      <view
-        v-else
-        class="card-list"
-      >
+      <view v-else class="card-list">
         <schedule-card
           v-for="s in filteredSchedules"
           :key="s.id"
@@ -326,99 +167,40 @@
     </view>
 
     <!-- 导入对话框 -->
-    <view
-      v-if="showImportDialog"
-      class="dialog-mask"
-      @tap="showImportDialog = false"
-    >
-      <view
-        class="dialog"
-        @tap.stop
-      >
-        <text class="dialog-title">
-          批量导入场次
-        </text>
-        <text class="dialog-desc">
-          通过Excel文件批量导入直播排期
-        </text>
+    <view v-if="showImportDialog" class="dialog-mask" @tap="showImportDialog = false">
+      <view class="dialog" @tap.stop>
+        <text class="dialog-title">批量导入场次</text>
+        <text class="dialog-desc">通过Excel文件批量导入直播排期</text>
         <view class="tpl-row">
           <view class="tpl-left">
-            <app-icon
-              name="file-spreadsheet"
-              :size="40"
-              color="#16a34a"
-            />
-            <text class="tpl-name">
-              排期导入模板.xlsx
-            </text>
+            <app-icon name="file-spreadsheet" :size="40" color="#16a34a" />
+            <text class="tpl-name">排期导入模板.xlsx</text>
           </view>
           <view class="tpl-dl">
-            <app-icon
-              name="download"
-              :size="32"
-              color="#1a1a1a"
-            />
-            <text class="tpl-dl-text">
-              下载模板
-            </text>
+            <app-icon name="download" :size="32" color="#1a1a1a" />
+            <text class="tpl-dl-text">下载模板</text>
           </view>
         </view>
         <view class="upload-zone">
-          <app-icon
-            name="upload"
-            :size="80"
-            color="#999"
-          />
-          <text class="upload-main">
-            点击或拖拽文件到此处
-          </text>
-          <text class="upload-sub">
-            支持 .xlsx, .xls 格式，单次最多100条
-          </text>
+          <app-icon name="upload" :size="80" color="#999" />
+          <text class="upload-main">点击或拖拽文件到此处</text>
+          <text class="upload-sub">支持 .xlsx, .xls 格式，单次最多100条</text>
         </view>
         <view class="dialog-footer">
-          <view
-            class="dlg-btn dlg-btn-outline"
-            @tap="showImportDialog = false"
-          >
-            取消
-          </view>
-          <view class="dlg-btn dlg-btn-primary">
-            开始导入
-          </view>
+          <view class="dlg-btn dlg-btn-outline" @tap="showImportDialog = false">取消</view>
+          <view class="dlg-btn dlg-btn-primary">开始导入</view>
         </view>
       </view>
     </view>
 
     <!-- 删除确认对话框 -->
-    <view
-      v-if="showDeleteDialog"
-      class="dialog-mask"
-      @tap="showDeleteDialog = false"
-    >
-      <view
-        class="dialog"
-        @tap.stop
-      >
-        <text class="dialog-title">
-          确认删除
-        </text>
-        <text class="dialog-desc">
-          确定要删除直播「{{ selectedSchedule?.title }}」吗？此操作不可恢复。
-        </text>
+    <view v-if="showDeleteDialog" class="dialog-mask" @tap="showDeleteDialog = false">
+      <view class="dialog" @tap.stop>
+        <text class="dialog-title">确认删除</text>
+        <text class="dialog-desc">确定要删除直播「{{ selectedSchedule?.title }}」吗？此操作不可恢复。</text>
         <view class="dialog-footer">
-          <view
-            class="dlg-btn dlg-btn-outline"
-            @tap="showDeleteDialog = false"
-          >
-            取消
-          </view>
-          <view
-            class="dlg-btn dlg-btn-danger"
-            @tap="confirmDelete"
-          >
-            确认删除
-          </view>
+          <view class="dlg-btn dlg-btn-outline" @tap="showDeleteDialog = false">取消</view>
+          <view class="dlg-btn dlg-btn-danger" @tap="confirmDelete">确认删除</view>
         </view>
       </view>
     </view>
@@ -426,8 +208,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { liveApi, scheduleStatusConfig, type ScheduleItem } from '@/lib/live-data'
+import { ref, computed } from 'vue'
+import { scheduleList, scheduleStatusConfig, type ScheduleItem } from '@/lib/live-data'
 import ScheduleCard from './schedule-card.vue'
 
 const viewMode = ref<'calendar' | 'list'>('calendar')
@@ -439,11 +221,6 @@ const showDeleteDialog = ref(false)
 const selectedSchedule = ref<ScheduleItem | null>(null)
 const filterStatus = ref('all')
 const searchQuery = ref('')
-const scheduleList = ref<ScheduleItem[]>([])
-
-onMounted(async () => {
-  scheduleList.value = await liveApi.getScheduleList()
-})
 
 const todayStr = '2026-05-10'
 const statusConfig = scheduleStatusConfig
@@ -475,7 +252,7 @@ function dateStrOf(day: number) {
 }
 function getSchedulesForDate(day: number) {
   const ds = dateStrOf(day)
-  return scheduleList.value.filter((s) => s.date === ds)
+  return scheduleList.filter((s) => s.date === ds)
 }
 function toggleDate(day: number) {
   const ds = dateStrOf(day)
@@ -492,11 +269,11 @@ function formatDate(dateStr: string) {
   return `${d.getMonth() + 1}月${d.getDate()}日`
 }
 function countByStatus(status: string) {
-  return scheduleList.value.filter((s) => s.status === status).length
+  return scheduleList.filter((s) => s.status === status).length
 }
 
 const filteredSchedules = computed(() => {
-  return scheduleList.value
+  return scheduleList
     .filter((s) => {
       if (filterStatus.value !== 'all' && s.status !== filterStatus.value) return false
       if (searchQuery.value && !s.title.toLowerCase().includes(searchQuery.value.toLowerCase())) return false

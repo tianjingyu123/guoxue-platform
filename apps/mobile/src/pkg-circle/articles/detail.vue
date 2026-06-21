@@ -103,582 +103,246 @@ function toggleEmbedCircle(i: number, init: boolean) {
   <view class="page">
     <!-- 顶部导航 -->
     <view class="navbar">
-      <view
-        class="nav-btn"
-        @tap="goBack"
-      >
-        <AppIcon
-          name="arrow-left"
-          :size="20"
-          color="#2C2C2C"
-        />
+      <view class="nav-btn" @tap="goBack">
+        <AppIcon name="arrow-left" :size="20" color="#2C2C2C" />
       </view>
-      <text class="nav-title">
-        文章详情
-      </text>
+      <text class="nav-title">文章详情</text>
       <view class="nav-right">
-        <view
-          class="nav-btn"
-          @tap="toastComingSoon"
-        >
-          <AppIcon
-            name="share-2"
-            :size="20"
-            color="#2C2C2C"
-          />
+        <view class="nav-btn" @tap="toastComingSoon">
+          <AppIcon name="share-2" :size="20" color="#2C2C2C" />
         </view>
-        <view
-          class="nav-btn"
-          @tap="toastComingSoon"
-        >
-          <AppIcon
-            name="more-horizontal"
-            :size="20"
-            color="#2C2C2C"
-          />
+        <view class="nav-btn" @tap="toastComingSoon">
+          <AppIcon name="more-horizontal" :size="20" color="#2C2C2C" />
         </view>
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-      :style="{ paddingBottom: showJoinGuide ? '264rpx' : '144rpx' }"
-    >
+    <scroll-view scroll-y class="scroll" :style="{ paddingBottom: showJoinGuide ? '264rpx' : '144rpx' }">
       <!-- 封面图 -->
-      <view
-        v-if="article.cover"
-        class="cover-wrap"
-      >
-        <view
-          class="cover"
-          :class="article.coverRatio === '3:4' ? 'cover-34' : 'cover-169'"
-        >
-          <image
-            class="cover-img"
-            :src="article.cover"
-            mode="aspectFill"
-          />
+      <view v-if="article.cover" class="cover-wrap">
+        <view class="cover" :class="article.coverRatio === '3:4' ? 'cover-34' : 'cover-169'">
+          <image class="cover-img" :src="article.cover" mode="aspectFill" />
         </view>
       </view>
 
       <!-- 内容卡片 -->
-      <view
-        class="content-card"
-        :class="{ 'has-cover': article.cover }"
-      >
+      <view class="content-card" :class="{ 'has-cover': article.cover }">
         <!-- 标题 + 标签 + 作者 -->
         <view class="head">
-          <text class="title">
-            {{ article.title }}
-          </text>
+          <text class="title">{{ article.title }}</text>
 
-          <view
-            v-if="article.tags.length"
-            class="tags"
-          >
-            <view
-              v-for="tag in article.tags"
-              :key="tag"
-              class="tag"
-              @tap="toastComingSoon"
-            >
-              <text class="tag-text">
-                #{{ tag }}
-              </text>
+          <view v-if="article.tags.length" class="tags">
+            <view v-for="tag in article.tags" :key="tag" class="tag" @tap="toastComingSoon">
+              <text class="tag-text">#{{ tag }}</text>
             </view>
           </view>
 
           <view class="author-row">
-            <view
-              class="author-info"
-              @tap="toastComingSoon"
-            >
-              <image
-                class="author-avatar"
-                :src="article.author.avatar"
-                mode="aspectFill"
-              />
+            <view class="author-info" @tap="toastComingSoon">
+              <image class="author-avatar" :src="article.author.avatar" mode="aspectFill" />
               <view class="author-meta">
                 <view class="author-name-row">
-                  <text class="author-name">
-                    {{ article.author.name }}
-                  </text>
-                  <AppIcon
-                    name="check-circle-2"
-                    :size="14"
-                    color="#C41E3A"
-                  />
+                  <text class="author-name">{{ article.author.name }}</text>
+                  <AppIcon name="check-circle-2" :size="14" color="#C41E3A" />
                 </view>
-                <text class="author-title">
-                  {{ article.author.title }}
-                </text>
+                <text class="author-title">{{ article.author.title }}</text>
               </view>
             </view>
-            <view
-              class="follow-btn"
-              :class="{ followed: isFollowed }"
-              @tap="toggleFollow"
-            >
-              <text class="follow-text">
-                {{ isFollowed ? '已关注' : '+ 关注' }}
-              </text>
+            <view class="follow-btn" :class="{ followed: isFollowed }" @tap="toggleFollow">
+              <text class="follow-text">{{ isFollowed ? '已关注' : '+ 关注' }}</text>
             </view>
           </view>
 
           <view class="meta-row">
             <view class="meta-item">
-              <AppIcon
-                name="eye"
-                :size="12"
-                color="#999999"
-              />
-              <text class="meta-text">
-                {{ article.views }} 阅读
-              </text>
+              <AppIcon name="eye" :size="12" color="#999999" />
+              <text class="meta-text">{{ article.views }} 阅读</text>
             </view>
             <view class="meta-item">
-              <AppIcon
-                name="clock"
-                :size="12"
-                color="#999999"
-              />
-              <text class="meta-text">
-                {{ article.publishedAt }}
-              </text>
+              <AppIcon name="clock" :size="12" color="#999999" />
+              <text class="meta-text">{{ article.publishedAt }}</text>
             </view>
           </view>
         </view>
 
         <!-- AI 智能摘要 -->
-        <view
-          v-if="article.aiSummary"
-          class="ai-summary"
-        >
+        <view v-if="article.aiSummary" class="ai-summary">
           <view class="ai-head">
             <view class="ai-icon">
-              <AppIcon
-                name="sparkles"
-                :size="12"
-                color="#ffffff"
-              />
+              <AppIcon name="sparkles" :size="12" color="#ffffff" />
             </view>
-            <text class="ai-label">
-              AI 智能摘要
-            </text>
+            <text class="ai-label">AI 智能摘要</text>
           </view>
-          <text
-            class="ai-text"
-            :class="{ clamp2: !summaryExpanded }"
-          >
-            {{ article.aiSummary }}
-          </text>
-          <text
-            v-if="article.aiSummary.length > 60"
-            class="ai-toggle"
-            @tap="summaryExpanded = !summaryExpanded"
-          >
+          <text class="ai-text" :class="{ clamp2: !summaryExpanded }">{{ article.aiSummary }}</text>
+          <text v-if="article.aiSummary.length > 60" class="ai-toggle" @tap="summaryExpanded = !summaryExpanded">
             {{ summaryExpanded ? '收起' : '展开全部' }}
           </text>
         </view>
 
         <!-- 语音朗读 -->
-        <view
-          v-if="article.audioUrl"
-          class="audio"
-        >
-          <view
-            class="audio-btn"
-            @tap="togglePlay"
-          >
-            <AppIcon
-              :name="isPlaying ? 'pause' : 'play'"
-              :size="20"
-              color="#ffffff"
-            />
+        <view v-if="article.audioUrl" class="audio">
+          <view class="audio-btn" @tap="togglePlay">
+            <AppIcon :name="isPlaying ? 'pause' : 'play'" :size="20" color="#ffffff" />
           </view>
           <view class="audio-body">
             <view class="audio-time">
-              <text class="audio-time-text">
-                {{ fmtTime(progress) }}
-              </text>
-              <text class="audio-time-text">
-                {{ fmtTime(duration) }}
-              </text>
+              <text class="audio-time-text">{{ fmtTime(progress) }}</text>
+              <text class="audio-time-text">{{ fmtTime(duration) }}</text>
             </view>
             <view class="audio-track">
-              <view
-                class="audio-fill"
-                :style="{ width: duration > 0 ? (progress / duration * 100) + '%' : '0%' }"
-              />
+              <view class="audio-fill" :style="{ width: duration > 0 ? (progress / duration * 100) + '%' : '0%' }" />
             </view>
           </view>
           <view class="audio-label">
-            <AppIcon
-              name="volume-2"
-              :size="14"
-              color="#C9A96E"
-            />
-            <text class="audio-label-text">
-              朗读
-            </text>
+            <AppIcon name="volume-2" :size="14" color="#C9A96E" />
+            <text class="audio-label-text">朗读</text>
           </view>
         </view>
 
         <!-- 正文块渲染 -->
         <view class="body">
-          <template
-            v-for="(block, i) in article.blocks"
-            :key="i"
-          >
+          <template v-for="(block, i) in article.blocks" :key="i">
             <!-- heading -->
-            <text
-              v-if="block.type === 'heading'"
-              class="b-heading"
-            >
-              {{ block.content }}
-            </text>
+            <text v-if="block.type === 'heading'" class="b-heading">{{ block.content }}</text>
             <!-- text -->
-            <text
-              v-else-if="block.type === 'text'"
-              class="b-text"
-            >
-              {{ block.content }}
-            </text>
+            <text v-else-if="block.type === 'text'" class="b-text">{{ block.content }}</text>
             <!-- quote -->
-            <view
-              v-else-if="block.type === 'quote'"
-              class="b-quote"
-            >
-              <text class="b-quote-text">
-                {{ block.content }}
-              </text>
+            <view v-else-if="block.type === 'quote'" class="b-quote">
+              <text class="b-quote-text">{{ block.content }}</text>
             </view>
             <!-- list -->
-            <view
-              v-else-if="block.type === 'list'"
-              class="b-list"
-            >
-              <view
-                v-for="(it, k) in block.items"
-                :key="k"
-                class="b-list-item"
-              >
+            <view v-else-if="block.type === 'list'" class="b-list">
+              <view v-for="(it, k) in block.items" :key="k" class="b-list-item">
                 <view class="b-list-dot" />
-                <text class="b-list-text">
-                  {{ it }}
-                </text>
+                <text class="b-list-text">{{ it }}</text>
               </view>
             </view>
             <!-- image -->
-            <view
-              v-else-if="block.type === 'image'"
-              class="b-image"
-            >
-              <image
-                class="b-image-img"
-                :src="block.src"
-                mode="widthFix"
-              />
-              <text
-                v-if="block.caption"
-                class="b-image-cap"
-              >
-                {{ block.caption }}
-              </text>
+            <view v-else-if="block.type === 'image'" class="b-image">
+              <image class="b-image-img" :src="block.src" mode="widthFix" />
+              <text v-if="block.caption" class="b-image-cap">{{ block.caption }}</text>
             </view>
             <!-- embed: circle -->
-            <view
-              v-else-if="block.type === 'embed' && block.embedType === 'circle'"
-              class="em-circle"
-            >
+            <view v-else-if="block.type === 'embed' && block.embedType === 'circle'" class="em-circle">
               <view class="em-circle-icon">
-                <AppIcon
-                  name="users"
-                  :size="24"
-                  color="#C41E3A"
-                />
+                <AppIcon name="users" :size="24" color="#C41E3A" />
               </view>
               <view class="em-circle-body">
                 <view class="em-circle-name-row">
-                  <text class="em-circle-name">
-                    {{ block.data.name }}
-                  </text>
-                  <text class="em-badge em-badge-purple">
-                    圈子
-                  </text>
+                  <text class="em-circle-name">{{ block.data.name }}</text>
+                  <text class="em-badge em-badge-purple">圈子</text>
                 </view>
-                <text class="em-circle-desc">
-                  {{ block.data.description }}
-                </text>
+                <text class="em-circle-desc">{{ block.data.description }}</text>
                 <view class="em-circle-foot">
-                  <text class="em-circle-members">
-                    {{ block.data.members }} 成员
-                  </text>
+                  <text class="em-circle-members">{{ block.data.members }} 成员</text>
                   <view
                     class="em-join-btn"
                     :class="{ joined: embedCircleJoined[i] ?? block.data.isJoined }"
                     @tap="toggleEmbedCircle(i, !!block.data.isJoined)"
                   >
-                    <text class="em-join-text">
-                      {{ (embedCircleJoined[i] ?? block.data.isJoined) ? '已加入' : '加入圈子' }}
-                    </text>
+                    <text class="em-join-text">{{ (embedCircleJoined[i] ?? block.data.isJoined) ? '已加入' : '加入圈子' }}</text>
                   </view>
                 </view>
               </view>
             </view>
             <!-- embed: course -->
-            <view
-              v-else-if="block.type === 'embed' && block.embedType === 'course'"
-              class="em-card"
-              @tap="toastComingSoon"
-            >
-              <image
-                class="em-card-cover"
-                :src="block.data.cover"
-                mode="aspectFill"
-              />
+            <view v-else-if="block.type === 'embed' && block.embedType === 'course'" class="em-card" @tap="toastComingSoon">
+              <image class="em-card-cover" :src="block.data.cover" mode="aspectFill" />
               <view class="em-card-body">
                 <view class="em-card-tag">
-                  <AppIcon
-                    name="book-open"
-                    :size="12"
-                    color="#3B82F6"
-                  />
-                  <text class="em-card-tag-text em-tag-info">
-                    相关课程
-                  </text>
+                  <AppIcon name="book-open" :size="12" color="#3B82F6" />
+                  <text class="em-card-tag-text em-tag-info">相关课程</text>
                 </view>
-                <text class="em-card-title">
-                  {{ block.data.title }}
-                </text>
+                <text class="em-card-title">{{ block.data.title }}</text>
                 <view class="em-card-foot">
-                  <text class="em-card-price">
-                    ¥{{ block.data.price }}
-                  </text>
-                  <text class="em-card-sub">
-                    {{ block.data.students }}人学习
-                  </text>
+                  <text class="em-card-price">¥{{ block.data.price }}</text>
+                  <text class="em-card-sub">{{ block.data.students }}人学习</text>
                 </view>
               </view>
               <view class="em-card-arrow">
-                <AppIcon
-                  name="chevron-right"
-                  :size="16"
-                  color="#999999"
-                />
+                <AppIcon name="chevron-right" :size="16" color="#999999" />
               </view>
             </view>
             <!-- embed: product -->
-            <view
-              v-else-if="block.type === 'embed' && block.embedType === 'product'"
-              class="em-card"
-              @tap="toastComingSoon"
-            >
-              <image
-                class="em-card-cover"
-                :src="block.data.cover"
-                mode="aspectFill"
-              />
+            <view v-else-if="block.type === 'embed' && block.embedType === 'product'" class="em-card" @tap="toastComingSoon">
+              <image class="em-card-cover" :src="block.data.cover" mode="aspectFill" />
               <view class="em-card-body">
                 <view class="em-card-tag">
-                  <AppIcon
-                    name="shopping-bag"
-                    :size="12"
-                    color="#C41E3A"
-                  />
-                  <text class="em-card-tag-text em-tag-brand">
-                    相关商品
-                  </text>
+                  <AppIcon name="shopping-bag" :size="12" color="#C41E3A" />
+                  <text class="em-card-tag-text em-tag-brand">相关商品</text>
                 </view>
-                <text class="em-card-title">
-                  {{ block.data.name }}
-                </text>
+                <text class="em-card-title">{{ block.data.name }}</text>
                 <view class="em-card-foot em-card-foot-between">
                   <view class="em-price-group">
-                    <text class="em-card-price">
-                      ¥{{ block.data.price }}
-                    </text>
-                    <text
-                      v-if="block.data.originalPrice"
-                      class="em-card-origin"
-                    >
-                      ¥{{ block.data.originalPrice }}
-                    </text>
+                    <text class="em-card-price">¥{{ block.data.price }}</text>
+                    <text v-if="block.data.originalPrice" class="em-card-origin">¥{{ block.data.originalPrice }}</text>
                   </view>
-                  <view class="em-buy-btn">
-                    <text class="em-buy-text">
-                      立即购买
-                    </text>
-                  </view>
+                  <view class="em-buy-btn"><text class="em-buy-text">立即购买</text></view>
                 </view>
               </view>
             </view>
             <!-- embed: paipan -->
-            <view
-              v-else-if="block.type === 'embed' && block.embedType === 'paipan'"
-              class="em-action em-action-paipan"
-              @tap="toastComingSoon"
-            >
+            <view v-else-if="block.type === 'embed' && block.embedType === 'paipan'" class="em-action em-action-paipan" @tap="toastComingSoon">
               <view class="em-action-icon em-icon-brand">
-                <AppIcon
-                  name="compass"
-                  :size="24"
-                  color="#ffffff"
-                />
+                <AppIcon name="compass" :size="24" color="#ffffff" />
               </view>
               <view class="em-action-body">
-                <text class="em-action-title">
-                  {{ block.data.title }}
-                </text>
-                <text class="em-action-desc">
-                  {{ block.data.description }}
-                </text>
+                <text class="em-action-title">{{ block.data.title }}</text>
+                <text class="em-action-desc">{{ block.data.description }}</text>
               </view>
-              <view class="em-action-btn em-btn-brand">
-                <text class="em-action-btn-text">
-                  免费排盘
-                </text>
-              </view>
+              <view class="em-action-btn em-btn-brand"><text class="em-action-btn-text">免费排盘</text></view>
             </view>
             <!-- embed: agent -->
-            <view
-              v-else-if="block.type === 'embed' && block.embedType === 'agent'"
-              class="em-action em-action-agent"
-              @tap="toastComingSoon"
-            >
+            <view v-else-if="block.type === 'embed' && block.embedType === 'agent'" class="em-action em-action-agent" @tap="toastComingSoon">
               <view class="em-action-icon em-icon-purple">
-                <AppIcon
-                  name="bot"
-                  :size="24"
-                  color="#ffffff"
-                />
+                <AppIcon name="bot" :size="24" color="#ffffff" />
               </view>
               <view class="em-action-body">
                 <view class="em-action-name-row">
-                  <text class="em-action-title">
-                    {{ block.data.name }}
-                  </text>
-                  <text class="em-badge em-badge-purple">
-                    AI
-                  </text>
+                  <text class="em-action-title">{{ block.data.name }}</text>
+                  <text class="em-badge em-badge-purple">AI</text>
                 </view>
-                <text class="em-action-desc">
-                  {{ block.data.description }}
-                </text>
+                <text class="em-action-desc">{{ block.data.description }}</text>
               </view>
-              <view class="em-action-btn em-btn-purple">
-                <text class="em-action-btn-text">
-                  体验
-                </text>
-              </view>
+              <view class="em-action-btn em-btn-purple"><text class="em-action-btn-text">体验</text></view>
             </view>
           </template>
         </view>
 
         <!-- 作者其他文章 -->
-        <view
-          v-if="article.authorOtherArticles.length"
-          class="section section-border"
-        >
+        <view v-if="article.authorOtherArticles.length" class="section section-border">
           <view class="section-head">
-            <text class="section-title">
-              {{ article.author.name }}的其他文章
-            </text>
-            <view
-              class="section-more"
-              @tap="toastComingSoon"
-            >
-              <text class="section-more-text">
-                更多
-              </text>
-              <AppIcon
-                name="chevron-right"
-                :size="12"
-                color="#C41E3A"
-              />
+            <text class="section-title">{{ article.author.name }}的其他文章</text>
+            <view class="section-more" @tap="toastComingSoon">
+              <text class="section-more-text">更多</text>
+              <AppIcon name="chevron-right" :size="12" color="#C41E3A" />
             </view>
           </view>
           <view class="rec-list">
-            <view
-              v-for="a in article.authorOtherArticles.slice(0, 3)"
-              :key="a.id"
-              class="rec-item"
-              @tap="navigateTo('/articles/' + a.id)"
-            >
+            <view v-for="a in article.authorOtherArticles.slice(0, 3)" :key="a.id" class="rec-item" @tap="navigateTo('/articles/' + a.id)">
               <view class="rec-body">
-                <text class="rec-title">
-                  {{ a.title }}
-                </text>
+                <text class="rec-title">{{ a.title }}</text>
                 <view class="rec-meta">
-                  <view class="rec-meta-item">
-                    <AppIcon
-                      name="eye"
-                      :size="12"
-                      color="#999999"
-                    /><text class="rec-meta-text">
-                      {{ a.views }}
-                    </text>
-                  </view>
-                  <view class="rec-meta-item">
-                    <AppIcon
-                      name="heart"
-                      :size="12"
-                      color="#999999"
-                    /><text class="rec-meta-text">
-                      {{ a.likes }}
-                    </text>
-                  </view>
+                  <view class="rec-meta-item"><AppIcon name="eye" :size="12" color="#999999" /><text class="rec-meta-text">{{ a.views }}</text></view>
+                  <view class="rec-meta-item"><AppIcon name="heart" :size="12" color="#999999" /><text class="rec-meta-text">{{ a.likes }}</text></view>
                 </view>
               </view>
-              <image
-                v-if="a.cover"
-                class="rec-cover"
-                :src="a.cover"
-                mode="aspectFill"
-              />
+              <image v-if="a.cover" class="rec-cover" :src="a.cover" mode="aspectFill" />
             </view>
           </view>
         </view>
 
         <!-- 猜你喜欢 -->
-        <view
-          v-if="article.relatedArticles.length"
-          class="section section-border"
-        >
-          <text class="section-title section-title-block">
-            猜你喜欢
-          </text>
+        <view v-if="article.relatedArticles.length" class="section section-border">
+          <text class="section-title section-title-block">猜你喜欢</text>
           <view class="rec-list">
-            <view
-              v-for="a in article.relatedArticles"
-              :key="a.id"
-              class="rec-item"
-              @tap="navigateTo('/articles/' + a.id)"
-            >
-              <image
-                v-if="a.cover"
-                class="rec-cover"
-                :src="a.cover"
-                mode="aspectFill"
-              />
+            <view v-for="a in article.relatedArticles" :key="a.id" class="rec-item" @tap="navigateTo('/articles/' + a.id)">
+              <image v-if="a.cover" class="rec-cover" :src="a.cover" mode="aspectFill" />
               <view class="rec-body">
-                <text class="rec-title">
-                  {{ a.title }}
-                </text>
+                <text class="rec-title">{{ a.title }}</text>
                 <view class="rec-meta">
-                  <text class="rec-meta-text">
-                    {{ a.author }}
-                  </text>
-                  <view class="rec-meta-item">
-                    <AppIcon
-                      name="heart"
-                      :size="12"
-                      color="#999999"
-                    /><text class="rec-meta-text">
-                      {{ a.likes }}
-                    </text>
-                  </view>
+                  <text class="rec-meta-text">{{ a.author }}</text>
+                  <view class="rec-meta-item"><AppIcon name="heart" :size="12" color="#999999" /><text class="rec-meta-text">{{ a.likes }}</text></view>
                 </view>
               </view>
             </view>
@@ -688,132 +352,47 @@ function toggleEmbedCircle(i: number, init: boolean) {
         <!-- 评论区 -->
         <view class="comments section-border">
           <view class="comments-head">
-            <text class="comments-title">
-              评论 ({{ article.comments }})
-            </text>
-            <text class="comments-sort">
-              按热度
-            </text>
+            <text class="comments-title">评论 ({{ article.comments }})</text>
+            <text class="comments-sort">按热度</text>
           </view>
           <view class="comment-list">
-            <view
-              v-for="c in comments"
-              :key="c.id"
-              class="comment"
-            >
-              <image
-                class="comment-avatar"
-                :src="c.author.avatar"
-                mode="aspectFill"
-              />
+            <view v-for="c in comments" :key="c.id" class="comment">
+              <image class="comment-avatar" :src="c.author.avatar" mode="aspectFill" />
               <view class="comment-body">
                 <view class="comment-top">
-                  <text class="comment-name">
-                    {{ c.author.name }}
-                  </text>
-                  <text class="comment-time">
-                    {{ c.createdAt }}
-                  </text>
+                  <text class="comment-name">{{ c.author.name }}</text>
+                  <text class="comment-time">{{ c.createdAt }}</text>
                 </view>
-                <text class="comment-content">
-                  {{ c.content }}
-                </text>
+                <text class="comment-content">{{ c.content }}</text>
                 <view class="comment-actions">
-                  <view
-                    class="comment-act"
-                    :class="{ liked: c.isLiked }"
-                    @tap="toggleCommentLike(c)"
-                  >
-                    <AppIcon
-                      name="heart"
-                      :size="14"
-                      :color="c.isLiked ? '#C41E3A' : '#999999'"
-                    />
-                    <text
-                      v-if="c.likes > 0"
-                      class="comment-act-text"
-                      :class="{ liked: c.isLiked }"
-                    >
-                      {{ c.likes }}
-                    </text>
+                  <view class="comment-act" :class="{ liked: c.isLiked }" @tap="toggleCommentLike(c)">
+                    <AppIcon name="heart" :size="14" :color="c.isLiked ? '#C41E3A' : '#999999'" />
+                    <text v-if="c.likes > 0" class="comment-act-text" :class="{ liked: c.isLiked }">{{ c.likes }}</text>
                   </view>
-                  <view
-                    class="comment-act"
-                    @tap="toastComingSoon"
-                  >
-                    <AppIcon
-                      name="message-circle"
-                      :size="14"
-                      color="#999999"
-                    />
-                    <text class="comment-act-text">
-                      回复
-                    </text>
+                  <view class="comment-act" @tap="toastComingSoon">
+                    <AppIcon name="message-circle" :size="14" color="#999999" />
+                    <text class="comment-act-text">回复</text>
                   </view>
-                  <view
-                    class="comment-more"
-                    @tap="toastComingSoon"
-                  >
-                    <AppIcon
-                      name="more-horizontal"
-                      :size="14"
-                      color="#999999"
-                    />
+                  <view class="comment-more" @tap="toastComingSoon">
+                    <AppIcon name="more-horizontal" :size="14" color="#999999" />
                   </view>
                 </view>
 
                 <!-- 楼中楼 -->
-                <view
-                  v-if="c.replies && c.replies.length"
-                  class="replies"
-                >
-                  <view
-                    v-for="r in (expandedReplies[c.id] ? c.replies : c.replies.slice(0, 2))"
-                    :key="r.id"
-                    class="reply"
-                  >
-                    <image
-                      class="reply-avatar"
-                      :src="r.author.avatar"
-                      mode="aspectFill"
-                    />
+                <view v-if="c.replies && c.replies.length" class="replies">
+                  <view v-for="r in (expandedReplies[c.id] ? c.replies : c.replies.slice(0, 2))" :key="r.id" class="reply">
+                    <image class="reply-avatar" :src="r.author.avatar" mode="aspectFill" />
                     <view class="reply-body">
-                      <text class="reply-line">
-                        <text class="reply-name">
-                          {{ r.author.name }}
-                        </text><text class="reply-colon">
-                          ：
-                        </text><text class="reply-content">
-                          {{ r.content }}
-                        </text>
-                      </text>
+                      <text class="reply-line"><text class="reply-name">{{ r.author.name }}</text><text class="reply-colon">：</text><text class="reply-content">{{ r.content }}</text></text>
                       <view class="reply-foot">
-                        <text class="reply-time">
-                          {{ r.createdAt }}
-                        </text>
-                        <text
-                          class="reply-act"
-                          @tap="toastComingSoon"
-                        >
-                          回复
-                        </text>
+                        <text class="reply-time">{{ r.createdAt }}</text>
+                        <text class="reply-act" @tap="toastComingSoon">回复</text>
                       </view>
                     </view>
                   </view>
-                  <view
-                    v-if="c.replyCount && c.replyCount > 2"
-                    class="reply-expand"
-                    @tap="toggleReplies(c.id)"
-                  >
-                    <text class="reply-expand-text">
-                      {{ expandedReplies[c.id] ? '收起回复' : '展开' + (c.replyCount - 2) + '条回复' }}
-                    </text>
-                    <AppIcon
-                      v-if="!expandedReplies[c.id]"
-                      name="chevron-down"
-                      :size="12"
-                      color="#C41E3A"
-                    />
+                  <view v-if="c.replyCount && c.replyCount > 2" class="reply-expand" @tap="toggleReplies(c.id)">
+                    <text class="reply-expand-text">{{ expandedReplies[c.id] ? '收起回复' : '展开' + (c.replyCount - 2) + '条回复' }}</text>
+                    <AppIcon v-if="!expandedReplies[c.id]" name="chevron-down" :size="12" color="#C41E3A" />
                   </view>
                 </view>
               </view>
@@ -824,91 +403,34 @@ function toggleEmbedCircle(i: number, init: boolean) {
     </scroll-view>
 
     <!-- 底部来源圈子引流（非成员可见） -->
-    <view
-      v-if="showJoinGuide"
-      class="join-guide"
-    >
-      <view
-        class="join-info"
-        @tap="toastComingSoon"
-      >
-        <image
-          class="join-cover"
-          :src="article.sourceCircle.cover"
-          mode="aspectFill"
-        />
+    <view v-if="showJoinGuide" class="join-guide">
+      <view class="join-info" @tap="toastComingSoon">
+        <image class="join-cover" :src="article.sourceCircle.cover" mode="aspectFill" />
         <view class="join-meta">
-          <text class="join-name">
-            {{ article.sourceCircle.name }}
-          </text>
-          <text class="join-sub">
-            {{ article.sourceCircle.members }}成员 · 今日{{ article.sourceCircle.postsToday }}条动态
-          </text>
+          <text class="join-name">{{ article.sourceCircle.name }}</text>
+          <text class="join-sub">{{ article.sourceCircle.members }}成员 · 今日{{ article.sourceCircle.postsToday }}条动态</text>
         </view>
       </view>
-      <view
-        class="join-btn"
-        @tap="joinCircle"
-      >
-        <text class="join-btn-text">
-          加入圈子
-        </text>
-      </view>
+      <view class="join-btn" @tap="joinCircle"><text class="join-btn-text">加入圈子</text></view>
     </view>
 
     <!-- 底部互动栏 -->
     <view class="action-bar">
-      <view
-        class="ab-comment"
-        @tap="toastComingSoon"
-      >
-        <AppIcon
-          name="message-circle"
-          :size="16"
-          color="#999999"
-        />
-        <text class="ab-comment-text">
-          写评论...
-        </text>
+      <view class="ab-comment" @tap="toastComingSoon">
+        <AppIcon name="message-circle" :size="16" color="#999999" />
+        <text class="ab-comment-text">写评论...</text>
       </view>
-      <view
-        class="ab-item"
-        @tap="toggleLike"
-      >
-        <AppIcon
-          name="heart"
-          :size="24"
-          :color="isLiked ? '#C41E3A' : '#666666'"
-        />
-        <text class="ab-count">
-          {{ likeCount }}
-        </text>
+      <view class="ab-item" @tap="toggleLike">
+        <AppIcon name="heart" :size="24" :color="isLiked ? '#C41E3A' : '#666666'" />
+        <text class="ab-count">{{ likeCount }}</text>
       </view>
-      <view
-        class="ab-item"
-        @tap="toggleCollect"
-      >
-        <AppIcon
-          name="star"
-          :size="24"
-          :color="isCollected ? '#C9A96E' : '#666666'"
-        />
-        <text class="ab-count">
-          {{ collectCount }}
-        </text>
+      <view class="ab-item" @tap="toggleCollect">
+        <AppIcon name="star" :size="24" :color="isCollected ? '#C9A96E' : '#666666'" />
+        <text class="ab-count">{{ collectCount }}</text>
       </view>
-      <view
-        class="ab-item"
-        @tap="toastComingSoon"
-      >
-        <AppIcon
-          name="share-2"
-          :size="24"
-          color="#666666"
-        />
-        <text class="ab-count">
-          分享
-        </text>
+      <view class="ab-item" @tap="toastComingSoon">
+        <AppIcon name="share-2" :size="24" color="#666666" />
+        <text class="ab-count">分享</text>
       </view>
     </view>
   </view>

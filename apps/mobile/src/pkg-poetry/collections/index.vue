@@ -1,112 +1,46 @@
 <template>
   <view class="pl-page">
     <!-- 顶栏 -->
-    <view
-      class="pl-header"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="pl-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="pl-header-row">
-        <view
-          class="pl-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="var(--foreground)"
-          />
+        <view class="pl-back" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="var(--foreground)" />
         </view>
-        <text class="pl-title">
-          诗词集锦
-        </text>
-        <text class="pl-count">
-          {{ items.length }} 首
-        </text>
+        <text class="pl-title">诗词集锦</text>
+        <text class="pl-count">{{ items.length }} 首</text>
       </view>
     </view>
 
     <view class="pl-main">
       <!-- 搜索 -->
       <view class="pl-search">
-        <app-icon
-          name="search"
-          :size="32"
-          color="var(--muted-foreground)"
-          class="pl-search-icon"
-        />
-        <input
-          v-model="search"
-          class="pl-search-input"
-          placeholder="搜索诗词"
-        >
+        <app-icon name="search" :size="32" color="var(--muted-foreground)" class="pl-search-icon" />
+        <input v-model="search" class="pl-search-input" placeholder="搜索诗词" />
       </view>
 
-      <view
-        v-if="!filtered.length"
-        class="pl-empty"
-      >
-        <text class="pl-empty-text">
-          暂无收藏
-        </text>
+      <view v-if="!filtered.length" class="pl-empty">
+        <text class="pl-empty-text">暂无收藏</text>
       </view>
-      <view
-        v-else
-        class="pl-list"
-      >
-        <view
-          v-for="poem in filtered"
-          :key="poem.id"
-          class="pl-item"
-        >
+      <view v-else class="pl-list">
+        <view v-for="poem in filtered" :key="poem.id" class="pl-item">
           <view class="pl-item-head">
             <view class="pl-item-info">
               <view class="pl-item-titlerow">
-                <text class="pl-item-title">
-                  {{ poem.title }}
-                </text>
-                <text
-                  class="pl-cat"
-                  :class="catClass(poem.category)"
-                >
-                  {{ poem.category }}
-                </text>
+                <text class="pl-item-title">{{ poem.title }}</text>
+                <text class="pl-cat" :class="catClass(poem.category)">{{ poem.category }}</text>
               </view>
               <view class="pl-author">
-                <image
-                  class="pl-avatar"
-                  :src="poem.authorAvatar"
-                  mode="aspectFill"
-                />
-                <text class="pl-author-text">
-                  {{ poem.author }} · {{ poem.dynasty }}
-                </text>
+                <image class="pl-avatar" :src="poem.authorAvatar" mode="aspectFill" />
+                <text class="pl-author-text">{{ poem.author }} · {{ poem.dynasty }}</text>
               </view>
             </view>
-            <view
-              class="pl-like"
-              :class="{ 'pl-like-on': poem.liked }"
-              @tap="toggleLike(poem.id)"
-            >
-              <app-icon
-                name="heart"
-                :size="28"
-                :color="poem.liked ? '#ef4444' : 'var(--muted-foreground)'"
-                :fill="poem.liked"
-              />
-              <text
-                class="pl-like-text"
-                :style="{ color: poem.liked ? '#ef4444' : 'var(--muted-foreground)' }"
-              >
-                {{ poem.likes }}
-              </text>
+            <view class="pl-like" :class="{ 'pl-like-on': poem.liked }" @tap="toggleLike(poem.id)">
+              <app-icon name="heart" :size="28" :color="poem.liked ? '#ef4444' : 'var(--muted-foreground)'" :fill="poem.liked" />
+              <text class="pl-like-text" :style="{ color: poem.liked ? '#ef4444' : 'var(--muted-foreground)' }">{{ poem.likes }}</text>
             </view>
           </view>
-          <text class="pl-excerpt">
-            {{ poem.excerpt }}
-          </text>
-          <text class="pl-time">
-            收藏于 {{ poem.collectedAt }}
-          </text>
+          <text class="pl-excerpt">{{ poem.excerpt }}</text>
+          <text class="pl-time">收藏于 {{ poem.collectedAt }}</text>
         </view>
       </view>
     </view>
@@ -114,9 +48,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { navigateBack } from '@/utils/router'
-import { poetryApi, type CollectionItem } from '@/lib/poetry-data'
 
 const statusBarHeight = ref(0)
 try {
@@ -124,11 +57,26 @@ try {
   statusBarHeight.value = info.statusBarHeight || 0
 } catch (e) {}
 
-const items = ref<CollectionItem[]>([])
+interface PoetryItem {
+  id: string
+  title: string
+  author: string
+  authorAvatar: string
+  dynasty: string
+  excerpt: string
+  category: string
+  likes: number
+  liked: boolean
+  collectedAt: string
+}
 
-onMounted(async () => {
-  items.value = await poetryApi.collections()
-})
+const items = ref<PoetryItem[]>([
+  { id: '1', title: '乾卦·象辞', author: '文王', authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40', dynasty: '西周', excerpt: '天行健，君子以自强不息。', category: '易经', likes: 8640, liked: true, collectedAt: '2024-01-20' },
+  { id: '2', title: '测字诗', author: '邵雍', authorAvatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=40', dynasty: '宋', excerpt: '一阴一阳之谓道，继之者善也，成之者性也。', category: '易理', likes: 5280, liked: true, collectedAt: '2024-01-18' },
+  { id: '3', title: '清平乐·命理感怀', author: '陈抟', authorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=40', dynasty: '五代', excerpt: '无极生太极，太极动而生阳，静而生阴…', category: '道学', likes: 3960, liked: false, collectedAt: '2024-01-15' },
+  { id: '4', title: '堪舆赋', author: '郭璞', authorAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40', dynasty: '晋', excerpt: '气乘风则散，界水则止。古人聚之使不散，行之使有止，故谓之风水。', category: '风水', likes: 2840, liked: true, collectedAt: '2024-01-12' },
+  { id: '5', title: '八字论命赋', author: '徐子平', authorAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=40', dynasty: '宋', excerpt: '五行者，金木水火土是也，各有生克制化之理。', category: '八字', likes: 2160, liked: false, collectedAt: '2024-01-10' },
+])
 
 const search = ref('')
 

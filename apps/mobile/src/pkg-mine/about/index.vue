@@ -1,30 +1,15 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <app-nav-bar
-      title="关于我们"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="36"
-      :bar-height="112"
-      title-align="left"
-    />
+    <app-nav-bar title="关于我们" :back-icon="'arrow-left'" :back-size="40" :title-size="36" :bar-height="112" title-align="left" />
 
     <!-- Hero -->
     <view class="hero">
       <view class="logo-box">
-        <image
-          class="logo-img"
-          :src="logoSrc"
-          mode="aspectFill"
-        />
+        <image class="logo-img" :src="logoSrc" mode="aspectFill" />
       </view>
-      <text class="hero-title">
-        热卜国学
-      </text>
-      <text class="hero-slogan">
-        传承智慧 · 启迪人生
-      </text>
+      <text class="hero-title">热卜国学</text>
+      <text class="hero-slogan">传承智慧 · 启迪人生</text>
     </view>
 
     <!-- 内容 -->
@@ -34,158 +19,63 @@
         热卜国学是一个专注于中华传统文化传承与学习的综合性平台。我们汇聚了易经、风水、命理、中医养生等领域的专家学者，致力于让国学智慧以现代化的方式传播，帮助更多人了解和受益于中华传统文化的精髓。
       </text>
 
-      <!-- 加载中 -->
-      <view
-        v-if="loading"
-        class="loading-wrap"
-      >
-        <text class="loading-text">
-          加载中...
-        </text>
-      </view>
-
-      <!-- 加载失败 -->
-      <view
-        v-else-if="error"
-        class="loading-wrap"
-      >
-        <text class="loading-text">
-          加载失败
-        </text>
-        <view
-          class="retry-btn"
-          @tap="reload"
-        >
-          <text class="retry-btn-text">
-            重试
-          </text>
+      <!-- 数据展示 -->
+      <view class="stats">
+        <view v-for="s in aboutStats" :key="s.label" class="stat-card">
+          <text class="stat-value" :style="{ color: s.color }">{{ s.value }}</text>
+          <text class="stat-label">{{ s.label }}</text>
         </view>
       </view>
-
-      <template v-else>
-        <!-- 数据展示 -->
-        <view class="stats">
-          <view
-            v-for="s in stats"
-            :key="s.label"
-            class="stat-card"
-          >
-            <text
-              class="stat-value"
-              :style="{ color: s.color }"
-            >
-              {{ s.value }}
-            </text>
-            <text class="stat-label">
-              {{ s.label }}
-            </text>
-          </view>
-        </view>
-      </template>
 
       <!-- 特色 -->
-      <text class="section-title">
-        我们的特色
-      </text>
+      <text class="section-title">我们的特色</text>
       <view class="feature-list">
-        <view
-          v-for="f in aboutFeatures"
-          :key="f.title"
-          class="feature-card"
-        >
+        <view v-for="f in aboutFeatures" :key="f.title" class="feature-card">
           <view class="feature-icon">
-            <AppIcon
-              :name="f.icon"
-              :size="40"
-              color="#c41e3a"
-            />
+            <AppIcon :name="f.icon" :size="20" color="#c41e3a" />
           </view>
           <view class="feature-body">
-            <text class="feature-title">
-              {{ f.title }}
-            </text>
-            <text class="feature-desc">
-              {{ f.desc }}
-            </text>
+            <text class="feature-title">{{ f.title }}</text>
+            <text class="feature-desc">{{ f.desc }}</text>
           </view>
         </view>
       </view>
 
       <!-- 联系方式 -->
-      <text class="section-title">
-        联系我们
-      </text>
+      <text class="section-title">联系我们</text>
       <view class="contact-card">
-        <view
-          class="contact-row"
-          @tap="goFeedback"
-        >
-          <text class="contact-label">
-            意见反馈
-          </text>
-          <AppIcon
-            name="chevron-right"
-            :size="40"
-            color="#999999"
-          />
+        <view class="contact-row" @tap="goFeedback">
+          <text class="contact-label">意见反馈</text>
+          <AppIcon name="chevron-right" :size="20" color="#999999" />
         </view>
         <view class="contact-row">
-          <text class="contact-label">
-            客服邮箱
-          </text>
-          <text class="contact-value">
-            support@rebu.com
-          </text>
+          <text class="contact-label">客服邮箱</text>
+          <text class="contact-value">support@rebu.com</text>
         </view>
         <view class="contact-row">
-          <text class="contact-label">
-            官方微信
-          </text>
-          <text class="contact-value">
-            rebu_guoxue
-          </text>
+          <text class="contact-label">官方微信</text>
+          <text class="contact-value">rebu_guoxue</text>
         </view>
       </view>
 
       <!-- 版本信息 -->
       <view class="version">
-        <text class="version-text">
-          版本 1.0.0
-        </text>
-        <text class="version-text">
-          Copyright © 2024 热卜国学
-        </text>
+        <text class="version-text">版本 1.0.0</text>
+        <text class="version-text">Copyright © 2024 热卜国学</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import { navigateTo } from '@/utils/router'
-import { mineSettingsApi, aboutFeatures } from '@/lib/mine-data'
+import { aboutStats, aboutFeatures } from '@/lib/mine-data'
 
 // 热卜 logo（根 public 与 vue3 共享，:src 动态绑定避免 Vite 静态解析报错）
 const logoSrc = ref('/images/logo.jpg')
-
-const stats = ref<{ value: string; label: string; color: string }[]>([])
-const loading = ref(true)
-const error = ref(false)
-
-async function loadAbout() {
-  loading.value = true
-  error.value = false
-  try {
-    const res = await mineSettingsApi.getAboutInfo()
-    stats.value = res.stats || []
-  } catch { error.value = true }
-  finally { loading.value = false }
-}
-function reload() { loadAbout() }
-
-onMounted(loadAbout)
 
 function goFeedback() {
   navigateTo('/feedback')
@@ -245,11 +135,6 @@ function goFeedback() {
   line-height: 1.7;
   margin-bottom: 48rpx;
 }
-
-.loading-wrap { padding: 120rpx 0; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
-.loading-text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; border: 1rpx solid #C41E3A; border-radius: 999rpx; }
-.retry-btn-text { font-size: 26rpx; color: #C41E3A; }
 
 /* 数据 */
 .stats {

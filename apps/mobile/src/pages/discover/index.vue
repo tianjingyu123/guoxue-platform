@@ -8,67 +8,37 @@ import LiveCard from '@/components/cards/live-card.vue'
 import AgentCard from '@/components/cards/agent-card.vue'
 import ClassicCard from '@/components/cards/classic-card.vue'
 import VideoCard from '@/components/cards/video-card.vue'
-import { navigateTo, toastComingSoon } from '@/utils/router'
-import ErrorState from '@/components/common/error-state.vue'
+import { toastComingSoon } from '@/utils/router'
 import {
-  coreEntries, allCategory, categories, columns, hotWords, feedItems as defaultFeed,
-  discoverApi,
+  coreEntries, allCategory, categories, columns, hotWords, feedItems,
 } from '@/lib/discover-data'
 
 const activeCategory = ref('all')
 const isLoading = ref(true)
-const error = ref('')
-const feedData = ref(defaultFeed)
 
 const allCats = computed(() => [allCategory, ...categories])
 
 // 瀑布流：按索引奇偶分两列（与 react-masonry-css 顺序填充一致）
-const colLeft = computed(() => feedData.value.filter((_, i) => i % 2 === 0))
-const colRight = computed(() => feedData.value.filter((_, i) => i % 2 === 1))
+const colLeft = computed(() => feedItems.filter((_, i) => i % 2 === 0))
+const colRight = computed(() => feedItems.filter((_, i) => i % 2 === 1))
 
-async function loadFeed() {
-  try {
-    const res = await discoverApi.getDiscover({ page: 1, pageSize: 20 })
-    feedData.value = res.items || defaultFeed
-    error.value = ''
-  } catch (e: any) {
-    error.value = '加载失败'
-    feedData.value = defaultFeed
-  }
-}
-
-function onRefresh() {
-  isLoading.value = true
-  error.value = ''
-  loadFeed().finally(() => (isLoading.value = false))
-}
-
-onMounted(async () => {
-  await loadFeed()
-  isLoading.value = false
+onMounted(() => {
+  setTimeout(() => { isLoading.value = false }, 600)
 })
 
 function goEntry(href: string) {
   if (href.startsWith('/pages/')) {
     uni.switchTab({ url: href, fail: () => uni.navigateTo({ url: href, fail: () => toastComingSoon() }) })
-  } else if (href === '/courses') {
-    uni.navigateTo({ url: '/pkg-course/home/index', fail: () => toastComingSoon() })
-  } else if (href === '/mall') {
-    uni.switchTab({ url: '/pages/mall/home/index', fail: () => uni.navigateTo({ url: '/pages/mall/home/index', fail: () => toastComingSoon() }) })
-  } else if (href === '/agents') {
-    uni.navigateTo({ url: '/pages/agent/main', fail: () => toastComingSoon() })
   } else {
     toastComingSoon()
   }
 }
-function goSearch() { uni.navigateTo({ url: '/pages/circles/search', fail: () => toastComingSoon() }) }
-function goSearchWord(w: string) { uni.navigateTo({ url: '/pages/circles/search?keyword=' + encodeURIComponent(w), fail: () => toastComingSoon() }) }
+function goSearch() { toastComingSoon() }
+function goSearchWord(_w: string) { toastComingSoon() }
 function goCategory(cat: { id: string; label: string }) {
-  if (cat.id === 'all') { activeCategory.value = 'all' }
-  else { uni.navigateTo({ url: '/pages/circles/index', fail: () => toastComingSoon() }) }
+  if (cat.id === 'all') { activeCategory.value = 'all' } else { toastComingSoon() }
 }
 function goColumn(_href: string) { toastComingSoon() }
-function goHome() { uni.switchTab({ url: '/pages/index/index' }) }
 </script>
 
 <template>
@@ -76,81 +46,42 @@ function goHome() { uni.switchTab({ url: '/pages/index/index' }) }
     <!-- 顶部固定区：搜索栏 + 品类导航 -->
     <view class="sticky-top">
       <view class="search-wrap">
-        <view
-          class="search-bar"
-          @tap="goSearch"
-        >
-          <AppIcon
-            name="search"
-            :size="28"
-            color="#999999"
-          />
+        <view class="search-bar" @tap="goSearch">
+          <AppIcon name="search" :size="28" color="#999999" />
           <view class="ai-badge">
-            <AppIcon
-              name="sparkles"
-              :size="18"
-              color="#c41e3a"
-            />
-            <text class="ai-txt">
-              AI
-            </text>
+            <AppIcon name="sparkles" :size="18" color="#c41e3a" />
+            <text class="ai-txt">AI</text>
           </view>
-          <text class="search-ph">
-            搜索课程、商品、古籍...
-          </text>
+          <text class="search-ph">搜索课程、商品、古籍...</text>
         </view>
 
         <!-- 热搜词 -->
-        <scroll-view
-          class="hot-row"
-          scroll-x
-          :show-scrollbar="false"
-        >
+        <scroll-view class="hot-row" scroll-x :show-scrollbar="false">
           <view class="hot-inner">
             <view class="hot-label">
-              <AppIcon
-                name="flame"
-                :size="26"
-                color="#c41e3a"
-              />
-              <text class="hot-label-txt">
-                热搜
-              </text>
+              <AppIcon name="flame" :size="26" color="#c41e3a" />
+              <text class="hot-label-txt">热搜</text>
             </view>
             <view
-              v-for="(word, i) in hotWords"
-              :key="word"
+              v-for="(word, i) in hotWords" :key="word"
               :class="['hot-chip', i === 0 ? 'hot-chip-first' : '']"
               @tap="goSearchWord(word)"
             >
-              <text class="hot-chip-txt">
-                {{ word }}
-              </text>
+              <text class="hot-chip-txt">{{ word }}</text>
             </view>
           </view>
         </scroll-view>
       </view>
 
       <!-- 品类导航 -->
-      <scroll-view
-        class="cat-row"
-        scroll-x
-        :show-scrollbar="false"
-      >
+      <scroll-view class="cat-row" scroll-x :show-scrollbar="false">
         <view class="cat-inner">
           <view
-            v-for="cat in allCats"
-            :key="cat.id"
-            class="cat-item"
-            @tap="goCategory(cat)"
+            v-for="cat in allCats" :key="cat.id"
+            class="cat-item" @tap="goCategory(cat)"
           >
-            <text :class="['cat-txt', activeCategory === cat.id ? 'cat-txt-active' : '']">
-              {{ cat.label }}
-            </text>
-            <view
-              v-if="activeCategory === cat.id"
-              class="cat-underline"
-            />
+            <text :class="['cat-txt', activeCategory === cat.id ? 'cat-txt-active' : '']">{{ cat.label }}</text>
+            <view v-if="activeCategory === cat.id" class="cat-underline" />
           </view>
         </view>
       </scroll-view>
@@ -160,21 +91,13 @@ function goHome() { uni.switchTab({ url: '/pages/index/index' }) }
     <view class="grid-section">
       <view class="grid">
         <view
-          v-for="entry in coreEntries"
-          :key="entry.id"
-          class="grid-item"
-          @tap="goEntry(entry.href)"
+          v-for="entry in coreEntries" :key="entry.id"
+          class="grid-item" @tap="goEntry(entry.href)"
         >
           <view class="grid-icon">
-            <AppIcon
-              :name="entry.icon"
-              :size="44"
-              color="#c41e3a"
-            />
+            <AppIcon :name="entry.icon" :size="44" color="#c41e3a" />
           </view>
-          <text class="grid-label">
-            {{ entry.label }}
-          </text>
+          <text class="grid-label">{{ entry.label }}</text>
         </view>
       </view>
     </view>
@@ -182,61 +105,29 @@ function goHome() { uni.switchTab({ url: '/pages/index/index' }) }
     <!-- 运营专栏 -->
     <view class="col-section">
       <view class="sec-head">
-        <text class="sec-title">
-          精选专栏
-        </text>
-        <view
-          class="sec-more"
-          @tap="goColumn('/topic/全部专栏')"
-        >
-          <text class="sec-more-txt">
-            更多
-          </text>
-          <AppIcon
-            name="chevron-right"
-            :size="24"
-            color="#999999"
-          />
+        <text class="sec-title">精选专栏</text>
+        <view class="sec-more" @tap="goColumn('/topic/全部专栏')">
+          <text class="sec-more-txt">更多</text>
+          <AppIcon name="chevron-right" :size="24" color="#999999" />
         </view>
       </view>
-      <scroll-view
-        class="col-row"
-        scroll-x
-        :show-scrollbar="false"
-      >
+      <scroll-view class="col-row" scroll-x :show-scrollbar="false">
         <view class="col-inner">
           <view
-            v-for="col in columns"
-            :key="col.id"
-            class="col-card"
-            @tap="goColumn(col.href)"
+            v-for="col in columns" :key="col.id"
+            class="col-card" @tap="goColumn(col.href)"
           >
             <view class="col-cover">
-              <image
-                class="col-img"
-                :src="col.cover"
-                mode="aspectFill"
-              />
-              <view
-                class="col-mask"
-                :style="{ background: `linear-gradient(180deg, transparent 40%, ${col.accent}E6 100%)` }"
-              />
+              <image class="col-img" :src="col.cover" mode="aspectFill" />
+              <view class="col-mask" :style="{ background: `linear-gradient(180deg, transparent 40%, ${col.accent}E6 100%)` }" />
               <view class="col-cover-txt">
-                <text class="col-title">
-                  {{ col.title }}
-                </text>
-                <text class="col-subtitle">
-                  {{ col.subtitle }}
-                </text>
+                <text class="col-title">{{ col.title }}</text>
+                <text class="col-subtitle">{{ col.subtitle }}</text>
               </view>
             </view>
             <view class="col-foot">
-              <text class="col-count">
-                {{ col.count }} 个内容
-              </text>
-              <text class="col-view">
-                查看 ›
-              </text>
+              <text class="col-count">{{ col.count }} 个内容</text>
+              <text class="col-view">查看 ›</text>
             </view>
           </view>
         </view>
@@ -246,31 +137,14 @@ function goHome() { uni.switchTab({ url: '/pages/index/index' }) }
     <!-- 推荐内容流 -->
     <view class="feed-section">
       <view class="feed-head">
-        <AppIcon
-          name="sparkles"
-          :size="28"
-          color="#c41e3a"
-        />
-        <text class="sec-title">
-          为你推荐
-        </text>
+        <AppIcon name="sparkles" :size="28" color="#c41e3a" />
+        <text class="sec-title">为你推荐</text>
       </view>
 
       <!-- 骨架屏 -->
-      <view
-        v-if="isLoading"
-        class="masonry"
-      >
-        <view
-          v-for="col in [0, 1]"
-          :key="col"
-          class="masonry-col"
-        >
-          <view
-            v-for="i in 3"
-            :key="i"
-            class="sk-card"
-          >
+      <view v-if="isLoading" class="masonry">
+        <view v-for="col in [0, 1]" :key="col" class="masonry-col">
+          <view v-for="i in 3" :key="i" class="sk-card">
             <view :class="['sk-cover', i % 2 === 1 ? 'sk-34' : 'sk-11']" />
             <view class="sk-body">
               <view class="sk-line" />
@@ -280,116 +154,33 @@ function goHome() { uni.switchTab({ url: '/pages/index/index' }) }
         </view>
       </view>
 
-      <!-- 错误态 -->
-      <error-state
-        v-else-if="error"
-        :message="error"
-        @retry="onRefresh"
-      />
-
-      <!-- 空状态 -->
-      <view
-        v-else-if="feedData.length === 0 && !isLoading"
-        class="empty-feed"
-      >
-        <AppIcon
-          name="compass"
-          :size="80"
-          color="#ccc"
-        />
-        <text class="empty-feed-title">
-          暂无推荐内容
-        </text>
-        <text class="empty-feed-sub">
-          去首页发现更多精彩
-        </text>
-        <view
-          class="empty-feed-btn"
-          @tap="goHome"
-        >
-          <text>去首页逛逛</text>
-        </view>
-      </view>
-
       <!-- 瀑布流 -->
-      <view
-        v-else
-        class="masonry"
-      >
+      <view v-else class="masonry">
         <view class="masonry-col">
-          <template
-            v-for="item in colLeft"
-            :key="item.data.id"
-          >
-            <ProductCard
-              v-if="item.kind === 'product'"
-              :data="item.data"
-            />
-            <CourseCard
-              v-else-if="item.kind === 'course'"
-              :data="item.data"
-            />
-            <LiveCard
-              v-else-if="item.kind === 'live'"
-              :data="item.data"
-            />
-            <AgentCard
-              v-else-if="item.kind === 'agent'"
-              :data="item.data"
-              context="discover"
-            />
-            <ClassicCard
-              v-else-if="item.kind === 'classic'"
-              :data="item.data"
-            />
-            <VideoCard
-              v-else-if="item.kind === 'video'"
-              :data="item.data"
-            />
+          <template v-for="item in colLeft" :key="item.data.id">
+            <ProductCard v-if="item.kind === 'product'" :data="item.data" />
+            <CourseCard v-else-if="item.kind === 'course'" :data="item.data" />
+            <LiveCard v-else-if="item.kind === 'live'" :data="item.data" />
+            <AgentCard v-else-if="item.kind === 'agent'" :data="item.data" context="discover" />
+            <ClassicCard v-else-if="item.kind === 'classic'" :data="item.data" />
+            <VideoCard v-else-if="item.kind === 'video'" :data="item.data" />
           </template>
         </view>
         <view class="masonry-col">
-          <template
-            v-for="item in colRight"
-            :key="item.data.id"
-          >
-            <ProductCard
-              v-if="item.kind === 'product'"
-              :data="item.data"
-            />
-            <CourseCard
-              v-else-if="item.kind === 'course'"
-              :data="item.data"
-            />
-            <LiveCard
-              v-else-if="item.kind === 'live'"
-              :data="item.data"
-            />
-            <AgentCard
-              v-else-if="item.kind === 'agent'"
-              :data="item.data"
-              context="discover"
-            />
-            <ClassicCard
-              v-else-if="item.kind === 'classic'"
-              :data="item.data"
-            />
-            <VideoCard
-              v-else-if="item.kind === 'video'"
-              :data="item.data"
-            />
+          <template v-for="item in colRight" :key="item.data.id">
+            <ProductCard v-if="item.kind === 'product'" :data="item.data" />
+            <CourseCard v-else-if="item.kind === 'course'" :data="item.data" />
+            <LiveCard v-else-if="item.kind === 'live'" :data="item.data" />
+            <AgentCard v-else-if="item.kind === 'agent'" :data="item.data" context="discover" />
+            <ClassicCard v-else-if="item.kind === 'classic'" :data="item.data" />
+            <VideoCard v-else-if="item.kind === 'video'" :data="item.data" />
           </template>
         </view>
       </view>
 
-      <view
-        v-if="!isLoading"
-        class="feed-end"
-      >
+      <view v-if="!isLoading" class="feed-end">
         <view class="end-line" />
-        <text class="end-txt">
-          已经到底了
-        </text>
+        <text class="end-txt">已经到底了</text>
         <view class="end-line" />
       </view>
     </view>
@@ -466,10 +257,4 @@ function goHome() { uni.switchTab({ url: '/pages/index/index' }) }
 .feed-end { display: flex; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx 0; }
 .end-line { width: 80rpx; height: 2rpx; background: var(--line, #e4ddd0); }
 .end-txt { font-size: 26rpx; color: var(--text-soft, #999); }
-
-.empty-feed { display: flex; flex-direction: column; align-items: center; padding: 120rpx 0; gap: 16rpx; }
-.empty-feed-title { font-size: 30rpx; font-weight: 600; color: var(--text-ink, #2c2c2c); }
-.empty-feed-sub { font-size: 26rpx; color: var(--text-faint, #999); }
-.empty-feed-btn { margin-top: 16rpx; padding: 20rpx 48rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); }
-.empty-feed-btn text { font-size: 28rpx; color: #fff; }
 </style>

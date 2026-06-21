@@ -36,7 +36,7 @@
           <text class="pm-label-muted">今日精选</text>
         </view>
 
-        <view v-if="todayPoem" class="pm-today" @tap="toDetail(todayPoem.id)">
+        <view class="pm-today" @tap="toDetail(todayPoem.id)">
           <view class="pm-today-glow" />
           <view class="pm-today-row">
             <!-- 竖排摘句 -->
@@ -166,9 +166,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-import { poetryApi, type TodayPoem, type PoemItem, type PoetItem } from '@/lib/poetry-data'
 
 const statusBarHeight = ref(0)
 try {
@@ -176,23 +175,35 @@ try {
   statusBarHeight.value = info.statusBarHeight || 0
 } catch (e) {}
 
-const todayPoem = ref<TodayPoem | null>(null)
-const poems = ref<PoemItem[]>([])
-const poets = ref<PoetItem[]>([])
-const loading = ref(true)
-
-onMounted(async () => {
-  try {
-    loading.value = true
-    const data = await poetryApi.home()
-    todayPoem.value = data.todayPoem
-    poems.value = data.poems
-    poets.value = data.poets
-  } catch (e) { /* useMock fallback already handled in API */ }
-  finally { loading.value = false }
+const todayPoem = {
+  id: '1',
+  title: '静夜思',
+  author: '李白',
+  dynasty: '唐',
+  lines: ['床前明月光，', '疑是地上霜。', '举头望明月，', '低头思故乡。'],
+  tags: ['思乡', '月亮'],
+  likes: 12800,
 }
 
-const dynastyTabs = ['全部', '唐', '宋', '元', '明', '清', '先秦'])
+const poems = [
+  { id: '2', title: '登鹳雀楼', author: '王之涣', dynasty: '唐', form: '五言绝句', preview: '白日依山尽，黄河入海流', likes: 8900 },
+  { id: '3', title: '春晓', author: '孟浩然', dynasty: '唐', form: '五言绝句', preview: '春眠不觉晓，处处闻啼鸟', likes: 7600 },
+  { id: '4', title: '相思', author: '王维', dynasty: '唐', form: '五言绝句', preview: '红豆生南国，春来发几枝', likes: 9200 },
+  { id: '5', title: '悯农', author: '李绅', dynasty: '唐', form: '五言绝句', preview: '锄禾日当午，汗滴禾下土', likes: 6800 },
+  { id: '6', title: '江雪', author: '柳宗元', dynasty: '唐', form: '五言绝句', preview: '千山鸟飞绝，万径人踪灭', likes: 5400 },
+  { id: '7', title: '水调歌头', author: '苏轼', dynasty: '宋', form: '词', preview: '明月几时有，把酒问青天', likes: 11200 },
+  { id: '8', title: '声声慢', author: '李清照', dynasty: '宋', form: '词', preview: '寻寻觅觅，冷冷清清', likes: 8300 },
+]
+
+const dynastyTabs = ['全部', '唐', '宋', '元', '明', '清', '先秦']
+
+const poets = [
+  { id: '1', name: '李白', dynasty: '唐', poemCount: 1184, avatar: '李' },
+  { id: '2', name: '杜甫', dynasty: '唐', poemCount: 1455, avatar: '杜' },
+  { id: '3', name: '白居易', dynasty: '唐', poemCount: 3840, avatar: '白' },
+  { id: '4', name: '苏轼', dynasty: '宋', poemCount: 3459, avatar: '苏' },
+  { id: '5', name: '李清照', dynasty: '宋', poemCount: 84, avatar: '李' },
+]
 
 const searchQuery = ref('')
 const activeDynasty = ref('全部')

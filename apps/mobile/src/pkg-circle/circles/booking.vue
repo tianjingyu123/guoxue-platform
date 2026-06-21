@@ -74,171 +74,54 @@ function backToCircle() { goBack() }
 
 <template>
   <!-- 预约成功页 -->
-  <view
-    v-if="showSuccess && selectedSlot"
-    class="bk-success"
-  >
+  <view v-if="showSuccess && selectedSlot" class="bk-success">
     <view class="bk-success-main">
-      <view class="bk-success-icon">
-        <app-icon
-          name="check"
-          :size="48"
-          color="#22C55E"
-        />
-      </view>
-      <text class="bk-success-title">
-        预约成功
-      </text>
-      <text class="bk-success-sub">
-        我们已向专家发送通知，请准时参加
-      </text>
+      <view class="bk-success-icon"><app-icon name="check" :size="48" color="#22C55E" /></view>
+      <text class="bk-success-title">预约成功</text>
+      <text class="bk-success-sub">我们已向专家发送通知，请准时参加</text>
       <view class="bk-success-card">
         <view class="bk-success-expert">
-          <view class="bk-avatar bk-avatar-lg">
-            <text class="bk-avatar-t">
-              {{ selectedExpert.name[0] }}
-            </text>
-          </view>
+          <view class="bk-avatar bk-avatar-lg"><text class="bk-avatar-t">{{ selectedExpert.name[0] }}</text></view>
           <view>
-            <text class="bk-success-name">
-              {{ selectedExpert.name }}
-            </text>
-            <text class="bk-success-title-sub">
-              {{ selectedExpert.title }}
-            </text>
+            <text class="bk-success-name">{{ selectedExpert.name }}</text>
+            <text class="bk-success-title-sub">{{ selectedExpert.title }}</text>
           </view>
         </view>
         <view class="bk-success-rows">
-          <view class="bk-success-row">
-            <text class="bk-success-row-l">
-              日期
-            </text><text class="bk-success-row-v">
-              {{ dateLabel(selectedDate) }}
-            </text>
-          </view>
-          <view class="bk-success-row">
-            <text class="bk-success-row-l">
-              时间
-            </text><text class="bk-success-row-v">
-              {{ selectedSlot.startTime }} - {{ selectedSlot.endTime }}
-            </text>
-          </view>
-          <view class="bk-success-row">
-            <text class="bk-success-row-l">
-              咨询主题
-            </text><text class="bk-success-row-v">
-              {{ topic }}
-            </text>
-          </view>
-          <view class="bk-success-row">
-            <text class="bk-success-row-l">
-              费用
-            </text><text class="bk-success-row-v is-price">
-              ¥{{ price }}
-            </text>
-          </view>
+          <view class="bk-success-row"><text class="bk-success-row-l">日期</text><text class="bk-success-row-v">{{ dateLabel(selectedDate) }}</text></view>
+          <view class="bk-success-row"><text class="bk-success-row-l">时间</text><text class="bk-success-row-v">{{ selectedSlot.startTime }} - {{ selectedSlot.endTime }}</text></view>
+          <view class="bk-success-row"><text class="bk-success-row-l">咨询主题</text><text class="bk-success-row-v">{{ topic }}</text></view>
+          <view class="bk-success-row"><text class="bk-success-row-l">费用</text><text class="bk-success-row-v is-price">¥{{ price }}</text></view>
         </view>
       </view>
     </view>
     <view class="bk-success-footer">
-      <view
-        class="bk-success-cal"
-        @tap="addToCalendar"
-      >
-        <app-icon
-          name="calendar"
-          :size="30"
-          color="#C41E3A"
-        /><text class="bk-success-cal-t">
-          添加到日历
-        </text>
-      </view>
-      <view
-        class="bk-success-back"
-        @tap="backToCircle"
-      >
-        <text class="bk-success-back-t">
-          返回圈子
-        </text>
-      </view>
+      <view class="bk-success-cal" @tap="addToCalendar"><app-icon name="calendar" :size="30" color="#C41E3A" /><text class="bk-success-cal-t">添加到日历</text></view>
+      <view class="bk-success-back" @tap="backToCircle"><text class="bk-success-back-t">返回圈子</text></view>
     </view>
   </view>
 
   <!-- 预约表单页 -->
-  <view
-    v-else
-    class="bk-page"
-  >
+  <view v-else class="bk-page">
     <view class="bk-nav">
-      <view
-        class="bk-nav-btn"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="34"
-          color="#2C2C2C"
-        />
-      </view>
-      <text class="bk-nav-title">
-        连麦预约
-      </text>
+      <view class="bk-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
+      <text class="bk-nav-title">连麦预约</text>
       <view class="bk-nav-btn" />
     </view>
 
     <view class="bk-body">
       <!-- 选择专家 -->
       <view class="bk-section">
-        <text class="bk-section-title">
-          选择专家
-        </text>
-        <scroll-view
-          scroll-x
-          class="bk-experts"
-          :show-scrollbar="false"
-        >
+        <text class="bk-section-title">选择专家</text>
+        <scroll-view scroll-x class="bk-experts" :show-scrollbar="false">
           <view class="bk-experts-inner">
-            <view
-              v-for="e in experts"
-              :key="e.id"
-              class="bk-expert"
-              :class="{ 'is-active': selectedExpert.id === e.id, 'is-disabled': !e.available }"
-              @tap="selectExpert(e)"
-            >
-              <view class="bk-avatar">
-                <text class="bk-avatar-t">
-                  {{ e.name[0] }}
-                </text>
-              </view>
-              <text class="bk-expert-name">
-                {{ e.name }}
-              </text>
-              <text class="bk-expert-title">
-                {{ e.title }}
-              </text>
-              <view class="bk-expert-rate">
-                <app-icon
-                  name="star"
-                  :size="20"
-                  color="#C9A96E"
-                  :fill="true"
-                /><text class="bk-expert-rate-t">
-                  {{ e.rating }}
-                </text>
-              </view>
-              <view class="bk-expert-price">
-                <text class="bk-expert-price-num">
-                  ¥{{ e.pricePerMinute }}
-                </text><text class="bk-expert-price-unit">
-                  /分钟
-                </text>
-              </view>
-              <text
-                v-if="!e.available"
-                class="bk-expert-na"
-              >
-                暂不可约
-              </text>
+            <view v-for="e in experts" :key="e.id" class="bk-expert" :class="{ 'is-active': selectedExpert.id === e.id, 'is-disabled': !e.available }" @tap="selectExpert(e)">
+              <view class="bk-avatar"><text class="bk-avatar-t">{{ e.name[0] }}</text></view>
+              <text class="bk-expert-name">{{ e.name }}</text>
+              <text class="bk-expert-title">{{ e.title }}</text>
+              <view class="bk-expert-rate"><app-icon name="star" :size="20" color="#C9A96E" :fill="true" /><text class="bk-expert-rate-t">{{ e.rating }}</text></view>
+              <view class="bk-expert-price"><text class="bk-expert-price-num">¥{{ e.pricePerMinute }}</text><text class="bk-expert-price-unit">/分钟</text></view>
+              <text v-if="!e.available" class="bk-expert-na">暂不可约</text>
             </view>
           </view>
         </scroll-view>
@@ -246,62 +129,20 @@ function backToCircle() { goBack() }
 
       <!-- 选择日期 -->
       <view class="bk-section">
-        <text class="bk-section-title">
-          选择日期
-        </text>
+        <text class="bk-section-title">选择日期</text>
         <view class="bk-calendar">
           <view class="bk-cal-head">
-            <view
-              class="bk-cal-arrow"
-              @tap="prevMonth"
-            >
-              <app-icon
-                name="chevron-left"
-                :size="30"
-                color="#666666"
-              />
-            </view>
-            <text class="bk-cal-month">
-              {{ currentMonth.getFullYear() }}年{{ currentMonth.getMonth() + 1 }}月
-            </text>
-            <view
-              class="bk-cal-arrow"
-              @tap="nextMonth"
-            >
-              <app-icon
-                name="chevron-right"
-                :size="30"
-                color="#666666"
-              />
-            </view>
+            <view class="bk-cal-arrow" @tap="prevMonth"><app-icon name="chevron-left" :size="30" color="#666666" /></view>
+            <text class="bk-cal-month">{{ currentMonth.getFullYear() }}年{{ currentMonth.getMonth() + 1 }}月</text>
+            <view class="bk-cal-arrow" @tap="nextMonth"><app-icon name="chevron-right" :size="30" color="#666666" /></view>
           </view>
           <view class="bk-cal-week">
-            <text
-              v-for="w in weekDays"
-              :key="w"
-              class="bk-cal-week-d"
-            >
-              {{ w }}
-            </text>
+            <text v-for="w in weekDays" :key="w" class="bk-cal-week-d">{{ w }}</text>
           </view>
           <view class="bk-cal-grid">
-            <view
-              v-for="(d, i) in monthDays"
-              :key="i"
-              class="bk-cal-cell"
-            >
-              <view
-                v-if="d"
-                class="bk-cal-day"
-                :class="{ 'is-selected': isSelected(d), 'is-past': isPast(d) }"
-                @tap="selectDate(d)"
-              >
-                <text
-                  class="bk-cal-day-t"
-                  :class="{ 'is-selected': isSelected(d), 'is-past': isPast(d) }"
-                >
-                  {{ d.getDate() }}
-                </text>
+            <view v-for="(d, i) in monthDays" :key="i" class="bk-cal-cell">
+              <view v-if="d" class="bk-cal-day" :class="{ 'is-selected': isSelected(d), 'is-past': isPast(d) }" @tap="selectDate(d)">
+                <text class="bk-cal-day-t" :class="{ 'is-selected': isSelected(d), 'is-past': isPast(d) }">{{ d.getDate() }}</text>
               </view>
             </view>
           </view>
@@ -310,112 +151,43 @@ function backToCircle() { goBack() }
 
       <!-- 选择时段 -->
       <view class="bk-section">
-        <text class="bk-section-title">
-          选择时段
-        </text>
+        <text class="bk-section-title">选择时段</text>
         <view class="bk-slots-wrap">
-          <view
-            v-if="slots.length"
-            class="bk-slots"
-          >
-            <view
-              v-for="s in slots"
-              :key="s.id"
-              class="bk-slot"
-              :class="{ 'is-selected': selectedSlot && selectedSlot.id === s.id, 'is-disabled': !s.available }"
-              @tap="s.available && (selectedSlot = s)"
-            >
-              <text
-                class="bk-slot-t"
-                :class="{ 'is-selected': selectedSlot && selectedSlot.id === s.id, 'is-disabled': !s.available }"
-              >
-                {{ s.startTime }}
-              </text>
+          <view v-if="slots.length" class="bk-slots">
+            <view v-for="s in slots" :key="s.id" class="bk-slot" :class="{ 'is-selected': selectedSlot && selectedSlot.id === s.id, 'is-disabled': !s.available }" @tap="s.available && (selectedSlot = s)">
+              <text class="bk-slot-t" :class="{ 'is-selected': selectedSlot && selectedSlot.id === s.id, 'is-disabled': !s.available }">{{ s.startTime }}</text>
             </view>
           </view>
-          <text
-            v-else
-            class="bk-slots-empty"
-          >
-            该日期暂无可用时段
-          </text>
+          <text v-else class="bk-slots-empty">该日期暂无可用时段</text>
         </view>
       </view>
 
       <!-- 咨询时长 -->
       <view class="bk-section">
-        <text class="bk-section-title">
-          咨询时长
-        </text>
+        <text class="bk-section-title">咨询时长</text>
         <view class="bk-durations">
-          <view
-            v-for="m in durations"
-            :key="m"
-            class="bk-duration"
-            :class="{ 'is-active': duration === m }"
-            @tap="duration = m"
-          >
-            <text
-              class="bk-duration-t"
-              :class="{ 'is-active': duration === m }"
-            >
-              {{ m }}分钟
-            </text>
+          <view v-for="m in durations" :key="m" class="bk-duration" :class="{ 'is-active': duration === m }" @tap="duration = m">
+            <text class="bk-duration-t" :class="{ 'is-active': duration === m }">{{ m }}分钟</text>
           </view>
         </view>
       </view>
 
       <!-- 咨询主题 -->
       <view class="bk-section">
-        <text class="bk-section-title">
-          咨询主题
-        </text>
+        <text class="bk-section-title">咨询主题</text>
         <view class="bk-topic">
-          <textarea
-            v-model="topic"
-            class="bk-topic-input"
-            placeholder="请简要描述您想咨询的问题..."
-            placeholder-class="bk-ph"
-          />
-          <view class="bk-topic-tip">
-            <app-icon
-              name="message-square"
-              :size="24"
-              color="#999999"
-            /><text class="bk-topic-tip-t">
-              专家将根据您的主题提前准备
-            </text>
-          </view>
+          <textarea v-model="topic" class="bk-topic-input" placeholder="请简要描述您想咨询的问题..." placeholder-class="bk-ph" />
+          <view class="bk-topic-tip"><app-icon name="message-square" :size="24" color="#999999" /><text class="bk-topic-tip-t">专家将根据您的主题提前准备</text></view>
         </view>
       </view>
 
       <!-- 费用预览 -->
       <view class="bk-fee">
-        <text class="bk-section-title">
-          费用预览
-        </text>
+        <text class="bk-section-title">费用预览</text>
         <view class="bk-fee-rows">
-          <view class="bk-fee-row">
-            <text class="bk-fee-l">
-              单价
-            </text><text class="bk-fee-v">
-              ¥{{ selectedExpert.pricePerMinute }}/分钟
-            </text>
-          </view>
-          <view class="bk-fee-row">
-            <text class="bk-fee-l">
-              时长
-            </text><text class="bk-fee-v">
-              {{ duration }}分钟
-            </text>
-          </view>
-          <view class="bk-fee-total">
-            <text class="bk-fee-total-l">
-              合计
-            </text><text class="bk-fee-total-v">
-              ¥{{ price }}
-            </text>
-          </view>
+          <view class="bk-fee-row"><text class="bk-fee-l">单价</text><text class="bk-fee-v">¥{{ selectedExpert.pricePerMinute }}/分钟</text></view>
+          <view class="bk-fee-row"><text class="bk-fee-l">时长</text><text class="bk-fee-v">{{ duration }}分钟</text></view>
+          <view class="bk-fee-total"><text class="bk-fee-total-l">合计</text><text class="bk-fee-total-v">¥{{ price }}</text></view>
         </view>
       </view>
     </view>
@@ -423,31 +195,11 @@ function backToCircle() { goBack() }
     <!-- 底部固定 -->
     <view class="bk-footer">
       <view class="bk-footer-top">
-        <view class="bk-footer-time">
-          <app-icon
-            name="clock"
-            :size="24"
-            color="#999999"
-          /><text class="bk-footer-time-t">
-            {{ selectedSlot ? `${dateLabel(selectedDate)} ${selectedSlot.startTime}` : '请选择时段' }}
-          </text>
-        </view>
-        <view class="bk-footer-pay">
-          <text class="bk-footer-pay-l">
-            需支付
-          </text><text class="bk-footer-pay-v">
-            ¥{{ price }}
-          </text>
-        </view>
+        <view class="bk-footer-time"><app-icon name="clock" :size="24" color="#999999" /><text class="bk-footer-time-t">{{ selectedSlot ? `${dateLabel(selectedDate)} ${selectedSlot.startTime}` : '请选择时段' }}</text></view>
+        <view class="bk-footer-pay"><text class="bk-footer-pay-l">需支付</text><text class="bk-footer-pay-v">¥{{ price }}</text></view>
       </view>
-      <view
-        class="bk-submit"
-        :class="{ 'is-disabled': !canSubmit }"
-        @tap="handleSubmit"
-      >
-        <text class="bk-submit-t">
-          {{ submitting ? '预约中...' : '立即预约' }}
-        </text>
+      <view class="bk-submit" :class="{ 'is-disabled': !canSubmit }" @tap="handleSubmit">
+        <text class="bk-submit-t">{{ submitting ? '预约中...' : '立即预约' }}</text>
       </view>
     </view>
   </view>

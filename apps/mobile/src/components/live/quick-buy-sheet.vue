@@ -1,85 +1,37 @@
 <template>
   <!-- 直播间「立即购买」半屏确认订单：选规格→选数量→选支付→确认支付→返回直播间 -->
-  <view
-    v-if="open && product"
-    class="qbs-mask"
-    @tap="onClose"
-  >
-    <view
-      class="qbs-sheet"
-      @tap.stop
-    >
+  <view v-if="open && product" class="qbs-mask" @tap="onClose">
+    <view class="qbs-sheet" @tap.stop>
       <!-- 支付成功态 -->
-      <view
-        v-if="paid"
-        class="qbs-paid"
-      >
+      <view v-if="paid" class="qbs-paid">
         <view class="qbs-paid__icon">
-          <AppIcon
-            name="check"
-            :size="64"
-            color="#fff"
-          />
+          <AppIcon name="check" :size="32" color="#fff" />
         </view>
-        <text class="qbs-paid__title">
-          支付成功
-        </text>
-        <text class="qbs-paid__sub">
-          正在返回直播间继续观看…
-        </text>
+        <text class="qbs-paid__title">支付成功</text>
+        <text class="qbs-paid__sub">正在返回直播间继续观看…</text>
       </view>
 
       <template v-else>
         <!-- 头部：商品信息 -->
         <view class="qbs-head">
-          <image
-            class="qbs-head__img"
-            :src="product.cover"
-            mode="aspectFill"
-          />
+          <image class="qbs-head__img" :src="product.cover" mode="aspectFill" />
           <view class="qbs-head__info">
-            <text class="qbs-head__name">
-              {{ product.name }}
-            </text>
+            <text class="qbs-head__name">{{ product.name }}</text>
             <view class="qbs-head__price-row">
-              <text class="qbs-head__price">
-                ¥{{ product.price }}
-              </text>
-              <text class="qbs-head__origin">
-                ¥{{ product.originalPrice }}
-              </text>
+              <text class="qbs-head__price">¥{{ product.price }}</text>
+              <text class="qbs-head__origin">¥{{ product.originalPrice }}</text>
             </view>
-            <text
-              v-if="product.stock !== undefined"
-              class="qbs-head__stock"
-            >
-              库存 {{ product.stock }} 件
-            </text>
+            <text v-if="product.stock !== undefined" class="qbs-head__stock">库存 {{ product.stock }} 件</text>
           </view>
-          <view
-            class="qbs-head__close"
-            @tap="onClose"
-          >
-            <AppIcon
-              name="x"
-              :size="40"
-              color="#999"
-            />
+          <view class="qbs-head__close" @tap="onClose">
+            <AppIcon name="x" :size="20" color="#999" />
           </view>
         </view>
 
-        <scroll-view
-          scroll-y
-          class="qbs-body"
-        >
+        <scroll-view scroll-y class="qbs-body">
           <!-- 规格选择 -->
-          <view
-            v-if="hasSku"
-            class="qbs-section"
-          >
-            <text class="qbs-section__label">
-              选择规格
-            </text>
+          <view v-if="hasSku" class="qbs-section">
+            <text class="qbs-section__label">选择规格</text>
             <view class="qbs-sku-list">
               <view
                 v-for="sku in product.skus"
@@ -88,51 +40,28 @@
                 :class="{ 'qbs-sku--on': selectedSku === sku }"
                 @tap="onSelectSku(sku)"
               >
-                <text class="qbs-sku__txt">
-                  {{ sku }}
-                </text>
+                <text class="qbs-sku__txt">{{ sku }}</text>
               </view>
             </view>
           </view>
 
           <!-- 数量选择 -->
           <view class="qbs-qty">
-            <text class="qbs-section__label">
-              购买数量
-            </text>
+            <text class="qbs-section__label">购买数量</text>
             <view class="qbs-qty__ctrl">
-              <view
-                class="qbs-qty__btn"
-                :class="{ 'qbs-qty__btn--off': quantity <= 1 }"
-                @tap="onMinus"
-              >
-                <AppIcon
-                  name="minus"
-                  :size="32"
-                  color="#333"
-                />
+              <view class="qbs-qty__btn" :class="{ 'qbs-qty__btn--off': quantity <= 1 }" @tap="onMinus">
+                <AppIcon name="minus" :size="16" color="#333" />
               </view>
-              <text class="qbs-qty__num">
-                {{ quantity }}
-              </text>
-              <view
-                class="qbs-qty__btn"
-                @tap="onPlus"
-              >
-                <AppIcon
-                  name="plus"
-                  :size="32"
-                  color="#333"
-                />
+              <text class="qbs-qty__num">{{ quantity }}</text>
+              <view class="qbs-qty__btn" @tap="onPlus">
+                <AppIcon name="plus" :size="16" color="#333" />
               </view>
             </view>
           </view>
 
           <!-- 支付方式 -->
           <view class="qbs-section">
-            <text class="qbs-section__label">
-              支付方式
-            </text>
+            <text class="qbs-section__label">支付方式</text>
             <view class="qbs-pay-list">
               <view
                 v-for="m in payMethods"
@@ -142,28 +71,13 @@
                 @tap="onSelectPay(m.id)"
               >
                 <view class="qbs-pay__left">
-                  <view
-                    class="qbs-pay__badge"
-                    :style="{ backgroundColor: m.color }"
-                  >
-                    <text class="qbs-pay__badge-txt">
-                      {{ m.badge }}
-                    </text>
+                  <view class="qbs-pay__badge" :style="{ backgroundColor: m.color }">
+                    <text class="qbs-pay__badge-txt">{{ m.badge }}</text>
                   </view>
-                  <text class="qbs-pay__name">
-                    {{ m.name }}
-                  </text>
+                  <text class="qbs-pay__name">{{ m.name }}</text>
                 </view>
-                <view
-                  class="qbs-pay__radio"
-                  :class="{ 'qbs-pay__radio--on': payMethod === m.id }"
-                >
-                  <AppIcon
-                    v-if="payMethod === m.id"
-                    name="check"
-                    :size="24"
-                    color="#fff"
-                  />
+                <view class="qbs-pay__radio" :class="{ 'qbs-pay__radio--on': payMethod === m.id }">
+                  <AppIcon v-if="payMethod === m.id" name="check" :size="12" color="#fff" />
                 </view>
               </view>
             </view>
@@ -173,27 +87,15 @@
         <!-- 底部：合计 + 确认支付 -->
         <view class="qbs-foot">
           <view class="qbs-foot__tip">
-            <AppIcon
-              name="shield-check"
-              :size="28"
-              color="#22c55e"
-            />
-            <text class="qbs-foot__tip-txt">
-              正品保障 · 支付后自动返回直播间
-            </text>
+            <AppIcon name="shield-check" :size="14" color="#22c55e" />
+            <text class="qbs-foot__tip-txt">正品保障 · 支付后自动返回直播间</text>
           </view>
           <view class="qbs-foot__row">
             <view class="qbs-foot__total">
-              <text class="qbs-foot__total-label">
-                合计
-              </text>
+              <text class="qbs-foot__total-label">合计</text>
               <view class="qbs-foot__total-val">
-                <text class="qbs-foot__total-sym">
-                  ¥
-                </text>
-                <text class="qbs-foot__total-num">
-                  {{ total }}
-                </text>
+                <text class="qbs-foot__total-sym">¥</text>
+                <text class="qbs-foot__total-num">{{ total }}</text>
               </view>
             </view>
             <view
@@ -201,9 +103,7 @@
               :class="{ 'qbs-foot__pay--off': paying || (hasSku && !selectedSku) }"
               @tap="onPay"
             >
-              <text class="qbs-foot__pay-txt">
-                {{ payButtonText }}
-              </text>
+              <text class="qbs-foot__pay-txt">{{ payButtonText }}</text>
             </view>
           </view>
         </view>
@@ -237,6 +137,7 @@ const payMethods = [
   { id: 'huifu', name: '汇付天下', badge: '汇', color: '#f59e0b' },
 ] as const
 
+// ===== UI 状态 =====
 const selectedSku = ref<string | null>(null)
 const quantity = ref(1)
 const payMethod = ref<string>('wechat')
@@ -251,6 +152,7 @@ const payButtonText = computed(() => {
   return '确认支付'
 })
 
+// ===== 交互（UI 状态切换；真实支付逻辑由 Claude Code 对接）=====
 function onSelectSku(sku: string) { selectedSku.value = sku }
 function onSelectPay(id: string) { payMethod.value = id }
 function onMinus() { if (quantity.value > 1) quantity.value-- }
@@ -266,7 +168,8 @@ function onClose() {
   paid.value = false
   emit('close')
 }
-// @data-needs: 直播间下单+支付接口，入参 productId/sku/quantity/payMethod
+// @data-needs: 直播间下单+支付接口，入参 productId/sku/quantity/payMethod；
+// 成功后置 paid=true，延时回调 onPaid 返回直播间
 function onPay() {}
 </script>
 
@@ -410,6 +313,7 @@ function onPay() {}
   font-weight: 500;
 }
 
+/* 数量 */
 .qbs-qty {
   padding: 32rpx;
   border-bottom: 1px solid #f0f0f0;

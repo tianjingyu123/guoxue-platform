@@ -3,45 +3,24 @@
     <!-- 顶部导航 -->
     <view class="nav-bar">
       <view class="nav-left">
-        <view
-          class="nav-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#1a1a1a"
-          />
+        <view class="nav-back" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#1a1a1a" />
         </view>
-        <text class="nav-title">
-          直播管理
-        </text>
+        <text class="nav-title">直播管理</text>
       </view>
       <view class="nav-right">
         <view class="nav-icon-btn">
-          <app-icon
-            name="bell"
-            :size="40"
-            color="#666"
-          />
+          <app-icon name="bell" :size="40" color="#666" />
         </view>
         <view class="nav-icon-btn">
-          <app-icon
-            name="settings"
-            :size="40"
-            color="#666"
-          />
+          <app-icon name="settings" :size="40" color="#666" />
         </view>
       </view>
     </view>
 
     <view class="page-body">
       <!-- 数据概览卡片 横向滑动 -->
-      <scroll-view
-        scroll-x
-        class="stats-scroll"
-        :show-scrollbar="false"
-      >
+      <scroll-view scroll-x class="stats-scroll" :show-scrollbar="false">
         <view class="stats-row">
           <view
             v-for="stat in stats"
@@ -49,102 +28,45 @@
             class="stat-card"
             :style="{ background: stat.color }"
           >
-            <app-icon
-              :name="stat.icon"
-              :size="40"
-              color="rgba(255,255,255,0.85)"
-            />
+            <app-icon :name="stat.icon" :size="40" color="rgba(255,255,255,0.85)" />
             <view class="stat-value">
-              {{ stat.value }}<text class="stat-unit">
-                {{ stat.unit }}
-              </text>
+              {{ stat.value }}<text class="stat-unit">{{ stat.unit }}</text>
             </view>
-            <text class="stat-label">
-              {{ stat.label }}
-            </text>
+            <text class="stat-label">{{ stat.label }}</text>
           </view>
         </view>
       </scroll-view>
 
       <!-- 创建直播按钮 -->
-      <view
-        class="create-btn"
-        @tap="goCreate"
-      >
-        <app-icon
-          name="plus"
-          :size="40"
-          color="#fff"
-        />
-        <text class="create-btn-text">
-          创建直播
-        </text>
+      <view class="create-btn" @tap="goCreate">
+        <app-icon name="plus" :size="40" color="#fff" />
+        <text class="create-btn-text">创建直播</text>
       </view>
 
       <!-- 快捷入口 -->
       <view class="quick-grid">
-        <view
-          class="quick-item"
-          @tap="goCreate"
-        >
-          <view
-            class="quick-icon"
-            style="background: rgba(59,111,212,0.1)"
-          >
-            <app-icon
-              name="book-open"
-              :size="40"
-              color="#3b6fd4"
-            />
+        <view class="quick-item" @tap="goCreate">
+          <view class="quick-icon" style="background: rgba(59,111,212,0.1)">
+            <app-icon name="book-open" :size="40" color="#3b6fd4" />
           </view>
-          <text class="quick-label">
-            知识授课
-          </text>
+          <text class="quick-label">知识授课</text>
         </view>
-        <view
-          class="quick-item"
-          @tap="goCreate"
-        >
-          <view
-            class="quick-icon"
-            style="background: rgba(217,148,35,0.1)"
-          >
-            <app-icon
-              name="shopping-bag"
-              :size="40"
-              color="#d99423"
-            />
+        <view class="quick-item" @tap="goCreate">
+          <view class="quick-icon" style="background: rgba(217,148,35,0.1)">
+            <app-icon name="shopping-bag" :size="40" color="#d99423" />
           </view>
-          <text class="quick-label">
-            电商带货
-          </text>
+          <text class="quick-label">电商带货</text>
         </view>
-        <view
-          class="quick-item"
-          @tap="goCreate"
-        >
-          <view
-            class="quick-icon"
-            style="background: rgba(124,91,212,0.1)"
-          >
-            <app-icon
-              name="radio"
-              :size="40"
-              color="#7c5bd4"
-            />
+        <view class="quick-item" @tap="goCreate">
+          <view class="quick-icon" style="background: rgba(124,91,212,0.1)">
+            <app-icon name="radio" :size="40" color="#7c5bd4" />
           </view>
-          <text class="quick-label">
-            快速开播
-          </text>
+          <text class="quick-label">快速开播</text>
         </view>
       </view>
 
       <!-- Tab切换 -->
-      <scroll-view
-        scroll-x
-        class="tab-scroll"
-        :show-scrollbar="false"
-      >
+      <scroll-view scroll-x class="tab-scroll" :show-scrollbar="false">
         <view class="tab-row">
           <view
             v-for="tab in tabs"
@@ -158,18 +80,13 @@
               v-if="tabCount(tab.key) > 0"
               class="tab-count"
               :class="{ 'tab-count-active': activeTab === tab.key }"
-            >
-              {{ tabCount(tab.key) }}
-            </text>
+            >{{ tabCount(tab.key) }}</text>
           </view>
         </view>
       </scroll-view>
 
       <!-- 直播列表 -->
-      <view
-        v-if="filteredList.length > 0"
-        class="live-list"
-      >
+      <view v-if="filteredList.length > 0" class="live-list">
         <view
           v-for="item in filteredList"
           :key="item.id"
@@ -179,90 +96,40 @@
           <view class="live-main">
             <!-- 封面 -->
             <view class="live-cover">
-              <app-icon
-                name="video"
-                :size="64"
-                color="rgba(0,0,0,0.18)"
-              />
-              <view
-                class="status-badge"
-                :style="{ background: statusConfig[item.status].color }"
-              >
-                <view
-                  v-if="item.status === 'live'"
-                  class="live-dot"
-                />
+              <app-icon name="video" :size="64" color="rgba(0,0,0,0.18)" />
+              <view class="status-badge" :style="{ background: statusConfig[item.status].color }">
+                <view v-if="item.status === 'live'" class="live-dot" />
                 {{ statusConfig[item.status].label }}
               </view>
-              <view class="type-badge">
-                {{ item.type === 'knowledge' ? '知识' : '带货' }}
-              </view>
+              <view class="type-badge">{{ item.type === 'knowledge' ? '知识' : '带货' }}</view>
             </view>
 
             <!-- 信息 -->
             <view class="live-info">
-              <text class="live-title">
-                {{ item.title }}
-              </text>
-              <view
-                v-if="item.scheduledTime"
-                class="live-time"
-              >
-                <app-icon
-                  name="calendar"
-                  :size="24"
-                  color="#999"
-                />
-                <text class="live-time-text">
-                  {{ item.scheduledTime }}
-                </text>
+              <text class="live-title">{{ item.title }}</text>
+              <view v-if="item.scheduledTime" class="live-time">
+                <app-icon name="calendar" :size="24" color="#999" />
+                <text class="live-time-text">{{ item.scheduledTime }}</text>
               </view>
               <view class="live-stats">
                 <template v-if="item.status === 'preview'">
                   <view class="live-stat">
-                    <app-icon
-                      name="bell"
-                      :size="24"
-                      color="#999"
-                    />
-                    <text class="live-stat-text">
-                      {{ item.previewCount }}人预约
-                    </text>
+                    <app-icon name="bell" :size="24" color="#999" />
+                    <text class="live-stat-text">{{ item.previewCount }}人预约</text>
                   </view>
                 </template>
                 <template v-else-if="item.status !== 'draft'">
                   <view class="live-stat">
-                    <app-icon
-                      name="eye"
-                      :size="24"
-                      color="#999"
-                    />
-                    <text class="live-stat-text">
-                      {{ formatNum(item.viewers) }}
-                    </text>
+                    <app-icon name="eye" :size="24" color="#999" />
+                    <text class="live-stat-text">{{ formatNum(item.viewers) }}</text>
                   </view>
                   <view class="live-stat">
-                    <app-icon
-                      name="clock"
-                      :size="24"
-                      color="#999"
-                    />
-                    <text class="live-stat-text">
-                      {{ item.duration }}
-                    </text>
+                    <app-icon name="clock" :size="24" color="#999" />
+                    <text class="live-stat-text">{{ item.duration }}</text>
                   </view>
-                  <view
-                    v-if="item.income > 0"
-                    class="live-stat"
-                  >
-                    <app-icon
-                      name="gift"
-                      :size="24"
-                      color="#d99423"
-                    />
-                    <text class="live-stat-text live-stat-income">
-                      ¥{{ item.income }}
-                    </text>
+                  <view v-if="item.income > 0" class="live-stat">
+                    <app-icon name="gift" :size="24" color="#d99423" />
+                    <text class="live-stat-text live-stat-income">¥{{ item.income }}</text>
                   </view>
                 </template>
               </view>
@@ -270,162 +137,78 @@
 
             <!-- 操作 -->
             <view class="live-actions">
-              <view
-                class="more-btn"
-                @tap="toggleActions(item.id)"
-              >
-                <app-icon
-                  name="more-horizontal"
-                  :size="40"
-                  color="#999"
-                />
+              <view class="more-btn" @tap="toggleActions(item.id)">
+                <app-icon name="more-horizontal" :size="40" color="#999" />
               </view>
               <view
                 v-if="item.status === 'live'"
                 class="act-btn act-btn-live"
                 @tap="enterLive(item)"
               >
-                <app-icon
-                  name="play"
-                  :size="24"
-                  color="#fff"
-                />
-                <text class="act-btn-text">
-                  进入直播
-                </text>
+                <app-icon name="play" :size="24" color="#fff" />
+                <text class="act-btn-text">进入直播</text>
               </view>
               <view
                 v-else-if="item.status === 'preview'"
                 class="act-btn act-btn-outline"
                 @tap="goCreate"
               >
-                <app-icon
-                  name="edit-3"
-                  :size="24"
-                  color="#1a1a1a"
-                />
-                <text class="act-btn-text act-btn-text-dark">
-                  编辑
-                </text>
+                <app-icon name="edit-3" :size="24" color="#1a1a1a" />
+                <text class="act-btn-text act-btn-text-dark">编辑</text>
               </view>
               <view
                 v-else-if="item.status === 'draft'"
                 class="act-btn act-btn-solid"
                 @tap="goCreate"
               >
-                <text class="act-btn-text">
-                  继续编辑
-                </text>
+                <text class="act-btn-text">继续编辑</text>
               </view>
               <view
                 v-else
                 class="act-btn act-btn-ghost"
                 @tap="viewData(item)"
               >
-                <app-icon
-                  name="bar-chart-2"
-                  :size="24"
-                  color="#999"
-                />
-                <text class="act-btn-text act-btn-text-muted">
-                  数据
-                </text>
+                <app-icon name="bar-chart-2" :size="24" color="#999" />
+                <text class="act-btn-text act-btn-text-muted">数据</text>
               </view>
             </view>
           </view>
 
           <!-- 展开操作菜单 -->
-          <view
-            v-if="showActions === item.id"
-            class="action-menu"
-          >
-            <view
-              class="menu-item"
-              @tap="goCreate"
-            >
-              <app-icon
-                name="edit-3"
-                :size="28"
-                color="#666"
-              />
-              <text class="menu-text">
-                编��
-              </text>
+          <view v-if="showActions === item.id" class="action-menu">
+            <view class="menu-item" @tap="goCreate">
+              <app-icon name="edit-3" :size="28" color="#666" />
+              <text class="menu-text">编��</text>
             </view>
-            <view
-              class="menu-item"
-              @tap="viewData(item)"
-            >
-              <app-icon
-                name="bar-chart-2"
-                :size="28"
-                color="#666"
-              />
-              <text class="menu-text">
-                数据详情
-              </text>
+            <view class="menu-item" @tap="viewData(item)">
+              <app-icon name="bar-chart-2" :size="28" color="#666" />
+              <text class="menu-text">数据详情</text>
             </view>
-            <view
-              class="menu-item"
-              @tap="showActions = null"
-            >
-              <app-icon
-                name="trash-2"
-                :size="28"
-                color="#C41E3A"
-              />
-              <text class="menu-text menu-text-danger">
-                删除
-              </text>
+            <view class="menu-item" @tap="showActions = null">
+              <app-icon name="trash-2" :size="28" color="#C41E3A" />
+              <text class="menu-text menu-text-danger">删除</text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 空状态 -->
-      <view
-        v-else
-        class="empty-box"
-      >
+      <view v-else class="empty-box">
         <view class="empty-icon">
-          <app-icon
-            name="video"
-            :size="128"
-            color="rgba(0,0,0,0.15)"
-          />
+          <app-icon name="video" :size="128" color="rgba(0,0,0,0.15)" />
         </view>
-        <text class="empty-title">
-          暂无直播记录
-        </text>
-        <text class="empty-desc">
-          开始你的第一场直播，与粉丝实时互动
-        </text>
-        <view
-          class="empty-btn"
-          @tap="goCreate"
-        >
-          <app-icon
-            name="plus"
-            :size="32"
-            color="#fff"
-          />
-          <text class="empty-btn-text">
-            创建直播
-          </text>
+        <text class="empty-title">暂无直播记录</text>
+        <text class="empty-desc">开始你的第一场直播，与粉丝实时互动</text>
+        <view class="empty-btn" @tap="goCreate">
+          <app-icon name="plus" :size="32" color="#fff" />
+          <text class="empty-btn-text">创建直播</text>
         </view>
       </view>
     </view>
 
     <!-- 悬浮快速开播按钮 -->
-    <view
-      class="fab"
-      @tap="goCreate"
-    >
-      <app-icon
-        name="radio"
-        :size="48"
-        color="#fff"
-      />
+    <view class="fab" @tap="goCreate">
+      <app-icon name="radio" :size="48" color="#fff" />
     </view>
 
     <view class="bottom-pad" />

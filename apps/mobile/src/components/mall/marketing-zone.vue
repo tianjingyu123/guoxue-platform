@@ -3,11 +3,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { shopApi } from '@/lib/shop-data'
-
-const loading = ref(true)
-const seckillItems = ref<any[]>([])
-const groupItems = ref<any[]>([])
+import { seckillItems, groupItems } from '@/lib/shop-data'
 
 // 秒杀倒计时：到今晚 22:00 结束，过点则顺延到次日
 const h = ref('00')
@@ -26,24 +22,7 @@ function tick() {
   s.value = String(remain % 60).padStart(2, '0')
 }
 
-onMounted(async () => {
-  tick()
-  timer = setInterval(tick, 1000)
-  loading.value = true
-  try {
-    const [skRes, gpRes] = await Promise.all([
-      shopApi.getSeckillItems(),
-      shopApi.getGroupItems(),
-    ])
-    seckillItems.value = skRes.items || []
-    groupItems.value = gpRes.items || []
-  } catch {
-    seckillItems.value = []
-    groupItems.value = []
-  } finally {
-    loading.value = false
-  }
-})
+onMounted(() => { tick(); timer = setInterval(tick, 1000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 
 function off(price: number, original: number) {
@@ -53,174 +32,73 @@ function off(price: number, original: number) {
 
 <template>
   <view class="mz">
-    <!-- Loading -->
-    <view
-      v-if="loading"
-      class="mz-loading"
-    >
-      <view class="mz-load-spinner" />
-      <text class="mz-load-text">
-        加载中...
-      </text>
+    <!-- 限时秒杀 -->
+    <view class="mz-card" hover-class="mz-press" @tap="navigateTo('/shop/flash-sale')">
+      <view class="mz-head mz-head-red">
+        <view class="mz-head-l">
+          <AppIcon name="zap" :size="28" color="#ffffff" :fill="true" />
+          <text class="mz-head-title">限时秒杀</text>
+          <text class="mz-head-sub">距结束</text>
+          <view class="mz-time">
+            <text class="mz-tb">{{ h }}</text>
+            <text class="mz-colon">:</text>
+            <text class="mz-tb">{{ m }}</text>
+            <text class="mz-colon">:</text>
+            <text class="mz-tb">{{ s }}</text>
+          </view>
+        </view>
+        <AppIcon name="chevron-right" :size="28" color="rgba(255,255,255,0.9)" />
+      </view>
+      <scroll-view class="mz-rail" scroll-x :show-scrollbar="false">
+        <view class="mz-rail-inner">
+          <view v-for="item in seckillItems" :key="item.id" class="mz-sk-item">
+            <view class="mz-sk-cover">
+              <image class="mz-sk-img" :src="item.cover" mode="aspectFill" />
+              <text class="mz-sk-off">-{{ off(item.price, item.originalPrice) }}%</text>
+            </view>
+            <text class="mz-sk-title">{{ item.title }}</text>
+            <view class="mz-sk-price">
+              <text class="mz-sk-now">¥{{ item.price }}</text>
+              <text class="mz-sk-orig">¥{{ item.originalPrice }}</text>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
     </view>
 
-    <!-- Content -->
-    <template v-else>
-      <!-- 限时秒杀 -->
-      <view
-        class="mz-card"
-        hover-class="mz-press"
-        @tap="navigateTo('/shop/flash-sale')"
-      >
-        <view class="mz-head mz-head-red">
-          <view class="mz-head-l">
-            <AppIcon
-              name="zap"
-              :size="28"
-              color="#ffffff"
-              :fill="true"
-            />
-            <text class="mz-head-title">
-              限时秒杀
-            </text>
-            <text class="mz-head-sub">
-              距结束
-            </text>
-            <view class="mz-time">
-              <text class="mz-tb">
-                {{ h }}
-              </text>
-              <text class="mz-colon">
-                :
-              </text>
-              <text class="mz-tb">
-                {{ m }}
-              </text>
-              <text class="mz-colon">
-                :
-              </text>
-              <text class="mz-tb">
-                {{ s }}
-              </text>
-            </view>
-          </view>
-          <AppIcon
-            name="chevron-right"
-            :size="28"
-            color="rgba(255,255,255,0.9)"
-          />
+    <!-- 超值拼团 -->
+    <view class="mz-card" hover-class="mz-press" @tap="navigateTo('/shop/group-buy')">
+      <view class="mz-head mz-head-amber">
+        <view class="mz-head-l">
+          <AppIcon name="users" :size="28" color="#ffffff" />
+          <text class="mz-head-title">超值拼团</text>
+          <text class="mz-head-sub">人多更便宜</text>
         </view>
-        <scroll-view
-          class="mz-rail"
-          scroll-x
-          :show-scrollbar="false"
-        >
-          <view class="mz-rail-inner">
-            <view
-              v-for="item in seckillItems"
-              :key="item.id"
-              class="mz-sk-item"
-            >
-              <view class="mz-sk-cover">
-                <image
-                  class="mz-sk-img"
-                  :src="item.cover"
-                  mode="aspectFill"
-                />
-                <text class="mz-sk-off">
-                  -{{ off(item.price, item.originalPrice) }}%
-                </text>
-              </view>
-              <text class="mz-sk-title">
-                {{ item.title }}
-              </text>
-              <view class="mz-sk-price">
-                <text class="mz-sk-now">
-                  ¥{{ item.price }}
-                </text>
-                <text class="mz-sk-orig">
-                  ¥{{ item.originalPrice }}
-                </text>
-              </view>
-            </view>
-          </view>
-        </scroll-view>
+        <AppIcon name="chevron-right" :size="28" color="rgba(255,255,255,0.9)" />
       </view>
-
-      <!-- 超值拼团 -->
-      <view
-        class="mz-card"
-        hover-class="mz-press"
-        @tap="navigateTo('/shop/group-buy')"
-      >
-        <view class="mz-head mz-head-amber">
-          <view class="mz-head-l">
-            <AppIcon
-              name="users"
-              :size="28"
-              color="#ffffff"
-            />
-            <text class="mz-head-title">
-              超值拼团
-            </text>
-            <text class="mz-head-sub">
-              人多更便宜
-            </text>
-          </view>
-          <AppIcon
-            name="chevron-right"
-            :size="28"
-            color="rgba(255,255,255,0.9)"
-          />
+      <view v-for="item in groupItems" :key="item.id" class="mz-gp">
+        <view class="mz-gp-cover">
+          <image class="mz-gp-img" :src="item.cover" mode="aspectFill" />
         </view>
-        <view
-          v-for="item in groupItems"
-          :key="item.id"
-          class="mz-gp"
-        >
-          <view class="mz-gp-cover">
-            <image
-              class="mz-gp-img"
-              :src="item.cover"
-              mode="aspectFill"
-            />
+        <view class="mz-gp-body">
+          <text class="mz-gp-title">{{ item.title }}</text>
+          <view class="mz-gp-tags">
+            <text class="mz-gp-need">{{ item.need }}人团</text>
+            <text class="mz-gp-joined">已有 {{ item.joined }} 人参团</text>
           </view>
-          <view class="mz-gp-body">
-            <text class="mz-gp-title">
-              {{ item.title }}
-            </text>
-            <view class="mz-gp-tags">
-              <text class="mz-gp-need">
-                {{ item.need }}人团
-              </text>
-              <text class="mz-gp-joined">
-                已有 {{ item.joined }} 人参团
-              </text>
-            </view>
-            <view class="mz-gp-price">
-              <text class="mz-gp-now">
-                ¥{{ item.groupPrice }}
-              </text>
-              <text class="mz-gp-orig">
-                ¥{{ item.originalPrice }}
-              </text>
-            </view>
+          <view class="mz-gp-price">
+            <text class="mz-gp-now">¥{{ item.groupPrice }}</text>
+            <text class="mz-gp-orig">¥{{ item.originalPrice }}</text>
           </view>
-          <text class="mz-gp-btn">
-            去拼团
-          </text>
         </view>
+        <text class="mz-gp-btn">去拼团</text>
       </view>
-    </template>
+    </view>
   </view>
 </template>
 
 <style scoped lang="scss">
 .mz { display: flex; flex-direction: column; gap: 24rpx; }
-.mz-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80rpx 0; gap: 20rpx; }
-.mz-load-spinner { width: 48rpx; height: 48rpx; border: 4rpx solid #F0F0F0; border-top-color: #c41e3a; border-radius: 50%; animation: mz-spin 0.8s linear infinite; }
-@keyframes mz-spin { to { transform: rotate(360deg); } }
-.mz-load-text { font-size: 26rpx; color: #999; }
 .mz-card { border-radius: 32rpx; overflow: hidden; background: var(--surface); box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
 .mz-press { transform: scale(0.99); }
 

@@ -1,538 +1,250 @@
 <template>
-  <view
-    class="page"
-    @dblclick="onDoubleTap"
-  >
-    <view
-      v-if="loading"
-      class="loading"
-    >
-      <text>加载中...</text>
+  <view class="page" @dblclick="onDoubleTap">
+    <!-- 视频背景 -->
+    <view class="video-bg">
+      <image class="video-img" :src="room.hostAvatar" mode="aspectFill" />
+      <view class="video-mask" />
     </view>
-    <view
-      v-else-if="error"
-      class="err-msg"
-    >
-      <text>{{ error }}</text>
-      <view
-        class="retry-btn"
-        @tap="loadData"
-      >
-        重试
+
+    <!-- 顶部信息栏 -->
+    <view class="top-bar">
+      <view class="top-row">
+        <!-- 主播信息 -->
+        <view class="host-pill">
+          <view class="host-avatar-wrap">
+            <image class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
+            <view class="live-tag">LIVE</view>
+          </view>
+          <view class="host-text">
+            <view class="host-name-row">
+              <text class="host-name">{{ room.hostName }}</text>
+              <view class="host-level">
+                <AppIcon name="crown" :size="20" color="#fff" />
+                <text class="host-level-txt">Lv.{{ room.hostLevel }}</text>
+              </view>
+            </view>
+            <text class="host-fans">{{ formatCount(room.followers) }} 粉丝</text>
+          </view>
+          <view class="follow-btn" :class="{ 'follow-btn--on': isFollowing }" @tap="onToggleFollow">
+            {{ isFollowing ? '已关注' : '关注' }}
+          </view>
+        </view>
+
+        <!-- 右侧 -->
+        <view class="top-right">
+          <view class="viewer-pill">
+            <AppIcon name="users" :size="28" color="rgba(255,255,255,0.7)" />
+            <text class="viewer-num">{{ formatCount(viewerCount) }}</text>
+          </view>
+          <view class="close-btn" @tap="goBack">
+            <AppIcon name="x" :size="40" color="#fff" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 在线观众头像 -->
+      <view class="online-row">
+        <view v-for="(avatar, i) in room.onlineAvatars" :key="i" class="online-avatar" :class="{ 'online-avatar-first': i === 0 }">
+          <image class="online-img" :src="avatar" mode="aspectFill" />
+        </view>
+        <text class="online-more">+{{ formatCount(viewerCount - 3) }}</text>
       </view>
     </view>
-    <template v-else-if="room">
-      <!-- 视频背景 -->
-      <view class="video-bg">
-        <image
-          class="video-img"
-          :src="room.hostAvatar"
-          mode="aspectFill"
+
+    <!-- 礼物动画 overlay（左侧滑入） -->
+    <view class="gift-anim-layer">
+      <view v-for="anim in giftAnimations" :key="anim.id" class="gift-anim">
+        <view class="gift-anim__icon">
+          <image class="gift-anim__img" :src="anim.gift.icon" mode="aspectFit" />
+        </view>
+        <view class="gift-anim__info">
+          <text class="gift-anim__user">{{ anim.user }}</text>
+          <text class="gift-anim__txt">送出 {{ anim.gift.name }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 飘心动画区域（右侧底部上方） -->
+    <view class="hearts-layer">
+      <view
+        v-for="heart in floatingHearts"
+        :key="heart.id"
+        class="float-heart"
+        :style="{ transform: `translateX(${heart.x}px) scale(${heart.scale})` }"
+      >
+        <AppIcon name="heart" :size="56" color="#C41E3A" :fill="true" />
+      </view>
+    </view>
+
+    <!-- 弹幕区域 -->
+    <view class="danmaku">
+      <view v-for="c in comments" :key="c.id" class="dm-item">
+        <!-- 系统 -->
+        <view v-if="c.type === 'system'" class="dm-system">
+          <text class="dm-system-txt">{{ c.content }}</text>
+        </view>
+        <!-- 进入直播间（紫色高亮） -->
+        <view v-else-if="c.type === 'enter'" class="dm-enter">
+          <text class="dm-enter-name">{{ c.userName }} </text>
+          <text class="dm-enter-txt">{{ c.content }}</text>
+        </view>
+        <!-- 礼物（金色背景+礼物图标） -->
+        <view v-else-if="c.type === 'gift'" class="dm-gift">
+          <text class="dm-gift-name">{{ c.userName }} </text>
+          <text class="dm-gift-txt">送出 {{ c.giftInfo?.name }} × {{ c.giftInfo?.count }}</text>
+        </view>
+        <!-- 普通文本 -->
+        <view v-else class="dm-text">
+          <text class="dm-name" :class="{ 'dm-name--host': c.isHost }">{{ c.userName }}:</text>
+          <text class="dm-content">{{ c.content }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 商品浮窗 -->
+    <view v-if="currentProduct" class="product-float" @tap="onOpenProductDetail(currentProduct)">
+      <view class="pf-card">
+        <view class="pf-img-wrap">
+          <image class="pf-img" :src="currentProduct.cover" mode="aspectFill" />
+          <view class="pf-badge">讲解中</view>
+        </view>
+        <view class="pf-info">
+          <text class="pf-name">{{ currentProduct.name }}</text>
+          <view class="pf-price-row">
+            <text class="pf-price">¥{{ currentProduct.price }}</text>
+            <text class="pf-origin">¥{{ currentProduct.originalPrice }}</text>
+          </view>
+        </view>
+        <view class="pf-buy">立即购买</view>
+      </view>
+    </view>
+
+    <!-- 底部操作栏 -->
+    <view class="bottom-bar">
+      <view class="bottom-inner">
+        <view class="dm-input" @tap="onOpenCommentInput">说点什么...</view>
+        <view class="action-btn action-cart" @tap="onOpenProductList">
+          <AppIcon name="shopping-cart" :size="40" color="#fff" />
+          <view class="cart-badge">{{ products.length }}</view>
+        </view>
+        <view class="action-btn action-gift" @tap="onOpenGiftPanel">
+          <AppIcon name="gift" :size="40" color="#fff" />
+        </view>
+        <view class="action-btn action-glass" @tap="onDoubleTap">
+          <AppIcon name="heart" :size="40" color="#C41E3A" :fill="true" />
+        </view>
+        <view class="action-btn action-glass" @tap="onShare">
+          <AppIcon name="share-2" :size="40" color="#fff" />
+        </view>
+      </view>
+    </view>
+
+    <!-- ========== 弹幕输入框弹窗 ========== -->
+    <view v-if="showCommentInput" class="ci-mask" @tap="onCloseCommentInput">
+      <view class="ci-bar" @tap.stop>
+        <input
+          v-model="commentInput"
+          class="ci-field"
+          placeholder="发送弹幕..."
+          placeholder-class="ci-ph"
+          :focus="showCommentInput"
+          confirm-type="send"
+          @confirm="onSendComment"
         />
-        <view class="video-mask" />
+        <view class="ci-send" :class="{ 'ci-send--off': !commentInput.trim() }" @tap="onSendComment">
+          <AppIcon name="chevron-right" :size="40" color="#fff" />
+        </view>
       </view>
+    </view>
 
-      <!-- 顶部信息栏 -->
-      <view class="top-bar">
-        <view class="top-row">
-          <!-- 主播信息 -->
-          <view class="host-pill">
-            <view class="host-avatar-wrap">
-              <image
-                class="host-avatar"
-                :src="room.hostAvatar"
-                mode="aspectFill"
-              />
-              <view class="live-tag">
-                LIVE
+    <!-- ========== 礼物面板 ========== -->
+    <view v-if="showGiftPanel" class="gp-mask" @tap="onCloseGiftPanel">
+      <view class="gp-sheet" @tap.stop>
+        <view class="gp-head">
+          <text class="gp-title">送礼物</text>
+          <view @tap="onCloseGiftPanel">
+            <AppIcon name="x" :size="40" color="rgba(255,255,255,0.6)" />
+          </view>
+        </view>
+        <view class="gp-grid">
+          <view v-for="g in gifts" :key="g.id" class="gp-cell" @tap="onSendGift(g)">
+            <image class="gp-cell__img" :src="g.icon" mode="aspectFit" />
+            <text class="gp-cell__name">{{ g.name }}</text>
+            <text class="gp-cell__price">{{ g.price }}国学币</text>
+          </view>
+        </view>
+        <view class="gp-foot">
+          <text class="gp-balance">余额：{{ coinBalance }} 国学币</text>
+          <text class="gp-recharge" @tap="onRecharge">充值</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ========== 商品列表弹窗 ========== -->
+    <view v-if="showProductList" class="pl-mask" @tap="onCloseProductList">
+      <view class="pl-sheet" @tap.stop>
+        <view class="pl-head">
+          <text class="pl-title">直播间好物</text>
+          <view @tap="onCloseProductList">
+            <AppIcon name="x" :size="40" color="rgba(255,255,255,0.6)" />
+          </view>
+        </view>
+        <scroll-view scroll-y class="pl-body">
+          <view v-for="(product, idx) in products" :key="product.id" class="pl-row" @tap="onOpenProductDetail(product)">
+            <view class="pl-img-wrap">
+              <view class="pl-idx">{{ idx + 1 }}</view>
+              <image class="pl-img" :src="product.cover" mode="aspectFill" />
+              <view v-if="product.isExplaining" class="pl-explaining">讲解中</view>
+            </view>
+            <view class="pl-info">
+              <text class="pl-name">{{ product.name }}</text>
+              <view class="pl-price-row">
+                <text class="pl-price">¥{{ product.price }}</text>
+                <text class="pl-origin">¥{{ product.originalPrice }}</text>
               </view>
+              <text class="pl-sold">已售 {{ product.sold }}</text>
             </view>
-            <view class="host-text">
-              <view class="host-name-row">
-                <text class="host-name">
-                  {{ room.hostName }}
-                </text>
-                <view class="host-level">
-                  <AppIcon
-                    name="crown"
-                    :size="20"
-                    color="#fff"
-                  />
-                  <text class="host-level-txt">
-                    Lv.{{ room.hostLevel }}
-                  </text>
-                </view>
-              </view>
-              <text class="host-fans">
-                {{ formatCount(room.followers) }} 粉丝
-              </text>
-            </view>
-            <view
-              class="follow-btn"
-              :class="{ 'follow-btn--on': isFollowing }"
-              @tap="onToggleFollow"
-            >
-              {{ isFollowing ? '已关注' : '关注' }}
-            </view>
+            <view class="pl-buy">立即购买</view>
           </view>
-
-          <!-- 右侧 -->
-          <view class="top-right">
-            <view class="viewer-pill">
-              <AppIcon
-                name="users"
-                :size="28"
-                color="rgba(255,255,255,0.7)"
-              />
-              <text class="viewer-num">
-                {{ formatCount(viewerCount) }}
-              </text>
-            </view>
-            <view
-              class="close-btn"
-              @tap="goBack"
-            >
-              <AppIcon
-                name="x"
-                :size="40"
-                color="#fff"
-              />
-            </view>
-          </view>
-        </view>
-
-        <!-- 在线观众头像 -->
-        <view class="online-row">
-          <view
-            v-for="(avatar, i) in room.onlineAvatars"
-            :key="i"
-            class="online-avatar"
-            :class="{ 'online-avatar-first': i === 0 }"
-          >
-            <image
-              class="online-img"
-              :src="avatar"
-              mode="aspectFill"
-            />
-          </view>
-          <text class="online-more">
-            +{{ formatCount(viewerCount - 3) }}
-          </text>
-        </view>
+        </scroll-view>
       </view>
+    </view>
 
-      <!-- 礼物动画 overlay（左侧滑入） -->
-      <view class="gift-anim-layer">
-        <view
-          v-for="anim in giftAnimations"
-          :key="anim.id"
-          class="gift-anim"
-        >
-          <view class="gift-anim__icon">
-            <image
-              class="gift-anim__img"
-              :src="anim.gift.icon"
-              mode="aspectFit"
-            />
-          </view>
-          <view class="gift-anim__info">
-            <text class="gift-anim__user">
-              {{ anim.user }}
-            </text>
-            <text class="gift-anim__txt">
-              送出 {{ anim.gift.name }}
-            </text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 飘心动画区域（右侧底部上方） -->
-      <view class="hearts-layer">
-        <view
-          v-for="heart in floatingHearts"
-          :key="heart.id"
-          class="float-heart"
-          :style="{ transform: `translateX(${heart.x}px) scale(${heart.scale})` }"
-        >
-          <AppIcon
-            name="heart"
-            :size="56"
-            color="#C41E3A"
-            :fill="true"
-          />
-        </view>
-      </view>
-
-      <!-- 弹幕区域 -->
-      <view class="danmaku">
-        <view
-          v-for="c in comments"
-          :key="c.id"
-          class="dm-item"
-        >
-          <!-- 系统 -->
-          <view
-            v-if="c.type === 'system'"
-            class="dm-system"
-          >
-            <text class="dm-system-txt">
-              {{ c.content }}
-            </text>
-          </view>
-          <!-- 进入直播间（紫色高亮） -->
-          <view
-            v-else-if="c.type === 'enter'"
-            class="dm-enter"
-          >
-            <text class="dm-enter-name">
-              {{ c.userName }}
-            </text>
-            <text class="dm-enter-txt">
-              {{ c.content }}
-            </text>
-          </view>
-          <!-- 礼物（金色背景+礼物图标） -->
-          <view
-            v-else-if="c.type === 'gift'"
-            class="dm-gift"
-          >
-            <text class="dm-gift-name">
-              {{ c.userName }}
-            </text>
-            <text class="dm-gift-txt">
-              送出 {{ c.giftInfo?.name }} × {{ c.giftInfo?.count }}
-            </text>
-          </view>
-          <!-- 普通文本 -->
-          <view
-            v-else
-            class="dm-text"
-          >
-            <text
-              class="dm-name"
-              :class="{ 'dm-name--host': c.isHost }"
-            >
-              {{ c.userName }}:
-            </text>
-            <text class="dm-content">
-              {{ c.content }}
-            </text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 商品浮窗 -->
-      <view
-        v-if="currentProduct"
-        class="product-float"
-        @tap="onOpenProductDetail(currentProduct)"
-      >
-        <view class="pf-card">
-          <view class="pf-img-wrap">
-            <image
-              class="pf-img"
-              :src="currentProduct.cover"
-              mode="aspectFill"
-            />
-            <view class="pf-badge">
-              讲解中
-            </view>
-          </view>
-          <view class="pf-info">
-            <text class="pf-name">
-              {{ currentProduct.name }}
-            </text>
-            <view class="pf-price-row">
-              <text class="pf-price">
-                ¥{{ currentProduct.price }}
-              </text>
-              <text class="pf-origin">
-                ¥{{ currentProduct.originalPrice }}
-              </text>
-            </view>
-          </view>
-          <view class="pf-buy">
-            立即购买
-          </view>
-        </view>
-      </view>
-
-      <!-- 底部操作栏 -->
-      <view class="bottom-bar">
-        <view class="bottom-inner">
-          <view
-            class="dm-input"
-            @tap="onOpenCommentInput"
-          >
-            说点什么...
-          </view>
-          <view
-            class="action-btn action-cart"
-            @tap="onOpenProductList"
-          >
-            <AppIcon
-              name="shopping-cart"
-              :size="40"
-              color="#fff"
-            />
-            <view class="cart-badge">
-              {{ products.length }}
-            </view>
-          </view>
-          <view
-            class="action-btn action-gift"
-            @tap="onOpenGiftPanel"
-          >
-            <AppIcon
-              name="gift"
-              :size="40"
-              color="#fff"
-            />
-          </view>
-          <view
-            class="action-btn action-glass"
-            @tap="onDoubleTap"
-          >
-            <AppIcon
-              name="heart"
-              :size="40"
-              color="#C41E3A"
-              :fill="true"
-            />
-          </view>
-          <view
-            class="action-btn action-glass"
-            @tap="onShare"
-          >
-            <AppIcon
-              name="share-2"
-              :size="40"
-              color="#fff"
-            />
-          </view>
-        </view>
-      </view>
-
-      <!-- ========== 弹幕输入框弹窗 ========== -->
-      <view
-        v-if="showCommentInput"
-        class="ci-mask"
-        @tap="onCloseCommentInput"
-      >
-        <view
-          class="ci-bar"
-          @tap.stop
-        >
-          <input
-            v-model="commentInput"
-            class="ci-field"
-            placeholder="发送弹幕..."
-            placeholder-class="ci-ph"
-            :focus="showCommentInput"
-            confirm-type="send"
-            @confirm="onSendComment"
-          >
-          <view
-            class="ci-send"
-            :class="{ 'ci-send--off': !commentInput.trim() }"
-            @tap="onSendComment"
-          >
-            <AppIcon
-              name="chevron-right"
-              :size="40"
-              color="#fff"
-            />
-          </view>
-        </view>
-      </view>
-
-      <!-- ========== 礼物面板 ========== -->
-      <view
-        v-if="showGiftPanel"
-        class="gp-mask"
-        @tap="onCloseGiftPanel"
-      >
-        <view
-          class="gp-sheet"
-          @tap.stop
-        >
-          <view class="gp-head">
-            <text class="gp-title">
-              送礼物
-            </text>
-            <view @tap="onCloseGiftPanel">
-              <AppIcon
-                name="x"
-                :size="40"
-                color="rgba(255,255,255,0.6)"
-              />
-            </view>
-          </view>
-          <view class="gp-grid">
-            <view
-              v-for="g in gifts"
-              :key="g.id"
-              class="gp-cell"
-              @tap="onSendGift(g)"
-            >
-              <text class="gp-cell__emoji">
-                {{ g.icon }}
-              </text>
-              <text class="gp-cell__name">
-                {{ g.name }}
-              </text>
-              <text class="gp-cell__price">
-                {{ g.price }}国学币
-              </text>
-            </view>
-          </view>
-          <view class="gp-foot">
-            <text class="gp-balance">
-              余额：{{ coinBalance }} 国学币
-            </text>
-            <text
-              class="gp-recharge"
-              @tap="onRecharge"
-            >
-              充值
-            </text>
-          </view>
-        </view>
-      </view>
-
-      <!-- ========== 商品列表弹窗 ========== -->
-      <view
-        v-if="showProductList"
-        class="pl-mask"
-        @tap="onCloseProductList"
-      >
-        <view
-          class="pl-sheet"
-          @tap.stop
-        >
-          <view class="pl-head">
-            <text class="pl-title">
-              直播间好物
-            </text>
-            <view @tap="onCloseProductList">
-              <AppIcon
-                name="x"
-                :size="40"
-                color="rgba(255,255,255,0.6)"
-              />
-            </view>
-          </view>
-          <scroll-view
-            scroll-y
-            class="pl-body"
-          >
-            <view
-              v-for="(product, idx) in products"
-              :key="product.id"
-              class="pl-row"
-              @tap="onOpenProductDetail(product)"
-            >
-              <view class="pl-img-wrap">
-                <view class="pl-idx">
-                  {{ idx + 1 }}
-                </view>
-                <image
-                  class="pl-img"
-                  :src="product.cover"
-                  mode="aspectFill"
-                />
-                <view
-                  v-if="product.isExplaining"
-                  class="pl-explaining"
-                >
-                  讲解中
-                </view>
-              </view>
-              <view class="pl-info">
-                <text class="pl-name">
-                  {{ product.name }}
-                </text>
-                <view class="pl-price-row">
-                  <text class="pl-price">
-                    ¥{{ product.price }}
-                  </text>
-                  <text class="pl-origin">
-                    ¥{{ product.originalPrice }}
-                  </text>
-                </view>
-                <text class="pl-sold">
-                  已售 {{ product.sold }}
-                </text>
-              </view>
-              <view class="pl-buy">
-                立即购买
-              </view>
-            </view>
-          </scroll-view>
-        </view>
-      </view>
-
-      <!-- ========== 半屏确认订单 ========== -->
-      <QuickBuySheet
-        :open="showProductDetail && !!selectedProduct"
-        :product="quickBuyProduct"
-        @close="onCloseProductDetail"
-        @paid="onPaid"
-      />
-    </template>
+    <!-- ========== 半屏确认订单 ========== -->
+    <QuickBuySheet
+      :open="showProductDetail && !!selectedProduct"
+      :product="quickBuyProduct"
+      @close="onCloseProductDetail"
+      @paid="onPaid"
+    />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import QuickBuySheet, { type QuickBuyProduct } from '@/components/live/quick-buy-sheet.vue'
 import { goBack } from '@/utils/router'
-import { LIVE_GIFTS, type LiveGift } from '@/lib/live-gifts'
 import {
-  liveApi,
+  verticalLiveRoom,
+  verticalLiveComments,
+  verticalLiveProducts,
+  liveGifts,
+  liveCoinBalance,
   type VerticalLiveProduct,
-  type VerticalLiveComment,
+  type LiveGift,
 } from '@/lib/live-data'
 
-const roomId = ref('')
-const room = ref<any>(null)
-const comments = ref<VerticalLiveComment[]>([])
-const products = ref<VerticalLiveProduct[]>([])
-const gifts = ref(LIVE_GIFTS)
-const coinBalance = ref(0)
-const loading = ref(false)
-const error = ref('')
-
-async function loadData() {
-  if (!roomId.value) return
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await liveApi.verticalRoom(roomId.value)
-    room.value = res.room
-    comments.value = res.comments
-    products.value = res.products
-    viewerCount.value = res.room.viewerCount ?? 0
-    likeCount.value = res.room.likeCount ?? 0
-    coinBalance.value = 2680
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-onLoad((opts) => {
-  if (opts?.id) roomId.value = opts.id
-  loadData()
-})
+const room = ref(verticalLiveRoom)
+const comments = ref(verticalLiveComments)
+const products = ref(verticalLiveProducts)
+const gifts = ref(liveGifts)
+const coinBalance = ref(liveCoinBalance)
 
 // ===== UI 状态 ref =====
 const isFollowing = ref(false)
-const viewerCount = ref(0)
-const likeCount = ref(0)
+const viewerCount = ref(verticalLiveRoom.viewerCount)
+const likeCount = ref(verticalLiveRoom.likeCount)
 const floatingHearts = ref<{ id: number; x: number; scale: number }[]>([])
 const giftAnimations = ref<{ id: number; gift: LiveGift; user: string }[]>([])
 const commentInput = ref('')
@@ -626,9 +338,6 @@ function onPaid() { showProductDetail.value = false }
   inset: 0;
   background: #000;
 }
-.loading { display: flex; align-items: center; justify-content: center; padding: 200rpx 0; font-size: 28rpx; color: #999; background: #000; color: #fff; }
-.err-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; gap: 24rpx; font-size: 28rpx; background: #000; color: #ef4444; }
-.retry-btn { padding: 12rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 999rpx; font-size: 28rpx; }
 
 /* 视频背景 */
 .video-bg {
@@ -1135,9 +844,9 @@ function onPaid() { showProductDetail.value = false }
   background: rgba(255, 255, 255, 0.05);
   border-radius: 24rpx;
 }
-.gp-cell__emoji {
-  font-size: 56rpx;
-  line-height: 1;
+.gp-cell__img {
+  width: 72rpx;
+  height: 72rpx;
 }
 .gp-cell__name {
   color: #fff;

@@ -1,25 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
-import { mineSettingsApi, type BlacklistItem, type SearchUserItem } from '@/lib/mine-data'
+import { blacklistUsers, blacklistSearchPool, type BlacklistItem, type SearchUserItem } from '@/lib/mine-data'
 
-const list = ref<BlacklistItem[]>([])
-const loading = ref(true)
-const error = ref(false)
-
-async function loadBlocklist() {
-  loading.value = true
-  error.value = false
-  try {
-    const res = await mineSettingsApi.getBlocklist()
-    list.value = res.items
-  } catch { error.value = true }
-  finally { loading.value = false }
-}
-function reload() { loadBlocklist() }
-
-onMounted(loadBlocklist)
+const list = ref<BlacklistItem[]>(blacklistUsers.map((u) => ({ ...u })))
 
 // 移除确认
 const removeDialog = ref(false)
@@ -30,21 +14,16 @@ function askRemove(u: BlacklistItem) {
   selected.value = u
   removeDialog.value = true
 }
-async function confirmRemove() {
-  const u = selected.value
-  if (!u) return
+function confirmRemove() {
+  if (!selected.value) return
   removing.value = true
-  try {
-    await mineSettingsApi.removeFromBlocklist(u.userId)
-    list.value = list.value.filter((x) => x.id !== u.id)
+  setTimeout(() => {
+    list.value = list.value.filter((u) => u.id !== selected.value!.id)
     removing.value = false
     removeDialog.value = false
     selected.value = null
     uni.showToast({ title: '已移出黑名单', icon: 'none' })
-  } catch {
-    uni.showToast({ title: '操作失败，请重试', icon: 'none' })
-    removing.value = false
-  }
+  }, 500)
 }
 
 // 添加黑名单
@@ -60,9 +39,10 @@ watch(keyword, (kw) => {
     return
   }
   searching.value = true
-  // 搜索用户需调用 API，暂无对应接口，暂返回空结果
   setTimeout(() => {
-    results.value = []
+    results.value = blacklistSearchPool
+      .filter((u) => u.nickname.includes(kw.trim()))
+      .map((u) => ({ ...u }))
     searching.value = false
   }, 300)
 })
@@ -72,11 +52,10 @@ function openAdd() {
   keyword.value = ''
   results.value = []
 }
-async function addToBlacklist(u: SearchUserItem) {
+function addToBlacklist(u: SearchUserItem) {
   if (u.isBlocked) return
   adding.value = u.id
-  try {
-    await mineSettingsApi.addToBlocklist(u.id)
+  setTimeout(() => {
     results.value = results.value.map((r) => (r.id === u.id ? { ...r, isBlocked: true } : r))
     list.value = [
       { id: Date.now(), userId: u.id, nickname: u.nickname, avatar: u.avatar, blockedAt: new Date().toISOString().slice(0, 10) },
@@ -84,10 +63,7 @@ async function addToBlacklist(u: SearchUserItem) {
     ]
     adding.value = null
     uni.showToast({ title: '已加入黑名单', icon: 'none' })
-  } catch {
-    uni.showToast({ title: '操作失败，请重试', icon: 'none' })
-    adding.value = null
-  }
+  }, 500)
 }
 
 const isEmpty = computed(() => list.value.length === 0)
@@ -95,266 +71,83 @@ const isEmpty = computed(() => list.value.length === 0)
 
 <template>
   <view class="page">
-    <view class="nav">
-      <view
-        class="nav-btn"
-        @tap="goBack"
-      >
-        <AppIcon
-          name="chevron-left"
-          :size="22"
-          color="#2C2C2C"
-        />
-      </view>
-      <text class="nav-title">
-        黑名单管理
-      </text>
-      <view
-        class="nav-btn"
-        @tap="openAdd"
-      >
-        <AppIcon
-          name="plus"
-          :size="22"
-          color="#C41E3A"
-        />
-      </view>
-    </view>
-
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
-      <!-- 加载中 -->
-      <view
-        v-if="loading"
-        class="loading-wrap"
-      >
-        <text class="loading-text">
-          加载中...
-        </text>
-      </view>
-
-      <!-- 加载失败 -->
-      <view
-        v-else-if="error"
-        class="loading-wrap"
-      >
-        <text class="loading-text">
-          加载失败
-        </text>
-        <view
-          class="retry-btn"
-          @tap="reload"
-        >
-          <text class="retry-btn-text">
-            重试
-          </text>
+    <app-nav-bar title="黑名单管理" title-align="left" :title-size="36">
+      <template #right>
+        <view class="nav-btn" @tap="openAdd">
+          <AppIcon name="plus" :size="22" color="#C41E3A" />
         </view>
-      </view>
+      </template>
+    </app-nav-bar>
 
+    <scroll-view scroll-y class="scroll">
       <!-- 空状态 -->
-      <view
-        v-else-if="isEmpty"
-        class="empty"
-      >
+      <view v-if="isEmpty" class="empty">
         <view class="empty-icon">
-          <AppIcon
-            name="user-x"
-            :size="44"
-            color="#C9C2B6"
-          />
+          <AppIcon name="user-x" :size="44" color="#C9C2B6" />
         </view>
-        <text class="empty-title">
-          暂无黑名单用户
-        </text>
-        <text class="empty-desc">
-          点击右上角添加黑名单
-        </text>
+        <text class="empty-title">暂无黑名单用户</text>
+        <text class="empty-desc">点击右上角添加黑名单</text>
       </view>
 
       <!-- 列表 -->
       <template v-else>
-        <view
-          v-for="u in list"
-          :key="u.id"
-          class="item"
-        >
-          <image
-            class="avatar"
-            :src="u.avatar"
-            mode="aspectFill"
-          />
+        <view v-for="u in list" :key="u.id" class="item">
+          <image class="avatar" :src="u.avatar" mode="aspectFill" />
           <view class="item-body">
-            <text class="item-name">
-              {{ u.nickname }}
-            </text>
-            <text class="item-time">
-              {{ u.blockedAt }} 加入黑名单
-            </text>
-            <text
-              v-if="u.reason"
-              class="item-reason"
-            >
-              原因：{{ u.reason }}
-            </text>
+            <text class="item-name">{{ u.nickname }}</text>
+            <text class="item-time">{{ u.blockedAt }} 加入黑名单</text>
+            <text v-if="u.reason" class="item-reason">原因：{{ u.reason }}</text>
           </view>
-          <view
-            class="btn-remove"
-            @tap="askRemove(u)"
-          >
-            <text class="btn-remove-text">
-              移出
-            </text>
-          </view>
+          <view class="btn-remove" @tap="askRemove(u)"><text class="btn-remove-text">移出</text></view>
         </view>
 
         <view class="footer">
-          <text class="footer-line">
-            共 {{ list.length }} 人在黑名单中
-          </text>
-          <text class="footer-sub">
-            黑名单用户无法与您互动
-          </text>
+          <text class="footer-line">共 {{ list.length }} 人在黑名单中</text>
+          <text class="footer-sub">黑名单用户无法与您互动</text>
         </view>
       </template>
     </scroll-view>
 
     <!-- 移除确认弹窗 -->
-    <view
-      v-if="removeDialog"
-      class="mask center"
-      @tap="removeDialog = false"
-    >
-      <view
-        class="dialog"
-        @tap.stop
-      >
-        <text class="dialog-title">
-          移出黑名单
-        </text>
-        <text class="dialog-desc">
-          确定要将「{{ selected?.nickname }}」移出黑名单吗？移出后对方可以与您互动。
-        </text>
+    <view v-if="removeDialog" class="mask center mask-fade-in" @tap="removeDialog = false">
+      <view class="dialog dialog-pop-in" @tap.stop>
+        <text class="dialog-title">移出黑名单</text>
+        <text class="dialog-desc">确定要将「{{ selected?.nickname }}」移出黑名单吗？移出后对方可以与您互动。</text>
         <view class="dialog-actions">
-          <view
-            class="dialog-btn ghost"
-            @tap="removeDialog = false"
-          >
-            <text class="dialog-btn-text">
-              取消
-            </text>
-          </view>
-          <view
-            class="dialog-btn solid"
-            @tap="confirmRemove"
-          >
-            <text class="dialog-btn-text solid-text">
-              {{ removing ? '移出中...' : '确定移出' }}
-            </text>
-          </view>
+          <view class="dialog-btn ghost" @tap="removeDialog = false"><text class="dialog-btn-text">取消</text></view>
+          <view class="dialog-btn solid" @tap="confirmRemove"><text class="dialog-btn-text solid-text">{{ removing ? '移出中...' : '确定移出' }}</text></view>
         </view>
       </view>
     </view>
 
     <!-- 添加黑名单底部弹窗 -->
-    <view
-      v-if="addSheet"
-      class="mask"
-      @tap="addSheet = false"
-    >
-      <view
-        class="sheet"
-        @tap.stop
-      >
+    <view v-if="addSheet" class="mask mask-fade-in" @tap="addSheet = false">
+      <view class="sheet sheet-slide-up" @tap.stop>
         <view class="sheet-head">
-          <text class="sheet-title">
-            添加黑名单
-          </text>
+          <text class="sheet-title">添加黑名单</text>
         </view>
         <view class="search">
-          <AppIcon
-            name="search"
-            :size="18"
-            color="#b8b0a4"
-          />
-          <input
-            v-model="keyword"
-            class="search-input"
-            placeholder="搜索用户昵称"
-            placeholder-class="ph"
-            confirm-type="search"
-          >
-          <view
-            v-if="keyword"
-            class="search-clear"
-            @tap="keyword = ''"
-          >
-            <AppIcon
-              name="x"
-              :size="16"
-              color="#b8b0a4"
-            />
+          <AppIcon name="search" :size="18" color="#b8b0a4" />
+          <input v-model="keyword" class="search-input" placeholder="搜索用户昵称" placeholder-class="ph" confirm-type="search" />
+          <view v-if="keyword" class="search-clear" @tap="keyword = ''">
+            <AppIcon name="x" :size="16" color="#b8b0a4" />
           </view>
         </view>
 
-        <scroll-view
-          scroll-y
-          class="results"
-        >
-          <view
-            v-if="searching"
-            class="result-hint"
-          >
-            搜索中...
-          </view>
-          <view
-            v-else-if="keyword && results.length === 0"
-            class="result-hint"
-          >
-            未找到相关用户
-          </view>
-          <view
-            v-else-if="!keyword"
-            class="result-empty"
-          >
-            <AppIcon
-              name="alert-circle"
-              :size="40"
-              color="#E8E3D7"
-            />
-            <text class="result-empty-text">
-              输入用户昵称进行搜索
-            </text>
+        <scroll-view scroll-y class="results">
+          <view v-if="searching" class="result-hint">搜索中...</view>
+          <view v-else-if="keyword && results.length === 0" class="result-hint">未找到相关用户</view>
+          <view v-else-if="!keyword" class="result-empty">
+            <AppIcon name="alert-circle" :size="40" color="#E8E3D7" />
+            <text class="result-empty-text">输入用户昵称进行搜索</text>
           </view>
           <template v-else>
-            <view
-              v-for="u in results"
-              :key="u.id"
-              class="result-item"
-            >
-              <image
-                class="result-avatar"
-                :src="u.avatar"
-                mode="aspectFill"
-              />
-              <text class="result-name">
-                {{ u.nickname }}
-              </text>
-              <text
-                v-if="u.isBlocked"
-                class="result-done"
-              >
-                已拉黑
-              </text>
-              <view
-                v-else
-                class="btn-block"
-                @tap="addToBlacklist(u)"
-              >
-                <text class="btn-block-text">
-                  {{ adding === u.id ? '添加中...' : '拉黑' }}
-                </text>
+            <view v-for="u in results" :key="u.id" class="result-item">
+              <image class="result-avatar" :src="u.avatar" mode="aspectFill" />
+              <text class="result-name">{{ u.nickname }}</text>
+              <text v-if="u.isBlocked" class="result-done">已拉黑</text>
+              <view v-else class="btn-block" @tap="addToBlacklist(u)">
+                <text class="btn-block-text">{{ adding === u.id ? '添加中...' : '拉黑' }}</text>
               </view>
             </view>
           </template>
@@ -366,20 +159,13 @@ const isEmpty = computed(() => list.value.length === 0)
 
 <style scoped>
 .page { min-height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
-.nav { height: 88rpx; display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx; background: #fff; border-bottom: 1rpx solid #EDE7DC; position: sticky; top: 0; z-index: 10; }
 .nav-btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
-.nav-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
 .scroll { flex: 1; padding: 24rpx; box-sizing: border-box; }
 
 .empty { padding: 140rpx 0; display: flex; flex-direction: column; align-items: center; gap: 16rpx; }
 .empty-icon { width: 140rpx; height: 140rpx; border-radius: 50%; background: #F2ECE1; display: flex; align-items: center; justify-content: center; margin-bottom: 8rpx; }
 .empty-title { font-size: 28rpx; color: #6f6760; }
 .empty-desc { font-size: 24rpx; color: #b8b0a4; }
-
-.loading-wrap { padding: 200rpx 0; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
-.loading-text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; border: 1rpx solid #C41E3A; border-radius: 999rpx; }
-.retry-btn-text { font-size: 26rpx; color: #C41E3A; }
 
 .item { background: #fff; border-radius: 20rpx; padding: 24rpx; display: flex; align-items: center; gap: 20rpx; margin-bottom: 20rpx; }
 .avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: #F2ECE1; flex-shrink: 0; }

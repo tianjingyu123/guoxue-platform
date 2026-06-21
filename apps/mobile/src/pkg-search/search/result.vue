@@ -1,63 +1,32 @@
 <template>
   <view class="result-page">
     <!-- 顶部：搜索栏 + Tab -->
-    <view
-      class="result-header"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="result-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="search-bar-row">
-        <view
-          class="back-btn"
-          @click="goBack"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="44"
-            color="var(--text-main)"
-          />
+        <view class="back-btn" @click="goBack">
+          <app-icon name="chevron-left" :size="44" color="var(--text-main)" />
         </view>
         <view class="search-input-wrap">
-          <app-icon
-            name="search"
-            :size="32"
-            color="var(--text-soft)"
-          />
+          <app-icon name="search" :size="32" color="var(--text-soft)" />
           <input
-            v-model="searchValue"
             class="search-input"
+            v-model="searchValue"
             placeholder="搜索课程、圈子、商品..."
             placeholder-class="search-input-ph"
             confirm-type="search"
             @confirm="handleSearch"
-          >
-          <view
-            v-if="searchValue"
-            class="clear-btn"
-            @click="searchValue = ''"
-          >
-            <app-icon
-              name="x"
-              :size="28"
-              color="var(--text-soft)"
-            />
+          />
+          <view v-if="searchValue" class="clear-btn" @click="searchValue = ''">
+            <app-icon name="x" :size="28" color="var(--text-soft)" />
           </view>
         </view>
-        <view
-          class="search-action"
-          @click="handleSearch"
-        >
-          <text class="search-action-text">
-            搜索
-          </text>
+        <view class="search-action" @click="handleSearch">
+          <text class="search-action-text">搜索</text>
         </view>
       </view>
 
       <!-- Tab 横滚 -->
-      <scroll-view
-        scroll-x
-        class="tabs-scroll"
-        :show-scrollbar="false"
-      >
+      <scroll-view scroll-x class="tabs-scroll" :show-scrollbar="false">
         <view class="tabs-row">
           <view
             v-for="tab in tabs"
@@ -66,31 +35,16 @@
             :class="{ 'tab-item--active': activeTab === tab.key }"
             @click="activeTab = tab.key"
           >
-            <text
-              class="tab-label"
-              :class="{ 'tab-label--active': activeTab === tab.key }"
-            >
-              {{ tab.label }}
-            </text>
+            <text class="tab-label" :class="{ 'tab-label--active': activeTab === tab.key }">{{ tab.label }}</text>
           </view>
         </view>
       </scroll-view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="result-body"
-    >
+    <scroll-view scroll-y class="result-body">
       <!-- 加载骨架 -->
-      <view
-        v-if="loading"
-        class="skeleton-wrap"
-      >
-        <view
-          v-for="i in 5"
-          :key="i"
-          class="skeleton-card"
-        >
+      <view v-if="loading" class="skeleton-wrap">
+        <view v-for="i in 5" :key="i" class="skeleton-card">
           <view class="sk-line sk-line--title" />
           <view class="sk-line sk-line--full" />
           <view class="sk-line sk-line--two-third" />
@@ -99,72 +53,39 @@
 
       <block v-else>
         <!-- AI 智能总结（仅综合Tab）-->
-        <view
-          v-if="activeTab === 'all'"
-          class="ai-summary-pad"
-        >
+        <view v-if="activeTab === 'all'" class="ai-summary-pad">
           <view class="ai-summary-card">
-            <view
-              class="ai-summary-head"
-              @click="aiExpanded = !aiExpanded"
-            >
+            <view class="ai-summary-head" @click="aiExpanded = !aiExpanded">
               <view class="ai-summary-head-left">
                 <view class="ai-summary-icon">
-                  <app-icon
-                    name="sparkles"
-                    :size="28"
-                    color="#ffffff"
-                  />
+                  <app-icon name="sparkles" :size="28" color="#ffffff" />
                 </view>
-                <text class="ai-summary-title">
-                  AI智能总结
-                </text>
+                <text class="ai-summary-title">AI智能总结</text>
               </view>
-              <app-icon
-                :name="aiExpanded ? 'chevron-up' : 'chevron-down'"
-                :size="32"
-                color="var(--text-soft)"
-              />
+              <app-icon :name="aiExpanded ? 'chevron-up' : 'chevron-down'" :size="32" color="var(--text-soft)" />
             </view>
 
-            <view
-              v-if="aiExpanded"
-              class="ai-summary-body"
-            >
-              <text class="ai-summary-text">
-                {{ aiSummary.summary }}
-              </text>
+            <view v-if="aiExpanded" class="ai-summary-body">
+              <text class="ai-summary-text">{{ aiSummary.summary }}</text>
 
               <view class="ai-block">
-                <text class="ai-block-label">
-                  核心要点
-                </text>
+                <text class="ai-block-label">核心要点</text>
                 <view class="ai-points">
-                  <view
-                    v-for="(point, i) in aiSummary.keyPoints"
-                    :key="i"
-                    class="ai-point-chip"
-                  >
-                    <text class="ai-point-text">
-                      {{ point }}
-                    </text>
+                  <view v-for="(point, i) in aiSummary.keyPoints" :key="i" class="ai-point-chip">
+                    <text class="ai-point-text">{{ point }}</text>
                   </view>
                 </view>
               </view>
 
               <view class="ai-block">
-                <text class="ai-block-label">
-                  相关问题
-                </text>
+                <text class="ai-block-label">相关问题</text>
                 <view class="ai-questions">
                   <text
                     v-for="(q, i) in aiSummary.relatedQuestions"
                     :key="i"
                     class="ai-question"
                     @click="goSearch(q)"
-                  >
-                    {{ q }}
-                  </text>
+                  >{{ q }}</text>
                 </view>
               </view>
             </view>
@@ -173,23 +94,10 @@
 
         <view class="results-pad">
           <!-- 内容结果 -->
-          <view
-            v-if="(activeTab === 'all' || activeTab === 'content') && results.contents.length"
-            class="result-group"
-          >
-            <view
-              v-if="activeTab === 'all'"
-              class="group-head"
-            >
-              <text class="group-title">
-                相关内容
-              </text>
-              <text
-                class="group-more"
-                @click="activeTab = 'content'"
-              >
-                查看全部
-              </text>
+          <view v-if="(activeTab === 'all' || activeTab === 'content') && results.contents.length" class="result-group">
+            <view v-if="activeTab === 'all'" class="group-head">
+              <text class="group-title">相关内容</text>
+              <text class="group-more" @click="activeTab = 'content'">查看全部</text>
             </view>
             <view
               v-for="item in results.contents"
@@ -199,57 +107,22 @@
             >
               <view class="content-main">
                 <view class="content-tags">
-                  <text
-                    v-if="item.type === 'video'"
-                    class="type-tag type-tag--video"
-                  >
-                    视频
-                  </text>
-                  <text
-                    v-if="item.type === 'article'"
-                    class="type-tag type-tag--article"
-                  >
-                    文章
-                  </text>
-                  <text
-                    v-if="item.type === 'post'"
-                    class="type-tag type-tag--post"
-                  >
-                    帖子
-                  </text>
+                  <text v-if="item.type === 'video'" class="type-tag type-tag--video">视频</text>
+                  <text v-if="item.type === 'article'" class="type-tag type-tag--article">文章</text>
+                  <text v-if="item.type === 'post'" class="type-tag type-tag--post">帖子</text>
                 </view>
-                <rich-text
-                  class="content-title"
-                  :nodes="highlight(item.title)"
-                />
-                <rich-text
-                  class="content-summary"
-                  :nodes="highlight(item.summary)"
-                />
+                <rich-text class="content-title" :nodes="highlight(item.title)" />
+                <rich-text class="content-summary" :nodes="highlight(item.summary)" />
                 <view class="content-foot">
-                  <text class="content-author">
-                    {{ item.author.name }}
-                  </text>
+                  <text class="content-author">{{ item.author.name }}</text>
                   <view class="content-stats">
                     <view class="stat">
-                      <app-icon
-                        name="heart"
-                        :size="22"
-                        color="var(--text-soft)"
-                      />
-                      <text class="stat-num">
-                        {{ item.likes }}
-                      </text>
+                      <app-icon name="heart" :size="22" color="var(--text-soft)" />
+                      <text class="stat-num">{{ item.likes }}</text>
                     </view>
                     <view class="stat">
-                      <app-icon
-                        name="message-circle"
-                        :size="22"
-                        color="var(--text-soft)"
-                      />
-                      <text class="stat-num">
-                        {{ item.comments }}
-                      </text>
+                      <app-icon name="message-circle" :size="22" color="var(--text-soft)" />
+                      <text class="stat-num">{{ item.comments }}</text>
                     </view>
                   </view>
                 </view>
@@ -258,23 +131,10 @@
           </view>
 
           <!-- 圈子结果 -->
-          <view
-            v-if="(activeTab === 'all' || activeTab === 'circle') && results.circles.length"
-            class="result-group"
-          >
-            <view
-              v-if="activeTab === 'all'"
-              class="group-head"
-            >
-              <text class="group-title">
-                相关圈子
-              </text>
-              <text
-                class="group-more"
-                @click="activeTab = 'circle'"
-              >
-                查看全部
-              </text>
+          <view v-if="(activeTab === 'all' || activeTab === 'circle') && results.circles.length" class="result-group">
+            <view v-if="activeTab === 'all'" class="group-head">
+              <text class="group-title">相关圈子</text>
+              <text class="group-more" @click="activeTab = 'circle'">查看全部</text>
             </view>
             <view
               v-for="circle in results.circles"
@@ -283,55 +143,27 @@
               @click="navigateTo(`/circles/${circle.id}`)"
             >
               <view class="circle-avatar">
-                <app-icon
-                  name="users"
-                  :size="48"
-                  color="#C41E3A"
-                />
+                <app-icon name="users" :size="48" color="#C41E3A" />
               </view>
               <view class="circle-info">
-                <rich-text
-                  class="circle-name"
-                  :nodes="highlight(circle.name)"
-                />
-                <text class="circle-desc">
-                  {{ circle.description }}
-                </text>
+                <rich-text class="circle-name" :nodes="highlight(circle.name)" />
+                <text class="circle-desc">{{ circle.description }}</text>
                 <view class="circle-stats">
-                  <text class="circle-stat">
-                    {{ formatNumber(circle.memberCount) }}成员
-                  </text>
-                  <text class="circle-stat">
-                    {{ formatNumber(circle.postCount) }}帖子
-                  </text>
+                  <text class="circle-stat">{{ formatNumber(circle.memberCount) }}成员</text>
+                  <text class="circle-stat">{{ formatNumber(circle.postCount) }}帖子</text>
                 </view>
               </view>
               <view class="join-btn">
-                <text class="join-btn-text">
-                  加入
-                </text>
+                <text class="join-btn-text">加入</text>
               </view>
             </view>
           </view>
 
           <!-- 课程结果 -->
-          <view
-            v-if="(activeTab === 'all' || activeTab === 'course') && results.courses.length"
-            class="result-group"
-          >
-            <view
-              v-if="activeTab === 'all'"
-              class="group-head"
-            >
-              <text class="group-title">
-                相关课程
-              </text>
-              <text
-                class="group-more"
-                @click="activeTab = 'course'"
-              >
-                查看全部
-              </text>
+          <view v-if="(activeTab === 'all' || activeTab === 'course') && results.courses.length" class="result-group">
+            <view v-if="activeTab === 'all'" class="group-head">
+              <text class="group-title">相关课程</text>
+              <text class="group-more" @click="activeTab = 'course'">查看全部</text>
             </view>
             <view :class="activeTab === 'course' ? 'course-grid' : 'course-list'">
               <view
@@ -341,46 +173,21 @@
                 @click="navigateTo(`/courses/${course.id}`)"
               >
                 <view :class="activeTab === 'course' ? 'course-cover-grid' : 'course-cover-row'">
-                  <app-icon
-                    name="book-open"
-                    :size="56"
-                    color="#C41E3A"
-                  />
+                  <app-icon name="book-open" :size="56" color="#C41E3A" />
                 </view>
                 <view :class="activeTab === 'course' ? 'course-meta-grid' : 'course-meta-row'">
-                  <rich-text
-                    class="course-title"
-                    :nodes="highlight(course.title)"
-                  />
-                  <text class="course-teacher">
-                    {{ course.teacher }}
-                  </text>
+                  <rich-text class="course-title" :nodes="highlight(course.title)" />
+                  <text class="course-teacher">{{ course.teacher }}</text>
                   <view class="course-sub">
                     <view class="course-rating">
-                      <app-icon
-                        name="star"
-                        :size="22"
-                        color="#C9A96E"
-                        :fill="true"
-                      />
-                      <text class="course-rating-num">
-                        {{ course.rating }}
-                      </text>
+                      <app-icon name="star" :size="22" color="#C9A96E" :fill="true" />
+                      <text class="course-rating-num">{{ course.rating }}</text>
                     </view>
-                    <text class="course-students">
-                      {{ formatNumber(course.studentCount) }}人学习
-                    </text>
+                    <text class="course-students">{{ formatNumber(course.studentCount) }}人学习</text>
                   </view>
                   <view class="course-price-row">
-                    <text class="course-price">
-                      ¥{{ course.price }}
-                    </text>
-                    <text
-                      v-if="course.originalPrice"
-                      class="course-original"
-                    >
-                      ¥{{ course.originalPrice }}
-                    </text>
+                    <text class="course-price">¥{{ course.price }}</text>
+                    <text v-if="course.originalPrice" class="course-original">¥{{ course.originalPrice }}</text>
                   </view>
                 </view>
               </view>
@@ -388,23 +195,10 @@
           </view>
 
           <!-- 商品结果 -->
-          <view
-            v-if="(activeTab === 'all' || activeTab === 'product') && results.products.length"
-            class="result-group"
-          >
-            <view
-              v-if="activeTab === 'all'"
-              class="group-head"
-            >
-              <text class="group-title">
-                相关商品
-              </text>
-              <text
-                class="group-more"
-                @click="activeTab = 'product'"
-              >
-                查看全部
-              </text>
+          <view v-if="(activeTab === 'all' || activeTab === 'product') && results.products.length" class="result-group">
+            <view v-if="activeTab === 'all'" class="group-head">
+              <text class="group-title">相关商品</text>
+              <text class="group-more" @click="activeTab = 'product'">查看全部</text>
             </view>
             <view class="product-grid">
               <view
@@ -414,32 +208,16 @@
                 @click="navigateTo(`/mall/product/${product.id}`)"
               >
                 <view class="product-cover">
-                  <app-icon
-                    name="shopping-bag"
-                    :size="72"
-                    color="rgba(196,30,58,0.5)"
-                  />
+                  <app-icon name="shopping-bag" :size="72" color="rgba(196,30,58,0.5)" />
                 </view>
                 <view class="product-meta">
-                  <rich-text
-                    class="product-name"
-                    :nodes="highlight(product.name)"
-                  />
+                  <rich-text class="product-name" :nodes="highlight(product.name)" />
                   <view class="product-foot">
                     <view class="product-price-wrap">
-                      <text class="product-price">
-                        ¥{{ product.price }}
-                      </text>
-                      <text
-                        v-if="product.originalPrice"
-                        class="product-original"
-                      >
-                        ¥{{ product.originalPrice }}
-                      </text>
+                      <text class="product-price">¥{{ product.price }}</text>
+                      <text v-if="product.originalPrice" class="product-original">¥{{ product.originalPrice }}</text>
                     </view>
-                    <text class="product-sales">
-                      {{ product.sales }}人购买
-                    </text>
+                    <text class="product-sales">{{ product.sales }}人购买</text>
                   </view>
                 </view>
               </view>
@@ -447,23 +225,10 @@
           </view>
 
           <!-- 用户结果 -->
-          <view
-            v-if="(activeTab === 'all' || activeTab === 'user') && results.users.length"
-            class="result-group"
-          >
-            <view
-              v-if="activeTab === 'all'"
-              class="group-head"
-            >
-              <text class="group-title">
-                相关用户
-              </text>
-              <text
-                class="group-more"
-                @click="activeTab = 'user'"
-              >
-                查看全部
-              </text>
+          <view v-if="(activeTab === 'all' || activeTab === 'user') && results.users.length" class="result-group">
+            <view v-if="activeTab === 'all'" class="group-head">
+              <text class="group-title">相关用户</text>
+              <text class="group-more" @click="activeTab = 'user'">查看全部</text>
             </view>
             <view
               v-for="user in results.users"
@@ -472,66 +237,29 @@
               @click="navigateTo(`/user/${user.id}`)"
             >
               <view class="user-avatar">
-                <app-icon
-                  name="user"
-                  :size="44"
-                  color="#C41E3A"
-                />
+                <app-icon name="user" :size="44" color="#C41E3A" />
               </view>
               <view class="user-info">
-                <rich-text
-                  class="user-name"
-                  :nodes="highlight(user.name)"
-                />
-                <text
-                  v-if="user.bio"
-                  class="user-bio"
-                >
-                  {{ user.bio }}
-                </text>
+                <rich-text class="user-name" :nodes="highlight(user.name)" />
+                <text v-if="user.bio" class="user-bio">{{ user.bio }}</text>
                 <view class="user-stat">
-                  <app-icon
-                    name="trending-up"
-                    :size="22"
-                    color="var(--text-soft)"
-                  />
-                  <text class="user-fans">
-                    {{ formatNumber(user.followers) }}粉丝
-                  </text>
+                  <app-icon name="trending-up" :size="22" color="var(--text-soft)" />
+                  <text class="user-fans">{{ formatNumber(user.followers) }}粉丝</text>
                 </view>
               </view>
-              <view
-                class="follow-btn"
-                :class="{ 'follow-btn--done': user.isFollowed }"
-              >
-                <text
-                  class="follow-btn-text"
-                  :class="{ 'follow-btn-text--done': user.isFollowed }"
-                >
-                  {{ user.isFollowed ? '已关注' : '关注' }}
-                </text>
+              <view class="follow-btn" :class="{ 'follow-btn--done': user.isFollowed }">
+                <text class="follow-btn-text" :class="{ 'follow-btn-text--done': user.isFollowed }">{{ user.isFollowed ? '已关注' : '关注' }}</text>
               </view>
             </view>
           </view>
 
           <!-- 空态 -->
-          <view
-            v-if="isEmpty"
-            class="empty-state"
-          >
+          <view v-if="isEmpty" class="empty-state">
             <view class="empty-icon">
-              <app-icon
-                name="search"
-                :size="56"
-                color="var(--text-soft)"
-              />
+              <app-icon name="search" :size="56" color="var(--text-soft)" />
             </view>
-            <text class="empty-title">
-              没有找到相关内容
-            </text>
-            <text class="empty-desc">
-              换个关键词，或试试下面的热门搜索
-            </text>
+            <text class="empty-title">没有找到相关内容</text>
+            <text class="empty-desc">换个关键词，或试试下面的热门搜索</text>
             <view class="empty-tags">
               <view
                 v-for="kw in emptyHotWords"
@@ -539,9 +267,7 @@
                 class="empty-tag"
                 @click="goSearch(kw)"
               >
-                <text class="empty-tag-text">
-                  {{ kw }}
-                </text>
+                <text class="empty-tag-text">{{ kw }}</text>
               </view>
             </view>
           </view>

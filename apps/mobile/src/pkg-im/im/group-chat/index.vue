@@ -1,181 +1,58 @@
 <template>
   <view class="page">
     <!-- 导航栏 -->
-    <view
-      class="navbar"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-left">
-        <view
-          class="icon-btn"
-          @tap="goBack"
-        >
-          <AppIcon
-            name="arrow-left"
-            :size="40"
-            color="#2c2c2c"
-          />
+        <view class="icon-btn" @tap="goBack">
+          <AppIcon name="arrow-left" :size="20" color="#2c2c2c" />
         </view>
         <view class="group-text">
-          <text class="group-name">
-            {{ groupDetail.name }}
-          </text>
-          <text class="group-status">
-            {{ onlineCount }}人在线 / {{ groupDetail.memberCount }}人
-          </text>
+          <text class="group-name">{{ groupDetail.name }}</text>
+          <text class="group-status">{{ onlineCount }}人在线 / {{ groupDetail.memberCount }}人</text>
         </view>
       </view>
-      <view
-        class="icon-btn"
-        @tap="showMembersSheet = true"
-      >
-        <AppIcon
-          name="more-vertical"
-          :size="40"
-          color="#2c2c2c"
-        />
+      <view class="icon-btn" @tap="showMembersSheet = true">
+        <AppIcon name="more-vertical" :size="20" color="#2c2c2c" />
       </view>
-    </view>
-
-    <!-- 加载态 -->
-    <view
-      v-if="loading"
-      class="loading-state"
-    >
-      <view class="loading-skeleton">
-        <view
-          v-for="i in 4"
-          :key="i"
-          class="skeleton-row"
-        >
-          <view class="skeleton-avatar" />
-          <view class="skeleton-body">
-            <view class="skeleton-line skeleton-line-lg" />
-            <view class="skeleton-line skeleton-line-sm" />
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 错误态 -->
-    <view
-      v-else-if="error"
-      class="error-state"
-      @tap="loadData"
-    >
-      <text class="error-text">
-        {{ error }}
-      </text>
-      <text class="error-retry">
-        点击重试
-      </text>
     </view>
 
     <!-- 群公告 -->
-    <view
-      v-if="groupDetail.notice && !loading && !error"
-      class="notice-bar"
-      @tap="showNoticeSheet = true"
-    >
-      <AppIcon
-        name="bell"
-        :size="32"
-        color="#d97706"
-      />
-      <text class="notice-text">
-        {{ groupDetail.notice }}
-      </text>
-      <AppIcon
-        name="chevron-right"
-        :size="32"
-        color="#d97706"
-      />
+    <view v-if="groupDetail.notice" class="notice-bar" @tap="showNoticeSheet = true">
+      <AppIcon name="bell" :size="16" color="#d97706" />
+      <text class="notice-text">{{ groupDetail.notice }}</text>
+      <AppIcon name="chevron-right" :size="16" color="#d97706" />
     </view>
 
     <!-- 消息列表 -->
-    <scroll-view
-      v-if="!loading && !error"
-      class="msg-scroll"
-      scroll-y
-      :scroll-into-view="'msg-end'"
-    >
+    <scroll-view class="msg-scroll" scroll-y :scroll-into-view="'msg-end'">
       <view class="msg-list">
-        <view
-          v-for="(message, index) in messages"
-          :key="message.id"
-        >
+        <view v-for="(message, index) in messages" :key="message.id">
           <!-- 时间标签 -->
-          <view
-            v-if="showTime(message, messages[index - 1])"
-            class="time-label-row"
-          >
-            <text class="time-label">
-              {{ formatMessageTime(message.timestamp) }}
-            </text>
+          <view v-if="showTime(message, messages[index - 1])" class="time-label-row">
+            <text class="time-label">{{ formatMessageTime(message.timestamp) }}</text>
           </view>
 
           <!-- 撤回提示 -->
-          <view
-            v-if="message.isWithdrawn"
-            class="withdraw-row"
-          >
-            <text class="withdraw-text">
-              {{ isMine(message) ? '你' : message.senderName }}撤回了一条消息
-            </text>
+          <view v-if="message.isWithdrawn" class="withdraw-row">
+            <text class="withdraw-text">{{ isMine(message) ? '你' : message.senderName }}撤回了一条消息</text>
           </view>
 
           <!-- 消息气泡 -->
-          <view
-            v-else
-            class="msg-row"
-            :class="{ 'msg-mine': isMine(message) }"
-          >
-            <view
-              v-if="!isMine(message)"
-              class="avatar-wrap"
-            >
-              <image
-                class="msg-avatar"
-                :src="message.senderAvatar"
-                mode="aspectFill"
-              />
-              <view
-                v-if="message.senderRole === 'owner'"
-                class="role-badge role-owner"
-              >
-                <AppIcon
-                  name="crown"
-                  :size="24"
-                  color="#f59e0b"
-                />
+          <view v-else class="msg-row" :class="{ 'msg-mine': isMine(message) }">
+            <view v-if="!isMine(message)" class="avatar-wrap">
+              <image class="msg-avatar" :src="message.senderAvatar" mode="aspectFill" />
+              <view v-if="message.senderRole === 'owner'" class="role-badge role-owner">
+                <AppIcon name="crown" :size="12" color="#f59e0b" />
               </view>
-              <view
-                v-else-if="message.senderRole === 'admin'"
-                class="role-badge role-admin"
-              >
-                <AppIcon
-                  name="shield"
-                  :size="24"
-                  color="#3b82f6"
-                />
+              <view v-else-if="message.senderRole === 'admin'" class="role-badge role-admin">
+                <AppIcon name="shield" :size="12" color="#3b82f6" />
               </view>
             </view>
 
-            <view
-              class="msg-content"
-              :class="{ 'msg-content-mine': isMine(message) }"
-            >
+            <view class="msg-content" :class="{ 'msg-content-mine': isMine(message) }">
               <!-- 发送者名称 -->
-              <text
-                v-if="!isMine(message)"
-                class="sender-name"
-              >
-                {{ message.senderName }}<text
-                  v-if="message.senderRole && message.senderRole !== 'member'"
-                  class="sender-role"
-                >
-                  （{{ getGroupRoleName(message.senderRole) }}）
-                </text>
+              <text v-if="!isMine(message)" class="sender-name">
+                {{ message.senderName }}<text v-if="message.senderRole && message.senderRole !== 'member'" class="sender-role">（{{ getGroupRoleName(message.senderRole) }}）</text>
               </text>
 
               <view
@@ -184,41 +61,15 @@
                 @longpress="openMessageMenu(message)"
               >
                 <!-- 文字 -->
-                <text
-                  v-if="message.type === 'text'"
-                  class="bubble-text"
-                  :class="{ 'bubble-text-mine': isMine(message) }"
-                >
-                  <text
-                    v-if="message.atAll"
-                    class="at-text"
-                  >
-                    @所有人
-                  </text>{{ message.content }}
+                <text v-if="message.type === 'text'" class="bubble-text" :class="{ 'bubble-text-mine': isMine(message) }">
+                  <text v-if="message.atAll" class="at-text">@所有人 </text>{{ message.content }}
                 </text>
                 <!-- 图片 -->
-                <image
-                  v-else-if="message.type === 'image'"
-                  class="bubble-image"
-                  :src="message.image?.url"
-                  mode="widthFix"
-                />
+                <image v-else-if="message.type === 'image'" class="bubble-image" :src="message.image?.url" mode="widthFix" />
                 <!-- 语音 -->
-                <view
-                  v-else-if="message.type === 'voice'"
-                  class="voice-row"
-                >
-                  <AppIcon
-                    name="mic"
-                    :size="32"
-                    :color="isMine(message) ? '#ffffff' : '#2c2c2c'"
-                  />
-                  <text
-                    class="voice-dur"
-                    :class="{ 'bubble-text-mine': isMine(message) }"
-                  >
-                    {{ message.voice?.duration }}″
-                  </text>
+                <view v-else-if="message.type === 'voice'" class="voice-row">
+                  <AppIcon name="mic" :size="16" :color="isMine(message) ? '#ffffff' : '#2c2c2c'" />
+                  <text class="voice-dur" :class="{ 'bubble-text-mine': isMine(message) }">{{ message.voice?.duration }}″</text>
                 </view>
               </view>
             </view>
@@ -229,81 +80,30 @@
     </scroll-view>
 
     <!-- @成员列表 -->
-    <view
-      v-if="showAtList"
-      class="at-panel"
-    >
+    <view v-if="showAtList" class="at-panel">
       <view class="at-search">
-        <input
-          class="at-input"
-          :value="atSearchKeyword"
-          placeholder="搜索成员..."
-          placeholder-class="at-input-ph"
-          @input="onAtSearch"
-        >
+        <input class="at-input" :value="atSearchKeyword" placeholder="搜索成员..." placeholder-class="at-input-ph" @input="onAtSearch" />
       </view>
-      <scroll-view
-        class="at-scroll"
-        scroll-y
-      >
-        <view
-          v-if="canAtAll"
-          class="at-item"
-          @tap="handleAtAll"
-        >
-          <view class="at-all-icon">
-            <AppIcon
-              name="users"
-              :size="40"
-              color="#c41e3a"
-            />
-          </view>
-          <text class="at-name at-name-bold">
-            @所有人
-          </text>
+      <scroll-view class="at-scroll" scroll-y>
+        <view v-if="canAtAll" class="at-item" @tap="handleAtAll">
+          <view class="at-all-icon"><AppIcon name="users" :size="20" color="#c41e3a" /></view>
+          <text class="at-name at-name-bold">@所有人</text>
         </view>
-        <view
-          v-for="member in atSearchResults"
-          :key="member.id"
-          class="at-item"
-          @tap="handleSelectAtMember(member)"
-        >
-          <image
-            class="at-avatar"
-            :src="member.avatar"
-            mode="aspectFill"
-          />
+        <view v-for="member in atSearchResults" :key="member.id" class="at-item" @tap="handleSelectAtMember(member)">
+          <image class="at-avatar" :src="member.avatar" mode="aspectFill" />
           <view class="at-info">
-            <text class="at-name">
-              {{ member.remark || member.nickname }}
-            </text>
-            <text
-              v-if="member.role !== 'member'"
-              class="at-role"
-            >
-              {{ getGroupRoleName(member.role) }}
-            </text>
+            <text class="at-name">{{ member.remark || member.nickname }}</text>
+            <text v-if="member.role !== 'member'" class="at-role">{{ getGroupRoleName(member.role) }}</text>
           </view>
         </view>
       </scroll-view>
     </view>
 
     <!-- 底部输入区 -->
-    <view
-      v-if="!loading && !error"
-      class="input-area"
-    >
+    <view class="input-area">
       <view class="input-row">
-        <view
-          class="icon-btn"
-          @tap="toggleMorePanel"
-        >
-          <AppIcon
-            name="plus"
-            :size="40"
-            :color="showMorePanel ? '#c41e3a' : '#2c2c2c'"
-            :style="showMorePanel ? 'transform:rotate(45deg)' : ''"
-          />
+        <view class="icon-btn" @tap="toggleMorePanel">
+          <AppIcon name="plus" :size="20" :color="showMorePanel ? '#c41e3a' : '#2c2c2c'" :style="showMorePanel ? 'transform:rotate(45deg)' : ''" />
         </view>
         <view class="input-wrap">
           <input
@@ -314,317 +114,120 @@
             confirm-type="send"
             @input="onInput"
             @confirm="handleSend"
-          >
-        </view>
-        <view
-          v-if="inputText.trim()"
-          class="send-btn"
-          @tap="handleSend"
-        >
-          <AppIcon
-            name="send"
-            :size="40"
-            color="#ffffff"
           />
         </view>
-        <view
-          v-else
-          class="icon-btn"
-        >
-          <AppIcon
-            name="mic"
-            :size="40"
-            color="#2c2c2c"
-          />
+        <view v-if="inputText.trim()" class="send-btn" @tap="handleSend">
+          <AppIcon name="send" :size="20" color="#ffffff" />
+        </view>
+        <view v-else class="icon-btn">
+          <AppIcon name="mic" :size="20" color="#2c2c2c" />
         </view>
       </view>
 
       <!-- 更多功能面板 -->
-      <view
-        v-if="showMorePanel"
-        class="more-panel"
-      >
-        <view
-          class="more-item"
-          @tap="toast('相册功能开发中')"
-        >
-          <view class="more-icon">
-            <AppIcon
-              name="image"
-              :size="40"
-              color="#16a34a"
-            />
-          </view>
-          <text class="more-label">
-            相册
-          </text>
+      <view v-if="showMorePanel" class="more-panel">
+        <view class="more-item" @tap="toast('相册功能开发中')">
+          <view class="more-icon"><AppIcon name="image" :size="20" color="#16a34a" /></view>
+          <text class="more-label">相册</text>
         </view>
-        <view
-          class="more-item"
-          @tap="toast('拍照功能开发中')"
-        >
-          <view class="more-icon">
-            <AppIcon
-              name="camera"
-              :size="40"
-              color="#3b82f6"
-            />
-          </view>
-          <text class="more-label">
-            拍照
-          </text>
+        <view class="more-item" @tap="toast('拍照功能开发中')">
+          <view class="more-icon"><AppIcon name="camera" :size="20" color="#3b82f6" /></view>
+          <text class="more-label">拍照</text>
         </view>
-        <view
-          class="more-item"
-          @tap="openAtFromPanel"
-        >
-          <view class="more-icon">
-            <AppIcon
-              name="at-sign"
-              :size="40"
-              color="#9333ea"
-            />
-          </view>
-          <text class="more-label">
-            @成员
-          </text>
+        <view class="more-item" @tap="openAtFromPanel">
+          <view class="more-icon"><AppIcon name="at-sign" :size="20" color="#9333ea" /></view>
+          <text class="more-label">@成员</text>
         </view>
-        <view
-          class="more-item"
-          @tap="toast('语音功能开发中')"
-        >
-          <view class="more-icon">
-            <AppIcon
-              name="mic"
-              :size="40"
-              color="#ea580c"
-            />
-          </view>
-          <text class="more-label">
-            语音
-          </text>
+        <view class="more-item" @tap="toast('语音功能开发中')">
+          <view class="more-icon"><AppIcon name="mic" :size="20" color="#ea580c" /></view>
+          <text class="more-label">语音</text>
         </view>
       </view>
     </view>
 
     <!-- 消息操作菜单 -->
-    <view
-      v-if="selectedMessage"
-      class="menu-mask"
-      @tap="selectedMessage = null"
-    >
-      <view
-        class="menu-pop"
-        @tap.stop
-      >
-        <view
-          v-if="selectedMessage.type === 'text'"
-          class="menu-btn"
-          @tap="handleCopy(selectedMessage.content)"
-        >
-          <AppIcon
-            name="copy"
-            :size="40"
-            color="#2c2c2c"
-          />
-          <text class="menu-label">
-            复制
-          </text>
+    <view v-if="selectedMessage" class="menu-mask" @tap="selectedMessage = null">
+      <view class="menu-pop" @tap.stop>
+        <view v-if="selectedMessage.type === 'text'" class="menu-btn" @tap="handleCopy(selectedMessage.content)">
+          <AppIcon name="copy" :size="20" color="#2c2c2c" />
+          <text class="menu-label">复制</text>
         </view>
-        <view
-          v-if="canWithdraw(selectedMessage)"
-          class="menu-btn"
-          @tap="handleWithdraw(selectedMessage)"
-        >
-          <AppIcon
-            name="trash-2"
-            :size="40"
-            color="#2c2c2c"
-          />
-          <text class="menu-label">
-            撤回
-          </text>
+        <view v-if="canWithdraw(selectedMessage)" class="menu-btn" @tap="handleWithdraw(selectedMessage)">
+          <AppIcon name="trash-2" :size="20" color="#2c2c2c" />
+          <text class="menu-label">撤回</text>
         </view>
       </view>
     </view>
 
     <!-- 群成员侧边栏 -->
-    <view
-      v-if="showMembersSheet"
-      class="sheet-mask"
-      @tap="showMembersSheet = false"
-    >
-      <view
-        class="sheet"
-        @tap.stop
-      >
+    <view v-if="showMembersSheet" class="sheet-mask" @tap="showMembersSheet = false">
+      <view class="sheet" @tap.stop>
         <view class="sheet-header">
-          <text class="sheet-title">
-            群聊信息
-          </text>
-          <view
-            class="icon-btn"
-            @tap="showMembersSheet = false"
-          >
-            <AppIcon
-              name="x"
-              :size="40"
-              color="#2c2c2c"
-            />
-          </view>
+          <text class="sheet-title">群聊信息</text>
+          <view class="icon-btn" @tap="showMembersSheet = false"><AppIcon name="x" :size="20" color="#2c2c2c" /></view>
         </view>
-        <scroll-view
-          class="sheet-body"
-          scroll-y
-        >
+        <scroll-view class="sheet-body" scroll-y>
           <view class="sheet-group-info">
-            <image
-              class="sheet-group-avatar"
-              :src="groupDetail.avatar"
-              mode="aspectFill"
-            />
+            <image class="sheet-group-avatar" :src="groupDetail.avatar" mode="aspectFill" />
             <view class="sheet-group-text">
-              <text class="sheet-group-name">
-                {{ groupDetail.name }}
-              </text>
-              <text class="sheet-group-count">
-                {{ groupDetail.memberCount }}人
-              </text>
+              <text class="sheet-group-name">{{ groupDetail.name }}</text>
+              <text class="sheet-group-count">{{ groupDetail.memberCount }}人</text>
             </view>
           </view>
 
           <view class="sheet-section">
             <view class="sheet-section-head">
-              <text class="sheet-section-label">
-                群成员
-              </text>
-              <text class="sheet-section-more">
-                查看全部 >
-              </text>
+              <text class="sheet-section-label">群成员</text>
+              <text class="sheet-section-more">查看全部 ></text>
             </view>
             <view class="member-grid">
-              <view
-                v-for="member in members.slice(0, 10)"
-                :key="member.id"
-                class="member-cell"
-              >
+              <view v-for="member in members.slice(0, 10)" :key="member.id" class="member-cell">
                 <view class="avatar-wrap">
-                  <image
-                    class="member-avatar"
-                    :src="member.avatar"
-                    mode="aspectFill"
-                  />
-                  <view
-                    v-if="member.role === 'owner'"
-                    class="role-badge role-owner"
-                  >
-                    <AppIcon
-                      name="crown"
-                      :size="24"
-                      color="#f59e0b"
-                    />
+                  <image class="member-avatar" :src="member.avatar" mode="aspectFill" />
+                  <view v-if="member.role === 'owner'" class="role-badge role-owner">
+                    <AppIcon name="crown" :size="12" color="#f59e0b" />
                   </view>
-                  <view
-                    v-else-if="member.role === 'admin'"
-                    class="role-badge role-admin"
-                  >
-                    <AppIcon
-                      name="shield"
-                      :size="24"
-                      color="#3b82f6"
-                    />
+                  <view v-else-if="member.role === 'admin'" class="role-badge role-admin">
+                    <AppIcon name="shield" :size="12" color="#3b82f6" />
                   </view>
                 </view>
-                <text class="member-name">
-                  {{ member.nickname }}
-                </text>
+                <text class="member-name">{{ member.nickname }}</text>
               </view>
             </view>
           </view>
 
-          <view
-            v-if="groupDetail.notice"
-            class="sheet-section"
-            @tap="openNoticeFromMembers"
-          >
+          <view v-if="groupDetail.notice" class="sheet-section" @tap="openNoticeFromMembers">
             <view class="sheet-section-head">
-              <text class="sheet-section-label">
-                群公告
-              </text>
-              <AppIcon
-                name="chevron-right"
-                :size="32"
-                color="#8a8178"
-              />
+              <text class="sheet-section-label">群公告</text>
+              <AppIcon name="chevron-right" :size="16" color="#8a8178" />
             </view>
-            <text class="sheet-notice-text">
-              {{ groupDetail.notice }}
-            </text>
+            <text class="sheet-notice-text">{{ groupDetail.notice }}</text>
           </view>
 
           <view class="sheet-section sheet-row">
-            <text class="sheet-section-label">
-              我在本群的身份
-            </text>
-            <text class="sheet-row-value">
-              {{ getGroupRoleName(groupDetail.myRole) }}
-            </text>
+            <text class="sheet-section-label">我在本群的身份</text>
+            <text class="sheet-row-value">{{ getGroupRoleName(groupDetail.myRole) }}</text>
           </view>
         </scroll-view>
       </view>
     </view>
 
     <!-- 群公告详情 -->
-    <view
-      v-if="showNoticeSheet"
-      class="sheet-mask"
-      @tap="showNoticeSheet = false"
-    >
-      <view
-        class="sheet"
-        @tap.stop
-      >
+    <view v-if="showNoticeSheet" class="sheet-mask" @tap="showNoticeSheet = false">
+      <view class="sheet" @tap.stop>
         <view class="sheet-header">
-          <text class="sheet-title">
-            群公告
-          </text>
-          <view
-            class="icon-btn"
-            @tap="showNoticeSheet = false"
-          >
-            <AppIcon
-              name="x"
-              :size="40"
-              color="#2c2c2c"
-            />
-          </view>
+          <text class="sheet-title">群公告</text>
+          <view class="icon-btn" @tap="showNoticeSheet = false"><AppIcon name="x" :size="20" color="#2c2c2c" /></view>
         </view>
-        <scroll-view
-          class="sheet-body"
-          scroll-y
-        >
-          <view
-            v-if="groupDetail.noticeDetail"
-            class="notice-detail"
-          >
+        <scroll-view class="sheet-body" scroll-y>
+          <view v-if="groupDetail.noticeDetail" class="notice-detail">
             <view class="notice-meta">
-              <text class="notice-publisher">
-                {{ groupDetail.noticeDetail.publisher }}
-              </text>
-              <text class="notice-date">
-                发布于 {{ groupDetail.noticeDetail.publishedAt }}
-              </text>
+              <text class="notice-publisher">{{ groupDetail.noticeDetail.publisher }}</text>
+              <text class="notice-date">发布于 {{ groupDetail.noticeDetail.publishedAt }}</text>
             </view>
-            <text class="notice-content">
-              {{ groupDetail.noticeDetail.content }}
-            </text>
+            <text class="notice-content">{{ groupDetail.noticeDetail.content }}</text>
           </view>
-          <text
-            v-else
-            class="notice-empty"
-          >
-            暂无群公告
-          </text>
+          <text v-else class="notice-empty">暂无群公告</text>
         </scroll-view>
       </view>
     </view>
@@ -632,12 +235,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
-  imApi,
+  mockGroupDetail,
+  mockGroupMembers,
+  mockGroupChatHistory,
   searchGroupMembersForAt,
   getGroupRoleName,
   getGroupOnlineCount,
@@ -651,48 +255,10 @@ import {
 
 const statusBarHeight = ref(0)
 
-// 渲染数据
-const groupDetail = ref({
-  name: '',
-  notice: '',
-  noticeDetail: undefined as { publisher: string; publishedAt: string; content: string } | undefined,
-  avatar: '',
-  memberCount: 0,
-  myRole: 'member' as 'owner' | 'admin' | 'member',
-})
-const members = ref<GroupMember[]>([])
-const messages = ref<GroupChatMessage[]>([])
-const loading = ref(true)
-const error = ref('')
-const groupId = ref('')
-
-onLoad((options: any) => {
-  groupId.value = options?.groupId || ''
-})
-
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await imApi.groupChat(groupId.value)
-    groupDetail.value = {
-      name: res.detail.name,
-      notice: res.detail.notice,
-      noticeDetail: res.detail.noticeDetail,
-      avatar: res.detail.avatar,
-      memberCount: res.detail.memberCount,
-      myRole: res.detail.myRole,
-    }
-    members.value = res.members
-    messages.value = res.messages
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => { if (groupId.value) loadData() })
+// 渲染数据（保留 mock 通过像素验收）
+const groupDetail = ref({ ...mockGroupDetail })
+const members = ref<GroupMember[]>([...mockGroupMembers])
+const messages = ref<GroupChatMessage[]>([...mockGroupChatHistory])
 
 // UI 临时状态
 const inputText = ref('')
@@ -778,7 +344,7 @@ function handleSend() {
     id: 'temp_' + Date.now(),
     senderId: CURRENT_USER_ID,
     senderName: '我',
-    senderAvatar: '/marketing/course.png',
+    senderAvatar: '/static/images/circles/circle-6.jpg',
     senderRole: groupDetail.value.myRole,
     type: 'text',
     content,
@@ -1310,47 +876,4 @@ function handleSend() {
   font-size: 26rpx;
   color: #8a8178;
 }
-
-/* 加载态 */
-.loading-state {
-  flex: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 64rpx 32rpx;
-}
-.loading-skeleton { width: 100%; }
-.skeleton-row {
-  display: flex;
-  gap: 24rpx;
-  margin-bottom: 48rpx;
-}
-.skeleton-avatar {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 50%;
-  background: #f2ece1;
-  flex-shrink: 0;
-}
-.skeleton-body { flex: 1; }
-.skeleton-line {
-  height: 28rpx;
-  background: #f2ece1;
-  border-radius: 8rpx;
-  margin-bottom: 8rpx;
-}
-.skeleton-line-lg { width: 60%; }
-.skeleton-line-sm { width: 30%; }
-
-/* 错误态 */
-.error-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 120rpx 32rpx;
-}
-.error-text { font-size: 28rpx; color: #8a8178; margin-bottom: 24rpx; }
-.error-retry { font-size: 26rpx; color: #c41e3a; }
 </style>

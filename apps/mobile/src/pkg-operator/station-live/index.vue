@@ -1,56 +1,19 @@
 <template>
   <view class="lv-page">
     <!-- 导航栏 (渐变) -->
-    <view
-      class="lv-header"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="lv-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="lv-nav">
-        <view
-          class="lv-hbtn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#ffffff"
-          />
-        </view>
+        <view class="lv-hbtn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
         <view class="lv-station">
-          <image
-            class="lv-station-logo"
-            :src="stationLogo"
-            mode="aspectFill"
-          />
-          <text class="lv-station-name">
-            {{ stationName }} - 直播
-          </text>
+          <image class="lv-station-logo" :src="stationLogo" mode="aspectFill" />
+          <text class="lv-station-name">{{ stationName }} - 直播</text>
         </view>
-        <view
-          class="lv-hbtn"
-          @tap="onRefresh"
-        >
-          <app-icon
-            name="refresh-cw"
-            :size="40"
-            color="#ffffff"
-            :class="{ 'lv-spin': refreshing }"
-          />
-        </view>
+        <view class="lv-hbtn" @tap="onRefresh"><app-icon name="refresh-cw" :size="40" color="#ffffff" :class="{ 'lv-spin': refreshing }" /></view>
       </view>
       <view class="lv-search-wrap">
         <view class="lv-search">
-          <app-icon
-            name="search"
-            :size="28"
-            color="#9ca3af"
-          />
-          <input
-            v-model="keyword"
-            class="lv-search-input"
-            placeholder="搜索直播间"
-            placeholder-class="lv-ph"
-          >
+          <app-icon name="search" :size="28" color="#9ca3af" />
+          <input class="lv-search-input" v-model="keyword" placeholder="搜索直播间" placeholder-class="lv-ph" />
         </view>
       </view>
     </view>
@@ -64,9 +27,7 @@
         :class="{ active: filter === f.value }"
         @tap="filter = f.value"
       >
-        <text class="lv-filter-txt">
-          {{ f.label }}{{ f.value === 'live' ? `(${liveCount})` : '' }}
-        </text>
+        <text class="lv-filter-txt">{{ f.label }}{{ f.value === 'live' ? `(${liveCount})` : '' }}</text>
       </view>
     </view>
 
@@ -81,156 +42,57 @@
       >
         <!-- 封面 -->
         <view class="lv-cover">
-          <image
-            class="lv-cover-img"
-            :src="room.cover"
-            mode="aspectFill"
-          />
+          <image class="lv-cover-img" :src="room.cover" mode="aspectFill" />
           <!-- 状态标签 -->
-          <view
-            class="lv-status"
-            :style="statusStyle(room.status)"
-          >
-            <view
-              v-if="room.status === 'live'"
-              class="lv-dot"
-            />
-            <text
-              class="lv-status-txt"
-              :style="{ color: statusInfo(room.status).color }"
-            >
-              {{ statusInfo(room.status).label }}
-            </text>
+          <view class="lv-status" :style="statusStyle(room.status)">
+            <view v-if="room.status === 'live'" class="lv-dot" />
+            <text class="lv-status-txt" :style="{ color: statusInfo(room.status).color }">{{ statusInfo(room.status).label }}</text>
           </view>
           <!-- LIVE 角标 -->
-          <view
-            v-if="room.status === 'live'"
-            class="lv-live-badge"
-          >
-            <app-icon
-              name="radio"
-              :size="22"
-              color="#ffffff"
-            />
-            <text class="lv-live-txt">
-              LIVE
-            </text>
+          <view v-if="room.status === 'live'" class="lv-live-badge">
+            <app-icon name="radio" :size="22" color="#ffffff" />
+            <text class="lv-live-txt">LIVE</text>
           </view>
           <!-- 回放时长 -->
-          <view
-            v-if="room.status === 'replay' && room.replayDuration"
-            class="lv-duration"
-          >
-            <text class="lv-duration-txt">
-              {{ formatDuration(room.replayDuration) }}
-            </text>
+          <view v-if="room.status === 'replay' && room.replayDuration" class="lv-duration">
+            <text class="lv-duration-txt">{{ formatDuration(room.replayDuration) }}</text>
           </view>
           <!-- 预告倒计时 -->
-          <view
-            v-if="room.status === 'preview'"
-            class="lv-countdown"
-          >
-            <app-icon
-              name="clock"
-              :size="48"
-              color="#ffffff"
-            />
-            <text class="lv-countdown-txt">
-              {{ countdownText(room.scheduledTime) }}
-            </text>
+          <view v-if="room.status === 'preview'" class="lv-countdown">
+            <app-icon name="clock" :size="48" color="#ffffff" />
+            <text class="lv-countdown-txt">{{ countdownText(room.scheduledTime) }}</text>
           </view>
           <!-- 商品数量 -->
-          <view
-            v-if="room.productCount > 0"
-            class="lv-goods"
-          >
-            <app-icon
-              name="shopping-bag"
-              :size="22"
-              color="#ffffff"
-            />
-            <text class="lv-goods-txt">
-              {{ room.productCount }}件商品
-            </text>
+          <view v-if="room.productCount > 0" class="lv-goods">
+            <app-icon name="shopping-bag" :size="22" color="#ffffff" />
+            <text class="lv-goods-txt">{{ room.productCount }}件商品</text>
           </view>
         </view>
 
         <!-- 信息 -->
         <view class="lv-info">
-          <text class="lv-card-title">
-            {{ room.title }}
-          </text>
+          <text class="lv-card-title">{{ room.title }}</text>
           <view class="lv-anchor">
-            <image
-              class="lv-anchor-avatar"
-              :src="room.anchor.avatar"
-              mode="aspectFill"
-            />
-            <text class="lv-anchor-name">
-              {{ room.anchor.nickname }}
-            </text>
-            <text
-              v-if="room.isStationExclusive"
-              class="lv-exclusive"
-            >
-              专属
-            </text>
+            <image class="lv-anchor-avatar" :src="room.anchor.avatar" mode="aspectFill" />
+            <text class="lv-anchor-name">{{ room.anchor.nickname }}</text>
+            <text v-if="room.isStationExclusive" class="lv-exclusive">专属</text>
           </view>
           <view class="lv-stats">
-            <view class="lv-stat">
-              <app-icon
-                name="eye"
-                :size="26"
-                color="#9ca3af"
-              /><text class="lv-stat-txt">
-                {{ formatViewCount(room.viewCount) }}
-              </text>
-            </view>
-            <view class="lv-stat">
-              <app-icon
-                name="heart"
-                :size="26"
-                color="#9ca3af"
-              /><text class="lv-stat-txt">
-                {{ formatViewCount(room.likeCount) }}
-              </text>
-            </view>
+            <view class="lv-stat"><app-icon name="eye" :size="26" color="#9ca3af" /><text class="lv-stat-txt">{{ formatViewCount(room.viewCount) }}</text></view>
+            <view class="lv-stat"><app-icon name="heart" :size="26" color="#9ca3af" /><text class="lv-stat-txt">{{ formatViewCount(room.likeCount) }}</text></view>
           </view>
-          <view
-            v-if="room.tags && room.tags.length"
-            class="lv-tags"
-          >
-            <text
-              v-for="(t, i) in room.tags.slice(0, 3)"
-              :key="i"
-              class="lv-tag"
-            >
-              {{ t }}
-            </text>
+          <view v-if="room.tags && room.tags.length" class="lv-tags">
+            <text v-for="(t, i) in room.tags.slice(0, 3)" :key="i" class="lv-tag">{{ t }}</text>
           </view>
         </view>
       </view>
 
       <!-- 空态 (直播中筛选无内容) -->
-      <view
-        v-if="sortedList.length === 0 && filter === 'live'"
-        class="lv-empty"
-      >
-        <text class="lv-empty-txt">
-          暂无正在直播的内容
-        </text>
-        <view
-          class="lv-empty-btn"
-          @tap="filter = 'preview'"
-        >
-          <app-icon
-            name="clock"
-            :size="28"
-            color="#C9A96E"
-          />
-          <text class="lv-empty-btn-txt">
-            查看直播预告
-          </text>
+      <view v-if="sortedList.length === 0 && filter === 'live'" class="lv-empty">
+        <text class="lv-empty-txt">暂无正在直播的内容</text>
+        <view class="lv-empty-btn" @tap="filter = 'preview'">
+          <app-icon name="clock" :size="28" color="#C9A96E" />
+          <text class="lv-empty-btn-txt">查看直播预告</text>
         </view>
       </view>
     </view>
@@ -238,9 +100,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { navigateTo } from '@/utils/router'
-import { operatorApi } from '@/lib/operator-data'
 
 const statusBarHeight = ref(20)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 20 } })
@@ -251,8 +112,6 @@ const stationLogo = 'https://picsum.photos/seed/station-live-logo/40/40'
 const filter = ref<'all' | 'live' | 'preview' | 'replay'>('all')
 const keyword = ref('')
 const refreshing = ref(false)
-const rooms = ref<any[]>([])
-const loading = ref(true)
 
 const filterOptions = [
   { value: 'all', label: '全部' },
@@ -261,27 +120,28 @@ const filterOptions = [
   { value: 'replay', label: '回放' },
 ] as const
 
-onMounted(async () => {
-  try {
-    const data = await operatorApi.stationLiveRooms('')
-    rooms.value = Array.isArray(data) ? data : []
-  } catch (e) { rooms.value = [] }
-  loading.value = false
-})
+const rooms = [
+  { id: 1, title: '八字命理精讲 - 如何看财运', cover: 'https://picsum.photos/seed/live1/350/200', status: 'live', anchor: { nickname: '易学大师张老师', avatar: 'https://picsum.photos/seed/anchor1/40/40' }, viewCount: 3280, likeCount: 1520, productCount: 8, tags: ['命理', '财运'], isStationExclusive: true },
+  { id: 2, title: '风水布局实战课 - 家居旺财秘诀', cover: 'https://picsum.photos/seed/live2/350/200', status: 'live', anchor: { nickname: '风水顾问李老师', avatar: 'https://picsum.photos/seed/anchor2/40/40' }, viewCount: 2150, likeCount: 980, productCount: 5, tags: ['风水', '家居'], isStationExclusive: true },
+  { id: 3, title: '今晚8点：紫微斗数入门直播', cover: 'https://picsum.photos/seed/live3/350/200', status: 'preview', anchor: { nickname: '紫微名师王老师', avatar: 'https://picsum.photos/seed/anchor3/40/40' }, viewCount: 0, likeCount: 0, productCount: 3, scheduledTime: '2026-06-03 20:00', tags: ['紫微斗数', '入门'], isStationExclusive: true },
+  { id: 4, title: '面相学基础 - 五官看性格', cover: 'https://picsum.photos/seed/live4/350/200', status: 'preview', anchor: { nickname: '相学专家陈老师', avatar: 'https://picsum.photos/seed/anchor4/40/40' }, viewCount: 0, likeCount: 0, productCount: 2, scheduledTime: '2026-06-04 19:30', tags: ['面相', '入门'], isStationExclusive: false },
+  { id: 5, title: '六爻预测实战案例解析', cover: 'https://picsum.photos/seed/live5/350/200', status: 'replay', anchor: { nickname: '六爻大师赵老师', avatar: 'https://picsum.photos/seed/anchor5/40/40' }, viewCount: 8560, likeCount: 3200, productCount: 6, replayDuration: 7200, tags: ['六爻', '实战'], isStationExclusive: true },
+  { id: 6, title: '择日学精讲 - 婚嫁吉日选择', cover: 'https://picsum.photos/seed/live6/350/200', status: 'replay', anchor: { nickname: '择日专家孙老师', avatar: 'https://picsum.photos/seed/anchor6/40/40' }, viewCount: 5230, likeCount: 1850, productCount: 4, replayDuration: 5400, tags: ['择日', '婚嫁'], isStationExclusive: true },
+]
 
-const liveCount = computed(() => rooms.value.filter((r: any) => r.status === 'live').length)
+const liveCount = computed(() => rooms.filter((r) => r.status === 'live').length)
 
 const filteredList = computed(() => {
-  let list = rooms.value
-  if (filter.value !== 'all') list = list.filter((r: any) => r.status === filter.value)
-  if (keyword.value) list = list.filter((r: any) => r.title.includes(keyword.value) || r.anchor.nickname.includes(keyword.value))
+  let list = rooms
+  if (filter.value !== 'all') list = list.filter((r) => r.status === filter.value)
+  if (keyword.value) list = list.filter((r) => r.title.includes(keyword.value) || r.anchor.nickname.includes(keyword.value))
   return list
 })
 
 // 排序：直播中 > 预告 > 回放
 const sortedList = computed(() => {
   const order: Record<string, number> = { live: 0, preview: 1, replay: 2 }
-  return [...filteredList.value].sort((a: any, b: any) => order[a.status] - order[b.status])
+  return [...filteredList.value].sort((a, b) => order[a.status] - order[b.status])
 })
 
 function statusInfo(status: string) {

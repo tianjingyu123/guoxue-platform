@@ -95,613 +95,195 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
   <view class="pd">
     <!-- 顶部导航 -->
     <view class="pd-hdr">
-      <view
-        class="pd-hdr-btn"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="40"
-          color="#2C2C2C"
-        />
-      </view>
-      <view
-        class="pd-hdr-circle"
-        @tap="openCircle"
-      >
-        <text class="pd-hdr-name">
-          {{ post.circleName }}
-        </text>
-      </view>
-      <view
-        class="pd-hdr-btn"
-        @tap="toastComingSoon"
-      >
-        <app-icon
-          name="more-horizontal"
-          :size="40"
-          color="#666666"
-        />
-      </view>
+      <view class="pd-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
+      <view class="pd-hdr-circle" @tap="openCircle"><text class="pd-hdr-name">{{ post.circleName }}</text></view>
+      <view class="pd-hdr-btn" @tap="toastComingSoon"><app-icon name="more-horizontal" :size="40" color="#666666" /></view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="pd-body"
-    >
+    <scroll-view scroll-y class="pd-body">
       <!-- 文章 -->
       <view class="pd-article">
         <!-- 标签 -->
         <view class="pd-tags">
-          <view
-            v-if="post.isPinned"
-            class="pd-tag pin"
-          >
-            <app-icon
-              name="pin"
-              :size="22"
-              color="#C41E3A"
-            /><text
-              class="pd-tag-t"
-              style="color:#C41E3A"
-            >
-              置顶
-            </text>
-          </view>
-          <view
-            v-if="post.isEssence"
-            class="pd-tag ess"
-          >
-            <app-icon
-              name="star"
-              :size="22"
-              color="#C9A96E"
-            /><text
-              class="pd-tag-t"
-              style="color:#C9A96E"
-            >
-              精华
-            </text>
-          </view>
-          <view
-            v-if="post.type === 'article'"
-            class="pd-tag art"
-          >
-            <app-icon
-              name="file-text"
-              :size="22"
-              color="#1890FF"
-            /><text
-              class="pd-tag-t"
-              style="color:#1890FF"
-            >
-              长文
-            </text>
-          </view>
+          <view v-if="post.isPinned" class="pd-tag pin"><app-icon name="pin" :size="22" color="#C41E3A" /><text class="pd-tag-t" style="color:#C41E3A">置顶</text></view>
+          <view v-if="post.isEssence" class="pd-tag ess"><app-icon name="star" :size="22" color="#C9A96E" /><text class="pd-tag-t" style="color:#C9A96E">精华</text></view>
+          <view v-if="post.type === 'article'" class="pd-tag art"><app-icon name="file-text" :size="22" color="#1890FF" /><text class="pd-tag-t" style="color:#1890FF">长文</text></view>
         </view>
 
         <!-- 标题 -->
-        <text class="pd-title">
-          {{ post.title }}
-        </text>
+        <text class="pd-title">{{ post.title }}</text>
 
         <!-- 作者 -->
         <view class="pd-author-row">
-          <view
-            class="pd-author"
-            @tap="openUser(post.author.id)"
-          >
+          <view class="pd-author" @tap="openUser(post.author.id)">
             <view class="pd-avatar-wrap">
-              <image
-                :src="post.author.avatar"
-                class="pd-avatar"
-                mode="aspectFill"
-              />
-              <view class="pd-level">
-                {{ post.author.level }}
-              </view>
+              <image :src="post.author.avatar" class="pd-avatar" mode="aspectFill" />
+              <view class="pd-level">{{ post.author.level }}</view>
             </view>
             <view class="pd-author-info">
               <view class="pd-author-name-row">
-                <text class="pd-author-name">
-                  {{ post.author.name }}
-                </text>
-                <text class="pd-author-title">
-                  {{ post.author.title }}
-                </text>
+                <text class="pd-author-name">{{ post.author.name }}</text>
+                <text class="pd-author-title">{{ post.author.title }}</text>
               </view>
               <view class="pd-author-meta">
-                <text class="pd-author-stat">
-                  {{ post.author.followers }}粉丝
-                </text>
-                <text class="pd-author-dot">
-                  ·
-                </text>
-                <text class="pd-author-stat">
-                  {{ post.author.posts }}篇文章
-                </text>
+                <text class="pd-author-stat">{{ post.author.followers }}粉丝</text>
+                <text class="pd-author-dot">·</text>
+                <text class="pd-author-stat">{{ post.author.posts }}篇文章</text>
               </view>
             </view>
           </view>
-          <view
-            class="pd-follow"
-            :class="{ on: isFollowed }"
-            @tap="toggleFollow"
-          >
-            <text
-              class="pd-follow-t"
-              :class="{ on: isFollowed }"
-            >
-              {{ isFollowed ? '已关注' : '关注' }}
-            </text>
+          <view class="pd-follow" :class="{ on: isFollowed }" @tap="toggleFollow">
+            <text class="pd-follow-t" :class="{ on: isFollowed }">{{ isFollowed ? '已关注' : '关注' }}</text>
           </view>
         </view>
 
         <!-- 元信息 -->
         <view class="pd-meta">
-          <view class="pd-meta-item">
-            <app-icon
-              name="clock"
-              :size="24"
-              color="#999999"
-            /><text class="pd-meta-t">
-              {{ post.createdAt }}
-            </text>
-          </view>
-          <view class="pd-meta-item">
-            <app-icon
-              name="eye"
-              :size="24"
-              color="#999999"
-            /><text class="pd-meta-t">
-              {{ post.views }}阅读
-            </text>
-          </view>
-          <view class="pd-meta-item">
-            <app-icon
-              name="clock"
-              :size="24"
-              color="#999999"
-            /><text class="pd-meta-t">
-              约{{ post.readTime }}分钟
-            </text>
-          </view>
+          <view class="pd-meta-item"><app-icon name="clock" :size="24" color="#999999" /><text class="pd-meta-t">{{ post.createdAt }}</text></view>
+          <view class="pd-meta-item"><app-icon name="eye" :size="24" color="#999999" /><text class="pd-meta-t">{{ post.views }}阅读</text></view>
+          <view class="pd-meta-item"><app-icon name="clock" :size="24" color="#999999" /><text class="pd-meta-t">约{{ post.readTime }}分钟</text></view>
         </view>
 
         <!-- 音频播放器 -->
-        <view
-          v-if="post.audio"
-          class="pd-audio"
-        >
+        <view v-if="post.audio" class="pd-audio">
           <view class="pd-audio-top">
-            <view
-              class="pd-audio-play"
-              @tap="toggleAudio"
-            >
-              <app-icon
-                :name="isPlaying ? 'pause' : 'play'"
-                :size="32"
-                color="#ffffff"
-              />
+            <view class="pd-audio-play" @tap="toggleAudio">
+              <app-icon :name="isPlaying ? 'pause' : 'play'" :size="32" color="#ffffff" />
             </view>
             <view class="pd-audio-main">
               <view class="pd-audio-title-row">
-                <app-icon
-                  name="volume-2"
-                  :size="22"
-                  color="rgba(255,255,255,0.7)"
-                />
-                <text class="pd-audio-title">
-                  {{ post.audio.title }}
-                </text>
+                <app-icon name="volume-2" :size="22" color="rgba(255,255,255,0.7)" />
+                <text class="pd-audio-title">{{ post.audio.title }}</text>
               </view>
               <view class="pd-audio-prog-row">
-                <text class="pd-audio-time">
-                  {{ fmtDuration(currentTime) }}
-                </text>
-                <view class="pd-audio-bar">
-                  <view
-                    class="pd-audio-bar-fill"
-                    :style="{ width: audioProgress() + '%' }"
-                  />
-                </view>
-                <text class="pd-audio-time">
-                  {{ fmtDuration(post.audio.duration) }}
-                </text>
+                <text class="pd-audio-time">{{ fmtDuration(currentTime) }}</text>
+                <view class="pd-audio-bar"><view class="pd-audio-bar-fill" :style="{ width: audioProgress() + '%' }" /></view>
+                <text class="pd-audio-time">{{ fmtDuration(post.audio.duration) }}</text>
               </view>
             </view>
           </view>
           <view class="pd-audio-bottom">
-            <text class="pd-audio-tip">
-              边听边看，学习更高效
-            </text>
+            <text class="pd-audio-tip">边听边看，学习更高效</text>
             <view class="pd-audio-rate">
-              <text class="pd-rate">
-                0.75x
-              </text>
-              <text class="pd-rate on">
-                1.0x
-              </text>
-              <text class="pd-rate">
-                1.5x
-              </text>
+              <text class="pd-rate">0.75x</text>
+              <text class="pd-rate on">1.0x</text>
+              <text class="pd-rate">1.5x</text>
             </view>
           </view>
         </view>
 
         <!-- Markdown 正文 -->
         <view class="pd-content">
-          <template
-            v-for="(b, i) in mdBlocks"
-            :key="i"
-          >
-            <text
-              v-if="b.type === 'h2'"
-              class="md-h2"
-            >
-              {{ b.text }}
-            </text>
-            <text
-              v-else-if="b.type === 'bold'"
-              class="md-bold"
-            >
-              {{ b.text }}
-            </text>
-            <view
-              v-else-if="b.type === 'quote'"
-              class="md-quote"
-            >
-              <text class="md-quote-t">
-                {{ b.text }}
-              </text>
-            </view>
-            <view
-              v-else-if="b.type === 'li'"
-              class="md-li"
-            >
-              <text class="md-dot">
-                •
-              </text><text class="md-li-t">
-                {{ b.text }}
-              </text>
-            </view>
-            <view
-              v-else-if="b.type === 'oli'"
-              class="md-li"
-            >
-              <text class="md-li-t">
-                {{ b.text }}
-              </text>
-            </view>
-            <view
-              v-else-if="b.type === 'hr'"
-              class="md-hr"
-            />
-            <text
-              v-else-if="b.type === 'em'"
-              class="md-em"
-            >
-              {{ b.text }}
-            </text>
-            <text
-              v-else
-              class="md-p"
-            >
-              <text
-                v-for="(seg, j) in b.segments"
-                :key="j"
-                :class="{ 'md-inline-bold': seg.bold }"
-              >
-                {{ seg.text }}
-              </text>
-            </text>
+          <template v-for="(b, i) in mdBlocks" :key="i">
+            <text v-if="b.type === 'h2'" class="md-h2">{{ b.text }}</text>
+            <text v-else-if="b.type === 'bold'" class="md-bold">{{ b.text }}</text>
+            <view v-else-if="b.type === 'quote'" class="md-quote"><text class="md-quote-t">{{ b.text }}</text></view>
+            <view v-else-if="b.type === 'li'" class="md-li"><text class="md-dot">•</text><text class="md-li-t">{{ b.text }}</text></view>
+            <view v-else-if="b.type === 'oli'" class="md-li"><text class="md-li-t">{{ b.text }}</text></view>
+            <view v-else-if="b.type === 'hr'" class="md-hr" />
+            <text v-else-if="b.type === 'em'" class="md-em">{{ b.text }}</text>
+            <text v-else class="md-p"><text v-for="(seg, j) in b.segments" :key="j" :class="{ 'md-inline-bold': seg.bold }">{{ seg.text }}</text></text>
           </template>
         </view>
 
         <!-- 图片 -->
-        <view
-          v-if="post.images && post.images.length"
-          class="pd-images"
-        >
-          <view
-            v-for="(img, i) in post.images"
-            :key="i"
-            class="pd-img-cell"
-          >
-            <image
-              :src="img.url"
-              class="pd-img"
-              mode="widthFix"
-              @tap="previewImage = img.url"
-            />
-            <view
-              v-if="img.caption"
-              class="pd-img-cap"
-            >
-              <text class="pd-img-cap-t">
-                {{ img.caption }}
-              </text>
-            </view>
+        <view v-if="post.images && post.images.length" class="pd-images">
+          <view v-for="(img, i) in post.images" :key="i" class="pd-img-cell">
+            <image :src="img.url" class="pd-img" mode="widthFix" @tap="previewImage = img.url" />
+            <view v-if="img.caption" class="pd-img-cap"><text class="pd-img-cap-t">{{ img.caption }}</text></view>
           </view>
         </view>
 
         <!-- 打赏区 -->
         <view class="pd-reward">
           <view class="pd-reward-head">
-            <view class="pd-reward-title">
-              <app-icon
-                name="gift"
-                :size="28"
-                color="#C9A96E"
-              /><text class="pd-reward-title-t">
-                打赏作者
-              </text>
-            </view>
-            <text class="pd-reward-count">
-              {{ post.rewardCount }}人已打赏
-            </text>
+            <view class="pd-reward-title"><app-icon name="gift" :size="28" color="#C9A96E" /><text class="pd-reward-title-t">打赏作者</text></view>
+            <text class="pd-reward-count">{{ post.rewardCount }}人已打赏</text>
           </view>
           <view class="pd-reward-grid">
-            <view
-              v-for="amt in REWARD_QUICK"
-              :key="amt"
-              class="pd-reward-btn"
-              @tap="showRewardModal = true"
-            >
-              <app-icon
-                name="sparkles"
-                :size="28"
-                color="#C9A96E"
-              />
-              <text class="pd-reward-amt">
-                {{ amt }}
-              </text>
+            <view v-for="amt in REWARD_QUICK" :key="amt" class="pd-reward-btn" @tap="showRewardModal = true">
+              <app-icon name="sparkles" :size="28" color="#C9A96E" />
+              <text class="pd-reward-amt">{{ amt }}</text>
             </view>
           </view>
-          <text class="pd-reward-total">
-            累计收到 {{ post.reward }} 国学币打赏
-          </text>
+          <text class="pd-reward-total">累计收到 {{ post.reward }} 国学币打赏</text>
         </view>
       </view>
 
       <!-- 互动数据栏 -->
       <view class="pd-actions">
-        <view
-          class="pd-action"
-          @tap="toggleLike"
-        >
-          <app-icon
-            name="heart"
-            :size="44"
-            :color="isLiked ? '#C41E3A' : '#666666'"
-            :fill="isLiked"
-          />
-          <text
-            class="pd-action-t"
-            :style="{ color: isLiked ? '#C41E3A' : '#666666' }"
-          >
-            {{ likes }}
-          </text>
+        <view class="pd-action" @tap="toggleLike">
+          <app-icon name="heart" :size="44" :color="isLiked ? '#C41E3A' : '#666666'" :fill="isLiked" />
+          <text class="pd-action-t" :style="{ color: isLiked ? '#C41E3A' : '#666666' }">{{ likes }}</text>
         </view>
         <view class="pd-action">
-          <app-icon
-            name="message-circle"
-            :size="44"
-            color="#666666"
-          />
-          <text class="pd-action-t">
-            {{ post.comments }}
-          </text>
+          <app-icon name="message-circle" :size="44" color="#666666" />
+          <text class="pd-action-t">{{ post.comments }}</text>
         </view>
-        <view
-          class="pd-action"
-          @tap="toggleCollect"
-        >
-          <app-icon
-            name="bookmark"
-            :size="44"
-            :color="isCollected ? '#C9A96E' : '#666666'"
-            :fill="isCollected"
-          />
-          <text
-            class="pd-action-t"
-            :style="{ color: isCollected ? '#C9A96E' : '#666666' }"
-          >
-            {{ collects }}
-          </text>
+        <view class="pd-action" @tap="toggleCollect">
+          <app-icon name="bookmark" :size="44" :color="isCollected ? '#C9A96E' : '#666666'" :fill="isCollected" />
+          <text class="pd-action-t" :style="{ color: isCollected ? '#C9A96E' : '#666666' }">{{ collects }}</text>
         </view>
-        <view
-          class="pd-action"
-          @tap="openShare"
-        >
-          <app-icon
-            name="share-2"
-            :size="44"
-            color="#666666"
-          />
-          <text class="pd-action-t">
-            {{ post.shares }}
-          </text>
+        <view class="pd-action" @tap="openShare">
+          <app-icon name="share-2" :size="44" color="#666666" />
+          <text class="pd-action-t">{{ post.shares }}</text>
         </view>
       </view>
 
       <!-- 评论区 -->
       <view class="pd-comments">
         <view class="pd-comments-head">
-          <text class="pd-comments-title">
-            评论 {{ post.comments }}
-          </text>
+          <text class="pd-comments-title">评论 {{ post.comments }}</text>
           <view class="pd-comments-sort">
-            <text
-              class="pd-sort"
-              :class="{ on: commentSort === 'hot' }"
-              @tap="commentSort = 'hot'"
-            >
-              最热
-            </text>
-            <text class="pd-sort-sep">
-              |
-            </text>
-            <text
-              class="pd-sort"
-              :class="{ on: commentSort === 'new' }"
-              @tap="commentSort = 'new'"
-            >
-              最新
-            </text>
+            <text class="pd-sort" :class="{ on: commentSort === 'hot' }" @tap="commentSort = 'hot'">最热</text>
+            <text class="pd-sort-sep">|</text>
+            <text class="pd-sort" :class="{ on: commentSort === 'new' }" @tap="commentSort = 'new'">最新</text>
           </view>
         </view>
 
-        <view
-          v-for="c in comments"
-          :key="c.id"
-          class="pd-comment"
-        >
-          <image
-            :src="c.author.avatar"
-            class="pd-c-avatar"
-            mode="aspectFill"
-            @tap="openUser(c.author.id)"
-          />
+        <view v-for="c in comments" :key="c.id" class="pd-comment">
+          <image :src="c.author.avatar" class="pd-c-avatar" mode="aspectFill" @tap="openUser(c.author.id)" />
           <view class="pd-c-main">
             <view class="pd-c-name-row">
-              <text class="pd-c-name">
-                {{ c.author.name }}
-              </text>
-              <text
-                v-if="c.author.level"
-                class="pd-c-badge lv"
-              >
-                Lv.{{ c.author.level }}
-              </text>
-              <text
-                v-if="c.author.title"
-                class="pd-c-badge title"
-              >
-                {{ c.author.title }}
-              </text>
-              <view
-                v-if="c.isPinned"
-                class="pd-c-badge pin-badge"
-              >
-                <app-icon
-                  name="pin"
-                  :size="20"
-                  color="#52C41A"
-                /><text class="pd-c-pin-t">
-                  置顶
-                </text>
-              </view>
+              <text class="pd-c-name">{{ c.author.name }}</text>
+              <text v-if="c.author.level" class="pd-c-badge lv">Lv.{{ c.author.level }}</text>
+              <text v-if="c.author.title" class="pd-c-badge title">{{ c.author.title }}</text>
+              <view v-if="c.isPinned" class="pd-c-badge pin-badge"><app-icon name="pin" :size="20" color="#52C41A" /><text class="pd-c-pin-t">置顶</text></view>
             </view>
-            <text class="pd-c-content">
-              {{ c.content }}
-            </text>
+            <text class="pd-c-content">{{ c.content }}</text>
             <view class="pd-c-foot">
-              <text class="pd-c-time">
-                {{ c.createdAt }}
-              </text>
-              <view
-                class="pd-c-like"
-                @tap="toggleCommentLike(c)"
-              >
-                <app-icon
-                  name="heart"
-                  :size="24"
-                  :color="c.isLiked ? '#C41E3A' : '#999999'"
-                  :fill="c.isLiked"
-                />
-                <text
-                  v-if="c.likes > 0"
-                  class="pd-c-like-t"
-                  :style="{ color: c.isLiked ? '#C41E3A' : '#999999' }"
-                >
-                  {{ c.likes }}
-                </text>
+              <text class="pd-c-time">{{ c.createdAt }}</text>
+              <view class="pd-c-like" @tap="toggleCommentLike(c)">
+                <app-icon name="heart" :size="24" :color="c.isLiked ? '#C41E3A' : '#999999'" :fill="c.isLiked" />
+                <text v-if="c.likes > 0" class="pd-c-like-t" :style="{ color: c.isLiked ? '#C41E3A' : '#999999' }">{{ c.likes }}</text>
               </view>
-              <text
-                class="pd-c-reply"
-                @tap="startReply(c)"
-              >
-                回复
-              </text>
+              <text class="pd-c-reply" @tap="startReply(c)">回复</text>
             </view>
 
             <!-- 子评论 -->
-            <view
-              v-if="c.replies && c.replies.length"
-              class="pd-replies"
-            >
-              <view
-                v-if="!expandedReplies[c.id]"
-                class="pd-expand"
-                @tap="expandedReplies[c.id] = true"
-              >
-                <text class="pd-expand-t">
-                  展开{{ c.replies.length }}条回复
-                </text>
-                <app-icon
-                  name="chevron-down"
-                  :size="26"
-                  color="#C41E3A"
-                />
+            <view v-if="c.replies && c.replies.length" class="pd-replies">
+              <view v-if="!expandedReplies[c.id]" class="pd-expand" @tap="expandedReplies[c.id] = true">
+                <text class="pd-expand-t">展开{{ c.replies.length }}条回复</text>
+                <app-icon name="chevron-down" :size="26" color="#C41E3A" />
               </view>
-              <view
-                v-else
-                class="pd-reply-list"
-              >
-                <view
-                  v-for="r in c.replies"
-                  :key="r.id"
-                  class="pd-reply"
-                >
-                  <image
-                    :src="r.author.avatar"
-                    class="pd-r-avatar"
-                    mode="aspectFill"
-                  />
+              <view v-else class="pd-reply-list">
+                <view v-for="r in c.replies" :key="r.id" class="pd-reply">
+                  <image :src="r.author.avatar" class="pd-r-avatar" mode="aspectFill" />
                   <view class="pd-r-main">
                     <view class="pd-r-name-row">
-                      <text class="pd-r-name">
-                        {{ r.author.name }}
-                      </text>
-                      <text
-                        v-if="r.author.title"
-                        class="pd-c-badge title sm"
-                      >
-                        {{ r.author.title }}
-                      </text>
+                      <text class="pd-r-name">{{ r.author.name }}</text>
+                      <text v-if="r.author.title" class="pd-c-badge title sm">{{ r.author.title }}</text>
                     </view>
-                    <text class="pd-r-content">
-                      {{ r.content }}
-                    </text>
+                    <text class="pd-r-content">{{ r.content }}</text>
                     <view class="pd-r-foot">
-                      <text class="pd-r-time">
-                        {{ r.createdAt }}
-                      </text>
-                      <view class="pd-r-like">
-                        <app-icon
-                          name="heart"
-                          :size="20"
-                          color="#999999"
-                        /><text class="pd-r-like-t">
-                          {{ r.likes }}
-                        </text>
-                      </view>
+                      <text class="pd-r-time">{{ r.createdAt }}</text>
+                      <view class="pd-r-like"><app-icon name="heart" :size="20" color="#999999" /><text class="pd-r-like-t">{{ r.likes }}</text></view>
                     </view>
                   </view>
                 </view>
-                <view
-                  class="pd-expand"
-                  @tap="expandedReplies[c.id] = false"
-                >
-                  <text class="pd-collapse-t">
-                    收起
-                  </text>
-                  <app-icon
-                    name="chevron-up"
-                    :size="26"
-                    color="#999999"
-                  />
+                <view class="pd-expand" @tap="expandedReplies[c.id] = false">
+                  <text class="pd-collapse-t">收起</text>
+                  <app-icon name="chevron-up" :size="26" color="#999999" />
                 </view>
               </view>
             </view>
@@ -713,26 +295,9 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 
     <!-- 底部评论输入 -->
     <view class="pd-input-bar">
-      <view
-        v-if="replyTo"
-        class="pd-reply-hint"
-      >
-        <view class="pd-reply-hint-l">
-          <app-icon
-            name="at-sign"
-            :size="22"
-            color="#666666"
-          /><text class="pd-reply-hint-t">
-            回复 {{ replyTo.author.name }}
-          </text>
-        </view>
-        <view @tap="replyTo = null">
-          <app-icon
-            name="x"
-            :size="28"
-            color="#999999"
-          />
-        </view>
+      <view v-if="replyTo" class="pd-reply-hint">
+        <view class="pd-reply-hint-l"><app-icon name="at-sign" :size="22" color="#666666" /><text class="pd-reply-hint-t">回复 {{ replyTo.author.name }}</text></view>
+        <view @tap="replyTo = null"><app-icon name="x" :size="28" color="#999999" /></view>
       </view>
       <view class="pd-input-row">
         <input
@@ -741,94 +306,33 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
           :placeholder="replyTo ? `回复 ${replyTo.author.name}...` : '写评论...'"
           confirm-type="send"
           @confirm="submitComment"
-        >
-        <view
-          class="pd-send"
-          :class="{ on: commentText.trim() }"
-          @tap="submitComment"
-        >
-          <app-icon
-            name="send"
-            :size="36"
-            :color="commentText.trim() ? '#ffffff' : '#999999'"
-          />
+        />
+        <view class="pd-send" :class="{ on: commentText.trim() }" @tap="submitComment">
+          <app-icon name="send" :size="36" :color="commentText.trim() ? '#ffffff' : '#999999'" />
         </view>
       </view>
     </view>
 
     <!-- 图片预览 -->
-    <view
-      v-if="previewImage"
-      class="pd-preview"
-      @tap="previewImage = null"
-    >
-      <view class="pd-preview-close">
-        <app-icon
-          name="x"
-          :size="44"
-          color="#ffffff"
-        />
-      </view>
-      <image
-        :src="previewImage"
-        class="pd-preview-img"
-        mode="aspectFit"
-      />
+    <view v-if="previewImage" class="pd-preview" @tap="previewImage = null">
+      <view class="pd-preview-close"><app-icon name="x" :size="44" color="#ffffff" /></view>
+      <image :src="previewImage" class="pd-preview-img" mode="aspectFit" />
     </view>
 
     <!-- 打赏弹窗 -->
-    <view
-      v-if="showRewardModal"
-      class="pd-mask"
-      @tap="showRewardModal = false"
-    >
-      <view
-        class="pd-reward-modal"
-        @tap.stop
-      >
+    <view v-if="showRewardModal" class="pd-mask" @tap="showRewardModal = false">
+      <view class="pd-reward-modal" @tap.stop>
         <view class="pd-rm-head">
-          <view class="pd-rm-icon">
-            <app-icon
-              name="gift"
-              :size="44"
-              color="#ffffff"
-            />
-          </view>
-          <text class="pd-rm-title">
-            打赏作者
-          </text>
-          <text class="pd-rm-sub">
-            感谢 {{ post.author.name }} 的精彩分享
-          </text>
+          <view class="pd-rm-icon"><app-icon name="gift" :size="44" color="#ffffff" /></view>
+          <text class="pd-rm-title">打赏作者</text>
+          <text class="pd-rm-sub">感谢 {{ post.author.name }} 的精彩分享</text>
         </view>
         <view class="pd-rm-grid">
-          <view
-            v-for="amt in REWARD_ALL"
-            :key="amt"
-            class="pd-rm-amt"
-          >
-            <text class="pd-rm-amt-t">
-              {{ amt }}
-            </text>
-          </view>
+          <view v-for="amt in REWARD_ALL" :key="amt" class="pd-rm-amt"><text class="pd-rm-amt-t">{{ amt }}</text></view>
         </view>
         <view class="pd-rm-actions">
-          <view
-            class="pd-rm-btn cancel"
-            @tap="showRewardModal = false"
-          >
-            <text class="pd-rm-btn-t cancel">
-              取消
-            </text>
-          </view>
-          <view
-            class="pd-rm-btn confirm"
-            @tap="showRewardModal = false"
-          >
-            <text class="pd-rm-btn-t confirm">
-              确认打赏
-            </text>
-          </view>
+          <view class="pd-rm-btn cancel" @tap="showRewardModal = false"><text class="pd-rm-btn-t cancel">取消</text></view>
+          <view class="pd-rm-btn confirm" @tap="showRewardModal = false"><text class="pd-rm-btn-t confirm">确认打赏</text></view>
         </view>
       </view>
     </view>

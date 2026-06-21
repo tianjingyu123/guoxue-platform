@@ -1,11 +1,6 @@
 <template>
   <view class="page">
-    <app-nav-bar
-      title="发票管理"
-      :back-size="40"
-      :title-size="36"
-      title-align="left"
-    />
+    <app-nav-bar title="发票管理" :back-size="40" :title-size="36" title-align="left" />
 
     <!-- Tab 切换 -->
     <view class="tabs">
@@ -16,62 +11,28 @@
         @tap="activeTab = tab.key"
       >
         <view class="tab-inner">
-          <text
-            class="tab-text"
-            :class="{ active: activeTab === tab.key }"
-          >
-            {{ tab.label }}
-          </text>
-          <view
-            v-if="tab.count > 0"
-            class="tab-badge"
-            :class="{ active: activeTab === tab.key }"
-          >
-            <text
-              class="tab-badge-text"
-              :class="{ active: activeTab === tab.key }"
-            >
-              {{ tab.count }}
-            </text>
+          <text class="tab-text" :class="{ active: activeTab === tab.key }">{{ tab.label }}</text>
+          <view v-if="tab.count > 0" class="tab-badge" :class="{ active: activeTab === tab.key }">
+            <text class="tab-badge-text" :class="{ active: activeTab === tab.key }">{{ tab.count }}</text>
           </view>
         </view>
-        <view
-          v-if="activeTab === tab.key"
-          class="tab-bar"
-        />
+        <view v-if="activeTab === tab.key" class="tab-bar" />
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="scroll-area"
-    >
+    <scroll-view scroll-y class="scroll-area">
       <!-- 申请开票 -->
       <block v-if="activeTab === 'apply'">
         <!-- 选择订单 -->
         <view class="card">
           <view class="card-title-row">
-            <app-icon
-              name="file-text"
-              :size="40"
-              color="#C41E3A"
-            />
-            <text class="card-title">
-              选择订单
-            </text>
+            <app-icon name="file-text" :size="40" color="#C41E3A" />
+            <text class="card-title">选择订单</text>
           </view>
-          <view
-            v-if="applicableOrders.length === 0"
-            class="orders-empty"
-          >
-            <text class="orders-empty-text">
-              暂无可开票订单
-            </text>
+          <view v-if="applicableOrders.length === 0" class="orders-empty">
+            <text class="orders-empty-text">暂无可开票订单</text>
           </view>
-          <view
-            v-else
-            class="order-list"
-          >
+          <view v-else class="order-list">
             <view
               v-for="order in applicableOrders"
               :key="order.orderId"
@@ -79,51 +40,26 @@
               :class="{ selected: selectedOrders.includes(order.orderId) }"
               @tap="toggleOrder(order.orderId)"
             >
-              <view
-                class="order-radio"
-                :class="{ selected: selectedOrders.includes(order.orderId) }"
-              >
-                <app-icon
-                  v-if="selectedOrders.includes(order.orderId)"
-                  name="check"
-                  :size="20"
-                  color="#FFFFFF"
-                />
+              <view class="order-radio" :class="{ selected: selectedOrders.includes(order.orderId) }">
+                <app-icon v-if="selectedOrders.includes(order.orderId)" name="check" :size="20" color="#FFFFFF" />
               </view>
               <view class="order-info">
-                <text class="order-name">
-                  {{ order.productName }}
-                </text>
-                <text class="order-no">
-                  订单号：{{ order.orderNo }}
-                </text>
-                <text class="order-time">
-                  {{ order.createdAt }}
-                </text>
+                <text class="order-name">{{ order.productName }}</text>
+                <text class="order-no">订单号：{{ order.orderNo }}</text>
+                <text class="order-time">{{ order.createdAt }}</text>
               </view>
-              <text class="order-amount">
-                ¥{{ order.amount }}
-              </text>
+              <text class="order-amount">¥{{ order.amount }}</text>
             </view>
           </view>
-          <view
-            v-if="selectedOrders.length > 0"
-            class="order-total"
-          >
-            <text class="order-total-label">
-              已选 {{ selectedOrders.length }} 笔订单
-            </text>
-            <text class="order-total-value">
-              ¥{{ totalAmount }}
-            </text>
+          <view v-if="selectedOrders.length > 0" class="order-total">
+            <text class="order-total-label">已选 {{ selectedOrders.length }} 笔订单</text>
+            <text class="order-total-value">¥{{ totalAmount }}</text>
           </view>
         </view>
 
         <!-- 发票类型 -->
         <view class="card">
-          <text class="card-title">
-            发票类型
-          </text>
+          <text class="card-title">发票类型</text>
           <view class="type-grid">
             <view
               v-for="type in invoiceTypes"
@@ -132,93 +68,37 @@
               :class="{ active: invoiceType === type.key }"
               @tap="invoiceType = type.key"
             >
-              <app-icon
-                :name="type.icon"
-                :size="48"
-                :color="invoiceType === type.key ? '#C41E3A' : '#666666'"
-              />
-              <text
-                class="type-name"
-                :class="{ active: invoiceType === type.key }"
-              >
-                {{ type.label }}
-              </text>
-              <text class="type-desc">
-                {{ type.desc }}
-              </text>
+              <app-icon :name="type.icon" :size="48" :color="invoiceType === type.key ? '#C41E3A' : '#666666'" />
+              <text class="type-name" :class="{ active: invoiceType === type.key }">{{ type.label }}</text>
+              <text class="type-desc">{{ type.desc }}</text>
             </view>
           </view>
         </view>
 
         <!-- 发票信息 -->
         <view class="card">
-          <text class="card-title">
-            发票信息
-          </text>
+          <text class="card-title">发票信息</text>
           <view class="form">
             <view class="field">
-              <text class="field-label">
-                {{ invoiceType === 'company' ? '公司名称' : '个人姓名' }} <text class="req">
-                  *
-                </text>
-              </text>
-              <input
-                v-model="title"
-                class="field-input"
-                :placeholder="invoiceType === 'company' ? '请输入公司全称' : '请输入真实姓名'"
-              >
+              <text class="field-label">{{ invoiceType === 'company' ? '公司名称' : '个人姓名' }} <text class="req">*</text></text>
+              <input class="field-input" v-model="title" :placeholder="invoiceType === 'company' ? '请输入公司全称' : '请输入真实姓名'" />
             </view>
-            <view
-              v-if="invoiceType === 'company'"
-              class="field"
-            >
-              <text class="field-label">
-                税号 <text class="req">
-                  *
-                </text>
-              </text>
-              <input
-                v-model="taxNumber"
-                class="field-input"
-                placeholder="请输入纳税人识别号"
-              >
+            <view v-if="invoiceType === 'company'" class="field">
+              <text class="field-label">税号 <text class="req">*</text></text>
+              <input class="field-input" v-model="taxNumber" placeholder="请输入纳税人识别号" />
             </view>
             <view class="field">
-              <text class="field-label">
-                接收邮箱 <text class="req">
-                  *
-                </text>
-              </text>
+              <text class="field-label">接收邮箱 <text class="req">*</text></text>
               <view class="field-icon-wrap">
-                <app-icon
-                  name="mail"
-                  :size="36"
-                  color="#999999"
-                  class="field-icon"
-                />
-                <input
-                  v-model="email"
-                  class="field-input has-icon"
-                  placeholder="用于接收电子发票"
-                >
+                <app-icon name="mail" :size="36" color="#999999" class="field-icon" />
+                <input class="field-input has-icon" v-model="email" placeholder="用于接收电子发票" />
               </view>
             </view>
             <view class="field">
-              <text class="field-label">
-                联系电话（选填）
-              </text>
+              <text class="field-label">联系电话（选填）</text>
               <view class="field-icon-wrap">
-                <app-icon
-                  name="phone"
-                  :size="36"
-                  color="#999999"
-                  class="field-icon"
-                />
-                <input
-                  v-model="phone"
-                  class="field-input has-icon"
-                  placeholder="方便开票问题联系"
-                >
+                <app-icon name="phone" :size="36" color="#999999" class="field-icon" />
+                <input class="field-input has-icon" v-model="phone" placeholder="方便开票问题联系" />
               </view>
             </view>
           </view>
@@ -226,31 +106,12 @@
 
         <!-- 温馨提示 -->
         <view class="tips-card">
-          <app-icon
-            name="alert-circle"
-            :size="40"
-            color="#ca8a04"
-            class="tips-icon"
-          />
+          <app-icon name="alert-circle" :size="40" color="#ca8a04" class="tips-icon" />
           <view class="tips-body">
-            <text class="tips-title">
-              温馨提示
-            </text>
-            <view class="tips-li">
-              <text class="tips-text">
-                电子发票与纸质发票具有同等法律效力
-              </text>
-            </view>
-            <view class="tips-li">
-              <text class="tips-text">
-                发票将在1-3个工作日内发送至您的邮箱
-              </text>
-            </view>
-            <view class="tips-li">
-              <text class="tips-text">
-                如有问题请联系客服
-              </text>
-            </view>
+            <text class="tips-title">温馨提示</text>
+            <view class="tips-li"><text class="tips-text">电子发票与纸质发票具有同等法律效力</text></view>
+            <view class="tips-li"><text class="tips-text">发票将在1-3个工作日内发送至您的邮箱</text></view>
+            <view class="tips-li"><text class="tips-text">如有问题请联系客服</text></view>
           </view>
         </view>
 
@@ -259,96 +120,39 @@
 
       <!-- 已申请 -->
       <block v-else>
-        <view
-          v-if="records.length === 0"
-          class="empty"
-        >
-          <app-icon
-            name="file-text"
-            :size="96"
-            color="#D1D5DB"
-          />
-          <text class="empty-text">
-            暂无发票记录
-          </text>
+        <view v-if="records.length === 0" class="empty">
+          <app-icon name="file-text" :size="96" color="#D1D5DB" />
+          <text class="empty-text">暂无发票记录</text>
         </view>
-        <view
-          v-for="rec in records"
-          :key="rec.id"
-          class="record-card"
-        >
+        <view v-for="rec in records" :key="rec.id" class="record-card">
           <view class="record-head">
             <view class="record-type">
-              <app-icon
-                :name="rec.type === 'company' ? 'building-2' : 'user'"
-                :size="36"
-                color="#C41E3A"
-              />
-              <text class="record-title">
-                {{ rec.title }}
-              </text>
+              <app-icon :name="rec.type === 'company' ? 'building-2' : 'user'" :size="36" color="#C41E3A" />
+              <text class="record-title">{{ rec.title }}</text>
             </view>
-            <view
-              class="record-status"
-              :style="{ background: statusCfg(rec.status).bg }"
-            >
-              <text
-                class="record-status-text"
-                :style="{ color: statusCfg(rec.status).color }"
-              >
-                {{ statusCfg(rec.status).label }}
-              </text>
+            <view class="record-status" :style="{ background: statusCfg(rec.status).bg }">
+              <text class="record-status-text" :style="{ color: statusCfg(rec.status).color }">{{ statusCfg(rec.status).label }}</text>
             </view>
           </view>
-          <text
-            v-if="rec.taxNumber"
-            class="record-tax"
-          >
-            税号：{{ rec.taxNumber }}
-          </text>
+          <text v-if="rec.taxNumber" class="record-tax">税号：{{ rec.taxNumber }}</text>
           <view class="record-foot">
             <view class="record-foot-left">
-              <text class="record-amount">
-                ¥{{ rec.amount }}
-              </text>
-              <text class="record-time">
-                {{ rec.createdAt }}
-              </text>
+              <text class="record-amount">¥{{ rec.amount }}</text>
+              <text class="record-time">{{ rec.createdAt }}</text>
             </view>
             <view class="record-actions">
-              <view
-                v-if="rec.status === 'completed'"
-                class="record-btn primary"
-                @tap="downloadInvoice(rec)"
-              >
-                <app-icon
-                  name="download"
-                  :size="24"
-                  color="#FFFFFF"
-                />
-                <text class="record-btn-text primary">
-                  下载
-                </text>
+              <view v-if="rec.status === 'completed'" class="record-btn primary" @tap="downloadInvoice(rec)">
+                <app-icon name="download" :size="24" color="#FFFFFF" />
+                <text class="record-btn-text primary">下载</text>
               </view>
               <view class="record-btn ghost">
-                <app-icon
-                  name="eye"
-                  :size="24"
-                  color="#666666"
-                />
-                <text class="record-btn-text">
-                  详情
-                </text>
+                <app-icon name="eye" :size="24" color="#666666" />
+                <text class="record-btn-text">详情</text>
               </view>
             </view>
           </view>
-          <view
-            v-if="rec.status === 'rejected' && rec.rejectReason"
-            class="reject-tip"
-          >
-            <text class="reject-text">
-              驳回原因：{{ rec.rejectReason }}
-            </text>
+          <view v-if="rec.status === 'rejected' && rec.rejectReason" class="reject-tip">
+            <text class="reject-text">驳回原因：{{ rec.rejectReason }}</text>
           </view>
         </view>
         <view class="bottom-gap" />
@@ -356,19 +160,9 @@
     </scroll-view>
 
     <!-- 底部提交 -->
-    <view
-      v-if="activeTab === 'apply'"
-      class="submit-bar"
-      :style="{ paddingBottom: 16 + safeBottom + 'px' }"
-    >
-      <view
-        class="submit-btn"
-        :class="{ disabled: selectedOrders.length === 0 }"
-        @tap="submitApply"
-      >
-        <text class="submit-text">
-          提交申请{{ totalAmount > 0 ? ' ¥' + totalAmount : '' }}
-        </text>
+    <view v-if="activeTab === 'apply'" class="submit-bar" :style="{ paddingBottom: 16 + safeBottom + 'px' }">
+      <view class="submit-btn" :class="{ disabled: selectedOrders.length === 0 }" @tap="submitApply">
+        <text class="submit-text">提交申请{{ totalAmount > 0 ? ' ¥' + totalAmount : '' }}</text>
       </view>
     </view>
   </view>
@@ -377,15 +171,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { orderApi, invoiceStatusConfig } from '@/lib/order-data'
+import { mockInvoiceOrders, mockInvoices, invoiceStatusConfig } from '@/lib/order-data'
 
 const safeBottom = ref(0)
 const activeTab = ref<'apply' | 'list'>('apply')
 
-const applicableOrders = ref<any[]>([])
-const records = ref<any[]>([])
-const loading = ref(true)
-const loadError = ref(false)
+const applicableOrders = ref(mockInvoiceOrders)
+const records = ref(mockInvoices)
 
 const tabList = computed(() => [
   { key: 'apply' as const, label: '申请开票', count: applicableOrders.value.length },
@@ -418,21 +210,12 @@ function statusCfg(status: string) {
   return invoiceStatusConfig[status] || { label: status, color: '#999', bg: '#F5F5F5' }
 }
 
-onLoad(async () => {
+onLoad(() => {
   try {
     const info = uni.getSystemInfoSync()
     safeBottom.value = info.safeAreaInsets?.bottom || 0
   } catch (e) {
     safeBottom.value = 0
-  }
-  try {
-    const res = await orderApi.getInvoices()
-    applicableOrders.value = res.orders
-    records.value = res.records
-  } catch (e) {
-    loadError.value = true
-  } finally {
-    loading.value = false
   }
 })
 

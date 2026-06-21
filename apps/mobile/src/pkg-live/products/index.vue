@@ -3,50 +3,27 @@
     <!-- 顶部 -->
     <view class="nav-bar">
       <view class="nav-left">
-        <view
-          class="nav-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#1a1a1a"
-          />
+        <view class="nav-back" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#1a1a1a" />
         </view>
-        <text class="nav-title">
-          带货商品
-        </text>
+        <text class="nav-title">带货商品</text>
       </view>
-      <view
-        class="nav-add"
-        @tap="goAdd"
-      >
-        <app-icon
-          name="plus"
-          :size="32"
-          color="#C41E3A"
-        />
-        <text class="nav-add-text">
-          添加商品
-        </text>
+      <view class="nav-add" @tap="goAdd">
+        <app-icon name="plus" :size="32" color="#C41E3A" />
+        <text class="nav-add-text">添加商品</text>
       </view>
     </view>
 
     <view class="page-body">
       <!-- 搜索栏 -->
       <view class="search-bar">
-        <app-icon
-          name="search"
-          :size="32"
-          color="#999"
-          class="search-icon"
-        />
+        <app-icon name="search" :size="32" color="#999" class="search-icon" />
         <input
           v-model="search"
           class="search-input"
           placeholder="搜索商品名称..."
           placeholder-class="search-ph"
-        >
+        />
       </view>
 
       <!-- 状态筛选 -->
@@ -63,64 +40,29 @@
       </view>
 
       <!-- 统计 -->
-      <text class="count-text">
-        共 {{ filtered.length }} 件商品
-      </text>
+      <text class="count-text">共 {{ filtered.length }} 件商品</text>
 
       <!-- 空态 -->
-      <view
-        v-if="filtered.length === 0"
-        class="empty-box"
-      >
-        <app-icon
-          name="package"
-          :size="96"
-          color="#cbb8a8"
-        />
-        <text class="empty-text">
-          暂无商品
-        </text>
-        <view
-          class="empty-btn"
-          @tap="goAdd"
-        >
-          添加第一件商品
-        </view>
+      <view v-if="filtered.length === 0" class="empty-box">
+        <app-icon name="package" :size="96" color="#cbb8a8" />
+        <text class="empty-text">暂无商品</text>
+        <view class="empty-btn" @tap="goAdd">添加第一件商品</view>
       </view>
 
       <!-- 商品列表 -->
-      <view
-        v-else
-        class="product-list"
-      >
-        <view
-          v-for="product in filtered"
-          :key="product.id"
-          class="product-card"
-        >
+      <view v-else class="product-list">
+        <view v-for="product in filtered" :key="product.id" class="product-card">
           <view class="product-main">
             <!-- 封面 -->
-            <image
-              class="product-cover"
-              :src="product.cover"
-              mode="aspectFill"
-            />
+            <image class="product-cover" :src="product.cover" mode="aspectFill" />
 
             <!-- 信息 -->
             <view class="product-info">
-              <text class="product-name">
-                {{ product.name }}
-              </text>
-              <text class="product-price">
-                ¥{{ product.price }}
-              </text>
+              <text class="product-name">{{ product.name }}</text>
+              <text class="product-price">¥{{ product.price }}</text>
               <view class="product-meta">
-                <text class="meta-item">
-                  库存 {{ product.stock }}
-                </text>
-                <text class="meta-item">
-                  已售 {{ product.sold }}
-                </text>
+                <text class="meta-item">库存 {{ product.stock }}</text>
+                <text class="meta-item">已售 {{ product.sold }}</text>
               </view>
             </view>
 
@@ -145,34 +87,14 @@
           <!-- 操作行 -->
           <view class="product-ops">
             <view class="op-btn">
-              <app-icon
-                name="chevron-right"
-                :size="28"
-                color="#999"
-              />
-              <text class="op-text">
-                编辑
-              </text>
+              <app-icon name="chevron-right" :size="28" color="#999" />
+              <text class="op-text">编辑</text>
             </view>
-            <view
-              class="op-btn"
-              @tap="remove(product.id)"
-            >
-              <app-icon
-                name="trash-2"
-                :size="28"
-                color="#C41E3A"
-              />
-              <text class="op-text op-text-danger">
-                删除
-              </text>
+            <view class="op-btn" @tap="remove(product.id)">
+              <app-icon name="trash-2" :size="28" color="#C41E3A" />
+              <text class="op-text op-text-danger">删除</text>
             </view>
-            <text
-              v-if="product.stock === 0"
-              class="stock-warn"
-            >
-              库存不足
-            </text>
+            <text v-if="product.stock === 0" class="stock-warn">库存不足</text>
           </view>
         </view>
       </view>
@@ -182,20 +104,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { goBack } from '@/utils/router'
-import { liveApi, type LiveProductItem } from '@/lib/live-data'
+import { liveProductFilters, liveProducts, type LiveProductItem } from '@/lib/live-data'
 
-const filters = ref<{ key: string; label: string }[]>([])
+const filters = liveProductFilters
 const filter = ref('all')
 const search = ref('')
-const products = ref<LiveProductItem[]>([])
-
-onMounted(async () => {
-  const data = await liveApi.getProducts()
-  filters.value = data.filters
-  products.value = data.items.map((p: LiveProductItem) => ({ ...p }))
-})
+const products = ref<LiveProductItem[]>(liveProducts.map((p) => ({ ...p })))
 
 const filtered = computed(() =>
   products.value.filter((p) => {

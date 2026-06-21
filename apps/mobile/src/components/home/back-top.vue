@@ -7,16 +7,8 @@ const emit = defineEmits<{ (e: 'tap'): void }>()
 </script>
 
 <template>
-  <view
-    v-if="visible"
-    class="back-top animate-fade-in"
-    @tap="emit('tap')"
-  >
-    <app-icon
-      name="arrow-up"
-      :size="36"
-      color="#999999"
-    />
+  <view v-if="visible" class="back-top animate-fade-in" @tap="emit('tap')">
+    <app-icon name="arrow-up" :size="36" color="#999999" />
   </view>
 </template>
 

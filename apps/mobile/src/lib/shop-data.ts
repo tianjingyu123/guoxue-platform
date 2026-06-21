@@ -3,7 +3,6 @@
  * mock 数据 + 类型 + 装配函数。图片走 /static（跨端约定）。
  */
 import type { ProductCardData } from '@/lib/card-utils'
-import { apiGet, apiPost, useMock } from '@/utils/request'
 
 const P = '/static/images/products'
 
@@ -59,21 +58,21 @@ export const mallCommerceLives: MallLive[] = [
   { id: 3, title: '手工罗盘制作与售卖', host: '匠心堂', reservations: 526, status: 'upcoming', scheduledTime: '明天14:00' },
 ]
 
-/** 商品分类（emoji 图标，1:1 还原原型） */
+/** 商品分类（统一使用项目图标系统，禁用 emoji） */
 export interface MallCategory {
   id: string
   name: string
   icon: string
 }
 export const mallCategories: MallCategory[] = [
-  { id: 'books', name: '书籍', icon: '📚' },
-  { id: 'culture', name: '文创', icon: '🎨' },
-  { id: 'jewelry', name: '饰品', icon: '📿' },
-  { id: 'peripheral', name: '周边', icon: '🎁' },
-  { id: 'tools', name: '工具', icon: '🧭' },
-  { id: 'incense', name: '香道', icon: '🕯️' },
-  { id: 'tea', name: '茶器', icon: '🍵' },
-  { id: 'all', name: '全部', icon: '⋯' },
+  { id: 'books', name: '书籍', icon: 'book-open' },
+  { id: 'culture', name: '文创', icon: 'palette' },
+  { id: 'jewelry', name: '饰品', icon: 'sparkles' },
+  { id: 'peripheral', name: '周边', icon: 'gift' },
+  { id: 'tools', name: '工具', icon: 'compass' },
+  { id: 'incense', name: '香道', icon: 'flame' },
+  { id: 'tea', name: '茶器', icon: 'leaf' },
+  { id: 'all', name: '全部', icon: 'layout-grid' },
 ]
 
 /** 猜你喜欢（统一卡片库 feed 变体） */
@@ -157,14 +156,14 @@ export const shopBanners: ShopBanner[] = [
 
 /** shop 分类圆形图标网格 */
 export const shopCategories: MallCategory[] = [
-  { id: '1', name: '古籍善本', icon: '📚' },
-  { id: '2', name: '文房四宝', icon: '🖌️' },
-  { id: '3', name: '香道用品', icon: '🪷' },
-  { id: '4', name: '茶道器具', icon: '🍵' },
-  { id: '5', name: '命理工具', icon: '🧭' },
-  { id: '6', name: '风水摆件', icon: '🏺' },
-  { id: '7', name: '养生食品', icon: '🌿' },
-  { id: '8', name: '更多分类', icon: '📋' },
+  { id: '1', name: '古籍善本', icon: 'book-open' },
+  { id: '2', name: '文房四宝', icon: 'book-marked' },
+  { id: '3', name: '香道用品', icon: 'flame' },
+  { id: '4', name: '茶道器具', icon: 'leaf' },
+  { id: '5', name: '命理工具', icon: 'compass' },
+  { id: '6', name: '风水摆件', icon: 'landmark' },
+  { id: '7', name: '养生食品', icon: 'heart-pulse' },
+  { id: '8', name: '更多分类', icon: 'layout-grid' },
 ]
 
 /** shop 秒杀专区（红色大卡，含倒计时，结束时间=当前+2小时） */
@@ -174,8 +173,6 @@ export interface ShopFlashProduct {
   cover: string
   price: number
   originalPrice: number
-  stock: number
-  sold: number
 }
 export const shopFlashSale = {
   id: '1',
@@ -183,9 +180,9 @@ export const shopFlashSale = {
   /** 距结束秒数（2 小时） */
   durationSec: 3600 * 2,
   products: [
-    { id: '1', name: '渊海子平精装版', cover: `${P}/book1.jpg`, price: 68, originalPrice: 128, stock: 100, sold: 78 },
-    { id: '2', name: '罗盘专业款', cover: `${P}/item7.jpg`, price: 199, originalPrice: 399, stock: 50, sold: 45 },
-    { id: '3', name: '紫檀木签筒', cover: `${P}/item4.jpg`, price: 88, originalPrice: 168, stock: 200, sold: 156 },
+    { id: '1', name: '渊海子平精装版', cover: `${P}/book1.jpg`, price: 68, originalPrice: 128 },
+    { id: '2', name: '罗盘专业款', cover: `${P}/item7.jpg`, price: 199, originalPrice: 399 },
+    { id: '3', name: '紫檀木签筒', cover: `${P}/item4.jpg`, price: 88, originalPrice: 168 },
   ] as ShopFlashProduct[],
 }
 
@@ -699,6 +696,28 @@ export interface GroupCartItem {
   image: string
   type: 'product' | 'course'
 }
+
+// 平铺购物车数据（对齐原型 app/shop/cart：无店铺分组）
+export interface FlatCartItem {
+  id: number
+  productId: number
+  productName: string
+  productCover: string
+  skuName: string
+  price: number
+  originalPrice: number
+  quantity: number
+  stock: number
+  selected: boolean
+  isValid: boolean
+  invalidReason?: string
+}
+export const cartFlatItems: FlatCartItem[] = [
+  { id: 1, productId: 1, productName: '《渊海子平》精装典藏版', productCover: `${P}/book1.jpg`, skuName: '精装版 / 全三册', price: 168, originalPrice: 298, quantity: 1, stock: 99, selected: true, isValid: true },
+  { id: 2, productId: 2, productName: '八字命理入门到精通（视频课程）', productCover: `${P}/book2.jpg`, skuName: '视频课程 / 共36节', price: 299, originalPrice: 599, quantity: 1, stock: 50, selected: true, isValid: true },
+  { id: 3, productId: 3, productName: '天然黑曜石貔貅手链', productCover: `${P}/item1.jpg`, skuName: '14mm / 男款', price: 128, originalPrice: 199, quantity: 2, stock: 30, selected: false, isValid: true },
+  { id: 4, productId: 4, productName: '【已下架】限量版紫水晶摆件', productCover: `${P}/item6.jpg`, skuName: '标准款', price: 388, originalPrice: 588, quantity: 1, stock: 0, selected: false, isValid: false, invalidReason: '商品已下架' },
+]
 export interface CartSellerGroup {
   id: number
   sellerName: string
@@ -1012,7 +1031,7 @@ export const logisticsDetail: LogisticsData = {
   tracks: [
     { status: 'in_transit', description: '快件已到达【北京朝阳营业点】，正在派送中', time: '2024-12-02 14:30', location: '北京市朝阳区', isCurrent: true },
     { status: 'in_transit', description: '快件已到达【北京转运中心】', time: '2024-12-02 08:15', location: '北京市顺义区', isCurrent: false },
-    { status: 'in_transit', description: '快件已从���上海转运中心】发出', time: '2024-12-01 22:00', location: '上海市青浦区', isCurrent: false },
+    { status: 'in_transit', description: '快件已从【上海转运中心】发出', time: '2024-12-01 22:00', location: '上海市青浦区', isCurrent: false },
     { status: 'picked', description: '快件已到达【上海转运中心】', time: '2024-12-01 18:30', location: '上海市青浦区', isCurrent: false },
     { status: 'picked', description: '已揽收，快递员：李师傅 13900139000', time: '2024-12-01 15:20', location: '上海市浦东新区', isCurrent: false },
     { status: 'pending', description: '商家已发货，等待揽收', time: '2024-12-01 14:00', location: '上海市浦东新区', isCurrent: false },
@@ -1133,7 +1152,7 @@ export interface DisputeDetailData {
 }
 export const disputeDetail: DisputeDetailData = {
   id: '1', orderId: 'o1', orderNo: 'RB2024010100001', type: 'quality_issue', status: 'processing',
-  description: '收到的书籍有破损，封面有明显折痕', images: [`${P}/book1.jpg`], expectation: '��望能够换货或退款',
+  description: '收到的书籍有破损，封面有明显折痕', images: [`${P}/book1.jpg`], expectation: '希望能够换货或退款',
   order: { productName: '周易六十四卦详解（精装典藏版）', productCover: `${P}/book1.jpg`, amount: 168 },
   timeline: [
     { status: 'submitted', title: '提交申诉', description: '您已成功提交申诉', time: '2024-01-05 10:00', isCurrent: false },
@@ -1278,14 +1297,14 @@ export interface ShopCategoryNode {
   children: { id: string; name: string }[]
 }
 export const shopCategoryTree: ShopCategoryNode[] = [
-  { id: '1', name: '国学书籍', icon: '📚', children: [{ id: '1-1', name: '经典原著' }, { id: '1-2', name: '注解版本' }, { id: '1-3', name: '入门读物' }] },
-  { id: '2', name: '文房用品', icon: '✒️', children: [{ id: '2-1', name: '毛笔' }, { id: '2-2', name: '宣纸' }, { id: '2-3', name: '墨砚' }] },
-  { id: '3', name: '香道用品', icon: '🪔', children: [{ id: '3-1', name: '线香' }, { id: '3-2', name: '香炉' }, { id: '3-3', name: '沉香' }] },
-  { id: '4', name: '茶道用品', icon: '🍵', children: [{ id: '4-1', name: '茶具套装' }, { id: '4-2', name: '茶叶' }, { id: '4-3', name: '茶盘' }] },
-  { id: '5', name: '养生保健', icon: '🌿', children: [{ id: '5-1', name: '艾灸用品' }, { id: '5-2', name: '按摩器具' }, { id: '5-3', name: '养生食材' }] },
-  { id: '6', name: '风水摆件', icon: '🏺', children: [{ id: '6-1', name: '招财摆件' }, { id: '6-2', name: '化煞物品' }, { id: '6-3', name: '水晶' }] },
-  { id: '7', name: '佛道用品', icon: '🙏', children: [{ id: '7-1', name: '佛像' }, { id: '7-2', name: '念珠' }, { id: '7-3', name: '供品' }] },
-  { id: '8', name: '乐器', icon: '🎶', children: [{ id: '8-1', name: '古琴' }, { id: '8-2', name: '箫笛' }, { id: '8-3', name: '古筝' }] },
+  { id: '1', name: '国学书籍', icon: 'book-open', children: [{ id: '1-1', name: '经典原著' }, { id: '1-2', name: '注解版本' }, { id: '1-3', name: '入门读物' }] },
+  { id: '2', name: '文房用品', icon: 'book-marked', children: [{ id: '2-1', name: '毛笔' }, { id: '2-2', name: '宣纸' }, { id: '2-3', name: '墨砚' }] },
+  { id: '3', name: '香道用品', icon: 'flame', children: [{ id: '3-1', name: '线香' }, { id: '3-2', name: '香炉' }, { id: '3-3', name: '沉香' }] },
+  { id: '4', name: '茶道用品', icon: 'leaf', children: [{ id: '4-1', name: '茶具套装' }, { id: '4-2', name: '茶叶' }, { id: '4-3', name: '茶盘' }] },
+  { id: '5', name: '养生保健', icon: 'heart-pulse', children: [{ id: '5-1', name: '艾灸用品' }, { id: '5-2', name: '按摩器具' }, { id: '5-3', name: '养生食材' }] },
+  { id: '6', name: '风水摆件', icon: 'landmark', children: [{ id: '6-1', name: '招财摆件' }, { id: '6-2', name: '化煞物品' }, { id: '6-3', name: '水晶' }] },
+  { id: '7', name: '佛道用品', icon: 'hand', children: [{ id: '7-1', name: '佛像' }, { id: '7-2', name: '念珠' }, { id: '7-3', name: '供品' }] },
+  { id: '8', name: '乐器', icon: 'sparkles', children: [{ id: '8-1', name: '古琴' }, { id: '8-2', name: '箫笛' }, { id: '8-3', name: '古筝' }] },
 ]
 export interface ShopCategoryProduct {
   id: string
@@ -1365,276 +1384,3 @@ export interface ShopExchangeAddress {
 export const shopExchangeAddresses: ShopExchangeAddress[] = [
   { id: '1', name: '张三', phone: '138****8888', province: '北京市', city: '北京市', district: '朝阳区', address: '建国路88号SOHO现代城A座1201', isDefault: true },
 ]
-
-// ============================================
-// API 层：useMock 开关控制真实/模拟数据切换
-// ============================================
-
-export const shopApi = {
-  /** 商品列表 */
-  async getProducts(params?: { page?: number; pageSize?: number; keyword?: string; categoryId?: string }) {
-    if (useMock()) {
-      const all = [...mallProducts, ...shopRecProducts as any[]]
-      return { items: all, total: all.length, page: 1, pageSize: 20 }
-    }
-    try {
-      const qs = new URLSearchParams()
-      if (params?.page) qs.set('page', String(params.page))
-      if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
-      if (params?.keyword) qs.set('keyword', params.keyword)
-      if (params?.categoryId) qs.set('categoryId', params.categoryId)
-      return await apiGet<any>(`/shop/products?${qs.toString()}`)
-    } catch {
-      return { items: [...mallProducts, ...shopRecProducts as any[]], total: 0, page: 1, pageSize: 20 }
-    }
-  },
-
-  /** 商品详情 */
-  async getProductDetail(id: string) {
-    if (useMock()) {
-      const all = [...mallProducts, ...shopRecProducts as any[]]
-      const p = all.find((x: any) => x.id === id || x.skuId === id)
-      return p || shopProductDetail
-    }
-    try {
-      return await apiGet<any>(`/shop/products/${id}`)
-    } catch { return shopProductDetail }
-  },
-
-  /** 商品评价 */
-  async getProductReviews(productId: string, params?: { page?: number; pageSize?: number }) {
-    if (useMock()) return { items: shopProductReviews, total: shopProductReviews.length }
-    try {
-      return await apiGet<any>(`/shop/products/${productId}/reviews?page=${params?.page || 1}&pageSize=${params?.pageSize || 20}`)
-    } catch { return { items: shopProductReviews, total: shopProductReviews.length } }
-  },
-
-  /** 店铺评价（聚合所有商品评价） */
-  async getShopReviews(params?: { page?: number; pageSize?: number }) {
-    if (useMock()) return { stats: shopReviewStats, items: shopReviewList, total: shopReviewList.length }
-    try {
-      const data = await apiGet<any>(`/shop/reviews?page=${params?.page || 1}&pageSize=${params?.pageSize || 20}`)
-      return { stats: shopReviewStats, items: data.reviews || [], total: data.total || 0 }
-    } catch { return { stats: shopReviewStats, items: shopReviewList, total: shopReviewList.length } }
-  },
-
-  /** 分类树 */
-  async getCategoryTree() {
-    if (useMock()) return shopCategories
-    try {
-      return await apiGet<any>('/shop/categories/tree')
-    } catch { return shopCategories }
-  },
-
-  /** 分类商品 */
-  async getCategoryProducts(categoryId: string, params?: { page?: number; pageSize?: number }) {
-    if (useMock()) {
-      return { items: mallProducts, total: mallProducts.length, page: 1, pageSize: 20 }
-    }
-    try {
-      return await apiGet<any>(`/shop/categories/${categoryId}/products?page=${params?.page || 1}&pageSize=${params?.pageSize || 20}`)
-    } catch {
-      return { items: mallProducts, total: mallProducts.length, page: 1, pageSize: 20 }
-    }
-  },
-
-  /** 购物车 */
-  async getCart() {
-    if (useMock()) return { items: cartGroups, totalAmount: 308, totalCount: 3 }
-    try {
-      return await apiGet<any>('/shop/cart')
-    } catch {
-      return { items: cartGroups, totalAmount: 308, totalCount: 3 }
-    }
-  },
-
-  /** 订单列表 */
-  async getOrders(params?: { page?: number; pageSize?: number; status?: string }) {
-    if (useMock()) return { items: shopOrders, total: shopOrders.length }
-    try {
-      const qs = `page=${params?.page || 1}&pageSize=${params?.pageSize || 20}${params?.status ? `&status=${params.status}` : ''}`
-      return await apiGet<any>(`/shop/orders/my?${qs}`)
-    } catch {
-      return { items: shopOrders, total: shopOrders.length }
-    }
-  },
-
-  /** 创建订单 */
-  async createOrder(data: { addressId: string; couponId?: string; payMethod: string; note?: string }) {
-    if (useMock()) return { id: 'order-new', orderNo: 'OR' + Date.now(), payAmount: 308, status: 'pending' }
-    return apiPost<any>('/shop/orders', data)
-  },
-
-  /** 订单详情 */
-  async getOrderDetail(orderId: string) {
-    if (useMock()) {
-      const order = shopOrders.find((o: any) => o.id === orderId)
-      return order || shopOrders[0]
-    }
-    try {
-      return await apiGet<any>(`/shop/orders/${orderId}`)
-    } catch { return shopOrders[0] }
-  },
-
-  /** 优惠券详情 */
-  async getCouponDetail(id: string) {
-    if (useMock()) return couponDetail
-    try { return await apiGet<any>(`/shop/coupons/${id}`) } catch { return couponDetail }
-  },
-
-  /** 优惠券列表 */
-  async getCoupons() {
-    if (useMock()) return { items: myCoupons, total: myCoupons.length }
-    try {
-      return await apiGet<any>('/shop/coupons')
-    } catch { return { items: myCoupons, total: myCoupons.length } }
-  },
-
-  /** 我的优惠券 */
-  async getMyCoupons() {
-    if (useMock()) return { items: myCoupons.filter((c: any) => !c.locked), total: myCoupons.length }
-    try {
-      return await apiGet<any>('/shop/coupons/my')
-    } catch { return { items: myCoupons.filter((c: any) => !c.locked), total: myCoupons.length } }
-  },
-
-  /** 收货地址列表 */
-  async getAddresses() {
-    if (useMock()) return checkoutAddresses
-    try {
-      return await apiGet<any>('/shop/addresses')
-    } catch { return checkoutAddresses }
-  },
-
-  /** 物流跟踪 */
-  async getLogistics(orderId: string) {
-    if (useMock()) return logisticsDetail
-    try {
-      return await apiGet<any>(`/shop/orders/${orderId}/logistics`)
-    } catch { return logisticsDetail }
-  },
-
-  /** 售后列表 */
-  async getAfterSales(params?: { page?: number; pageSize?: number }) {
-    if (useMock()) return { items: (myDisputes as any[]), total: (myDisputes as any[]).length }
-    try {
-      return await apiGet<any>(`/shop/after-sales?page=${params?.page || 1}&pageSize=${params?.pageSize || 20}`)
-    } catch { return { items: (myDisputes as any[]), total: (myDisputes as any[]).length } }
-  },
-
-  /** 售后详情 */
-  async getAfterSaleDetail(id: string) {
-    if (useMock()) return (myDisputes as any[]).find((r: any) => r.id === id) || (myDisputes as any[])[0]
-    try {
-      return await apiGet<any>(`/shop/after-sales/${id}`)
-    } catch { return (myDisputes as any[])[0] }
-  },
-
-  /** 提交售后 */
-  async submitAfterSale(data: any) {
-    if (useMock()) return { id: 'as-new', status: 'processing' }
-    return apiPost<any>('/shop/after-sales', data)
-  },
-
-  /** 秒杀 — 进行中列表 */
-  async getFlashSales() {
-    if (useMock()) return { items: shopFlashSale.products, total: shopFlashSale.products.length }
-    try {
-      const res = await apiGet<any>('/marketing/flash-sales/active')
-      return { items: res.items || res || [], total: res.total || 0 }
-    } catch { return { items: shopFlashSale.products, total: shopFlashSale.products.length } }
-  },
-
-  /** 拼团 — 进行中列表 */
-  async getGroupBuys() {
-    if (useMock()) return { items: groupBuyList, total: groupBuyList.length }
-    try {
-      const res = await apiGet<any>('/marketing/group-buys/active')
-      return { items: res.items || res || [], total: res.total || 0 }
-    } catch { return { items: groupBuyList, total: groupBuyList.length } }
-  },
-
-  /** 拼团 — 详情 */
-  async getGroupBuyDetail(id: string) {
-    if (useMock()) return groupBuyList.find((g: any) => g.id === id) || groupBuyList[0]
-    try { return await apiGet<any>(`/marketing/group-buys/${id}`) } catch { return groupBuyList[0] }
-  },
-
-  /** 拼团 — 我的拼团 */
-  async getMyGroupBuys() {
-    if (useMock()) return { items: myGroupBuyList, total: myGroupBuyList.length }
-    try {
-      const res = await apiGet<any>('/marketing/group-buys/my')
-      return { items: res.items || res || [], total: res.total || 0 }
-    } catch { return { items: myGroupBuyList, total: myGroupBuyList.length } }
-  },
-
-  /** 拼团 — 参与 */
-  async joinGroupBuy(id: string) {
-    if (useMock()) return { success: true }
-    return apiPost<any>(`/marketing/group-buys/${id}/join`)
-  },
-
-  /** 营销区秒杀商品 */
-  async getSeckillItems() {
-    if (useMock()) return { items: seckillItems, total: seckillItems.length }
-    try { return await apiGet<any>('/marketing/seckill/items') }
-    catch { return { items: seckillItems, total: seckillItems.length } }
-  },
-
-  /** 营销区拼团商品 */
-  async getGroupItems() {
-    if (useMock()) return { items: groupItems, total: groupItems.length }
-    try { return await apiGet<any>('/marketing/group/items') }
-    catch { return { items: groupItems, total: groupItems.length } }
-  },
-
-  /** 商品对比数据 */
-  async getCompareProducts() {
-    if (useMock()) return { products: compareProducts, pickList: comparePickList }
-    try { return await apiGet<any>('/shop/products/compare') }
-    catch { return { products: compareProducts, pickList: comparePickList } }
-  },
-
-  /** 拼团失败详情 */
-  async getGroupBuyFailDetail(id: string) {
-    if (useMock()) return groupBuyFail
-    try { return await apiGet<any>(`/marketing/group-buys/${id}/fail`) }
-    catch { return groupBuyFail }
-  },
-
-  /** 拼团成功详情 */
-  async getGroupBuySuccessDetail(id: string) {
-    if (useMock()) return groupBuySuccess
-    try { return await apiGet<any>(`/marketing/group-buys/${id}/success`) }
-    catch { return groupBuySuccess }
-  },
-
-  /** 支付失败原因 */
-  async getPayFailReasons() {
-    if (useMock()) return payFailReasons
-    try { return await apiGet<any>('/shop/pay/fail-reasons') }
-    catch { return payFailReasons }
-  },
-
-  /** 支付超时原因 */
-  async getPayTimeoutReasons() {
-    if (useMock()) return payTimeoutReasons
-    try { return await apiGet<any>('/shop/pay/timeout-reasons') }
-    catch { return payTimeoutReasons }
-  },
-
-  /** 已绑定的支付方式 */
-  async getPaymentMethods() {
-    if (useMock()) return boundPaymentMethods
-    try { return await apiGet<any>('/shop/payment-methods') }
-    catch { return boundPaymentMethods }
-  },
-
-  /** 领券中心列表 */
-  async getCenterCoupons() {
-    if (useMock()) return { items: centerCoupons, total: centerCoupons.length }
-    try { return await apiGet<any>('/shop/coupons/center') }
-    catch { return { items: centerCoupons, total: centerCoupons.length } }
-  },
-}

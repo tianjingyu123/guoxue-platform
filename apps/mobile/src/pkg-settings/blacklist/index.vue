@@ -1,91 +1,37 @@
 <template>
   <view class="page">
-    <app-nav-bar
-      title="黑名单"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="32"
-      :title-weight="600"
-      :bar-height="112"
-    >
+    <app-nav-bar title="黑名单" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112">
       <template #right>
-        <text class="count">
-          {{ blocked.length }} 人
-        </text>
+        <text class="count">{{ blocked.length }} 人</text>
       </template>
     </app-nav-bar>
 
     <view class="body">
       <view class="search">
-        <app-icon
-          name="search"
-          :size="28"
-          color="#8a8378"
-        />
-        <input
-          v-model="search"
-          class="search-input"
-          placeholder="搜索黑名单"
-          placeholder-class="ph"
-        >
+        <app-icon name="search" :size="28" color="#8a8378" />
+        <input class="search-input" v-model="search" placeholder="搜索黑名单" placeholder-class="ph" />
       </view>
 
-      <view
-        v-if="filtered.length === 0"
-        class="empty"
-      >
-        <app-icon
-          name="user-x"
-          :size="96"
-          color="#d8d2c8"
-        />
-        <text class="empty-text">
-          {{ search ? '未找到匹配用户' : '黑名单为空' }}
-        </text>
+      <view v-if="filtered.length === 0" class="empty">
+        <app-icon name="user-x" :size="96" color="#d8d2c8" />
+        <text class="empty-text">{{ search ? '未找到匹配用户' : '黑名单为空' }}</text>
       </view>
 
-      <view
-        v-else
-        class="list"
-      >
-        <view
-          v-for="u in filtered"
-          :key="u.id"
-          class="item"
-        >
-          <image
-            class="avatar"
-            :src="u.avatar"
-            mode="aspectFill"
-          />
+      <view v-else class="list">
+        <view v-for="u in filtered" :key="u.id" class="item">
+          <image class="avatar" :src="u.avatar" mode="aspectFill" />
           <view class="info">
-            <text class="name">
-              {{ u.name }}
-            </text>
-            <text class="time">
-              拉黑于 {{ u.blockedAt }}
-            </text>
+            <text class="name">{{ u.name }}</text>
+            <text class="time">拉黑于 {{ u.blockedAt }}</text>
           </view>
-          <view
-            class="remove"
-            @tap="unblock(u.id)"
-          >
-            <app-icon
-              name="trash-2"
-              :size="26"
-              color="#8a8378"
-            />
+          <view class="remove" @tap="unblock(u.id)">
+            <app-icon name="trash-2" :size="26" color="#8a8378" />
             <text>移除</text>
           </view>
         </view>
       </view>
 
-      <text
-        v-if="blocked.length > 0"
-        class="hint"
-      >
-        黑名单用户无法查看您的内容或向您发送消息
-      </text>
+      <text v-if="blocked.length > 0" class="hint">黑名单用户无法查看您的内容或向您发送消息</text>
     </view>
   </view>
 </template>

@@ -1,286 +1,102 @@
 <template>
   <view class="page">
-    <app-nav-bar
-      title="修改密码"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="32"
-      :title-weight="600"
-      :bar-height="112"
-    />
+    <app-nav-bar title="修改密码" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112" />
 
     <!-- 成功页 -->
-    <view
-      v-if="isSuccess"
-      class="success"
-    >
-      <view class="success-ic">
-        <app-icon
-          name="check"
-          :size="56"
-          color="#2ecc71"
-        />
-      </view>
-      <text class="success-title">
-        密码修改成功
-      </text>
-      <text class="success-sub">
-        请重新登录以确保账号安全
-      </text>
-      <view
-        class="relogin"
-        @click="go('/login')"
-      >
-        <text class="relogin-txt">
-          重新登录
-        </text>
-      </view>
+    <view v-if="isSuccess" class="success">
+      <view class="success-ic"><app-icon name="check" :size="56" color="#2ecc71" /></view>
+      <text class="success-title">密码修改成功</text>
+      <text class="success-sub">请重新登录以确保账号安全</text>
+      <view class="relogin" @click="go('/login')"><text class="relogin-txt">重新登录</text></view>
     </view>
 
-    <view
-      v-else
-      class="container"
-    >
+    <view v-else class="container">
       <!-- 当前密码 -->
       <view class="field">
-        <text class="label">
-          当前密码
-        </text>
+        <text class="label">当前密码</text>
         <view class="input-card">
           <input
-            v-model="oldPassword"
-            class="input"
-            :password="!showOld"
-            placeholder="请输入当前密码"
-            placeholder-class="ph"
+            class="input" :password="!showOld" v-model="oldPassword"
+            placeholder="请输入当前密码" placeholder-class="ph"
             @input="oldPasswordError = ''"
-          >
-          <view
-            class="eye"
-            @click="showOld = !showOld"
-          >
-            <app-icon
-              :name="showOld ? 'eye-off' : 'eye'"
-              :size="36"
-              color="#999"
-            />
+          />
+          <view class="eye" @click="showOld = !showOld">
+            <app-icon :name="showOld ? 'eye-off' : 'eye'" :size="36" color="#999" />
           </view>
         </view>
-        <view
-          v-if="oldPasswordError"
-          class="err"
-        >
-          <app-icon
-            name="alert-circle"
-            :size="22"
-            color="#e74c3c"
-          />
-          <text class="err-txt">
-            {{ oldPasswordError }}
-          </text>
+        <view v-if="oldPasswordError" class="err">
+          <app-icon name="alert-circle" :size="22" color="#e74c3c" />
+          <text class="err-txt">{{ oldPasswordError }}</text>
         </view>
       </view>
 
       <!-- 新密码 -->
       <view class="field">
-        <text class="label">
-          新密码
-        </text>
+        <text class="label">新密码</text>
         <view class="input-card">
-          <input
-            v-model="newPassword"
-            class="input"
-            :password="!showNew"
-            placeholder="请输入新密码"
-            placeholder-class="ph"
-          >
-          <view
-            class="eye"
-            @click="showNew = !showNew"
-          >
-            <app-icon
-              :name="showNew ? 'eye-off' : 'eye'"
-              :size="36"
-              color="#999"
-            />
+          <input class="input" :password="!showNew" v-model="newPassword" placeholder="请输入新密码" placeholder-class="ph" />
+          <view class="eye" @click="showNew = !showNew">
+            <app-icon :name="showNew ? 'eye-off' : 'eye'" :size="36" color="#999" />
           </view>
         </view>
 
         <!-- 强度条 -->
-        <view
-          v-if="newPassword"
-          class="strength"
-        >
+        <view v-if="newPassword" class="strength">
           <view class="strength-head">
-            <text class="strength-label">
-              密码强度
-            </text>
-            <text
-              class="strength-txt"
-              :class="strengthClass"
-            >
-              {{ strength.text }}
-            </text>
+            <text class="strength-label">密码强度</text>
+            <text class="strength-txt" :class="strengthClass">{{ strength.text }}</text>
           </view>
           <view class="bars">
-            <view
-              v-for="lv in 3"
-              :key="lv"
-              class="bar"
-              :class="lv <= strength.level ? strengthBarClass : ''"
-            />
+            <view v-for="lv in 3" :key="lv" class="bar" :class="lv <= strength.level ? strengthBarClass : ''" />
           </view>
         </view>
 
         <!-- 规则 -->
         <view class="rules">
-          <view
-            class="rule"
-            :class="{ 'rule-on': rules.length }"
-          >
-            <app-icon
-              v-if="rules.length"
-              name="check"
-              :size="22"
-              color="#2ecc71"
-            />
-            <view
-              v-else
-              class="rule-dot"
-            />
-            <text
-              class="rule-txt"
-              :class="{ 'rule-txt-on': rules.length }"
-            >
-              6-20位字符
-            </text>
+          <view class="rule" :class="{ 'rule-on': rules.length }">
+            <app-icon v-if="rules.length" name="check" :size="22" color="#2ecc71" />
+            <view v-else class="rule-dot" />
+            <text class="rule-txt" :class="{ 'rule-txt-on': rules.length }">6-20位字符</text>
           </view>
-          <view
-            class="rule"
-            :class="{ 'rule-on': rules.hasLetter }"
-          >
-            <app-icon
-              v-if="rules.hasLetter"
-              name="check"
-              :size="22"
-              color="#2ecc71"
-            />
-            <view
-              v-else
-              class="rule-dot"
-            />
-            <text
-              class="rule-txt"
-              :class="{ 'rule-txt-on': rules.hasLetter }"
-            >
-              包含字母
-            </text>
+          <view class="rule" :class="{ 'rule-on': rules.hasLetter }">
+            <app-icon v-if="rules.hasLetter" name="check" :size="22" color="#2ecc71" />
+            <view v-else class="rule-dot" />
+            <text class="rule-txt" :class="{ 'rule-txt-on': rules.hasLetter }">包含字母</text>
           </view>
-          <view
-            class="rule"
-            :class="{ 'rule-on': rules.hasNumber }"
-          >
-            <app-icon
-              v-if="rules.hasNumber"
-              name="check"
-              :size="22"
-              color="#2ecc71"
-            />
-            <view
-              v-else
-              class="rule-dot"
-            />
-            <text
-              class="rule-txt"
-              :class="{ 'rule-txt-on': rules.hasNumber }"
-            >
-              包含数字
-            </text>
+          <view class="rule" :class="{ 'rule-on': rules.hasNumber }">
+            <app-icon v-if="rules.hasNumber" name="check" :size="22" color="#2ecc71" />
+            <view v-else class="rule-dot" />
+            <text class="rule-txt" :class="{ 'rule-txt-on': rules.hasNumber }">包含数字</text>
           </view>
         </view>
       </view>
 
       <!-- 确认新密码 -->
       <view class="field">
-        <text class="label">
-          确认新密码
-        </text>
+        <text class="label">确认新密码</text>
         <view class="input-card">
-          <input
-            v-model="confirmPassword"
-            class="input"
-            :password="!showConfirm"
-            placeholder="请再次输入新密码"
-            placeholder-class="ph"
-          >
-          <view
-            class="eye"
-            @click="showConfirm = !showConfirm"
-          >
-            <app-icon
-              :name="showConfirm ? 'eye-off' : 'eye'"
-              :size="36"
-              color="#999"
-            />
+          <input class="input" :password="!showConfirm" v-model="confirmPassword" placeholder="请再次输入新密码" placeholder-class="ph" />
+          <view class="eye" @click="showConfirm = !showConfirm">
+            <app-icon :name="showConfirm ? 'eye-off' : 'eye'" :size="36" color="#999" />
           </view>
         </view>
-        <view
-          v-if="confirmPassword && !isConfirmMatch"
-          class="err"
-        >
-          <app-icon
-            name="alert-circle"
-            :size="22"
-            color="#e74c3c"
-          />
-          <text class="err-txt">
-            两次输入的密码不一致
-          </text>
+        <view v-if="confirmPassword && !isConfirmMatch" class="err">
+          <app-icon name="alert-circle" :size="22" color="#e74c3c" />
+          <text class="err-txt">两次输入的密码不一致</text>
         </view>
-        <view
-          v-if="confirmPassword && isConfirmMatch"
-          class="ok"
-        >
-          <app-icon
-            name="check"
-            :size="22"
-            color="#2ecc71"
-          />
-          <text class="ok-txt">
-            密码一致
-          </text>
+        <view v-if="confirmPassword && isConfirmMatch" class="ok">
+          <app-icon name="check" :size="22" color="#2ecc71" />
+          <text class="ok-txt">密码一致</text>
         </view>
       </view>
 
       <!-- 提交 -->
-      <view
-        class="submit"
-        :class="{ 'submit-on': canSubmit }"
-        @click="handleSubmit"
-      >
-        <app-icon
-          v-if="isSubmitting"
-          name="loader-2"
-          :size="28"
-          color="#999"
-          class="spin"
-        />
-        <text
-          class="submit-txt"
-          :class="{ 'submit-txt-on': canSubmit }"
-        >
-          {{ isSubmitting ? '提交中...' : '确认修改' }}
-        </text>
+      <view class="submit" :class="{ 'submit-on': canSubmit }" @click="handleSubmit">
+        <app-icon v-if="isSubmitting" name="loader-2" :size="28" color="#999" class="spin" />
+        <text class="submit-txt" :class="{ 'submit-txt-on': canSubmit }">{{ isSubmitting ? '提交中...' : '确认修改' }}</text>
       </view>
 
-      <view
-        class="forgot"
-        @click="go('/forgot-password')"
-      >
-        <text class="forgot-txt">
-          忘记原密码？
-        </text>
-      </view>
+      <view class="forgot" @click="go('/forgot-password')"><text class="forgot-txt">忘记原密码？</text></view>
     </view>
   </view>
 </template>

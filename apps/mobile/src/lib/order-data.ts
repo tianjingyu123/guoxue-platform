@@ -1,6 +1,10 @@
 /**
  * 订单中心数据层 - 从原型 app/orders/* 1:1 迁移
  * 含：商品订单列表 / 统一订单中心 / 订单详情 / 物流 / 评价 / 发票 / 退款进度 / 纠纷申诉
+ */
+import { apiGet, apiPost, useMock } from '@/utils/request'
+
+/**
  * 图片走 /static（跨端约定）。
  */
 
@@ -319,8 +323,6 @@ export interface RefundDetail {
   reason: string; amount: number; description: string
   product: OrderProduct
   timeline: RefundTimelineNode[]
-  estimatedDate?: string
-  refundMethod?: string
   createdAt: string; canCancel: boolean
 }
 
@@ -397,185 +399,21 @@ export function getDisputeTypeLabel(type: string) {
   return disputeTypes.find((t) => t.value === type)?.label || type
 }
 
-// V0 别名
-export const disputeOrder = mockDisputeOrder;
-export const myDisputes = mockMyDisputes;
-export const disputeDetail = mockDisputeDetail;
-export const invoiceApplicableOrders = mockInvoiceOrders;
-export const invoiceRecords = mockInvoices;
-export const logisticsDetail = mockLogistics;
-export const orderDetail = mockOrderDetail;
-export const orders = mockOrders;
-export const refundProgress: RefundDetail = mockRefund;
-export const orderReviewItems = reviewItems;
-export const orderReviewTags = reviewTagsByRating;
-
-// ============================================
-// API 层：useMock 开关控制真实/模拟数据切换
-// ============================================
-import { apiGet, apiPost, apiPut, useMock } from '@/utils/request'
-
-function mapBackendOrder(o: any): OrderListItem {
-  return {
-    id: String(o.id),
-    orderNo: o.orderNo || o.id,
-    status: (o.status as OrderStatus) || 'pending_pay',
-    totalAmount: o.totalAmount ?? o.totalPrice ?? 0,
-    payAmount: o.payAmount ?? o.actualAmount ?? 0,
-    createdAt: o.createdAt || o.created_at || '',
-    paidAt: o.paidAt || o.paid_at,
-    shippedAt: o.shippedAt || o.shipped_at,
-    completedAt: o.completedAt || o.completed_at,
-    products: (o.items || o.products || []).map((p: any) => ({
-      id: String(p.id || p.productId),
-      name: p.name || p.productName || p.title || '',
-      cover: p.cover || p.image || p.thumbnail || '',
-      skuName: p.skuName || p.sku?.name || '',
-      price: p.price ?? 0,
-      quantity: p.quantity ?? 1,
-    })),
-    canCancel: o.canCancel ?? (o.status === 'pending_pay' || o.status === 'pending_ship'),
-    canConfirm: o.canConfirm ?? (o.status === 'pending_receive'),
-    canReview: o.canReview ?? (o.status === 'completed'),
-    hasAfterSale: o.hasAfterSale ?? false,
-  }
-}
-
-function mapLogistics(l: any): LogisticsDetail {
-  return {
-    orderId: String(l.orderId || ''),
-    orderNo: l.orderNo || '',
-    company: l.company || l.courierCompany || '',
-    companyPhone: l.companyPhone || l.courierPhone || '',
-    trackingNo: l.trackingNo || l.trackingNumber || '',
-    status: l.status || 'in_transit',
-    estimatedDelivery: l.estimatedDelivery || l.estimatedTime,
-    courierName: l.courierName,
-    courierPhone: l.courierPhone,
-    receiver: {
-      name: l.receiver?.name || l.address?.name || '',
-      phone: l.receiver?.phone || l.address?.phone || '',
-      address: l.receiver?.address || [l.address?.province, l.address?.city, l.address?.district, l.address?.address].filter(Boolean).join('') || '',
-    },
-    tracks: (l.tracks || l.timeline || []).map((t: any) => ({
-      status: t.status || 'in_transit',
-      description: t.description || t.content || t.desc || '',
-      time: t.time || t.createdAt || '',
-      location: t.location || '',
-      isCurrent: !!t.isCurrent,
-    })),
-  }
-}
-
+// ── API ──
 export const orderApi = {
-  async getOrders(params?: { page?: number; pageSize?: number; status?: string }) {
-    if (useMock()) return { items: mockOrders, total: mockOrders.length, page: params?.page || 1, pageSize: params?.pageSize || 10 }
-    try {
-      const qs = new URLSearchParams()
-      if (params?.page) qs.set('page', String(params.page))
-      if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
-      if (params?.status) qs.set('status', params.status)
-      const res = await apiGet<any>(`/shop/orders/my?${qs}`)
-      return { ...res, items: (res.items || res.list || []).map(mapBackendOrder) }
-    } catch {
-      return { items: mockOrders, total: mockOrders.length, page: 1, pageSize: 10 }
-    }
+  /** 订单列表 GET /order */
+  async list(params?: Record<string, any>): Promise<{ items: any[]; total: number }> {
+    if (useMock()) return { items: [], total: 0 }
+    try { return await apiGet<any>(`/order${params ? '?' + new URLSearchParams(params).toString() : ''}`) } catch { return { items: [], total: 0 } }
   },
-
-  async getOrderDetail(id: string) {
-    if (useMock()) return mockOrderDetail
-    try {
-      const o = await apiGet<any>(`/shop/orders/${id}`)
-      return { ...mapBackendOrder(o), address: o.address || o.shippingAddress, payMethod: o.payMethod, logistics: o.logistics ? mapLogistics(o.logistics) : undefined, coupon: o.coupon, remark: o.remark } as OrderDetail
-    } catch { return mockOrderDetail }
+  /** 订单详情 GET /order/:id */
+  async detail(id: string): Promise<any> {
+    if (useMock()) return null
+    try { return await apiGet<any>(`/order/${id}`) } catch { return null }
   },
-
-  async getLogistics(orderId: string) {
-    if (useMock()) return mockLogistics
-    try {
-      const res = await apiGet<any>(`/shop/orders/${orderId}/logistics`)
-      return mapLogistics(res)
-    } catch { return mockLogistics }
-  },
-
-  async cancelOrder(id: string) {
+  /** 提交申诉 POST /order/dispute */
+  async submitDispute(data: Record<string, any>): Promise<any> {
     if (useMock()) return { success: true }
-    return apiPut<any>(`/shop/orders/${id}/cancel`)
-  },
-
-  async confirmReceipt(id: string) {
-    if (useMock()) return { success: true }
-    return apiPut<any>(`/shop/orders/${id}/complete`)
-  },
-
-  async submitReview(params: { orderId: string; productId: string; rating: number; content: string; images?: string[]; tags?: string[] }) {
-    if (useMock()) return { success: true, id: 'mock-review-id' }
-    return apiPost<any>(`/shop/products/${params.productId}/reviews`, { orderId: params.orderId, rating: params.rating, content: params.content, images: params.images, tags: params.tags })
-  },
-
-  async getUnifiedOrders(params?: { page?: number; pageSize?: number; status?: string }) {
-    if (useMock()) return { items: mockUnifiedOrders, total: mockUnifiedOrders.length, page: 1, pageSize: 10 }
-    try {
-      const qs = new URLSearchParams()
-      if (params?.page) qs.set('page', String(params.page))
-      if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
-      if (params?.status) qs.set('status', params.status)
-      const data = await apiGet<any>('/shop/orders/my?' + qs.toString())
-      return { items: data.items || data.list || [], total: data.total || 0, page: params?.page || 1, pageSize: params?.pageSize || 10 }
-    } catch { return { items: mockUnifiedOrders, total: mockUnifiedOrders.length, page: 1, pageSize: 10 } }
-  },
-
-  async getInvoices() {
-    if (useMock()) return { orders: mockInvoiceOrders, records: mockInvoices }
-    try {
-      const data = await apiGet<any>('/finance/my/invoices')
-      return { orders: data.invoices || [], records: data.invoices || [], total: data.total || 0 }
-    } catch { return { orders: mockInvoiceOrders, records: mockInvoices } }
-  },
-
-  async getDisputes() {
-    if (useMock()) return { items: mockMyDisputes, total: mockMyDisputes.length }
-    try {
-      const res = await apiGet<any>('/shop/after-sales')
-      return { items: (res.items || res.list || []), total: res.total || 0 }
-    } catch { return { items: mockMyDisputes, total: mockMyDisputes.length } }
-  },
-
-  async getDisputeDetail(id: string) {
-    if (useMock()) return mockDisputeDetail
-    try {
-      return await apiGet<any>(`/shop/after-sales/${id}`)
-    } catch { return mockDisputeDetail }
-  },
-
-  async cancelDispute(id: string) {
-    if (useMock()) return { success: true }
-    return apiPut<any>(`/shop/after-sales/${id}/cancel`)
-  },
-
-  async submitDispute(data: { type: string; description: string; images?: string[]; expectation: string }) {
-    if (useMock()) return { success: true, id: String(Date.now()) }
-    return apiPost<any>('/shop/after-sales', data)
-  },
-
-  async applyInvoice(data: { orderId: string; type: string; title: string; taxNumber?: string; email: string }) {
-    if (useMock()) return { success: true }
-    return apiPost<any>('/shop/invoices', data)
-  },
-
-  async getRefundDetail(id: string) {
-    if (useMock()) return mockRefund
-    try {
-      return await apiGet<any>('/shop/after-sales/' + id)
-    } catch { return mockRefund }
-  },
-
-  async getReviewItems(orderId: string) {
-    if (useMock()) return { items: reviewItems, tagsByRating: reviewTagsByRating, ratingLabels: reviewRatingLabels }
-    try {
-      return await apiGet<any>(`/shop/orders/${orderId}/review-items`)
-    } catch {
-      return { items: reviewItems, tagsByRating: reviewTagsByRating, ratingLabels: reviewRatingLabels }
-    }
+    return await apiPost<any>('/order/dispute', data)
   },
 }

@@ -7,51 +7,32 @@ const tags = ['八字', '紫微', '六爻', '奇门']
 </script>
 
 <template>
-  <view
-    class="pp-card card-press"
-    @tap="navigateTo('/pages/paipan/index')"
-  >
+  <view class="pp-card card-press" @tap="navigateTo('/pages/paipan/index')">
     <!-- 宣纸纹理层 -->
     <view class="paper-texture" />
+    <!-- 八卦背景装饰 -->
+    <image src="/static/bagua-deco.svg" class="bagua-deco" mode="aspectFit" />
 
     <view class="row">
       <!-- 太极旋转图标 -->
       <view class="taiji-box gold-glow">
-        <view class="taiji taiji-rotate" />
+        <image src="/static/taiji-gold.svg" class="taiji taiji-rotate" mode="aspectFit" />
       </view>
       <!-- 文案 -->
       <view class="copy">
         <view class="title-row">
-          <text class="title">
-            排盘工具
-          </text>
-          <text class="free-tag">
-            免费使用
-          </text>
+          <text class="title">排盘工具</text>
+          <text class="free-tag">免费使用</text>
         </view>
-        <text class="desc">
-          易学工具大全，算法精准，功能全面
-        </text>
+        <text class="desc">易学工具大全，算法精准，功能全面</text>
         <view class="tags">
-          <text
-            v-for="t in tags"
-            :key="t"
-            class="tag"
-          >
-            {{ t }}
-          </text>
+          <text v-for="t in tags" :key="t" class="tag">{{ t }}</text>
         </view>
       </view>
       <!-- CTA -->
       <view class="cta">
-        <text class="cta-text">
-          立即体验
-        </text>
-        <app-icon
-          name="chevron-right"
-          :size="26"
-          color="#ffffff"
-        />
+        <text class="cta-text">立即体验</text>
+        <app-icon name="chevron-right" :size="26" color="#ffffff" />
       </view>
     </view>
   </view>
@@ -71,21 +52,18 @@ const tags = ['八字', '紫微', '六爻', '奇门']
   position: absolute; inset: 0; opacity: 0.04; pointer-events: none;
   background-image: repeating-linear-gradient(0deg, transparent, transparent 6rpx, rgba(139, 100, 50, 0.3) 6rpx, rgba(139, 100, 50, 0.3) 8rpx);
 }
+.bagua-deco {
+  position: absolute; right: 24rpx; top: 50%; transform: translateY(-50%);
+  width: 160rpx; height: 160rpx; opacity: 0.06; pointer-events: none;
+}
 .row { position: relative; padding: 28rpx 32rpx; display: flex; align-items: center; gap: 28rpx; }
 .taiji-box {
   width: 104rpx; height: 104rpx; border-radius: 24rpx; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   background: linear-gradient(135deg, #c9a96e, #b8985f);
 }
-/* 太极符号：用径向/线性渐变模拟阴阳鱼 */
-.taiji {
-  width: 64rpx; height: 64rpx; border-radius: 999rpx;
-  background:
-    radial-gradient(circle at 50% 25%, #c9a96e 8rpx, transparent 9rpx),
-    radial-gradient(circle at 50% 75%, #faf8f5 8rpx, transparent 9rpx),
-    linear-gradient(90deg, #faf8f5 50%, transparent 50%);
-  border: 2rpx solid #faf8f5;
-}
+/* 太极符号：金底白阴阳鱼 SVG（对齐原型） */
+.taiji { width: 64rpx; height: 64rpx; }
 .copy { flex: 1; min-width: 0; }
 .title-row { display: flex; align-items: center; gap: 12rpx; margin-bottom: 4rpx; }
 .title {
@@ -102,6 +80,7 @@ const tags = ['八字', '紫微', '六爻', '奇门']
   font-size: 20rpx; color: #c9a96e; font-weight: 500;
   padding: 4rpx 16rpx; border-radius: 999rpx;
   background: rgba(255, 255, 255, 0.7); border: 2rpx solid rgba(201, 169, 110, 0.25);
+  flex-shrink: 0; white-space: nowrap;
 }
 .cta {
   flex-shrink: 0; display: flex; align-items: center; gap: 4rpx;

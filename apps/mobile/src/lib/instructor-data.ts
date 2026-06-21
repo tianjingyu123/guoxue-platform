@@ -129,28 +129,3 @@ export const instructorDetail: InstructorDetail = {
     },
   ],
 }
-
-// ============================================
-// API 层
-// ============================================
-import { apiGet, useMock } from '@/utils/request'
-
-export const instructorApi = {
-  /** 讲师详情 */
-  async detail(id: string) {
-    if (useMock()) return instructorDetail
-    try {
-      const data = await apiGet<any>(`/instructors/${id}`)
-      return {
-        id: data.id, name: data.name, avatar: data.avatar, title: data.title,
-        level: data.level || 'normal', verified: data.verified ?? false,
-        specialties: data.specialties || [], studentCount: data.studentCount || '0',
-        courseCount: data.courseCount || 0, rating: data.rating || 0,
-        reviewCount: data.reviewCount || 0, isFollowing: data.isFollowing ?? false,
-        introduction: data.introduction || '', education: data.education || [],
-        experience: data.experience || [], certificates: data.certificates || [],
-        featuredCourses: data.featuredCourses || [], reviews: data.reviews || [],
-      }
-    } catch { return instructorDetail }
-  },
-}
