@@ -46,32 +46,44 @@ const GANZHI_60_INDEX = build60JiaZiIndex();
 // 地盘干基序（坎1宫起）
 const DI_PAN_GAN_BASE = ["戊","己","庚","辛","壬","癸","丁","丙","乙"];
 
-/** 根据公历日期获取节气信息（Meeus天文算法） */
-function getJieQi(dateStr: string): { name: string; dun: string; ju: [number, number, number] } {
-  const d = new Date(dateStr + "T12:00:00+08:00");
-  const year = d.getFullYear();
-  const month = d.getMonth() + 1;
-  const day = d.getDate();
+/** 根据公历日期+时间获取节气信息（Meeus天文算法，完整24节气，含精确时分比较） */
+function getJieQi(year: number, month: number, day: number, hour: number): { name: string; dun: string; ju: [number, number, number] } {
+  const fullOrder = [
+    "立春","雨水","惊蛰","春分","清明","谷雨","立夏","小满","芒种",
+    "夏至","小暑","大暑","立秋","处暑","白露","秋分","寒露","霜降",
+    "立冬","小雪","大雪","冬至","小寒","大寒",
+  ];
 
-  const allJieQi = calcAllJieQi(year);
+  // 归一化：构建连续节气年序列（上一年+本年+下一年）
+  // 月份加权使立春(~2月)起的一年内有序
+  function dateVal(m: number, d: number, h: number, mi: number, offsetYear: number): number {
+    // 偏移年加12月
+    return (m + offsetYear * 12) * 1000000 + d * 10000 + h * 100 + mi;
+  }
 
-  const jieOrder = ["立春","惊蛰","清明","立夏","芒种","小暑","立秋","白露","寒露","立冬","大雪","小寒"];
-  const dateValue = month * 100 + day;
+  // 目标时刻（加12月偏移使得 >= 立春）
+  const targetAdj = dateVal(month, day, hour, 0, 1); // +12月
 
-  for (let i = 0; i < 12; i++) {
-    const jieName = jieOrder[i];
-    const jie = allJieQi.get(jieName)!;
-    const prevIdx = (i + 11) % 12;
-    const prevJieName = jieOrder[prevIdx];
-    const prevJie = allJieQi.get(prevJieName)!;
+  // 收集三年节气数据
+  const allEntries: { name: string; adjVal: number }[] = [];
+  for (let yOff = -1; yOff <= 1; yOff++) {
+    const jqMap = calcAllJieQi(year + yOff);
+    for (const name of fullOrder) {
+      const jq = jqMap.get(name);
+      if (jq) {
+        allEntries.push({ name, adjVal: dateVal(jq.month, jq.day, jq.hour, jq.minute, yOff + 1) });
+      }
+    }
+  }
+  allEntries.sort((a, b) => a.adjVal - b.adjVal);
 
-    const jieValue = jie.month * 100 + jie.day;
-    let prevValue = prevJie.month * 100 + prevJie.day;
-    if (prevJie.month > jie.month) prevValue -= 1200;
-
-    if (dateValue >= prevValue && dateValue < jieValue) {
-      const info = JIE_QI_JU[prevJieName];
-      if (info) return { name: prevJieName, ...info };
+  // 找到目标时刻所属的节气区间
+  for (let i = 0; i < allEntries.length; i++) {
+    if (targetAdj < allEntries[i].adjVal) {
+      if (i === 0) break;
+      const prev = allEntries[i - 1];
+      const info = JIE_QI_JU[prev.name];
+      if (info) return { name: prev.name, ...info };
       break;
     }
   }
@@ -104,8 +116,9 @@ function getXunShouYi(shiChenGanZhi: string): string {
   const zhi = shiChenGanZhi[1];
   const zhiIdx = DI_ZHI.indexOf(zhi);
   const jiaZhiIdx = Math.floor(zhiIdx / 2) * 2;
-  // 六甲：甲子→戊, 甲戌→己, 甲申→庚, 甲午→辛, 甲辰→壬, 甲寅→癸
-  const yiMap = ["戊","己","庚","辛","壬","癸"];
+  // 地支按序配对(子丑→子,寅卯→寅,...)，六甲分别对应六仪：
+  // 甲子(子0)→戊, 甲寅(寅2)→癸, 甲辰(辰4)→壬, 甲午(午6)→辛, 甲申(申8)→庚, 甲戌(戌10)→己
+  const yiMap = ["戊","癸","壬","辛","庚","己"];
   return yiMap[jiaZhiIdx / 2];
 }
 
@@ -118,6 +131,7 @@ function getXunShouZhi(shiChenGanZhi: string): string {
 }
 
 // 旬首地支→九宫起始索引（六甲旬首对应的地盘宫位）
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const XUN_SHOU_GONG: Record<string, number> = {
   "子": 0,  // 甲子戊→坎1宫
   "戌": 5,  // 甲戌己→乾6宫
@@ -148,7 +162,7 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
   const month = d.getMonth() + 1;
   const day = d.getDate();
   const hour = d.getHours();
-  const dateStr = d.toISOString().slice(0, 10);
+  
 
   // 日柱（bazi-engine 纯数学算法）
   const riZhu = calcRiZhu(year, month, day);
@@ -160,8 +174,8 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
   const shiGan = getShiGan(riGan, shiZhi);
   const shiChenGanZhi = shiGan + shiZhi;
 
-  // 用局（Meeus天文算法 + 60甲子三元）
-  const jieQi = getJieQi(dateStr);
+  // 用局（Meeus天文算法精确时分 + 60甲子三元）
+  const jieQi = getJieQi(year, month, day, hour);
   let juNumber: number;
   if (qiJuMethod === "zixuan" && customJu) {
     juNumber = customJu;
@@ -176,72 +190,81 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
   const xunShouZhi = getXunShouZhi(shiChenGanZhi);
 
   // ── 第1步：排地盘干 ──
-  // 从坎1宫起旬首，顺排"戊己庚辛壬癸丁丙乙"
-  const xunShouGanIdx = DI_PAN_GAN_BASE.indexOf(xunShouYi);
+  // 基于局数：戊从局数对应宫位起，阳遁顺排、阴遁逆排
+  // 阳遁：diPan[i] = DI_PAN_GAN_BASE[(i - juNumber + 1 + 9) % 9]
+  // 阴遁：diPan[i] = DI_PAN_GAN_BASE[(18 - juNumber - i) % 9]
   const diPan: string[] = [];
   for (let i = 0; i < 9; i++) {
-    diPan.push(DI_PAN_GAN_BASE[(xunShouGanIdx + i) % 9]);
+    if (isYangDun) {
+      diPan.push(DI_PAN_GAN_BASE[(i - juNumber + 1 + 9) % 9]);
+    } else {
+      diPan.push(DI_PAN_GAN_BASE[(18 - juNumber - i) % 9]);
+    }
   }
   // diPan[0]=坎1, diPan[1]=坤2, ..., diPan[8]=离9
 
-  // ── 第2步：确定值符星 ──
-  // 时干落宫（找时干在地盘干中的位置）
-  let zhiFuGongIdx = diPan.indexOf(shiGan);
-  if (zhiFuGongIdx === -1) zhiFuGongIdx = 0;
-  const zhiFuXing = JIU_XING[zhiFuGongIdx];
+  // ── 第2步：旬首宫 → 值符星 + 值使门类型 ──
+  // 旬首宫 = 旬首仪在地盘上的位置
+  const xunShouGongIdx = diPan.indexOf(xunShouYi);
+  // 值符星 = 旬首宫对应的九星
+  const zhiFuXing = JIU_XING[xunShouGongIdx];
+  // 值使门类型 = 旬首宫对应的八门
+  const zhiShiMenType = BA_MEN[xunShouGongIdx];
 
-  // ── 第3步：确定值使门 ──
-  // 旬首地支→时支飞布，从旬首地支所在宫起数，阳顺阴逆数至时支
+  // ── 第3步：值符落宫 + 值使落宫 ──
+  // 值符落宫 = 时干在地盘上的位置（值符星飞至此宫）
+  const zhiFuLuoGong = diPan.indexOf(shiGan);
+  // 值使落宫：旬首地支→时支，阳顺阴逆飞布
   const xunShouZhiIdx = DI_ZHI.indexOf(xunShouZhi);
   const shiZhiIdx = DI_ZHI.indexOf(shiZhi);
   const zhiBuShu = (shiZhiIdx - xunShouZhiIdx + 12) % 12;
-  const xunShouGongIdx = XUN_SHOU_GONG[xunShouZhi] ?? 0;
-  let zhiShiMenGongIdx: number;
+  let zhiShiMenLuoGong: number;
   if (isYangDun) {
-    zhiShiMenGongIdx = (xunShouGongIdx + zhiBuShu) % 9;
+    zhiShiMenLuoGong = (xunShouGongIdx + zhiBuShu) % 9;
   } else {
-    zhiShiMenGongIdx = (xunShouGongIdx - zhiBuShu % 9 + 9) % 9;
+    zhiShiMenLuoGong = (xunShouGongIdx - zhiBuShu + 9) % 9;
   }
-  const zhiShiMen = BA_MEN[zhiShiMenGongIdx];
 
   // ── 第4步：排天盘干 ──
-  // 值符星落时干宫，天盘干=地盘干随星转
+  // 天盘干 = 地盘干随星旋转
+  // 阳遁：地盘顺时针旋转（offset = 值符落宫 - 旬首宫）
+  // 阴遁：地盘逆时针旋转（offset = 旬首宫 - 值符落宫）
   const tianPan: string[] = [];
   for (let i = 0; i < 9; i++) {
-    // 天盘干：宫位i的天盘干 = 地盘干中与宫位i有相同星的宫的地盘干
-    // 简化：天盘以值符宫为基准旋转
-    const diPanSrcIdx = isYangDun
-      ? ((i - zhiFuGongIdx + 9) % 9)
-      : ((zhiFuGongIdx - i + 9) % 9);
-    tianPan.push(diPan[diPanSrcIdx]);
+    if (isYangDun) {
+      tianPan.push(diPan[(i - zhiFuLuoGong + xunShouGongIdx + 9) % 9]);
+    } else {
+      tianPan.push(diPan[(xunShouGongIdx + zhiFuLuoGong - i + 9) % 9]);
+    }
   }
 
   // ── 第5步：排九星 ──
-  // 值符星随天盘，领头阳顺阴逆排
+  // 值符星飞至值符落宫，其余星阳顺阴逆排列
   const starArr: string[] = [];
   for (let i = 0; i < 9; i++) {
-    const starSrcIdx = isYangDun
-      ? ((zhiFuGongIdx + i) % 9)
-      : ((zhiFuGongIdx - i + 9) % 9);
-    starArr.push(JIU_XING[starSrcIdx]);
+    if (isYangDun) {
+      starArr.push(JIU_XING[(xunShouGongIdx + i - zhiFuLuoGong + 9) % 9]);
+    } else {
+      starArr.push(JIU_XING[(xunShouGongIdx - i + zhiFuLuoGong + 9) % 9]);
+    }
   }
 
   // ── 第6步：排八门 ──
-  // 值使门领头，阳顺阴逆排
+  // 值使门飞至值使落宫，其余门阳顺阴逆排列
   const menArr: string[] = [];
-  for (let i = 0; i < 8; i++) {
-    const menSrcIdx = isYangDun
-      ? ((zhiShiMenGongIdx + i) % 9)
-      : ((zhiShiMenGongIdx - i + 9) % 9);
-    menArr.push(BA_MEN[menSrcIdx]);
+  for (let i = 0; i < 9; i++) {
+    if (isYangDun) {
+      menArr.push(BA_MEN[(xunShouGongIdx + i - zhiShiMenLuoGong + 9) % 9]);
+    } else {
+      menArr.push(BA_MEN[(xunShouGongIdx - i + zhiShiMenLuoGong + 9) % 9]);
+    }
   }
 
   // ── 第7步：排八神 ──
-  // 值符领头，阳遁顺排阴遁逆排，值符落在值符宫
+  // 值符领头，阳遁顺排阴遁逆排，值符落在值符落宫
   const shenBase = isYangDun ? BA_SHEN_YANG : BA_SHEN_YIN;
-  // 旋转使值符(数组[0])落在值符宫对应的非中宫序列位置
   const nonZhongIdx = [0, 1, 2, 3, 5, 6, 7, 8];
-  const zhiFuShenOffset = zhiFuGongIdx === 4 ? 1 : (nonZhongIdx.indexOf(zhiFuGongIdx)); // 中5寄坤2
+  const zhiFuShenOffset = zhiFuLuoGong === 4 ? 1 : (nonZhongIdx.indexOf(zhiFuLuoGong)); // 中5寄坤2
   const shenArr: string[] = [];
   for (let i = 0; i < 8; i++) {
     shenArr.push(shenBase[(i - zhiFuShenOffset + 8) % 8]);
@@ -303,7 +326,7 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
       diPan: diPan[gi],
       tianPan: tianPan[gi],
       star: starArr[gi],
-      men: gi === 4 ? BA_MEN[4] : menArr[shenIdx % 8],
+      men: menArr[gi],
       shen,
       isRuMu,
       isJiXing: false,
@@ -327,7 +350,7 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
     "├──────────────────────────────────────┤",
     "│ 局数：" + dunType + "遁" + juNumber + "局  节气：" + jieQi.name.padEnd(6) + " ".repeat(14) + "│",
     "│ 用事：" + shiChenGanZhi + "时  日柱：" + riGan + riZhi + " ".repeat(19) + "│",
-    "│ 值符：" + zhiFuXing.padEnd(4) + "值使：" + zhiShiMen.padEnd(4) + " ".repeat(19) + "│",
+    "│ 值符：" + zhiFuXing.padEnd(4) + "值使：" + zhiShiMenType.padEnd(4) + " ".repeat(19) + "│",
     "│ 旬首：" + xunShouYi + xunShouZhi + "  空亡：" + (xunShouZhi === "子" ? "戌亥" : xunShouZhi === "戌" ? "申酉" : xunShouZhi === "申" ? "午未" : xunShouZhi === "午" ? "辰巳" : xunShouZhi === "辰" ? "寅卯" : "子丑") + " ".repeat(18) + "│",
     "├──────────────────────────────────────┤",
     "│ 宫 卦 天盘 地盘 九星   八门 八神 标记 │",
@@ -345,7 +368,7 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
     jieQi: jieQi.name,
     yongShi: shiChenGanZhi,
     zhiFu: zhiFuXing,
-    zhiShiMen,
+    zhiShiMen: zhiShiMenType,
     gongs,
     dipanBashen: shenArr,
     summary,
