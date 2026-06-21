@@ -25,8 +25,19 @@ function onSubmit() {}
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
-      <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#2C2C2C" /></view>
-      <text class="nav-title">提交作业</text>
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="36"
+          color="#2C2C2C"
+        />
+      </view>
+      <text class="nav-title">
+        提交作业
+      </text>
       <view class="nav-ph" />
     </view>
 
@@ -34,13 +45,32 @@ function onSubmit() {}
       <!-- 作业信息卡片 -->
       <view class="card">
         <view class="info-row">
-          <view class="info-ico"><app-icon name="file-text" :size="36" color="#C41E3A" /></view>
+          <view class="info-ico">
+            <app-icon
+              name="file-text"
+              :size="36"
+              color="#C41E3A"
+            />
+          </view>
           <view class="info-main">
-            <text class="info-title">{{ requirement.title }}</text>
-            <text class="info-sub">{{ requirement.courseTitle }} · {{ requirement.chapterTitle }}</text>
-            <view v-if="requirement.deadline" class="info-ddl">
-              <app-icon name="clock" :size="26" color="#FF6B35" />
-              <text class="info-ddl-txt">截止时间：{{ requirement.deadline }}</text>
+            <text class="info-title">
+              {{ requirement.title }}
+            </text>
+            <text class="info-sub">
+              {{ requirement.courseTitle }} · {{ requirement.chapterTitle }}
+            </text>
+            <view
+              v-if="requirement.deadline"
+              class="info-ddl"
+            >
+              <app-icon
+                name="clock"
+                :size="26"
+                color="#FF6B35"
+              />
+              <text class="info-ddl-txt">
+                截止时间：{{ requirement.deadline }}
+              </text>
             </view>
           </view>
         </view>
@@ -49,10 +79,18 @@ function onSubmit() {}
       <!-- 作业要求 -->
       <view class="card">
         <view class="sec-title">
-          <app-icon name="alert-circle" :size="30" color="#C9A96E" />
-          <text class="sec-title-txt">作业要求</text>
+          <app-icon
+            name="alert-circle"
+            :size="30"
+            color="#C9A96E"
+          />
+          <text class="sec-title-txt">
+            作业要求
+          </text>
         </view>
-        <text class="req-desc">{{ requirement.description }}</text>
+        <text class="req-desc">
+          {{ requirement.description }}
+        </text>
       </view>
 
       <!-- 文字输入区 -->
@@ -65,7 +103,10 @@ function onSubmit() {}
           :maxlength="-1"
         />
         <view class="ta-foot">
-          <text class="ta-count" :class="{ warn: wordCount < requirement.minWords }">
+          <text
+            class="ta-count"
+            :class="{ warn: wordCount < requirement.minWords }"
+          >
             {{ wordCount }}/{{ requirement.minWords }}字（最少）
           </text>
         </view>
@@ -74,18 +115,53 @@ function onSubmit() {}
       <!-- 图片上传区 -->
       <view class="card">
         <view class="sec-title">
-          <app-icon name="image" :size="30" color="#C9A96E" />
-          <text class="sec-title-txt">添加图片</text>
-          <text class="sec-title-sub">（{{ images.length }}/{{ requirement.maxImages }}）</text>
+          <app-icon
+            name="image"
+            :size="30"
+            color="#C9A96E"
+          />
+          <text class="sec-title-txt">
+            添加图片
+          </text>
+          <text class="sec-title-sub">
+            （{{ images.length }}/{{ requirement.maxImages }}）
+          </text>
         </view>
         <view class="img-grid">
-          <view v-for="(url, index) in images" :key="index" class="img-cell">
-            <image class="img-thumb" :src="url" mode="aspectFill" />
-            <view class="img-del" @tap="removeImage(index)"><app-icon name="x" :size="22" color="#ffffff" /></view>
+          <view
+            v-for="(url, index) in images"
+            :key="index"
+            class="img-cell"
+          >
+            <image
+              class="img-thumb"
+              :src="url"
+              mode="aspectFill"
+            />
+            <view
+              class="img-del"
+              @tap="removeImage(index)"
+            >
+              <app-icon
+                name="x"
+                :size="22"
+                color="#ffffff"
+              />
+            </view>
           </view>
-          <view v-if="images.length < requirement.maxImages" class="img-add" @tap="onAddImage">
-            <app-icon name="image-plus" :size="44" color="#999999" />
-            <text class="img-add-txt">添加图片</text>
+          <view
+            v-if="images.length < requirement.maxImages"
+            class="img-add"
+            @tap="onAddImage"
+          >
+            <app-icon
+              name="image-plus"
+              :size="44"
+              color="#999999"
+            />
+            <text class="img-add-txt">
+              添加图片
+            </text>
           </view>
         </view>
       </view>
@@ -93,9 +169,22 @@ function onSubmit() {}
 
     <!-- 底部提交按钮 -->
     <view class="submit-bar">
-      <view class="submit-btn" :class="{ disabled: !canSubmit }" @tap="canSubmit && onSubmit()">
-        <app-icon name="send" :size="36" :color="canSubmit ? '#ffffff' : '#999999'" />
-        <text class="submit-txt" :class="{ disabled: !canSubmit }">提交作业</text>
+      <view
+        class="submit-btn"
+        :class="{ disabled: !canSubmit }"
+        @tap="canSubmit && onSubmit()"
+      >
+        <app-icon
+          name="send"
+          :size="36"
+          :color="canSubmit ? '#ffffff' : '#999999'"
+        />
+        <text
+          class="submit-txt"
+          :class="{ disabled: !canSubmit }"
+        >
+          提交作业
+        </text>
       </view>
     </view>
   </view>

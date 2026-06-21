@@ -2,89 +2,245 @@
   <view class="page">
     <view class="header">
       <view class="nav">
-        <view class="nav-back" @tap="back"><app-icon name="arrow-left" :size="40" color="#2c2c2c" /></view>
-        <text class="nav-title">下载管理</text>
-        <text v-if="downloading.length" class="nav-action" @tap="toggleAll">{{ allPaused ? '全部开始' : '全部暂停' }}</text>
-        <view v-else class="nav-ph" />
+        <view
+          class="nav-back"
+          @tap="back"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="40"
+            color="#2c2c2c"
+          />
+        </view>
+        <text class="nav-title">
+          下载管理
+        </text>
+        <text
+          v-if="downloading.length"
+          class="nav-action"
+          @tap="toggleAll"
+        >
+          {{ allPaused ? '全部开始' : '全部暂停' }}
+        </text>
+        <view
+          v-else
+          class="nav-ph"
+        />
       </view>
     </view>
 
     <view class="body">
       <!-- 下载中 -->
-      <view v-if="downloading.length" class="section">
-        <view class="section-title"><app-icon name="clock" :size="28" color="#c41e3a" /><text>下载中 ({{ downloading.length }})</text></view>
-        <view class="card" v-for="t in downloading" :key="t.id">
+      <view
+        v-if="downloading.length"
+        class="section"
+      >
+        <view class="section-title">
+          <app-icon
+            name="clock"
+            :size="28"
+            color="#c41e3a"
+          /><text>下载中 ({{ downloading.length }})</text>
+        </view>
+        <view
+          v-for="t in downloading"
+          :key="t.id"
+          class="card"
+        >
           <view class="task">
-            <view class="type-icon" :class="t.type">
-              <app-icon :name="typeIcon(t.type)" :size="32" :color="typeColor(t.type)" />
+            <view
+              class="type-icon"
+              :class="t.type"
+            >
+              <app-icon
+                :name="typeIcon(t.type)"
+                :size="32"
+                :color="typeColor(t.type)"
+              />
             </view>
             <view class="task-main">
-              <text class="task-name">{{ t.name }}</text>
-              <text class="task-src">{{ t.source }}</text>
+              <text class="task-name">
+                {{ t.name }}
+              </text>
+              <text class="task-src">
+                {{ t.source }}
+              </text>
               <view class="progress">
-                <view class="bar"><view class="bar-fill" :class="t.status" :style="{ width: t.progress + '%' }" /></view>
+                <view class="bar">
+                  <view
+                    class="bar-fill"
+                    :class="t.status"
+                    :style="{ width: t.progress + '%' }"
+                  />
+                </view>
                 <view class="progress-info">
-                  <text class="sz">{{ fmtSize(t.downloaded) }} / {{ fmtSize(t.size) }}</text>
+                  <text class="sz">
+                    {{ fmtSize(t.downloaded) }} / {{ fmtSize(t.size) }}
+                  </text>
                   <view class="status-right">
-                    <text v-if="t.status === 'downloading'" class="speed">{{ fmtSpeed(t.speed) }}</text>
-                    <text class="badge" :class="t.status">{{ statusLabel(t.status) }}</text>
+                    <text
+                      v-if="t.status === 'downloading'"
+                      class="speed"
+                    >
+                      {{ fmtSpeed(t.speed) }}
+                    </text>
+                    <text
+                      class="badge"
+                      :class="t.status"
+                    >
+                      {{ statusLabel(t.status) }}
+                    </text>
                   </view>
                 </view>
               </view>
             </view>
             <view class="actions">
-              <view class="act-btn" :class="{ primary: t.status === 'downloading' }" @tap="toggle(t.id)">
-                <app-icon :name="t.status === 'downloading' ? 'pause' : 'play'" :size="28" :color="t.status === 'downloading' ? '#c41e3a' : '#2c2c2c'" />
+              <view
+                class="act-btn"
+                :class="{ primary: t.status === 'downloading' }"
+                @tap="toggle(t.id)"
+              >
+                <app-icon
+                  :name="t.status === 'downloading' ? 'pause' : 'play'"
+                  :size="28"
+                  :color="t.status === 'downloading' ? '#c41e3a' : '#2c2c2c'"
+                />
               </view>
-              <view class="act-btn" @tap="cancel(t.id)"><app-icon name="x" :size="28" color="#8a8276" /></view>
+              <view
+                class="act-btn"
+                @tap="cancel(t.id)"
+              >
+                <app-icon
+                  name="x"
+                  :size="28"
+                  color="#8a8276"
+                />
+              </view>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 已完成 -->
-      <view v-if="completed.length" class="section">
-        <view class="section-title fold" @tap="showCompleted = !showCompleted">
-          <view class="st-left"><app-icon name="check-circle" :size="28" color="#3a9d5d" /><text>已完成 ({{ completed.length }})</text></view>
-          <app-icon :name="showCompleted ? 'chevron-up' : 'chevron-down'" :size="28" color="#8a8276" />
+      <view
+        v-if="completed.length"
+        class="section"
+      >
+        <view
+          class="section-title fold"
+          @tap="showCompleted = !showCompleted"
+        >
+          <view class="st-left">
+            <app-icon
+              name="check-circle"
+              :size="28"
+              color="#3a9d5d"
+            /><text>已完成 ({{ completed.length }})</text>
+          </view>
+          <app-icon
+            :name="showCompleted ? 'chevron-up' : 'chevron-down'"
+            :size="28"
+            color="#8a8276"
+          />
         </view>
         <template v-if="showCompleted">
-          <view class="card" v-for="t in completed" :key="t.id">
+          <view
+            v-for="t in completed"
+            :key="t.id"
+            class="card"
+          >
             <view class="task done">
-              <view class="type-icon" :class="t.type"><app-icon :name="typeIcon(t.type)" :size="32" :color="typeColor(t.type)" /></view>
-              <view class="task-main">
-                <text class="task-name">{{ t.name }}</text>
-                <view class="done-meta"><text>{{ fmtSize(t.size) }}</text><text>|</text><text>{{ t.createdAt.split(' ')[0] }}</text></view>
+              <view
+                class="type-icon"
+                :class="t.type"
+              >
+                <app-icon
+                  :name="typeIcon(t.type)"
+                  :size="32"
+                  :color="typeColor(t.type)"
+                />
               </view>
-              <view class="done-btn" @tap="open(t)">{{ t.type === 'ebook' ? '阅读' : '播放' }}</view>
+              <view class="task-main">
+                <text class="task-name">
+                  {{ t.name }}
+                </text>
+                <view class="done-meta">
+                  <text>{{ fmtSize(t.size) }}</text><text>|</text><text>{{ t.createdAt.split(' ')[0] }}</text>
+                </view>
+              </view>
+              <view
+                class="done-btn"
+                @tap="open(t)"
+              >
+                {{ t.type === 'ebook' ? '阅读' : '播放' }}
+              </view>
             </view>
           </view>
         </template>
       </view>
 
       <!-- 空态 -->
-      <view v-if="!tasks.length" class="empty">
-        <view class="empty-icon"><app-icon name="folder-open" :size="64" color="#b5ad9f" /></view>
-        <text class="empty-text">暂无下载任务</text>
-        <view class="empty-btn" @tap="navigateTo('/discover')">去发现内容</view>
+      <view
+        v-if="!tasks.length"
+        class="empty"
+      >
+        <view class="empty-icon">
+          <app-icon
+            name="folder-open"
+            :size="64"
+            color="#b5ad9f"
+          />
+        </view>
+        <text class="empty-text">
+          暂无下载任务
+        </text>
+        <view
+          class="empty-btn"
+          @tap="navigateTo('/discover')"
+        >
+          去发现内容
+        </view>
       </view>
     </view>
 
     <!-- 存储空间 -->
     <view class="storage">
       <view class="storage-head">
-        <view class="sh-left"><app-icon name="hard-drive" :size="28" color="#8a8276" /><text>存储空间</text></view>
-        <text class="sh-right">{{ fmtSize(storage.used) }} / {{ fmtSize(storage.total) }}</text>
+        <view class="sh-left">
+          <app-icon
+            name="hard-drive"
+            :size="28"
+            color="#8a8276"
+          /><text>存储空间</text>
+        </view>
+        <text class="sh-right">
+          {{ fmtSize(storage.used) }} / {{ fmtSize(storage.total) }}
+        </text>
       </view>
       <view class="storage-bar">
-        <view class="seg video" :style="{ width: pct(storage.videoSize) }" />
-        <view class="seg ebook" :style="{ width: pct(storage.ebookSize) }" />
-        <view class="seg audio" :style="{ width: pct(storage.audioSize) }" />
+        <view
+          class="seg video"
+          :style="{ width: pct(storage.videoSize) }"
+        />
+        <view
+          class="seg ebook"
+          :style="{ width: pct(storage.ebookSize) }"
+        />
+        <view
+          class="seg audio"
+          :style="{ width: pct(storage.audioSize) }"
+        />
       </view>
       <view class="legend">
-        <view class="lg"><view class="dot video" /><text>视频 {{ fmtSize(storage.videoSize) }}</text></view>
-        <view class="lg"><view class="dot ebook" /><text>电子书 {{ fmtSize(storage.ebookSize) }}</text></view>
-        <view class="lg"><view class="dot audio" /><text>音频 {{ fmtSize(storage.audioSize) }}</text></view>
+        <view class="lg">
+          <view class="dot video" /><text>视频 {{ fmtSize(storage.videoSize) }}</text>
+        </view>
+        <view class="lg">
+          <view class="dot ebook" /><text>电子书 {{ fmtSize(storage.ebookSize) }}</text>
+        </view>
+        <view class="lg">
+          <view class="dot audio" /><text>音频 {{ fmtSize(storage.audioSize) }}</text>
+        </view>
       </view>
     </view>
   </view>

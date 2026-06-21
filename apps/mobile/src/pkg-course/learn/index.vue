@@ -52,10 +52,19 @@ function lessonIcon(chapter: LearnChapter, lesson: LearnLesson) {
   <view class="page">
     <!-- 顶部导航 -->
     <view class="topnav">
-      <view class="topnav-btn" @tap="goBack">
-        <app-icon name="arrow-left" :size="40" color="#2C2C2C" />
+      <view
+        class="topnav-btn"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="40"
+          color="#2C2C2C"
+        />
       </view>
-      <text class="topnav-title">{{ course.title }}</text>
+      <text class="topnav-title">
+        {{ course.title }}
+      </text>
       <view class="topnav-spacer" />
     </view>
 
@@ -65,24 +74,47 @@ function lessonIcon(chapter: LearnChapter, lesson: LearnLesson) {
         <!-- #ifndef MP -->
         <view class="ring-svg">
           <view class="ring-bg" />
-          <view class="ring-track" :style="{ background: `conic-gradient(#C41E3A ${progress.progressPercent}%, transparent 0)` }" />
+          <view
+            class="ring-track"
+            :style="{ background: `conic-gradient(#C41E3A ${progress.progressPercent}%, transparent 0)` }"
+          />
           <view class="ring-hole" />
-          <text class="ring-pct">{{ progress.progressPercent }}%</text>
+          <text class="ring-pct">
+            {{ progress.progressPercent }}%
+          </text>
         </view>
         <!-- #endif -->
       </view>
       <view class="info-meta">
-        <text class="info-title">{{ course.title }}</text>
+        <text class="info-title">
+          {{ course.title }}
+        </text>
         <view class="info-inst">
-          <image class="info-avatar" :src="course.instructor.avatar" mode="aspectFill" />
-          <text class="info-inst-name">{{ course.instructor.name }}</text>
+          <image
+            class="info-avatar"
+            :src="course.instructor.avatar"
+            mode="aspectFill"
+          />
+          <text class="info-inst-name">
+            {{ course.instructor.name }}
+          </text>
         </view>
         <view class="info-stats">
-          <text class="info-stat">已学 {{ progress.completedLessons.length }}/{{ progress.totalLessons }} 节</text>
-          <text class="info-dot">·</text>
+          <text class="info-stat">
+            已学 {{ progress.completedLessons.length }}/{{ progress.totalLessons }} 节
+          </text>
+          <text class="info-dot">
+            ·
+          </text>
           <view class="info-stat-time">
-            <app-icon name="clock" :size="22" color="#999999" />
-            <text class="info-stat">{{ fmtStudyTime(progress.studyTime) }}</text>
+            <app-icon
+              name="clock"
+              :size="22"
+              color="#999999"
+            />
+            <text class="info-stat">
+              {{ fmtStudyTime(progress.studyTime) }}
+            </text>
           </view>
         </view>
       </view>
@@ -91,49 +123,111 @@ function lessonIcon(chapter: LearnChapter, lesson: LearnLesson) {
     <!-- Tab 切换 -->
     <view class="tabs">
       <view
-        v-for="tab in tabs" :key="tab.id"
-        class="tab-item" :class="{ active: activeTab === tab.id }"
+        v-for="tab in tabs"
+        :key="tab.id"
+        class="tab-item"
+        :class="{ active: activeTab === tab.id }"
         @tap="activeTab = tab.id"
       >
-        <app-icon :name="tab.icon" :size="28" :color="activeTab === tab.id ? '#C41E3A' : '#666666'" />
-        <text class="tab-label">{{ tab.label }}</text>
-        <text class="tab-count" :class="{ active: activeTab === tab.id }">{{ tab.count }}</text>
+        <app-icon
+          :name="tab.icon"
+          :size="28"
+          :color="activeTab === tab.id ? '#C41E3A' : '#666666'"
+        />
+        <text class="tab-label">
+          {{ tab.label }}
+        </text>
+        <text
+          class="tab-count"
+          :class="{ active: activeTab === tab.id }"
+        >
+          {{ tab.count }}
+        </text>
       </view>
     </view>
 
     <!-- Tab 内容 -->
     <view class="content">
       <!-- 目录 -->
-      <view v-if="activeTab === 'catalog'" class="catalog-card">
-        <view v-for="chapter in chapters" :key="chapter.id" class="cat-chapter">
-          <view class="cat-hdr" @tap="toggleChapter(chapter.id)">
+      <view
+        v-if="activeTab === 'catalog'"
+        class="catalog-card"
+      >
+        <view
+          v-for="chapter in chapters"
+          :key="chapter.id"
+          class="cat-chapter"
+        >
+          <view
+            class="cat-hdr"
+            @tap="toggleChapter(chapter.id)"
+          >
             <view class="cat-hdr-left">
               <view
                 class="cat-badge"
                 :class="chapterDone(chapter) === chapter.lessons.length ? 'done' : 'partial'"
               >
-                <app-icon v-if="chapterDone(chapter) === chapter.lessons.length" name="check-circle" :size="26" color="#C41E3A" />
-                <text v-else class="cat-badge-txt">{{ chapterDone(chapter) }}/{{ chapter.lessons.length }}</text>
+                <app-icon
+                  v-if="chapterDone(chapter) === chapter.lessons.length"
+                  name="check-circle"
+                  :size="26"
+                  color="#C41E3A"
+                />
+                <text
+                  v-else
+                  class="cat-badge-txt"
+                >
+                  {{ chapterDone(chapter) }}/{{ chapter.lessons.length }}
+                </text>
               </view>
               <view class="cat-meta">
-                <text class="cat-title">{{ chapter.title }}</text>
-                <text class="cat-sub">{{ chapter.lessons.length }}节 · {{ chapter.duration }}分钟</text>
+                <text class="cat-title">
+                  {{ chapter.title }}
+                </text>
+                <text class="cat-sub">
+                  {{ chapter.lessons.length }}节 · {{ chapter.duration }}分钟
+                </text>
               </view>
             </view>
-            <app-icon :name="expanded[chapter.id] ? 'chevron-up' : 'chevron-down'" :size="36" color="#999999" />
+            <app-icon
+              :name="expanded[chapter.id] ? 'chevron-up' : 'chevron-down'"
+              :size="36"
+              color="#999999"
+            />
           </view>
-          <view v-if="expanded[chapter.id]" class="cat-lessons">
+          <view
+            v-if="expanded[chapter.id]"
+            class="cat-lessons"
+          >
             <view
-              v-for="(lesson, idx) in chapter.lessons" :key="lesson.id"
-              class="cat-lesson" @tap="onLessonClick(lesson.id)"
+              v-for="(lesson, idx) in chapter.lessons"
+              :key="lesson.id"
+              class="cat-lesson"
+              @tap="onLessonClick(lesson.id)"
             >
               <view class="cat-lesson-ico">
-                <app-icon :name="lessonIcon(chapter, lesson).name" :size="28" :color="lessonIcon(chapter, lesson).color" />
+                <app-icon
+                  :name="lessonIcon(chapter, lesson).name"
+                  :size="28"
+                  :color="lessonIcon(chapter, lesson).color"
+                />
               </view>
-              <text class="cat-lesson-title" :class="{ completed: lesson.isCompleted }">{{ idx + 1 }}. {{ lesson.title }}</text>
+              <text
+                class="cat-lesson-title"
+                :class="{ completed: lesson.isCompleted }"
+              >
+                {{ idx + 1 }}. {{ lesson.title }}
+              </text>
               <view class="cat-lesson-right">
-                <text v-if="lesson.isFree" class="cat-free">试看</text>
-                <text class="cat-lesson-dur">{{ lesson.duration }}分钟</text>
+                <text
+                  v-if="lesson.isFree"
+                  class="cat-free"
+                >
+                  试看
+                </text>
+                <text class="cat-lesson-dur">
+                  {{ lesson.duration }}分钟
+                </text>
               </view>
             </view>
           </view>
@@ -141,45 +235,113 @@ function lessonIcon(chapter: LearnChapter, lesson: LearnLesson) {
       </view>
 
       <!-- 笔记 -->
-      <view v-else-if="activeTab === 'notes'" class="notes">
-        <view v-if="notes.length" class="notes-list">
-          <view v-for="note in notes" :key="note.id" class="note-card">
+      <view
+        v-else-if="activeTab === 'notes'"
+        class="notes"
+      >
+        <view
+          v-if="notes.length"
+          class="notes-list"
+        >
+          <view
+            v-for="note in notes"
+            :key="note.id"
+            class="note-card"
+          >
             <view class="note-hdr">
-              <app-icon name="file-text" :size="28" color="#C9A96E" />
+              <app-icon
+                name="file-text"
+                :size="28"
+                color="#C9A96E"
+              />
               <view class="note-hdr-meta">
-                <text class="note-chapter">{{ note.chapterTitle }}</text>
-                <text class="note-lesson">{{ note.lessonTitle }}{{ note.timestamp ? ` · ${fmtTimestamp(note.timestamp)}` : '' }}</text>
+                <text class="note-chapter">
+                  {{ note.chapterTitle }}
+                </text>
+                <text class="note-lesson">
+                  {{ note.lessonTitle }}{{ note.timestamp ? ` · ${fmtTimestamp(note.timestamp)}` : '' }}
+                </text>
               </view>
             </view>
-            <text class="note-content">{{ note.content }}</text>
-            <text class="note-date">{{ note.createdAt }}</text>
+            <text class="note-content">
+              {{ note.content }}
+            </text>
+            <text class="note-date">
+              {{ note.createdAt }}
+            </text>
           </view>
         </view>
-        <view v-else class="empty">
-          <app-icon name="file-text" :size="96" color="#E8E3DB" />
-          <text class="empty-title">暂无笔记</text>
-          <text class="empty-sub">学习时可以随时记录笔记</text>
+        <view
+          v-else
+          class="empty"
+        >
+          <app-icon
+            name="file-text"
+            :size="96"
+            color="#E8E3DB"
+          />
+          <text class="empty-title">
+            暂无笔记
+          </text>
+          <text class="empty-sub">
+            学习时可以随时记录笔记
+          </text>
         </view>
       </view>
 
       <!-- 问答 -->
-      <view v-else class="questions">
-        <view class="ask-btn" @tap="showAskModal = true">
-          <app-icon name="message-circle" :size="28" color="#C41E3A" />
-          <text class="ask-btn-txt">我要提问</text>
+      <view
+        v-else
+        class="questions"
+      >
+        <view
+          class="ask-btn"
+          @tap="showAskModal = true"
+        >
+          <app-icon
+            name="message-circle"
+            :size="28"
+            color="#C41E3A"
+          />
+          <text class="ask-btn-txt">
+            我要提问
+          </text>
         </view>
-        <view v-for="q in questions" :key="q.id" class="q-card">
-          <image class="q-avatar" :src="q.author.avatar" mode="aspectFill" />
+        <view
+          v-for="q in questions"
+          :key="q.id"
+          class="q-card"
+        >
+          <image
+            class="q-avatar"
+            :src="q.author.avatar"
+            mode="aspectFill"
+          />
           <view class="q-body">
             <view class="q-hdr">
-              <text class="q-name">{{ q.author.name }}</text>
-              <text class="q-date">{{ q.createdAt }}</text>
+              <text class="q-name">
+                {{ q.author.name }}
+              </text>
+              <text class="q-date">
+                {{ q.createdAt }}
+              </text>
             </view>
-            <text class="q-content">{{ q.content }}</text>
+            <text class="q-content">
+              {{ q.content }}
+            </text>
             <view class="q-foot">
-              <text class="q-chapter">{{ q.chapterTitle }}</text>
-              <text class="q-answers">{{ q.answers }}条回答</text>
-              <text v-if="q.isAnswered" class="q-answered">已解答</text>
+              <text class="q-chapter">
+                {{ q.chapterTitle }}
+              </text>
+              <text class="q-answers">
+                {{ q.answers }}条回答
+              </text>
+              <text
+                v-if="q.isAnswered"
+                class="q-answered"
+              >
+                已解答
+              </text>
             </view>
           </view>
         </view>
@@ -188,27 +350,64 @@ function lessonIcon(chapter: LearnChapter, lesson: LearnLesson) {
 
     <!-- 底部继续学习 -->
     <view class="bottom-bar">
-      <view class="continue-btn" @tap="onLessonClick(progress.lastLesson.id)">
-        <app-icon name="play" :size="36" color="#ffffff" :fill="true" />
-        <text class="continue-txt">继续学习 · {{ progress.lastLesson.title }}</text>
+      <view
+        class="continue-btn"
+        @tap="onLessonClick(progress.lastLesson.id)"
+      >
+        <app-icon
+          name="play"
+          :size="36"
+          color="#ffffff"
+          :fill="true"
+        />
+        <text class="continue-txt">
+          继续学习 · {{ progress.lastLesson.title }}
+        </text>
       </view>
     </view>
 
     <!-- 提问弹窗 -->
-    <view v-if="showAskModal" class="modal">
-      <view class="modal-mask" @tap="showAskModal = false" />
+    <view
+      v-if="showAskModal"
+      class="modal"
+    >
+      <view
+        class="modal-mask"
+        @tap="showAskModal = false"
+      />
       <view class="sheet">
         <view class="sheet-hdr">
-          <text class="sheet-title">我要提问</text>
-          <view @tap="showAskModal = false"><app-icon name="x" :size="40" color="#999999" /></view>
+          <text class="sheet-title">
+            我要提问
+          </text>
+          <view @tap="showAskModal = false">
+            <app-icon
+              name="x"
+              :size="40"
+              color="#999999"
+            />
+          </view>
         </view>
         <textarea
-          v-model="askContent" class="ask-input" placeholder="请输入您的问题..."
-          placeholder-class="ask-ph" :maxlength="-1"
+          v-model="askContent"
+          class="ask-input"
+          placeholder="请输入您的问题..."
+          placeholder-class="ask-ph"
+          :maxlength="-1"
         />
-        <view class="submit-btn" :class="{ disabled: !askContent.trim() }" @tap="submitQuestion">
-          <app-icon name="send" :size="28" color="#ffffff" />
-          <text class="submit-txt">提交问题</text>
+        <view
+          class="submit-btn"
+          :class="{ disabled: !askContent.trim() }"
+          @tap="submitQuestion"
+        >
+          <app-icon
+            name="send"
+            :size="28"
+            color="#ffffff"
+          />
+          <text class="submit-txt">
+            提交问题
+          </text>
         </view>
       </view>
     </view>

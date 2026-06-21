@@ -53,7 +53,8 @@ function getXunShouYi(shiChenGanZhi: string): string {
   const zhi = shiChenGanZhi[1];
   const zhiIdx = DI_ZHI.indexOf(zhi);
   const jiaZhiIdx = Math.floor(zhiIdx / 2) * 2;
-  const yiMap = ["戊","己","庚","辛","壬","癸"];
+  // 六甲仪：甲子→戊, 甲寅→癸, 甲辰→壬, 甲午→辛, 甲申→庚, 甲戌→己
+  const yiMap = ["戊","癸","壬","辛","庚","己"];
   return yiMap[jiaZhiIdx / 2];
 }
 

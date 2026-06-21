@@ -67,23 +67,56 @@ onMounted(() => {})
 </script>
 
 <template>
-  <view class="sh" :style="{ '--sh-primary': primary }">
+  <view
+    class="sh"
+    :style="{ '--sh-primary': primary }"
+  >
     <!-- 自定义品牌导航栏 -->
     <view
       class="sh-header"
       :style="{ background: primary, color: headerColor, paddingTop: 'var(--status-bar-height, 0px)' }"
     >
       <view class="sh-header-inner">
-        <view class="sh-back" @tap="goBack"><app-icon name="chevron-left" :size="40" :color="headerColor" /></view>
-        <view class="sh-brand">
-          <image class="sh-logo" :src="brand.logo" mode="aspectFill" />
-          <text class="sh-brand-name" :style="{ color: headerColor }">{{ brand.name }}</text>
+        <view
+          class="sh-back"
+          @tap="goBack"
+        >
+          <app-icon
+            name="chevron-left"
+            :size="40"
+            :color="headerColor"
+          />
         </view>
-        <view class="sh-share" @tap="handleShare"><app-icon name="share-2" :size="40" :color="headerColor" /></view>
+        <view class="sh-brand">
+          <image
+            class="sh-logo"
+            :src="brand.logo"
+            mode="aspectFill"
+          />
+          <text
+            class="sh-brand-name"
+            :style="{ color: headerColor }"
+          >
+            {{ brand.name }}
+          </text>
+        </view>
+        <view
+          class="sh-share"
+          @tap="handleShare"
+        >
+          <app-icon
+            name="share-2"
+            :size="40"
+            :color="headerColor"
+          />
+        </view>
       </view>
     </view>
 
-    <scroll-view scroll-y class="sh-scroll">
+    <scroll-view
+      scroll-y
+      class="sh-scroll"
+    >
       <!-- Banner 轮播 -->
       <swiper
         class="sh-banner"
@@ -93,8 +126,16 @@ onMounted(() => {})
         :duration="500"
         @change="onBannerChange"
       >
-        <swiper-item v-for="b in stationBanners" :key="b.id" @tap="toastSoon">
-          <image class="sh-banner-img" :src="b.image" mode="aspectFill" />
+        <swiper-item
+          v-for="b in stationBanners"
+          :key="b.id"
+          @tap="toastSoon"
+        >
+          <image
+            class="sh-banner-img"
+            :src="b.image"
+            mode="aspectFill"
+          />
         </swiper-item>
       </swiper>
       <view class="sh-banner-dots">
@@ -108,14 +149,34 @@ onMounted(() => {})
 
       <!-- 特色入口 -->
       <view class="sh-features">
-        <view v-for="f in features" :key="f.id" class="sh-feature" @tap="toastSoon">
-          <view class="sh-feature-icon" :style="{ background: f.color + '26' }">
-            <app-icon :name="f.icon" :size="48" :color="f.color" />
-            <view v-if="f.badge" class="sh-feature-badge" :style="{ background: primary }">
-              <text class="sh-feature-badge-txt">{{ f.badge }}</text>
+        <view
+          v-for="f in features"
+          :key="f.id"
+          class="sh-feature"
+          @tap="toastSoon"
+        >
+          <view
+            class="sh-feature-icon"
+            :style="{ background: f.color + '26' }"
+          >
+            <app-icon
+              :name="f.icon"
+              :size="48"
+              :color="f.color"
+            />
+            <view
+              v-if="f.badge"
+              class="sh-feature-badge"
+              :style="{ background: primary }"
+            >
+              <text class="sh-feature-badge-txt">
+                {{ f.badge }}
+              </text>
             </view>
           </view>
-          <text class="sh-feature-name">{{ f.name }}</text>
+          <text class="sh-feature-name">
+            {{ f.name }}
+          </text>
         </view>
       </view>
 
@@ -123,34 +184,74 @@ onMounted(() => {})
       <view class="sh-section">
         <view class="sh-section-head">
           <view class="sh-section-title">
-            <image class="sh-master-avatar" :src="brand.master.avatar" mode="aspectFill" />
-            <text class="sh-section-title-txt">站长推荐</text>
+            <image
+              class="sh-master-avatar"
+              :src="brand.master.avatar"
+              mode="aspectFill"
+            />
+            <text class="sh-section-title-txt">
+              站长推荐
+            </text>
           </view>
-          <view class="sh-section-more" @tap="toastSoon">
-            <text class="sh-section-more-txt">更多</text>
-            <app-icon name="chevron-right" :size="24" color="#999" />
+          <view
+            class="sh-section-more"
+            @tap="toastSoon"
+          >
+            <text class="sh-section-more-txt">
+              更多
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="24"
+              color="#999"
+            />
           </view>
         </view>
-        <scroll-view scroll-x class="sh-rec-scroll" :show-scrollbar="false">
+        <scroll-view
+          scroll-x
+          class="sh-rec-scroll"
+          :show-scrollbar="false"
+        >
           <view class="sh-rec-row">
-            <view v-for="item in recommends" :key="item.id" class="sh-rec-card" @tap="toastSoon">
+            <view
+              v-for="item in recommends"
+              :key="item.id"
+              class="sh-rec-card"
+              @tap="toastSoon"
+            >
               <view class="sh-rec-cover-wrap">
-                <image class="sh-rec-cover" :src="item.cover" mode="aspectFill" />
-                <view v-if="item.tag" class="sh-rec-tag" :style="{ background: primary }">
-                  <text class="sh-rec-tag-txt">{{ item.tag }}</text>
+                <image
+                  class="sh-rec-cover"
+                  :src="item.cover"
+                  mode="aspectFill"
+                />
+                <view
+                  v-if="item.tag"
+                  class="sh-rec-tag"
+                  :style="{ background: primary }"
+                >
+                  <text class="sh-rec-tag-txt">
+                    {{ item.tag }}
+                  </text>
                 </view>
               </view>
-              <text class="sh-rec-title">{{ item.title }}</text>
+              <text class="sh-rec-title">
+                {{ item.title }}
+              </text>
               <view class="sh-rec-price-row">
                 <text
                   v-if="item.price !== undefined"
                   class="sh-rec-price"
                   :style="{ color: primary }"
-                >{{ item.price > 0 ? '¥' + item.price : '免费' }}</text>
+                >
+                  {{ item.price > 0 ? '¥' + item.price : '免费' }}
+                </text>
                 <text
                   v-if="item.originalPrice && item.originalPrice > (item.price || 0)"
                   class="sh-rec-original"
-                >¥{{ item.originalPrice }}</text>
+                >
+                  ¥{{ item.originalPrice }}
+                </text>
               </view>
             </view>
           </view>
@@ -159,70 +260,197 @@ onMounted(() => {})
 
       <!-- 内容 Feed 流 -->
       <view class="sh-feed">
-        <text class="sh-feed-title">精选内容</text>
+        <text class="sh-feed-title">
+          精选内容
+        </text>
         <view class="sh-feed-list">
-          <view v-for="item in feedList" :key="item.id" class="sh-feed-card" @tap="toastSoon">
+          <view
+            v-for="item in feedList"
+            :key="item.id"
+            class="sh-feed-card"
+            @tap="toastSoon"
+          >
             <view class="sh-feed-cover-wrap">
-              <image class="sh-feed-cover" :src="item.cover" mode="aspectFill" />
-              <view v-if="item.isLive" class="sh-feed-live">
+              <image
+                class="sh-feed-cover"
+                :src="item.cover"
+                mode="aspectFill"
+              />
+              <view
+                v-if="item.isLive"
+                class="sh-feed-live"
+              >
                 <view class="sh-feed-live-dot" />
-                <text class="sh-feed-live-txt">直播中</text>
+                <text class="sh-feed-live-txt">
+                  直播中
+                </text>
               </view>
-              <view v-else-if="item.type === 'video'" class="sh-feed-play">
-                <app-icon name="play" :size="56" color="#ffffff" />
+              <view
+                v-else-if="item.type === 'video'"
+                class="sh-feed-play"
+              >
+                <app-icon
+                  name="play"
+                  :size="56"
+                  color="#ffffff"
+                />
               </view>
             </view>
             <view class="sh-feed-info">
               <view class="sh-feed-type">
-                <app-icon :name="feedTypeIcon(item.type)" :size="24" color="#999" />
-                <text class="sh-feed-type-txt">{{ feedTypeLabel(item.type) }}</text>
+                <app-icon
+                  :name="feedTypeIcon(item.type)"
+                  :size="24"
+                  color="#999"
+                />
+                <text class="sh-feed-type-txt">
+                  {{ feedTypeLabel(item.type) }}
+                </text>
               </view>
-              <text class="sh-feed-name">{{ item.title }}</text>
+              <text class="sh-feed-name">
+                {{ item.title }}
+              </text>
               <view class="sh-feed-bottom">
                 <view class="sh-feed-author">
-                  <image class="sh-feed-author-avatar" :src="item.author.avatar" mode="aspectFill" />
-                  <text class="sh-feed-author-name">{{ item.author.nickname }}</text>
+                  <image
+                    class="sh-feed-author-avatar"
+                    :src="item.author.avatar"
+                    mode="aspectFill"
+                  />
+                  <text class="sh-feed-author-name">
+                    {{ item.author.nickname }}
+                  </text>
                 </view>
                 <view class="sh-feed-stats">
-                  <view class="sh-feed-stat"><app-icon name="eye" :size="24" color="#999" /><text class="sh-feed-stat-txt">{{ formatStatNumber(item.stats.views) }}</text></view>
-                  <view class="sh-feed-stat"><app-icon name="heart" :size="24" color="#999" /><text class="sh-feed-stat-txt">{{ formatStatNumber(item.stats.likes) }}</text></view>
+                  <view class="sh-feed-stat">
+                    <app-icon
+                      name="eye"
+                      :size="24"
+                      color="#999"
+                    /><text class="sh-feed-stat-txt">
+                      {{ formatStatNumber(item.stats.views) }}
+                    </text>
+                  </view>
+                  <view class="sh-feed-stat">
+                    <app-icon
+                      name="heart"
+                      :size="24"
+                      color="#999"
+                    /><text class="sh-feed-stat-txt">
+                      {{ formatStatNumber(item.stats.likes) }}
+                    </text>
+                  </view>
                 </view>
               </view>
-              <text v-if="item.price !== undefined && item.price > 0" class="sh-feed-price" :style="{ color: primary }">¥{{ item.price }}</text>
+              <text
+                v-if="item.price !== undefined && item.price > 0"
+                class="sh-feed-price"
+                :style="{ color: primary }"
+              >
+                ¥{{ item.price }}
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 加载更多 -->
-        <view v-if="hasMore" class="sh-loadmore">
-          <view class="sh-loadmore-btn" @tap="loadMoreFeed">
-            <app-icon v-if="feedLoading" name="loader-2" :size="28" color="#666" class="sh-spin" />
-            <text class="sh-loadmore-txt">{{ feedLoading ? '加载中...' : '加载更多' }}</text>
+        <view
+          v-if="hasMore"
+          class="sh-loadmore"
+        >
+          <view
+            class="sh-loadmore-btn"
+            @tap="loadMoreFeed"
+          >
+            <app-icon
+              v-if="feedLoading"
+              name="loader-2"
+              :size="28"
+              color="#666"
+              class="sh-spin"
+            />
+            <text class="sh-loadmore-txt">
+              {{ feedLoading ? '加载中...' : '加载更多' }}
+            </text>
           </view>
         </view>
-        <text v-else-if="feedList.length > 0" class="sh-feed-end">已经到底啦</text>
+        <text
+          v-else-if="feedList.length > 0"
+          class="sh-feed-end"
+        >
+          已经到底啦
+        </text>
       </view>
     </scroll-view>
 
     <!-- 分享海报弹层 -->
-    <view v-if="showPoster" class="sh-poster-mask" @tap="closePoster">
-      <view class="sh-poster-sheet" @tap.stop>
+    <view
+      v-if="showPoster"
+      class="sh-poster-mask"
+      @tap="closePoster"
+    >
+      <view
+        class="sh-poster-sheet"
+        @tap.stop
+      >
         <view class="sh-poster-head">
-          <text class="sh-poster-head-title">分享推广</text>
-          <view class="sh-poster-close" @tap="closePoster"><app-icon name="x" :size="40" color="#666" /></view>
+          <text class="sh-poster-head-title">
+            分享推广
+          </text>
+          <view
+            class="sh-poster-close"
+            @tap="closePoster"
+          >
+            <app-icon
+              name="x"
+              :size="40"
+              color="#666"
+            />
+          </view>
         </view>
         <view class="sh-poster-body">
-          <view v-if="posterLoading" class="sh-poster-loading">
-            <app-icon name="loader-2" :size="64" :color="primary" class="sh-spin" />
-            <text class="sh-poster-loading-txt">正在生成海报...</text>
+          <view
+            v-if="posterLoading"
+            class="sh-poster-loading"
+          >
+            <app-icon
+              name="loader-2"
+              :size="64"
+              :color="primary"
+              class="sh-spin"
+            />
+            <text class="sh-poster-loading-txt">
+              正在生成海报...
+            </text>
           </view>
           <template v-else>
-            <image class="sh-poster-img" :src="stationPosterImage" mode="aspectFit" />
+            <image
+              class="sh-poster-img"
+              :src="stationPosterImage"
+              mode="aspectFit"
+            />
             <view class="sh-poster-actions">
-              <view class="sh-poster-btn outline" @tap="toastSoon"><text class="sh-poster-btn-txt">保存图片</text></view>
-              <view class="sh-poster-btn primary" :style="{ background: primary }" @tap="toastSoon"><text class="sh-poster-btn-txt primary">分享给好友</text></view>
+              <view
+                class="sh-poster-btn outline"
+                @tap="toastSoon"
+              >
+                <text class="sh-poster-btn-txt">
+                  保存图片
+                </text>
+              </view>
+              <view
+                class="sh-poster-btn primary"
+                :style="{ background: primary }"
+                @tap="toastSoon"
+              >
+                <text class="sh-poster-btn-txt primary">
+                  分享给好友
+                </text>
+              </view>
             </view>
-            <text class="sh-poster-hint">长按图片保存或分享给好友</text>
+            <text class="sh-poster-hint">
+              长按图片保存或分享给好友
+            </text>
           </template>
         </view>
       </view>

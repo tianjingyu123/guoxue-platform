@@ -40,8 +40,19 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <view class="back-btn" @tap="goBack"><AppIcon name="arrow-left" :size="40" color="var(--text-strong)" /></view>
-        <text class="header-title">商品评价</text>
+        <view
+          class="back-btn"
+          @tap="goBack"
+        >
+          <AppIcon
+            name="arrow-left"
+            :size="40"
+            color="var(--text-strong)"
+          />
+        </view>
+        <text class="header-title">
+          商品评价
+        </text>
         <view class="header-spacer" />
       </view>
     </view>
@@ -49,20 +60,38 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
     <!-- 评价总览 -->
     <view class="overview">
       <view class="ov-rate">
-        <text class="ov-percent">{{ reviewSummary.goodRatePercent }}%</text>
-        <text class="ov-label">好评率</text>
+        <text class="ov-percent">
+          {{ reviewSummary.goodRatePercent }}%
+        </text>
+        <text class="ov-label">
+          好评率
+        </text>
       </view>
       <view class="ov-detail">
         <view class="ov-stars">
-          <AppIcon v-for="i in 5" :key="i" name="star" :size="28" color="var(--gold, #c9a96e)" fill />
-          <text class="ov-score">{{ reviewSummary.rating }}</text>
+          <AppIcon
+            v-for="i in 5"
+            :key="i"
+            name="star"
+            :size="28"
+            color="var(--gold, #c9a96e)"
+            fill
+          />
+          <text class="ov-score">
+            {{ reviewSummary.rating }}
+          </text>
         </view>
-        <text class="ov-total">共 {{ reviewSummary.total }} 条评价</text>
+        <text class="ov-total">
+          共 {{ reviewSummary.total }} 条评价
+        </text>
       </view>
     </view>
 
     <!-- 标签筛选 -->
-    <scroll-view class="tag-scroll" scroll-x>
+    <scroll-view
+      class="tag-scroll"
+      scroll-x
+    >
       <view class="tag-row">
         <view
           v-for="tag in reviewTags"
@@ -71,23 +100,62 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
           :class="{ 'tag-on': selectedTag === tag.id }"
           @tap="selectedTag = tag.id"
         >
-          <text class="tag-text" :class="{ 'tag-text-on': selectedTag === tag.id }">{{ tag.label }}({{ tag.count }})</text>
+          <text
+            class="tag-text"
+            :class="{ 'tag-text-on': selectedTag === tag.id }"
+          >
+            {{ tag.label }}({{ tag.count }})
+          </text>
         </view>
       </view>
     </scroll-view>
 
     <!-- 排序栏 -->
     <view class="sort-bar">
-      <text class="sort-count">共 {{ sortedReviews.length }} 条评价</text>
+      <text class="sort-count">
+        共 {{ sortedReviews.length }} 条评价
+      </text>
       <view class="sort-dropdown">
-        <view class="sort-trigger" @tap="showSortMenu = !showSortMenu">
-          <text class="sort-text">{{ sortLabel }}</text>
-          <view class="sort-arrow" :class="{ 'sort-arrow-up': showSortMenu }"><AppIcon name="chevron-down" :size="28" color="var(--text-strong)" /></view>
+        <view
+          class="sort-trigger"
+          @tap="showSortMenu = !showSortMenu"
+        >
+          <text class="sort-text">
+            {{ sortLabel }}
+          </text>
+          <view
+            class="sort-arrow"
+            :class="{ 'sort-arrow-up': showSortMenu }"
+          >
+            <AppIcon
+              name="chevron-down"
+              :size="28"
+              color="var(--text-strong)"
+            />
+          </view>
         </view>
-        <view v-if="showSortMenu" class="sort-mask" @tap="showSortMenu = false" />
-        <view v-if="showSortMenu" class="sort-menu">
-          <view v-for="opt in reviewSortOptions" :key="opt.id" class="sort-opt" :class="{ 'sort-opt-on': sortBy === opt.id }" @tap="pickSort(opt.id)">
-            <text class="sort-opt-text" :class="{ 'sort-opt-text-on': sortBy === opt.id }">{{ opt.label }}</text>
+        <view
+          v-if="showSortMenu"
+          class="sort-mask"
+          @tap="showSortMenu = false"
+        />
+        <view
+          v-if="showSortMenu"
+          class="sort-menu"
+        >
+          <view
+            v-for="opt in reviewSortOptions"
+            :key="opt.id"
+            class="sort-opt"
+            :class="{ 'sort-opt-on': sortBy === opt.id }"
+            @tap="pickSort(opt.id)"
+          >
+            <text
+              class="sort-opt-text"
+              :class="{ 'sort-opt-text-on': sortBy === opt.id }"
+            >
+              {{ opt.label }}
+            </text>
           </view>
         </view>
       </view>
@@ -95,57 +163,150 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
 
     <!-- 评价列表 -->
     <view class="review-list">
-      <view v-for="r in sortedReviews" :key="r.id" class="review-item">
+      <view
+        v-for="r in sortedReviews"
+        :key="r.id"
+        class="review-item"
+      >
         <view class="rv-head">
-          <image class="rv-avatar" :src="r.user.avatar" mode="aspectFill" />
+          <image
+            class="rv-avatar"
+            :src="r.user.avatar"
+            mode="aspectFill"
+          />
           <view class="rv-info">
             <view class="rv-name-row">
-              <text class="rv-name">{{ r.user.name }}</text>
-              <text v-if="r.user.level" class="rv-level">{{ r.user.level }}</text>
+              <text class="rv-name">
+                {{ r.user.name }}
+              </text>
+              <text
+                v-if="r.user.level"
+                class="rv-level"
+              >
+                {{ r.user.level }}
+              </text>
             </view>
             <view class="rv-sub">
               <view class="rv-stars">
-                <AppIcon v-for="i in 5" :key="i" name="star" :size="24" :color="i <= r.rating ? 'var(--gold, #c9a96e)' : '#d4d4d4'" :fill="i <= r.rating" />
+                <AppIcon
+                  v-for="i in 5"
+                  :key="i"
+                  name="star"
+                  :size="24"
+                  :color="i <= r.rating ? 'var(--gold, #c9a96e)' : '#d4d4d4'"
+                  :fill="i <= r.rating"
+                />
               </view>
-              <text class="rv-time">{{ r.time }}</text>
+              <text class="rv-time">
+                {{ r.time }}
+              </text>
             </view>
           </view>
         </view>
-        <text class="rv-content">{{ r.content }}</text>
-        <scroll-view v-if="r.images.length" class="rv-imgs" scroll-x>
+        <text class="rv-content">
+          {{ r.content }}
+        </text>
+        <scroll-view
+          v-if="r.images.length"
+          class="rv-imgs"
+          scroll-x
+        >
           <view class="rv-imgs-row">
-            <image v-for="(img, i) in r.images" :key="i" class="rv-img" :src="img" mode="aspectFill" @tap="openPreview(r.id, i)" />
+            <image
+              v-for="(img, i) in r.images"
+              :key="i"
+              class="rv-img"
+              :src="img"
+              mode="aspectFill"
+              @tap="openPreview(r.id, i)"
+            />
           </view>
         </scroll-view>
-        <text class="rv-spec">购买规格：{{ r.spec }}</text>
-        <view v-if="r.reply" class="rv-reply">
+        <text class="rv-spec">
+          购买规格：{{ r.spec }}
+        </text>
+        <view
+          v-if="r.reply"
+          class="rv-reply"
+        >
           <view class="rv-reply-head">
-            <text class="rv-reply-badge">商家回复</text>
-            <text class="rv-reply-time">{{ r.reply.time }}</text>
+            <text class="rv-reply-badge">
+              商家回复
+            </text>
+            <text class="rv-reply-time">
+              {{ r.reply.time }}
+            </text>
           </view>
-          <text class="rv-reply-text">{{ r.reply.content }}</text>
+          <text class="rv-reply-text">
+            {{ r.reply.content }}
+          </text>
         </view>
         <view class="rv-foot">
-          <view class="rv-like" :class="{ 'rv-like-on': likedReviews.includes(r.id) }" @tap="toggleLike(r.id)">
-            <AppIcon name="thumbs-up" :size="26" :color="likedReviews.includes(r.id) ? 'var(--brand)' : 'var(--text-soft)'" :fill="likedReviews.includes(r.id)" />
-            <text class="rv-like-num" :class="{ 'rv-like-num-on': likedReviews.includes(r.id) }">{{ r.likes + (likedReviews.includes(r.id) ? 1 : 0) }}</text>
+          <view
+            class="rv-like"
+            :class="{ 'rv-like-on': likedReviews.includes(r.id) }"
+            @tap="toggleLike(r.id)"
+          >
+            <AppIcon
+              name="thumbs-up"
+              :size="26"
+              :color="likedReviews.includes(r.id) ? 'var(--brand)' : 'var(--text-soft)'"
+              :fill="likedReviews.includes(r.id)"
+            />
+            <text
+              class="rv-like-num"
+              :class="{ 'rv-like-num-on': likedReviews.includes(r.id) }"
+            >
+              {{ r.likes + (likedReviews.includes(r.id) ? 1 : 0) }}
+            </text>
           </view>
         </view>
       </view>
     </view>
 
-    <view v-if="!sortedReviews.length" class="empty">
-      <view class="empty-icon"><AppIcon name="star" :size="56" color="var(--text-soft)" /></view>
-      <text class="empty-text">暂无相关评价</text>
+    <view
+      v-if="!sortedReviews.length"
+      class="empty"
+    >
+      <view class="empty-icon">
+        <AppIcon
+          name="star"
+          :size="56"
+          color="var(--text-soft)"
+        />
+      </view>
+      <text class="empty-text">
+        暂无相关评价
+      </text>
     </view>
 
     <!-- 图片预览 -->
-    <view v-if="previewImage" class="preview">
-      <view class="preview-close" @tap="previewImage = null"><AppIcon name="x" :size="44" color="#fff" /></view>
-      <view class="preview-body">
-        <image v-if="previewReview" class="preview-img" :src="previewReview.images[previewImage.index]" mode="aspectFit" />
+    <view
+      v-if="previewImage"
+      class="preview"
+    >
+      <view
+        class="preview-close"
+        @tap="previewImage = null"
+      >
+        <AppIcon
+          name="x"
+          :size="44"
+          color="#fff"
+        />
       </view>
-      <view v-if="previewReview && previewReview.images.length > 1" class="preview-dots">
+      <view class="preview-body">
+        <image
+          v-if="previewReview"
+          class="preview-img"
+          :src="previewReview.images[previewImage.index]"
+          mode="aspectFit"
+        />
+      </view>
+      <view
+        v-if="previewReview && previewReview.images.length > 1"
+        class="preview-dots"
+      >
         <view
           v-for="(_, i) in previewReview.images"
           :key="i"

@@ -3,28 +3,67 @@
     <!-- Header -->
     <view class="hd">
       <view class="hd-bar">
-        <view class="icon-btn" @tap="goBack"><AppIcon name="arrow-left" :size="40" :color="C.text" /></view>
-        <text class="hd-title">笔记 & 划线</text>
-        <view class="icon-btn"><AppIcon name="download" :size="40" :color="C.primary" /></view>
+        <view
+          class="icon-btn"
+          @tap="goBack"
+        >
+          <AppIcon
+            name="arrow-left"
+            :size="40"
+            :color="C.text"
+          />
+        </view>
+        <text class="hd-title">
+          笔记 & 划线
+        </text>
+        <view class="icon-btn">
+          <AppIcon
+            name="download"
+            :size="40"
+            :color="C.primary"
+          />
+        </view>
       </view>
 
       <!-- 统计 -->
       <view class="summary">
         <view class="summary-item">
-          <AppIcon name="pen-line" :size="32" :color="C.primary" />
-          <text class="summary-tx">{{ totalNotes }} 条笔记</text>
+          <AppIcon
+            name="pen-line"
+            :size="32"
+            :color="C.primary"
+          />
+          <text class="summary-tx">
+            {{ totalNotes }} 条笔记
+          </text>
         </view>
         <view class="summary-item">
-          <AppIcon name="highlighter" :size="32" :color="C.amber" />
-          <text class="summary-tx">{{ totalHighlights }} 处划线</text>
+          <AppIcon
+            name="highlighter"
+            :size="32"
+            :color="C.amber"
+          />
+          <text class="summary-tx">
+            {{ totalHighlights }} 处划线
+          </text>
         </view>
       </view>
 
       <!-- 搜索 -->
       <view class="hd-search">
         <view class="search-box">
-          <AppIcon name="search" :size="32" :color="C.slate400" class="search-icon" />
-          <input v-model="search" class="search-input" placeholder="搜索笔记内容..." placeholder-class="ph" />
+          <AppIcon
+            name="search"
+            :size="32"
+            :color="C.slate400"
+            class="search-icon"
+          />
+          <input
+            v-model="search"
+            class="search-input"
+            placeholder="搜索笔记内容..."
+            placeholder-class="ph"
+          >
         </view>
       </view>
 
@@ -37,46 +76,118 @@
           :class="{ active: filter === f.id }"
           @tap="filter = f.id"
         >
-          <text class="filter-tx" :class="{ 'active-tx': filter === f.id }">{{ f.label }}</text>
+          <text
+            class="filter-tx"
+            :class="{ 'active-tx': filter === f.id }"
+          >
+            {{ f.label }}
+          </text>
         </view>
       </view>
     </view>
 
-    <scroll-view scroll-y class="body">
+    <scroll-view
+      scroll-y
+      class="body"
+    >
       <!-- 空状态 -->
-      <view v-if="groupedKeys.length === 0" class="empty">
-        <AppIcon name="message-square" :size="96" :color="C.slate200" />
-        <text class="empty-title">暂无笔记</text>
-        <text class="empty-sub">在阅读时选中文字，可以划线或添加笔记</text>
-        <view class="empty-btn" @tap="goShelf"><text class="empty-btn-tx">去阅读</text></view>
+      <view
+        v-if="groupedKeys.length === 0"
+        class="empty"
+      >
+        <AppIcon
+          name="message-square"
+          :size="96"
+          :color="C.slate200"
+        />
+        <text class="empty-title">
+          暂无笔记
+        </text>
+        <text class="empty-sub">
+          在阅读时选中文字，可以划线或添加笔记
+        </text>
+        <view
+          class="empty-btn"
+          @tap="goShelf"
+        >
+          <text class="empty-btn-tx">
+            去阅读
+          </text>
+        </view>
       </view>
 
       <!-- 按书分组 -->
-      <view v-for="g in grouped" :key="g.bookId" class="group">
+      <view
+        v-for="g in grouped"
+        :key="g.bookId"
+        class="group"
+      >
         <view class="book-hd">
-          <view class="book-cover" :style="{ background: g.book.bookCoverColor }">
+          <view
+            class="book-cover"
+            :style="{ background: g.book.bookCoverColor }"
+          >
             <view class="cover-spine" />
           </view>
           <view class="book-meta">
-            <text class="book-title">{{ g.book.bookTitle }}</text>
-            <text class="book-sub">{{ g.list.length }} 条记录</text>
+            <text class="book-title">
+              {{ g.book.bookTitle }}
+            </text>
+            <text class="book-sub">
+              {{ g.list.length }} 条记录
+            </text>
           </view>
-          <view class="continue" @tap="goReader(g.bookId)">
-            <text class="continue-tx">继续读</text>
-            <AppIcon name="chevron-right" :size="28" :color="C.primary" />
+          <view
+            class="continue"
+            @tap="goReader(g.bookId)"
+          >
+            <text class="continue-tx">
+              继续读
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="28"
+              :color="C.primary"
+            />
           </view>
         </view>
 
         <view class="card">
-          <view v-for="(note, idx) in g.list" :key="note.id" class="note-item" :class="{ 'no-border': idx === 0 }">
+          <view
+            v-for="(note, idx) in g.list"
+            :key="note.id"
+            class="note-item"
+            :class="{ 'no-border': idx === 0 }"
+          >
             <view class="note-top">
               <view class="note-type">
-                <AppIcon :name="note.type === 'highlight' ? 'highlighter' : 'pen-line'" :size="28" :color="note.type === 'highlight' ? C.amber : C.primary" />
-                <text class="note-chapter">{{ note.chapterTitle }}</text>
+                <AppIcon
+                  :name="note.type === 'highlight' ? 'highlighter' : 'pen-line'"
+                  :size="28"
+                  :color="note.type === 'highlight' ? C.amber : C.primary"
+                />
+                <text class="note-chapter">
+                  {{ note.chapterTitle }}
+                </text>
               </view>
               <view class="note-actions">
-                <view class="act-btn"><AppIcon name="share-2" :size="24" :color="C.slate400" /></view>
-                <view class="act-btn" @tap="del(note.id)"><AppIcon name="trash-2" :size="24" :color="C.red400" /></view>
+                <view class="act-btn">
+                  <AppIcon
+                    name="share-2"
+                    :size="24"
+                    :color="C.slate400"
+                  />
+                </view>
+                <view
+                  class="act-btn"
+                  @tap="del(note.id)"
+                >
+                  <AppIcon
+                    name="trash-2"
+                    :size="24"
+                    :color="C.red400"
+                  />
+                </view>
               </view>
             </view>
 
@@ -88,19 +199,34 @@
                 borderLeftColor: note.highlightColor || C.primary,
               }"
             >
-              <text class="sel-tx">{{ note.selectedText }}</text>
+              <text class="sel-tx">
+                {{ note.selectedText }}
+              </text>
             </view>
 
             <!-- 笔记内容 -->
-            <view v-if="note.noteContent" class="note-content">
+            <view
+              v-if="note.noteContent"
+              class="note-content"
+            >
               <view class="note-content-label">
-                <AppIcon name="pen-line" :size="24" :color="C.textSoft" />
-                <text class="note-content-label-tx">笔记</text>
+                <AppIcon
+                  name="pen-line"
+                  :size="24"
+                  :color="C.textSoft"
+                />
+                <text class="note-content-label-tx">
+                  笔记
+                </text>
               </view>
-              <text class="note-content-tx">{{ note.noteContent }}</text>
+              <text class="note-content-tx">
+                {{ note.noteContent }}
+              </text>
             </view>
 
-            <text class="note-time">{{ note.createdAt }}</text>
+            <text class="note-time">
+              {{ note.createdAt }}
+            </text>
           </view>
         </view>
       </view>

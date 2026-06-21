@@ -33,21 +33,62 @@ function backToCircle() {
 
 <template>
   <!-- 提交成功页 -->
-  <view v-if="submitted" class="ex-success">
-    <view class="ex-success-icon"><app-icon name="check-circle" :size="44" color="#3D7A5C" /></view>
-    <text class="ex-success-title">退出申请已提交</text>
-    <text class="ex-success-desc">你的申请将经过圈主审核与平台审核，双向通过后退款将原路退回。可在「我的申请」中查看进度。</text>
+  <view
+    v-if="submitted"
+    class="ex-success"
+  >
+    <view class="ex-success-icon">
+      <app-icon
+        name="check-circle"
+        :size="44"
+        color="#3D7A5C"
+      />
+    </view>
+    <text class="ex-success-title">
+      退出申请已提交
+    </text>
+    <text class="ex-success-desc">
+      你的申请将经过圈主审核与平台审核，双向通过后退款将原路退回。可在「我的申请」中查看进度。
+    </text>
     <view class="ex-success-actions">
-      <view class="ex-btn-primary" @tap="toastComingSoon"><text class="ex-btn-primary-t">查看申请进度</text></view>
-      <view class="ex-btn-secondary" @tap="backToCircle"><text class="ex-btn-secondary-t">返回圈子</text></view>
+      <view
+        class="ex-btn-primary"
+        @tap="toastComingSoon"
+      >
+        <text class="ex-btn-primary-t">
+          查看申请进度
+        </text>
+      </view>
+      <view
+        class="ex-btn-secondary"
+        @tap="backToCircle"
+      >
+        <text class="ex-btn-secondary-t">
+          返回圈子
+        </text>
+      </view>
     </view>
   </view>
 
   <!-- 申请表单页 -->
-  <view v-else class="ex-page">
+  <view
+    v-else
+    class="ex-page"
+  >
     <view class="ex-nav">
-      <view class="ex-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
-      <text class="ex-nav-title">申请退出圈子</text>
+      <view
+        class="ex-nav-btn"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="34"
+          color="#2C2C2C"
+        />
+      </view>
+      <text class="ex-nav-title">
+        申请退出圈子
+      </text>
     </view>
 
     <view class="ex-body">
@@ -55,71 +96,193 @@ function backToCircle() {
       <view class="ex-circle">
         <view class="ex-circle-avatar" />
         <view class="ex-circle-info">
-          <text class="ex-circle-name">{{ membership.circleName }}</text>
-          <text class="ex-circle-sub">加入于 {{ membership.joinDate }} · 已加入 {{ breakdown.usedDays }} 天</text>
+          <text class="ex-circle-name">
+            {{ membership.circleName }}
+          </text>
+          <text class="ex-circle-sub">
+            加入于 {{ membership.joinDate }} · 已加入 {{ breakdown.usedDays }} 天
+          </text>
         </view>
       </view>
 
       <!-- 退出规则 -->
       <view class="ex-rules">
-        <view class="ex-rules-head"><app-icon name="info" :size="26" color="#C9A96E" /><text class="ex-rules-title">退出与退款规则</text></view>
+        <view class="ex-rules-head">
+          <app-icon
+            name="info"
+            :size="26"
+            color="#C9A96E"
+          /><text class="ex-rules-title">
+            退出与退款规则
+          </text>
+        </view>
         <view class="ex-rules-list">
-          <text class="ex-rule">· 按实际使用天数扣费，剩余部分原路退还</text>
-          <text class="ex-rule">· 每天费用 = 已付费用 ÷ 总服务天数（年费按 365 天）</text>
-          <text class="ex-rule">· 应退金额 = 已付费用 − 每天费用 × 已使用天数</text>
-          <text class="ex-rule">· 退出需经「圈主审核 + 平台审核」双向通过</text>
-          <text class="ex-rule">· 已购课程、电子书等不受退出影响，可继续使用</text>
+          <text class="ex-rule">
+            · 按实际使用天数扣费，剩余部分原路退还
+          </text>
+          <text class="ex-rule">
+            · 每天费用 = 已付费用 ÷ 总服务天数（年费按 365 天）
+          </text>
+          <text class="ex-rule">
+            · 应退金额 = 已付费用 − 每天费用 × 已使用天数
+          </text>
+          <text class="ex-rule">
+            · 退出需经「圈主审核 + 平台审核」双向通过
+          </text>
+          <text class="ex-rule">
+            · 已购课程、电子书等不受退出影响，可继续使用
+          </text>
         </view>
       </view>
 
       <!-- 退款金额预览 -->
       <view class="ex-refund">
         <view class="ex-refund-head">
-          <app-icon name="coins" :size="26" color="#C41E3A" />
-          <text class="ex-refund-title">退款金额预览</text>
-          <text class="ex-refund-auto">系统自动计算</text>
+          <app-icon
+            name="coins"
+            :size="26"
+            color="#C41E3A"
+          />
+          <text class="ex-refund-title">
+            退款金额预览
+          </text>
+          <text class="ex-refund-auto">
+            系统自动计算
+          </text>
         </view>
         <view class="ex-refund-body">
-          <view class="ex-row"><text class="ex-row-label">已付费用</text><text class="ex-row-value">¥{{ breakdown.paidAmount }}</text></view>
-          <view class="ex-row"><view class="ex-row-label-icon"><app-icon name="calendar" :size="24" color="#999999" /><text class="ex-row-label">已使用天数</text></view><text class="ex-row-value">{{ breakdown.usedDays }} 天</text></view>
-          <view class="ex-row"><text class="ex-row-label">每天费用</text><text class="ex-row-value">¥{{ breakdown.dailyRate }} / 天</text></view>
-          <view class="ex-row"><text class="ex-row-label">已扣除费用</text><text class="ex-row-value is-muted">− ¥{{ breakdown.deduction }}</text></view>
+          <view class="ex-row">
+            <text class="ex-row-label">
+              已付费用
+            </text><text class="ex-row-value">
+              ¥{{ breakdown.paidAmount }}
+            </text>
+          </view>
+          <view class="ex-row">
+            <view class="ex-row-label-icon">
+              <app-icon
+                name="calendar"
+                :size="24"
+                color="#999999"
+              /><text class="ex-row-label">
+                已使用天数
+              </text>
+            </view><text class="ex-row-value">
+              {{ breakdown.usedDays }} 天
+            </text>
+          </view>
+          <view class="ex-row">
+            <text class="ex-row-label">
+              每天费用
+            </text><text class="ex-row-value">
+              ¥{{ breakdown.dailyRate }} / 天
+            </text>
+          </view>
+          <view class="ex-row">
+            <text class="ex-row-label">
+              已扣除费用
+            </text><text class="ex-row-value is-muted">
+              − ¥{{ breakdown.deduction }}
+            </text>
+          </view>
           <view class="ex-refund-total">
-            <text class="ex-refund-total-label">应退金额</text>
-            <text class="ex-refund-total-value">¥{{ breakdown.refundAmount }}</text>
+            <text class="ex-refund-total-label">
+              应退金额
+            </text>
+            <text class="ex-refund-total-value">
+              ¥{{ breakdown.refundAmount }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 申请原因 -->
       <view class="ex-reason">
-        <text class="ex-reason-label">申请原因 <text class="ex-reason-optional">（选填）</text></text>
-        <textarea v-model="reason" class="ex-textarea" placeholder="填写退出原因，有助于圈主更快审核（选填）" placeholder-class="ex-ph" maxlength="200" />
-        <text class="ex-reason-count">{{ reason.length }}/200</text>
+        <text class="ex-reason-label">
+          申请原因 <text class="ex-reason-optional">
+            （选填）
+          </text>
+        </text>
+        <textarea
+          v-model="reason"
+          class="ex-textarea"
+          placeholder="填写退出原因，有助于圈主更快审核（选填）"
+          placeholder-class="ex-ph"
+          maxlength="200"
+        />
+        <text class="ex-reason-count">
+          {{ reason.length }}/200
+        </text>
       </view>
 
       <view class="ex-flow-tip">
-        <app-icon name="shield-check" :size="26" color="#3D7A5C" />
-        <text class="ex-flow-tip-t">提交后进入「圈主审核 → 平台审核」流程，全程可追溯</text>
+        <app-icon
+          name="shield-check"
+          :size="26"
+          color="#3D7A5C"
+        />
+        <text class="ex-flow-tip-t">
+          提交后进入「圈主审核 → 平台审核」流程，全程可追溯
+        </text>
       </view>
     </view>
 
     <!-- 底部按钮 -->
     <view class="ex-footer">
-      <view class="ex-submit" @tap="showConfirm = true"><text class="ex-submit-t">提交退出申请</text></view>
+      <view
+        class="ex-submit"
+        @tap="showConfirm = true"
+      >
+        <text class="ex-submit-t">
+          提交退出申请
+        </text>
+      </view>
     </view>
 
     <!-- 二次确认弹窗 -->
-    <view v-if="showConfirm" class="ex-mask" @tap="showConfirm = false">
-      <view class="ex-dialog" @tap.stop>
+    <view
+      v-if="showConfirm"
+      class="ex-mask"
+      @tap="showConfirm = false"
+    >
+      <view
+        class="ex-dialog"
+        @tap.stop
+      >
         <view class="ex-dialog-body">
-          <view class="ex-dialog-icon"><app-icon name="alert-triangle" :size="32" color="#C41E3A" /></view>
-          <text class="ex-dialog-title">确认申请退出？</text>
-          <text class="ex-dialog-desc">退出后你将失去该圈子的成员身份，预计退款 <text class="ex-dialog-amount">¥{{ breakdown.refundAmount }}</text>。已购课程、电子书不受影响。</text>
+          <view class="ex-dialog-icon">
+            <app-icon
+              name="alert-triangle"
+              :size="32"
+              color="#C41E3A"
+            />
+          </view>
+          <text class="ex-dialog-title">
+            确认申请退出？
+          </text>
+          <text class="ex-dialog-desc">
+            退出后你将失去该圈子的成员身份，预计退款 <text class="ex-dialog-amount">
+              ¥{{ breakdown.refundAmount }}
+            </text>。已购课程、电子书不受影响。
+          </text>
         </view>
         <view class="ex-dialog-actions">
-          <view class="ex-dialog-cancel" @tap="showConfirm = false"><text class="ex-dialog-cancel-t">再想想</text></view>
-          <view class="ex-dialog-confirm" @tap="handleSubmit"><text class="ex-dialog-confirm-t">确认提交</text></view>
+          <view
+            class="ex-dialog-cancel"
+            @tap="showConfirm = false"
+          >
+            <text class="ex-dialog-cancel-t">
+              再想想
+            </text>
+          </view>
+          <view
+            class="ex-dialog-confirm"
+            @tap="handleSubmit"
+          >
+            <text class="ex-dialog-confirm-t">
+              确认提交
+            </text>
+          </view>
         </view>
       </view>
     </view>

@@ -79,10 +79,32 @@ const availableLetters = computed(() => Object.keys(groupedByLetter.value).sort(
     <!-- 顶部导航 -->
     <view class="hdr">
       <view class="hdr-bar">
-        <view class="hdr-back" @tap="navigateBack()"><app-icon name="chevron-left" :size="40" color="#666666" /></view>
+        <view
+          class="hdr-back"
+          @tap="navigateBack()"
+        >
+          <app-icon
+            name="chevron-left"
+            :size="40"
+            color="#666666"
+          />
+        </view>
         <view class="seg">
-          <view class="seg-item" @tap="navigateTo('/paipan/bazi/history')"><text class="seg-text">用户列表</text></view>
-          <view class="seg-item seg-on"><text class="seg-text seg-text-on">案例库</text><text class="vip-badge">VIP</text></view>
+          <view
+            class="seg-item"
+            @tap="navigateTo('/paipan/bazi/history')"
+          >
+            <text class="seg-text">
+              用户列表
+            </text>
+          </view>
+          <view class="seg-item seg-on">
+            <text class="seg-text seg-text-on">
+              案例库
+            </text><text class="vip-badge">
+              VIP
+            </text>
+          </view>
         </view>
       </view>
     </view>
@@ -90,67 +112,173 @@ const availableLetters = computed(() => Object.keys(groupedByLetter.value).sort(
     <!-- 搜索栏 -->
     <view class="search-wrap">
       <view class="search-box">
-        <app-icon name="search" :size="30" color="#999999" />
-        <input v-model="searchQuery" class="search-input" placeholder="请输入搜索的内容" placeholder-class="search-ph" />
+        <app-icon
+          name="search"
+          :size="30"
+          color="#999999"
+        />
+        <input
+          v-model="searchQuery"
+          class="search-input"
+          placeholder="请输入搜索的内容"
+          placeholder-class="search-ph"
+        >
       </view>
-      <view class="filter-btn"><text class="filter-text">筛选</text></view>
+      <view class="filter-btn">
+        <text class="filter-text">
+          筛选
+        </text>
+      </view>
     </view>
 
     <!-- 一级分类 -->
     <view class="primary-wrap">
       <view class="primary">
-        <view v-for="c in primaryCategories" :key="c" class="primary-item" :class="{ 'primary-on': activePrimary === c }" @tap="handlePrimaryChange(c)">
-          <text class="primary-text" :class="{ 'primary-text-on': activePrimary === c }">{{ c }}</text>
+        <view
+          v-for="c in primaryCategories"
+          :key="c"
+          class="primary-item"
+          :class="{ 'primary-on': activePrimary === c }"
+          @tap="handlePrimaryChange(c)"
+        >
+          <text
+            class="primary-text"
+            :class="{ 'primary-text-on': activePrimary === c }"
+          >
+            {{ c }}
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 二级分类 -->
-    <scroll-view scroll-x class="secondary-wrap">
+    <scroll-view
+      scroll-x
+      class="secondary-wrap"
+    >
       <view class="secondary">
-        <view v-for="c in secondaryCategories[activePrimary]" :key="c" class="sec-chip" :class="{ 'sec-chip-on': activeSecondary === c }" @tap="activeSecondary = c">
-          <text class="sec-text" :class="{ 'sec-text-on': activeSecondary === c }">{{ c }}</text>
+        <view
+          v-for="c in secondaryCategories[activePrimary]"
+          :key="c"
+          class="sec-chip"
+          :class="{ 'sec-chip-on': activeSecondary === c }"
+          @tap="activeSecondary = c"
+        >
+          <text
+            class="sec-text"
+            :class="{ 'sec-text-on': activeSecondary === c }"
+          >
+            {{ c }}
+          </text>
         </view>
       </view>
     </scroll-view>
 
     <!-- 案例列表 -->
-    <scroll-view scroll-y class="list">
-      <view v-for="letter in availableLetters" :key="letter">
-        <view class="letter-head"><text class="letter-text">{{ letter }}</text></view>
-        <view v-for="(item, index) in groupedByLetter[letter]" :key="item.id" class="row" :class="{ 'row-locked': !isVip && index > 0 }">
+    <scroll-view
+      scroll-y
+      class="list"
+    >
+      <view
+        v-for="letter in availableLetters"
+        :key="letter"
+      >
+        <view class="letter-head">
+          <text class="letter-text">
+            {{ letter }}
+          </text>
+        </view>
+        <view
+          v-for="(item, index) in groupedByLetter[letter]"
+          :key="item.id"
+          class="row"
+          :class="{ 'row-locked': !isVip && index > 0 }"
+        >
           <view class="info">
             <view class="info-top">
-              <text class="info-name" :class="{ 'blur-2': !isVip && index > 0 }">{{ item.name }}</text>
-              <text class="info-gender">{{ item.gender === 'male' ? '男' : '女' }}</text>
+              <text
+                class="info-name"
+                :class="{ 'blur-2': !isVip && index > 0 }"
+              >
+                {{ item.name }}
+              </text>
+              <text class="info-gender">
+                {{ item.gender === 'male' ? '男' : '女' }}
+              </text>
             </view>
-            <text class="info-desc" :class="{ 'blur-2': !isVip && index > 0 }">{{ item.desc }} {{ item.subtitle }}</text>
+            <text
+              class="info-desc"
+              :class="{ 'blur-2': !isVip && index > 0 }"
+            >
+              {{ item.desc }} {{ item.subtitle }}
+            </text>
           </view>
-          <view class="pillars" :class="{ 'blur-3': !isVip && index > 0 }">
+          <view
+            class="pillars"
+            :class="{ 'blur-3': !isVip && index > 0 }"
+          >
             <view class="pillar-row">
-              <text v-for="(ch, i) in item.bazi.slice(0, 4)" :key="'a' + i" class="gz" :class="wuxingColors[ch]">{{ ch }}</text>
+              <text
+                v-for="(ch, i) in item.bazi.slice(0, 4)"
+                :key="'a' + i"
+                class="gz"
+                :class="wuxingColors[ch]"
+              >
+                {{ ch }}
+              </text>
             </view>
             <view class="pillar-row">
-              <text v-for="(ch, i) in item.bazi.slice(4, 8)" :key="'b' + i" class="gz" :class="wuxingColors[ch]">{{ ch }}</text>
+              <text
+                v-for="(ch, i) in item.bazi.slice(4, 8)"
+                :key="'b' + i"
+                class="gz"
+                :class="wuxingColors[ch]"
+              >
+                {{ ch }}
+              </text>
             </view>
           </view>
-          <view class="zodiac" :class="{ 'blur-2': !isVip && index > 0 }"><text class="zodiac-text">{{ item.zodiac }}</text></view>
+          <view
+            class="zodiac"
+            :class="{ 'blur-2': !isVip && index > 0 }"
+          >
+            <text class="zodiac-text">
+              {{ item.zodiac }}
+            </text>
+          </view>
         </view>
       </view>
 
       <!-- 字母快速导航 -->
       <view class="letter-nav">
-        <text v-for="letter in availableLetters" :key="'nav' + letter" class="nav-letter">{{ letter }}</text>
+        <text
+          v-for="letter in availableLetters"
+          :key="'nav' + letter"
+          class="nav-letter"
+        >
+          {{ letter }}
+        </text>
       </view>
     </scroll-view>
 
     <!-- VIP解锁提示 -->
-    <view v-if="!isVip" class="vip-bar">
+    <view
+      v-if="!isVip"
+      class="vip-bar"
+    >
       <view class="vip-btn">
-        <app-icon name="lock" :size="30" color="#ffffff" />
-        <text class="vip-btn-text">开通钻石会员解锁</text>
+        <app-icon
+          name="lock"
+          :size="30"
+          color="#ffffff"
+        />
+        <text class="vip-btn-text">
+          开通钻石会员解锁
+        </text>
       </view>
-      <text class="vip-desc">案例库收录了500+八字案例，包含名人案例（君主、商界、文艺、体育等）和大众案例（财运、事业、婚姻、健康等），让您通过真实案例学习验证八字命理。案例数据持续更新中......</text>
+      <text class="vip-desc">
+        案例库收录了500+八字案例，包含名人案例（君主、商界、文艺、体育等）和大众案例（财运、事业、婚姻、健康等），让您通过真实案例学习验证八字命理。案例数据持续更新中......
+      </text>
     </view>
   </view>
 </template>

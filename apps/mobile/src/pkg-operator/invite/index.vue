@@ -1,36 +1,74 @@
 <template>
   <view class="invite-page">
-    <app-nav-bar title="邀请站长" :show-back="true" />
+    <app-nav-bar
+      title="邀请站长"
+      :show-back="true"
+    />
 
     <!-- 数据统计 -->
     <view class="inv-stats">
-      <view v-for="s in statItems" :key="s.label" class="inv-stat-card">
-        <app-icon :name="s.icon" :size="32" color="#C41E3A" />
-        <text class="inv-stat-val">{{ s.value }}</text>
-        <text class="inv-stat-label">{{ s.label }}</text>
+      <view
+        v-for="s in statItems"
+        :key="s.label"
+        class="inv-stat-card"
+      >
+        <app-icon
+          :name="s.icon"
+          :size="32"
+          color="#C41E3A"
+        />
+        <text class="inv-stat-val">
+          {{ s.value }}
+        </text>
+        <text class="inv-stat-label">
+          {{ s.label }}
+        </text>
       </view>
     </view>
 
     <!-- 邀请奖励说明 -->
     <view class="inv-reward">
       <view class="inv-reward-head">
-        <app-icon name="trending-up" :size="28" color="#C41E3A" />
-        <text class="inv-reward-title">邀请奖励说明</text>
+        <app-icon
+          name="trending-up"
+          :size="28"
+          color="#C41E3A"
+        />
+        <text class="inv-reward-title">
+          邀请奖励说明
+        </text>
       </view>
-      <rich-text class="inv-reward-desc" :nodes="rewardDesc"></rich-text>
+      <rich-text
+        class="inv-reward-desc"
+        :nodes="rewardDesc"
+      />
     </view>
 
     <view class="inv-body">
       <!-- 邀请链接 -->
       <view class="inv-block">
-        <text class="inv-block-title">邀请链接</text>
+        <text class="inv-block-title">
+          邀请链接
+        </text>
         <view class="inv-link-row">
           <view class="inv-link-input">
-            <text class="inv-link-txt">{{ inviteLink }}</text>
+            <text class="inv-link-txt">
+              {{ inviteLink }}
+            </text>
           </view>
-          <view class="inv-copy-btn" :class="{ copied }" @tap="copy(inviteLink)">
-            <app-icon name="copy" :size="26" color="#ffffff" />
-            <text class="inv-copy-txt">{{ copied ? '已复制' : '复制' }}</text>
+          <view
+            class="inv-copy-btn"
+            :class="{ copied }"
+            @tap="copy(inviteLink)"
+          >
+            <app-icon
+              name="copy"
+              :size="26"
+              color="#ffffff"
+            />
+            <text class="inv-copy-txt">
+              {{ copied ? '已复制' : '复制' }}
+            </text>
           </view>
         </view>
       </view>
@@ -38,48 +76,91 @@
       <!-- 邀请码 -->
       <view class="inv-code-card">
         <view class="inv-code-left">
-          <text class="inv-code-label">邀请码</text>
-          <text class="inv-code-val">{{ inviteCode }}</text>
+          <text class="inv-code-label">
+            邀请码
+          </text>
+          <text class="inv-code-val">
+            {{ inviteCode }}
+          </text>
         </view>
         <view class="inv-code-actions">
-          <view class="inv-code-act" @tap="copy(inviteCode)">
-            <app-icon name="copy" :size="28" color="#6b7280" />
+          <view
+            class="inv-code-act"
+            @tap="copy(inviteCode)"
+          >
+            <app-icon
+              name="copy"
+              :size="28"
+              color="#6b7280"
+            />
           </view>
           <view class="inv-code-act">
-            <app-icon name="share-2" :size="28" color="#6b7280" />
+            <app-icon
+              name="share-2"
+              :size="28"
+              color="#6b7280"
+            />
           </view>
         </view>
       </view>
 
       <!-- 邮件邀请 -->
       <view class="inv-block">
-        <text class="inv-block-title">邮件邀请</text>
+        <text class="inv-block-title">
+          邮件邀请
+        </text>
         <view class="inv-link-row">
           <input
+            v-model="email"
             class="inv-email-input"
             type="text"
-            v-model="email"
             placeholder="输入对方邮箱"
             placeholder-class="inv-email-ph"
-          />
-          <view class="inv-send-btn" :class="{ sent, disabled: !email || sent }" @tap="sendInvite">
-            <text class="inv-send-txt">{{ sent ? '已发送' : '发送' }}</text>
+          >
+          <view
+            class="inv-send-btn"
+            :class="{ sent, disabled: !email || sent }"
+            @tap="sendInvite"
+          >
+            <text class="inv-send-txt">
+              {{ sent ? '已发送' : '发送' }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 已邀请站长 -->
       <view class="inv-block">
-        <text class="inv-block-title">已邀请站长</text>
+        <text class="inv-block-title">
+          已邀请站长
+        </text>
         <view class="inv-list">
-          <view v-for="s in invited" :key="s.id" class="inv-item">
+          <view
+            v-for="s in invited"
+            :key="s.id"
+            class="inv-item"
+          >
             <view class="inv-item-left">
-              <text class="inv-item-name">{{ s.name }}</text>
-              <text class="inv-item-date">{{ s.joinedAt }} 加入</text>
+              <text class="inv-item-name">
+                {{ s.name }}
+              </text>
+              <text class="inv-item-date">
+                {{ s.joinedAt }} 加入
+              </text>
             </view>
             <view class="inv-item-right">
-              <text class="inv-item-status" :class="s.status">{{ s.status === 'active' ? '已激活' : '待激活' }}</text>
-              <text v-if="s.status === 'active'" class="inv-item-commission">佣金 {{ s.commission }}</text>
+              <text
+                class="inv-item-status"
+                :class="s.status"
+              >
+                {{ s.status === 'active' ? '已激活' : '待激活' }}
+              </text>
+              <text
+                v-if="s.status === 'active'"
+                class="inv-item-commission"
+              >
+                佣金 {{ s.commission }}
+              </text>
             </view>
           </view>
         </view>

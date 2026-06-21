@@ -1394,6 +1394,7 @@ model PaipanRecord {
   clientBirth String // 生辰信息（AES加密）
   paipanType  String // 工具ID：bazi/ziwei/qimen-yang/.../daliuren/... 等32种，向后兼容旧值 BAZI/ZIWEI/FENGSHUI/NAME
   inputParams Json // 输入参数
+  groupName   String? // 用户自定义分组
   resultData  Json // 排盘结果JSON
   createdAt   DateTime @default(now())
 
@@ -1404,6 +1405,39 @@ model PaipanRecord {
   @@index([userId, paipanType, createdAt])
   @@index([createdAt])
   @@index([paipanType])
+}
+
+// 用户自定义分组（跨排盘工具）
+model PaipanGroup {
+  id         String   @id @default(uuid())
+  userId     String
+  paipanType String   // BAZI / QIMEN / YANGPAN
+  name       String
+  color      String?  // 分组颜色（可选）
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, paipanType, name])
+  @@index([userId, paipanType])
+}
+
+// 八字案例库（名人案例 + 大众案例）
+model CelebrityCase {
+  id           String   @id @default(uuid())
+  name         String
+  gender       String   // male / female
+  description  String   // 朝代/时代
+  subtitle     String   // 身份/特点
+  primaryCat   String   // 名人案例 / 大众案例
+  secondaryCat String   // 君主/商界/文艺/体育/历史/军事/僧道/财运/事业/婚姻/健康/学业/灾厄/长寿
+  bazi         String[] // [年干,月干,日干,时干,年支,月支,日支,时支] 共8字
+  letter       String   // 姓名拼音首字母大写
+  zodiac       String   // 生肖
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([primaryCat, secondaryCat])
+  @@index([letter])
+  @@index([sortOrder])
 }
 
 // ── 八字命理专业知识库（RAG 第3层） ──

@@ -48,29 +48,57 @@ function authorize(type: 'always' | 'while_using' | 'authorized' | 'deny') {
 
 <template>
   <view class="page">
-    <app-nav-bar title="隐私授权管理" :back-size="40" />
+    <app-nav-bar
+      title="隐私授权管理"
+      :back-size="40"
+    />
 
-    <scroll-view scroll-y class="scroll">
+    <scroll-view
+      scroll-y
+      class="scroll"
+    >
       <!-- 隐私保护说明 -->
       <view class="banner">
         <view class="banner-icon">
-          <AppIcon name="shield" :size="20" color="#C41E3A" />
+          <AppIcon
+            name="shield"
+            :size="20"
+            color="#C41E3A"
+          />
         </view>
         <view class="banner-body">
-          <text class="banner-title">隐私保护说明</text>
-          <text class="banner-desc">我们重视您的隐私。以下权限仅在您主动使用相关功能时请求，您可以随时在此管理授权状态。</text>
+          <text class="banner-title">
+            隐私保护说明
+          </text>
+          <text class="banner-desc">
+            我们重视您的隐私。以下权限仅在您主动使用相关功能时请求，您可以随时在此管理授权状态。
+          </text>
         </view>
       </view>
 
       <!-- 授权概览 -->
       <view class="summary">
         <view class="summary-left">
-          <text class="summary-label">已授权权限</text>
-          <text class="summary-num">{{ authorizedCount }}<text class="summary-total">/{{ permissions.length }}</text></text>
+          <text class="summary-label">
+            已授权权限
+          </text>
+          <text class="summary-num">
+            {{ authorizedCount }}<text class="summary-total">
+              /{{ permissions.length }}
+            </text>
+          </text>
         </view>
         <view class="summary-avatars">
-          <view v-for="p in summaryAvatars" :key="p.id" class="summary-avatar">
-            <AppIcon :name="p.icon" :size="18" color="#16a34a" />
+          <view
+            v-for="p in summaryAvatars"
+            :key="p.id"
+            class="summary-avatar"
+          >
+            <AppIcon
+              :name="p.icon"
+              :size="18"
+              color="#16a34a"
+            />
           </view>
         </view>
       </view>
@@ -78,45 +106,102 @@ function authorize(type: 'always' | 'while_using' | 'authorized' | 'deny') {
       <!-- 权限列表 -->
       <view class="card">
         <view class="card-head">
-          <text class="card-head-title">权限列表</text>
+          <text class="card-head-title">
+            权限列表
+          </text>
         </view>
-        <view v-for="p in permissions" :key="p.id" class="row" @tap="onRowTap(p)">
-          <view class="row-icon" :class="isAuthorized(p.status) ? 'icon-ok' : p.status === 'denied' ? 'icon-no' : 'icon-idle'">
-            <AppIcon :name="p.icon" :size="20" :color="isAuthorized(p.status) ? '#16a34a' : p.status === 'denied' ? '#ef4444' : '#9b948a'" />
+        <view
+          v-for="p in permissions"
+          :key="p.id"
+          class="row"
+          @tap="onRowTap(p)"
+        >
+          <view
+            class="row-icon"
+            :class="isAuthorized(p.status) ? 'icon-ok' : p.status === 'denied' ? 'icon-no' : 'icon-idle'"
+          >
+            <AppIcon
+              :name="p.icon"
+              :size="20"
+              :color="isAuthorized(p.status) ? '#16a34a' : p.status === 'denied' ? '#ef4444' : '#9b948a'"
+            />
           </view>
           <view class="row-body">
             <view class="row-name-line">
-              <text class="row-name">{{ p.name }}</text>
-              <text v-if="p.required" class="row-required">必需</text>
+              <text class="row-name">
+                {{ p.name }}
+              </text>
+              <text
+                v-if="p.required"
+                class="row-required"
+              >
+                必需
+              </text>
             </view>
-            <text class="row-desc">{{ p.description }}</text>
+            <text class="row-desc">
+              {{ p.description }}
+            </text>
           </view>
           <view class="row-right">
-            <text class="status-tag" :class="isAuthorized(p.status) ? 'tag-ok' : p.status === 'denied' ? 'tag-no' : 'tag-idle'">{{ statusText(p.status) }}</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+            <text
+              class="status-tag"
+              :class="isAuthorized(p.status) ? 'tag-ok' : p.status === 'denied' ? 'tag-no' : 'tag-idle'"
+            >
+              {{ statusText(p.status) }}
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="16"
+              color="#C9A96E"
+            />
           </view>
         </view>
       </view>
 
       <!-- 温馨提示 -->
       <view class="tips">
-        <AppIcon name="info" :size="18" color="#C9A96E" />
+        <AppIcon
+          name="info"
+          :size="18"
+          color="#C9A96E"
+        />
         <view class="tips-body">
-          <text class="tips-title">温馨提示</text>
-          <text class="tips-item">· 拒绝授权不会影响基础功能使用</text>
-          <text class="tips-item">· 部分功能需要对应权限才能正常工作</text>
-          <text class="tips-item">· 您可以随时在系统设置中修改权限</text>
+          <text class="tips-title">
+            温馨提示
+          </text>
+          <text class="tips-item">
+            · 拒绝授权不会影响基础功能使用
+          </text>
+          <text class="tips-item">
+            · 部分功能需要对应权限才能正常工作
+          </text>
+          <text class="tips-item">
+            · 您可以随时在系统设置中修改权限
+          </text>
         </view>
       </view>
 
       <!-- 前往系统设置 -->
-      <view class="card single" @tap="toastComingSoon">
+      <view
+        class="card single"
+        @tap="toastComingSoon"
+      >
         <view class="row">
           <view class="row-icon icon-idle">
-            <AppIcon name="settings" :size="20" color="#9b948a" />
+            <AppIcon
+              name="settings"
+              :size="20"
+              color="#9b948a"
+            />
           </view>
-          <text class="row-name flex1">前往系统设置</text>
-          <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          <text class="row-name flex1">
+            前往系统设置
+          </text>
+          <AppIcon
+            name="chevron-right"
+            :size="16"
+            color="#C9A96E"
+          />
         </view>
       </view>
 
@@ -124,49 +209,138 @@ function authorize(type: 'always' | 'while_using' | 'authorized' | 'deny') {
     </scroll-view>
 
     <!-- 授权底部弹窗 -->
-    <view v-if="showAuthSheet && selected" class="mask mask-fade-in" @tap="showAuthSheet = false">
-      <view class="sheet sheet-slide-up" @tap.stop>
+    <view
+      v-if="showAuthSheet && selected"
+      class="mask mask-fade-in"
+      @tap="showAuthSheet = false"
+    >
+      <view
+        class="sheet sheet-slide-up"
+        @tap.stop
+      >
         <view class="sheet-icon">
-          <AppIcon :name="selected.icon" :size="28" color="#C41E3A" />
+          <AppIcon
+            :name="selected.icon"
+            :size="28"
+            color="#C41E3A"
+          />
         </view>
-        <text class="sheet-title">允许访问{{ selected.name }}？</text>
-        <text class="sheet-purpose">{{ selected.purpose }}</text>
+        <text class="sheet-title">
+          允许访问{{ selected.name }}？
+        </text>
+        <text class="sheet-purpose">
+          {{ selected.purpose }}
+        </text>
 
         <view class="promise">
-          <AppIcon name="check-circle" :size="18" color="#16a34a" />
+          <AppIcon
+            name="check-circle"
+            :size="18"
+            color="#16a34a"
+          />
           <view class="promise-body">
-            <text class="promise-title">数据安全承诺</text>
-            <text class="promise-desc">我们仅在您使用相关功能时访问此权限，不会在后台收集或上传您的数据。</text>
+            <text class="promise-title">
+              数据安全承诺
+            </text>
+            <text class="promise-desc">
+              我们仅在您使用相关功能时访问此权限，不会在后台收集或上传您的数据。
+            </text>
           </view>
         </view>
 
-        <view v-if="selected.degradedFeature" class="warn">
-          <AppIcon name="alert-circle" :size="16" color="#d97706" />
-          <text class="warn-text">如果拒绝授权，{{ selected.degradedFeature }}</text>
+        <view
+          v-if="selected.degradedFeature"
+          class="warn"
+        >
+          <AppIcon
+            name="alert-circle"
+            :size="16"
+            color="#d97706"
+          />
+          <text class="warn-text">
+            如果拒绝授权，{{ selected.degradedFeature }}
+          </text>
         </view>
 
         <template v-if="selected.id === 'location'">
-          <view class="btn-primary" @tap="authorize('always')"><text class="btn-primary-text">始终允许</text></view>
-          <view class="btn-soft" @tap="authorize('while_using')"><text class="btn-soft-text">仅在使用应用期间允许</text></view>
+          <view
+            class="btn-primary"
+            @tap="authorize('always')"
+          >
+            <text class="btn-primary-text">
+              始终允许
+            </text>
+          </view>
+          <view
+            class="btn-soft"
+            @tap="authorize('while_using')"
+          >
+            <text class="btn-soft-text">
+              仅在使用应用期间允许
+            </text>
+          </view>
         </template>
         <template v-else>
-          <view class="btn-primary" @tap="authorize('authorized')"><text class="btn-primary-text">允许</text></view>
+          <view
+            class="btn-primary"
+            @tap="authorize('authorized')"
+          >
+            <text class="btn-primary-text">
+              允许
+            </text>
+          </view>
         </template>
-        <view class="btn-text" @tap="authorize('deny')"><text class="btn-text-label">不允许</text></view>
+        <view
+          class="btn-text"
+          @tap="authorize('deny')"
+        >
+          <text class="btn-text-label">
+            不允许
+          </text>
+        </view>
       </view>
     </view>
 
     <!-- 已授权提示弹窗 -->
-    <view v-if="showAuthorizedDialog && selected" class="mask center mask-fade-in" @tap="showAuthorizedDialog = false">
-      <view class="dialog dialog-pop-in" @tap.stop>
+    <view
+      v-if="showAuthorizedDialog && selected"
+      class="mask center mask-fade-in"
+      @tap="showAuthorizedDialog = false"
+    >
+      <view
+        class="dialog dialog-pop-in"
+        @tap.stop
+      >
         <view class="dialog-icon">
-          <AppIcon name="check-circle" :size="28" color="#16a34a" />
+          <AppIcon
+            name="check-circle"
+            :size="28"
+            color="#16a34a"
+          />
         </view>
-        <text class="dialog-title">已授权 {{ selected.name }}</text>
-        <text class="dialog-desc">如需修改权限状态，请前往系统设置中的应用权限管理进行修改。</text>
+        <text class="dialog-title">
+          已授权 {{ selected.name }}
+        </text>
+        <text class="dialog-desc">
+          如需修改权限状态，请前往系统设置中的应用权限管理进行修改。
+        </text>
         <view class="dialog-actions">
-          <view class="dialog-btn ghost" @tap="showAuthorizedDialog = false"><text class="dialog-btn-text">取消</text></view>
-          <view class="dialog-btn solid" @tap="showAuthorizedDialog = false; toastComingSoon()"><text class="dialog-btn-text solid-text">前往设置</text></view>
+          <view
+            class="dialog-btn ghost"
+            @tap="showAuthorizedDialog = false"
+          >
+            <text class="dialog-btn-text">
+              取消
+            </text>
+          </view>
+          <view
+            class="dialog-btn solid"
+            @tap="showAuthorizedDialog = false; toastComingSoon()"
+          >
+            <text class="dialog-btn-text solid-text">
+              前往设置
+            </text>
+          </view>
         </view>
       </view>
     </view>

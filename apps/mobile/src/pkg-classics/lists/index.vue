@@ -35,64 +35,130 @@ function fmtLikes(n: number): string {
   <view class="lp-page">
     <ClassicsHeader title="精选书单">
       <template #right>
-        <view class="lp-create" @tap="onCreate">
-          <app-icon name="plus" :size="32" color="#c41e3a" />
-          <text class="lp-create-txt">创建</text>
+        <view
+          class="lp-create"
+          @tap="onCreate"
+        >
+          <app-icon
+            name="plus"
+            :size="32"
+            color="#c41e3a"
+          />
+          <text class="lp-create-txt">
+            创建
+          </text>
         </view>
       </template>
     </ClassicsHeader>
 
     <!-- Hero -->
     <view class="lp-hero">
-      <text class="lp-kicker">名家甄选</text>
-      <text class="lp-hero-title">循路而读</text>
-      <text class="lp-hero-sub">编辑与达人整理的主题书单，少走弯路。</text>
+      <text class="lp-kicker">
+        名家甄选
+      </text>
+      <text class="lp-hero-title">
+        循路而读
+      </text>
+      <text class="lp-hero-sub">
+        编辑与达人整理的主题书单，少走弯路。
+      </text>
     </view>
 
     <!-- 书单列表 -->
     <view class="lp-list">
-      <view v-for="list in lists" :key="list.id" class="lp-card">
+      <view
+        v-for="list in lists"
+        :key="list.id"
+        class="lp-card"
+      >
         <!-- 卡片主体（可点击进入详情） -->
-        <view class="lp-card-body" @tap="goDetail(list.id)">
-          <text class="lp-card-title">{{ list.title }}</text>
-          <text class="lp-card-author">@{{ list.author }} · {{ list.bookCount }} 本书</text>
-          <text class="lp-card-desc">{{ list.desc }}</text>
+        <view
+          class="lp-card-body"
+          @tap="goDetail(list.id)"
+        >
+          <text class="lp-card-title">
+            {{ list.title }}
+          </text>
+          <text class="lp-card-author">
+            @{{ list.author }} · {{ list.bookCount }} 本书
+          </text>
+          <text class="lp-card-desc">
+            {{ list.desc }}
+          </text>
 
           <!-- 书封堆叠 -->
           <view class="lp-covers">
-            <view v-for="(b, i) in list.books" :key="i" class="lp-cover-item">
-              <FlatCover :title="b.title" :cover-color="coverColorForBook(b.title)" title-size="28rpx" />
+            <view
+              v-for="(b, i) in list.books"
+              :key="i"
+              class="lp-cover-item"
+            >
+              <FlatCover
+                :title="b.title"
+                :cover-color="coverColorForBook(b.title)"
+                title-size="28rpx"
+              />
             </view>
             <view class="lp-cover-more">
-              <text class="lp-cover-more-txt">+{{ list.bookCount - list.books.length }}</text>
-              <text class="lp-cover-more-label">本</text>
+              <text class="lp-cover-more-txt">
+                +{{ list.bookCount - list.books.length }}
+              </text>
+              <text class="lp-cover-more-label">
+                本
+              </text>
             </view>
           </view>
 
           <!-- 标签 -->
           <view class="lp-tags">
-            <view v-for="(t, i) in list.tags" :key="i" class="lp-tag">#{{ t }}</view>
+            <view
+              v-for="(t, i) in list.tags"
+              :key="i"
+              class="lp-tag"
+            >
+              #{{ t }}
+            </view>
           </view>
         </view>
 
         <!-- 底部操作栏 -->
         <view class="lp-card-foot">
-          <view class="lp-foot-btn" @tap.stop="toggleLike(list.id)">
+          <view
+            class="lp-foot-btn"
+            @tap.stop="toggleLike(list.id)"
+          >
             <app-icon
               name="heart"
               :size="32"
               :color="list.liked ? '#c41e3a' : '#999999'"
               :fill="list.liked ? '#c41e3a' : 'none'"
             />
-            <text class="lp-foot-txt">{{ fmtLikes(list.likes) }}</text>
+            <text class="lp-foot-txt">
+              {{ fmtLikes(list.likes) }}
+            </text>
           </view>
           <view class="lp-foot-btn">
-            <app-icon name="share-2" :size="32" color="#999999" />
-            <text class="lp-foot-txt">分享</text>
+            <app-icon
+              name="share-2"
+              :size="32"
+              color="#999999"
+            />
+            <text class="lp-foot-txt">
+              分享
+            </text>
           </view>
-          <view class="lp-foot-view" @tap.stop="goDetail(list.id)">
-            <text class="lp-foot-view-txt">查看书单</text>
-            <app-icon name="chevron-right" :size="32" color="#c41e3a" />
+          <view
+            class="lp-foot-view"
+            @tap.stop="goDetail(list.id)"
+          >
+            <text class="lp-foot-view-txt">
+              查看书单
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="32"
+              color="#c41e3a"
+            />
           </view>
         </view>
       </view>

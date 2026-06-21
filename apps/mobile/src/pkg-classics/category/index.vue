@@ -1,30 +1,55 @@
 <template>
   <view class="cat-page">
-    <classics-header :title="config.name" right-type="search" @back="goBack" />
+    <classics-header
+      :title="config.name"
+      right-type="search"
+      @back="goBack"
+    />
 
     <view class="cat-main">
       <!-- 分类 Hero -->
       <view class="cat-hero-wrap">
-        <view class="cat-hero" :style="{ background: `linear-gradient(150deg, ${config.from}, ${config.to})` }">
+        <view
+          class="cat-hero"
+          :style="{ background: `linear-gradient(150deg, ${config.from}, ${config.to})` }"
+        >
           <view class="cat-hero-top">
             <view class="cat-hero-info">
-              <text class="cat-hero-cat">四库 · {{ config.desc }}</text>
-              <text class="cat-hero-name">{{ config.name }}</text>
-              <text class="cat-hero-intro">{{ config.intro }}</text>
+              <text class="cat-hero-cat">
+                四库 · {{ config.desc }}
+              </text>
+              <text class="cat-hero-name">
+                {{ config.name }}
+              </text>
+              <text class="cat-hero-intro">
+                {{ config.intro }}
+              </text>
             </view>
             <view class="cat-hero-icon">
-              <app-icon :name="config.icon" :size="48" color="#ffffff" />
+              <app-icon
+                :name="config.icon"
+                :size="48"
+                color="#ffffff"
+              />
             </view>
           </view>
           <view class="cat-hero-count">
-            <text class="cat-hero-num">{{ config.count }}</text>
-            <text class="cat-hero-unit">部典籍</text>
+            <text class="cat-hero-num">
+              {{ config.count }}
+            </text>
+            <text class="cat-hero-unit">
+              部典籍
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 子门类筛选 -->
-      <scroll-view class="cat-subs" scroll-x :show-scrollbar="false">
+      <scroll-view
+        class="cat-subs"
+        scroll-x
+        :show-scrollbar="false"
+      >
         <view class="cat-subs-row">
           <view
             v-for="sub in config.subCats"
@@ -33,14 +58,20 @@
             :class="{ 'cat-sub-active': activeSub === sub }"
             @tap="activeSub = sub"
           >
-            <text class="cat-sub-text">{{ sub }}</text>
+            <text class="cat-sub-text">
+              {{ sub }}
+            </text>
           </view>
         </view>
       </scroll-view>
 
       <!-- 排序 -->
       <view class="cat-sort">
-        <text class="cat-sort-count">共 <text class="cat-sort-num">{{ books.length }}</text> 部</text>
+        <text class="cat-sort-count">
+          共 <text class="cat-sort-num">
+            {{ books.length }}
+          </text> 部
+        </text>
         <view class="cat-sort-toggle">
           <view
             v-for="s in sortOptions"
@@ -49,7 +80,9 @@
             :class="{ 'cat-sort-btn-active': sort === s.key }"
             @tap="sort = s.key"
           >
-            <text class="cat-sort-btn-text">{{ s.label }}</text>
+            <text class="cat-sort-btn-text">
+              {{ s.label }}
+            </text>
           </view>
         </view>
       </view>
@@ -62,19 +95,42 @@
           class="cat-card"
           @tap="goDetail(book.id)"
         >
-          <flat-cover :title="book.title" :label="book.dynasty" :cover-color="config.cover" title-size="28rpx" class="cat-card-cover" />
+          <flat-cover
+            :title="book.title"
+            :label="book.dynasty"
+            :cover-color="config.cover"
+            title-size="28rpx"
+            class="cat-card-cover"
+          />
           <view class="cat-card-body">
             <view class="cat-card-top">
               <view class="cat-card-title-row">
-                <text class="cat-card-title">{{ book.title }}</text>
-                <view v-if="book.isFree" class="cat-card-free"><text class="cat-card-free-text">免费</text></view>
+                <text class="cat-card-title">
+                  {{ book.title }}
+                </text>
+                <view
+                  v-if="book.isFree"
+                  class="cat-card-free"
+                >
+                  <text class="cat-card-free-text">
+                    免费
+                  </text>
+                </view>
               </view>
-              <text class="cat-card-desc">{{ book.desc }}</text>
+              <text class="cat-card-desc">
+                {{ book.desc }}
+              </text>
             </view>
-            <text class="cat-card-meta">{{ book.author }} · {{ book.dynasty }} · {{ fmtReads(book.reads) }}人读</text>
+            <text class="cat-card-meta">
+              {{ book.author }} · {{ book.dynasty }} · {{ fmtReads(book.reads) }}人读
+            </text>
           </view>
           <view class="cat-card-arrow">
-            <app-icon name="chevron-right" :size="40" color="rgba(0,0,0,0.25)" />
+            <app-icon
+              name="chevron-right"
+              :size="40"
+              color="rgba(0,0,0,0.25)"
+            />
           </view>
         </view>
       </view>

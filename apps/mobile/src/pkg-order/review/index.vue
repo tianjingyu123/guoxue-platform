@@ -1,31 +1,63 @@
 <template>
   <view class="page">
-    <app-nav-bar back-icon="arrow-left" :back-size="40" title-align="left">
+    <app-nav-bar
+      back-icon="arrow-left"
+      :back-size="40"
+      title-align="left"
+    >
       <template #center>
         <view class="nav-title-wrap">
-          <text class="nav-title">评价订单</text>
-          <text class="nav-id">#{{ orderId }}</text>
+          <text class="nav-title">
+            评价订单
+          </text>
+          <text class="nav-id">
+            #{{ orderId }}
+          </text>
         </view>
       </template>
     </app-nav-bar>
 
-    <scroll-view scroll-y class="scroll-area">
-      <view v-for="(item, idx) in reviewItems" :key="item.id" class="review-card">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+    >
+      <view
+        v-for="(item, idx) in reviewItems"
+        :key="item.id"
+        class="review-card"
+      >
         <!-- 商品信息 -->
         <view class="product-row">
-          <image class="product-cover" :src="item.cover" mode="aspectFill" />
+          <image
+            class="product-cover"
+            :src="item.cover"
+            mode="aspectFill"
+          />
           <view class="product-info">
-            <text class="product-name">{{ item.name }}</text>
-            <text class="product-idx">商品 {{ idx + 1 }}/{{ reviewItems.length }}</text>
+            <text class="product-name">
+              {{ item.name }}
+            </text>
+            <text class="product-idx">
+              商品 {{ idx + 1 }}/{{ reviewItems.length }}
+            </text>
           </view>
         </view>
 
         <view class="card-body">
           <!-- 星级评分 -->
           <view class="rating-block">
-            <text class="rating-label">商品评分 <text class="req">*</text></text>
+            <text class="rating-label">
+              商品评分 <text class="req">
+                *
+              </text>
+            </text>
             <view class="stars">
-              <view v-for="star in 5" :key="star" class="star-btn" @tap="setRating(idx, star)">
+              <view
+                v-for="star in 5"
+                :key="star"
+                class="star-btn"
+                @tap="setRating(idx, star)"
+              >
                 <app-icon
                   name="star"
                   :size="64"
@@ -33,14 +65,21 @@
                   :fill="star <= forms[idx].rating"
                 />
               </view>
-              <text v-if="forms[idx].rating > 0" class="rating-text" :class="ratingClass(forms[idx].rating)">
+              <text
+                v-if="forms[idx].rating > 0"
+                class="rating-text"
+                :class="ratingClass(forms[idx].rating)"
+              >
                 {{ ratingLabels[forms[idx].rating] }}
               </text>
             </view>
           </view>
 
           <!-- 评价标签 -->
-          <view v-if="(tagsByRating[forms[idx].rating] || []).length > 0" class="tags-wrap">
+          <view
+            v-if="(tagsByRating[forms[idx].rating] || []).length > 0"
+            class="tags-wrap"
+          >
             <view
               v-for="tag in tagsByRating[forms[idx].rating]"
               :key="tag"
@@ -48,19 +87,28 @@
               :class="{ active: forms[idx].tags.includes(tag) }"
               @tap="toggleTag(idx, tag)"
             >
-              <text class="tag-text" :class="{ active: forms[idx].tags.includes(tag) }">{{ tag }}</text>
+              <text
+                class="tag-text"
+                :class="{ active: forms[idx].tags.includes(tag) }"
+              >
+                {{ tag }}
+              </text>
             </view>
           </view>
 
           <!-- 文字评价 -->
           <view class="content-block">
             <view class="content-head">
-              <text class="content-label">详细评价（选填）</text>
-              <text class="word-count">{{ forms[idx].content.length }}/200</text>
+              <text class="content-label">
+                详细评价（选填）
+              </text>
+              <text class="word-count">
+                {{ forms[idx].content.length }}/200
+              </text>
             </view>
             <textarea
-              class="content-input"
               v-model="forms[idx].content"
+              class="content-input"
               placeholder="分享使用感受，帮助更多买家..."
               :maxlength="200"
               placeholder-class="ph"
@@ -69,11 +117,22 @@
 
           <!-- 图片上传入口 -->
           <view class="upload-row">
-            <view class="upload-add" @tap="addImage(idx)">
-              <app-icon name="camera" :size="40" color="#9CA3AF" />
-              <text class="upload-add-text">添加图片</text>
+            <view
+              class="upload-add"
+              @tap="addImage(idx)"
+            >
+              <app-icon
+                name="camera"
+                :size="40"
+                color="#9CA3AF"
+              />
+              <text class="upload-add-text">
+                添加图片
+              </text>
             </view>
-            <text class="upload-hint">最多添加 6 张图片</text>
+            <text class="upload-hint">
+              最多添加 6 张图片
+            </text>
           </view>
         </view>
       </view>
@@ -82,10 +141,27 @@
     </scroll-view>
 
     <!-- 底部提交 -->
-    <view class="submit-bar" :style="{ paddingBottom: 16 + safeBottom + 'px' }">
-      <text v-if="!allRated" class="submit-hint">请为所有商品打分后提交</text>
-      <view class="submit-btn" :class="{ disabled: !allRated }" @tap="submit">
-        <text class="submit-text" :class="{ disabled: !allRated }">提交评价</text>
+    <view
+      class="submit-bar"
+      :style="{ paddingBottom: 16 + safeBottom + 'px' }"
+    >
+      <text
+        v-if="!allRated"
+        class="submit-hint"
+      >
+        请为所有商品打分后提交
+      </text>
+      <view
+        class="submit-btn"
+        :class="{ disabled: !allRated }"
+        @tap="submit"
+      >
+        <text
+          class="submit-text"
+          :class="{ disabled: !allRated }"
+        >
+          提交评价
+        </text>
       </view>
     </view>
   </view>

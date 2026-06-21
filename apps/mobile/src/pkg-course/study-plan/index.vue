@@ -83,23 +83,55 @@ function coursePct(c: { completedLessons: number; totalLessons: number }) {
   <view class="page">
     <!-- 导航栏 -->
     <view class="nav">
-      <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#ffffff" /></view>
-      <text class="nav-title">学习计划</text>
-      <view class="streak"><app-icon name="flame" :size="28" color="#fdba74" /><text class="streak-txt">{{ studyStreak }}天连续</text></view>
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="chevron-left"
+          :size="40"
+          color="#ffffff"
+        />
+      </view>
+      <text class="nav-title">
+        学习计划
+      </text>
+      <view class="streak">
+        <app-icon
+          name="flame"
+          :size="28"
+          color="#fdba74"
+        /><text class="streak-txt">
+          {{ studyStreak }}天连续
+        </text>
+      </view>
     </view>
 
     <!-- 完成度统计条 -->
     <view class="stat-bar">
       <view class="stat-left">
         <view class="stat-row">
-          <text class="stat-label">今日完成</text>
-          <text class="stat-val">{{ doneCount }}/{{ tasks.length }} 项</text>
+          <text class="stat-label">
+            今日完成
+          </text>
+          <text class="stat-val">
+            {{ doneCount }}/{{ tasks.length }} 项
+          </text>
         </view>
-        <view class="stat-track"><view class="stat-fill" :style="{ width: donePct + '%' }" /></view>
+        <view class="stat-track">
+          <view
+            class="stat-fill"
+            :style="{ width: donePct + '%' }"
+          />
+        </view>
       </view>
       <view class="stat-pct">
-        <text class="stat-pct-num">{{ donePct }}%</text>
-        <text class="stat-pct-label">完成率</text>
+        <text class="stat-pct-num">
+          {{ donePct }}%
+        </text>
+        <text class="stat-pct-label">
+          完成率
+        </text>
       </view>
     </view>
 
@@ -108,27 +140,62 @@ function coursePct(c: { completedLessons: number; totalLessons: number }) {
       <view class="card">
         <view class="card-head">
           <view class="card-head-l">
-            <view class="ico-box red"><app-icon name="calendar" :size="28" color="#C41E3A" /></view>
-            <text class="card-title">打卡日历</text>
+            <view class="ico-box red">
+              <app-icon
+                name="calendar"
+                :size="28"
+                color="#C41E3A"
+              />
+            </view>
+            <text class="card-title">
+              打卡日历
+            </text>
           </view>
-          <text class="card-sub">近30天打卡 <text class="hl">{{ checkInTotal }}</text> 天</text>
+          <text class="card-sub">
+            近30天打卡 <text class="hl">
+              {{ checkInTotal }}
+            </text> 天
+          </text>
         </view>
         <view class="cal-wkrow">
           <view class="cal-mlabel" />
-          <text v-for="(l, i) in WEEK_LABELS" :key="i" class="cal-wk">{{ l }}</text>
+          <text
+            v-for="(l, i) in WEEK_LABELS"
+            :key="i"
+            class="cal-wk"
+          >
+            {{ l }}
+          </text>
         </view>
         <view class="cal-grid">
-          <view v-for="(week, wi) in weeks" :key="wi" class="cal-week">
-            <text class="cal-mlabel">{{ week[0].month }}月</text>
-            <view v-for="(cell, di) in week" :key="di" class="cal-cellwrap">
-              <view class="cal-cell" :class="[cell.isFuture ? 'future' : levelClass(cell.level), { tdy: cell.isToday }]" />
+          <view
+            v-for="(week, wi) in weeks"
+            :key="wi"
+            class="cal-week"
+          >
+            <text class="cal-mlabel">
+              {{ week[0].month }}月
+            </text>
+            <view
+              v-for="(cell, di) in week"
+              :key="di"
+              class="cal-cellwrap"
+            >
+              <view
+                class="cal-cell"
+                :class="[cell.isFuture ? 'future' : levelClass(cell.level), { tdy: cell.isToday }]"
+              />
             </view>
           </view>
         </view>
         <view class="cal-legend">
-          <text class="legend-txt">少</text>
+          <text class="legend-txt">
+            少
+          </text>
           <view class="legend-box lv0" /><view class="legend-box lv1" /><view class="legend-box lv2" /><view class="legend-box lv3" />
-          <text class="legend-txt">多</text>
+          <text class="legend-txt">
+            多
+          </text>
         </view>
       </view>
 
@@ -136,32 +203,67 @@ function coursePct(c: { completedLessons: number; totalLessons: number }) {
       <view class="card">
         <view class="card-head">
           <view class="card-head-l">
-            <view class="ico-box red"><app-icon name="target" :size="28" color="#C41E3A" /></view>
-            <text class="card-title">学习目标</text>
+            <view class="ico-box red">
+              <app-icon
+                name="target"
+                :size="28"
+                color="#C41E3A"
+              />
+            </view>
+            <text class="card-title">
+              学习目标
+            </text>
           </view>
-          <view class="edit-btn"><app-icon name="pencil" :size="24" color="#C41E3A" /><text class="edit-txt">编辑</text></view>
+          <view class="edit-btn">
+            <app-icon
+              name="pencil"
+              :size="24"
+              color="#C41E3A"
+            /><text class="edit-txt">
+              编辑
+            </text>
+          </view>
         </view>
         <view class="goal-stats">
           <view class="goal-stat">
-            <text class="goal-num red">{{ goal.daysPerWeek }}</text>
-            <text class="goal-unit">天 / 周</text>
+            <text class="goal-num red">
+              {{ goal.daysPerWeek }}
+            </text>
+            <text class="goal-unit">
+              天 / 周
+            </text>
           </view>
           <view class="goal-stat">
-            <text class="goal-num gold">{{ goal.minutesPerDay }}</text>
-            <text class="goal-unit">分钟 / 天</text>
+            <text class="goal-num gold">
+              {{ goal.minutesPerDay }}
+            </text>
+            <text class="goal-unit">
+              分钟 / 天
+            </text>
           </view>
           <view class="goal-stat">
-            <text class="goal-num blue">{{ goal.daysPerWeek * goal.minutesPerDay }}</text>
-            <text class="goal-unit">分钟 / 周</text>
+            <text class="goal-num blue">
+              {{ goal.daysPerWeek * goal.minutesPerDay }}
+            </text>
+            <text class="goal-unit">
+              分钟 / 周
+            </text>
           </view>
         </view>
         <view class="goal-week">
           <view
-            v-for="(l, i) in WEEK_LABELS" :key="i"
-            class="gw-cell" :class="i === todayDay ? 'tdy' : (i !== 0 && i <= goal.daysPerWeek ? 'plan' : 'off')"
+            v-for="(l, i) in WEEK_LABELS"
+            :key="i"
+            class="gw-cell"
+            :class="i === todayDay ? 'tdy' : (i !== 0 && i <= goal.daysPerWeek ? 'plan' : 'off')"
           >
-            <text class="gw-txt">{{ l }}</text>
-            <view v-if="i !== 0 && i <= goal.daysPerWeek && i !== todayDay" class="gw-dot" />
+            <text class="gw-txt">
+              {{ l }}
+            </text>
+            <view
+              v-if="i !== 0 && i <= goal.daysPerWeek && i !== todayDay"
+              class="gw-dot"
+            />
           </view>
         </view>
       </view>
@@ -171,29 +273,82 @@ function coursePct(c: { completedLessons: number; totalLessons: number }) {
         <view class="task-head">
           <view class="task-head-row">
             <view class="card-head-l">
-              <view class="ico-box orange"><app-icon name="flame" :size="28" color="#f97316" /></view>
+              <view class="ico-box orange">
+                <app-icon
+                  name="flame"
+                  :size="28"
+                  color="#f97316"
+                />
+              </view>
               <view class="task-head-tt">
-                <text class="card-title">今日任务</text>
-                <text class="task-date">{{ todayLabel }}</text>
+                <text class="card-title">
+                  今日任务
+                </text>
+                <text class="task-date">
+                  {{ todayLabel }}
+                </text>
               </view>
             </view>
-            <text class="task-count">{{ doneCount }}/{{ tasks.length }}</text>
+            <text class="task-count">
+              {{ doneCount }}/{{ tasks.length }}
+            </text>
           </view>
-          <view class="task-track"><view class="task-fill" :style="{ width: donePct + '%' }" /></view>
+          <view class="task-track">
+            <view
+              class="task-fill"
+              :style="{ width: donePct + '%' }"
+            />
+          </view>
           <view class="task-mins">
-            <text class="task-min">计划 {{ totalMin }} 分钟</text>
-            <text class="task-min hl">已完成 {{ doneMin }} 分钟</text>
+            <text class="task-min">
+              计划 {{ totalMin }} 分钟
+            </text>
+            <text class="task-min hl">
+              已完成 {{ doneMin }} 分钟
+            </text>
           </view>
         </view>
-        <view v-if="tasks.length === 0" class="task-empty">今日没有安排学习任务</view>
-        <view v-else class="task-list">
-          <view v-for="task in tasks" :key="task.id" class="task-item" @tap="toggleTask(task.id)">
-            <app-icon :name="task.isDone ? 'check-circle-2' : 'circle'" :size="40" :color="task.isDone ? '#52C41A' : '#DDDDDD'" />
+        <view
+          v-if="tasks.length === 0"
+          class="task-empty"
+        >
+          今日没有安排学习任务
+        </view>
+        <view
+          v-else
+          class="task-list"
+        >
+          <view
+            v-for="task in tasks"
+            :key="task.id"
+            class="task-item"
+            @tap="toggleTask(task.id)"
+          >
+            <app-icon
+              :name="task.isDone ? 'check-circle-2' : 'circle'"
+              :size="40"
+              :color="task.isDone ? '#52C41A' : '#DDDDDD'"
+            />
             <view class="task-info">
-              <text class="task-name" :class="{ done: task.isDone }">{{ task.title }}</text>
-              <text class="task-lesson">{{ task.lessonTitle }}</text>
+              <text
+                class="task-name"
+                :class="{ done: task.isDone }"
+              >
+                {{ task.title }}
+              </text>
+              <text class="task-lesson">
+                {{ task.lessonTitle }}
+              </text>
             </view>
-            <view class="task-dur"><app-icon name="clock" :size="22" color="#BBBBBB" /><text class="task-dur-txt">{{ task.duration }}分钟</text></view>
+            <view class="task-dur">
+              <app-icon
+                name="clock"
+                :size="22"
+                color="#BBBBBB"
+              /><text class="task-dur-txt">
+                {{ task.duration }}分钟
+              </text>
+            </view>
           </view>
         </view>
       </view>
@@ -202,38 +357,110 @@ function coursePct(c: { completedLessons: number; totalLessons: number }) {
       <view class="card np">
         <view class="tl-head">
           <view class="card-head-l">
-            <view class="ico-box blue"><app-icon name="calendar" :size="28" color="#4A90D9" /></view>
-            <text class="card-title">课程安排</text>
+            <view class="ico-box blue">
+              <app-icon
+                name="calendar"
+                :size="28"
+                color="#4A90D9"
+              />
+            </view>
+            <text class="card-title">
+              课程安排
+            </text>
           </view>
-          <view class="add-btn"><app-icon name="plus" :size="28" color="#C41E3A" /></view>
+          <view class="add-btn">
+            <app-icon
+              name="plus"
+              :size="28"
+              color="#C41E3A"
+            />
+          </view>
         </view>
-        <view v-if="courses.length === 0" class="tl-empty">
-          <app-icon name="book-open" :size="56" color="#BBBBBB" /><text class="tl-empty-txt">还没有安排课程，点击添加</text>
+        <view
+          v-if="courses.length === 0"
+          class="tl-empty"
+        >
+          <app-icon
+            name="book-open"
+            :size="56"
+            color="#BBBBBB"
+          /><text class="tl-empty-txt">
+            还没有安排课程，点击添加
+          </text>
         </view>
-        <view v-else class="tl-list">
-          <view v-for="course in courses" :key="course.id" class="tl-item">
-            <app-icon name="grip-vertical" :size="28" color="#DDDDDD" />
-            <image class="tl-cover" :src="course.cover" mode="aspectFill" />
+        <view
+          v-else
+          class="tl-list"
+        >
+          <view
+            v-for="course in courses"
+            :key="course.id"
+            class="tl-item"
+          >
+            <app-icon
+              name="grip-vertical"
+              :size="28"
+              color="#DDDDDD"
+            />
+            <image
+              class="tl-cover"
+              :src="course.cover"
+              mode="aspectFill"
+            />
             <view class="tl-info">
-              <text class="tl-name">{{ course.title }}</text>
+              <text class="tl-name">
+                {{ course.title }}
+              </text>
               <view class="tl-prog-row">
-                <view class="tl-track"><view class="tl-fill" :style="{ width: coursePct(course) + '%' }" /></view>
-                <text class="tl-pct">{{ coursePct(course) }}%</text>
+                <view class="tl-track">
+                  <view
+                    class="tl-fill"
+                    :style="{ width: coursePct(course) + '%' }"
+                  />
+                </view>
+                <text class="tl-pct">
+                  {{ coursePct(course) }}%
+                </text>
               </view>
               <view class="tl-days">
-                <text v-for="(l, i) in WEEK_LABELS" :key="i" class="tl-day" :class="{ on: course.scheduledDays.includes(i) }">{{ l }}</text>
+                <text
+                  v-for="(l, i) in WEEK_LABELS"
+                  :key="i"
+                  class="tl-day"
+                  :class="{ on: course.scheduledDays.includes(i) }"
+                >
+                  {{ l }}
+                </text>
               </view>
             </view>
-            <view class="tl-del" @tap="removeCourse(course.id)"><app-icon name="trash-2" :size="28" color="#DDDDDD" /></view>
+            <view
+              class="tl-del"
+              @tap="removeCourse(course.id)"
+            >
+              <app-icon
+                name="trash-2"
+                :size="28"
+                color="#DDDDDD"
+              />
+            </view>
           </view>
         </view>
       </view>
 
       <!-- 底部提示 -->
       <view class="foot">
-        <text class="foot-txt">从</text>
-        <text class="foot-link" @tap="navigateTo('/courses-list')">课程广场</text>
-        <text class="foot-txt">添加更多课程到学习计划</text>
+        <text class="foot-txt">
+          从
+        </text>
+        <text
+          class="foot-link"
+          @tap="navigateTo('/courses-list')"
+        >
+          课程广场
+        </text>
+        <text class="foot-txt">
+          添加更多课程到学习计划
+        </text>
       </view>
     </view>
   </view>

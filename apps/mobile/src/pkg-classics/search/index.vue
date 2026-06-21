@@ -3,42 +3,86 @@
     <!-- 搜索头部 - 毛玻璃 -->
     <view class="cs-header">
       <view class="cs-bar">
-        <view class="cs-back" @tap="goBack">
-          <app-icon name="arrow-left" :size="44" color="#2c2c2c" />
+        <view
+          class="cs-back"
+          @tap="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="44"
+            color="#2c2c2c"
+          />
         </view>
         <view class="cs-input-wrap">
-          <app-icon class="cs-input-search" name="search" :size="36" color="#999999" />
+          <app-icon
+            class="cs-input-search"
+            name="search"
+            :size="36"
+            color="#999999"
+          />
           <input
-            class="cs-input"
             v-model="searchValue"
+            class="cs-input"
             :focus="autoFocus"
             placeholder="搜书名、作者、朝代或门类"
             placeholder-class="cs-input-ph"
             confirm-type="search"
             @input="onInput"
             @confirm="() => handleSearch()"
-          />
-          <view v-if="searchValue" class="cs-clear" @tap="handleClear">
-            <app-icon name="x" :size="32" color="#999999" />
+          >
+          <view
+            v-if="searchValue"
+            class="cs-clear"
+            @tap="handleClear"
+          >
+            <app-icon
+              name="x"
+              :size="32"
+              color="#999999"
+            />
           </view>
         </view>
-        <view class="cs-ai" @tap="goAi">
-          <app-icon name="sparkles" :size="32" color="#ffffff" />
+        <view
+          class="cs-ai"
+          @tap="goAi"
+        >
+          <app-icon
+            name="sparkles"
+            :size="32"
+            color="#ffffff"
+          />
         </view>
       </view>
     </view>
 
     <view class="cs-main">
       <!-- 初始态 -->
-      <view v-if="searchState === 'initial'" class="cs-initial">
+      <view
+        v-if="searchState === 'initial'"
+        class="cs-initial"
+      >
         <!-- 搜索历史 -->
-        <view v-if="searchHistory.length > 0" class="cs-section">
+        <view
+          v-if="searchHistory.length > 0"
+          class="cs-section"
+        >
           <view class="cs-sec-head">
             <view class="cs-sec-title-wrap">
-              <app-icon name="clock" :size="32" color="#999999" />
-              <text class="cs-sec-title">搜索历史</text>
+              <app-icon
+                name="clock"
+                :size="32"
+                color="#999999"
+              />
+              <text class="cs-sec-title">
+                搜索历史
+              </text>
             </view>
-            <text class="cs-sec-action" @tap="searchHistory = []">清空</text>
+            <text
+              class="cs-sec-action"
+              @tap="searchHistory = []"
+            >
+              清空
+            </text>
           </view>
           <view class="cs-tags">
             <view
@@ -46,15 +90,23 @@
               :key="'h' + i"
               class="cs-tag"
               @tap="handleSearch(kw)"
-            >{{ kw }}</view>
+            >
+              {{ kw }}
+            </view>
           </view>
         </view>
 
         <!-- 热门搜索 -->
         <view class="cs-section">
           <view class="cs-sec-title-wrap cs-mb">
-            <app-icon name="trending-up" :size="32" color="#c41e3a" />
-            <text class="cs-sec-title">热门搜索</text>
+            <app-icon
+              name="trending-up"
+              :size="32"
+              color="#c41e3a"
+            />
+            <text class="cs-sec-title">
+              热门搜索
+            </text>
           </view>
           <view class="cs-tags">
             <view
@@ -64,7 +116,12 @@
               @tap="handleSearch(item.keyword)"
             >
               {{ item.keyword }}
-              <text v-if="item.isHot" class="cs-hot-badge">HOT</text>
+              <text
+                v-if="item.isHot"
+                class="cs-hot-badge"
+              >
+                HOT
+              </text>
             </view>
           </view>
         </view>
@@ -72,27 +129,63 @@
         <!-- 为你推荐 -->
         <view class="cs-section">
           <view class="cs-sec-head">
-            <text class="cs-sec-title">为你推荐</text>
-            <view class="cs-more" @tap="goHome">
-              <text class="cs-sec-action">更多</text>
-              <app-icon name="chevron-right" :size="32" color="#999999" />
+            <text class="cs-sec-title">
+              为你推荐
+            </text>
+            <view
+              class="cs-more"
+              @tap="goHome"
+            >
+              <text class="cs-sec-action">
+                更多
+              </text>
+              <app-icon
+                name="chevron-right"
+                :size="32"
+                color="#999999"
+              />
             </view>
           </view>
           <view class="cs-result-list">
-            <view v-for="book in recommendBooks" :key="book.id" class="cs-result-row" @tap="goDetail(book.id)">
-              <flat-cover :title="book.title.slice(0, 4)" :label="book.dynasty" :cover-color="book.color" title-size="22rpx" class="cs-row-cover" />
+            <view
+              v-for="book in recommendBooks"
+              :key="book.id"
+              class="cs-result-row"
+              @tap="goDetail(book.id)"
+            >
+              <flat-cover
+                :title="book.title.slice(0, 4)"
+                :label="book.dynasty"
+                :cover-color="book.color"
+                title-size="22rpx"
+                class="cs-row-cover"
+              />
               <view class="cs-row-info">
                 <view class="cs-row-top">
                   <view class="cs-row-title-line">
-                    <text class="cs-row-title">{{ book.title }}</text>
-                    <text v-if="book.isFree" class="cs-free">免费</text>
+                    <text class="cs-row-title">
+                      {{ book.title }}
+                    </text>
+                    <text
+                      v-if="book.isFree"
+                      class="cs-free"
+                    >
+                      免费
+                    </text>
                   </view>
-                  <text class="cs-row-desc">{{ book.description }}</text>
+                  <text class="cs-row-desc">
+                    {{ book.description }}
+                  </text>
                 </view>
                 <view class="cs-row-meta">
                   <text>{{ book.author }} · {{ book.dynasty }}</text>
                   <view class="cs-row-rating">
-                    <app-icon name="star" :size="22" color="#fbbf24" fill="#fbbf24" />
+                    <app-icon
+                      name="star"
+                      :size="22"
+                      color="#fbbf24"
+                      fill="#fbbf24"
+                    />
                     <text>{{ book.rating }}</text>
                   </view>
                   <text>{{ fmtReads(book.reads) }}人读</text>
@@ -104,47 +197,101 @@
       </view>
 
       <!-- 搜索建议 -->
-      <view v-else-if="searchState === 'suggesting' && suggestions.length > 0" class="cs-suggest">
+      <view
+        v-else-if="searchState === 'suggesting' && suggestions.length > 0"
+        class="cs-suggest"
+      >
         <view
           v-for="(s, i) in suggestions"
           :key="'s' + i"
           :class="['cs-suggest-item', i > 0 ? 'cs-suggest-border' : '']"
           @tap="handleSearch(s.text)"
         >
-          <app-icon name="search" :size="36" color="#999999" />
+          <app-icon
+            name="search"
+            :size="36"
+            color="#999999"
+          />
           <view class="cs-suggest-text">
-            <template v-for="(part, pi) in s.text.split(searchValue)" :key="pi">
+            <template
+              v-for="(part, pi) in s.text.split(searchValue)"
+              :key="pi"
+            >
               <text>{{ part }}</text>
-              <text v-if="pi < s.text.split(searchValue).length - 1" class="cs-hl">{{ searchValue }}</text>
+              <text
+                v-if="pi < s.text.split(searchValue).length - 1"
+                class="cs-hl"
+              >
+                {{ searchValue }}
+              </text>
             </template>
           </view>
-          <app-icon name="chevron-right" :size="32" color="#cccccc" />
+          <app-icon
+            name="chevron-right"
+            :size="32"
+            color="#cccccc"
+          />
         </view>
       </view>
 
       <!-- 搜索中 -->
-      <view v-else-if="isSearching" class="cs-loading">
+      <view
+        v-else-if="isSearching"
+        class="cs-loading"
+      >
         <view class="cs-spinner" />
       </view>
 
       <!-- 结果 -->
-      <view v-else-if="searchState === 'results'" class="cs-results">
-        <text class="cs-result-count">共找到 <text class="cs-count-num">{{ results.length }}</text> 部古籍</text>
+      <view
+        v-else-if="searchState === 'results'"
+        class="cs-results"
+      >
+        <text class="cs-result-count">
+          共找到 <text class="cs-count-num">
+            {{ results.length }}
+          </text> 部古籍
+        </text>
         <view class="cs-result-list">
-          <view v-for="book in results" :key="book.id" class="cs-result-row" @tap="goDetail(book.id)">
-            <flat-cover :title="book.title.slice(0, 4)" :label="book.dynasty" :cover-color="book.color" title-size="22rpx" class="cs-row-cover" />
+          <view
+            v-for="book in results"
+            :key="book.id"
+            class="cs-result-row"
+            @tap="goDetail(book.id)"
+          >
+            <flat-cover
+              :title="book.title.slice(0, 4)"
+              :label="book.dynasty"
+              :cover-color="book.color"
+              title-size="22rpx"
+              class="cs-row-cover"
+            />
             <view class="cs-row-info">
               <view class="cs-row-top">
                 <view class="cs-row-title-line">
-                  <text class="cs-row-title">{{ book.title }}</text>
-                  <text v-if="book.isFree" class="cs-free">免费</text>
+                  <text class="cs-row-title">
+                    {{ book.title }}
+                  </text>
+                  <text
+                    v-if="book.isFree"
+                    class="cs-free"
+                  >
+                    免费
+                  </text>
                 </view>
-                <text class="cs-row-desc">{{ book.description }}</text>
+                <text class="cs-row-desc">
+                  {{ book.description }}
+                </text>
               </view>
               <view class="cs-row-meta">
                 <text>{{ book.author }} · {{ book.dynasty }}</text>
                 <view class="cs-row-rating">
-                  <app-icon name="star" :size="22" color="#fbbf24" fill="#fbbf24" />
+                  <app-icon
+                    name="star"
+                    :size="22"
+                    color="#fbbf24"
+                    fill="#fbbf24"
+                  />
                   <text>{{ book.rating }}</text>
                 </view>
                 <text>{{ fmtReads(book.reads) }}人读</text>
@@ -155,14 +302,32 @@
       </view>
 
       <!-- 空态 -->
-      <view v-else-if="searchState === 'empty'" class="cs-empty">
+      <view
+        v-else-if="searchState === 'empty'"
+        class="cs-empty"
+      >
         <view class="cs-empty-icon">
-          <app-icon name="search" :size="56" color="#999999" />
+          <app-icon
+            name="search"
+            :size="56"
+            color="#999999"
+          />
         </view>
-        <text class="cs-empty-title">未找到相关古籍</text>
-        <text class="cs-empty-desc">换个关键词试试，或让 AI 助手帮你找</text>
-        <view class="cs-empty-btn" @tap="goAi">
-          <app-icon name="sparkles" :size="32" color="#ffffff" />
+        <text class="cs-empty-title">
+          未找到相关古籍
+        </text>
+        <text class="cs-empty-desc">
+          换个关键词试试，或让 AI 助手帮你找
+        </text>
+        <view
+          class="cs-empty-btn"
+          @tap="goAi"
+        >
+          <app-icon
+            name="sparkles"
+            :size="32"
+            color="#ffffff"
+          />
           <text>询问 AI 助手</text>
         </view>
       </view>

@@ -1,22 +1,44 @@
 <template>
   <view class="op-page">
     <!-- Header -->
-    <view class="op-header" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="op-header"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="op-header-row">
-        <view class="op-back" @tap="goBack">
-          <app-icon name="chevron-left" :size="48" color="#ffffff" />
+        <view
+          class="op-back"
+          @tap="goBack"
+        >
+          <app-icon
+            name="chevron-left"
+            :size="48"
+            color="#ffffff"
+          />
         </view>
         <view class="op-header-info">
-          <text class="op-header-name">{{ info.name }}</text>
+          <text class="op-header-name">
+            {{ info.name }}
+          </text>
           <view class="op-header-level">
-            <app-icon name="crown" :size="28" color="#C9A96E" />
-            <text class="op-header-level-text">{{ info.level }}</text>
+            <app-icon
+              name="crown"
+              :size="28"
+              color="#C9A96E"
+            />
+            <text class="op-header-level-text">
+              {{ info.level }}
+            </text>
           </view>
         </view>
       </view>
     </view>
 
-    <scroll-view scroll-y class="op-scroll" v-if="!loading">
+    <scroll-view
+      v-if="!loading"
+      scroll-y
+      class="op-scroll"
+    >
       <!-- 数据概览 -->
       <view class="op-sec">
         <view class="op-overview">
@@ -26,12 +48,31 @@
             class="op-ov-card"
             @tap="navigateTo('/pkg-operator/operator-panel/index')"
           >
-            <text class="op-ov-label">{{ item.label }}</text>
-            <text class="op-ov-value">{{ formatValue(item.value, item.unit) }}</text>
-            <view v-if="item.trend !== undefined" class="op-ov-trend" :class="item.trend > 0 ? 'up' : 'down'">
-              <app-icon :name="item.trend > 0 ? 'trending-up' : 'trending-down'" :size="22" :color="item.trend > 0 ? '#16a34a' : '#ef4444'" />
-              <text class="op-ov-trend-val">{{ item.trend > 0 ? '+' : '' }}{{ item.trend }}%</text>
-              <text v-if="item.trendLabel" class="op-ov-trend-label">{{ item.trendLabel }}</text>
+            <text class="op-ov-label">
+              {{ item.label }}
+            </text>
+            <text class="op-ov-value">
+              {{ formatValue(item.value, item.unit) }}
+            </text>
+            <view
+              v-if="item.trend !== undefined"
+              class="op-ov-trend"
+              :class="item.trend > 0 ? 'up' : 'down'"
+            >
+              <app-icon
+                :name="item.trend > 0 ? 'trending-up' : 'trending-down'"
+                :size="22"
+                :color="item.trend > 0 ? '#16a34a' : '#ef4444'"
+              />
+              <text class="op-ov-trend-val">
+                {{ item.trend > 0 ? '+' : '' }}{{ item.trend }}%
+              </text>
+              <text
+                v-if="item.trendLabel"
+                class="op-ov-trend-label"
+              >
+                {{ item.trendLabel }}
+              </text>
             </view>
           </view>
         </view>
@@ -40,7 +81,9 @@
       <!-- 快捷功能 -->
       <view class="op-sec">
         <view class="op-card">
-          <text class="op-card-title">快捷功能</text>
+          <text class="op-card-title">
+            快捷功能
+          </text>
           <view class="op-actions">
             <view
               v-for="action in quickActions"
@@ -49,12 +92,23 @@
               @tap="navigateTo(action.href)"
             >
               <view class="op-action-icon">
-                <app-icon :name="action.icon" :size="40" color="#C41E3A" />
-                <view v-if="action.badge && action.badge > 0" class="op-action-badge">
-                  <text class="op-action-badge-text">{{ action.badge > 99 ? '99+' : action.badge }}</text>
+                <app-icon
+                  :name="action.icon"
+                  :size="40"
+                  color="#C41E3A"
+                />
+                <view
+                  v-if="action.badge && action.badge > 0"
+                  class="op-action-badge"
+                >
+                  <text class="op-action-badge-text">
+                    {{ action.badge > 99 ? '99+' : action.badge }}
+                  </text>
                 </view>
               </view>
-              <text class="op-action-label">{{ action.label }}</text>
+              <text class="op-action-label">
+                {{ action.label }}
+              </text>
             </view>
           </view>
         </view>
@@ -65,8 +119,14 @@
         <view class="op-card op-card-flush">
           <view class="op-rank-head">
             <view class="op-rank-title-wrap">
-              <app-icon name="trophy" :size="36" color="#C9A96E" />
-              <text class="op-card-title plain">团队排行</text>
+              <app-icon
+                name="trophy"
+                :size="36"
+                color="#C9A96E"
+              />
+              <text class="op-card-title plain">
+                团队排行
+              </text>
             </view>
             <view class="op-rank-tabs">
               <view
@@ -76,7 +136,12 @@
                 :class="{ on: rankingPeriod === t.key }"
                 @tap="rankingPeriod = t.key"
               >
-                <text class="op-rank-tab-text" :class="{ on: rankingPeriod === t.key }">{{ t.label }}</text>
+                <text
+                  class="op-rank-tab-text"
+                  :class="{ on: rankingPeriod === t.key }"
+                >
+                  {{ t.label }}
+                </text>
               </view>
             </view>
           </view>
@@ -87,28 +152,64 @@
               class="op-rank-item"
               :class="{ self: m.isSelf }"
             >
-              <view class="op-rank-no" :class="rankClass(m.rank)">
-                <text class="op-rank-no-text" :class="rankClass(m.rank)">{{ m.rank }}</text>
+              <view
+                class="op-rank-no"
+                :class="rankClass(m.rank)"
+              >
+                <text
+                  class="op-rank-no-text"
+                  :class="rankClass(m.rank)"
+                >
+                  {{ m.rank }}
+                </text>
               </view>
-              <view class="op-rank-avatar">{{ m.nickname[0] }}</view>
+              <view class="op-rank-avatar">
+                {{ m.nickname[0] }}
+              </view>
               <view class="op-rank-body">
                 <view class="op-rank-name-row">
-                  <text class="op-rank-name">{{ m.nickname }}</text>
-                  <view v-if="m.isSelf" class="op-rank-self-tag"><text class="op-rank-self-text">我</text></view>
+                  <text class="op-rank-name">
+                    {{ m.nickname }}
+                  </text>
+                  <view
+                    v-if="m.isSelf"
+                    class="op-rank-self-tag"
+                  >
+                    <text class="op-rank-self-text">
+                      我
+                    </text>
+                  </view>
                 </view>
-                <text v-if="m.change !== undefined" class="op-rank-change" :class="m.change >= 0 ? 'up' : 'down'">
+                <text
+                  v-if="m.change !== undefined"
+                  class="op-rank-change"
+                  :class="m.change >= 0 ? 'up' : 'down'"
+                >
                   {{ m.change >= 0 ? '+' : '' }}{{ m.change }}%
                 </text>
               </view>
               <view class="op-rank-perf">
-                <text class="op-rank-perf-val">{{ m.performance.toLocaleString() }}</text>
-                <text class="op-rank-perf-unit">{{ m.performanceUnit }}</text>
+                <text class="op-rank-perf-val">
+                  {{ m.performance.toLocaleString() }}
+                </text>
+                <text class="op-rank-perf-unit">
+                  {{ m.performanceUnit }}
+                </text>
               </view>
             </view>
           </view>
-          <view class="op-rank-more" @tap="navigateTo('/pkg-operator/operator-panel/index')">
-            <text class="op-rank-more-text">查看完整排行</text>
-            <app-icon name="chevron-right" :size="26" color="#C41E3A" />
+          <view
+            class="op-rank-more"
+            @tap="navigateTo('/pkg-operator/operator-panel/index')"
+          >
+            <text class="op-rank-more-text">
+              查看完整排行
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="26"
+              color="#C41E3A"
+            />
           </view>
         </view>
       </view>
@@ -116,26 +217,57 @@
       <!-- 配额使用 -->
       <view class="op-sec">
         <view class="op-card">
-          <text class="op-card-title">配额使用</text>
+          <text class="op-card-title">
+            配额使用
+          </text>
           <view class="op-quota-list">
-            <view v-for="q in quotaUsage" :key="q.key" class="op-quota">
+            <view
+              v-for="q in quotaUsage"
+              :key="q.key"
+              class="op-quota"
+            >
               <view class="op-quota-head">
                 <view class="op-quota-label-wrap">
-                  <text class="op-quota-label">{{ q.label }}</text>
-                  <app-icon v-if="q.isLow" name="alert-circle" :size="26" color="#f59e0b" />
+                  <text class="op-quota-label">
+                    {{ q.label }}
+                  </text>
+                  <app-icon
+                    v-if="q.isLow"
+                    name="alert-circle"
+                    :size="26"
+                    color="#f59e0b"
+                  />
                 </view>
                 <text class="op-quota-num">
-                  <text :class="{ low: q.isLow }">{{ q.used }}</text><text class="op-quota-total">/{{ q.total }}{{ q.unit }}</text>
+                  <text :class="{ low: q.isLow }">
+                    {{ q.used }}
+                  </text><text class="op-quota-total">
+                    /{{ q.total }}{{ q.unit }}
+                  </text>
                 </text>
               </view>
               <view class="op-quota-bar">
-                <view class="op-quota-bar-fill" :class="{ low: q.isLow }" :style="{ width: pct(q) + '%' }" />
+                <view
+                  class="op-quota-bar-fill"
+                  :class="{ low: q.isLow }"
+                  :style="{ width: pct(q) + '%' }"
+                />
               </view>
-              <text v-if="q.expireAt" class="op-quota-expire">有效期至 {{ q.expireAt }}</text>
+              <text
+                v-if="q.expireAt"
+                class="op-quota-expire"
+              >
+                有效期至 {{ q.expireAt }}
+              </text>
             </view>
           </view>
-          <view class="op-quota-btn" @tap="navigateTo('/pkg-operator/operator-panel/index')">
-            <text class="op-quota-btn-text">升级配额</text>
+          <view
+            class="op-quota-btn"
+            @tap="navigateTo('/pkg-operator/operator-panel/index')"
+          >
+            <text class="op-quota-btn-text">
+              升级配额
+            </text>
           </view>
         </view>
       </view>
@@ -144,9 +276,16 @@
     </scroll-view>
 
     <!-- Loading 骨架 -->
-    <view v-else class="op-loading">
+    <view
+      v-else
+      class="op-loading"
+    >
       <view class="op-skeleton-grid">
-        <view v-for="i in 6" :key="i" class="op-skeleton-card" />
+        <view
+          v-for="i in 6"
+          :key="i"
+          class="op-skeleton-card"
+        />
       </view>
     </view>
   </view>

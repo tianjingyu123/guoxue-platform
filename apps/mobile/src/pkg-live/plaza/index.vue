@@ -31,12 +31,28 @@ function onSearch() {
     <!-- 固定头部 -->
     <view class="header">
       <view class="title-bar">
-        <view class="nav-back" @tap="goBack">
-          <AppIcon name="chevron-left" :size="88" color="#2c2c2c" />
+        <view
+          class="nav-back"
+          @tap="goBack"
+        >
+          <AppIcon
+            name="chevron-left"
+            :size="88"
+            color="#2c2c2c"
+          />
         </view>
-        <text class="nav-title">直播广场</text>
-        <view class="nav-search" @tap="onSearch">
-          <AppIcon name="search" :size="80" color="#666666" />
+        <text class="nav-title">
+          直播广场
+        </text>
+        <view
+          class="nav-search"
+          @tap="onSearch"
+        >
+          <AppIcon
+            name="search"
+            :size="80"
+            color="#666666"
+          />
         </view>
       </view>
       <!-- 分类 tabs（下划线风格） -->
@@ -48,20 +64,41 @@ function onSearch() {
           :class="activeTab === tab && 'tab-on'"
           @tap="activeTab = tab"
         >
-          <text class="tab-txt">{{ tab }}</text>
-          <view v-if="activeTab === tab" class="tab-line" />
+          <text class="tab-txt">
+            {{ tab }}
+          </text>
+          <view
+            v-if="activeTab === tab"
+            class="tab-line"
+          />
         </view>
       </view>
     </view>
 
     <!-- 内容区 -->
-    <scroll-view scroll-y class="content">
+    <scroll-view
+      scroll-y
+      class="content"
+    >
       <!-- 正在直播 -->
-      <view v-if="livesNow.length > 0" class="section">
+      <view
+        v-if="livesNow.length > 0"
+        class="section"
+      >
         <view class="sec-head">
-          <view class="radio-dot"><AppIcon name="radio" :size="48" color="#ffffff" /></view>
-          <text class="sec-title">正在直播</text>
-          <text class="sec-count">({{ livesNow.length }})</text>
+          <view class="radio-dot">
+            <AppIcon
+              name="radio"
+              :size="48"
+              color="#ffffff"
+            />
+          </view>
+          <text class="sec-title">
+            正在直播
+          </text>
+          <text class="sec-count">
+            ({{ livesNow.length }})
+          </text>
         </view>
         <view class="grid">
           <view
@@ -76,10 +113,17 @@ function onSearch() {
       </view>
 
       <!-- 直播预告 -->
-      <view v-if="livesUpcoming.length > 0" class="section">
+      <view
+        v-if="livesUpcoming.length > 0"
+        class="section"
+      >
         <view class="sec-head">
-          <text class="sec-title">直播预告</text>
-          <text class="sec-count">({{ livesUpcoming.length }})</text>
+          <text class="sec-title">
+            直播预告
+          </text>
+          <text class="sec-count">
+            ({{ livesUpcoming.length }})
+          </text>
         </view>
         <view class="grid">
           <view
@@ -94,9 +138,20 @@ function onSearch() {
       </view>
 
       <!-- 空态 -->
-      <view v-if="filtered.length === 0" class="empty">
-        <view class="empty-icon"><AppIcon name="radio" :size="128" color="#999999" /></view>
-        <text class="empty-txt">暂无相关直播</text>
+      <view
+        v-if="filtered.length === 0"
+        class="empty"
+      >
+        <view class="empty-icon">
+          <AppIcon
+            name="radio"
+            :size="128"
+            color="#999999"
+          />
+        </view>
+        <text class="empty-txt">
+          暂无相关直播
+        </text>
       </view>
     </scroll-view>
   </view>

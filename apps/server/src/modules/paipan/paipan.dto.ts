@@ -324,6 +324,95 @@ export class YangpanInputDto {
   daylightSaving?: boolean;
 }
 
+// ────────── 分组管理 ──────────
+
+export class GroupListQueryDto {
+  @ApiProperty({ description: "排盘类型", enum: ["BAZI", "QIMEN", "YANGPAN"], example: "BAZI" })
+  @IsString()
+  @IsIn(["BAZI", "QIMEN", "YANGPAN"])
+  paipanType: string;
+}
+
+export class CreateGroupDto {
+  @ApiProperty({ description: "排盘类型", enum: ["BAZI", "QIMEN", "YANGPAN"] })
+  @IsString()
+  @IsIn(["BAZI", "QIMEN", "YANGPAN"])
+  paipanType: string;
+
+  @ApiProperty({ description: "分组名称" })
+  @IsString()
+  @MinLength(1)
+  name: string;
+
+  @ApiPropertyOptional({ description: "分组颜色" })
+  @IsOptional()
+  @IsString()
+  color?: string;
+}
+
+export class RenameGroupDto {
+  @ApiProperty({ description: "排盘类型", enum: ["BAZI", "QIMEN", "YANGPAN"] })
+  @IsString()
+  @IsIn(["BAZI", "QIMEN", "YANGPAN"])
+  paipanType: string;
+
+  @ApiProperty({ description: "旧分组名称" })
+  @IsString()
+  @MinLength(1)
+  oldName: string;
+
+  @ApiProperty({ description: "新分组名称" })
+  @IsString()
+  @MinLength(1)
+  newName: string;
+}
+
+export class DeleteGroupDto {
+  @ApiProperty({ description: "排盘类型", enum: ["BAZI", "QIMEN", "YANGPAN"] })
+  @IsString()
+  @IsIn(["BAZI", "QIMEN", "YANGPAN"])
+  paipanType: string;
+
+  @ApiProperty({ description: "分组名称" })
+  @IsString()
+  @MinLength(1)
+  name: string;
+}
+
+// ────────── 案例库 ──────────
+
+export class CaseQueryDto {
+  @ApiPropertyOptional({ description: "一级分类", example: "名人案例" })
+  @IsOptional()
+  @IsString()
+  primaryCat?: string;
+
+  @ApiPropertyOptional({ description: "二级分类", example: "君主" })
+  @IsOptional()
+  @IsString()
+  secondaryCat?: string;
+
+  @ApiPropertyOptional({ description: "搜索关键词" })
+  @IsOptional()
+  @IsString()
+  keyword?: string;
+
+  @ApiPropertyOptional({ description: "页码", default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ description: "每页数量", default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number;
+}
+
 /** AI 分析历史查询参数 */
 export class AnalysisQueryDto {
   @ApiPropertyOptional({ description: "页码", default: 1 })

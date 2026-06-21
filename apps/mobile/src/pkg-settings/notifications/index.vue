@@ -1,80 +1,196 @@
 <template>
   <view class="page">
-    <app-nav-bar title="通知设置" :back-icon="'arrow-left'" :back-size="40" :title-size="36" :title-weight="600" :bar-height="100" title-align="left" />
+    <app-nav-bar
+      title="通知设置"
+      :back-icon="'arrow-left'"
+      :back-size="40"
+      :title-size="36"
+      :title-weight="600"
+      :bar-height="100"
+      title-align="left"
+    />
 
-    <scroll-view scroll-y class="scroll">
+    <scroll-view
+      scroll-y
+      class="scroll"
+    >
       <view class="content">
         <!-- 总开关 -->
         <view class="card master">
           <view class="master-l">
-            <view class="master-ic" :class="{ off: !pushEnabled }">
-              <app-icon :name="pushEnabled ? 'bell' : 'bell-off'" :size="20" :color="pushEnabled ? '#c41e3a' : '#a39a8c'" />
+            <view
+              class="master-ic"
+              :class="{ off: !pushEnabled }"
+            >
+              <app-icon
+                :name="pushEnabled ? 'bell' : 'bell-off'"
+                :size="20"
+                :color="pushEnabled ? '#c41e3a' : '#a39a8c'"
+              />
             </view>
             <view>
-              <text class="master-title">接收推送通知</text>
-              <text class="master-desc">{{ pushEnabled ? '已开启，将收到各类通知提醒' : '已关闭，将不会收到任何推送' }}</text>
+              <text class="master-title">
+                接收推送通知
+              </text>
+              <text class="master-desc">
+                {{ pushEnabled ? '已开启，将收到各类通知提醒' : '已关闭，将不会收到任何推送' }}
+              </text>
             </view>
           </view>
-          <switch :checked="pushEnabled" color="#c41e3a" style="transform:scale(0.8)" @change="pushEnabled=$event.detail.value" />
+          <switch
+            :checked="pushEnabled"
+            color="#c41e3a"
+            style="transform:scale(0.8)"
+            @change="pushEnabled=$event.detail.value"
+          />
         </view>
 
         <!-- 总开关关闭时禁用 -->
         <view :class="{ disabled: !pushEnabled }">
           <!-- 互动通知 -->
           <view class="card">
-            <view class="card-hd"><text class="card-hd-text">互动通知</text></view>
+            <view class="card-hd">
+              <text class="card-hd-text">
+                互动通知
+              </text>
+            </view>
             <view class="rows">
-              <notify-row v-for="r in interactRows" :key="r.key" :icon="r.icon" :title="r.title" :desc="r.desc"
-                :checked="state[r.key]" @change="state[r.key]=$event" />
+              <notify-row
+                v-for="r in interactRows"
+                :key="r.key"
+                :icon="r.icon"
+                :title="r.title"
+                :desc="r.desc"
+                :checked="state[r.key]"
+                @change="state[r.key]=$event"
+              />
             </view>
           </view>
           <!-- 内容更新 -->
           <view class="card">
-            <view class="card-hd"><text class="card-hd-text">内容更新</text></view>
+            <view class="card-hd">
+              <text class="card-hd-text">
+                内容更新
+              </text>
+            </view>
             <view class="rows">
-              <notify-row v-for="r in contentRows" :key="r.key" :icon="r.icon" :title="r.title" :desc="r.desc"
-                :checked="state[r.key]" @change="state[r.key]=$event" />
+              <notify-row
+                v-for="r in contentRows"
+                :key="r.key"
+                :icon="r.icon"
+                :title="r.title"
+                :desc="r.desc"
+                :checked="state[r.key]"
+                @change="state[r.key]=$event"
+              />
             </view>
           </view>
           <!-- 交易通知 -->
           <view class="card">
-            <view class="card-hd"><text class="card-hd-text">交易通知</text></view>
+            <view class="card-hd">
+              <text class="card-hd-text">
+                交易通知
+              </text>
+            </view>
             <view class="rows">
-              <notify-row v-for="r in tradeRows" :key="r.key" :icon="r.icon" :title="r.title" :desc="r.desc"
-                :important="r.important" :checked="state[r.key]" @change="state[r.key]=$event" />
+              <notify-row
+                v-for="r in tradeRows"
+                :key="r.key"
+                :icon="r.icon"
+                :title="r.title"
+                :desc="r.desc"
+                :important="r.important"
+                :checked="state[r.key]"
+                @change="state[r.key]=$event"
+              />
             </view>
           </view>
           <!-- 系统通知 -->
           <view class="card">
-            <view class="card-hd"><text class="card-hd-text">系统通知</text></view>
+            <view class="card-hd">
+              <text class="card-hd-text">
+                系统通知
+              </text>
+            </view>
             <view class="rows">
-              <notify-row v-for="r in systemRows" :key="r.key" :icon="r.icon" :title="r.title" :desc="r.desc"
-                :checked="state[r.key]" @change="state[r.key]=$event" />
+              <notify-row
+                v-for="r in systemRows"
+                :key="r.key"
+                :icon="r.icon"
+                :title="r.title"
+                :desc="r.desc"
+                :checked="state[r.key]"
+                @change="state[r.key]=$event"
+              />
             </view>
           </view>
           <!-- 免打扰模式 -->
           <view class="card">
-            <view class="card-hd"><text class="card-hd-text">免打扰模式</text></view>
+            <view class="card-hd">
+              <text class="card-hd-text">
+                免打扰模式
+              </text>
+            </view>
             <view class="rows">
               <view class="row">
                 <view class="row-l">
-                  <view class="row-ic purple"><app-icon name="moon" :size="16" color="#9254de" /></view>
+                  <view class="row-ic purple">
+                    <app-icon
+                      name="moon"
+                      :size="16"
+                      color="#9254de"
+                    />
+                  </view>
                   <view>
-                    <text class="row-title">开启免打扰</text>
-                    <text class="row-desc">在指定时间段内不接收推送通知</text>
+                    <text class="row-title">
+                      开启免打扰
+                    </text>
+                    <text class="row-desc">
+                      在指定时间段内不接收推送通知
+                    </text>
                   </view>
                 </view>
-                <switch :checked="quietMode" color="#c41e3a" style="transform:scale(0.8)" @change="quietMode=$event.detail.value" />
+                <switch
+                  :checked="quietMode"
+                  color="#c41e3a"
+                  style="transform:scale(0.8)"
+                  @change="quietMode=$event.detail.value"
+                />
               </view>
-              <view v-if="quietMode" class="row quiet-time">
-                <text class="quiet-label">免打扰时段</text>
+              <view
+                v-if="quietMode"
+                class="row quiet-time"
+              >
+                <text class="quiet-label">
+                  免打扰时段
+                </text>
                 <view class="time-picks">
-                  <picker mode="selector" :range="times" :value="times.indexOf(quietStart)" @change="quietStart=times[$event.detail.value]">
-                    <view class="time-box"><text class="time-text">{{ quietStart }}</text></view>
+                  <picker
+                    mode="selector"
+                    :range="times"
+                    :value="times.indexOf(quietStart)"
+                    @change="quietStart=times[$event.detail.value]"
+                  >
+                    <view class="time-box">
+                      <text class="time-text">
+                        {{ quietStart }}
+                      </text>
+                    </view>
                   </picker>
-                  <text class="time-sep">-</text>
-                  <picker mode="selector" :range="times" :value="times.indexOf(quietEnd)" @change="quietEnd=times[$event.detail.value]">
-                    <view class="time-box"><text class="time-text">{{ quietEnd }}</text></view>
+                  <text class="time-sep">
+                    -
+                  </text>
+                  <picker
+                    mode="selector"
+                    :range="times"
+                    :value="times.indexOf(quietEnd)"
+                    @change="quietEnd=times[$event.detail.value]"
+                  >
+                    <view class="time-box">
+                      <text class="time-text">
+                        {{ quietEnd }}
+                      </text>
+                    </view>
                   </picker>
                 </view>
               </view>
@@ -82,7 +198,9 @@
           </view>
         </view>
 
-        <text class="footer-tip">关闭通知后，您仍可在消息中心查看相关消息</text>
+        <text class="footer-tip">
+          关闭通知后，您仍可在消息中心查看相关消息
+        </text>
       </view>
     </scroll-view>
   </view>

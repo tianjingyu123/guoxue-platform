@@ -1,40 +1,92 @@
 <template>
   <view class="bs-page">
     <!-- 顶部导航 -->
-    <view class="bs-header" :style="{ paddingTop: statusBarH + 'px' }">
+    <view
+      class="bs-header"
+      :style="{ paddingTop: statusBarH + 'px' }"
+    >
       <view class="bs-nav">
         <view class="bs-nav-left">
-          <view class="bs-iconbtn" @tap="goBack">
-            <app-icon name="arrow-left" :size="40" color="#6b6b6b" />
+          <view
+            class="bs-iconbtn"
+            @tap="goBack"
+          >
+            <app-icon
+              name="arrow-left"
+              :size="40"
+              color="#6b6b6b"
+            />
           </view>
-          <text class="bs-title">我的书房</text>
+          <text class="bs-title">
+            我的书房
+          </text>
         </view>
         <view class="bs-nav-right">
           <template v-if="isSelectMode">
-            <view class="bs-textbtn" @tap="exitSelect">取消</view>
+            <view
+              class="bs-textbtn"
+              @tap="exitSelect"
+            >
+              取消
+            </view>
             <view
               class="bs-textbtn bs-textbtn-danger"
               :class="{ 'bs-textbtn-disabled': selectedIds.length === 0 }"
               @tap="batchRemove"
-            >移除 ({{ selectedIds.length }})</view>
+            >
+              移除 ({{ selectedIds.length }})
+            </view>
           </template>
           <template v-else>
-            <view class="bs-iconbtn" @tap="goSearch">
-              <app-icon name="search" :size="34" color="#6b6b6b" />
+            <view
+              class="bs-iconbtn"
+              @tap="goSearch"
+            >
+              <app-icon
+                name="search"
+                :size="34"
+                color="#6b6b6b"
+              />
             </view>
-            <view class="bs-iconbtn" @tap="toggleMenu">
-              <app-icon name="more-vertical" :size="34" color="#6b6b6b" />
+            <view
+              class="bs-iconbtn"
+              @tap="toggleMenu"
+            >
+              <app-icon
+                name="more-vertical"
+                :size="34"
+                color="#6b6b6b"
+              />
             </view>
           </template>
         </view>
       </view>
 
       <!-- 更多菜单 -->
-      <view v-if="menuOpen" class="bs-menu-mask" @tap="menuOpen = false">
-        <view class="bs-menu" @tap.stop>
-          <view class="bs-menu-item" @tap="enterSelect">批量管理</view>
-          <view class="bs-menu-item" @tap="onNewGroup">
-            <app-icon name="folder-plus" :size="32" color="#4a4a4a" />
+      <view
+        v-if="menuOpen"
+        class="bs-menu-mask"
+        @tap="menuOpen = false"
+      >
+        <view
+          class="bs-menu"
+          @tap.stop
+        >
+          <view
+            class="bs-menu-item"
+            @tap="enterSelect"
+          >
+            批量管理
+          </view>
+          <view
+            class="bs-menu-item"
+            @tap="onNewGroup"
+          >
+            <app-icon
+              name="folder-plus"
+              :size="32"
+              color="#4a4a4a"
+            />
             <text>新建分组</text>
           </view>
         </view>
@@ -48,25 +100,35 @@
           class="bs-tab"
           :class="{ 'bs-tab-active': activeTab === 'shelf' }"
           @tap="activeTab = 'shelf'"
-        >书架</view>
+        >
+          书架
+        </view>
         <view
           class="bs-tab"
           :class="{ 'bs-tab-active': activeTab === 'history' }"
           @tap="activeTab = 'history'"
-        >浏览历史</view>
+        >
+          浏览历史
+        </view>
       </view>
     </view>
 
     <!-- 书架 Tab -->
     <view v-show="activeTab === 'shelf'">
       <!-- 分组筛选 -->
-      <scroll-view scroll-x class="bs-groups" :show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="bs-groups"
+        :show-scrollbar="false"
+      >
         <view class="bs-groups-row">
           <view
             class="bs-group"
             :class="activeGroup === null ? 'bs-group-all-active' : 'bs-group-idle'"
             @tap="activeGroup = null"
-          >全部</view>
+          >
+            全部
+          </view>
           <view
             v-for="g in groups"
             :key="g.id"
@@ -75,23 +137,52 @@
             @tap="activeGroup = g.id"
           >
             <text>{{ g.name }}</text>
-            <text class="bs-group-badge">{{ g.count }}</text>
+            <text class="bs-group-badge">
+              {{ g.count }}
+            </text>
           </view>
-          <view class="bs-group-plus" @tap="onNewGroup">
-            <app-icon name="plus" :size="34" color="#6b6b6b" />
+          <view
+            class="bs-group-plus"
+            @tap="onNewGroup"
+          >
+            <app-icon
+              name="plus"
+              :size="34"
+              color="#6b6b6b"
+            />
           </view>
         </view>
       </scroll-view>
 
       <!-- 视图切换 -->
       <view class="bs-viewbar">
-        <text class="bs-count">共 <text class="bs-count-num">{{ filteredBooks.length }}</text> 本</text>
+        <text class="bs-count">
+          共 <text class="bs-count-num">
+            {{ filteredBooks.length }}
+          </text> 本
+        </text>
         <view class="bs-viewtoggle">
-          <view class="bs-vt-btn" :class="{ 'bs-vt-active': viewMode === 'grid' }" @tap="viewMode = 'grid'">
-            <app-icon name="grid-3x3" :size="34" color="#4a4a4a" />
+          <view
+            class="bs-vt-btn"
+            :class="{ 'bs-vt-active': viewMode === 'grid' }"
+            @tap="viewMode = 'grid'"
+          >
+            <app-icon
+              name="grid-3x3"
+              :size="34"
+              color="#4a4a4a"
+            />
           </view>
-          <view class="bs-vt-btn" :class="{ 'bs-vt-active': viewMode === 'list' }" @tap="viewMode = 'list'">
-            <app-icon name="list" :size="34" color="#4a4a4a" />
+          <view
+            class="bs-vt-btn"
+            :class="{ 'bs-vt-active': viewMode === 'list' }"
+            @tap="viewMode = 'list'"
+          >
+            <app-icon
+              name="list"
+              :size="34"
+              color="#4a4a4a"
+            />
           </view>
         </view>
       </view>
@@ -99,17 +190,36 @@
       <!-- 书籍区 -->
       <view class="bs-body">
         <!-- 空态 -->
-        <view v-if="filteredBooks.length === 0" class="bs-empty">
+        <view
+          v-if="filteredBooks.length === 0"
+          class="bs-empty"
+        >
           <view class="bs-empty-icon">
-            <app-icon name="book-open" :size="64" color="#999999" />
+            <app-icon
+              name="book-open"
+              :size="64"
+              color="#999999"
+            />
           </view>
-          <text class="bs-empty-title">书架是空的</text>
-          <text class="bs-empty-desc">去古籍馆探索感兴趣的古籍吧</text>
-          <view class="bs-empty-btn" @tap="goHome">探索古籍</view>
+          <text class="bs-empty-title">
+            书架是空的
+          </text>
+          <text class="bs-empty-desc">
+            去古籍馆探索感兴趣的古籍吧
+          </text>
+          <view
+            class="bs-empty-btn"
+            @tap="goHome"
+          >
+            探索古籍
+          </view>
         </view>
 
         <!-- 网格视图 -->
-        <view v-else-if="viewMode === 'grid'" class="bs-grid">
+        <view
+          v-else-if="viewMode === 'grid'"
+          class="bs-grid"
+        >
           <view
             v-for="book in filteredBooks"
             :key="book.id"
@@ -125,40 +235,83 @@
                 title-size="32rpx"
                 class="bs-cover"
               />
-              <text v-if="book.hasAI" class="bs-tag-ai">AI</text>
-              <text v-if="book.progress >= 100" class="bs-tag-done">已读完</text>
-              <view v-if="isSelectMode && selectedIds.includes(book.id)" class="bs-check">
-                <app-icon name="check" :size="24" color="#ffffff" />
+              <text
+                v-if="book.hasAI"
+                class="bs-tag-ai"
+              >
+                AI
+              </text>
+              <text
+                v-if="book.progress >= 100"
+                class="bs-tag-done"
+              >
+                已读完
+              </text>
+              <view
+                v-if="isSelectMode && selectedIds.includes(book.id)"
+                class="bs-check"
+              >
+                <app-icon
+                  name="check"
+                  :size="24"
+                  color="#ffffff"
+                />
               </view>
             </view>
-            <text class="bs-book-title">{{ book.title }}</text>
+            <text class="bs-book-title">
+              {{ book.title }}
+            </text>
             <!-- 已读完: 读后小结 -->
             <view
               v-if="book.progress >= 100"
               class="bs-summary-btn"
               @tap.stop="openSummary(book)"
             >
-              <app-icon name="sparkles" :size="24" color="#8a6d2f" />
+              <app-icon
+                name="sparkles"
+                :size="24"
+                color="#8a6d2f"
+              />
               <text>读后小结</text>
             </view>
             <!-- 进度条 -->
-            <view v-else-if="book.progress > 0" class="bs-progress">
+            <view
+              v-else-if="book.progress > 0"
+              class="bs-progress"
+            >
               <view class="bs-progress-track">
-                <view class="bs-progress-fill" :style="{ width: Math.min(book.progress, 100) + '%' }" />
+                <view
+                  class="bs-progress-fill"
+                  :style="{ width: Math.min(book.progress, 100) + '%' }"
+                />
               </view>
-              <text class="bs-progress-num">{{ book.progress }}%</text>
+              <text class="bs-progress-num">
+                {{ book.progress }}%
+              </text>
             </view>
           </view>
 
           <!-- 添加更多 -->
-          <view class="bs-add" @tap="goHome">
-            <app-icon name="plus" :size="48" color="#999999" />
-            <text class="bs-add-text">添加</text>
+          <view
+            class="bs-add"
+            @tap="goHome"
+          >
+            <app-icon
+              name="plus"
+              :size="48"
+              color="#999999"
+            />
+            <text class="bs-add-text">
+              添加
+            </text>
           </view>
         </view>
 
         <!-- 列表视图 -->
-        <view v-else class="bs-list">
+        <view
+          v-else
+          class="bs-list"
+        >
           <view
             v-for="book in filteredBooks"
             :key="book.id"
@@ -168,18 +321,37 @@
           >
             <view class="bs-spine">
               <view class="bs-spine-edge" />
-              <text class="bs-spine-title">{{ book.title.slice(0, 3) }}</text>
+              <text class="bs-spine-title">
+                {{ book.title.slice(0, 3) }}
+              </text>
             </view>
-            <text class="bs-list-title">{{ book.title }}</text>
-            <text class="bs-list-meta">[{{ book.dynasty }}] {{ book.author }}</text>
+            <text class="bs-list-title">
+              {{ book.title }}
+            </text>
+            <text class="bs-list-meta">
+              [{{ book.dynasty }}] {{ book.author }}
+            </text>
             <view class="bs-list-progress">
               <view class="bs-progress-track">
-                <view class="bs-progress-fill bs-progress-fill-soft" :style="{ width: book.progress + '%' }" />
+                <view
+                  class="bs-progress-fill bs-progress-fill-soft"
+                  :style="{ width: book.progress + '%' }"
+                />
               </view>
-              <text class="bs-progress-num">{{ book.progress }}%</text>
+              <text class="bs-progress-num">
+                {{ book.progress }}%
+              </text>
             </view>
-            <view v-if="!isSelectMode" class="bs-row-menu" @tap.stop="openRowMenu(book)">
-              <app-icon name="more-vertical" :size="34" color="#6b6b6b" />
+            <view
+              v-if="!isSelectMode"
+              class="bs-row-menu"
+              @tap.stop="openRowMenu(book)"
+            >
+              <app-icon
+                name="more-vertical"
+                :size="34"
+                color="#6b6b6b"
+              />
             </view>
           </view>
         </view>
@@ -187,7 +359,10 @@
     </view>
 
     <!-- 浏览历史 Tab -->
-    <view v-show="activeTab === 'history'" class="bs-history">
+    <view
+      v-show="activeTab === 'history'"
+      class="bs-history"
+    >
       <view
         v-for="item in readingHistory"
         :key="item.id"
@@ -196,18 +371,34 @@
       >
         <view class="bs-spine bs-spine-sm">
           <view class="bs-spine-edge" />
-          <text class="bs-spine-title bs-spine-title-sm">{{ item.title.slice(0, 2) }}</text>
+          <text class="bs-spine-title bs-spine-title-sm">
+            {{ item.title.slice(0, 2) }}
+          </text>
         </view>
         <view class="bs-hist-info">
-          <text class="bs-hist-title">{{ item.title }}</text>
-          <text class="bs-hist-chapter">{{ item.chapter }}</text>
+          <text class="bs-hist-title">
+            {{ item.title }}
+          </text>
+          <text class="bs-hist-chapter">
+            {{ item.chapter }}
+          </text>
         </view>
         <view class="bs-history-time">
-          <app-icon name="clock" :size="24" color="#999999" />
+          <app-icon
+            name="clock"
+            :size="24"
+            color="#999999"
+          />
           <text>{{ item.readAt }}</text>
         </view>
       </view>
-      <view v-if="readingHistory.length > 0" class="bs-clear-history" @tap="onClearHistory">清空历史记录</view>
+      <view
+        v-if="readingHistory.length > 0"
+        class="bs-clear-history"
+        @tap="onClearHistory"
+      >
+        清空历史记录
+      </view>
     </view>
   </view>
 </template>

@@ -1,15 +1,30 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <app-nav-bar title="关于我们" :back-icon="'arrow-left'" :back-size="40" :title-size="36" :bar-height="112" title-align="left" />
+    <app-nav-bar
+      title="关于我们"
+      :back-icon="'arrow-left'"
+      :back-size="40"
+      :title-size="36"
+      :bar-height="112"
+      title-align="left"
+    />
 
     <!-- Hero -->
     <view class="hero">
       <view class="logo-box">
-        <image class="logo-img" :src="logoSrc" mode="aspectFill" />
+        <image
+          class="logo-img"
+          :src="logoSrc"
+          mode="aspectFill"
+        />
       </view>
-      <text class="hero-title">热卜国学</text>
-      <text class="hero-slogan">传承智慧 · 启迪人生</text>
+      <text class="hero-title">
+        热卜国学
+      </text>
+      <text class="hero-slogan">
+        传承智慧 · 启迪人生
+      </text>
     </view>
 
     <!-- 内容 -->
@@ -21,47 +36,95 @@
 
       <!-- 数据展示 -->
       <view class="stats">
-        <view v-for="s in aboutStats" :key="s.label" class="stat-card">
-          <text class="stat-value" :style="{ color: s.color }">{{ s.value }}</text>
-          <text class="stat-label">{{ s.label }}</text>
+        <view
+          v-for="s in aboutStats"
+          :key="s.label"
+          class="stat-card"
+        >
+          <text
+            class="stat-value"
+            :style="{ color: s.color }"
+          >
+            {{ s.value }}
+          </text>
+          <text class="stat-label">
+            {{ s.label }}
+          </text>
         </view>
       </view>
 
       <!-- 特色 -->
-      <text class="section-title">我们的特色</text>
+      <text class="section-title">
+        我们的特色
+      </text>
       <view class="feature-list">
-        <view v-for="f in aboutFeatures" :key="f.title" class="feature-card">
+        <view
+          v-for="f in aboutFeatures"
+          :key="f.title"
+          class="feature-card"
+        >
           <view class="feature-icon">
-            <AppIcon :name="f.icon" :size="20" color="#c41e3a" />
+            <AppIcon
+              :name="f.icon"
+              :size="20"
+              color="#c41e3a"
+            />
           </view>
           <view class="feature-body">
-            <text class="feature-title">{{ f.title }}</text>
-            <text class="feature-desc">{{ f.desc }}</text>
+            <text class="feature-title">
+              {{ f.title }}
+            </text>
+            <text class="feature-desc">
+              {{ f.desc }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 联系方式 -->
-      <text class="section-title">联系我们</text>
+      <text class="section-title">
+        联系我们
+      </text>
       <view class="contact-card">
-        <view class="contact-row" @tap="goFeedback">
-          <text class="contact-label">意见反馈</text>
-          <AppIcon name="chevron-right" :size="20" color="#999999" />
+        <view
+          class="contact-row"
+          @tap="goFeedback"
+        >
+          <text class="contact-label">
+            意见反馈
+          </text>
+          <AppIcon
+            name="chevron-right"
+            :size="20"
+            color="#999999"
+          />
         </view>
         <view class="contact-row">
-          <text class="contact-label">客服邮箱</text>
-          <text class="contact-value">support@rebu.com</text>
+          <text class="contact-label">
+            客服邮箱
+          </text>
+          <text class="contact-value">
+            support@rebu.com
+          </text>
         </view>
         <view class="contact-row">
-          <text class="contact-label">官方微信</text>
-          <text class="contact-value">rebu_guoxue</text>
+          <text class="contact-label">
+            官方微信
+          </text>
+          <text class="contact-value">
+            rebu_guoxue
+          </text>
         </view>
       </view>
 
       <!-- 版本信息 -->
       <view class="version">
-        <text class="version-text">版本 1.0.0</text>
-        <text class="version-text">Copyright © 2024 热卜国学</text>
+        <text class="version-text">
+          版本 1.0.0
+        </text>
+        <text class="version-text">
+          Copyright © 2024 热卜国学
+        </text>
       </view>
     </view>
   </view>

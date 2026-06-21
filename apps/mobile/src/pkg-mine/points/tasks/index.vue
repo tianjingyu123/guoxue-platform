@@ -1,0 +1,367 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import AppIcon from '@/components/common/app-icon.vue'
+import { pointsApi, type PointsInfo, type PointsTask } from '@/lib/points-data'
+
+const loading = ref(true)
+const info = ref<PointsInfo>({ balance: 0, totalEarned: 0, totalSpent: 0, todayEarned: 0 })
+const tasks = ref<PointsTask[]>([])
+const completing = ref<number | null>(null)
+
+onMounted(async () => {
+  try {
+    const [infoData, taskData] = await Promise.all([pointsApi.getPoints(), pointsApi.getTasks()])
+    info.value = infoData
+    tasks.value = taskData.map((t) => ({ ...t }))
+  } catch { /* useMock handles fallback */ }
+  finally { loading.value = false }
+})
+
+const taskColors = ['#9a2e22', '#2563eb', '#16a34a', '#d97706', '#7c3aed']
+const completedCount = computed(() => tasks.value.filter((t) => t.completed).length)
+const totalTasks = computed(() => tasks.value.length)
+const progressPercent = computed(() =>
+  totalTasks.value > 0 ? Math.round((completedCount.value / totalTasks.value) * 100) : 0,
+)
+
+function goBack() {
+  uni.navigateBack()
+}
+function go(url: string) {
+  uni.navigateTo({ url })
+}
+function pct(cur: number, max: number) {
+  return Math.min(100, Math.round((cur / max) * 100))
+}
+function handleComplete(taskId: number) {
+  const task = tasks.value.find((t) => t.id === taskId)
+  if (!task || task.completed || completing.value !== null) return
+  completing.value = taskId
+  setTimeout(() => {
+    task.completed = true
+    info.value.balance += task.points
+    info.value.todayEarned += task.points
+    completing.value = null
+  }, 400)
+}
+</script>
+
+<template>
+  <view class="page">
+    <view class="nav">
+      <view class="nav-back" @tap="goBack">
+        <AppIcon name="arrow-left" :size="44" color="#2D2A26" />
+      </view>
+      <text class="nav-title">积分任务</text>
+      <view class="nav-placeholder" />
+    </view>
+
+    <scroll-view scroll-y class="scroll">
+      <!-- 积分总览 -->
+      <view class="overview">
+        <view class="ov-top">
+          <view>
+            <text class="ov-label">当前积分</text>
+            <text class="ov-num">{{ info.balance.toLocaleString() }}</text>
+            <text class="ov-today">今日已获 +{{ info.todayEarned }}</text>
+          </view>
+          <view class="ov-btn" @tap="go('/pkg-mine/points/exchange')">
+            <text class="ov-btn-text">积分兑换</text>
+            <AppIcon name="chevron-right" :size="16" color="#fff" />
+          </view>
+        </view>
+        <view class="ov-progress">
+          <view class="ov-progress-head">
+            <text class="ov-progress-label">今日任务进度</text>
+            <text class="ov-progress-count">{{ completedCount }}/{{ totalTasks }}</text>
+          </view>
+          <view class="ov-track">
+            <view class="ov-fill" :style="{ width: progressPercent + '%' }" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 任务列表 -->
+      <view class="section">
+        <text class="section-title">可完成任务</text>
+        <view class="task-list">
+          <view v-for="(task, idx) in tasks" :key="task.id" class="task-card" :class="{ 'task-faded': task.completed }">
+            <view class="task-icon" :style="{ background: taskColors[idx % taskColors.length] + '1a' }">
+              <AppIcon :name="task.icon" :size="20" :color="taskColors[idx % taskColors.length]" />
+            </view>
+            <view class="task-info">
+              <view class="task-title-row">
+                <text class="task-title">{{ task.title }}</text>
+                <text class="task-badge">+{{ task.points }} 积分</text>
+              </view>
+              <text class="task-limit">{{ task.limit }}</text>
+              <view v-if="task.max !== undefined && task.current !== undefined" class="task-progress">
+                <view class="task-progress-head">
+                  <text class="task-progress-label">进度</text>
+                  <text class="task-progress-count">{{ task.current }}/{{ task.max }}</text>
+                </view>
+                <view class="task-track">
+                  <view class="task-fill" :style="{ width: pct(task.current, task.max) + '%' }" />
+                </view>
+              </view>
+            </view>
+            <view class="task-action">
+              <view v-if="task.completed" class="task-done">
+                <AppIcon name="check-circle" :size="16" color="#16a34a" />
+                <text class="task-done-text">已完成</text>
+              </view>
+              <view v-else class="task-btn" @tap="handleComplete(task.id)">
+                <text class="task-btn-text">{{ completing === task.id ? '...' : task.action }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 其他获取方式 -->
+      <view class="note">
+        <text class="note-title">更多积分获取方式</text>
+        <text class="note-item">• 每次消费 ¥1 = 1 积分</text>
+        <text class="note-item">• 邀请好友注册 = 100 积分</text>
+        <text class="note-item">• 参与平台活动可获得额外积分</text>
+      </view>
+      <view class="bottom-space" />
+    </scroll-view>
+  </view>
+</template>
+
+<style scoped>
+.page {
+  min-height: 100vh;
+  background: #faf8f5;
+}
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx;
+  background: rgba(250, 248, 245, 0.95);
+  border-bottom: 2rpx solid rgba(201, 169, 110, 0.2);
+}
+.nav-back {
+  width: 48rpx;
+}
+.nav-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #2d2a26;
+}
+.nav-placeholder {
+  width: 48rpx;
+}
+.scroll {
+  height: calc(100vh - 92rpx);
+}
+.overview {
+  margin: 32rpx;
+  padding: 40rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #c9a96e 0%, #b8923f 60%, #a67c1a 100%);
+}
+.ov-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 32rpx;
+}
+.ov-label {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.8);
+  display: block;
+  margin-bottom: 8rpx;
+}
+.ov-num {
+  font-size: 72rpx;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.1;
+}
+.ov-today {
+  display: block;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 8rpx;
+}
+.ov-btn {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 32rpx;
+  padding: 12rpx 24rpx;
+}
+.ov-btn-text {
+  font-size: 24rpx;
+  font-weight: 500;
+  color: #fff;
+}
+.ov-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+.ov-progress-label {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+.ov-progress-count {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #fff;
+}
+.ov-track {
+  height: 16rpx;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+.ov-fill {
+  height: 100%;
+  border-radius: 16rpx;
+  background: #fff;
+}
+.section {
+  padding: 0 32rpx;
+  margin-top: 40rpx;
+}
+.section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #2d2a26;
+  display: block;
+  margin-bottom: 24rpx;
+}
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.task-card {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 28rpx;
+  background: #fff;
+  border-radius: 24rpx;
+}
+.task-faded {
+  opacity: 0.6;
+}
+.task-icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.task-info {
+  flex: 1;
+  min-width: 0;
+}
+.task-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.task-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #2d2a26;
+}
+.task-badge {
+  font-size: 20rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 16rpx;
+  background: #fdf0d8;
+  color: #b8923f;
+}
+.task-limit {
+  display: block;
+  font-size: 22rpx;
+  color: #8a8178;
+  margin-top: 6rpx;
+}
+.task-progress {
+  margin-top: 16rpx;
+}
+.task-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
+}
+.task-progress-label {
+  font-size: 20rpx;
+  color: #8a8178;
+}
+.task-progress-count {
+  font-size: 20rpx;
+  color: #8a8178;
+}
+.task-track {
+  height: 12rpx;
+  border-radius: 12rpx;
+  background: #ece7df;
+  overflow: hidden;
+}
+.task-fill {
+  height: 100%;
+  border-radius: 12rpx;
+  background: #c9a96e;
+}
+.task-action {
+  flex-shrink: 0;
+}
+.task-done {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+.task-done-text {
+  font-size: 22rpx;
+  color: #16a34a;
+}
+.task-btn {
+  padding: 12rpx 28rpx;
+  border-radius: 32rpx;
+  background: #9a2e22;
+}
+.task-btn-text {
+  font-size: 22rpx;
+  color: #fff;
+}
+.note {
+  margin: 40rpx 32rpx 0;
+  padding: 28rpx;
+  background: rgba(236, 231, 223, 0.5);
+  border-radius: 20rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.note-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #2d2a26;
+  margin-bottom: 8rpx;
+}
+.note-item {
+  font-size: 22rpx;
+  color: #8a8178;
+  line-height: 1.5;
+}
+.bottom-space {
+  height: 48rpx;
+}
+</style>

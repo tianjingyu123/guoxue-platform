@@ -95,71 +95,210 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
 </script>
 
 <template>
-  <view class="cd" v-if="!isLoading && circle">
+  <view
+    v-if="!isLoading && circle"
+    class="cd"
+  >
     <!-- 顶部封面 -->
     <view class="cd-cover">
-      <image :src="circle.cover" class="cd-cover-img" mode="aspectFill" />
+      <image
+        :src="circle.cover"
+        class="cd-cover-img"
+        mode="aspectFill"
+      />
       <view class="cd-cover-mask" />
       <view class="cd-nav">
-        <view class="cd-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
+        <view
+          class="cd-nav-btn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="40"
+            color="#ffffff"
+          />
+        </view>
         <view class="cd-nav-right">
-          <view class="cd-nav-btn" @tap="toastComingSoon"><app-icon name="bell" :size="40" color="#ffffff" /></view>
-          <view class="cd-nav-btn" @tap="openShare"><app-icon name="share-2" :size="40" color="#ffffff" /></view>
+          <view
+            class="cd-nav-btn"
+            @tap="toastComingSoon"
+          >
+            <app-icon
+              name="bell"
+              :size="40"
+              color="#ffffff"
+            />
+          </view>
+          <view
+            class="cd-nav-btn"
+            @tap="openShare"
+          >
+            <app-icon
+              name="share-2"
+              :size="40"
+              color="#ffffff"
+            />
+          </view>
         </view>
       </view>
-      <view class="cd-level"><app-icon name="star" :size="26" color="#ffffff" :fill="true" /><text class="cd-level-txt">优质圈子</text></view>
+      <view class="cd-level">
+        <app-icon
+          name="star"
+          :size="26"
+          color="#ffffff"
+          :fill="true"
+        /><text class="cd-level-txt">
+          优质圈子
+        </text>
+      </view>
     </view>
 
     <!-- 圈子信息卡 -->
     <view class="cd-info-wrap">
       <view class="cd-info">
         <view class="cd-info-top">
-          <view class="cd-avatar"><image :src="circle.owner.avatar" class="cd-avatar-img" mode="aspectFill" /></view>
+          <view class="cd-avatar">
+            <image
+              :src="circle.owner.avatar"
+              class="cd-avatar-img"
+              mode="aspectFill"
+            />
+          </view>
           <view class="cd-info-main">
             <view class="cd-name-row">
-              <text class="cd-name">{{ circle.name }}</text>
-              <text class="cd-paid">付费</text>
+              <text class="cd-name">
+                {{ circle.name }}
+              </text>
+              <text class="cd-paid">
+                付费
+              </text>
             </view>
             <view class="cd-stats">
-              <view class="cd-stat"><app-icon name="users" :size="26" color="#999999" /><text class="cd-stat-txt">{{ fmt(circle.members) }} 成员</text></view>
-              <view class="cd-stat"><app-icon name="file-text" :size="26" color="#999999" /><text class="cd-stat-txt">{{ fmt(circle.posts) }} 帖子</text></view>
-              <view class="cd-stat"><app-icon name="flame" :size="26" color="#f97316" /><text class="cd-stat-txt">今日{{ circle.todayActive }}</text></view>
+              <view class="cd-stat">
+                <app-icon
+                  name="users"
+                  :size="26"
+                  color="#999999"
+                /><text class="cd-stat-txt">
+                  {{ fmt(circle.members) }} 成员
+                </text>
+              </view>
+              <view class="cd-stat">
+                <app-icon
+                  name="file-text"
+                  :size="26"
+                  color="#999999"
+                /><text class="cd-stat-txt">
+                  {{ fmt(circle.posts) }} 帖子
+                </text>
+              </view>
+              <view class="cd-stat">
+                <app-icon
+                  name="flame"
+                  :size="26"
+                  color="#f97316"
+                /><text class="cd-stat-txt">
+                  今日{{ circle.todayActive }}
+                </text>
+              </view>
             </view>
           </view>
         </view>
-        <text class="cd-desc">{{ circle.description }}</text>
-        <view v-if="circle.tags && circle.tags.length" class="cd-tags">
-          <text v-for="tag in circle.tags" :key="tag" class="cd-tag">#{{ tag }}</text>
+        <text class="cd-desc">
+          {{ circle.description }}
+        </text>
+        <view
+          v-if="circle.tags && circle.tags.length"
+          class="cd-tags"
+        >
+          <text
+            v-for="tag in circle.tags"
+            :key="tag"
+            class="cd-tag"
+          >
+            #{{ tag }}
+          </text>
         </view>
-        <view class="cd-owner" @tap="openUser(circle.owner.id)">
-          <image :src="circle.owner.avatar" class="cd-owner-avatar" mode="aspectFill" />
+        <view
+          class="cd-owner"
+          @tap="openUser(circle.owner.id)"
+        >
+          <image
+            :src="circle.owner.avatar"
+            class="cd-owner-avatar"
+            mode="aspectFill"
+          />
           <view class="cd-owner-info">
             <view class="cd-owner-name-row">
-              <text class="cd-owner-name">{{ circle.owner.name }}</text>
-              <app-icon name="crown" :size="26" color="#C9A96E" />
+              <text class="cd-owner-name">
+                {{ circle.owner.name }}
+              </text>
+              <app-icon
+                name="crown"
+                :size="26"
+                color="#C9A96E"
+              />
             </view>
-            <text class="cd-owner-role">圈主</text>
+            <text class="cd-owner-role">
+              圈主
+            </text>
           </view>
-          <app-icon name="chevron-right" :size="28" color="#cccccc" />
+          <app-icon
+            name="chevron-right"
+            :size="28"
+            color="#cccccc"
+          />
         </view>
       </view>
     </view>
 
     <!-- 公告栏 -->
-    <view v-if="circle.announcement" class="cd-ann">
+    <view
+      v-if="circle.announcement"
+      class="cd-ann"
+    >
       <view class="cd-ann-box">
-        <view class="cd-ann-head" @tap="showAnnouncement = !showAnnouncement">
+        <view
+          class="cd-ann-head"
+          @tap="showAnnouncement = !showAnnouncement"
+        >
           <view class="cd-ann-title">
-            <view class="cd-ann-icon"><app-icon name="bell" :size="20" color="#ffffff" /></view>
-            <text class="cd-ann-label">圈子公告</text>
+            <view class="cd-ann-icon">
+              <app-icon
+                name="bell"
+                :size="20"
+                color="#ffffff"
+              />
+            </view>
+            <text class="cd-ann-label">
+              圈子公告
+            </text>
           </view>
-          <app-icon :name="showAnnouncement ? 'chevron-up' : 'chevron-down'" :size="28" color="#999999" />
+          <app-icon
+            :name="showAnnouncement ? 'chevron-up' : 'chevron-down'"
+            :size="28"
+            color="#999999"
+          />
         </view>
-        <view v-if="showAnnouncement" class="cd-ann-body">
-          <text class="cd-ann-text">{{ circle.announcement }}</text>
-          <view class="cd-ann-more" @tap="openAnnouncement">
-            <text class="cd-ann-more-t">查看完整公告</text>
-            <app-icon name="chevron-right" :size="24" color="#C41E3A" />
+        <view
+          v-if="showAnnouncement"
+          class="cd-ann-body"
+        >
+          <text class="cd-ann-text">
+            {{ circle.announcement }}
+          </text>
+          <view
+            class="cd-ann-more"
+            @tap="openAnnouncement"
+          >
+            <text class="cd-ann-more-t">
+              查看完整公告
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="24"
+              color="#C41E3A"
+            />
           </view>
         </view>
       </view>
@@ -167,11 +306,29 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
 
     <!-- Tab 切换 -->
     <view class="cd-tabs">
-      <scroll-view scroll-x class="cd-tabs-scroll">
+      <scroll-view
+        scroll-x
+        class="cd-tabs-scroll"
+      >
         <view class="cd-tabs-row">
-          <view v-for="tab in tabs" :key="tab.id" class="cd-tab" @tap="activeTab = tab.id">
-            <text class="cd-tab-txt" :class="{ on: activeTab === tab.id }">{{ tab.label }}<text v-if="tab.id === 'members'">({{ circle.members }})</text></text>
-            <view v-if="activeTab === tab.id" class="cd-tab-line" />
+          <view
+            v-for="tab in tabs"
+            :key="tab.id"
+            class="cd-tab"
+            @tap="activeTab = tab.id"
+          >
+            <text
+              class="cd-tab-txt"
+              :class="{ on: activeTab === tab.id }"
+            >
+              {{ tab.label }}<text v-if="tab.id === 'members'">
+                ({{ circle.members }})
+              </text>
+            </text>
+            <view
+              v-if="activeTab === tab.id"
+              class="cd-tab-line"
+            />
           </view>
         </view>
       </scroll-view>
@@ -180,67 +337,232 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
     <!-- 内容区 -->
     <view class="cd-content">
       <!-- 首页 Tab -->
-      <view v-if="activeTab === 'home'" class="cd-home">
+      <view
+        v-if="activeTab === 'home'"
+        class="cd-home"
+      >
         <!-- 近期活动 -->
-        <view v-if="activities.length" class="cd-sec">
+        <view
+          v-if="activities.length"
+          class="cd-sec"
+        >
           <view class="cd-sec-head">
-            <view class="cd-sec-title"><app-icon name="zap" :size="28" color="#FF6B35" /><text class="cd-sec-label">近期活动</text></view>
-            <view class="cd-sec-more" @tap="toastComingSoon"><text class="cd-more-txt">全部</text><app-icon name="chevron-right" :size="26" color="#999999" /></view>
+            <view class="cd-sec-title">
+              <app-icon
+                name="zap"
+                :size="28"
+                color="#FF6B35"
+              /><text class="cd-sec-label">
+                近期活动
+              </text>
+            </view>
+            <view
+              class="cd-sec-more"
+              @tap="toastComingSoon"
+            >
+              <text class="cd-more-txt">
+                全部
+              </text><app-icon
+                name="chevron-right"
+                :size="26"
+                color="#999999"
+              />
+            </view>
           </view>
           <view class="cd-acts">
-            <view v-for="act in activities.slice(0, 2)" :key="act.id" class="cd-act" @tap="toastComingSoon">
-              <view class="cd-act-icon" :class="act.type">
-                <app-icon :name="act.type === 'live' ? 'play' : act.type === 'checkin' ? 'check-circle' : 'book-open'" :size="32" :color="act.type === 'live' ? '#ef4444' : act.type === 'checkin' ? '#22c55e' : '#f97316'" />
+            <view
+              v-for="act in activities.slice(0, 2)"
+              :key="act.id"
+              class="cd-act"
+              @tap="toastComingSoon"
+            >
+              <view
+                class="cd-act-icon"
+                :class="act.type"
+              >
+                <app-icon
+                  :name="act.type === 'live' ? 'play' : act.type === 'checkin' ? 'check-circle' : 'book-open'"
+                  :size="32"
+                  :color="act.type === 'live' ? '#ef4444' : act.type === 'checkin' ? '#22c55e' : '#f97316'"
+                />
               </view>
               <view class="cd-act-main">
-                <text class="cd-act-title">{{ act.title }}</text>
-                <view class="cd-act-meta"><text class="cd-act-time">{{ act.time }}</text><text v-if="act.participants" class="cd-act-time">{{ act.participants }}人参与</text></view>
+                <text class="cd-act-title">
+                  {{ act.title }}
+                </text>
+                <view class="cd-act-meta">
+                  <text class="cd-act-time">
+                    {{ act.time }}
+                  </text><text
+                    v-if="act.participants"
+                    class="cd-act-time"
+                  >
+                    {{ act.participants }}人参与
+                  </text>
+                </view>
               </view>
-              <view v-if="act.status === 'upcoming'" class="cd-act-btn red"><text class="cd-act-btn-txt">预约</text></view>
-              <view v-else class="cd-act-btn green"><text class="cd-act-btn-txt">参与</text></view>
+              <view
+                v-if="act.status === 'upcoming'"
+                class="cd-act-btn red"
+              >
+                <text class="cd-act-btn-txt">
+                  预约
+                </text>
+              </view>
+              <view
+                v-else
+                class="cd-act-btn green"
+              >
+                <text class="cd-act-btn-txt">
+                  参与
+                </text>
+              </view>
             </view>
           </view>
         </view>
 
         <!-- 置顶内容 -->
-        <view v-if="pinnedPosts.length" class="cd-sec">
-          <view class="cd-sec-title mb"><app-icon name="pin" :size="28" color="#C41E3A" /><text class="cd-sec-label">置顶内容</text></view>
+        <view
+          v-if="pinnedPosts.length"
+          class="cd-sec"
+        >
+          <view class="cd-sec-title mb">
+            <app-icon
+              name="pin"
+              :size="28"
+              color="#C41E3A"
+            /><text class="cd-sec-label">
+              置顶内容
+            </text>
+          </view>
           <view class="cd-pinned-list">
-            <view v-for="post in pinnedPosts" :key="post.id" class="cd-pinned" @tap="openPost(post.id)">
-              <image :src="post.author.avatar" class="cd-pinned-avatar" mode="aspectFill" />
+            <view
+              v-for="post in pinnedPosts"
+              :key="post.id"
+              class="cd-pinned"
+              @tap="openPost(post.id)"
+            >
+              <image
+                :src="post.author.avatar"
+                class="cd-pinned-avatar"
+                mode="aspectFill"
+              />
               <view class="cd-pinned-main">
                 <view class="cd-pinned-tags">
-                  <app-icon name="pin" :size="24" color="#C41E3A" /><text class="cd-pinned-pin">置顶</text>
-                  <text v-if="post.isEssence" class="pc-essence">精华</text>
+                  <app-icon
+                    name="pin"
+                    :size="24"
+                    color="#C41E3A"
+                  /><text class="cd-pinned-pin">
+                    置顶
+                  </text>
+                  <text
+                    v-if="post.isEssence"
+                    class="pc-essence"
+                  >
+                    精华
+                  </text>
                 </view>
-                <text class="cd-pinned-content">{{ post.content }}</text>
+                <text class="cd-pinned-content">
+                  {{ post.content }}
+                </text>
                 <view class="cd-pinned-meta">
-                  <text class="cd-pinned-meta-txt">{{ post.author.name }}</text>
-                  <view class="cd-pinned-stat"><app-icon name="heart" :size="22" color="#999999" /><text class="cd-pinned-meta-txt">{{ post.likes }}</text></view>
-                  <view class="cd-pinned-stat"><app-icon name="message-circle" :size="22" color="#999999" /><text class="cd-pinned-meta-txt">{{ post.comments }}</text></view>
+                  <text class="cd-pinned-meta-txt">
+                    {{ post.author.name }}
+                  </text>
+                  <view class="cd-pinned-stat">
+                    <app-icon
+                      name="heart"
+                      :size="22"
+                      color="#999999"
+                    /><text class="cd-pinned-meta-txt">
+                      {{ post.likes }}
+                    </text>
+                  </view>
+                  <view class="cd-pinned-stat">
+                    <app-icon
+                      name="message-circle"
+                      :size="22"
+                      color="#999999"
+                    /><text class="cd-pinned-meta-txt">
+                      {{ post.comments }}
+                    </text>
+                  </view>
                 </view>
               </view>
-              <image v-if="post.images && post.images.length" :src="post.images[0]" class="cd-pinned-img" mode="aspectFill" />
+              <image
+                v-if="post.images && post.images.length"
+                :src="post.images[0]"
+                class="cd-pinned-img"
+                mode="aspectFill"
+              />
             </view>
           </view>
         </view>
 
         <!-- 专栏推荐 -->
-        <view v-if="columns.length" class="cd-sec">
+        <view
+          v-if="columns.length"
+          class="cd-sec"
+        >
           <view class="cd-sec-head">
-            <view class="cd-sec-title"><app-icon name="book-open" :size="28" color="#C9A96E" /><text class="cd-sec-label">专栏推荐</text></view>
-            <view class="cd-sec-more" @tap="toastComingSoon"><text class="cd-more-txt">全部</text><app-icon name="chevron-right" :size="26" color="#999999" /></view>
+            <view class="cd-sec-title">
+              <app-icon
+                name="book-open"
+                :size="28"
+                color="#C9A96E"
+              /><text class="cd-sec-label">
+                专栏推荐
+              </text>
+            </view>
+            <view
+              class="cd-sec-more"
+              @tap="toastComingSoon"
+            >
+              <text class="cd-more-txt">
+                全部
+              </text><app-icon
+                name="chevron-right"
+                :size="26"
+                color="#999999"
+              />
+            </view>
           </view>
-          <scroll-view scroll-x class="cd-cols-scroll">
+          <scroll-view
+            scroll-x
+            class="cd-cols-scroll"
+          >
             <view class="cd-cols-row">
-              <view v-for="col in columns" :key="col.id" class="cd-col" @tap="toastComingSoon">
+              <view
+                v-for="col in columns"
+                :key="col.id"
+                class="cd-col"
+                @tap="toastComingSoon"
+              >
                 <view class="cd-col-cover">
-                  <image :src="col.cover" class="cd-col-img" mode="aspectFill" />
-                  <view v-if="col.isPremium" class="cd-col-lock"><app-icon name="lock" :size="20" color="#ffffff" /></view>
+                  <image
+                    :src="col.cover"
+                    class="cd-col-img"
+                    mode="aspectFill"
+                  />
+                  <view
+                    v-if="col.isPremium"
+                    class="cd-col-lock"
+                  >
+                    <app-icon
+                      name="lock"
+                      :size="20"
+                      color="#ffffff"
+                    />
+                  </view>
                 </view>
                 <view class="cd-col-body">
-                  <text class="cd-col-title">{{ col.title }}</text>
-                  <text class="cd-col-meta">{{ col.articles }}篇 · {{ col.views }}阅读</text>
+                  <text class="cd-col-title">
+                    {{ col.title }}
+                  </text>
+                  <text class="cd-col-meta">
+                    {{ col.articles }}篇 · {{ col.views }}阅读
+                  </text>
                 </view>
               </view>
             </view>
@@ -248,23 +570,59 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
         </view>
 
         <!-- 圈主推荐电子书（仅圈主可见管理入口，对齐原型） -->
-        <view v-if="isOwner" class="cd-sec">
+        <view
+          v-if="isOwner"
+          class="cd-sec"
+        >
           <view class="cd-sec-head">
             <view class="cd-sec-title">
-              <app-icon name="book-open" :size="28" color="#2563eb" />
-              <text class="cd-sec-label">推荐电子书</text>
-              <text class="cd-ebook-hint">（仅圈主可见管理入口）</text>
+              <app-icon
+                name="book-open"
+                :size="28"
+                color="#2563eb"
+              />
+              <text class="cd-sec-label">
+                推荐电子书
+              </text>
+              <text class="cd-ebook-hint">
+                （仅圈主可见管理入口）
+              </text>
             </view>
-            <view class="cd-sec-more" @tap="openRecommendEbook">
-              <text class="cd-ebook-manage">管理</text>
-              <app-icon name="chevron-right" :size="26" color="#2563eb" />
+            <view
+              class="cd-sec-more"
+              @tap="openRecommendEbook"
+            >
+              <text class="cd-ebook-manage">
+                管理
+              </text>
+              <app-icon
+                name="chevron-right"
+                :size="26"
+                color="#2563eb"
+              />
             </view>
           </view>
-          <scroll-view scroll-x class="cd-ebook-scroll">
+          <scroll-view
+            scroll-x
+            class="cd-ebook-scroll"
+          >
             <view class="cd-ebook-row">
-              <view v-for="a in circleArticles.slice(0, 3)" :key="a.id" class="cd-ebook" @tap="openRecommendEbook">
-                <view class="cd-ebook-cover"><app-icon name="book-open" :size="48" color="rgba(255,255,255,0.4)" /></view>
-                <text class="cd-ebook-title">{{ a.title }}</text>
+              <view
+                v-for="a in circleArticles.slice(0, 3)"
+                :key="a.id"
+                class="cd-ebook"
+                @tap="openRecommendEbook"
+              >
+                <view class="cd-ebook-cover">
+                  <app-icon
+                    name="book-open"
+                    :size="48"
+                    color="rgba(255,255,255,0.4)"
+                  />
+                </view>
+                <text class="cd-ebook-title">
+                  {{ a.title }}
+                </text>
               </view>
             </view>
           </scroll-view>
@@ -272,77 +630,229 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
 
         <!-- 最新动态 -->
         <view class="cd-sec">
-          <text class="cd-sec-label mb">最新动态</text>
+          <text class="cd-sec-label mb">
+            最新动态
+          </text>
           <view class="cd-post-list">
-            <post-card v-for="post in posts.slice(0, 3)" :key="post.id" :post="post" :circle-id="circleId" :liked="likedPosts.has(post.id)" @like="handleLikePost" />
+            <post-card
+              v-for="post in posts.slice(0, 3)"
+              :key="post.id"
+              :post="post"
+              :circle-id="circleId"
+              :liked="likedPosts.has(post.id)"
+              @like="handleLikePost"
+            />
           </view>
         </view>
       </view>
 
       <!-- 帖子 Tab -->
-      <view v-else-if="activeTab === 'posts'" class="cd-post-list">
-        <post-card v-for="post in posts" :key="post.id" :post="post" :circle-id="circleId" :liked="likedPosts.has(post.id)" @like="handleLikePost" />
+      <view
+        v-else-if="activeTab === 'posts'"
+        class="cd-post-list"
+      >
+        <post-card
+          v-for="post in posts"
+          :key="post.id"
+          :post="post"
+          :circle-id="circleId"
+          :liked="likedPosts.has(post.id)"
+          @like="handleLikePost"
+        />
       </view>
 
       <!-- 精华 Tab -->
-      <view v-else-if="activeTab === 'essence'" class="cd-post-list">
+      <view
+        v-else-if="activeTab === 'essence'"
+        class="cd-post-list"
+      >
         <template v-if="essencePosts.length">
-          <post-card v-for="post in essencePosts" :key="post.id" :post="post" :circle-id="circleId" :liked="likedPosts.has(post.id)" :show-essence="true" @like="handleLikePost" />
+          <post-card
+            v-for="post in essencePosts"
+            :key="post.id"
+            :post="post"
+            :circle-id="circleId"
+            :liked="likedPosts.has(post.id)"
+            :show-essence="true"
+            @like="handleLikePost"
+          />
         </template>
-        <view v-else class="cd-empty">
-          <app-icon name="star" :size="96" color="#E8E3DB" />
-          <text class="cd-empty-txt">暂无精华内容</text>
+        <view
+          v-else
+          class="cd-empty"
+        >
+          <app-icon
+            name="star"
+            :size="96"
+            color="#E8E3DB"
+          />
+          <text class="cd-empty-txt">
+            暂无精华内容
+          </text>
         </view>
       </view>
 
       <!-- 文章 Tab -->
-      <view v-else-if="activeTab === 'articles'" class="cd-post-list">
+      <view
+        v-else-if="activeTab === 'articles'"
+        class="cd-post-list"
+      >
         <template v-if="circleArticles.length">
-          <view v-for="a in circleArticles" :key="a.id" class="cd-article" @tap="toastComingSoon">
-            <image v-if="a.cover" :src="a.cover" class="cd-article-cover" mode="aspectFill" />
+          <view
+            v-for="a in circleArticles"
+            :key="a.id"
+            class="cd-article"
+            @tap="toastComingSoon"
+          >
+            <image
+              v-if="a.cover"
+              :src="a.cover"
+              class="cd-article-cover"
+              mode="aspectFill"
+            />
             <view class="cd-article-main">
               <view class="cd-article-title-row">
-                <text v-if="a.isFeatured" class="cd-article-feat">精选</text>
-                <text class="cd-article-title">{{ a.title }}</text>
+                <text
+                  v-if="a.isFeatured"
+                  class="cd-article-feat"
+                >
+                  精选
+                </text>
+                <text class="cd-article-title">
+                  {{ a.title }}
+                </text>
               </view>
               <view class="cd-article-meta">
-                <text class="cd-article-meta-txt">{{ a.author }}</text>
-                <view class="cd-article-stat"><app-icon name="eye" :size="22" color="#999999" /><text class="cd-article-meta-txt">{{ a.views }}</text></view>
-                <view class="cd-article-stat"><app-icon name="heart" :size="22" color="#999999" /><text class="cd-article-meta-txt">{{ a.likes }}</text></view>
+                <text class="cd-article-meta-txt">
+                  {{ a.author }}
+                </text>
+                <view class="cd-article-stat">
+                  <app-icon
+                    name="eye"
+                    :size="22"
+                    color="#999999"
+                  /><text class="cd-article-meta-txt">
+                    {{ a.views }}
+                  </text>
+                </view>
+                <view class="cd-article-stat">
+                  <app-icon
+                    name="heart"
+                    :size="22"
+                    color="#999999"
+                  /><text class="cd-article-meta-txt">
+                    {{ a.likes }}
+                  </text>
+                </view>
               </view>
             </view>
           </view>
         </template>
-        <view v-else class="cd-empty"><text class="cd-empty-txt">圈主还没有发布文章</text></view>
+        <view
+          v-else
+          class="cd-empty"
+        >
+          <text class="cd-empty-txt">
+            圈主还没有发布文章
+          </text>
+        </view>
       </view>
 
       <!-- 专栏 Tab -->
-      <view v-else-if="activeTab === 'columns'" class="cd-col-grid">
-        <view v-for="col in columns" :key="col.id" class="cd-col-card" @tap="toastComingSoon">
+      <view
+        v-else-if="activeTab === 'columns'"
+        class="cd-col-grid"
+      >
+        <view
+          v-for="col in columns"
+          :key="col.id"
+          class="cd-col-card"
+          @tap="toastComingSoon"
+        >
           <view class="cd-col-cover">
-            <image :src="col.cover" class="cd-col-card-img" mode="aspectFill" />
-            <view v-if="col.isPremium" class="cd-col-lock"><app-icon name="lock" :size="20" color="#ffffff" /></view>
+            <image
+              :src="col.cover"
+              class="cd-col-card-img"
+              mode="aspectFill"
+            />
+            <view
+              v-if="col.isPremium"
+              class="cd-col-lock"
+            >
+              <app-icon
+                name="lock"
+                :size="20"
+                color="#ffffff"
+              />
+            </view>
           </view>
           <view class="cd-col-body">
-            <text class="cd-col-title">{{ col.title }}</text>
-            <text class="cd-col-meta">{{ col.articles }}篇文章 · {{ col.views }}阅读</text>
+            <text class="cd-col-title">
+              {{ col.title }}
+            </text>
+            <text class="cd-col-meta">
+              {{ col.articles }}篇文章 · {{ col.views }}阅读
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 成员 Tab -->
-      <view v-else-if="activeTab === 'members'" class="cd-member-list">
-        <view v-for="m in members" :key="m.id" class="cd-member" @tap="openUser(m.id)">
-          <image :src="m.avatar" class="cd-member-avatar" mode="aspectFill" />
+      <view
+        v-else-if="activeTab === 'members'"
+        class="cd-member-list"
+      >
+        <view
+          v-for="m in members"
+          :key="m.id"
+          class="cd-member"
+          @tap="openUser(m.id)"
+        >
+          <image
+            :src="m.avatar"
+            class="cd-member-avatar"
+            mode="aspectFill"
+          />
           <view class="cd-member-main">
             <view class="cd-member-name-row">
-              <text class="cd-member-name">{{ m.name }}</text>
-              <view v-if="m.role === 'owner'" class="cd-role owner"><app-icon name="crown" :size="22" color="#C9A96E" /><text class="cd-role-txt owner">圈主</text></view>
-              <view v-else-if="m.role === 'admin'" class="cd-role admin"><app-icon name="shield" :size="22" color="#4A90D9" /><text class="cd-role-txt admin">管理员</text></view>
+              <text class="cd-member-name">
+                {{ m.name }}
+              </text>
+              <view
+                v-if="m.role === 'owner'"
+                class="cd-role owner"
+              >
+                <app-icon
+                  name="crown"
+                  :size="22"
+                  color="#C9A96E"
+                /><text class="cd-role-txt owner">
+                  圈主
+                </text>
+              </view>
+              <view
+                v-else-if="m.role === 'admin'"
+                class="cd-role admin"
+              >
+                <app-icon
+                  name="shield"
+                  :size="22"
+                  color="#4A90D9"
+                /><text class="cd-role-txt admin">
+                  管理员
+                </text>
+              </view>
             </view>
             <view class="cd-member-meta">
-              <text v-if="m.title" class="cd-member-meta-txt">{{ m.title }}</text>
-              <text class="cd-member-meta-txt">发帖 {{ m.posts }}</text>
+              <text
+                v-if="m.title"
+                class="cd-member-meta-txt"
+              >
+                {{ m.title }}
+              </text>
+              <text class="cd-member-meta-txt">
+                发帖 {{ m.posts }}
+              </text>
             </view>
           </view>
         </view>
@@ -351,35 +861,99 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
 
     <!-- 底部操作栏 -->
     <view class="cd-foot">
-      <view class="cd-join" :class="{ joined: isJoined }" @tap="handleJoin">
-        <text class="cd-join-txt" :class="{ joined: isJoined }">{{ isJoined ? '已加入' : '¥199/年 加入圈子' }}</text>
+      <view
+        class="cd-join"
+        :class="{ joined: isJoined }"
+        @tap="handleJoin"
+      >
+        <text
+          class="cd-join-txt"
+          :class="{ joined: isJoined }"
+        >
+          {{ isJoined ? '已加入' : '¥199/年 加入圈子' }}
+        </text>
       </view>
-      <view v-if="isJoined" class="cd-post-btn" @tap="openPublish">
-        <app-icon name="plus" :size="28" color="#ffffff" /><text class="cd-post-btn-txt">发帖</text>
+      <view
+        v-if="isJoined"
+        class="cd-post-btn"
+        @tap="openPublish"
+      >
+        <app-icon
+          name="plus"
+          :size="28"
+          color="#ffffff"
+        /><text class="cd-post-btn-txt">
+          发帖
+        </text>
       </view>
     </view>
 
     <!-- 会员权益弹窗 -->
-    <view v-if="showBenefits" class="cd-mask" @tap="showBenefits = false">
-      <view class="cd-sheet" @tap.stop>
+    <view
+      v-if="showBenefits"
+      class="cd-mask"
+      @tap="showBenefits = false"
+    >
+      <view
+        class="cd-sheet"
+        @tap.stop
+      >
         <view class="cd-sheet-body">
           <view class="cd-sheet-head">
-            <view class="cd-sheet-icon"><app-icon name="sparkles" :size="44" color="#ffffff" /></view>
-            <text class="cd-sheet-title">加入「{{ circle.name }}」</text>
-            <text class="cd-sheet-sub">¥199/年，解锁以下专属权益</text>
+            <view class="cd-sheet-icon">
+              <app-icon
+                name="sparkles"
+                :size="44"
+                color="#ffffff"
+              />
+            </view>
+            <text class="cd-sheet-title">
+              加入「{{ circle.name }}」
+            </text>
+            <text class="cd-sheet-sub">
+              ¥199/年，解锁以下专属权益
+            </text>
           </view>
           <view class="cd-benefits">
-            <view v-for="(b, i) in memberBenefits" :key="i" class="cd-benefit">
-              <view class="cd-benefit-icon"><app-icon :name="b.icon" :size="28" color="#C41E3A" /></view>
+            <view
+              v-for="(b, i) in memberBenefits"
+              :key="i"
+              class="cd-benefit"
+            >
+              <view class="cd-benefit-icon">
+                <app-icon
+                  :name="b.icon"
+                  :size="28"
+                  color="#C41E3A"
+                />
+              </view>
               <view class="cd-benefit-main">
-                <text class="cd-benefit-title">{{ b.title }}</text>
-                <text class="cd-benefit-desc">{{ b.desc }}</text>
+                <text class="cd-benefit-title">
+                  {{ b.title }}
+                </text>
+                <text class="cd-benefit-desc">
+                  {{ b.desc }}
+                </text>
               </view>
             </view>
           </view>
           <view class="cd-sheet-actions">
-            <view class="cd-sheet-btn cancel" @tap="showBenefits = false"><text class="cd-sheet-btn-txt cancel">再想想</text></view>
-            <view class="cd-sheet-btn confirm" @tap="confirmJoin"><text class="cd-sheet-btn-txt confirm">立即加入</text></view>
+            <view
+              class="cd-sheet-btn cancel"
+              @tap="showBenefits = false"
+            >
+              <text class="cd-sheet-btn-txt cancel">
+                再想想
+              </text>
+            </view>
+            <view
+              class="cd-sheet-btn confirm"
+              @tap="confirmJoin"
+            >
+              <text class="cd-sheet-btn-txt confirm">
+                立即加入
+              </text>
+            </view>
           </view>
         </view>
       </view>
@@ -387,9 +961,14 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
   </view>
 
   <!-- 骨架屏 -->
-  <view v-else class="cd-skeleton">
+  <view
+    v-else
+    class="cd-skeleton"
+  >
     <view class="sk-cover" />
-    <view class="sk-info"><view class="sk-card" /></view>
+    <view class="sk-info">
+      <view class="sk-card" />
+    </view>
   </view>
 </template>
 

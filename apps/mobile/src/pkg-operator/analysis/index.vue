@@ -1,52 +1,119 @@
 <template>
   <view class="analysis-page">
-    <app-nav-bar title="下线业绩分析" :show-back="true" background="#ffffff" color="#1f2937" />
+    <app-nav-bar
+      title="下线业绩分析"
+      :show-back="true"
+      background="#ffffff"
+      color="#1f2937"
+    />
 
     <view class="an-body">
-      <text class="an-intro">系统自动分析每位下线的推广漏斗（曝光→点击→成交），诊断转化瓶颈。</text>
+      <text class="an-intro">
+        系统自动分析每位下线的推广漏斗（曝光→点击→成交），诊断转化瓶颈。
+      </text>
 
-      <view v-for="m in members" :key="m.id" class="an-card">
+      <view
+        v-for="m in members"
+        :key="m.id"
+        class="an-card"
+      >
         <!-- 头部 -->
         <view class="an-head">
           <view class="an-avatar">
-            <text class="an-avatar-txt">{{ m.name.charAt(0) }}</text>
+            <text class="an-avatar-txt">
+              {{ m.name.charAt(0) }}
+            </text>
           </view>
           <view class="an-head-info">
             <view class="an-head-name-row">
-              <text class="an-name">{{ m.name }}</text>
-              <text class="an-level">{{ m.level }}</text>
+              <text class="an-name">
+                {{ m.name }}
+              </text>
+              <text class="an-level">
+                {{ m.level }}
+              </text>
             </view>
-            <text class="an-commission">佣金 ¥{{ m.commission }}</text>
+            <text class="an-commission">
+              佣金 ¥{{ m.commission }}
+            </text>
           </view>
-          <view class="an-trend" :class="m.trend >= 0 ? 'up' : 'down'">
-            <app-icon :name="m.trend >= 0 ? 'trending-up' : 'trending-down'" :size="28" :color="m.trend >= 0 ? '#16a34a' : '#ef4444'" />
-            <text class="an-trend-txt" :class="m.trend >= 0 ? 'up' : 'down'">{{ Math.abs(m.trend) }}%</text>
+          <view
+            class="an-trend"
+            :class="m.trend >= 0 ? 'up' : 'down'"
+          >
+            <app-icon
+              :name="m.trend >= 0 ? 'trending-up' : 'trending-down'"
+              :size="28"
+              :color="m.trend >= 0 ? '#16a34a' : '#ef4444'"
+            />
+            <text
+              class="an-trend-txt"
+              :class="m.trend >= 0 ? 'up' : 'down'"
+            >
+              {{ Math.abs(m.trend) }}%
+            </text>
           </view>
         </view>
 
         <!-- 漏斗数据 -->
         <view class="an-funnel">
           <view class="an-funnel-item">
-            <app-icon name="eye" :size="28" color="#9ca3af" />
-            <text class="an-funnel-val">{{ m.visits }}</text>
-            <text class="an-funnel-label">曝光</text>
+            <app-icon
+              name="eye"
+              :size="28"
+              color="#9ca3af"
+            />
+            <text class="an-funnel-val">
+              {{ m.visits }}
+            </text>
+            <text class="an-funnel-label">
+              曝光
+            </text>
           </view>
           <view class="an-funnel-item">
-            <app-icon name="mouse-pointer-click" :size="28" color="#9ca3af" />
-            <text class="an-funnel-val">{{ m.clicks }}</text>
-            <text class="an-funnel-label">点击 {{ ctr(m) }}%</text>
+            <app-icon
+              name="mouse-pointer-click"
+              :size="28"
+              color="#9ca3af"
+            />
+            <text class="an-funnel-val">
+              {{ m.clicks }}
+            </text>
+            <text class="an-funnel-label">
+              点击 {{ ctr(m) }}%
+            </text>
           </view>
           <view class="an-funnel-item">
-            <app-icon name="shopping-cart" :size="28" color="#9ca3af" />
-            <text class="an-funnel-val">{{ m.orders }}</text>
-            <text class="an-funnel-label">成交 {{ cvr(m) }}%</text>
+            <app-icon
+              name="shopping-cart"
+              :size="28"
+              color="#9ca3af"
+            />
+            <text class="an-funnel-val">
+              {{ m.orders }}
+            </text>
+            <text class="an-funnel-label">
+              成交 {{ cvr(m) }}%
+            </text>
           </view>
         </view>
 
         <!-- 自动诊断 -->
-        <view class="an-diag" :class="m.diagnosis.type">
-          <app-icon name="alert-circle" :size="26" :color="m.diagnosis.type === 'good' ? '#16a34a' : '#b45309'" />
-          <text class="an-diag-txt" :class="m.diagnosis.type">{{ m.diagnosis.text }}</text>
+        <view
+          class="an-diag"
+          :class="m.diagnosis.type"
+        >
+          <app-icon
+            name="alert-circle"
+            :size="26"
+            :color="m.diagnosis.type === 'good' ? '#16a34a' : '#b45309'"
+          />
+          <text
+            class="an-diag-txt"
+            :class="m.diagnosis.type"
+          >
+            {{ m.diagnosis.text }}
+          </text>
         </view>
       </view>
     </view>

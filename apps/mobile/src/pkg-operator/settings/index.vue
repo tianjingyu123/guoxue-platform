@@ -1,31 +1,76 @@
 <template>
   <view class="settings-page">
-    <app-nav-bar title="运营商设置" :show-back="true" background="#ffffff" color="#1f2937" />
+    <app-nav-bar
+      title="运营商设置"
+      :show-back="true"
+      background="#ffffff"
+      color="#1f2937"
+    />
 
     <view class="st-body">
       <!-- 基本信息 -->
       <view class="st-section">
-        <text class="st-section-title">基本信息</text>
+        <text class="st-section-title">
+          基本信息
+        </text>
         <view class="st-card st-form">
-          <view v-for="f in profileFields" :key="f.key" class="st-field">
-            <text class="st-field-label">{{ f.label }}</text>
-            <input class="st-input" type="text" v-model="profile[f.key]" />
+          <view
+            v-for="f in profileFields"
+            :key="f.key"
+            class="st-field"
+          >
+            <text class="st-field-label">
+              {{ f.label }}
+            </text>
+            <input
+              v-model="profile[f.key]"
+              class="st-input"
+              type="text"
+            >
           </view>
-          <view class="st-save-btn" :class="{ saved }" @tap="handleSave">
-            <app-icon v-if="saving" name="loader-2" :size="28" color="#ffffff" class="st-spin" />
-            <text class="st-save-txt">{{ saving ? '保存中…' : saved ? '保存成功' : '保存修改' }}</text>
+          <view
+            class="st-save-btn"
+            :class="{ saved }"
+            @tap="handleSave"
+          >
+            <app-icon
+              v-if="saving"
+              name="loader-2"
+              :size="28"
+              color="#ffffff"
+              class="st-spin"
+            />
+            <text class="st-save-txt">
+              {{ saving ? '保存中…' : saved ? '保存成功' : '保存修改' }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 消息通知 -->
       <view class="st-section">
-        <text class="st-section-title">消息通知</text>
+        <text class="st-section-title">
+          消息通知
+        </text>
         <view class="st-card">
-          <view v-for="(n, idx) in notifyItems" :key="n.key" class="st-row" :class="{ 'st-row-border': idx > 0 }">
-            <text class="st-row-label">{{ n.label }}</text>
-            <view class="st-switch" :class="{ on: notifications[n.key] }" @tap="toggle(n.key)">
-              <view class="st-switch-knob" :class="{ on: notifications[n.key] }" />
+          <view
+            v-for="(n, idx) in notifyItems"
+            :key="n.key"
+            class="st-row"
+            :class="{ 'st-row-border': idx > 0 }"
+          >
+            <text class="st-row-label">
+              {{ n.label }}
+            </text>
+            <view
+              class="st-switch"
+              :class="{ on: notifications[n.key] }"
+              @tap="toggle(n.key)"
+            >
+              <view
+                class="st-switch-knob"
+                :class="{ on: notifications[n.key] }"
+              />
             </view>
           </view>
         </view>
@@ -33,12 +78,29 @@
 
       <!-- 账号安全 -->
       <view class="st-section">
-        <text class="st-section-title">账号安全</text>
+        <text class="st-section-title">
+          账号安全
+        </text>
         <view class="st-card">
-          <view v-for="(item, idx) in accountItems" :key="item.label" class="st-row st-row-link" :class="{ 'st-row-border': idx > 0 }">
-            <app-icon :name="item.icon" :size="28" color="#C41E3A" />
-            <text class="st-row-label st-row-link-label">{{ item.label }}</text>
-            <app-icon name="chevron-right" :size="28" color="#9ca3af" />
+          <view
+            v-for="(item, idx) in accountItems"
+            :key="item.label"
+            class="st-row st-row-link"
+            :class="{ 'st-row-border': idx > 0 }"
+          >
+            <app-icon
+              :name="item.icon"
+              :size="28"
+              color="#C41E3A"
+            />
+            <text class="st-row-label st-row-link-label">
+              {{ item.label }}
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="28"
+              color="#9ca3af"
+            />
           </view>
         </view>
       </view>
@@ -46,9 +108,18 @@
       <!-- 退出登录 -->
       <view class="st-section">
         <view class="st-card st-logout-card">
-          <view class="st-row st-row-link" @tap="onLogout">
-            <app-icon name="log-out" :size="28" color="#ef4444" />
-            <text class="st-logout-txt">退出登录</text>
+          <view
+            class="st-row st-row-link"
+            @tap="onLogout"
+          >
+            <app-icon
+              name="log-out"
+              :size="28"
+              color="#ef4444"
+            />
+            <text class="st-logout-txt">
+              退出登录
+            </text>
           </view>
         </view>
       </view>

@@ -1,25 +1,41 @@
 <template>
   <view class="author-page">
     <!-- 顶部导航 -->
-    <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="nav-bar"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="nav-inner">
-        <view class="nav-back" @click="goBack">
-          <app-icon name="arrow-left" :size="40" color="#1f1f1f" />
+        <view
+          class="nav-back"
+          @click="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="40"
+            color="#1f1f1f"
+          />
         </view>
-        <text class="nav-title">作者列表</text>
+        <text class="nav-title">
+          作者列表
+        </text>
       </view>
     </view>
 
     <view class="page-body">
       <!-- 搜索框 -->
       <view class="search-box">
-        <app-icon name="search" :size="32" color="#9a9a9a" />
+        <app-icon
+          name="search"
+          :size="32"
+          color="#9a9a9a"
+        />
         <input
-          class="search-input"
           v-model="search"
+          class="search-input"
           placeholder="搜索作者或专长"
           placeholder-class="search-ph"
-        />
+        >
       </view>
 
       <!-- 筛选 + 排序 -->
@@ -43,8 +59,14 @@
           @change="onSortChange"
         >
           <view class="sort-trigger">
-            <text class="sort-text">{{ sortOptions[sortIndex].label }}</text>
-            <app-icon name="chevron-down" :size="24" color="#9a9a9a" />
+            <text class="sort-text">
+              {{ sortOptions[sortIndex].label }}
+            </text>
+            <app-icon
+              name="chevron-down"
+              :size="24"
+              color="#9a9a9a"
+            />
           </view>
         </picker>
       </view>
@@ -57,36 +79,82 @@
           class="author-card"
           @click="goDetail(author.id)"
         >
-          <image class="author-avatar" :src="author.avatar" mode="aspectFill" />
+          <image
+            class="author-avatar"
+            :src="author.avatar"
+            mode="aspectFill"
+          />
           <view class="author-main">
             <view class="author-name-row">
-              <text class="author-name">{{ author.name }}</text>
-              <app-icon v-if="author.verified" name="award" :size="26" color="#f59e0b" />
-              <text class="author-specialty">{{ author.specialty }}</text>
+              <text class="author-name">
+                {{ author.name }}
+              </text>
+              <app-icon
+                v-if="author.verified"
+                name="award"
+                :size="26"
+                color="#f59e0b"
+              />
+              <text class="author-specialty">
+                {{ author.specialty }}
+              </text>
             </view>
-            <text class="author-bio">{{ author.bio }}</text>
+            <text class="author-bio">
+              {{ author.bio }}
+            </text>
             <view class="author-stats">
               <view class="stat-item">
-                <app-icon name="book-open" :size="22" color="#9a9a9a" />
-                <text class="stat-text">{{ author.articles }} 篇</text>
+                <app-icon
+                  name="book-open"
+                  :size="22"
+                  color="#9a9a9a"
+                />
+                <text class="stat-text">
+                  {{ author.articles }} 篇
+                </text>
               </view>
               <view class="stat-item">
-                <app-icon name="users" :size="22" color="#9a9a9a" />
-                <text class="stat-text">{{ (author.followers / 1000).toFixed(1) }}k 粉丝</text>
+                <app-icon
+                  name="users"
+                  :size="22"
+                  color="#9a9a9a"
+                />
+                <text class="stat-text">
+                  {{ (author.followers / 1000).toFixed(1) }}k 粉丝
+                </text>
               </view>
               <view class="stat-item">
-                <app-icon name="star" :size="22" color="#fbbf24" />
-                <text class="stat-text">{{ author.rating }}</text>
+                <app-icon
+                  name="star"
+                  :size="22"
+                  color="#fbbf24"
+                />
+                <text class="stat-text">
+                  {{ author.rating }}
+                </text>
               </view>
             </view>
           </view>
-          <app-icon name="chevron-right" :size="28" color="#9a9a9a" />
+          <app-icon
+            name="chevron-right"
+            :size="28"
+            color="#9a9a9a"
+          />
         </view>
 
         <!-- 空态 -->
-        <view v-if="filtered.length === 0" class="empty-state">
-          <app-icon name="search" :size="80" color="#d4d4d4" />
-          <text class="empty-text">未找到相关作者</text>
+        <view
+          v-if="filtered.length === 0"
+          class="empty-state"
+        >
+          <app-icon
+            name="search"
+            :size="80"
+            color="#d4d4d4"
+          />
+          <text class="empty-text">
+            未找到相关作者
+          </text>
         </view>
       </view>
     </view>

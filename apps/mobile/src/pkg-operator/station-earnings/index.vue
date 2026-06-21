@@ -165,7 +165,7 @@ try {
   statusBarHeight.value = info.statusBarHeight || 20
 } catch (e) {}
 
-type'all' | 'live' | 'course' | 'shop' | 'membership' = 'course_commission' | 'product_commission' | 'member_commission' | 'team_bonus' | 'platform_reward' | 'invite_reward'
+type EarnType = 'course_commission' | 'product_commission' | 'member_commission' | 'team_bonus' | 'platform_reward' | 'invite_reward'
 type EarnStatus = 'settled' | 'pending' | 'frozen'
 type WdStatus = 'pending' | 'processing' | 'success' | 'failed'
 

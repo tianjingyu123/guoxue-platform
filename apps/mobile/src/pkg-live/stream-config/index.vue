@@ -1,12 +1,24 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="nav"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="nav-bar">
-        <view class="nav-btn" @tap="goBack">
-          <AppIcon name="chevron-left" :size="48" color="#2C2C2C" />
+        <view
+          class="nav-btn"
+          @tap="goBack"
+        >
+          <AppIcon
+            name="chevron-left"
+            :size="48"
+            color="#2C2C2C"
+          />
         </view>
-        <text class="nav-title">推流配置</text>
+        <text class="nav-title">
+          推流配置
+        </text>
         <view class="nav-spacer" />
       </view>
     </view>
@@ -16,11 +28,19 @@
       <view class="card">
         <view class="room-row">
           <view class="room-icon">
-            <AppIcon name="monitor" :size="48" color="#fff" />
+            <AppIcon
+              name="monitor"
+              :size="48"
+              color="#fff"
+            />
           </view>
           <view class="room-info">
-            <text class="room-title">{{ config.roomTitle }}</text>
-            <text class="room-id">直播间ID: {{ config.roomId }}</text>
+            <text class="room-title">
+              {{ config.roomTitle }}
+            </text>
+            <text class="room-id">
+              直播间ID: {{ config.roomId }}
+            </text>
           </view>
         </view>
       </view>
@@ -30,16 +50,34 @@
         <view class="status-row">
           <view class="status-left">
             <view class="status-icon off">
-              <AppIcon name="wifi-off" :size="40" color="#999" />
+              <AppIcon
+                name="wifi-off"
+                :size="40"
+                color="#999"
+              />
             </view>
             <view class="status-text">
-              <text class="status-title off">未推流</text>
-              <text class="status-note">等待OBS连接</text>
+              <text class="status-title off">
+                未推流
+              </text>
+              <text class="status-note">
+                等待OBS连接
+              </text>
             </view>
           </view>
-          <view class="refresh-btn" @tap="handleRefresh">
-            <AppIcon name="refresh-cw" :size="32" color="#C41E3A" :class="{ spin: checking }" />
-            <text class="refresh-txt">刷新</text>
+          <view
+            class="refresh-btn"
+            @tap="handleRefresh"
+          >
+            <AppIcon
+              name="refresh-cw"
+              :size="32"
+              color="#C41E3A"
+              :class="{ spin: checking }"
+            />
+            <text class="refresh-txt">
+              刷新
+            </text>
           </view>
         </view>
       </view>
@@ -47,54 +85,111 @@
       <!-- 推流地址和密钥 -->
       <view class="card">
         <view class="info-head">
-          <AppIcon name="settings" :size="40" color="#C41E3A" />
-          <text class="info-head-txt">推流信息</text>
+          <AppIcon
+            name="settings"
+            :size="40"
+            color="#C41E3A"
+          />
+          <text class="info-head-txt">
+            推流信息
+          </text>
         </view>
 
         <view class="field">
-          <text class="field-label">推流地址（服务器）</text>
+          <text class="field-label">
+            推流地址（服务器）
+          </text>
           <view class="field-row">
-            <view class="field-value">{{ config.streamUrl }}</view>
-            <view class="field-btn" :class="{ copied: copiedUrl }" @tap="copyUrl">
-              <AppIcon :name="copiedUrl ? 'check' : 'copy'" :size="40" :color="copiedUrl ? '#16a34a' : '#666'" />
+            <view class="field-value">
+              {{ config.streamUrl }}
+            </view>
+            <view
+              class="field-btn"
+              :class="{ copied: copiedUrl }"
+              @tap="copyUrl"
+            >
+              <AppIcon
+                :name="copiedUrl ? 'check' : 'copy'"
+                :size="40"
+                :color="copiedUrl ? '#16a34a' : '#666'"
+              />
             </view>
           </view>
         </view>
 
         <view class="field">
-          <text class="field-label">推流密钥（串流密钥）</text>
+          <text class="field-label">
+            推流密钥（串流密钥）
+          </text>
           <view class="field-row">
-            <view class="field-value">{{ showKey ? config.streamKey : '••••••••••••••••••••••' }}</view>
-            <view class="field-btn" @tap="showKey = !showKey">
-              <AppIcon :name="showKey ? 'eye-off' : 'eye'" :size="40" color="#666" />
+            <view class="field-value">
+              {{ showKey ? config.streamKey : '••••••••••••••••••••••' }}
             </view>
-            <view class="field-btn" :class="{ copied: copiedKey }" @tap="copyKey">
-              <AppIcon :name="copiedKey ? 'check' : 'copy'" :size="40" :color="copiedKey ? '#16a34a' : '#666'" />
+            <view
+              class="field-btn"
+              @tap="showKey = !showKey"
+            >
+              <AppIcon
+                :name="showKey ? 'eye-off' : 'eye'"
+                :size="40"
+                color="#666"
+              />
+            </view>
+            <view
+              class="field-btn"
+              :class="{ copied: copiedKey }"
+              @tap="copyKey"
+            >
+              <AppIcon
+                :name="copiedKey ? 'check' : 'copy'"
+                :size="40"
+                :color="copiedKey ? '#16a34a' : '#666'"
+              />
             </view>
           </view>
-          <text class="field-warn">请勿泄露推流密钥，否则他人可能冒用您的直播间</text>
+          <text class="field-warn">
+            请勿泄露推流密钥，否则他人可能冒用您的直播间
+          </text>
         </view>
       </view>
 
       <!-- 推荐参数 -->
       <view class="card">
-        <text class="card-title">推荐参数设置</text>
+        <text class="card-title">
+          推荐参数设置
+        </text>
         <view class="param-grid">
           <view class="param-item">
-            <text class="param-label">分辨率</text>
-            <text class="param-value">{{ config.recommendedSettings.resolution }}</text>
+            <text class="param-label">
+              分辨率
+            </text>
+            <text class="param-value">
+              {{ config.recommendedSettings.resolution }}
+            </text>
           </view>
           <view class="param-item">
-            <text class="param-label">比特率</text>
-            <text class="param-value">{{ config.recommendedSettings.bitrate }}</text>
+            <text class="param-label">
+              比特率
+            </text>
+            <text class="param-value">
+              {{ config.recommendedSettings.bitrate }}
+            </text>
           </view>
           <view class="param-item">
-            <text class="param-label">帧率</text>
-            <text class="param-value">{{ config.recommendedSettings.fps }} fps</text>
+            <text class="param-label">
+              帧率
+            </text>
+            <text class="param-value">
+              {{ config.recommendedSettings.fps }} fps
+            </text>
           </view>
           <view class="param-item">
-            <text class="param-label">编码器</text>
-            <text class="param-value">{{ config.recommendedSettings.encoder }}</text>
+            <text class="param-label">
+              编码器
+            </text>
+            <text class="param-value">
+              {{ config.recommendedSettings.encoder }}
+            </text>
           </view>
         </view>
       </view>
@@ -102,15 +197,26 @@
       <!-- OBS配置步骤 -->
       <view class="card">
         <view class="obs-head">
-          <text class="card-title nomb">OBS配置教程</text>
+          <text class="card-title nomb">
+            OBS配置教程
+          </text>
           <view class="obs-download">
-            <text class="obs-download-txt">下载OBS</text>
-            <AppIcon name="external-link" :size="32" color="#C41E3A" />
+            <text class="obs-download-txt">
+              下载OBS
+            </text>
+            <AppIcon
+              name="external-link"
+              :size="32"
+              color="#C41E3A"
+            />
           </view>
         </view>
 
         <!-- 步骤指示器 -->
-        <scroll-view scroll-x class="step-indicator">
+        <scroll-view
+          scroll-x
+          class="step-indicator"
+        >
           <view
             v-for="(_, idx) in obsSteps"
             :key="idx"
@@ -118,32 +224,67 @@
             :class="idx === currentStep ? 'active' : idx < currentStep ? 'done' : ''"
             @tap="currentStep = idx"
           >
-            <AppIcon v-if="idx < currentStep" name="check" :size="32" color="#16a34a" />
-            <text v-else>{{ idx + 1 }}</text>
+            <AppIcon
+              v-if="idx < currentStep"
+              name="check"
+              :size="32"
+              color="#16a34a"
+            />
+            <text v-else>
+              {{ idx + 1 }}
+            </text>
           </view>
         </scroll-view>
 
         <!-- 当前步骤内容 -->
         <view class="step-box">
-          <view class="step-img">步骤 {{ currentStep + 1 }} 示意图</view>
-          <text class="step-box-title">步骤 {{ currentStep + 1 }}: {{ obsSteps[currentStep].title }}</text>
-          <text class="step-box-desc">{{ obsSteps[currentStep].description }}</text>
+          <view class="step-img">
+            步骤 {{ currentStep + 1 }} 示意图
+          </view>
+          <text class="step-box-title">
+            步骤 {{ currentStep + 1 }}: {{ obsSteps[currentStep].title }}
+          </text>
+          <text class="step-box-desc">
+            {{ obsSteps[currentStep].description }}
+          </text>
         </view>
 
         <!-- 步骤导航 -->
         <view class="step-nav">
-          <text class="step-nav-btn prev" :class="{ disabled: currentStep === 0 }" @tap="prevStep">上一步</text>
-          <text class="step-nav-btn next" :class="{ disabled: currentStep === obsSteps.length - 1 }" @tap="nextStep">下一步</text>
+          <text
+            class="step-nav-btn prev"
+            :class="{ disabled: currentStep === 0 }"
+            @tap="prevStep"
+          >
+            上一步
+          </text>
+          <text
+            class="step-nav-btn next"
+            :class="{ disabled: currentStep === obsSteps.length - 1 }"
+            @tap="nextStep"
+          >
+            下一步
+          </text>
         </view>
       </view>
 
       <!-- 常见问题 -->
       <view class="card">
-        <text class="card-title">常见问题</text>
+        <text class="card-title">
+          常见问题
+        </text>
         <view class="faq-list">
-          <view v-for="f in faq" :key="f.q" class="faq-item">
-            <text class="faq-q">{{ f.q }}</text>
-            <text class="faq-a">{{ f.a }}</text>
+          <view
+            v-for="f in faq"
+            :key="f.q"
+            class="faq-item"
+          >
+            <text class="faq-q">
+              {{ f.q }}
+            </text>
+            <text class="faq-a">
+              {{ f.a }}
+            </text>
           </view>
         </view>
       </view>

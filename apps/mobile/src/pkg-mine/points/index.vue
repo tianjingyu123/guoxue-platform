@@ -51,37 +51,76 @@ function confirmExchange() {
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
-      <view class="nav-back" @tap="goBack">
-        <AppIcon name="arrow-left" :size="44" color="#2D2A26" />
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <AppIcon
+          name="arrow-left"
+          :size="44"
+          color="#2D2A26"
+        />
       </view>
-      <text class="nav-title">积分中心</text>
-      <text class="nav-link" @tap="go('/pkg-mine/points/history')">明细</text>
+      <text class="nav-title">
+        积分中心
+      </text>
+      <text
+        class="nav-link"
+        @tap="go('/pkg-mine/points/history')"
+      >
+        明细
+      </text>
     </view>
 
-    <scroll-view scroll-y class="scroll">
+    <scroll-view
+      scroll-y
+      class="scroll"
+    >
       <!-- 积分余额卡片 -->
       <view class="hero">
         <view class="hero-deco hero-deco-1" />
         <view class="hero-deco hero-deco-2" />
         <view class="hero-body">
           <view class="hero-top">
-            <AppIcon name="coins" :size="20" color="rgba(255,255,255,0.8)" />
-            <text class="hero-label">我的积分</text>
+            <AppIcon
+              name="coins"
+              :size="20"
+              color="rgba(255,255,255,0.8)"
+            />
+            <text class="hero-label">
+              我的积分
+            </text>
           </view>
-          <text class="hero-num">{{ fmt(userPoints) }}</text>
-          <text class="hero-tip">100积分 = ¥1.00，可在兑换时抵扣</text>
+          <text class="hero-num">
+            {{ fmt(userPoints) }}
+          </text>
+          <text class="hero-tip">
+            100积分 = ¥1.00，可在兑换时抵扣
+          </text>
           <view class="hero-stats">
             <view class="hs-item">
-              <text class="hs-label">累计获取</text>
-              <text class="hs-val">{{ fmt(info.totalEarned) }}</text>
+              <text class="hs-label">
+                累计获取
+              </text>
+              <text class="hs-val">
+                {{ fmt(info.totalEarned) }}
+              </text>
             </view>
             <view class="hs-item">
-              <text class="hs-label">累计使用</text>
-              <text class="hs-val">{{ fmt(info.totalSpent) }}</text>
+              <text class="hs-label">
+                累计使用
+              </text>
+              <text class="hs-val">
+                {{ fmt(info.totalSpent) }}
+              </text>
             </view>
             <view class="hs-item">
-              <text class="hs-label">今日获取</text>
-              <text class="hs-val">+{{ info.todayEarned }}</text>
+              <text class="hs-label">
+                今日获取
+              </text>
+              <text class="hs-val">
+                +{{ info.todayEarned }}
+              </text>
             </view>
           </view>
         </view>
@@ -90,34 +129,72 @@ function confirmExchange() {
       <!-- 积分获取任务 -->
       <view class="section">
         <view class="section-head">
-          <text class="section-title">如何获取积分</text>
-          <view class="section-more" @tap="go('/pkg-mine/points/tasks')">
-            <text class="section-more-text">更多任务</text>
-            <AppIcon name="chevron-right" :size="14" color="#8a8178" />
+          <text class="section-title">
+            如何获取积分
+          </text>
+          <view
+            class="section-more"
+            @tap="go('/pkg-mine/points/tasks')"
+          >
+            <text class="section-more-text">
+              更多任务
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="14"
+              color="#8a8178"
+            />
           </view>
         </view>
         <view class="card">
-          <view v-for="task in tasks" :key="task.id" class="task-row">
+          <view
+            v-for="task in tasks"
+            :key="task.id"
+            class="task-row"
+          >
             <view class="task-left">
               <view class="task-icon">
-                <AppIcon :name="task.icon" :size="20" color="#c9a96e" />
+                <AppIcon
+                  :name="task.icon"
+                  :size="20"
+                  color="#c9a96e"
+                />
               </view>
               <view class="task-info">
                 <view class="task-title-row">
-                  <text class="task-title">{{ task.title }}</text>
-                  <text class="task-badge">+{{ task.points }}积分</text>
+                  <text class="task-title">
+                    {{ task.title }}
+                  </text>
+                  <text class="task-badge">
+                    +{{ task.points }}积分
+                  </text>
                 </view>
                 <text class="task-limit">
                   {{ task.limit }}{{ task.current !== undefined ? ` (${task.current}/${task.max})` : '' }}
                 </text>
               </view>
             </view>
-            <view v-if="task.completed" class="task-done">
-              <AppIcon name="check-circle" :size="14" color="#22c55e" />
-              <text class="task-done-text">已完成</text>
+            <view
+              v-if="task.completed"
+              class="task-done"
+            >
+              <AppIcon
+                name="check-circle"
+                :size="14"
+                color="#22c55e"
+              />
+              <text class="task-done-text">
+                已完成
+              </text>
             </view>
-            <view v-else class="task-btn" @tap="go('/pkg-mine/points/tasks')">
-              <text class="task-btn-text">{{ task.action }}</text>
+            <view
+              v-else
+              class="task-btn"
+              @tap="go('/pkg-mine/points/tasks')"
+            >
+              <text class="task-btn-text">
+                {{ task.action }}
+              </text>
             </view>
           </view>
         </view>
@@ -126,10 +203,21 @@ function confirmExchange() {
       <!-- 积分兑换 -->
       <view class="section">
         <view class="section-head">
-          <text class="section-title">积分兑换</text>
-          <view class="section-more" @tap="go('/pkg-mine/points/exchange')">
-            <text class="section-more-text">全部商品</text>
-            <AppIcon name="chevron-right" :size="14" color="#8a8178" />
+          <text class="section-title">
+            积分兑换
+          </text>
+          <view
+            class="section-more"
+            @tap="go('/pkg-mine/points/exchange')"
+          >
+            <text class="section-more-text">
+              全部商品
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="14"
+              color="#8a8178"
+            />
           </view>
         </view>
         <view class="ex-grid">
@@ -142,18 +230,37 @@ function confirmExchange() {
           >
             <view class="ex-top">
               <view class="ex-icon">
-                <AppIcon :name="item.icon" :size="18" :color="item.color" />
+                <AppIcon
+                  :name="item.icon"
+                  :size="18"
+                  :color="item.color"
+                />
               </view>
-              <text class="ex-stock">剩{{ item.stock }}</text>
+              <text class="ex-stock">
+                剩{{ item.stock }}
+              </text>
             </view>
-            <text class="ex-title">{{ item.title }}</text>
+            <text class="ex-title">
+              {{ item.title }}
+            </text>
             <view class="ex-bottom">
               <view class="ex-points">
-                <AppIcon name="coins" :size="13" color="#c9a96e" />
-                <text class="ex-points-num">{{ item.points }}</text>
+                <AppIcon
+                  name="coins"
+                  :size="13"
+                  color="#c9a96e"
+                />
+                <text class="ex-points-num">
+                  {{ item.points }}
+                </text>
               </view>
-              <view class="ex-btn" :class="{ 'ex-btn-disabled': userPoints < item.points }">
-                <text class="ex-btn-text">{{ userPoints >= item.points ? '兑换' : '积分不足' }}</text>
+              <view
+                class="ex-btn"
+                :class="{ 'ex-btn-disabled': userPoints < item.points }"
+              >
+                <text class="ex-btn-text">
+                  {{ userPoints >= item.points ? '兑换' : '积分不足' }}
+                </text>
               </view>
             </view>
           </view>
@@ -163,19 +270,41 @@ function confirmExchange() {
       <!-- 积分明细预览 -->
       <view class="section">
         <view class="section-head">
-          <text class="section-title">近期明细</text>
-          <view class="section-more" @tap="go('/pkg-mine/points/history')">
-            <text class="section-more-text">全部记录</text>
-            <AppIcon name="chevron-right" :size="14" color="#8a8178" />
+          <text class="section-title">
+            近期明细
+          </text>
+          <view
+            class="section-more"
+            @tap="go('/pkg-mine/points/history')"
+          >
+            <text class="section-more-text">
+              全部记录
+            </text>
+            <AppIcon
+              name="chevron-right"
+              :size="14"
+              color="#8a8178"
+            />
           </view>
         </view>
         <view class="card">
-          <view v-for="item in history" :key="item.id" class="his-row">
+          <view
+            v-for="item in history"
+            :key="item.id"
+            class="his-row"
+          >
             <view class="his-info">
-              <text class="his-title">{{ item.title }}</text>
-              <text class="his-time">{{ item.time }}</text>
+              <text class="his-title">
+                {{ item.title }}
+              </text>
+              <text class="his-time">
+                {{ item.time }}
+              </text>
             </view>
-            <text class="his-points" :class="item.type === 'earn' ? 'his-earn' : 'his-spend'">
+            <text
+              class="his-points"
+              :class="item.type === 'earn' ? 'his-earn' : 'his-spend'"
+            >
               {{ item.points > 0 ? '+' : '' }}{{ item.points }}
             </text>
           </view>
@@ -186,7 +315,9 @@ function confirmExchange() {
       <view class="section">
         <view class="note">
           <text class="note-text">
-            <text class="note-strong">积分说明：</text>积分可用于兑换优惠券、国学币、会员体验及实物礼品。积分有效期为获取后12个月，请及时使用。
+            <text class="note-strong">
+              积分说明：
+            </text>积分可用于兑换优惠券、国学币、会员体验及实物礼品。积分有效期为获取后12个月，请及时使用。
           </text>
         </view>
       </view>
@@ -195,33 +326,70 @@ function confirmExchange() {
     </scroll-view>
 
     <!-- 兑换确认弹窗 -->
-    <view v-if="showExchangeModal && selectedItem" class="modal-mask" @tap="showExchangeModal = false">
-      <view class="modal" @tap.stop>
+    <view
+      v-if="showExchangeModal && selectedItem"
+      class="modal-mask"
+      @tap="showExchangeModal = false"
+    >
+      <view
+        class="modal"
+        @tap.stop
+      >
         <template v-if="!exchangeSuccess">
           <view class="modal-icon">
-            <AppIcon name="gift" :size="32" color="#c9a96e" />
+            <AppIcon
+              name="gift"
+              :size="32"
+              color="#c9a96e"
+            />
           </view>
-          <text class="modal-title">确认兑换</text>
-          <text class="modal-sub">使用 {{ selectedItem.points }}积分 兑换</text>
+          <text class="modal-title">
+            确认兑换
+          </text>
+          <text class="modal-sub">
+            使用 {{ selectedItem.points }}积分 兑换
+          </text>
           <view class="modal-card">
-            <text class="modal-card-text">{{ selectedItem.title }}</text>
+            <text class="modal-card-text">
+              {{ selectedItem.title }}
+            </text>
           </view>
-          <text class="modal-balance">兑换后积分余额：{{ fmt(userPoints - selectedItem.points) }}</text>
+          <text class="modal-balance">
+            兑换后积分余额：{{ fmt(userPoints - selectedItem.points) }}
+          </text>
           <view class="modal-actions">
-            <view class="modal-btn modal-btn-cancel" @tap="showExchangeModal = false">
-              <text class="modal-btn-text">取消</text>
+            <view
+              class="modal-btn modal-btn-cancel"
+              @tap="showExchangeModal = false"
+            >
+              <text class="modal-btn-text">
+                取消
+              </text>
             </view>
-            <view class="modal-btn modal-btn-confirm" @tap="confirmExchange">
-              <text class="modal-btn-text modal-btn-text-light">确认兑换</text>
+            <view
+              class="modal-btn modal-btn-confirm"
+              @tap="confirmExchange"
+            >
+              <text class="modal-btn-text modal-btn-text-light">
+                确认兑换
+              </text>
             </view>
           </view>
         </template>
         <template v-else>
           <view class="modal-icon modal-icon-success">
-            <AppIcon name="check-circle" :size="32" color="#22c55e" />
+            <AppIcon
+              name="check-circle"
+              :size="32"
+              color="#22c55e"
+            />
           </view>
-          <text class="modal-title">兑换成功</text>
-          <text class="modal-sub">{{ selectedItem.title }} 已发放至您的账户</text>
+          <text class="modal-title">
+            兑换成功
+          </text>
+          <text class="modal-sub">
+            {{ selectedItem.title }} 已发放至您的账户
+          </text>
         </template>
       </view>
     </view>

@@ -1,46 +1,105 @@
 <template>
   <view class="page">
     <!-- 导航栏 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="navbar"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="nav-left">
-        <view class="icon-btn" @tap="goBack">
-          <AppIcon name="arrow-left" :size="20" color="#2c2c2c" />
+        <view
+          class="icon-btn"
+          @tap="goBack"
+        >
+          <AppIcon
+            name="arrow-left"
+            :size="20"
+            color="#2c2c2c"
+          />
         </view>
         <view class="target-info">
           <view class="target-avatar-wrap">
-            <image class="target-avatar" :src="target.avatar" mode="aspectFill" />
-            <view v-if="target.isOnline" class="online-dot" />
+            <image
+              class="target-avatar"
+              :src="target.avatar"
+              mode="aspectFill"
+            />
+            <view
+              v-if="target.isOnline"
+              class="online-dot"
+            />
           </view>
           <view class="target-text">
-            <text class="target-name">{{ target.remark || target.nickname }}</text>
-            <text class="target-status">{{ target.isOnline ? '在线' : target.lastActiveAt || '离线' }}</text>
+            <text class="target-name">
+              {{ target.remark || target.nickname }}
+            </text>
+            <text class="target-status">
+              {{ target.isOnline ? '在线' : target.lastActiveAt || '离线' }}
+            </text>
           </view>
         </view>
       </view>
-      <view class="icon-btn" @tap="showHeaderMenu = !showHeaderMenu">
-        <AppIcon name="more-vertical" :size="20" color="#2c2c2c" />
+      <view
+        class="icon-btn"
+        @tap="showHeaderMenu = !showHeaderMenu"
+      >
+        <AppIcon
+          name="more-vertical"
+          :size="20"
+          color="#2c2c2c"
+        />
       </view>
       <!-- 顶部下拉菜单 -->
-      <view v-if="showHeaderMenu" class="header-menu">
-        <text class="header-menu-item">查看主页</text>
-        <text class="header-menu-item">清空聊天记录</text>
-        <text class="header-menu-item header-menu-danger">{{ target.isBlocked ? '移出黑名单' : '加入黑名单' }}</text>
+      <view
+        v-if="showHeaderMenu"
+        class="header-menu"
+      >
+        <text class="header-menu-item">
+          查看主页
+        </text>
+        <text class="header-menu-item">
+          清空聊天记录
+        </text>
+        <text class="header-menu-item header-menu-danger">
+          {{ target.isBlocked ? '移出黑名单' : '加入黑名单' }}
+        </text>
       </view>
     </view>
 
     <!-- 消息列表 -->
-    <scroll-view class="msg-scroll" scroll-y :scroll-into-view="'msg-end'">
+    <scroll-view
+      class="msg-scroll"
+      scroll-y
+      :scroll-into-view="'msg-end'"
+    >
       <view class="msg-list">
-        <view v-for="(message, index) in messages" :key="message.id">
+        <view
+          v-for="(message, index) in messages"
+          :key="message.id"
+        >
           <!-- 时间标签 -->
-          <view v-if="showTime(message, messages[index - 1])" class="time-label-row">
-            <text class="time-label">{{ formatMessageTime(message.timestamp) }}</text>
+          <view
+            v-if="showTime(message, messages[index - 1])"
+            class="time-label-row"
+          >
+            <text class="time-label">
+              {{ formatMessageTime(message.timestamp) }}
+            </text>
           </view>
 
           <!-- 消息气泡 -->
-          <view class="msg-row" :class="{ 'msg-mine': isMine(message) }">
-            <image class="msg-avatar" :src="message.senderAvatar" mode="aspectFill" />
-            <view class="msg-content" :class="{ 'msg-content-mine': isMine(message) }">
+          <view
+            class="msg-row"
+            :class="{ 'msg-mine': isMine(message) }"
+          >
+            <image
+              class="msg-avatar"
+              :src="message.senderAvatar"
+              mode="aspectFill"
+            />
+            <view
+              class="msg-content"
+              :class="{ 'msg-content-mine': isMine(message) }"
+            >
               <view
                 class="bubble"
                 :class="[
@@ -50,37 +109,106 @@
                 ]"
               >
                 <!-- 撤回 -->
-                <text v-if="message.isWithdrawn" class="withdrawn-text">消息已撤回</text>
+                <text
+                  v-if="message.isWithdrawn"
+                  class="withdrawn-text"
+                >
+                  消息已撤回
+                </text>
                 <!-- 文字 -->
-                <text v-else-if="message.type === 'text'" class="bubble-text" :class="{ 'bubble-text-mine': isMine(message) }">{{ message.content }}</text>
+                <text
+                  v-else-if="message.type === 'text'"
+                  class="bubble-text"
+                  :class="{ 'bubble-text-mine': isMine(message) }"
+                >
+                  {{ message.content }}
+                </text>
                 <!-- 图片 -->
-                <image v-else-if="message.type === 'image'" class="bubble-image" :src="message.image?.url" mode="widthFix" />
+                <image
+                  v-else-if="message.type === 'image'"
+                  class="bubble-image"
+                  :src="message.image?.url"
+                  mode="widthFix"
+                />
                 <!-- 语音 -->
-                <view v-else-if="message.type === 'voice'" class="voice-row">
+                <view
+                  v-else-if="message.type === 'voice'"
+                  class="voice-row"
+                >
                   <view class="voice-play">
-                    <AppIcon name="play" :size="16" :color="isMine(message) ? '#ffffff' : '#2c2c2c'" />
+                    <AppIcon
+                      name="play"
+                      :size="16"
+                      :color="isMine(message) ? '#ffffff' : '#2c2c2c'"
+                    />
                   </view>
-                  <text class="voice-dur" :class="{ 'bubble-text-mine': isMine(message) }">{{ message.voice?.duration }}″</text>
-                  <view class="voice-bar"><view class="voice-bar-fill" /></view>
+                  <text
+                    class="voice-dur"
+                    :class="{ 'bubble-text-mine': isMine(message) }"
+                  >
+                    {{ message.voice?.duration }}″
+                  </text>
+                  <view class="voice-bar">
+                    <view class="voice-bar-fill" />
+                  </view>
                 </view>
                 <!-- 商品卡片 -->
-                <view v-else-if="message.type === 'card'" class="product-card">
-                  <image class="product-cover" :src="message.product?.cover" mode="aspectFill" />
+                <view
+                  v-else-if="message.type === 'card'"
+                  class="product-card"
+                >
+                  <image
+                    class="product-cover"
+                    :src="message.product?.cover"
+                    mode="aspectFill"
+                  />
                   <view class="product-body">
-                    <text class="product-title">{{ message.product?.title }}</text>
+                    <text class="product-title">
+                      {{ message.product?.title }}
+                    </text>
                     <view class="product-price-row">
-                      <text class="product-price">¥{{ message.product?.price }}</text>
-                      <text v-if="message.product?.originalPrice" class="product-origin">¥{{ message.product?.originalPrice }}</text>
+                      <text class="product-price">
+                        ¥{{ message.product?.price }}
+                      </text>
+                      <text
+                        v-if="message.product?.originalPrice"
+                        class="product-origin"
+                      >
+                        ¥{{ message.product?.originalPrice }}
+                      </text>
                     </view>
                   </view>
                 </view>
               </view>
               <!-- 消息状态 -->
-              <view v-if="isMine(message)" class="msg-status">
-                <AppIcon v-if="message.status === 'sent'" name="check" :size="12" color="#8a8178" />
-                <AppIcon v-else-if="message.status === 'delivered'" name="check-check" :size="12" color="#8a8178" />
-                <AppIcon v-else-if="message.status === 'read'" name="check-check" :size="12" color="#c41e3a" />
-                <text v-else-if="message.status === 'failed'" class="status-failed">失败</text>
+              <view
+                v-if="isMine(message)"
+                class="msg-status"
+              >
+                <AppIcon
+                  v-if="message.status === 'sent'"
+                  name="check"
+                  :size="12"
+                  color="#8a8178"
+                />
+                <AppIcon
+                  v-else-if="message.status === 'delivered'"
+                  name="check-check"
+                  :size="12"
+                  color="#8a8178"
+                />
+                <AppIcon
+                  v-else-if="message.status === 'read'"
+                  name="check-check"
+                  :size="12"
+                  color="#c41e3a"
+                />
+                <text
+                  v-else-if="message.status === 'failed'"
+                  class="status-failed"
+                >
+                  失败
+                </text>
               </view>
             </view>
           </view>
@@ -97,13 +225,32 @@
         class="hint-bar"
         :class="hintClass"
       >
-        <AppIcon v-if="permission.state === 'unrestricted' || permission.state === 'replied'" name="check" :size="14" color="#16a34a" class="hint-icon" />
-        <text class="hint-text" :class="hintTextClass">{{ permission.hint }}</text>
+        <AppIcon
+          v-if="permission.state === 'unrestricted' || permission.state === 'replied'"
+          name="check"
+          :size="14"
+          color="#16a34a"
+          class="hint-icon"
+        />
+        <text
+          class="hint-text"
+          :class="hintTextClass"
+        >
+          {{ permission.hint }}
+        </text>
       </view>
 
       <view class="input-row">
-        <view class="icon-btn" @tap="toggleMorePanel">
-          <AppIcon name="plus" :size="20" :color="showMorePanel ? '#c41e3a' : '#2c2c2c'" :style="showMorePanel ? 'transform:rotate(45deg)' : ''" />
+        <view
+          class="icon-btn"
+          @tap="toggleMorePanel"
+        >
+          <AppIcon
+            name="plus"
+            :size="20"
+            :color="showMorePanel ? '#c41e3a' : '#2c2c2c'"
+            :style="showMorePanel ? 'transform:rotate(45deg)' : ''"
+          />
         </view>
         <view class="input-wrap">
           <input
@@ -113,33 +260,83 @@
             placeholder-class="msg-input-ph"
             :disabled="!permission.canSend"
             @input="onInput"
+          >
+        </view>
+        <view
+          v-if="inputText.trim()"
+          class="send-btn"
+          @tap="handleSendText"
+        >
+          <AppIcon
+            name="send"
+            :size="20"
+            color="#ffffff"
           />
         </view>
-        <view v-if="inputText.trim()" class="send-btn" @tap="handleSendText">
-          <AppIcon name="send" :size="20" color="#ffffff" />
-        </view>
-        <view v-else class="icon-btn">
-          <AppIcon name="mic" :size="20" color="#2c2c2c" />
+        <view
+          v-else
+          class="icon-btn"
+        >
+          <AppIcon
+            name="mic"
+            :size="20"
+            color="#2c2c2c"
+          />
         </view>
       </view>
 
       <!-- 更多功能面板 -->
-      <view v-if="showMorePanel && permission.canSend" class="more-panel">
+      <view
+        v-if="showMorePanel && permission.canSend"
+        class="more-panel"
+      >
         <view class="more-item">
-          <view class="more-icon"><AppIcon name="image" :size="20" color="#c41e3a" /></view>
-          <text class="more-label">相册</text>
+          <view class="more-icon">
+            <AppIcon
+              name="image"
+              :size="20"
+              color="#c41e3a"
+            />
+          </view>
+          <text class="more-label">
+            相册
+          </text>
         </view>
         <view class="more-item">
-          <view class="more-icon"><AppIcon name="camera" :size="20" color="#c41e3a" /></view>
-          <text class="more-label">拍照</text>
+          <view class="more-icon">
+            <AppIcon
+              name="camera"
+              :size="20"
+              color="#c41e3a"
+            />
+          </view>
+          <text class="more-label">
+            拍照
+          </text>
         </view>
         <view class="more-item">
-          <view class="more-icon"><AppIcon name="mic" :size="20" color="#c41e3a" /></view>
-          <text class="more-label">语音</text>
+          <view class="more-icon">
+            <AppIcon
+              name="mic"
+              :size="20"
+              color="#c41e3a"
+            />
+          </view>
+          <text class="more-label">
+            语音
+          </text>
         </view>
         <view class="more-item">
-          <view class="more-icon"><AppIcon name="shopping-bag" :size="20" color="#c41e3a" /></view>
-          <text class="more-label">商品</text>
+          <view class="more-icon">
+            <AppIcon
+              name="shopping-bag"
+              :size="20"
+              color="#c41e3a"
+            />
+          </view>
+          <text class="more-label">
+            商品
+          </text>
         </view>
       </view>
     </view>

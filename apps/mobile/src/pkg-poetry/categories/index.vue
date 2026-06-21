@@ -1,29 +1,64 @@
 <template>
   <view class="pc-page">
     <!-- 顶栏 -->
-    <view class="pc-header" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="pc-header"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="pc-header-row">
-        <view class="pc-back" @tap="goBack">
-          <app-icon name="arrow-left" :size="40" color="var(--foreground)" />
+        <view
+          class="pc-back"
+          @tap="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="40"
+            color="var(--foreground)"
+          />
         </view>
-        <text class="pc-title">诗词分类</text>
+        <text class="pc-title">
+          诗词分类
+        </text>
       </view>
     </view>
 
     <view class="pc-main">
-      <view v-for="cat in categories" :key="cat.id" class="pc-item" @tap="toCategory(cat.id)">
-        <text class="pc-emoji">{{ cat.icon }}</text>
+      <view
+        v-for="cat in categories"
+        :key="cat.id"
+        class="pc-item"
+        @tap="toCategory(cat.id)"
+      >
+        <text class="pc-emoji">
+          {{ cat.icon }}
+        </text>
         <view class="pc-body">
           <view class="pc-head">
-            <text class="pc-name">{{ cat.name }}</text>
-            <text class="pc-count">{{ cat.count.toLocaleString() }} 首</text>
+            <text class="pc-name">
+              {{ cat.name }}
+            </text>
+            <text class="pc-count">
+              {{ cat.count.toLocaleString() }} 首
+            </text>
           </view>
-          <text class="pc-desc">{{ cat.desc }}</text>
+          <text class="pc-desc">
+            {{ cat.desc }}
+          </text>
           <view class="pc-subs">
-            <text v-for="s in cat.subCategories" :key="s" class="pc-sub">{{ s }}</text>
+            <text
+              v-for="s in cat.subCategories"
+              :key="s"
+              class="pc-sub"
+            >
+              {{ s }}
+            </text>
           </view>
         </view>
-        <app-icon name="chevron-right" :size="28" color="var(--muted-foreground)" />
+        <app-icon
+          name="chevron-right"
+          :size="28"
+          color="var(--muted-foreground)"
+        />
       </view>
     </view>
   </view>

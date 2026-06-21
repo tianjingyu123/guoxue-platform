@@ -42,119 +42,262 @@ function isCouponAvailable(c: typeof coupons[number]) {
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
-      <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
-      <text class="nav-title">确认订单</text>
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="40"
+          color="#2C2C2C"
+        />
+      </view>
+      <text class="nav-title">
+        确认订单
+      </text>
       <view class="nav-right" />
     </view>
 
     <view class="body">
       <!-- 课程信息 -->
       <view class="card course-card">
-        <image class="course-cover" :src="course.cover" mode="aspectFill" />
+        <image
+          class="course-cover"
+          :src="course.cover"
+          mode="aspectFill"
+        />
         <view class="course-info">
-          <text class="course-title">{{ course.title }}</text>
-          <text class="course-meta">{{ course.instructorName }} | {{ course.chapters }}课时</text>
+          <text class="course-title">
+            {{ course.title }}
+          </text>
+          <text class="course-meta">
+            {{ course.instructorName }} | {{ course.chapters }}课时
+          </text>
           <view class="course-price">
-            <text class="price-now">¥{{ course.price }}</text>
-            <text class="price-old">¥{{ course.originalPrice }}</text>
+            <text class="price-now">
+              ¥{{ course.price }}
+            </text>
+            <text class="price-old">
+              ¥{{ course.originalPrice }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 优惠券 -->
       <view class="card">
-        <view class="coupon-head" @tap="showCouponList = !showCouponList">
+        <view
+          class="coupon-head"
+          @tap="showCouponList = !showCouponList"
+        >
           <view class="coupon-head-left">
-            <app-icon name="tag" :size="40" color="#C41E3A" />
-            <text class="coupon-label">优惠券</text>
-            <text v-if="availableCoupons.length > 0" class="coupon-badge">{{ availableCoupons.length }}张可用</text>
+            <app-icon
+              name="tag"
+              :size="40"
+              color="#C41E3A"
+            />
+            <text class="coupon-label">
+              优惠券
+            </text>
+            <text
+              v-if="availableCoupons.length > 0"
+              class="coupon-badge"
+            >
+              {{ availableCoupons.length }}张可用
+            </text>
           </view>
           <view class="coupon-head-right">
-            <text v-if="selectedCouponData" class="coupon-discount">-¥{{ discount }}</text>
-            <text v-else-if="availableCoupons.length > 0" class="coupon-hint">选择优惠券</text>
-            <text v-else class="coupon-hint">暂无可用</text>
-            <app-icon name="chevron-right" :size="32" color="#999999" :class="{ rotated: showCouponList }" />
+            <text
+              v-if="selectedCouponData"
+              class="coupon-discount"
+            >
+              -¥{{ discount }}
+            </text>
+            <text
+              v-else-if="availableCoupons.length > 0"
+              class="coupon-hint"
+            >
+              选择优惠券
+            </text>
+            <text
+              v-else
+              class="coupon-hint"
+            >
+              暂无可用
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="32"
+              color="#999999"
+              :class="{ rotated: showCouponList }"
+            />
           </view>
         </view>
 
-        <view v-if="showCouponList" class="coupon-list">
-          <view class="coupon-item simple" :class="{ active: !selectedCoupon }" @tap="selectCoupon(null)">
-            <text class="coupon-none-txt">不使用优惠券</text>
-            <app-icon v-if="!selectedCoupon" name="check" :size="40" color="#C41E3A" />
+        <view
+          v-if="showCouponList"
+          class="coupon-list"
+        >
+          <view
+            class="coupon-item simple"
+            :class="{ active: !selectedCoupon }"
+            @tap="selectCoupon(null)"
+          >
+            <text class="coupon-none-txt">
+              不使用优惠券
+            </text>
+            <app-icon
+              v-if="!selectedCoupon"
+              name="check"
+              :size="40"
+              color="#C41E3A"
+            />
           </view>
           <view
-            v-for="c in coupons" :key="c.id"
-            class="coupon-item" :class="{ active: selectedCoupon === c.id, disabled: !isCouponAvailable(c) }"
+            v-for="c in coupons"
+            :key="c.id"
+            class="coupon-item"
+            :class="{ active: selectedCoupon === c.id, disabled: !isCouponAvailable(c) }"
             @tap="isCouponAvailable(c) && selectCoupon(c.id)"
           >
             <view class="coupon-item-left">
               <view class="coupon-val">
                 <template v-if="c.type === 'percent'">
-                  <text class="coupon-val-num">{{ c.value }}%</text>
-                  <text class="coupon-val-unit">折扣</text>
+                  <text class="coupon-val-num">
+                    {{ c.value }}%
+                  </text>
+                  <text class="coupon-val-unit">
+                    折扣
+                  </text>
                 </template>
                 <template v-else>
-                  <text class="coupon-val-yen">¥</text>
-                  <text class="coupon-val-num2">{{ c.value }}</text>
+                  <text class="coupon-val-yen">
+                    ¥
+                  </text>
+                  <text class="coupon-val-num2">
+                    {{ c.value }}
+                  </text>
                 </template>
               </view>
               <view class="coupon-detail">
-                <text class="coupon-name">{{ c.name }}</text>
-                <text class="coupon-min">满{{ c.minAmount }}可用</text>
+                <text class="coupon-name">
+                  {{ c.name }}
+                </text>
+                <text class="coupon-min">
+                  满{{ c.minAmount }}可用
+                </text>
                 <view class="coupon-expire">
-                  <app-icon name="clock" :size="24" color="#999999" />
-                  <text class="coupon-expire-txt">{{ c.expireAt }}到期</text>
+                  <app-icon
+                    name="clock"
+                    :size="24"
+                    color="#999999"
+                  />
+                  <text class="coupon-expire-txt">
+                    {{ c.expireAt }}到期
+                  </text>
                 </view>
               </view>
             </view>
-            <app-icon v-if="selectedCoupon === c.id" name="check" :size="40" color="#C41E3A" />
+            <app-icon
+              v-if="selectedCoupon === c.id"
+              name="check"
+              :size="40"
+              color="#C41E3A"
+            />
           </view>
         </view>
       </view>
 
       <!-- 支付方式 -->
       <view class="card">
-        <text class="section-title">支付方式</text>
+        <text class="section-title">
+          支付方式
+        </text>
         <view class="pay-list">
           <view
-            v-for="m in payMethods" :key="m.id"
-            class="pay-item" :class="{ active: payMethod === m.id }"
+            v-for="m in payMethods"
+            :key="m.id"
+            class="pay-item"
+            :class="{ active: payMethod === m.id }"
             @tap="payMethod = m.id"
           >
             <view class="pay-item-left">
-              <app-icon :name="m.icon" :size="48" :color="m.color" />
-              <text class="pay-name">{{ m.name }}</text>
+              <app-icon
+                :name="m.icon"
+                :size="48"
+                :color="m.color"
+              />
+              <text class="pay-name">
+                {{ m.name }}
+              </text>
             </view>
-            <app-icon v-if="payMethod === m.id" name="check" :size="40" color="#C41E3A" />
+            <app-icon
+              v-if="payMethod === m.id"
+              name="check"
+              :size="40"
+              color="#C41E3A"
+            />
           </view>
         </view>
       </view>
 
       <!-- 价格明细 -->
       <view class="card">
-        <text class="section-title">价格明细</text>
+        <text class="section-title">
+          价格明细
+        </text>
         <view class="price-rows">
           <view class="price-row">
-            <text class="price-row-label">课程原价</text>
-            <text class="price-row-val">¥{{ course.price }}</text>
+            <text class="price-row-label">
+              课程原价
+            </text>
+            <text class="price-row-val">
+              ¥{{ course.price }}
+            </text>
           </view>
-          <view v-if="discount" class="price-row discount">
-            <text class="price-row-label red">优惠券抵扣</text>
-            <text class="price-row-val red">-¥{{ discount }}</text>
+          <view
+            v-if="discount"
+            class="price-row discount"
+          >
+            <text class="price-row-label red">
+              优惠券抵扣
+            </text>
+            <text class="price-row-val red">
+              -¥{{ discount }}
+            </text>
           </view>
           <view class="price-row total">
-            <text class="price-row-label">实付金额</text>
-            <text class="price-total">¥{{ finalPrice }}</text>
+            <text class="price-row-label">
+              实付金额
+            </text>
+            <text class="price-total">
+              ¥{{ finalPrice }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 用户协议 -->
       <view class="agree">
-        <view class="agree-box" :class="{ checked: agreed }" @tap="agreed = !agreed">
-          <app-icon v-if="agreed" name="check" :size="24" color="#ffffff" />
+        <view
+          class="agree-box"
+          :class="{ checked: agreed }"
+          @tap="agreed = !agreed"
+        >
+          <app-icon
+            v-if="agreed"
+            name="check"
+            :size="24"
+            color="#ffffff"
+          />
         </view>
-        <text class="agree-txt">我已阅读并同意<text class="agree-link">《用户协议》</text>和<text class="agree-link">《隐私政策》</text>，购买后不支持退款</text>
+        <text class="agree-txt">
+          我已阅读并同意<text class="agree-link">
+            《用户协议》
+          </text>和<text class="agree-link">
+            《隐私政策》
+          </text>，购买后不支持退款
+        </text>
       </view>
     </view>
 
@@ -162,15 +305,35 @@ function isCouponAvailable(c: typeof coupons[number]) {
     <view class="footer">
       <view class="footer-price">
         <view class="footer-price-row">
-          <text class="footer-pay-label">实付</text>
-          <text class="footer-yen">¥</text>
-          <text class="footer-amount">{{ finalPrice }}</text>
+          <text class="footer-pay-label">
+            实付
+          </text>
+          <text class="footer-yen">
+            ¥
+          </text>
+          <text class="footer-amount">
+            {{ finalPrice }}
+          </text>
         </view>
-        <text v-if="discount" class="footer-saved">已优惠 ¥{{ discount }}</text>
+        <text
+          v-if="discount"
+          class="footer-saved"
+        >
+          已优惠 ¥{{ discount }}
+        </text>
       </view>
-      <view class="footer-btn" :class="{ disabled: !agreed }">
-        <app-icon name="shield-check" :size="40" color="#ffffff" />
-        <text class="footer-btn-txt">确认支付</text>
+      <view
+        class="footer-btn"
+        :class="{ disabled: !agreed }"
+      >
+        <app-icon
+          name="shield-check"
+          :size="40"
+          color="#ffffff"
+        />
+        <text class="footer-btn-txt">
+          确认支付
+        </text>
       </view>
     </view>
   </view>

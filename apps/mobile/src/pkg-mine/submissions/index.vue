@@ -1,14 +1,34 @@
 <template>
   <view class="page">
     <!-- Header -->
-    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="nav"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="nav-bar">
-        <view class="nav-btn" @click="goBack">
-          <app-icon name="arrow-left" :size="20" color="#2C2C2C" />
+        <view
+          class="nav-btn"
+          @click="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="20"
+            color="#2C2C2C"
+          />
         </view>
-        <text class="nav-title">我的投稿</text>
-        <view class="nav-btn" @click="onRefresh">
-          <app-icon name="refresh-cw" :size="20" color="#666666" :class="{ spinning: refreshing }" />
+        <text class="nav-title">
+          我的投稿
+        </text>
+        <view
+          class="nav-btn"
+          @click="onRefresh"
+        >
+          <app-icon
+            name="refresh-cw"
+            :size="20"
+            color="#666666"
+            :class="{ spinning: refreshing }"
+          />
         </view>
       </view>
       <!-- Tabs -->
@@ -20,78 +40,195 @@
           :class="{ 'tab-active': activeTab === t.key }"
           @click="activeTab = t.key"
         >
-          <app-icon :name="t.icon" :size="16" :color="activeTab === t.key ? '#FFFFFF' : '#666666'" />
-          <text class="tab-label" :class="{ 'tab-label-active': activeTab === t.key }">{{ t.label }}</text>
-          <text v-if="t.key" class="tab-count" :class="{ 'tab-count-active': activeTab === t.key }">{{ counts[t.key] }}</text>
+          <app-icon
+            :name="t.icon"
+            :size="16"
+            :color="activeTab === t.key ? '#FFFFFF' : '#666666'"
+          />
+          <text
+            class="tab-label"
+            :class="{ 'tab-label-active': activeTab === t.key }"
+          >
+            {{ t.label }}
+          </text>
+          <text
+            v-if="t.key"
+            class="tab-count"
+            :class="{ 'tab-count-active': activeTab === t.key }"
+          >
+            {{ counts[t.key] }}
+          </text>
         </view>
       </view>
     </view>
 
     <!-- Content -->
     <view class="body">
-      <view v-if="filtered.length === 0" class="empty">
+      <view
+        v-if="filtered.length === 0"
+        class="empty"
+      >
         <view class="empty-icon">
-          <app-icon name="file-text" :size="32" color="#999999" />
+          <app-icon
+            name="file-text"
+            :size="32"
+            color="#999999"
+          />
         </view>
-        <text class="empty-text">暂无投稿记录</text>
-        <view class="empty-btn" @click="goEditor"><text class="empty-btn-text">去投稿</text></view>
+        <text class="empty-text">
+          暂无投稿记录
+        </text>
+        <view
+          class="empty-btn"
+          @click="goEditor"
+        >
+          <text class="empty-btn-text">
+            去投稿
+          </text>
+        </view>
       </view>
 
-      <view v-for="item in filtered" :key="item.id" class="card">
+      <view
+        v-for="item in filtered"
+        :key="item.id"
+        class="card"
+      >
         <view class="card-row">
-          <view v-if="item.cover" class="cover">
-            <app-icon name="file-text" :size="24" color="#C9C2B8" />
+          <view
+            v-if="item.cover"
+            class="cover"
+          >
+            <app-icon
+              name="file-text"
+              :size="24"
+              color="#C9C2B8"
+            />
           </view>
           <view class="card-info">
-            <text class="card-title">{{ item.title }}</text>
+            <text class="card-title">
+              {{ item.title }}
+            </text>
             <view class="card-meta">
-              <text class="meta-text">投稿至 {{ item.targetPosition }}</text>
-              <text class="meta-dot">·</text>
-              <text class="meta-text">{{ formatDate(item.submittedAt) }}</text>
+              <text class="meta-text">
+                投稿至 {{ item.targetPosition }}
+              </text>
+              <text class="meta-dot">
+                ·
+              </text>
+              <text class="meta-text">
+                {{ formatDate(item.submittedAt) }}
+              </text>
             </view>
           </view>
-          <view class="status" :class="'status-' + item.status">
-            <app-icon :name="statusConf(item.status).icon" :size="12" :color="statusConf(item.status).color" />
-            <text class="status-text" :style="{ color: statusConf(item.status).color }">{{ statusConf(item.status).label }}</text>
+          <view
+            class="status"
+            :class="'status-' + item.status"
+          >
+            <app-icon
+              :name="statusConf(item.status).icon"
+              :size="12"
+              :color="statusConf(item.status).color"
+            />
+            <text
+              class="status-text"
+              :style="{ color: statusConf(item.status).color }"
+            >
+              {{ statusConf(item.status).label }}
+            </text>
           </view>
         </view>
 
         <!-- Stats for approved -->
-        <view v-if="item.status === 'approved' && (item.views || item.likes)" class="stats">
-          <view v-if="item.views !== undefined" class="stat">
-            <app-icon name="eye" :size="16" color="#666666" />
-            <text class="stat-num">{{ item.views }}</text>
+        <view
+          v-if="item.status === 'approved' && (item.views || item.likes)"
+          class="stats"
+        >
+          <view
+            v-if="item.views !== undefined"
+            class="stat"
+          >
+            <app-icon
+              name="eye"
+              :size="16"
+              color="#666666"
+            />
+            <text class="stat-num">
+              {{ item.views }}
+            </text>
           </view>
-          <view v-if="item.likes !== undefined" class="stat">
-            <app-icon name="heart" :size="16" color="#666666" />
-            <text class="stat-num">{{ item.likes }}</text>
+          <view
+            v-if="item.likes !== undefined"
+            class="stat"
+          >
+            <app-icon
+              name="heart"
+              :size="16"
+              color="#666666"
+            />
+            <text class="stat-num">
+              {{ item.likes }}
+            </text>
           </view>
           <view class="stat-spacer" />
-          <view class="detail-btn" @click="goArticle(item.id)">
-            <text class="detail-text">查看详情</text>
-            <app-icon name="chevron-right" :size="16" color="#C41E3A" />
+          <view
+            class="detail-btn"
+            @click="goArticle(item.id)"
+          >
+            <text class="detail-text">
+              查看详情
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="16"
+              color="#C41E3A"
+            />
           </view>
         </view>
 
         <!-- Reject reason -->
-        <view v-if="item.status === 'rejected' && item.rejectReason" class="reject-wrap">
+        <view
+          v-if="item.status === 'rejected' && item.rejectReason"
+          class="reject-wrap"
+        >
           <view class="reject-box">
-            <app-icon name="alert-circle" :size="16" color="#EF4444" />
+            <app-icon
+              name="alert-circle"
+              :size="16"
+              color="#EF4444"
+            />
             <view class="reject-main">
-              <text class="reject-title">未通过原因</text>
-              <text class="reject-reason">{{ item.rejectReason }}</text>
+              <text class="reject-title">
+                未通过原因
+              </text>
+              <text class="reject-reason">
+                {{ item.rejectReason }}
+              </text>
             </view>
           </view>
-          <view class="resubmit-btn" @click="goEditor(item.id)">
-            <app-icon name="edit-3" :size="16" color="#FFFFFF" />
-            <text class="resubmit-text">修改并重新投稿</text>
+          <view
+            class="resubmit-btn"
+            @click="goEditor(item.id)"
+          >
+            <app-icon
+              name="edit-3"
+              :size="16"
+              color="#FFFFFF"
+            />
+            <text class="resubmit-text">
+              修改并重新投稿
+            </text>
           </view>
         </view>
 
         <!-- Pending status -->
-        <view v-if="item.status === 'pending'" class="pending-wrap">
+        <view
+          v-if="item.status === 'pending'"
+          class="pending-wrap"
+        >
           <view class="pending-dot" />
-          <text class="pending-text">预计1-3个工作日内完成审核</text>
+          <text class="pending-text">
+            预计1-3个工作日内完成审核
+          </text>
         </view>
       </view>
     </view>

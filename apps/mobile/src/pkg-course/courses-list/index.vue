@@ -94,11 +94,22 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
     <!-- 顶部栏 -->
     <view class="hdr">
       <view class="hdr-bar">
-        <view class="back-btn" @tap="goBack">
-          <app-icon name="chevron-left" :size="44" color="var(--text-strong)" />
+        <view
+          class="back-btn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="chevron-left"
+            :size="44"
+            color="var(--text-strong)"
+          />
         </view>
         <view class="search-box">
-          <app-icon name="search" :size="30" color="var(--text-soft)" />
+          <app-icon
+            name="search"
+            :size="30"
+            color="var(--text-soft)"
+          />
           <input
             v-model="searchQuery"
             class="search-input"
@@ -106,19 +117,30 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
             placeholder="搜索课程、讲师"
             placeholder-class="search-ph"
             confirm-type="search"
-          />
+          >
         </view>
       </view>
 
       <!-- 分类Tab - 纯文字横向滑动 -->
-      <scroll-view class="cat-row" scroll-x :show-scrollbar="false">
+      <scroll-view
+        class="cat-row"
+        scroll-x
+        :show-scrollbar="false"
+      >
         <view class="cat-inner">
           <view
-            v-for="cat in courseListCategories" :key="cat.id"
-            class="cat-chip" :class="{ on: activeCategory === cat.id }"
+            v-for="cat in courseListCategories"
+            :key="cat.id"
+            class="cat-chip"
+            :class="{ on: activeCategory === cat.id }"
             @tap="activeCategory = cat.id"
           >
-            <text class="cat-txt" :class="{ on: activeCategory === cat.id }">{{ cat.name }}</text>
+            <text
+              class="cat-txt"
+              :class="{ on: activeCategory === cat.id }"
+            >
+              {{ cat.name }}
+            </text>
           </view>
         </view>
       </scroll-view>
@@ -127,24 +149,59 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
     <!-- 排序筛选栏 -->
     <view class="sort-bar">
       <view class="sort-left">
-        <view class="sort-trigger" @tap="showSortMenu = !showSortMenu">
-          <text class="sort-cur">{{ activeSortName }}</text>
-          <app-icon name="chevron-down" :size="28" color="var(--text-strong)" :class="{ rotated: showSortMenu }" />
+        <view
+          class="sort-trigger"
+          @tap="showSortMenu = !showSortMenu"
+        >
+          <text class="sort-cur">
+            {{ activeSortName }}
+          </text>
+          <app-icon
+            name="chevron-down"
+            :size="28"
+            color="var(--text-strong)"
+            :class="{ rotated: showSortMenu }"
+          />
         </view>
-        <text class="free-btn" :class="{ on: onlyFree }" @tap="onlyFree = !onlyFree">免费</text>
+        <text
+          class="free-btn"
+          :class="{ on: onlyFree }"
+          @tap="onlyFree = !onlyFree"
+        >
+          免费
+        </text>
       </view>
-      <view class="filter-trigger" @tap="showFilter = true">
-        <app-icon name="filter" :size="28" color="var(--text-soft)" />
-        <text class="filter-txt">筛选</text>
+      <view
+        class="filter-trigger"
+        @tap="showFilter = true"
+      >
+        <app-icon
+          name="filter"
+          :size="28"
+          color="var(--text-soft)"
+        />
+        <text class="filter-txt">
+          筛选
+        </text>
       </view>
       <!-- 排序下拉 -->
-      <view v-if="showSortMenu" class="sort-menu">
+      <view
+        v-if="showSortMenu"
+        class="sort-menu"
+      >
         <view
-          v-for="opt in courseSortOptions" :key="opt.id"
-          class="sort-opt" :class="{ on: activeSort === opt.id }"
+          v-for="opt in courseSortOptions"
+          :key="opt.id"
+          class="sort-opt"
+          :class="{ on: activeSort === opt.id }"
           @tap="selectSort(opt.id)"
         >
-          <text class="sort-opt-txt" :class="{ on: activeSort === opt.id }">{{ opt.name }}</text>
+          <text
+            class="sort-opt-txt"
+            :class="{ on: activeSort === opt.id }"
+          >
+            {{ opt.name }}
+          </text>
         </view>
       </view>
     </view>
@@ -153,33 +210,51 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
     <view class="banner-wrap">
       <view class="banner">
         <view
-          v-for="(course, index) in recommendedCourses" :key="course.id"
-          class="banner-slide" :class="{ active: index === currentBanner }"
+          v-for="(course, index) in recommendedCourses"
+          :key="course.id"
+          class="banner-slide"
+          :class="{ active: index === currentBanner }"
           @tap="openCourse(course.id)"
         >
           <view class="banner-bg" />
           <view class="banner-content">
             <view class="banner-info">
               <view class="banner-tag-row">
-                <text class="banner-tag">{{ course.tag }}</text>
+                <text class="banner-tag">
+                  {{ course.tag }}
+                </text>
               </view>
-              <text class="banner-title">{{ course.title }}</text>
-              <text class="banner-sub">{{ course.subtitle }}</text>
+              <text class="banner-title">
+                {{ course.title }}
+              </text>
+              <text class="banner-sub">
+                {{ course.subtitle }}
+              </text>
               <view class="banner-price-row">
-                <text class="banner-price">¥{{ course.price }}</text>
-                <text class="banner-orig">¥{{ course.originalPrice }}</text>
+                <text class="banner-price">
+                  ¥{{ course.price }}
+                </text>
+                <text class="banner-orig">
+                  ¥{{ course.originalPrice }}
+                </text>
               </view>
             </view>
             <view class="banner-thumb">
-              <image class="banner-thumb-img" :src="course.image" mode="aspectFill" />
+              <image
+                class="banner-thumb-img"
+                :src="course.image"
+                mode="aspectFill"
+              />
             </view>
           </view>
         </view>
         <!-- 轮播指示器 -->
         <view class="banner-dots">
           <view
-            v-for="(_, index) in recommendedCourses" :key="index"
-            class="banner-dot" :class="{ on: index === currentBanner }"
+            v-for="(_, index) in recommendedCourses"
+            :key="index"
+            class="banner-dot"
+            :class="{ on: index === currentBanner }"
             @tap.stop="currentBanner = index"
           />
         </view>
@@ -190,38 +265,83 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
     <view class="flash-sec">
       <view class="flash-hd">
         <view class="flash-hd-left">
-          <app-icon name="zap" :size="34" color="var(--brand)" />
-          <text class="flash-title">限时秒杀</text>
+          <app-icon
+            name="zap"
+            :size="34"
+            color="var(--brand)"
+          />
+          <text class="flash-title">
+            限时秒杀
+          </text>
           <view class="flash-tip">
-            <app-icon name="clock" :size="24" color="var(--brand)" />
-            <text class="flash-tip-txt">抢购中</text>
+            <app-icon
+              name="clock"
+              :size="24"
+              color="var(--brand)"
+            />
+            <text class="flash-tip-txt">
+              抢购中
+            </text>
           </view>
         </view>
-        <view class="flash-more" @tap="navigateTo('/courses/flash-sale')">
-          <text class="flash-more-txt">更多</text>
-          <app-icon name="chevron-right" :size="28" color="var(--text-soft)" />
+        <view
+          class="flash-more"
+          @tap="navigateTo('/courses/flash-sale')"
+        >
+          <text class="flash-more-txt">
+            更多
+          </text>
+          <app-icon
+            name="chevron-right"
+            :size="28"
+            color="var(--text-soft)"
+          />
         </view>
       </view>
-      <scroll-view class="flash-row" scroll-x :show-scrollbar="false">
+      <scroll-view
+        class="flash-row"
+        scroll-x
+        :show-scrollbar="false"
+      >
         <view class="flash-inner">
           <view
-            v-for="course in flashSaleCourses" :key="course.id"
-            class="flash-card" @tap="openCourse(course.id)"
+            v-for="course in flashSaleCourses"
+            :key="course.id"
+            class="flash-card"
+            @tap="openCourse(course.id)"
           >
             <view class="flash-price-row">
-              <text class="flash-price">¥{{ course.price }}</text>
-              <text class="flash-orig">¥{{ course.originalPrice }}</text>
+              <text class="flash-price">
+                ¥{{ course.price }}
+              </text>
+              <text class="flash-orig">
+                ¥{{ course.originalPrice }}
+              </text>
             </view>
-            <text class="flash-name">{{ course.title }}</text>
+            <text class="flash-name">
+              {{ course.title }}
+            </text>
             <view class="flash-cd">
-              <text class="cd-cell">{{ flashCountdowns[course.id]?.h ?? '00' }}</text>
-              <text class="cd-sep">:</text>
-              <text class="cd-cell">{{ flashCountdowns[course.id]?.m ?? '00' }}</text>
-              <text class="cd-sep">:</text>
-              <text class="cd-cell cd-sec">{{ flashCountdowns[course.id]?.s ?? '00' }}</text>
+              <text class="cd-cell">
+                {{ flashCountdowns[course.id]?.h ?? '00' }}
+              </text>
+              <text class="cd-sep">
+                :
+              </text>
+              <text class="cd-cell">
+                {{ flashCountdowns[course.id]?.m ?? '00' }}
+              </text>
+              <text class="cd-sep">
+                :
+              </text>
+              <text class="cd-cell cd-sec">
+                {{ flashCountdowns[course.id]?.s ?? '00' }}
+              </text>
             </view>
             <view class="flash-discount-row">
-              <text class="flash-discount">{{ course.discount }}</text>
+              <text class="flash-discount">
+                {{ course.discount }}
+              </text>
             </view>
           </view>
         </view>
@@ -230,47 +350,108 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
 
     <!-- 课程列表标题 -->
     <view class="list-hd">
-      <app-icon name="flame" :size="28" color="#FF6B35" />
-      <text class="list-hd-txt">全部课程</text>
+      <app-icon
+        name="flame"
+        :size="28"
+        color="#FF6B35"
+      />
+      <text class="list-hd-txt">
+        全部课程
+      </text>
     </view>
 
     <!-- 课程列表 - 双列瀑布流, 3:4竖版封面 -->
     <view class="list-wrap">
-      <view v-if="filteredCourses.length === 0" class="empty">
-        <app-icon name="graduation-cap" :size="120" color="var(--line)" />
-        <text class="empty-txt">暂无相关课程</text>
+      <view
+        v-if="filteredCourses.length === 0"
+        class="empty"
+      >
+        <app-icon
+          name="graduation-cap"
+          :size="120"
+          color="var(--line)"
+        />
+        <text class="empty-txt">
+          暂无相关课程
+        </text>
       </view>
-      <view v-else class="grid">
-        <view class="grid-cell" v-for="course in filteredCourses" :key="course.id">
-          <course-card :data="course" variant="feed" />
+      <view
+        v-else
+        class="grid"
+      >
+        <view
+          v-for="course in filteredCourses"
+          :key="course.id"
+          class="grid-cell"
+        >
+          <course-card
+            :data="course"
+            variant="feed"
+          />
         </view>
       </view>
     </view>
 
     <!-- 筛选弹窗 -->
-    <view v-if="showFilter" class="filter-mask" @tap="showFilter = false">
-      <view class="filter-panel" @tap.stop>
+    <view
+      v-if="showFilter"
+      class="filter-mask"
+      @tap="showFilter = false"
+    >
+      <view
+        class="filter-panel"
+        @tap.stop
+      >
         <view class="filter-panel-hd">
-          <text class="filter-panel-title">筛选</text>
+          <text class="filter-panel-title">
+            筛选
+          </text>
           <view @tap="showFilter = false">
-            <app-icon name="x" :size="36" color="var(--text-soft)" />
+            <app-icon
+              name="x"
+              :size="36"
+              color="var(--text-soft)"
+            />
           </view>
         </view>
         <view class="filter-group">
-          <text class="filter-group-title">价格区间</text>
+          <text class="filter-group-title">
+            价格区间
+          </text>
           <view class="filter-chips">
-            <text v-for="range in priceRanges" :key="range" class="filter-chip-pill">{{ range }}</text>
+            <text
+              v-for="range in priceRanges"
+              :key="range"
+              class="filter-chip-pill"
+            >
+              {{ range }}
+            </text>
           </view>
         </view>
         <view class="filter-group">
-          <text class="filter-group-title">课程时长</text>
+          <text class="filter-group-title">
+            课程时长
+          </text>
           <view class="filter-chips">
-            <text v-for="d in durationRanges" :key="d" class="filter-chip-pill">{{ d }}</text>
+            <text
+              v-for="d in durationRanges"
+              :key="d"
+              class="filter-chip-pill"
+            >
+              {{ d }}
+            </text>
           </view>
         </view>
         <view class="filter-foot">
-          <view class="filter-reset">重置</view>
-          <view class="filter-confirm" @tap="showFilter = false">确定</view>
+          <view class="filter-reset">
+            重置
+          </view>
+          <view
+            class="filter-confirm"
+            @tap="showFilter = false"
+          >
+            确定
+          </view>
         </view>
       </view>
     </view>

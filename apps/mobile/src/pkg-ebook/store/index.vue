@@ -3,45 +3,86 @@
     <!-- 顶部导航 毛玻璃 -->
     <view class="es-header">
       <view class="es-bar">
-        <view class="es-iconbtn es-iconbtn-l" @tap="goHome">
-          <app-icon name="arrow-left" :size="40" color="#1e293b" />
+        <view
+          class="es-iconbtn es-iconbtn-l"
+          @tap="goHome"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="40"
+            color="#1e293b"
+          />
         </view>
         <view class="es-search">
-          <app-icon class="es-search-icon" name="search" :size="32" color="#64748b" />
+          <app-icon
+            class="es-search-icon"
+            name="search"
+            :size="32"
+            color="#64748b"
+          />
           <input
             v-model="searchQuery"
             class="es-search-input"
             placeholder="搜索电子书、作者…"
             placeholder-class="es-search-ph"
             confirm-type="search"
-          />
+          >
         </view>
-        <view class="es-iconbtn es-iconbtn-r" @tap="goShelf">
-          <app-icon name="bookmark" :size="40" color="#1e293b" />
+        <view
+          class="es-iconbtn es-iconbtn-r"
+          @tap="goShelf"
+        >
+          <app-icon
+            name="bookmark"
+            :size="40"
+            color="#1e293b"
+          />
         </view>
       </view>
     </view>
 
-    <scroll-view scroll-y class="es-main">
+    <scroll-view
+      scroll-y
+      class="es-main"
+    >
       <!-- 大标题 -->
       <view class="es-hero">
-        <text class="es-hero-title">电子书馆</text>
-        <text class="es-hero-sub">精品好书，随身畅读</text>
+        <text class="es-hero-title">
+          电子书馆
+        </text>
+        <text class="es-hero-sub">
+          精品好书，随身畅读
+        </text>
       </view>
 
       <!-- 会员主打大卡 -->
-      <view class="es-vip" @tap="goVip">
+      <view
+        class="es-vip"
+        @tap="goVip"
+      >
         <view class="es-vip-inner">
           <view class="es-vip-left">
             <view class="es-vip-badge">
-              <app-icon name="crown" :size="28" color="#fcd34d" />
-              <text class="es-vip-badge-txt">VIP 会员</text>
+              <app-icon
+                name="crown"
+                :size="28"
+                color="#fcd34d"
+              />
+              <text class="es-vip-badge-txt">
+                VIP 会员
+              </text>
             </view>
-            <text class="es-vip-title">开通会员 畅读全场</text>
-            <text class="es-vip-desc">数百本精品电子书 免费畅读</text>
+            <text class="es-vip-title">
+              开通会员 畅读全场
+            </text>
+            <text class="es-vip-desc">
+              数百本精品电子书 免费畅读
+            </text>
           </view>
           <view class="es-vip-btn">
-            <text class="es-vip-btn-txt">立即开通</text>
+            <text class="es-vip-btn-txt">
+              立即开通
+            </text>
           </view>
         </view>
       </view>
@@ -49,10 +90,19 @@
       <!-- 编辑精选 -->
       <view class="es-section">
         <view class="es-sec-head">
-          <app-icon name="sparkles" :size="32" color="#2563eb" />
-          <text class="es-sec-title">编辑精选</text>
+          <app-icon
+            name="sparkles"
+            :size="32"
+            color="#2563eb"
+          />
+          <text class="es-sec-title">
+            编辑精选
+          </text>
         </view>
-        <view class="es-feat" @tap="goDetail(featured.id)">
+        <view
+          class="es-feat"
+          @tap="goDetail(featured.id)"
+        >
           <flat-book-cover
             class="es-feat-cover"
             :color="coverFrom(featured.color)"
@@ -62,24 +112,49 @@
             title-size="30rpx"
           />
           <view class="es-feat-body">
-            <text class="es-feat-tag">限时免费</text>
-            <text class="es-feat-title">{{ featured.title }}</text>
-            <text class="es-feat-author">{{ featured.author }}</text>
+            <text class="es-feat-tag">
+              限时免费
+            </text>
+            <text class="es-feat-title">
+              {{ featured.title }}
+            </text>
+            <text class="es-feat-author">
+              {{ featured.author }}
+            </text>
             <view class="es-feat-rate">
-              <app-icon name="star" :size="28" color="#fbbf24" fill="#fbbf24" />
-              <text class="es-feat-rating">{{ featured.rating }}</text>
-              <text class="es-feat-readers">· {{ Math.round(featured.salesCount / 1000) }}k人在读</text>
+              <app-icon
+                name="star"
+                :size="28"
+                color="#fbbf24"
+                fill="#fbbf24"
+              />
+              <text class="es-feat-rating">
+                {{ featured.rating }}
+              </text>
+              <text class="es-feat-readers">
+                · {{ Math.round(featured.salesCount / 1000) }}k人在读
+              </text>
             </view>
             <view class="es-feat-cta">
-              <text class="es-feat-cta-txt">立即阅读</text>
-              <app-icon name="chevron-right" :size="28" color="#2563eb" />
+              <text class="es-feat-cta-txt">
+                立即阅读
+              </text>
+              <app-icon
+                name="chevron-right"
+                :size="28"
+                color="#2563eb"
+              />
             </view>
           </view>
         </view>
       </view>
 
       <!-- 分类筛选 -->
-      <scroll-view scroll-x class="es-cats" :show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="es-cats"
+        :show-scrollbar="false"
+      >
         <view class="es-cats-row">
           <view
             v-for="cat in categories"
@@ -88,7 +163,12 @@
             :class="{ 'es-cat-on': activeCategory === cat.id }"
             @tap="activeCategory = cat.id"
           >
-            <text class="es-cat-txt" :class="{ 'es-cat-txt-on': activeCategory === cat.id }">{{ cat.name }}</text>
+            <text
+              class="es-cat-txt"
+              :class="{ 'es-cat-txt-on': activeCategory === cat.id }"
+            >
+              {{ cat.name }}
+            </text>
           </view>
         </view>
       </scroll-view>
@@ -102,20 +182,48 @@
           :class="{ 'es-sort-on': activeSort === opt.id }"
           @tap="activeSort = opt.id"
         >
-          <app-icon :name="opt.icon" :size="28" :color="activeSort === opt.id ? '#2563eb' : '#64748b'" />
-          <text class="es-sort-txt" :class="{ 'es-sort-txt-on': activeSort === opt.id }">{{ opt.name }}</text>
+          <app-icon
+            :name="opt.icon"
+            :size="28"
+            :color="activeSort === opt.id ? '#2563eb' : '#64748b'"
+          />
+          <text
+            class="es-sort-txt"
+            :class="{ 'es-sort-txt-on': activeSort === opt.id }"
+          >
+            {{ opt.name }}
+          </text>
         </view>
       </view>
 
       <!-- 全部好书 -->
       <view class="es-section">
-        <text class="es-all-title">全部好书</text>
-        <view v-if="filteredBooks.length === 0" class="es-empty">
-          <app-icon name="book-open" :size="96" color="#cbd5e1" />
-          <text class="es-empty-txt">没有找到相关电子书</text>
+        <text class="es-all-title">
+          全部好书
+        </text>
+        <view
+          v-if="filteredBooks.length === 0"
+          class="es-empty"
+        >
+          <app-icon
+            name="book-open"
+            :size="96"
+            color="#cbd5e1"
+          />
+          <text class="es-empty-txt">
+            没有找到相关电子书
+          </text>
         </view>
-        <view v-else class="es-grid">
-          <view v-for="book in filteredBooks" :key="book.id" class="es-grid-item" @tap="goDetail(book.id)">
+        <view
+          v-else
+          class="es-grid"
+        >
+          <view
+            v-for="book in filteredBooks"
+            :key="book.id"
+            class="es-grid-item"
+            @tap="goDetail(book.id)"
+          >
             <view class="es-grid-cover-wrap">
               <flat-book-cover
                 class="es-grid-cover"
@@ -125,14 +233,41 @@
                 :author="book.author"
                 title-size="26rpx"
               />
-              <text v-if="book.isMemberFree" class="es-badge es-badge-member">会员</text>
-              <text v-else-if="book.isFree" class="es-badge es-badge-free">免费</text>
+              <text
+                v-if="book.isMemberFree"
+                class="es-badge es-badge-member"
+              >
+                会员
+              </text>
+              <text
+                v-else-if="book.isFree"
+                class="es-badge es-badge-free"
+              >
+                免费
+              </text>
             </view>
-            <text class="es-grid-name">{{ book.title }}</text>
+            <text class="es-grid-name">
+              {{ book.title }}
+            </text>
             <view class="es-grid-price">
-              <text v-if="book.isFree" class="es-price-free">免费</text>
-              <text v-else-if="book.isMemberFree" class="es-price-member">会员免费</text>
-              <text v-else class="es-price-num">¥{{ book.price }}</text>
+              <text
+                v-if="book.isFree"
+                class="es-price-free"
+              >
+                免费
+              </text>
+              <text
+                v-else-if="book.isMemberFree"
+                class="es-price-member"
+              >
+                会员免费
+              </text>
+              <text
+                v-else
+                class="es-price-num"
+              >
+                ¥{{ book.price }}
+              </text>
             </view>
           </view>
         </view>

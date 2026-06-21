@@ -27,30 +27,59 @@ function gradientStyle(avatar: string) {
   <view class="paipan">
     <!-- 顶部标题栏 -->
     <view class="header">
-      <text class="header-title">排盘工具</text>
-      <view class="header-action" @tap="navigateTo('/paipan/history')">
-        <app-icon name="history" :size="40" color="#999999" />
+      <text class="header-title">
+        排盘工具
+      </text>
+      <view
+        class="header-action"
+        @tap="navigateTo('/paipan/history')"
+      >
+        <app-icon
+          name="history"
+          :size="40"
+          color="#999999"
+        />
       </view>
     </view>
 
-    <scroll-view scroll-y class="content">
+    <scroll-view
+      scroll-y
+      class="content"
+    >
       <!-- AI 智能解盘入口 -->
       <view class="section-px ai-wrap">
-        <view class="ai-card" @tap="navigateTo('/paipan/ai')">
+        <view
+          class="ai-card"
+          @tap="navigateTo('/paipan/ai')"
+        >
           <view class="ai-blob ai-blob-1" />
           <view class="ai-blob ai-blob-2" />
           <view class="ai-row">
             <view class="ai-icon">
-              <app-icon name="sparkles" :size="56" color="#ffffff" />
+              <app-icon
+                name="sparkles"
+                :size="56"
+                color="#ffffff"
+              />
             </view>
             <view class="ai-text">
               <view class="ai-title-row">
-                <text class="ai-title">AI 智能解盘</text>
-                <text class="ai-badge">新功能</text>
+                <text class="ai-title">
+                  AI 智能解盘
+                </text>
+                <text class="ai-badge">
+                  新功能
+                </text>
               </view>
-              <text class="ai-sub">输入命盘信息，AI 为您深度解析</text>
+              <text class="ai-sub">
+                输入命盘信息，AI 为您深度解析
+              </text>
             </view>
-            <app-icon name="chevron-right" :size="40" color="rgba(255,255,255,0.6)" />
+            <app-icon
+              name="chevron-right"
+              :size="40"
+              color="rgba(255,255,255,0.6)"
+            />
           </view>
         </view>
       </view>
@@ -58,24 +87,58 @@ function gradientStyle(avatar: string) {
       <!-- 排盘工具网格 -->
       <view class="section-px section-tools">
         <view class="sec-head">
-          <text class="sec-title">排盘工具</text>
-          <view class="sec-link" @tap="navigateTo('/paipan/history')">
-            <text class="sec-link-text">历史记录</text>
-            <app-icon name="chevron-right" :size="28" color="#c41e3a" />
+          <text class="sec-title">
+            排盘工具
+          </text>
+          <view
+            class="sec-link"
+            @tap="navigateTo('/paipan/history')"
+          >
+            <text class="sec-link-text">
+              历史记录
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="28"
+              color="#c41e3a"
+            />
           </view>
         </view>
         <view class="grid">
-          <view v-for="tool in displayTools" :key="tool.id" class="cell" @tap="navigateTo(tool.href)">
+          <view
+            v-for="tool in displayTools"
+            :key="tool.id"
+            class="cell"
+            @tap="navigateTo(tool.href)"
+          >
             <view class="cell-icon">
-              <tool-icon :icon-id="tool.iconId" :size="88" />
-              <view v-if="tool.badge" class="badge badge-red" />
+              <tool-icon
+                :icon-id="tool.iconId"
+                :size="88"
+              />
+              <view
+                v-if="tool.badge"
+                class="badge badge-red"
+              />
             </view>
-            <text class="cell-name">{{ tool.name }}</text>
+            <text class="cell-name">
+              {{ tool.name }}
+            </text>
           </view>
         </view>
-        <view v-if="tools.length > 32" class="toggle" @tap="showAllTools = !showAllTools">
-          <text class="toggle-text">{{ showAllTools ? '收起' : '展开更多' }}</text>
-          <app-icon :name="showAllTools ? 'chevron-up' : 'chevron-down'" :size="32" color="#999999" />
+        <view
+          v-if="tools.length > 32"
+          class="toggle"
+          @tap="showAllTools = !showAllTools"
+        >
+          <text class="toggle-text">
+            {{ showAllTools ? '收起' : '展开更多' }}
+          </text>
+          <app-icon
+            :name="showAllTools ? 'chevron-up' : 'chevron-down'"
+            :size="32"
+            color="#999999"
+          />
         </view>
       </view>
 
@@ -83,42 +146,101 @@ function gradientStyle(avatar: string) {
       <view class="section-px section-mt">
         <view class="sec-head">
           <view class="sec-title-row">
-            <app-icon name="stethoscope" :size="32" color="#059669" />
-            <text class="sec-title">中医工具</text>
+            <app-icon
+              name="stethoscope"
+              :size="32"
+              color="#059669"
+            />
+            <text class="sec-title">
+              中医工具
+            </text>
           </view>
         </view>
         <view class="grid">
-          <view v-for="tool in displayMedical" :key="tool.id" class="cell" @tap="navigateTo(tool.href)">
+          <view
+            v-for="tool in displayMedical"
+            :key="tool.id"
+            class="cell"
+            @tap="navigateTo(tool.href)"
+          >
             <view class="cell-icon">
-              <tool-icon :icon-id="tool.iconId" :size="88" />
-              <view v-if="tool.badge" class="badge badge-green" />
+              <tool-icon
+                :icon-id="tool.iconId"
+                :size="88"
+              />
+              <view
+                v-if="tool.badge"
+                class="badge badge-green"
+              />
             </view>
-            <text class="cell-name">{{ tool.name }}</text>
+            <text class="cell-name">
+              {{ tool.name }}
+            </text>
           </view>
         </view>
-        <view v-if="medicalTools.length > 8" class="toggle" @tap="showMedical = !showMedical">
-          <text class="toggle-text">{{ showMedical ? '收起' : '展开更多' }}</text>
-          <app-icon :name="showMedical ? 'chevron-up' : 'chevron-down'" :size="32" color="#999999" />
+        <view
+          v-if="medicalTools.length > 8"
+          class="toggle"
+          @tap="showMedical = !showMedical"
+        >
+          <text class="toggle-text">
+            {{ showMedical ? '收起' : '展开更多' }}
+          </text>
+          <app-icon
+            :name="showMedical ? 'chevron-up' : 'chevron-down'"
+            :size="32"
+            color="#999999"
+          />
         </view>
       </view>
 
       <!-- AI 智能体 -->
       <view class="section-px section-mt">
         <view class="sec-head">
-          <text class="sec-title">AI 智能体</text>
-          <view class="sec-link" @tap="navigateTo('/agents')">
-            <text class="sec-link-text">查看全部</text>
-            <app-icon name="chevron-right" :size="28" color="#c41e3a" />
+          <text class="sec-title">
+            AI 智能体
+          </text>
+          <view
+            class="sec-link"
+            @tap="navigateTo('/agents')"
+          >
+            <text class="sec-link-text">
+              查看全部
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="28"
+              color="#c41e3a"
+            />
           </view>
         </view>
-        <scroll-view scroll-x class="agents-scroll">
+        <scroll-view
+          scroll-x
+          class="agents-scroll"
+        >
           <view class="agents-row">
-            <view v-for="agent in displayAgents" :key="agent.id" class="agent-card" @tap="navigateTo(agent.href)">
-              <view class="agent-avatar" :style="gradientStyle(agent.avatar)">
-                <app-icon name="sparkles" :size="40" color="#ffffff" />
+            <view
+              v-for="agent in displayAgents"
+              :key="agent.id"
+              class="agent-card"
+              @tap="navigateTo(agent.href)"
+            >
+              <view
+                class="agent-avatar"
+                :style="gradientStyle(agent.avatar)"
+              >
+                <app-icon
+                  name="sparkles"
+                  :size="40"
+                  color="#ffffff"
+                />
               </view>
-              <text class="agent-name">{{ agent.name }}</text>
-              <text class="agent-desc">{{ agent.description }}</text>
+              <text class="agent-name">
+                {{ agent.name }}
+              </text>
+              <text class="agent-desc">
+                {{ agent.description }}
+              </text>
             </view>
           </view>
         </scroll-view>
@@ -126,7 +248,9 @@ function gradientStyle(avatar: string) {
 
       <!-- 合规提示 -->
       <view class="section-px disclaimer">
-        <text class="disclaimer-text">平台命理工具仅供传统文化爱好者研究学习，排盘与分析结果不构成任何决策建议。</text>
+        <text class="disclaimer-text">
+          平台命理工具仅供传统文化爱好者研究学习，排盘与分析结果不构成任何决策建议。
+        </text>
       </view>
     </scroll-view>
 

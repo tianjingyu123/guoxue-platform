@@ -28,8 +28,12 @@ function goDetail(id: string) {
     <view class="rk-main">
       <!-- Hero -->
       <view class="rk-hero">
-        <text class="rk-kicker">读者公认</text>
-        <text class="rk-title">传世经典榜</text>
+        <text class="rk-kicker">
+          读者公认
+        </text>
+        <text class="rk-title">
+          传世经典榜
+        </text>
       </view>
 
       <!-- 切换 -->
@@ -41,7 +45,9 @@ function goDetail(id: string) {
             class="rk-tab"
             :class="{ 'rk-tab--active': rankType === t.key }"
             @tap="rankType = t.key"
-          >{{ t.label }}</view>
+          >
+            {{ t.label }}
+          </view>
         </view>
       </view>
 
@@ -59,11 +65,22 @@ function goDetail(id: string) {
               :cover-color="coverColorForBook(book.title, book.category)"
               title-size="36rpx"
             />
-            <view class="rk-badge" :style="{ background: rankBg(book.rank) }">{{ book.rank }}</view>
+            <view
+              class="rk-badge"
+              :style="{ background: rankBg(book.rank) }"
+            >
+              {{ book.rank }}
+            </view>
           </view>
-          <text class="rk-top3-title">{{ book.title }}</text>
+          <text class="rk-top3-title">
+            {{ book.title }}
+          </text>
           <view class="rk-top3-views">
-            <AppIcon name="eye" :size="24" color="#b3b3b3" />
+            <AppIcon
+              name="eye"
+              :size="24"
+              color="#b3b3b3"
+            />
             <text>{{ book.views }}</text>
           </view>
         </view>
@@ -79,7 +96,9 @@ function goDetail(id: string) {
             :class="{ 'rk-row--bordered': i > 0 }"
             @tap="goDetail(book.id)"
           >
-            <text class="rk-row-rank">{{ book.rank }}</text>
+            <text class="rk-row-rank">
+              {{ book.rank }}
+            </text>
             <view class="rk-row-cover">
               <FlatCover
                 :title="book.title"
@@ -88,16 +107,31 @@ function goDetail(id: string) {
               />
             </view>
             <view class="rk-row-info">
-              <text class="rk-row-title">{{ book.title }}</text>
-              <text class="rk-row-author">{{ book.author }} · {{ book.dynasty }}</text>
+              <text class="rk-row-title">
+                {{ book.title }}
+              </text>
+              <text class="rk-row-author">
+                {{ book.author }} · {{ book.dynasty }}
+              </text>
               <view class="rk-row-meta">
-                <text class="rk-row-cat">{{ book.category }}</text>
+                <text class="rk-row-cat">
+                  {{ book.category }}
+                </text>
                 <view class="rk-row-stat">
-                  <AppIcon name="eye" :size="24" color="#b3b3b3" />
+                  <AppIcon
+                    name="eye"
+                    :size="24"
+                    color="#b3b3b3"
+                  />
                   <text>{{ book.views }}</text>
                 </view>
                 <view class="rk-row-stat">
-                  <AppIcon name="star" :size="24" color="#fbbf24" fill="#fbbf24" />
+                  <AppIcon
+                    name="star"
+                    :size="24"
+                    color="#fbbf24"
+                    fill="#fbbf24"
+                  />
                   <text>{{ book.rating }}</text>
                 </view>
               </view>

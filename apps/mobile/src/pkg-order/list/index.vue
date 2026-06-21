@@ -1,9 +1,20 @@
 <template>
   <view class="orders">
     <!-- 顶部导航 + 状态Tab -->
-    <view class="header" :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }">
-      <app-nav-bar title="我的订单" background="transparent" no-border />
-      <scroll-view scroll-x class="tabs" :show-scrollbar="false">
+    <view
+      class="header"
+      :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }"
+    >
+      <app-nav-bar
+        title="我的订单"
+        background="transparent"
+        no-border
+      />
+      <scroll-view
+        scroll-x
+        class="tabs"
+        :show-scrollbar="false"
+      >
         <view class="tabs-inner">
           <view
             v-for="tab in statusTabs"
@@ -12,7 +23,9 @@
             :class="{ active: activeTab === tab.key }"
             @tap="activeTab = tab.key"
           >
-            <text class="tab-text">{{ tab.label }}</text>
+            <text class="tab-text">
+              {{ tab.label }}
+            </text>
           </view>
         </view>
       </scroll-view>
@@ -20,10 +33,24 @@
 
     <!-- 列表 -->
     <view class="content">
-      <view v-if="filteredOrders.length === 0" class="empty">
-        <app-icon name="package" :size="120" color="#E8E3DB" />
-        <text class="empty-text">暂无订单</text>
-        <view class="empty-btn" @tap="goShop"><text>去逛逛</text></view>
+      <view
+        v-if="filteredOrders.length === 0"
+        class="empty"
+      >
+        <app-icon
+          name="package"
+          :size="120"
+          color="#E8E3DB"
+        />
+        <text class="empty-text">
+          暂无订单
+        </text>
+        <view
+          class="empty-btn"
+          @tap="goShop"
+        >
+          <text>去逛逛</text>
+        </view>
       </view>
 
       <view
@@ -35,12 +62,32 @@
         <!-- 卡头 -->
         <view class="card-head">
           <view class="head-left">
-            <text class="order-no">订单号: {{ order.orderNo }}</text>
-            <view class="copy-btn" @tap.stop="copyNo(order.orderNo)"><app-icon name="copy" :size="26" color="#999999" /></view>
+            <text class="order-no">
+              订单号: {{ order.orderNo }}
+            </text>
+            <view
+              class="copy-btn"
+              @tap.stop="copyNo(order.orderNo)"
+            >
+              <app-icon
+                name="copy"
+                :size="26"
+                color="#999999"
+              />
+            </view>
           </view>
-          <view class="status" :style="{ color: cfg(order.status).color }">
-            <app-icon :name="cfg(order.status).icon" :size="28" :color="cfg(order.status).color" />
-            <text class="status-text">{{ cfg(order.status).label }}</text>
+          <view
+            class="status"
+            :style="{ color: cfg(order.status).color }"
+          >
+            <app-icon
+              :name="cfg(order.status).icon"
+              :size="28"
+              :color="cfg(order.status).color"
+            />
+            <text class="status-text">
+              {{ cfg(order.status).label }}
+            </text>
           </view>
         </view>
 
@@ -52,41 +99,108 @@
             class="product"
             :class="{ bordered: idx > 0 }"
           >
-            <image class="p-cover" :src="p.cover" mode="aspectFill" />
+            <image
+              class="p-cover"
+              :src="p.cover"
+              mode="aspectFill"
+            />
             <view class="p-info">
-              <text class="p-name">{{ p.name }}</text>
-              <text class="p-sku">{{ p.skuName }}</text>
+              <text class="p-name">
+                {{ p.name }}
+              </text>
+              <text class="p-sku">
+                {{ p.skuName }}
+              </text>
               <view class="p-bottom">
-                <text class="p-price">¥{{ p.price }}</text>
-                <text class="p-qty">x{{ p.quantity }}</text>
+                <text class="p-price">
+                  ¥{{ p.price }}
+                </text>
+                <text class="p-qty">
+                  x{{ p.quantity }}
+                </text>
               </view>
             </view>
           </view>
-          <text v-if="order.products.length > 2" class="more">共 {{ order.products.length }} 件商品</text>
+          <text
+            v-if="order.products.length > 2"
+            class="more"
+          >
+            共 {{ order.products.length }} 件商品
+          </text>
         </view>
 
         <!-- 卡脚 -->
         <view class="card-foot">
           <view class="pay-sum">
-            <text class="pay-label">实付: </text>
-            <text class="pay-value">¥{{ order.payAmount }}</text>
+            <text class="pay-label">
+              实付:
+            </text>
+            <text class="pay-value">
+              ¥{{ order.payAmount }}
+            </text>
           </view>
-          <view class="actions" @tap.stop>
+          <view
+            class="actions"
+            @tap.stop
+          >
             <template v-if="order.status === 'pending_pay'">
-              <view class="btn ghost" @tap="askCancel(order.id)"><text>取消订单</text></view>
-              <view class="btn primary" @tap="goPay(order.id)"><text>去支付</text></view>
+              <view
+                class="btn ghost"
+                @tap="askCancel(order.id)"
+              >
+                <text>取消订单</text>
+              </view>
+              <view
+                class="btn primary"
+                @tap="goPay(order.id)"
+              >
+                <text>去支付</text>
+              </view>
             </template>
             <template v-else-if="order.status === 'pending_ship'">
-              <view v-if="order.canCancel" class="btn ghost" @tap="askCancel(order.id)"><text>取消订单</text></view>
+              <view
+                v-if="order.canCancel"
+                class="btn ghost"
+                @tap="askCancel(order.id)"
+              >
+                <text>取消订单</text>
+              </view>
             </template>
             <template v-else-if="order.status === 'pending_receive'">
-              <view class="btn ghost" @tap="goLogistics(order.id)"><text>查看物流</text></view>
-              <view v-if="order.canConfirm" class="btn primary" @tap="confirmReceive(order.id)"><text>确认收货</text></view>
+              <view
+                class="btn ghost"
+                @tap="goLogistics(order.id)"
+              >
+                <text>查看物流</text>
+              </view>
+              <view
+                v-if="order.canConfirm"
+                class="btn primary"
+                @tap="confirmReceive(order.id)"
+              >
+                <text>确认收货</text>
+              </view>
             </template>
             <template v-else-if="order.status === 'completed'">
-              <view v-if="order.canReview" class="btn outline" @tap="goReview(order.id)"><text>去评价</text></view>
-              <view class="btn ghost" @tap="goAfterSale(order.id)"><text>申请售后</text></view>
-              <view class="btn primary" @tap="buyAgain"><text>再次购买</text></view>
+              <view
+                v-if="order.canReview"
+                class="btn outline"
+                @tap="goReview(order.id)"
+              >
+                <text>去评价</text>
+              </view>
+              <view
+                class="btn ghost"
+                @tap="goAfterSale(order.id)"
+              >
+                <text>申请售后</text>
+              </view>
+              <view
+                class="btn primary"
+                @tap="buyAgain"
+              >
+                <text>再次购买</text>
+              </view>
             </template>
           </view>
         </view>
@@ -94,11 +208,24 @@
     </view>
 
     <!-- 取消弹窗 -->
-    <view v-if="showCancel" class="mask mask-fade-in" @tap="closeCancel">
-      <view class="dialog dialog-pop-in" @tap.stop>
-        <view class="dialog-head"><text class="dialog-title">取消订单</text></view>
+    <view
+      v-if="showCancel"
+      class="mask mask-fade-in"
+      @tap="closeCancel"
+    >
+      <view
+        class="dialog dialog-pop-in"
+        @tap.stop
+      >
+        <view class="dialog-head">
+          <text class="dialog-title">
+            取消订单
+          </text>
+        </view>
         <view class="dialog-body">
-          <text class="dialog-tip">请选择取消原因：</text>
+          <text class="dialog-tip">
+            请选择取消原因：
+          </text>
           <view
             v-for="r in cancelReasons"
             :key="r"
@@ -106,12 +233,28 @@
             :class="{ active: cancelReason === r }"
             @tap="cancelReason = r"
           >
-            <text class="reason-text" :class="{ active: cancelReason === r }">{{ r }}</text>
+            <text
+              class="reason-text"
+              :class="{ active: cancelReason === r }"
+            >
+              {{ r }}
+            </text>
           </view>
         </view>
         <view class="dialog-foot">
-          <view class="btn ghost flex1" @tap="closeCancel"><text>暂不取消</text></view>
-          <view class="btn primary flex1" :class="{ disabled: !cancelReason }" @tap="doCancel"><text>确认取消</text></view>
+          <view
+            class="btn ghost flex1"
+            @tap="closeCancel"
+          >
+            <text>暂不取消</text>
+          </view>
+          <view
+            class="btn primary flex1"
+            :class="{ disabled: !cancelReason }"
+            @tap="doCancel"
+          >
+            <text>确认取消</text>
+          </view>
         </view>
       </view>
     </view>

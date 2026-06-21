@@ -1,50 +1,105 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-btn" @tap="onBack">
-        <app-icon name="arrow-left" :size="40" color="#1A1A1A" />
+    <view
+      class="nav"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view
+        class="nav-btn"
+        @tap="onBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="40"
+          color="#1A1A1A"
+        />
       </view>
-      <text class="nav-title">活动详情</text>
-      <view class="nav-btn" @tap="onShare">
-        <app-icon name="share-2" :size="40" color="#1A1A1A" />
+      <text class="nav-title">
+        活动详情
+      </text>
+      <view
+        class="nav-btn"
+        @tap="onShare"
+      >
+        <app-icon
+          name="share-2"
+          :size="40"
+          color="#1A1A1A"
+        />
       </view>
     </view>
 
     <view :style="{ height: navH + 'px' }" />
 
-    <scroll-view scroll-y class="scroll">
+    <scroll-view
+      scroll-y
+      class="scroll"
+    >
       <!-- Banner -->
       <view class="banner">
         <view class="banner-mask" />
         <view class="banner-text">
-          <text class="banner-title">{{ activity.title }}</text>
-          <text v-if="activity.subtitle" class="banner-sub">{{ activity.subtitle }}</text>
+          <text class="banner-title">
+            {{ activity.title }}
+          </text>
+          <text
+            v-if="activity.subtitle"
+            class="banner-sub"
+          >
+            {{ activity.subtitle }}
+          </text>
         </view>
       </view>
 
       <!-- 倒计时 -->
       <view class="cd-bar">
         <view class="cd-left">
-          <app-icon name="clock" :size="32" color="#C41E3A" />
-          <text class="cd-label">距结束</text>
+          <app-icon
+            name="clock"
+            :size="32"
+            color="#C41E3A"
+          />
+          <text class="cd-label">
+            距结束
+          </text>
         </view>
         <view class="cd-right">
-          <text class="cd-box">{{ countdown.days }}</text>
-          <text class="cd-unit">天</text>
-          <text class="cd-box">{{ pad(countdown.hours) }}</text>
-          <text class="cd-colon">:</text>
-          <text class="cd-box">{{ pad(countdown.minutes) }}</text>
-          <text class="cd-colon">:</text>
-          <text class="cd-box">{{ pad(countdown.seconds) }}</text>
+          <text class="cd-box">
+            {{ countdown.days }}
+          </text>
+          <text class="cd-unit">
+            天
+          </text>
+          <text class="cd-box">
+            {{ pad(countdown.hours) }}
+          </text>
+          <text class="cd-colon">
+            :
+          </text>
+          <text class="cd-box">
+            {{ pad(countdown.minutes) }}
+          </text>
+          <text class="cd-colon">
+            :
+          </text>
+          <text class="cd-box">
+            {{ pad(countdown.seconds) }}
+          </text>
         </view>
       </view>
 
       <!-- 限时秒杀商品区 -->
       <view class="sk-section">
         <view class="sk-head">
-          <app-icon name="zap" :size="40" color="#C41E3A" />
-          <text class="sk-head-txt">限时秒杀</text>
+          <app-icon
+            name="zap"
+            :size="40"
+            color="#C41E3A"
+          />
+          <text class="sk-head-txt">
+            限时秒杀
+          </text>
         </view>
         <view
           v-for="item in activity.items"
@@ -54,20 +109,39 @@
         >
           <view class="sk-item-top">
             <view class="sk-cover">
-              <app-icon name="book-open" :size="56" color="rgba(201,169,110,0.6)" />
+              <app-icon
+                name="book-open"
+                :size="56"
+                color="rgba(201,169,110,0.6)"
+              />
             </view>
             <view class="sk-item-info">
-              <text class="sk-item-title">{{ item.title }}</text>
+              <text class="sk-item-title">
+                {{ item.title }}
+              </text>
               <view class="sk-price-row">
-                <text class="sk-price">¥{{ item.salePrice }}</text>
-                <text class="sk-origin">¥{{ item.originalPrice }}</text>
+                <text class="sk-price">
+                  ¥{{ item.salePrice }}
+                </text>
+                <text class="sk-origin">
+                  ¥{{ item.originalPrice }}
+                </text>
               </view>
               <view class="sk-progress">
                 <view class="sk-progress-meta">
-                  <text class="sk-meta-txt">已抢 {{ progress(item) }}%</text>
-                  <text class="sk-meta-txt">限购 {{ item.limitPerUser }} 件</text>
+                  <text class="sk-meta-txt">
+                    已抢 {{ progress(item) }}%
+                  </text>
+                  <text class="sk-meta-txt">
+                    限购 {{ item.limitPerUser }} 件
+                  </text>
                 </view>
-                <view class="sk-bar"><view class="sk-bar-fill" :style="{ width: progress(item) + '%' }" /></view>
+                <view class="sk-bar">
+                  <view
+                    class="sk-bar-fill"
+                    :style="{ width: progress(item) + '%' }"
+                  />
+                </view>
               </view>
             </view>
           </view>
@@ -77,7 +151,9 @@
               :class="{ disabled: item.status !== 'ongoing' }"
               @tap.stop="onBuy(item)"
             >
-              <text class="sk-buy-txt">{{ buyText(item) }}</text>
+              <text class="sk-buy-txt">
+                {{ buyText(item) }}
+              </text>
             </view>
           </view>
         </view>
@@ -85,14 +161,34 @@
 
       <!-- 活动规则 -->
       <view class="rules">
-        <view class="rules-head" @tap="showRules = !showRules">
-          <text class="rules-title">活动规则</text>
-          <app-icon :name="showRules ? 'chevron-up' : 'chevron-down'" :size="32" color="#999" />
+        <view
+          class="rules-head"
+          @tap="showRules = !showRules"
+        >
+          <text class="rules-title">
+            活动规则
+          </text>
+          <app-icon
+            :name="showRules ? 'chevron-up' : 'chevron-down'"
+            :size="32"
+            color="#999"
+          />
         </view>
-        <view v-if="showRules" class="rules-body">
-          <view v-for="(r, i) in activity.rules" :key="i" class="rule-line">
-            <text class="rule-no">{{ i + 1 }}.</text>
-            <text class="rule-txt">{{ r }}</text>
+        <view
+          v-if="showRules"
+          class="rules-body"
+        >
+          <view
+            v-for="(r, i) in activity.rules"
+            :key="i"
+            class="rule-line"
+          >
+            <text class="rule-no">
+              {{ i + 1 }}.
+            </text>
+            <text class="rule-txt">
+              {{ r }}
+            </text>
           </view>
         </view>
       </view>

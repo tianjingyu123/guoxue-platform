@@ -61,121 +61,312 @@ function lessonLocked(chapter: PlayerChapter, lesson: PlayerChapterLesson) { ret
       <view class="video-placeholder" />
 
       <!-- 控制层 -->
-      <view class="control-layer" :class="{ hidden: !showControls }">
+      <view
+        class="control-layer"
+        :class="{ hidden: !showControls }"
+      >
         <!-- 顶部导航 -->
         <view class="ctrl-top">
-          <view class="ctrl-back" @tap="goBack">
-            <app-icon name="arrow-left" :size="44" color="#ffffff" />
+          <view
+            class="ctrl-back"
+            @tap="goBack"
+          >
+            <app-icon
+              name="arrow-left"
+              :size="44"
+              color="#ffffff"
+            />
           </view>
           <view class="ctrl-titles">
-            <text class="ctrl-title">{{ content.title }}</text>
-            <text class="ctrl-subtitle">{{ content.courseTitle }}</text>
+            <text class="ctrl-title">
+              {{ content.title }}
+            </text>
+            <text class="ctrl-subtitle">
+              {{ content.courseTitle }}
+            </text>
           </view>
         </view>
 
         <!-- 中央播放按钮 -->
-        <view class="ctrl-center" @tap="togglePlay">
-          <app-icon :name="isPlaying ? 'pause' : 'play'" :size="56" color="#ffffff" :fill="!isPlaying" />
+        <view
+          class="ctrl-center"
+          @tap="togglePlay"
+        >
+          <app-icon
+            :name="isPlaying ? 'pause' : 'play'"
+            :size="56"
+            color="#ffffff"
+            :fill="!isPlaying"
+          />
         </view>
 
         <!-- 底部控制栏 -->
         <view class="ctrl-bottom">
           <view class="progress-track">
-            <view class="progress-fill" :style="{ width: progressPercent + '%' }" />
+            <view
+              class="progress-fill"
+              :style="{ width: progressPercent + '%' }"
+            />
           </view>
           <view class="ctrl-row">
             <view class="ctrl-left">
-              <view @tap="togglePlay"><app-icon :name="isPlaying ? 'pause' : 'play'" :size="40" color="#ffffff" /></view>
-              <view :class="{ disabled: !content.prevLesson }" @tap="content.prevLesson && switchLesson(content.prevLesson.id)">
-                <app-icon name="skip-back" :size="34" color="#ffffff" />
+              <view @tap="togglePlay">
+                <app-icon
+                  :name="isPlaying ? 'pause' : 'play'"
+                  :size="40"
+                  color="#ffffff"
+                />
               </view>
-              <view :class="{ disabled: !content.nextLesson }" @tap="content.nextLesson && switchLesson(content.nextLesson.id)">
-                <app-icon name="skip-forward" :size="34" color="#ffffff" />
+              <view
+                :class="{ disabled: !content.prevLesson }"
+                @tap="content.prevLesson && switchLesson(content.prevLesson.id)"
+              >
+                <app-icon
+                  name="skip-back"
+                  :size="34"
+                  color="#ffffff"
+                />
               </view>
-              <text class="ctrl-time">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</text>
+              <view
+                :class="{ disabled: !content.nextLesson }"
+                @tap="content.nextLesson && switchLesson(content.nextLesson.id)"
+              >
+                <app-icon
+                  name="skip-forward"
+                  :size="34"
+                  color="#ffffff"
+                />
+              </view>
+              <text class="ctrl-time">
+                {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
+              </text>
             </view>
             <view class="ctrl-rt">
               <view class="speed-wrap">
-                <text class="speed-btn" @tap="showSpeedMenu = !showSpeedMenu">{{ playbackRate }}x</text>
-                <view v-if="showSpeedMenu" class="speed-menu">
+                <text
+                  class="speed-btn"
+                  @tap="showSpeedMenu = !showSpeedMenu"
+                >
+                  {{ playbackRate }}x
+                </text>
+                <view
+                  v-if="showSpeedMenu"
+                  class="speed-menu"
+                >
                   <text
-                    v-for="r in speeds" :key="r"
-                    class="speed-item" :class="{ active: playbackRate === r }"
+                    v-for="r in speeds"
+                    :key="r"
+                    class="speed-item"
+                    :class="{ active: playbackRate === r }"
                     @tap="changeSpeed(r)"
-                  >{{ r }}x</text>
+                  >
+                    {{ r }}x
+                  </text>
                 </view>
               </view>
-              <view class="ctrl-icon" :class="{ on: isAudioMode }" @tap="isAudioMode = !isAudioMode">
-                <app-icon name="headphones" :size="34" color="#ffffff" />
+              <view
+                class="ctrl-icon"
+                :class="{ on: isAudioMode }"
+                @tap="isAudioMode = !isAudioMode"
+              >
+                <app-icon
+                  name="headphones"
+                  :size="34"
+                  color="#ffffff"
+                />
               </view>
-              <view class="ctrl-icon" :class="{ on: isPipMode }" @tap="isPipMode = !isPipMode">
-                <app-icon name="picture-in-picture-2" :size="34" color="#ffffff" />
+              <view
+                class="ctrl-icon"
+                :class="{ on: isPipMode }"
+                @tap="isPipMode = !isPipMode"
+              >
+                <app-icon
+                  name="picture-in-picture-2"
+                  :size="34"
+                  color="#ffffff"
+                />
               </view>
-              <view @tap="isMuted = !isMuted"><app-icon :name="isMuted ? 'volume-x' : 'volume-2'" :size="34" color="#ffffff" /></view>
-              <view @tap="isFullscreen = !isFullscreen"><app-icon :name="isFullscreen ? 'minimize' : 'maximize'" :size="34" color="#ffffff" /></view>
+              <view @tap="isMuted = !isMuted">
+                <app-icon
+                  :name="isMuted ? 'volume-x' : 'volume-2'"
+                  :size="34"
+                  color="#ffffff"
+                />
+              </view>
+              <view @tap="isFullscreen = !isFullscreen">
+                <app-icon
+                  :name="isFullscreen ? 'minimize' : 'maximize'"
+                  :size="34"
+                  color="#ffffff"
+                />
+              </view>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 纯音频模式遮罩 -->
-      <view v-if="isAudioMode" class="audio-mask">
-        <app-icon name="headphones" :size="96" color="#C41E3A" />
-        <text class="audio-title">纯音频模式</text>
-        <text class="audio-sub">已关闭视频画面，节省流量</text>
-        <view class="audio-resume" @tap="isAudioMode = false"><text class="audio-resume-txt">恢复视频</text></view>
+      <view
+        v-if="isAudioMode"
+        class="audio-mask"
+      >
+        <app-icon
+          name="headphones"
+          :size="96"
+          color="#C41E3A"
+        />
+        <text class="audio-title">
+          纯音频模式
+        </text>
+        <text class="audio-sub">
+          已关闭视频画面，节省流量
+        </text>
+        <view
+          class="audio-resume"
+          @tap="isAudioMode = false"
+        >
+          <text class="audio-resume-txt">
+            恢复视频
+          </text>
+        </view>
       </view>
     </view>
 
     <!-- 底部功能区 -->
     <view class="bottom">
       <view class="cur-info">
-        <text class="cur-title">{{ content.title }}</text>
-        <text class="cur-course">{{ content.courseTitle }}</text>
+        <text class="cur-title">
+          {{ content.title }}
+        </text>
+        <text class="cur-course">
+          {{ content.courseTitle }}
+        </text>
       </view>
       <view class="func-row">
-        <view class="func-btn" @tap="showChapterDrawer = true">
-          <app-icon name="list" :size="30" color="#ffffff" /><text class="func-txt">目录</text>
+        <view
+          class="func-btn"
+          @tap="showChapterDrawer = true"
+        >
+          <app-icon
+            name="list"
+            :size="30"
+            color="#ffffff"
+          /><text class="func-txt">
+            目录
+          </text>
         </view>
-        <view class="func-btn" @tap="showNotePanel = true">
-          <app-icon name="file-text" :size="30" color="#ffffff" /><text class="func-txt">笔记</text>
+        <view
+          class="func-btn"
+          @tap="showNotePanel = true"
+        >
+          <app-icon
+            name="file-text"
+            :size="30"
+            color="#ffffff"
+          /><text class="func-txt">
+            笔记
+          </text>
         </view>
-        <view class="func-btn" @tap="showQuestionPanel = true">
-          <app-icon name="message-circle" :size="30" color="#ffffff" /><text class="func-txt">提问</text>
+        <view
+          class="func-btn"
+          @tap="showQuestionPanel = true"
+        >
+          <app-icon
+            name="message-circle"
+            :size="30"
+            color="#ffffff"
+          /><text class="func-txt">
+            提问
+          </text>
         </view>
       </view>
-      <view v-if="content.nextLesson" class="next-lesson" @tap="switchLesson(content.nextLesson.id)">
+      <view
+        v-if="content.nextLesson"
+        class="next-lesson"
+        @tap="switchLesson(content.nextLesson.id)"
+      >
         <view>
-          <text class="next-label">下一课</text>
-          <text class="next-title">{{ content.nextLesson.title }}</text>
+          <text class="next-label">
+            下一课
+          </text>
+          <text class="next-title">
+            {{ content.nextLesson.title }}
+          </text>
         </view>
-        <app-icon name="chevron-right" :size="36" color="#71717A" />
+        <app-icon
+          name="chevron-right"
+          :size="36"
+          color="#71717A"
+        />
       </view>
     </view>
 
     <!-- 章节抽屉 -->
-    <view v-if="showChapterDrawer" class="drawer-modal">
-      <view class="drawer-mask" @tap="showChapterDrawer = false" />
+    <view
+      v-if="showChapterDrawer"
+      class="drawer-modal"
+    >
+      <view
+        class="drawer-mask"
+        @tap="showChapterDrawer = false"
+      />
       <view class="drawer">
         <view class="drawer-hdr">
-          <text class="drawer-title">课程目录</text>
-          <view @tap="showChapterDrawer = false"><app-icon name="x" :size="36" color="#ffffff" /></view>
+          <text class="drawer-title">
+            课程目录
+          </text>
+          <view @tap="showChapterDrawer = false">
+            <app-icon
+              name="x"
+              :size="36"
+              color="#ffffff"
+            />
+          </view>
         </view>
-        <scroll-view scroll-y class="drawer-body">
-          <view v-for="chapter in chapters" :key="chapter.id" class="dw-chapter">
-            <text class="dw-chapter-title">{{ chapter.title }}</text>
+        <scroll-view
+          scroll-y
+          class="drawer-body"
+        >
+          <view
+            v-for="chapter in chapters"
+            :key="chapter.id"
+            class="dw-chapter"
+          >
+            <text class="dw-chapter-title">
+              {{ chapter.title }}
+            </text>
             <view class="dw-lessons">
               <view
-                v-for="lesson in chapter.lessons" :key="lesson.id"
+                v-for="lesson in chapter.lessons"
+                :key="lesson.id"
                 class="dw-lesson"
                 :class="{ current: lesson.id === currentLessonId, locked: lessonLocked(chapter, lesson) }"
                 @tap="!lessonLocked(chapter, lesson) && switchLesson(lesson.id)"
               >
-                <app-icon v-if="lesson.isCompleted" name="check" :size="28" color="#22C55E" />
-                <app-icon v-else-if="lessonLocked(chapter, lesson)" name="lock" :size="28" color="#71717A" />
-                <app-icon v-else name="play" :size="28" color="#ffffff" />
-                <text class="dw-lesson-title">{{ lesson.title }}</text>
-                <text class="dw-lesson-dur">{{ formatTime(lesson.duration) }}</text>
+                <app-icon
+                  v-if="lesson.isCompleted"
+                  name="check"
+                  :size="28"
+                  color="#22C55E"
+                />
+                <app-icon
+                  v-else-if="lessonLocked(chapter, lesson)"
+                  name="lock"
+                  :size="28"
+                  color="#71717A"
+                />
+                <app-icon
+                  v-else
+                  name="play"
+                  :size="28"
+                  color="#ffffff"
+                />
+                <text class="dw-lesson-title">
+                  {{ lesson.title }}
+                </text>
+                <text class="dw-lesson-dur">
+                  {{ formatTime(lesson.duration) }}
+                </text>
               </view>
             </view>
           </view>
@@ -184,39 +375,91 @@ function lessonLocked(chapter: PlayerChapter, lesson: PlayerChapterLesson) { ret
     </view>
 
     <!-- 笔记面板 -->
-    <view v-if="showNotePanel" class="sheet-modal">
-      <view class="sheet-mask" @tap="showNotePanel = false" />
+    <view
+      v-if="showNotePanel"
+      class="sheet-modal"
+    >
+      <view
+        class="sheet-mask"
+        @tap="showNotePanel = false"
+      />
       <view class="dark-sheet">
         <view class="dark-sheet-hdr">
-          <text class="dark-sheet-title">记笔记</text>
-          <view @tap="showNotePanel = false"><app-icon name="x" :size="36" color="#ffffff" /></view>
+          <text class="dark-sheet-title">
+            记笔记
+          </text>
+          <view @tap="showNotePanel = false">
+            <app-icon
+              name="x"
+              :size="36"
+              color="#ffffff"
+            />
+          </view>
         </view>
         <view class="dark-sheet-body">
-          <text class="note-time">当前时间点: {{ formatTime(currentTime) }}</text>
-          <textarea v-model="noteContent" class="dark-input" placeholder="写下你的学习笔记..." placeholder-class="dark-ph" />
+          <text class="note-time">
+            当前时间点: {{ formatTime(currentTime) }}
+          </text>
+          <textarea
+            v-model="noteContent"
+            class="dark-input"
+            placeholder="写下你的学习笔记..."
+            placeholder-class="dark-ph"
+          />
         </view>
         <view class="dark-sheet-foot">
-          <view class="dark-submit" :class="{ disabled: !noteContent.trim() }" @tap="submitNote">
-            <text class="dark-submit-txt">保存笔记</text>
+          <view
+            class="dark-submit"
+            :class="{ disabled: !noteContent.trim() }"
+            @tap="submitNote"
+          >
+            <text class="dark-submit-txt">
+              保存笔记
+            </text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 提问面板 -->
-    <view v-if="showQuestionPanel" class="sheet-modal">
-      <view class="sheet-mask" @tap="showQuestionPanel = false" />
+    <view
+      v-if="showQuestionPanel"
+      class="sheet-modal"
+    >
+      <view
+        class="sheet-mask"
+        @tap="showQuestionPanel = false"
+      />
       <view class="dark-sheet">
         <view class="dark-sheet-hdr">
-          <text class="dark-sheet-title">向老师提问</text>
-          <view @tap="showQuestionPanel = false"><app-icon name="x" :size="36" color="#ffffff" /></view>
+          <text class="dark-sheet-title">
+            向老师提问
+          </text>
+          <view @tap="showQuestionPanel = false">
+            <app-icon
+              name="x"
+              :size="36"
+              color="#ffffff"
+            />
+          </view>
         </view>
         <view class="dark-sheet-body">
-          <textarea v-model="questionContent" class="dark-input" placeholder="描述你的问题，老师会尽快回复..." placeholder-class="dark-ph" />
+          <textarea
+            v-model="questionContent"
+            class="dark-input"
+            placeholder="描述你的问题，老师会尽快回复..."
+            placeholder-class="dark-ph"
+          />
         </view>
         <view class="dark-sheet-foot">
-          <view class="dark-submit" :class="{ disabled: !questionContent.trim() }" @tap="submitQuestion">
-            <text class="dark-submit-txt">提交问题</text>
+          <view
+            class="dark-submit"
+            :class="{ disabled: !questionContent.trim() }"
+            @tap="submitQuestion"
+          >
+            <text class="dark-submit-txt">
+              提交问题
+            </text>
           </view>
         </view>
       </view>

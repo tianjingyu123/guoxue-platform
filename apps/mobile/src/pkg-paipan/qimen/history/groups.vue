@@ -46,55 +46,155 @@ function cancelAdd() { isAdding.value = false; newGroupName.value = '' }
 
 <template>
   <!-- 编辑分组视图 -->
-  <view v-if="editingGroup" class="page">
+  <view
+    v-if="editingGroup"
+    class="page"
+  >
     <view class="topbar">
-      <view class="topbar-back" @tap="cancelEdit"><app-icon name="chevron-left" :size="40" color="#ffffff" /></view>
-      <text class="topbar-title">编辑分组</text>
+      <view
+        class="topbar-back"
+        @tap="cancelEdit"
+      >
+        <app-icon
+          name="chevron-left"
+          :size="40"
+          color="#ffffff"
+        />
+      </view>
+      <text class="topbar-title">
+        编辑分组
+      </text>
       <view class="topbar-spacer" />
     </view>
     <view class="form">
-      <input v-model="newGroupName" class="form-input" placeholder="分组名称" />
+      <input
+        v-model="newGroupName"
+        class="form-input"
+        placeholder="分组名称"
+      >
     </view>
     <view class="edit-actions">
-      <view class="del-btn" @tap="deleteGroup">
-        <app-icon name="trash-2" :size="34" color="var(--text-soft)" />
-        <text class="del-btn-t">删除分组</text>
+      <view
+        class="del-btn"
+        @tap="deleteGroup"
+      >
+        <app-icon
+          name="trash-2"
+          :size="34"
+          color="var(--text-soft)"
+        />
+        <text class="del-btn-t">
+          删除分组
+        </text>
       </view>
-      <view class="done-btn" :class="{ disabled: !newGroupName.trim() }" @tap="saveEdit"><text class="done-btn-t">完成</text></view>
+      <view
+        class="done-btn"
+        :class="{ disabled: !newGroupName.trim() }"
+        @tap="saveEdit"
+      >
+        <text class="done-btn-t">
+          完成
+        </text>
+      </view>
     </view>
   </view>
 
   <!-- 添加分组视图 -->
-  <view v-else-if="isAdding" class="page">
+  <view
+    v-else-if="isAdding"
+    class="page"
+  >
     <view class="topbar">
-      <view class="topbar-back" @tap="cancelAdd"><app-icon name="chevron-left" :size="40" color="#ffffff" /></view>
-      <text class="topbar-title">添加分组</text>
+      <view
+        class="topbar-back"
+        @tap="cancelAdd"
+      >
+        <app-icon
+          name="chevron-left"
+          :size="40"
+          color="#ffffff"
+        />
+      </view>
+      <text class="topbar-title">
+        添加分组
+      </text>
       <view class="topbar-spacer" />
     </view>
     <view class="form">
-      <input v-model="newGroupName" class="form-input" placeholder="输入分组名称" focus />
+      <input
+        v-model="newGroupName"
+        class="form-input"
+        placeholder="输入分组名称"
+        focus
+      >
     </view>
     <view class="add-foot">
-      <view class="done-btn full" :class="{ disabled: !newGroupName.trim() }" @tap="addGroup"><text class="done-btn-t">确定</text></view>
+      <view
+        class="done-btn full"
+        :class="{ disabled: !newGroupName.trim() }"
+        @tap="addGroup"
+      >
+        <text class="done-btn-t">
+          确定
+        </text>
+      </view>
     </view>
   </view>
 
   <!-- 分组列表视图 -->
-  <view v-else class="page">
+  <view
+    v-else
+    class="page"
+  >
     <view class="topbar">
-      <view class="topbar-back" @tap="navigateTo('/paipan/qimen/history')"><app-icon name="chevron-left" :size="40" color="#ffffff" /></view>
-      <text class="topbar-title">全部分组</text>
+      <view
+        class="topbar-back"
+        @tap="navigateTo('/paipan/qimen/history')"
+      >
+        <app-icon
+          name="chevron-left"
+          :size="40"
+          color="#ffffff"
+        />
+      </view>
+      <text class="topbar-title">
+        全部分组
+      </text>
       <view class="topbar-spacer" />
     </view>
-    <view class="count-bar"><text class="count-t">所有分组（{{ totalGroups }}）</text></view>
-    <scroll-view scroll-y class="glist">
-      <view v-for="g in groups" :key="g.id" class="grow" :class="{ def: g.isDefault }" @tap="editGroup(g)">
-        <text class="grow-name">{{ g.name }}</text>
-        <text class="grow-count">（{{ g.count }}）</text>
+    <view class="count-bar">
+      <text class="count-t">
+        所有分组（{{ totalGroups }}）
+      </text>
+    </view>
+    <scroll-view
+      scroll-y
+      class="glist"
+    >
+      <view
+        v-for="g in groups"
+        :key="g.id"
+        class="grow"
+        :class="{ def: g.isDefault }"
+        @tap="editGroup(g)"
+      >
+        <text class="grow-name">
+          {{ g.name }}
+        </text>
+        <text class="grow-count">
+          （{{ g.count }}）
+        </text>
       </view>
     </scroll-view>
     <view class="add-foot">
-      <view class="done-btn full" @tap="isAdding = true"><text class="done-btn-t">添加</text></view>
+      <view
+        class="done-btn full"
+        @tap="isAdding = true"
+      >
+        <text class="done-btn-t">
+          添加
+        </text>
+      </view>
     </view>
   </view>
 </template>

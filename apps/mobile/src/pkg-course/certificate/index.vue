@@ -17,16 +17,33 @@ function fmtDate(s: string) {
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
-      <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
-      <text class="nav-title">结业证书</text>
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="40"
+          color="#ffffff"
+        />
+      </view>
+      <text class="nav-title">
+        结业证书
+      </text>
       <view class="nav-right" />
     </view>
 
     <!-- 恭喜提示 -->
     <view class="congrats-wrap">
       <view class="congrats">
-        <app-icon name="check-circle" :size="32" color="#C9A96E" />
-        <text class="congrats-txt">恭喜您完成课程学习！</text>
+        <app-icon
+          name="check-circle"
+          :size="32"
+          color="#C9A96E"
+        />
+        <text class="congrats-txt">
+          恭喜您完成课程学习！
+        </text>
       </view>
     </view>
 
@@ -34,27 +51,60 @@ function fmtDate(s: string) {
     <view class="cert-area">
       <view class="cert-card">
         <view class="cert-inner">
-          <view class="cert-badge"><text class="cert-star">★</text></view>
-          <text class="cert-title">结业证书</text>
-          <text class="cert-en">CERTIFICATE OF COMPLETION</text>
-          <text class="cert-name">{{ cert.studentName }}</text>
-          <text class="cert-desc">已完成</text>
-          <text class="cert-course">《{{ cert.courseName }}》</text>
-          <text class="cert-hours">全部课程学习，共计 {{ cert.totalHours }} 学时</text>
-          <text v-if="cert.score" class="cert-score">综合评分：{{ cert.score }} 分</text>
+          <view class="cert-badge">
+            <text class="cert-star">
+              ★
+            </text>
+          </view>
+          <text class="cert-title">
+            结业证书
+          </text>
+          <text class="cert-en">
+            CERTIFICATE OF COMPLETION
+          </text>
+          <text class="cert-name">
+            {{ cert.studentName }}
+          </text>
+          <text class="cert-desc">
+            已完成
+          </text>
+          <text class="cert-course">
+            《{{ cert.courseName }}》
+          </text>
+          <text class="cert-hours">
+            全部课程学习，共计 {{ cert.totalHours }} 学时
+          </text>
+          <text
+            v-if="cert.score"
+            class="cert-score"
+          >
+            综合评分：{{ cert.score }} 分
+          </text>
           <view class="cert-divider" />
           <view class="cert-foot">
             <view class="cert-foot-col left">
-              <text class="cert-foot-label">授课讲师</text>
-              <text class="cert-foot-val italic">{{ cert.instructor }}</text>
+              <text class="cert-foot-label">
+                授课讲师
+              </text>
+              <text class="cert-foot-val italic">
+                {{ cert.instructor }}
+              </text>
             </view>
             <view class="cert-foot-col right">
-              <text class="cert-foot-label">颁发日期</text>
-              <text class="cert-foot-val">{{ fmtDate(dateStr) }}</text>
+              <text class="cert-foot-label">
+                颁发日期
+              </text>
+              <text class="cert-foot-val">
+                {{ fmtDate(dateStr) }}
+              </text>
             </view>
           </view>
-          <text class="cert-no">证书编号：{{ cert.certificateNo }}</text>
-          <text class="cert-platform">热卜国学</text>
+          <text class="cert-no">
+            证书编号：{{ cert.certificateNo }}
+          </text>
+          <text class="cert-platform">
+            热卜国学
+          </text>
         </view>
       </view>
     </view>
@@ -63,24 +113,56 @@ function fmtDate(s: string) {
     <view class="info-card">
       <view class="info-grid">
         <view class="info-item">
-          <app-icon name="user" :size="28" color="#C9A96E" />
-          <text class="info-label">学员：</text>
-          <text class="info-val">{{ cert.studentName }}</text>
+          <app-icon
+            name="user"
+            :size="28"
+            color="#C9A96E"
+          />
+          <text class="info-label">
+            学员：
+          </text>
+          <text class="info-val">
+            {{ cert.studentName }}
+          </text>
         </view>
         <view class="info-item">
-          <app-icon name="clock" :size="28" color="#C9A96E" />
-          <text class="info-label">学时：</text>
-          <text class="info-val">{{ cert.totalHours }}小时</text>
+          <app-icon
+            name="clock"
+            :size="28"
+            color="#C9A96E"
+          />
+          <text class="info-label">
+            学时：
+          </text>
+          <text class="info-val">
+            {{ cert.totalHours }}小时
+          </text>
         </view>
         <view class="info-item">
-          <app-icon name="calendar" :size="28" color="#C9A96E" />
-          <text class="info-label">日期：</text>
-          <text class="info-val">{{ fmtDate(dateStr) }}</text>
+          <app-icon
+            name="calendar"
+            :size="28"
+            color="#C9A96E"
+          />
+          <text class="info-label">
+            日期：
+          </text>
+          <text class="info-val">
+            {{ fmtDate(dateStr) }}
+          </text>
         </view>
         <view class="info-item">
-          <app-icon name="qr-code" :size="28" color="#C9A96E" />
-          <text class="info-label">编号：</text>
-          <text class="info-val small">{{ cert.certificateNo }}</text>
+          <app-icon
+            name="qr-code"
+            :size="28"
+            color="#C9A96E"
+          />
+          <text class="info-label">
+            编号：
+          </text>
+          <text class="info-val small">
+            {{ cert.certificateNo }}
+          </text>
         </view>
       </view>
     </view>
@@ -88,12 +170,24 @@ function fmtDate(s: string) {
     <!-- 底部操作 -->
     <view class="actions">
       <view class="btn-primary">
-        <app-icon name="download" :size="40" color="#ffffff" />
-        <text class="btn-primary-txt">保存到相册</text>
+        <app-icon
+          name="download"
+          :size="40"
+          color="#ffffff"
+        />
+        <text class="btn-primary-txt">
+          保存到相册
+        </text>
       </view>
       <view class="btn-secondary">
-        <app-icon name="share-2" :size="40" color="#ffffff" />
-        <text class="btn-secondary-txt">分享给好友</text>
+        <app-icon
+          name="share-2"
+          :size="40"
+          color="#ffffff"
+        />
+        <text class="btn-secondary-txt">
+          分享给好友
+        </text>
       </view>
     </view>
   </view>

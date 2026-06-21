@@ -1,17 +1,32 @@
 <template>
   <view class="sm-page">
     <!-- Header -->
-    <view class="sm-header" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="sm-header"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="sm-header-inner">
-        <view class="sm-back" @tap="goBack">
-          <app-icon name="arrow-left" :size="40" color="#1f1f1f" />
+        <view
+          class="sm-back"
+          @tap="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="40"
+            color="#1f1f1f"
+          />
         </view>
-        <text class="sm-title">站点管理</text>
+        <text class="sm-title">
+          站点管理
+        </text>
       </view>
     </view>
 
     <!-- Tab bar -->
-    <view class="sm-tabs" :style="{ top: statusBarHeight + 44 + 'px' }">
+    <view
+      class="sm-tabs"
+      :style="{ top: statusBarHeight + 44 + 'px' }"
+    >
       <view
         v-for="t in tabs"
         :key="t.key"
@@ -19,136 +34,349 @@
         :class="{ active: active === t.key }"
         @tap="active = t.key"
       >
-        <app-icon :name="t.icon" :size="28" :color="active === t.key ? '#C41E3A' : '#9ca3af'" />
-        <text class="sm-tab-txt">{{ t.label }}</text>
+        <app-icon
+          :name="t.icon"
+          :size="28"
+          :color="active === t.key ? '#C41E3A' : '#9ca3af'"
+        />
+        <text class="sm-tab-txt">
+          {{ t.label }}
+        </text>
       </view>
     </view>
 
     <view class="sm-body">
       <!-- 基本信息 -->
-      <view v-if="active === 'basic'" class="sm-section">
-        <view v-for="f in basicFields" :key="f.key" class="sm-field">
-          <text class="sm-label">{{ f.label }}</text>
-          <input class="sm-input" v-model="basic[f.key]" />
+      <view
+        v-if="active === 'basic'"
+        class="sm-section"
+      >
+        <view
+          v-for="f in basicFields"
+          :key="f.key"
+          class="sm-field"
+        >
+          <text class="sm-label">
+            {{ f.label }}
+          </text>
+          <input
+            v-model="basic[f.key]"
+            class="sm-input"
+          >
         </view>
         <view class="sm-field">
-          <text class="sm-label">站点介绍</text>
-          <textarea class="sm-textarea" v-model="basic.intro" />
+          <text class="sm-label">
+            站点介绍
+          </text>
+          <textarea
+            v-model="basic.intro"
+            class="sm-textarea"
+          />
         </view>
 
-        <text class="sm-group-title">功能开关</text>
+        <text class="sm-group-title">
+          功能开关
+        </text>
         <view class="sm-switch-card">
-          <view v-for="f in featureItems" :key="f.key" class="sm-switch-row">
-            <text class="sm-switch-label">{{ f.label }}</text>
-            <view class="sm-switch" :class="{ on: features[f.key] }" @tap="features[f.key] = !features[f.key]">
-              <view class="sm-switch-knob" :class="{ on: features[f.key] }" />
+          <view
+            v-for="f in featureItems"
+            :key="f.key"
+            class="sm-switch-row"
+          >
+            <text class="sm-switch-label">
+              {{ f.label }}
+            </text>
+            <view
+              class="sm-switch"
+              :class="{ on: features[f.key] }"
+              @tap="features[f.key] = !features[f.key]"
+            >
+              <view
+                class="sm-switch-knob"
+                :class="{ on: features[f.key] }"
+              />
             </view>
           </view>
         </view>
 
-        <text class="sm-group-title">高级功能</text>
+        <text class="sm-group-title">
+          高级功能
+        </text>
         <!-- FeatureGate 内联卡 -->
-        <view class="sm-gate" :class="{ reviewing: liveStatus === 'reviewing' }" @tap="onGateClick">
+        <view
+          class="sm-gate"
+          :class="{ reviewing: liveStatus === 'reviewing' }"
+          @tap="onGateClick"
+        >
           <view class="sm-gate-icon">
-            <app-icon name="shopping-bag" :size="40" color="#C41E3A" />
+            <app-icon
+              name="shopping-bag"
+              :size="40"
+              color="#C41E3A"
+            />
           </view>
           <view class="sm-gate-main">
             <view class="sm-gate-head">
-              <text class="sm-gate-label">电商直播</text>
-              <app-icon v-if="liveStatus === 'approved'" name="check" :size="26" color="#3D7A5C" />
+              <text class="sm-gate-label">
+                电商直播
+              </text>
+              <app-icon
+                v-if="liveStatus === 'approved'"
+                name="check"
+                :size="26"
+                color="#3D7A5C"
+              />
             </view>
-            <text class="sm-gate-desc">{{ gateDesc }}</text>
+            <text class="sm-gate-desc">
+              {{ gateDesc }}
+            </text>
           </view>
-          <view class="sm-badge" :class="liveStatus">
-            <app-icon v-if="liveStatus === 'reviewing'" name="clock" :size="22" color="#C9A96E" />
-            <app-icon v-else-if="liveStatus === 'approved'" name="check" :size="22" color="#3D7A5C" />
-            <app-icon v-else-if="liveStatus === 'rejected'" name="alert-circle" :size="22" color="#C41E3A" />
-            <app-icon v-else name="chevron-right" :size="22" color="#9ca3af" />
-            <text class="sm-badge-txt">{{ gateBadgeLabel }}</text>
+          <view
+            class="sm-badge"
+            :class="liveStatus"
+          >
+            <app-icon
+              v-if="liveStatus === 'reviewing'"
+              name="clock"
+              :size="22"
+              color="#C9A96E"
+            />
+            <app-icon
+              v-else-if="liveStatus === 'approved'"
+              name="check"
+              :size="22"
+              color="#3D7A5C"
+            />
+            <app-icon
+              v-else-if="liveStatus === 'rejected'"
+              name="alert-circle"
+              :size="22"
+              color="#C41E3A"
+            />
+            <app-icon
+              v-else
+              name="chevron-right"
+              :size="22"
+              color="#9ca3af"
+            />
+            <text class="sm-badge-txt">
+              {{ gateBadgeLabel }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 域名功能 -->
-      <view v-else-if="active === 'domain'" class="sm-section">
+      <view
+        v-else-if="active === 'domain'"
+        class="sm-section"
+      >
         <view class="sm-field">
-          <text class="sm-label">自定义域名</text>
+          <text class="sm-label">
+            自定义域名
+          </text>
           <view class="sm-domain-row">
-            <input class="sm-input sm-domain-input" v-model="domain.custom" placeholder="example.com" />
-            <view class="sm-verify-btn"><text class="sm-verify-txt">验证</text></view>
+            <input
+              v-model="domain.custom"
+              class="sm-input sm-domain-input"
+              placeholder="example.com"
+            >
+            <view class="sm-verify-btn">
+              <text class="sm-verify-txt">
+                验证
+              </text>
+            </view>
           </view>
-          <text class="sm-hint">请将 CNAME 记录指向 cname.rebu.com</text>
+          <text class="sm-hint">
+            请将 CNAME 记录指向 cname.rebu.com
+          </text>
         </view>
         <view class="sm-ssl-card">
           <view class="sm-ssl-info">
-            <text class="sm-ssl-title">SSL 证书</text>
-            <text class="sm-ssl-desc">自动签发 HTTPS 证书</text>
+            <text class="sm-ssl-title">
+              SSL 证书
+            </text>
+            <text class="sm-ssl-desc">
+              自动签发 HTTPS 证书
+            </text>
           </view>
-          <view class="sm-switch" :class="{ on: domain.ssl }" @tap="domain.ssl = !domain.ssl">
-            <view class="sm-switch-knob" :class="{ on: domain.ssl }" />
+          <view
+            class="sm-switch"
+            :class="{ on: domain.ssl }"
+            @tap="domain.ssl = !domain.ssl"
+          >
+            <view
+              class="sm-switch-knob"
+              :class="{ on: domain.ssl }"
+            />
           </view>
         </view>
         <view class="sm-addr-card">
-          <text class="sm-addr-title">当前访问地址</text>
-          <text class="sm-addr-url">https://rebu.com/s/station001</text>
+          <text class="sm-addr-title">
+            当前访问地址
+          </text>
+          <text class="sm-addr-url">
+            https://rebu.com/s/station001
+          </text>
         </view>
       </view>
 
       <!-- 通知设置 -->
-      <view v-else-if="active === 'notify'" class="sm-switch-card sm-notify">
-        <view v-for="n in notifyItems" :key="n.key" class="sm-notify-row">
+      <view
+        v-else-if="active === 'notify'"
+        class="sm-switch-card sm-notify"
+      >
+        <view
+          v-for="n in notifyItems"
+          :key="n.key"
+          class="sm-notify-row"
+        >
           <view class="sm-notify-info">
-            <text class="sm-switch-label">{{ n.label }}</text>
-            <text class="sm-notify-desc">{{ n.desc }}</text>
+            <text class="sm-switch-label">
+              {{ n.label }}
+            </text>
+            <text class="sm-notify-desc">
+              {{ n.desc }}
+            </text>
           </view>
-          <view class="sm-switch" :class="{ on: notify[n.key] }" @tap="notify[n.key] = !notify[n.key]">
-            <view class="sm-switch-knob" :class="{ on: notify[n.key] }" />
+          <view
+            class="sm-switch"
+            :class="{ on: notify[n.key] }"
+            @tap="notify[n.key] = !notify[n.key]"
+          >
+            <view
+              class="sm-switch-knob"
+              :class="{ on: notify[n.key] }"
+            />
           </view>
         </view>
       </view>
 
       <!-- 安全设置 -->
-      <view v-else class="sm-section">
-        <view v-for="item in securityItems" :key="item.label" class="sm-sec-row">
-          <app-icon :name="item.icon" :size="32" color="#C41E3A" />
-          <text class="sm-sec-label">{{ item.label }}</text>
-          <app-icon name="chevron-right" :size="28" color="#9ca3af" />
+      <view
+        v-else
+        class="sm-section"
+      >
+        <view
+          v-for="item in securityItems"
+          :key="item.label"
+          class="sm-sec-row"
+        >
+          <app-icon
+            :name="item.icon"
+            :size="32"
+            color="#C41E3A"
+          />
+          <text class="sm-sec-label">
+            {{ item.label }}
+          </text>
+          <app-icon
+            name="chevron-right"
+            :size="28"
+            color="#9ca3af"
+          />
         </view>
         <view class="sm-danger">
-          <text class="sm-danger-title">危险操作</text>
-          <text class="sm-danger-desc">以下操作不可撤销，请谨慎操作</text>
-          <view class="sm-danger-btn"><text class="sm-danger-btn-txt">申请注销站点</text></view>
+          <text class="sm-danger-title">
+            危险操作
+          </text>
+          <text class="sm-danger-desc">
+            以下操作不可撤销，请谨慎操作
+          </text>
+          <view class="sm-danger-btn">
+            <text class="sm-danger-btn-txt">
+              申请注销站点
+            </text>
+          </view>
         </view>
       </view>
     </view>
 
     <!-- 保存栏 -->
-    <view v-if="active !== 'security'" class="sm-savebar">
-      <view class="sm-save-btn" :class="{ saved }" @tap="handleSave">
-        <app-icon v-if="saving" name="loader-2" :size="28" color="#ffffff" class="sm-spin" />
-        <text class="sm-save-txt">{{ saving ? '保存中…' : saved ? '保存成功' : '保存设置' }}</text>
+    <view
+      v-if="active !== 'security'"
+      class="sm-savebar"
+    >
+      <view
+        class="sm-save-btn"
+        :class="{ saved }"
+        @tap="handleSave"
+      >
+        <app-icon
+          v-if="saving"
+          name="loader-2"
+          :size="28"
+          color="#ffffff"
+          class="sm-spin"
+        />
+        <text class="sm-save-txt">
+          {{ saving ? '保存中…' : saved ? '保存成功' : '保存设置' }}
+        </text>
       </view>
     </view>
 
     <!-- 申请开通弹窗 -->
-    <view v-if="showApply" class="sm-modal-mask" @tap="showApply = false">
-      <view class="sm-modal" @tap.stop>
+    <view
+      v-if="showApply"
+      class="sm-modal-mask"
+      @tap="showApply = false"
+    >
+      <view
+        class="sm-modal"
+        @tap.stop
+      >
         <view class="sm-modal-bar" />
         <view class="sm-modal-head">
-          <text class="sm-modal-title">申请开通电商直播</text>
-          <view @tap="showApply = false"><app-icon name="x" :size="36" color="#9ca3af" /></view>
+          <text class="sm-modal-title">
+            申请开通电商直播
+          </text>
+          <view @tap="showApply = false">
+            <app-icon
+              name="x"
+              :size="36"
+              color="#9ca3af"
+            />
+          </view>
         </view>
-        <text class="sm-modal-desc">开通后可在分站发起电商带货直播</text>
-        <text class="sm-modal-label">申请理由 <text class="sm-req">*</text></text>
-        <textarea class="sm-modal-textarea" v-model="applyReason" placeholder="请简要说明开通该功能的用途与计划" />
-        <text class="sm-modal-label">补充说明</text>
-        <textarea class="sm-modal-textarea sm-modal-textarea-sm" v-model="applyNote" placeholder="选填，可补充圈子运营情况等" />
+        <text class="sm-modal-desc">
+          开通后可在分站发起电商带货直播
+        </text>
+        <text class="sm-modal-label">
+          申请理由 <text class="sm-req">
+            *
+          </text>
+        </text>
+        <textarea
+          v-model="applyReason"
+          class="sm-modal-textarea"
+          placeholder="请简要说明开通该功能的用途与计划"
+        />
+        <text class="sm-modal-label">
+          补充说明
+        </text>
+        <textarea
+          v-model="applyNote"
+          class="sm-modal-textarea sm-modal-textarea-sm"
+          placeholder="选填，可补充圈子运营情况等"
+        />
         <view class="sm-modal-tip">
-          <app-icon name="sparkles" :size="28" color="#C9A96E" />
-          <text class="sm-modal-tip-txt">满足运营条件的圈子将自动通过审核，预计审核时长 3-5 个工作日。</text>
+          <app-icon
+            name="sparkles"
+            :size="28"
+            color="#C9A96E"
+          />
+          <text class="sm-modal-tip-txt">
+            满足运营条件的圈子将自动通过审核，预计审核时长 3-5 个工作日。
+          </text>
         </view>
-        <view class="sm-modal-submit" :class="{ disabled: !applyReason.trim() || submitting }" @tap="submitApply">
-          <text class="sm-modal-submit-txt">{{ submitting ? '提交中...' : '提交申请' }}</text>
+        <view
+          class="sm-modal-submit"
+          :class="{ disabled: !applyReason.trim() || submitting }"
+          @tap="submitApply"
+        >
+          <text class="sm-modal-submit-txt">
+            {{ submitting ? '提交中...' : '提交申请' }}
+          </text>
         </view>
       </view>
     </view>

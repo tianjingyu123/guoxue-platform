@@ -1,19 +1,34 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="navbar"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="navbar-inner">
-        <view class="back-btn" @tap="handleBack">
-          <AppIcon name="arrow-left" :size="20" color="#2c2c2c" />
+        <view
+          class="back-btn"
+          @tap="handleBack"
+        >
+          <AppIcon
+            name="arrow-left"
+            :size="20"
+            color="#2c2c2c"
+          />
         </view>
-        <text class="navbar-title">注册账号</text>
+        <text class="navbar-title">
+          注册账号
+        </text>
       </view>
     </view>
 
     <!-- 进度指示器 -->
     <view class="progress-section">
       <view class="progress-row">
-        <template v-for="(s, index) in steps" :key="s">
+        <template
+          v-for="(s, index) in steps"
+          :key="s"
+        >
           <view
             class="step-circle"
             :class="{
@@ -22,29 +37,63 @@
               'step-todo': index > currentStepIndex && step !== s,
             }"
           >
-            <AppIcon v-if="index < currentStepIndex" name="check" :size="16" color="#ffffff" />
-            <text v-else class="step-num" :class="{ 'step-num-active': step === s }">{{ index + 1 }}</text>
+            <AppIcon
+              v-if="index < currentStepIndex"
+              name="check"
+              :size="16"
+              color="#ffffff"
+            />
+            <text
+              v-else
+              class="step-num"
+              :class="{ 'step-num-active': step === s }"
+            >
+              {{ index + 1 }}
+            </text>
           </view>
-          <view v-if="index < 2" class="step-line" :class="{ 'step-line-done': index < currentStepIndex }" />
+          <view
+            v-if="index < 2"
+            class="step-line"
+            :class="{ 'step-line-done': index < currentStepIndex }"
+          />
         </template>
       </view>
       <view class="progress-labels">
-        <text class="progress-label">输入手机号</text>
-        <text class="progress-label">验证身份</text>
-        <text class="progress-label">设置密码</text>
+        <text class="progress-label">
+          输入手机号
+        </text>
+        <text class="progress-label">
+          验证身份
+        </text>
+        <text class="progress-label">
+          设置密码
+        </text>
       </view>
     </view>
 
     <!-- 表单内容 -->
     <view class="main">
       <!-- 步骤1: 输入手机号 -->
-      <view v-if="step === 'phone'" class="form">
+      <view
+        v-if="step === 'phone'"
+        class="form"
+      >
         <view class="form-head">
-          <text class="form-title">输入手机号</text>
-          <text class="form-sub">我们将发送验证码到您的手机</text>
+          <text class="form-title">
+            输入手机号
+          </text>
+          <text class="form-sub">
+            我们将发送验证码到您的手机
+          </text>
         </view>
         <view class="input-wrap">
-          <view class="input-icon"><AppIcon name="phone" :size="20" color="#999999" /></view>
+          <view class="input-icon">
+            <AppIcon
+              name="phone"
+              :size="20"
+              color="#999999"
+            />
+          </view>
           <input
             class="input"
             type="number"
@@ -53,21 +102,40 @@
             placeholder="请输入手机号"
             placeholder-class="input-ph"
             @input="onPhoneInput"
-          />
+          >
         </view>
-        <view class="btn" :class="{ 'btn-disabled': phone.length !== 11 }" @tap="sendCode">
-          <text class="btn-text">获取验证码</text>
+        <view
+          class="btn"
+          :class="{ 'btn-disabled': phone.length !== 11 }"
+          @tap="sendCode"
+        >
+          <text class="btn-text">
+            获取验证码
+          </text>
         </view>
       </view>
 
       <!-- 步骤2: 输入验证码 -->
-      <view v-else-if="step === 'verify'" class="form">
+      <view
+        v-else-if="step === 'verify'"
+        class="form"
+      >
         <view class="form-head">
-          <text class="form-title">输入验证码</text>
-          <text class="form-sub">验证码已发送至 {{ maskedPhone }}</text>
+          <text class="form-title">
+            输入验证码
+          </text>
+          <text class="form-sub">
+            验证码已发送至 {{ maskedPhone }}
+          </text>
         </view>
         <view class="input-wrap">
-          <view class="input-icon"><AppIcon name="shield" :size="20" color="#999999" /></view>
+          <view class="input-icon">
+            <AppIcon
+              name="shield"
+              :size="20"
+              color="#999999"
+            />
+          </view>
           <input
             class="input input-code"
             type="number"
@@ -76,26 +144,53 @@
             placeholder="请输入6位验证码"
             placeholder-class="input-ph"
             @input="onCodeInput"
-          />
+          >
         </view>
         <view class="resend-row">
-          <text class="resend-tip">{{ countdown > 0 ? countdown + '秒后可重发' : '没有收到验证码？' }}</text>
-          <text class="resend-btn" :class="{ 'resend-disabled': countdown > 0 }" @tap="sendCode">重新发送</text>
+          <text class="resend-tip">
+            {{ countdown > 0 ? countdown + '秒后可重发' : '没有收到验证码？' }}
+          </text>
+          <text
+            class="resend-btn"
+            :class="{ 'resend-disabled': countdown > 0 }"
+            @tap="sendCode"
+          >
+            重新发送
+          </text>
         </view>
-        <view class="btn" :class="{ 'btn-disabled': code.length !== 6 }" @tap="verifyCode">
-          <text class="btn-text">下一步</text>
+        <view
+          class="btn"
+          :class="{ 'btn-disabled': code.length !== 6 }"
+          @tap="verifyCode"
+        >
+          <text class="btn-text">
+            下一步
+          </text>
         </view>
       </view>
 
       <!-- 步骤3: 设置密码 -->
-      <view v-else class="form">
+      <view
+        v-else
+        class="form"
+      >
         <view class="form-head">
-          <text class="form-title">完善信息</text>
-          <text class="form-sub">设置您的昵称和登录密码</text>
+          <text class="form-title">
+            完善信息
+          </text>
+          <text class="form-sub">
+            设置您的昵称和登录密码
+          </text>
         </view>
         <!-- 昵称 -->
         <view class="input-wrap">
-          <view class="input-icon"><AppIcon name="user" :size="20" color="#999999" /></view>
+          <view class="input-icon">
+            <AppIcon
+              name="user"
+              :size="20"
+              color="#999999"
+            />
+          </view>
           <input
             class="input"
             :value="nickname"
@@ -103,11 +198,17 @@
             placeholder="请输入昵称"
             placeholder-class="input-ph"
             @input="onNicknameInput"
-          />
+          >
         </view>
         <!-- 密码 -->
         <view class="input-wrap">
-          <view class="input-icon"><AppIcon name="lock" :size="20" color="#999999" /></view>
+          <view class="input-icon">
+            <AppIcon
+              name="lock"
+              :size="20"
+              color="#999999"
+            />
+          </view>
           <input
             class="input input-pwd"
             :password="!showPassword"
@@ -115,14 +216,27 @@
             placeholder="请设置密码（6-20位）"
             placeholder-class="input-ph"
             @input="onPasswordInput"
-          />
-          <view class="eye-btn" @tap="showPassword = !showPassword">
-            <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="20" color="#999999" />
+          >
+          <view
+            class="eye-btn"
+            @tap="showPassword = !showPassword"
+          >
+            <AppIcon
+              :name="showPassword ? 'eye-off' : 'eye'"
+              :size="20"
+              color="#999999"
+            />
           </view>
         </view>
         <!-- 确认密码 -->
         <view class="input-wrap">
-          <view class="input-icon"><AppIcon name="lock" :size="20" color="#999999" /></view>
+          <view class="input-icon">
+            <AppIcon
+              name="lock"
+              :size="20"
+              color="#999999"
+            />
+          </view>
           <input
             class="input input-pwd"
             :password="!showConfirmPassword"
@@ -130,34 +244,76 @@
             placeholder="请再次输入密码"
             placeholder-class="input-ph"
             @input="onConfirmInput"
-          />
-          <view class="eye-btn" @tap="showConfirmPassword = !showConfirmPassword">
-            <AppIcon :name="showConfirmPassword ? 'eye-off' : 'eye'" :size="20" color="#999999" />
+          >
+          <view
+            class="eye-btn"
+            @tap="showConfirmPassword = !showConfirmPassword"
+          >
+            <AppIcon
+              :name="showConfirmPassword ? 'eye-off' : 'eye'"
+              :size="20"
+              color="#999999"
+            />
           </view>
         </view>
         <!-- 密码不一致提示 -->
-        <text v-if="confirmPassword && password !== confirmPassword" class="error-text">两次输入的密码不一致</text>
+        <text
+          v-if="confirmPassword && password !== confirmPassword"
+          class="error-text"
+        >
+          两次输入的密码不一致
+        </text>
         <!-- 协议 -->
         <view class="terms-row">
-          <view class="checkbox" :class="{ 'checkbox-checked': agreed }" @tap="agreed = !agreed">
-            <AppIcon v-if="agreed" name="check" :size="12" color="#ffffff" />
+          <view
+            class="checkbox"
+            :class="{ 'checkbox-checked': agreed }"
+            @tap="agreed = !agreed"
+          >
+            <AppIcon
+              v-if="agreed"
+              name="check"
+              :size="12"
+              color="#ffffff"
+            />
           </view>
           <view class="terms-text">
-            <text class="terms-normal">我已阅读并同意</text>
-            <text class="terms-link">《用户协议》</text>
-            <text class="terms-normal">和</text>
-            <text class="terms-link">《隐私政策》</text>
+            <text class="terms-normal">
+              我已阅读并同意
+            </text>
+            <text class="terms-link">
+              《用户协议》
+            </text>
+            <text class="terms-normal">
+              和
+            </text>
+            <text class="terms-link">
+              《隐私政策》
+            </text>
           </view>
         </view>
-        <view class="btn" :class="{ 'btn-disabled': !canRegister || isLoading }" @tap="handleRegister">
-          <text class="btn-text">{{ isLoading ? '注册中...' : '完成注册' }}</text>
+        <view
+          class="btn"
+          :class="{ 'btn-disabled': !canRegister || isLoading }"
+          @tap="handleRegister"
+        >
+          <text class="btn-text">
+            {{ isLoading ? '注册中...' : '完成注册' }}
+          </text>
         </view>
       </view>
 
       <!-- 底部链接 -->
       <view class="bottom-link">
-        <text class="bottom-normal">已有账号？</text>
-        <text class="bottom-strong" @tap="goLogin">立即登录</text>
+        <text class="bottom-normal">
+          已有账号？
+        </text>
+        <text
+          class="bottom-strong"
+          @tap="goLogin"
+        >
+          立即登录
+        </text>
       </view>
     </view>
   </view>

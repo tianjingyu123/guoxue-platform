@@ -2779,6 +2779,34 @@ async function main() {
   }
   console.log("✅ RAG Prompt 模板: " + tplCount + " 个场景预设");
 
+  // ══════════════════════════════════════════
+  // 案例库种子数据
+  // ══════════════════════════════════════════
+  const casesCount = await prisma.celebrityCase.count();
+  if (casesCount === 0) {
+    const celebrityCases = [
+      { name: '崇祯', gender: 'male', description: '明朝', subtitle: '末位皇帝', primaryCat: '名人案例', secondaryCat: '君主', bazi: ['辛','庚','乙','己','亥','寅','未','卯'], letter: 'C', zodiac: '猪', sortOrder: 1 },
+      { name: '曹操', gender: 'male', description: '东汉末年', subtitle: '魏武帝', primaryCat: '名人案例', secondaryCat: '君主', bazi: ['乙','丁','庚','甲','丑','亥','戌','申'], letter: 'C', zodiac: '牛', sortOrder: 2 },
+      { name: '忽必烈', gender: 'male', description: '元朝', subtitle: '开国皇帝', primaryCat: '名人案例', secondaryCat: '君主', bazi: ['乙','乙','乙','乙','亥','酉','酉','酉'], letter: 'H', zodiac: '猪', sortOrder: 3 },
+      { name: '康熙', gender: 'male', description: '清朝', subtitle: '圣祖皇帝', primaryCat: '名人案例', secondaryCat: '君主', bazi: ['甲','丙','戊','庚','午','寅','申','子'], letter: 'K', zodiac: '马', sortOrder: 4 },
+      { name: '李白', gender: 'male', description: '唐朝', subtitle: '诗仙', primaryCat: '名人案例', secondaryCat: '文艺', bazi: ['辛','庚','甲','壬','丑','寅','子','申'], letter: 'L', zodiac: '牛', sortOrder: 5 },
+      { name: '武则天', gender: 'female', description: '唐朝', subtitle: '唯一女皇帝', primaryCat: '名人案例', secondaryCat: '君主', bazi: ['甲','丙','甲','甲','申','寅','午','戌'], letter: 'W', zodiac: '猴', sortOrder: 6 },
+      { name: '朱元璋', gender: 'male', description: '明朝', subtitle: '开国皇帝', primaryCat: '名人案例', secondaryCat: '君主', bazi: ['戊','壬','丁','丁','辰','戌','丑','未'], letter: 'Z', zodiac: '龙', sortOrder: 7 },
+      { name: '马云', gender: 'male', description: '当代', subtitle: '阿里巴巴创始人', primaryCat: '名人案例', secondaryCat: '商界', bazi: ['甲','丙','甲','壬','辰','寅','子','申'], letter: 'M', zodiac: '龙', sortOrder: 8 },
+      { name: '案例A01', gender: 'male', description: '白手起家', subtitle: '从打工到身家过亿', primaryCat: '大众案例', secondaryCat: '财运', bazi: ['甲','丙','戊','庚','子','寅','辰','午'], letter: 'A', zodiac: '鼠', sortOrder: 101 },
+      { name: '案例B02', gender: 'female', description: '职场晋升', subtitle: '30岁成为上市公司高管', primaryCat: '大众案例', secondaryCat: '事业', bazi: ['乙','丁','己','辛','丑','卯','巳','未'], letter: 'B', zodiac: '牛', sortOrder: 102 },
+      { name: '案例C03', gender: 'female', description: '幸福婚姻', subtitle: '晚婚却遇良人', primaryCat: '大众案例', secondaryCat: '婚姻', bazi: ['丙','戊','庚','壬','寅','辰','午','申'], letter: 'C', zodiac: '虎', sortOrder: 103 },
+      { name: '案例D04', gender: 'male', description: '健康长寿', subtitle: '90岁依然健步如飞', primaryCat: '大众案例', secondaryCat: '长寿', bazi: ['丁','己','辛','癸','卯','巳','未','酉'], letter: 'D', zodiac: '兔', sortOrder: 104 },
+      { name: '案例E05', gender: 'male', description: '学业有成', subtitle: '寒门出贵子考入清华', primaryCat: '大众案例', secondaryCat: '学业', bazi: ['戊','庚','壬','甲','辰','午','申','戌'], letter: 'E', zodiac: '龙', sortOrder: 105 },
+    ];
+    for (const c of celebrityCases) {
+      await prisma.celebrityCase.create({ data: c });
+    }
+    console.log("✅ 案例库: " + celebrityCases.length + " 条八字案例");
+  } else {
+    console.log("✅ 案例库: 已存在 " + casesCount + " 条，跳过");
+  }
+
   console.log("\n🎉 种子数据填充完成！");
   console.log("   管理员: 13800000000 / guoxue123");
   console.log("   讲师1:  13800000001 / teacher123");

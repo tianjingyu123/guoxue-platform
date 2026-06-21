@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Delete,
   Body,
   Param,
   Query,
@@ -15,7 +17,7 @@ import type { ZiweiResult } from "@guoxue/ziwei-engine";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
-import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, AnalyzeDto, AnalysisQueryDto } from "./paipan.dto";
+import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, AnalyzeDto, AnalysisQueryDto, GroupListQueryDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto } from "./paipan.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -271,6 +273,35 @@ export class PaipanController {
     return this.paipan.calcQimen(dto);
   }
 
+  /** 奇门排盘并保存 */
+  @Post("qimen/save")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "奇门遁甲排盘并保存" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "保存成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  qimenSave(@Req() req: Request, @Body() dto: QimenInputDto) {
+    return this.paipan.calcQimenAndSave(req.user.id, dto);
+  }
+
+  /** 我的奇门排盘历史 */
+  @Get("qimen/history")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取奇门排盘历史" })
+  @ApiBearerAuth()
+  qimenHistory(@Req() req: Request, @Query() q: BaziRecordQueryDto) {
+    return this.paipan.getUserQimenHistory(req.user.id, q.page || 1, q.pageSize || 20);
+  }
+
+  /** 获取奇门排盘记录详情 */
+  @Get("qimen/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取奇门排盘记录详情" })
+  @ApiBearerAuth()
+  qimenRecord(@Param("id") id: string, @Req() req: Request) {
+    return this.paipan.getQimenRecord(id, req.user.id);
+  }
+
   /** 阳盘命理奇门排盘（无需登录） */
   @Post("yangpan")
   @UseGuards(StrictRedisThrottleGuard)
@@ -280,6 +311,83 @@ export class PaipanController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   yangpanCalc(@Body() dto: YangpanInputDto) {
     return this.paipan.calcYangpan(dto);
+  }
+
+  /** 阳盘排盘并保存 */
+  @Post("yangpan/save")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "阳盘命理奇门排盘并保存" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "保存成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  yangpanSave(@Req() req: Request, @Body() dto: YangpanInputDto) {
+    return this.paipan.calcYangpanAndSave(req.user.id, dto);
+  }
+
+  /** 我的阳盘排盘历史 */
+  @Get("yangpan/history")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取阳盘排盘历史" })
+  @ApiBearerAuth()
+  yangpanHistory(@Req() req: Request, @Query() q: BaziRecordQueryDto) {
+    return this.paipan.getUserYangpanHistory(req.user.id, q.page || 1, q.pageSize || 20);
+  }
+
+  /** 获取阳盘排盘记录详情 */
+  @Get("yangpan/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取阳盘排盘记录详情" })
+  @ApiBearerAuth()
+  yangpanRecord(@Param("id") id: string, @Req() req: Request) {
+    return this.paipan.getYangpanRecord(id, req.user.id);
+  }
+
+  // ────────── 案例库 ──────────
+
+  /** 获取八字案例库（公开，无需登录） */
+  @Get("cases")
+  @Header("Cache-Control", "public, max-age=3600")
+  @ApiOperation({ summary: "获取八字案例库（公开）" })
+  getCases(@Query() q: CaseQueryDto) {
+    return this.paipan.getCases(q);
+  }
+
+  // ────────── 分组管理 ──────────
+
+  /** 获取用户分组列表（含计数） */
+  @Get("groups")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取分组列表（含排盘记录计数）" })
+  @ApiBearerAuth()
+  getGroups(@Req() req: Request, @Query() q: GroupListQueryDto) {
+    return this.paipan.getGroups(req.user.id, q.paipanType);
+  }
+
+  /** 新建分组 */
+  @Post("groups")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "新建分组" })
+  @ApiBearerAuth()
+  createGroup(@Req() req: Request, @Body() dto: CreateGroupDto) {
+    return this.paipan.createGroup(req.user.id, dto);
+  }
+
+  /** 重命名分组（同步更新该分组下的所有排盘记录） */
+  @Put("groups")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "重命名分组" })
+  @ApiBearerAuth()
+  renameGroup(@Req() req: Request, @Body() dto: RenameGroupDto) {
+    return this.paipan.renameGroup(req.user.id, dto);
+  }
+
+  /** 删除分组（该分组下的排盘记录 groupName 置空） */
+  @Delete("groups")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "删除分组" })
+  @ApiBearerAuth()
+  deleteGroup(@Req() req: Request, @Body() dto: DeleteGroupDto) {
+    return this.paipan.deleteGroup(req.user.id, dto);
   }
 
   // ────────── 分享 ──────────
@@ -300,6 +408,16 @@ export class PaipanController {
       gender: input.gender,
       result: record.resultData,
     };
+  }
+
+  /** 管理员初始化案例库种子数据 */
+  @Post("admin/cases/seed")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "初始化案例库种子数据（管理员）" })
+  @ApiBearerAuth()
+  seedCases() {
+    return this.paipan.seedCases();
   }
 
   // ────────── 管理员端点 ──────────

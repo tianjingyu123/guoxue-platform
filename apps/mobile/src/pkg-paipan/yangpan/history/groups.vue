@@ -45,19 +45,50 @@ function saveRename(id: string) {
     <!-- 顶部导航 -->
     <view class="hdr">
       <view class="hdr-inner">
-        <view class="hdr-back" @tap="navigateTo('/paipan/yangpan/history')"><app-icon name="chevron-left" :size="40" color="var(--text-ink)" /></view>
-        <text class="hdr-title">分组管理</text>
-        <view class="hdr-add" @tap="showAddModal = true"><app-icon name="plus" :size="34" color="var(--brand)" /></view>
+        <view
+          class="hdr-back"
+          @tap="navigateTo('/paipan/yangpan/history')"
+        >
+          <app-icon
+            name="chevron-left"
+            :size="40"
+            color="var(--text-ink)"
+          />
+        </view>
+        <text class="hdr-title">
+          分组管理
+        </text>
+        <view
+          class="hdr-add"
+          @tap="showAddModal = true"
+        >
+          <app-icon
+            name="plus"
+            :size="34"
+            color="var(--brand)"
+          />
+        </view>
       </view>
     </view>
 
     <!-- 分组列表 -->
-    <scroll-view scroll-y class="body">
+    <scroll-view
+      scroll-y
+      class="body"
+    >
       <view class="body-inner">
         <view class="card">
-          <view v-for="(g, i) in groups" :key="g.id" class="grp-row" :class="{ noborder: i === groups.length - 1 }">
+          <view
+            v-for="(g, i) in groups"
+            :key="g.id"
+            class="grp-row"
+            :class="{ noborder: i === groups.length - 1 }"
+          >
             <view class="grp-left">
-              <view class="grp-dot" :style="{ background: g.color }" />
+              <view
+                class="grp-dot"
+                :style="{ background: g.color }"
+              />
               <input
                 v-if="editingGroup === g.id"
                 v-model="editingName"
@@ -65,33 +96,99 @@ function saveRename(id: string) {
                 focus
                 @blur="saveRename(g.id)"
                 @confirm="saveRename(g.id)"
-              />
-              <text v-else class="grp-name">{{ g.name }}</text>
-              <text class="grp-count">({{ g.count }})</text>
+              >
+              <text
+                v-else
+                class="grp-name"
+              >
+                {{ g.name }}
+              </text>
+              <text class="grp-count">
+                ({{ g.count }})
+              </text>
             </view>
             <view class="grp-actions">
-              <view class="grp-btn" @tap="startEdit(g)"><app-icon name="pencil" :size="30" color="var(--text-soft)" /></view>
-              <view v-if="g.name !== '未分类'" class="grp-btn" @tap="handleDeleteGroup(g.id)"><app-icon name="trash-2" :size="30" color="var(--text-soft)" /></view>
+              <view
+                class="grp-btn"
+                @tap="startEdit(g)"
+              >
+                <app-icon
+                  name="pencil"
+                  :size="30"
+                  color="var(--text-soft)"
+                />
+              </view>
+              <view
+                v-if="g.name !== '未分类'"
+                class="grp-btn"
+                @tap="handleDeleteGroup(g.id)"
+              >
+                <app-icon
+                  name="trash-2"
+                  :size="30"
+                  color="var(--text-soft)"
+                />
+              </view>
             </view>
           </view>
         </view>
-        <text class="tip">删除分组后，该分组下的记录将移动到"未分类"</text>
+        <text class="tip">
+          删除分组后，该分组下的记录将移动到"未分类"
+        </text>
       </view>
     </scroll-view>
 
     <!-- 添加分组弹窗 -->
-    <view v-if="showAddModal" class="mask" @tap="showAddModal = false">
-      <view class="modal" @tap.stop>
+    <view
+      v-if="showAddModal"
+      class="mask"
+      @tap="showAddModal = false"
+    >
+      <view
+        class="modal"
+        @tap.stop
+      >
         <view class="modal-head">
-          <text class="modal-title">添加分组</text>
-          <view class="modal-close" @tap="showAddModal = false"><app-icon name="x" :size="34" color="var(--text-soft)" /></view>
+          <text class="modal-title">
+            添加分组
+          </text>
+          <view
+            class="modal-close"
+            @tap="showAddModal = false"
+          >
+            <app-icon
+              name="x"
+              :size="34"
+              color="var(--text-soft)"
+            />
+          </view>
         </view>
         <view class="modal-body">
-          <input v-model="newGroupName" class="modal-input" placeholder="请输入分组名称" placeholder-class="modal-ph" focus />
+          <input
+            v-model="newGroupName"
+            class="modal-input"
+            placeholder="请输入分组名称"
+            placeholder-class="modal-ph"
+            focus
+          >
         </view>
         <view class="modal-foot">
-          <view class="modal-btn cancel" @tap="showAddModal = false"><text class="modal-btn-t">取消</text></view>
-          <view class="modal-btn ok" @tap="handleAddGroup"><text class="modal-btn-t light">确定</text></view>
+          <view
+            class="modal-btn cancel"
+            @tap="showAddModal = false"
+          >
+            <text class="modal-btn-t">
+              取消
+            </text>
+          </view>
+          <view
+            class="modal-btn ok"
+            @tap="handleAddGroup"
+          >
+            <text class="modal-btn-t light">
+              确定
+            </text>
+          </view>
         </view>
       </view>
     </view>

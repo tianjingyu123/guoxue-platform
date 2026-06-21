@@ -1,6 +1,11 @@
 <template>
   <view class="cd-page">
-    <classics-header :title="book.title" right-type="share" @back="goBack" @right="onShare" />
+    <classics-header
+      :title="book.title"
+      right-type="share"
+      @back="goBack"
+      @right="onShare"
+    />
 
     <view class="cd-main">
       <!-- 封面区 -->
@@ -16,26 +21,61 @@
           />
           <view class="cd-info">
             <view>
-              <text class="cd-title">{{ book.title }}</text>
-              <text class="cd-author">[{{ book.dynasty }}] {{ book.author }}</text>
+              <text class="cd-title">
+                {{ book.title }}
+              </text>
+              <text class="cd-author">
+                [{{ book.dynasty }}] {{ book.author }}
+              </text>
               <view class="cd-tags">
-                <text class="cd-tag cd-tag-muted">{{ book.version }}</text>
-                <text v-if="book.hasTranslation" class="cd-tag cd-tag-amber">译文</text>
-                <text v-if="book.isFree" class="cd-tag cd-tag-green">免费</text>
+                <text class="cd-tag cd-tag-muted">
+                  {{ book.version }}
+                </text>
+                <text
+                  v-if="book.hasTranslation"
+                  class="cd-tag cd-tag-amber"
+                >
+                  译文
+                </text>
+                <text
+                  v-if="book.isFree"
+                  class="cd-tag cd-tag-green"
+                >
+                  免费
+                </text>
               </view>
             </view>
             <view class="cd-stats">
               <view class="cd-stat">
-                <app-icon name="star" :size="26" color="#f59e0b" :fill="true" />
-                <text class="cd-stat-text">{{ book.rating }}</text>
+                <app-icon
+                  name="star"
+                  :size="26"
+                  color="#f59e0b"
+                  :fill="true"
+                />
+                <text class="cd-stat-text">
+                  {{ book.rating }}
+                </text>
               </view>
               <view class="cd-stat">
-                <app-icon name="eye" :size="26" color="#999999" />
-                <text class="cd-stat-text">{{ (book.reads / 10000).toFixed(1) }}万</text>
+                <app-icon
+                  name="eye"
+                  :size="26"
+                  color="#999999"
+                />
+                <text class="cd-stat-text">
+                  {{ (book.reads / 10000).toFixed(1) }}万
+                </text>
               </view>
               <view class="cd-stat">
-                <app-icon name="file-text" :size="26" color="#999999" />
-                <text class="cd-stat-text">{{ book.totalChapters }}篇</text>
+                <app-icon
+                  name="file-text"
+                  :size="26"
+                  color="#999999"
+                />
+                <text class="cd-stat-text">
+                  {{ book.totalChapters }}篇
+                </text>
               </view>
             </view>
           </view>
@@ -47,49 +87,99 @@
         <view class="cd-card cd-ai">
           <view class="cd-ai-head">
             <view class="cd-ai-badge">
-              <app-icon name="sparkles" :size="22" color="#ffffff" />
+              <app-icon
+                name="sparkles"
+                :size="22"
+                color="#ffffff"
+              />
             </view>
-            <text class="cd-ai-title">AI 智能导读</text>
+            <text class="cd-ai-title">
+              AI 智能导读
+            </text>
           </view>
-          <text class="cd-ai-text">{{ book.aiSummary }}</text>
+          <text class="cd-ai-text">
+            {{ book.aiSummary }}
+          </text>
         </view>
       </view>
 
       <!-- AI 功能亮点 -->
-      <view v-if="book.hasAI" class="cd-sec">
+      <view
+        v-if="book.hasAI"
+        class="cd-sec"
+      >
         <view class="cd-features">
-          <view v-for="feat in AI_FEATURES" :key="feat.label" class="cd-feature">
+          <view
+            v-for="feat in AI_FEATURES"
+            :key="feat.label"
+            class="cd-feature"
+          >
             <view class="cd-feature-icon">
-              <app-icon :name="feat.icon" :size="34" color="#c41e3a" />
+              <app-icon
+                :name="feat.icon"
+                :size="34"
+                color="#c41e3a"
+              />
             </view>
-            <text class="cd-feature-label">{{ feat.label }}</text>
+            <text class="cd-feature-label">
+              {{ feat.label }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 听书入口 -->
-      <view v-if="book.hasAudio" class="cd-sec">
-        <view class="cd-card cd-audio" @tap="toReader('audio')">
+      <view
+        v-if="book.hasAudio"
+        class="cd-sec"
+      >
+        <view
+          class="cd-card cd-audio"
+          @tap="toReader('audio')"
+        >
           <view class="cd-audio-icon">
-            <app-icon name="headphones" :size="38" color="#ffffff" />
+            <app-icon
+              name="headphones"
+              :size="38"
+              color="#ffffff"
+            />
           </view>
           <view class="cd-audio-body">
-            <text class="cd-audio-title">听书版本</text>
-            <text class="cd-audio-sub">名家朗读 · 全本</text>
+            <text class="cd-audio-title">
+              听书版本
+            </text>
+            <text class="cd-audio-sub">
+              名家朗读 · 全本
+            </text>
           </view>
-          <app-icon name="chevron-right" :size="36" color="#cccccc" />
+          <app-icon
+            name="chevron-right"
+            :size="36"
+            color="#cccccc"
+          />
         </view>
       </view>
 
       <!-- 目录 -->
       <view class="cd-sec">
         <view class="cd-sec-head">
-          <text class="cd-sec-title">目录</text>
-          <text class="cd-sec-meta">共 {{ book.totalChapters }} 卷</text>
+          <text class="cd-sec-title">
+            目录
+          </text>
+          <text class="cd-sec-meta">
+            共 {{ book.totalChapters }} 卷
+          </text>
         </view>
         <view class="cd-card cd-toc">
-          <view v-for="(chapter, index) in displayedChapters" :key="chapter.id" :class="{ 'cd-toc-divider': index > 0 }">
-            <view class="cd-toc-item" @tap="chapter.hasChildren ? toggleChapter(chapter.id) : toReader(chapter.id)">
+          <view
+            v-for="(chapter, index) in displayedChapters"
+            :key="chapter.id"
+            :class="{ 'cd-toc-divider': index > 0 }"
+          >
+            <view
+              class="cd-toc-item"
+              @tap="chapter.hasChildren ? toggleChapter(chapter.id) : toReader(chapter.id)"
+            >
               <app-icon
                 v-if="chapter.hasChildren"
                 name="chevron-down"
@@ -98,16 +188,35 @@
                 class="cd-toc-chevron"
                 :class="{ 'cd-toc-chevron-open': expandedChapters.has(chapter.id) }"
               />
-              <view v-else class="cd-toc-spacer" />
-              <text class="cd-toc-title">{{ chapter.title }}</text>
+              <view
+                v-else
+                class="cd-toc-spacer"
+              />
+              <text class="cd-toc-title">
+                {{ chapter.title }}
+              </text>
             </view>
-            <view v-if="chapter.hasChildren && chapter.children && expandedChapters.has(chapter.id)" class="cd-toc-children">
-              <view v-for="child in chapter.children" :key="child.id" class="cd-toc-child" @tap="toReader(child.id)">
-                <text class="cd-toc-child-text">{{ child.title }}</text>
+            <view
+              v-if="chapter.hasChildren && chapter.children && expandedChapters.has(chapter.id)"
+              class="cd-toc-children"
+            >
+              <view
+                v-for="child in chapter.children"
+                :key="child.id"
+                class="cd-toc-child"
+                @tap="toReader(child.id)"
+              >
+                <text class="cd-toc-child-text">
+                  {{ child.title }}
+                </text>
               </view>
             </view>
           </view>
-          <view v-if="!showAllChapters && book.chapters.length > 6" class="cd-toc-more" @tap="showAllChapters = true">
+          <view
+            v-if="!showAllChapters && book.chapters.length > 6"
+            class="cd-toc-more"
+            @tap="showAllChapters = true"
+          >
             查看全部 {{ book.chapters.length }} 个章节
           </view>
         </view>
@@ -116,37 +225,84 @@
       <!-- 书友讨论 -->
       <view class="cd-sec">
         <view class="cd-sec-head">
-          <text class="cd-sec-title">书友讨论</text>
-          <text class="cd-sec-meta">{{ commentCount }} 条</text>
+          <text class="cd-sec-title">
+            书友讨论
+          </text>
+          <text class="cd-sec-meta">
+            {{ commentCount }} 条
+          </text>
         </view>
-        <view class="cd-card cd-disc" @tap="showComments = true">
+        <view
+          class="cd-card cd-disc"
+          @tap="showComments = true"
+        >
           <view class="cd-disc-preview">
-            <view class="cd-disc-avatar" :style="{ background: '#a06a38' }">{{ firstDiscussion.author.name.charAt(0) }}</view>
+            <view
+              class="cd-disc-avatar"
+              :style="{ background: '#a06a38' }"
+            >
+              {{ firstDiscussion.author.name.charAt(0) }}
+            </view>
             <view class="cd-disc-body">
-              <text class="cd-disc-name">{{ firstDiscussion.author.name }}</text>
-              <text class="cd-disc-content">{{ firstDiscussion.content }}</text>
+              <text class="cd-disc-name">
+                {{ firstDiscussion.author.name }}
+              </text>
+              <text class="cd-disc-content">
+                {{ firstDiscussion.content }}
+              </text>
               <view class="cd-disc-like">
-                <app-icon name="heart" :size="26" color="#999999" />
-                <text class="cd-disc-like-text">{{ firstDiscussion.likeCount }}</text>
+                <app-icon
+                  name="heart"
+                  :size="26"
+                  color="#999999"
+                />
+                <text class="cd-disc-like-text">
+                  {{ firstDiscussion.likeCount }}
+                </text>
               </view>
             </view>
           </view>
           <view class="cd-disc-all">
-            <app-icon name="message-square" :size="28" color="#c41e3a" />
-            <text class="cd-disc-all-text">查看全部 {{ commentCount }} 条讨论</text>
+            <app-icon
+              name="message-square"
+              :size="28"
+              color="#c41e3a"
+            />
+            <text class="cd-disc-all-text">
+              查看全部 {{ commentCount }} 条讨论
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 相关推荐 -->
       <view class="cd-sec cd-related-sec">
-        <text class="cd-sec-title cd-related-title">相关推荐</text>
-        <scroll-view scroll-x class="cd-related-scroll">
+        <text class="cd-sec-title cd-related-title">
+          相关推荐
+        </text>
+        <scroll-view
+          scroll-x
+          class="cd-related-scroll"
+        >
           <view class="cd-related-row">
-            <view v-for="rb in book.relatedBooks" :key="rb.id" class="cd-related-item" @tap="toBook(rb.id)">
-              <flat-cover :title="rb.title" :cover-color="coverColorForBook(rb.title)" title-size="30rpx" class="cd-related-cover" />
-              <text class="cd-related-name">{{ rb.title }}</text>
-              <text class="cd-related-author">{{ rb.author }}</text>
+            <view
+              v-for="rb in book.relatedBooks"
+              :key="rb.id"
+              class="cd-related-item"
+              @tap="toBook(rb.id)"
+            >
+              <flat-cover
+                :title="rb.title"
+                :cover-color="coverColorForBook(rb.title)"
+                title-size="30rpx"
+                class="cd-related-cover"
+              />
+              <text class="cd-related-name">
+                {{ rb.title }}
+              </text>
+              <text class="cd-related-author">
+                {{ rb.author }}
+              </text>
             </view>
           </view>
         </scroll-view>
@@ -156,13 +312,36 @@
     <!-- 底部固定操作栏 -->
     <view class="cd-bottom">
       <view class="cd-bottom-row">
-        <view class="cd-shelf-btn" :class="{ 'cd-shelf-on': isInBookshelf }" @tap="isInBookshelf = !isInBookshelf">
-          <app-icon :name="isInBookshelf ? 'bookmark-check' : 'bookmark-plus'" :size="34" :color="isInBookshelf ? '#c41e3a' : '#2c2c2c'" />
-          <text class="cd-shelf-text" :style="{ color: isInBookshelf ? '#c41e3a' : '#2c2c2c' }">{{ isInBookshelf ? '已在书架' : '加入书架' }}</text>
+        <view
+          class="cd-shelf-btn"
+          :class="{ 'cd-shelf-on': isInBookshelf }"
+          @tap="isInBookshelf = !isInBookshelf"
+        >
+          <app-icon
+            :name="isInBookshelf ? 'bookmark-check' : 'bookmark-plus'"
+            :size="34"
+            :color="isInBookshelf ? '#c41e3a' : '#2c2c2c'"
+          />
+          <text
+            class="cd-shelf-text"
+            :style="{ color: isInBookshelf ? '#c41e3a' : '#2c2c2c' }"
+          >
+            {{ isInBookshelf ? '已在书架' : '加入书架' }}
+          </text>
         </view>
-        <view class="cd-read-btn" @tap="toReader()">
-          <app-icon name="play" :size="34" color="#ffffff" :fill="true" />
-          <text class="cd-read-text">开始阅读</text>
+        <view
+          class="cd-read-btn"
+          @tap="toReader()"
+        >
+          <app-icon
+            name="play"
+            :size="34"
+            color="#ffffff"
+            :fill="true"
+          />
+          <text class="cd-read-text">
+            开始阅读
+          </text>
         </view>
       </view>
     </view>

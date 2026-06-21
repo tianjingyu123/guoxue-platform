@@ -1,12 +1,24 @@
 <template>
   <view class="bm-page">
     <!-- Header -->
-    <view class="bm-header" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="bm-header"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="bm-header-row">
-        <view class="bm-icon-btn" @tap="goBack">
-          <app-icon name="chevron-left" :size="40" color="#2c2c2c" />
+        <view
+          class="bm-icon-btn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="chevron-left"
+            :size="40"
+            color="#2c2c2c"
+          />
         </view>
-        <text class="bm-header-title">我的悬赏</text>
+        <text class="bm-header-title">
+          我的悬赏
+        </text>
         <view class="bm-header-spacer" />
       </view>
       <!-- Tabs -->
@@ -17,35 +29,68 @@
           class="bm-tab"
           @tap="switchTab(tab.key)"
         >
-          <text class="bm-tab-text" :class="{ 'bm-tab-text-active': activeTab === tab.key }">{{ tab.label }}</text>
-          <view v-if="activeTab === tab.key" class="bm-tab-line" />
+          <text
+            class="bm-tab-text"
+            :class="{ 'bm-tab-text-active': activeTab === tab.key }"
+          >
+            {{ tab.label }}
+          </text>
+          <view
+            v-if="activeTab === tab.key"
+            class="bm-tab-line"
+          />
         </view>
       </view>
     </view>
 
     <!-- Stats Card -->
-    <view v-if="!loading && bounties.length" class="bm-stats-wrap">
+    <view
+      v-if="!loading && bounties.length"
+      class="bm-stats-wrap"
+    >
       <view class="bm-stats">
         <view class="bm-stats-head">
-          <app-icon name="gift" :size="32" color="#ffffff" />
-          <text class="bm-stats-title">{{ activeTab === 'posted' ? '发布统计' : '回答统计' }}</text>
+          <app-icon
+            name="gift"
+            :size="32"
+            color="#ffffff"
+          />
+          <text class="bm-stats-title">
+            {{ activeTab === 'posted' ? '发布统计' : '回答统计' }}
+          </text>
         </view>
         <view class="bm-stats-grid">
           <view class="bm-stat">
-            <text class="bm-stat-num">{{ stats.total }}</text>
-            <text class="bm-stat-label">总数</text>
+            <text class="bm-stat-num">
+              {{ stats.total }}
+            </text>
+            <text class="bm-stat-label">
+              总数
+            </text>
           </view>
           <view class="bm-stat">
-            <text class="bm-stat-num">{{ stats.open }}</text>
-            <text class="bm-stat-label">进行中</text>
+            <text class="bm-stat-num">
+              {{ stats.open }}
+            </text>
+            <text class="bm-stat-label">
+              进行中
+            </text>
           </view>
           <view class="bm-stat">
-            <text class="bm-stat-num">{{ stats.resolved }}</text>
-            <text class="bm-stat-label">已解决</text>
+            <text class="bm-stat-num">
+              {{ stats.resolved }}
+            </text>
+            <text class="bm-stat-label">
+              已解决
+            </text>
           </view>
           <view class="bm-stat">
-            <text class="bm-stat-num">¥{{ stats.totalAmount }}</text>
-            <text class="bm-stat-label">{{ activeTab === 'posted' ? '总投入' : '总收益' }}</text>
+            <text class="bm-stat-num">
+              ¥{{ stats.totalAmount }}
+            </text>
+            <text class="bm-stat-label">
+              {{ activeTab === 'posted' ? '总投入' : '总收益' }}
+            </text>
           </view>
         </view>
       </view>
@@ -55,7 +100,11 @@
     <view class="bm-list">
       <!-- Skeleton -->
       <template v-if="loading">
-        <view v-for="i in 3" :key="i" class="bm-card bm-sk">
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="bm-card bm-sk"
+        >
           <view class="bm-sk-row">
             <view class="bm-sk-pill" />
             <view class="bm-sk-line bm-sk-w20" />
@@ -66,13 +115,28 @@
       </template>
 
       <!-- Empty -->
-      <view v-else-if="bounties.length === 0" class="bm-empty">
+      <view
+        v-else-if="bounties.length === 0"
+        class="bm-empty"
+      >
         <view class="bm-empty-icon">
-          <app-icon name="gift" :size="80" color="#999999" />
+          <app-icon
+            name="gift"
+            :size="80"
+            color="#999999"
+          />
         </view>
-        <text class="bm-empty-text">{{ activeTab === 'posted' ? '还没有发布过悬赏' : '还没有回答过悬赏' }}</text>
-        <view v-if="activeTab === 'posted'" class="bm-empty-btn" @tap="toCreate">
-          <text class="bm-empty-btn-text">发布悬赏</text>
+        <text class="bm-empty-text">
+          {{ activeTab === 'posted' ? '还没有发布过悬赏' : '还没有回答过悬赏' }}
+        </text>
+        <view
+          v-if="activeTab === 'posted'"
+          class="bm-empty-btn"
+          @tap="toCreate"
+        >
+          <text class="bm-empty-btn-text">
+            发布悬赏
+          </text>
         </view>
       </view>
 
@@ -85,52 +149,134 @@
           @tap="toDetail(bounty.id)"
         >
           <view class="bm-card-top">
-            <view class="bm-status" :class="'bm-status-' + bounty.status">
-              <app-icon :name="statusConfig[bounty.status].icon" :size="26" :color="statusConfig[bounty.status].color" />
-              <text class="bm-status-text" :style="{ color: statusConfig[bounty.status].color }">{{ statusConfig[bounty.status].label }}</text>
+            <view
+              class="bm-status"
+              :class="'bm-status-' + bounty.status"
+            >
+              <app-icon
+                :name="statusConfig[bounty.status].icon"
+                :size="26"
+                :color="statusConfig[bounty.status].color"
+              />
+              <text
+                class="bm-status-text"
+                :style="{ color: statusConfig[bounty.status].color }"
+              >
+                {{ statusConfig[bounty.status].label }}
+              </text>
             </view>
             <view class="bm-amount">
-              <app-icon name="gift" :size="30" color="#d97706" />
-              <text class="bm-amount-text">¥{{ bounty.amount }}</text>
+              <app-icon
+                name="gift"
+                :size="30"
+                color="#d97706"
+              />
+              <text class="bm-amount-text">
+                ¥{{ bounty.amount }}
+              </text>
             </view>
           </view>
 
-          <text class="bm-card-title">{{ bounty.title }}</text>
-          <text class="bm-card-desc">{{ bounty.description }}</text>
+          <text class="bm-card-title">
+            {{ bounty.title }}
+          </text>
+          <text class="bm-card-desc">
+            {{ bounty.description }}
+          </text>
 
           <view class="bm-card-meta">
             <template v-if="activeTab === 'posted'">
               <view class="bm-meta-item">
-                <app-icon name="message-square" :size="28" color="#999999" />
-                <text class="bm-meta-text">{{ bounty.answerCount }}个回答</text>
+                <app-icon
+                  name="message-square"
+                  :size="28"
+                  color="#999999"
+                />
+                <text class="bm-meta-text">
+                  {{ bounty.answerCount }}个回答
+                </text>
               </view>
-              <view v-if="bounty.status === 'open'" class="bm-meta-item">
-                <app-icon name="clock" :size="28" color="#f97316" />
-                <text class="bm-meta-text bm-meta-warn">{{ getRemainTime(bounty.expireAt) }}</text>
+              <view
+                v-if="bounty.status === 'open'"
+                class="bm-meta-item"
+              >
+                <app-icon
+                  name="clock"
+                  :size="28"
+                  color="#f97316"
+                />
+                <text class="bm-meta-text bm-meta-warn">
+                  {{ getRemainTime(bounty.expireAt) }}
+                </text>
               </view>
             </template>
             <template v-else>
-              <text class="bm-meta-text">{{ formatTimeAgo(bounty.createdAt) }}回答</text>
-              <view v-if="bounty.status === 'resolved'" class="bm-meta-item">
-                <app-icon name="check-circle" :size="28" color="#16a34a" />
-                <text class="bm-meta-text bm-meta-green">已被采纳</text>
+              <text class="bm-meta-text">
+                {{ formatTimeAgo(bounty.createdAt) }}回答
+              </text>
+              <view
+                v-if="bounty.status === 'resolved'"
+                class="bm-meta-item"
+              >
+                <app-icon
+                  name="check-circle"
+                  :size="28"
+                  color="#16a34a"
+                />
+                <text class="bm-meta-text bm-meta-green">
+                  已被采纳
+                </text>
               </view>
             </template>
           </view>
 
           <!-- Actions -->
-          <view v-if="activeTab === 'posted'" class="bm-actions">
-            <view v-if="bounty.status === 'answered'" class="bm-act-settle" @tap.stop="settle(bounty.id)">
-              <app-icon name="wallet" :size="28" color="#ffffff" />
-              <text class="bm-act-settle-text">结算悬赏</text>
+          <view
+            v-if="activeTab === 'posted'"
+            class="bm-actions"
+          >
+            <view
+              v-if="bounty.status === 'answered'"
+              class="bm-act-settle"
+              @tap.stop="settle(bounty.id)"
+            >
+              <app-icon
+                name="wallet"
+                :size="28"
+                color="#ffffff"
+              />
+              <text class="bm-act-settle-text">
+                结算悬赏
+              </text>
             </view>
-            <view v-else-if="bounty.status === 'expired' || bounty.status === 'cancelled'" class="bm-act-repost" @tap.stop="repost(bounty.id)">
-              <app-icon name="refresh-cw" :size="28" color="#ffffff" />
-              <text class="bm-act-repost-text">重新发布</text>
+            <view
+              v-else-if="bounty.status === 'expired' || bounty.status === 'cancelled'"
+              class="bm-act-repost"
+              @tap.stop="repost(bounty.id)"
+            >
+              <app-icon
+                name="refresh-cw"
+                :size="28"
+                color="#ffffff"
+              />
+              <text class="bm-act-repost-text">
+                重新发布
+              </text>
             </view>
-            <text v-else-if="bounty.status === 'open' && bounty.answerCount === 0" class="bm-act-waiting">等待回答中...</text>
-            <view v-else-if="bounty.status === 'open' && bounty.answerCount > 0" class="bm-act-view" @tap.stop="toDetail(bounty.id)">
-              <text class="bm-act-view-text">查看回答</text>
+            <text
+              v-else-if="bounty.status === 'open' && bounty.answerCount === 0"
+              class="bm-act-waiting"
+            >
+              等待回答中...
+            </text>
+            <view
+              v-else-if="bounty.status === 'open' && bounty.answerCount > 0"
+              class="bm-act-view"
+              @tap.stop="toDetail(bounty.id)"
+            >
+              <text class="bm-act-view-text">
+                查看回答
+              </text>
             </view>
           </view>
         </view>

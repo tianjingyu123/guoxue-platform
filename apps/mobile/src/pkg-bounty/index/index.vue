@@ -1,22 +1,47 @@
 <template>
   <view class="bp-page">
     <!-- Header -->
-    <view class="bp-header" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="bp-header"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="bp-header-row">
         <view class="bp-header-left">
-          <view class="bp-icon-btn" @tap="goBack">
-            <app-icon name="chevron-left" :size="48" color="#2c2c2c" />
+          <view
+            class="bp-icon-btn"
+            @tap="goBack"
+          >
+            <app-icon
+              name="chevron-left"
+              :size="48"
+              color="#2c2c2c"
+            />
           </view>
-          <text class="bp-title">悬赏广场</text>
+          <text class="bp-title">
+            悬赏广场
+          </text>
         </view>
-        <view class="bp-publish-btn" @tap="toCreate">
-          <app-icon name="plus" :size="32" color="#ffffff" />
-          <text class="bp-publish-text">发布悬赏</text>
+        <view
+          class="bp-publish-btn"
+          @tap="toCreate"
+        >
+          <app-icon
+            name="plus"
+            :size="32"
+            color="#ffffff"
+          />
+          <text class="bp-publish-text">
+            发布悬赏
+          </text>
         </view>
       </view>
 
       <!-- Status Tabs -->
-      <scroll-view scroll-x :show-scrollbar="false" class="bp-tabs">
+      <scroll-view
+        scroll-x
+        :show-scrollbar="false"
+        class="bp-tabs"
+      >
         <view class="bp-tabs-row">
           <view
             v-for="tab in statusTabs"
@@ -25,7 +50,12 @@
             :class="{ 'bp-tab-active': activeTab === tab.key }"
             @tap="switchTab(tab.key)"
           >
-            <text class="bp-tab-text" :class="{ 'bp-tab-text-active': activeTab === tab.key }">{{ tab.label }}</text>
+            <text
+              class="bp-tab-text"
+              :class="{ 'bp-tab-text-active': activeTab === tab.key }"
+            >
+              {{ tab.label }}
+            </text>
           </view>
         </view>
       </scroll-view>
@@ -35,7 +65,11 @@
     <view class="bp-list">
       <!-- Skeleton -->
       <template v-if="loading">
-        <view v-for="i in 3" :key="i" class="bp-skeleton">
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="bp-skeleton"
+        >
           <view class="bp-sk-row">
             <view class="bp-sk-avatar" />
             <view class="bp-sk-body">
@@ -48,13 +82,27 @@
       </template>
 
       <!-- Empty -->
-      <view v-else-if="bounties.length === 0" class="bp-empty">
+      <view
+        v-else-if="bounties.length === 0"
+        class="bp-empty"
+      >
         <view class="bp-empty-icon">
-          <app-icon name="message-square" :size="80" color="#999999" />
+          <app-icon
+            name="message-square"
+            :size="80"
+            color="#999999"
+          />
         </view>
-        <text class="bp-empty-text">暂无悬赏问题</text>
-        <view class="bp-empty-btn" @tap="toCreate">
-          <text class="bp-empty-btn-text">发布悬赏</text>
+        <text class="bp-empty-text">
+          暂无悬赏问题
+        </text>
+        <view
+          class="bp-empty-btn"
+          @tap="toCreate"
+        >
+          <text class="bp-empty-btn-text">
+            发布悬赏
+          </text>
         </view>
       </view>
 
@@ -68,47 +116,108 @@
         >
           <!-- Card Header -->
           <view class="bp-card-head">
-            <image :src="bounty.poster.avatar" class="bp-avatar" mode="aspectFill" />
+            <image
+              :src="bounty.poster.avatar"
+              class="bp-avatar"
+              mode="aspectFill"
+            />
             <view class="bp-card-meta">
               <view class="bp-card-meta-top">
-                <text class="bp-poster-name">{{ bounty.poster.name }}</text>
-                <text class="bp-time">{{ formatTime(bounty.createdAt) }}</text>
+                <text class="bp-poster-name">
+                  {{ bounty.poster.name }}
+                </text>
+                <text class="bp-time">
+                  {{ formatTime(bounty.createdAt) }}
+                </text>
               </view>
-              <text v-if="bounty.category" class="bp-category">{{ bounty.category }}</text>
+              <text
+                v-if="bounty.category"
+                class="bp-category"
+              >
+                {{ bounty.category }}
+              </text>
             </view>
-            <view class="bp-status" :class="'bp-status-' + bounty.status">
-              <text class="bp-status-text" :class="'bp-status-text-' + bounty.status">{{ statusConfig[bounty.status].label }}</text>
+            <view
+              class="bp-status"
+              :class="'bp-status-' + bounty.status"
+            >
+              <text
+                class="bp-status-text"
+                :class="'bp-status-text-' + bounty.status"
+              >
+                {{ statusConfig[bounty.status].label }}
+              </text>
             </view>
           </view>
 
           <!-- Content -->
-          <text class="bp-card-title">{{ bounty.title }}</text>
-          <text class="bp-card-desc">{{ bounty.description }}</text>
+          <text class="bp-card-title">
+            {{ bounty.title }}
+          </text>
+          <text class="bp-card-desc">
+            {{ bounty.description }}
+          </text>
 
           <!-- Tags -->
-          <view v-if="bounty.tags && bounty.tags.length" class="bp-tags">
-            <text v-for="tag in bounty.tags" :key="tag" class="bp-tag">#{{ tag }}</text>
+          <view
+            v-if="bounty.tags && bounty.tags.length"
+            class="bp-tags"
+          >
+            <text
+              v-for="tag in bounty.tags"
+              :key="tag"
+              class="bp-tag"
+            >
+              #{{ tag }}
+            </text>
           </view>
 
           <!-- Footer -->
           <view class="bp-card-foot">
             <view class="bp-stats">
               <view class="bp-stat">
-                <app-icon name="eye" :size="28" color="#999999" />
-                <text class="bp-stat-text">{{ bounty.viewCount }}</text>
+                <app-icon
+                  name="eye"
+                  :size="28"
+                  color="#999999"
+                />
+                <text class="bp-stat-text">
+                  {{ bounty.viewCount }}
+                </text>
               </view>
               <view class="bp-stat">
-                <app-icon name="message-square" :size="28" color="#999999" />
-                <text class="bp-stat-text">{{ bounty.answerCount }}个回答</text>
+                <app-icon
+                  name="message-square"
+                  :size="28"
+                  color="#999999"
+                />
+                <text class="bp-stat-text">
+                  {{ bounty.answerCount }}个回答
+                </text>
               </view>
-              <view v-if="bounty.status === 'open'" class="bp-stat bp-stat-warn">
-                <app-icon name="clock" :size="28" color="#f97316" />
-                <text class="bp-stat-text bp-stat-text-warn">{{ getRemainingTime(bounty.expireAt) }}</text>
+              <view
+                v-if="bounty.status === 'open'"
+                class="bp-stat bp-stat-warn"
+              >
+                <app-icon
+                  name="clock"
+                  :size="28"
+                  color="#f97316"
+                />
+                <text class="bp-stat-text bp-stat-text-warn">
+                  {{ getRemainingTime(bounty.expireAt) }}
+                </text>
               </view>
             </view>
             <view class="bp-amount">
-              <app-icon name="coins" :size="32" color="#c41e3a" />
-              <text class="bp-amount-text">¥{{ bounty.amount }}</text>
+              <app-icon
+                name="coins"
+                :size="32"
+                color="#c41e3a"
+              />
+              <text class="bp-amount-text">
+                ¥{{ bounty.amount }}
+              </text>
             </view>
           </view>
         </view>

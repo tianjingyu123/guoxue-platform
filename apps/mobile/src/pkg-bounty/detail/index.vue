@@ -1,29 +1,57 @@
 <template>
   <view class="bd-page">
     <!-- Header -->
-    <view class="bd-header" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="bd-header"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="bd-header-row">
-        <view class="bd-icon-btn" @tap="goBack">
-          <app-icon name="chevron-left" :size="40" color="#2c2c2c" />
+        <view
+          class="bd-icon-btn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="chevron-left"
+            :size="40"
+            color="#2c2c2c"
+          />
         </view>
-        <text class="bd-header-title">悬赏详情</text>
+        <text class="bd-header-title">
+          悬赏详情
+        </text>
         <view class="bd-icon-btn">
-          <app-icon name="share-2" :size="40" color="#2c2c2c" />
+          <app-icon
+            name="share-2"
+            :size="40"
+            color="#2c2c2c"
+          />
         </view>
       </view>
     </view>
 
     <!-- Loading -->
-    <view v-if="loading" class="bd-loading">
+    <view
+      v-if="loading"
+      class="bd-loading"
+    >
       <view class="bd-sk-line bd-sk-w75" />
       <view class="bd-sk-line bd-sk-w50" />
       <view class="bd-sk-block" />
     </view>
 
     <!-- Not found -->
-    <view v-else-if="!bounty" class="bd-notfound">
-      <app-icon name="alert-circle" :size="96" color="#999999" />
-      <text class="bd-notfound-text">悬赏不存在或已删除</text>
+    <view
+      v-else-if="!bounty"
+      class="bd-notfound"
+    >
+      <app-icon
+        name="alert-circle"
+        :size="96"
+        color="#999999"
+      />
+      <text class="bd-notfound-text">
+        悬赏不存在或已删除
+      </text>
     </view>
 
     <template v-else>
@@ -33,51 +61,113 @@
         <view class="bd-amount-card">
           <view class="bd-amount-row">
             <view class="bd-amount-left">
-              <app-icon name="gift" :size="40" color="#d97706" />
-              <text class="bd-amount-num">¥{{ bounty.amount }}</text>
+              <app-icon
+                name="gift"
+                :size="40"
+                color="#d97706"
+              />
+              <text class="bd-amount-num">
+                ¥{{ bounty.amount }}
+              </text>
             </view>
-            <view class="bd-status" :class="'bd-status-' + bounty.status">
-              <text class="bd-status-text" :class="'bd-status-text-' + bounty.status">{{ statusConfig[bounty.status].label }}</text>
+            <view
+              class="bd-status"
+              :class="'bd-status-' + bounty.status"
+            >
+              <text
+                class="bd-status-text"
+                :class="'bd-status-text-' + bounty.status"
+              >
+                {{ statusConfig[bounty.status].label }}
+              </text>
             </view>
           </view>
-          <view v-if="bounty.status === 'open'" class="bd-remain">
-            <app-icon name="clock" :size="28" color="#b45309" />
-            <text class="bd-remain-text">{{ getRemainingTime(bounty.expireAt) }}</text>
+          <view
+            v-if="bounty.status === 'open'"
+            class="bd-remain"
+          >
+            <app-icon
+              name="clock"
+              :size="28"
+              color="#b45309"
+            />
+            <text class="bd-remain-text">
+              {{ getRemainingTime(bounty.expireAt) }}
+            </text>
           </view>
         </view>
 
         <!-- Poster -->
         <view class="bd-poster">
           <view class="bd-poster-avatar">
-            <image v-if="bounty.poster.avatar" :src="bounty.poster.avatar" class="bd-poster-img" mode="aspectFill" />
-            <app-icon v-else name="user" :size="40" color="#c41e3a" />
+            <image
+              v-if="bounty.poster.avatar"
+              :src="bounty.poster.avatar"
+              class="bd-poster-img"
+              mode="aspectFill"
+            />
+            <app-icon
+              v-else
+              name="user"
+              :size="40"
+              color="#c41e3a"
+            />
           </view>
           <view class="bd-poster-body">
-            <text class="bd-poster-name">{{ bounty.poster.name }}</text>
-            <text class="bd-poster-time">{{ formatDate(bounty.createdAt) }} 发布</text>
+            <text class="bd-poster-name">
+              {{ bounty.poster.name }}
+            </text>
+            <text class="bd-poster-time">
+              {{ formatDate(bounty.createdAt) }} 发布
+            </text>
           </view>
         </view>
 
         <!-- Title & Content -->
         <view class="bd-content-block">
-          <text class="bd-content-title">{{ bounty.title }}</text>
-          <text class="bd-content-text">{{ bounty.content }}</text>
+          <text class="bd-content-title">
+            {{ bounty.title }}
+          </text>
+          <text class="bd-content-text">
+            {{ bounty.content }}
+          </text>
         </view>
 
         <!-- Tags -->
-        <view v-if="bounty.tags && bounty.tags.length" class="bd-tags">
-          <text v-for="(tag, i) in bounty.tags" :key="i" class="bd-tag">#{{ tag }}</text>
+        <view
+          v-if="bounty.tags && bounty.tags.length"
+          class="bd-tags"
+        >
+          <text
+            v-for="(tag, i) in bounty.tags"
+            :key="i"
+            class="bd-tag"
+          >
+            #{{ tag }}
+          </text>
         </view>
 
         <!-- Stats -->
         <view class="bd-stats">
           <view class="bd-stat">
-            <app-icon name="eye" :size="30" color="#999999" />
-            <text class="bd-stat-text">{{ bounty.viewCount }} 浏览</text>
+            <app-icon
+              name="eye"
+              :size="30"
+              color="#999999"
+            />
+            <text class="bd-stat-text">
+              {{ bounty.viewCount }} 浏览
+            </text>
           </view>
           <view class="bd-stat">
-            <app-icon name="message-circle" :size="30" color="#999999" />
-            <text class="bd-stat-text">{{ bounty.answerCount }} 回答</text>
+            <app-icon
+              name="message-circle"
+              :size="30"
+              color="#999999"
+            />
+            <text class="bd-stat-text">
+              {{ bounty.answerCount }} 回答
+            </text>
           </view>
         </view>
       </view>
@@ -85,39 +175,89 @@
       <!-- Answers -->
       <view class="bd-answers">
         <view class="bd-answers-head">
-          <text class="bd-answers-title">全部回答 <text class="bd-answers-count">({{ bounty.answers.length }})</text></text>
+          <text class="bd-answers-title">
+            全部回答 <text class="bd-answers-count">
+              ({{ bounty.answers.length }})
+            </text>
+          </text>
         </view>
 
-        <view v-if="bounty.answers.length === 0" class="bd-answers-empty">
-          <app-icon name="message-circle" :size="80" color="#cccccc" />
-          <text class="bd-answers-empty-text">暂无回答，快来抢答吧</text>
+        <view
+          v-if="bounty.answers.length === 0"
+          class="bd-answers-empty"
+        >
+          <app-icon
+            name="message-circle"
+            :size="80"
+            color="#cccccc"
+          />
+          <text class="bd-answers-empty-text">
+            暂无回答，快来抢答吧
+          </text>
         </view>
 
-        <view v-else class="bd-answer-list">
-          <view v-for="answer in bounty.answers" :key="answer.id" class="bd-answer">
+        <view
+          v-else
+          class="bd-answer-list"
+        >
+          <view
+            v-for="answer in bounty.answers"
+            :key="answer.id"
+            class="bd-answer"
+          >
             <!-- Answer Header -->
             <view class="bd-answer-head">
               <view class="bd-answer-avatar">
-                <image v-if="answer.author.avatar" :src="answer.author.avatar" class="bd-answer-img" mode="aspectFill" />
-                <app-icon v-else name="user" :size="40" color="#2563eb" />
+                <image
+                  v-if="answer.author.avatar"
+                  :src="answer.author.avatar"
+                  class="bd-answer-img"
+                  mode="aspectFill"
+                />
+                <app-icon
+                  v-else
+                  name="user"
+                  :size="40"
+                  color="#2563eb"
+                />
               </view>
               <view class="bd-answer-meta">
                 <view class="bd-answer-meta-top">
-                  <text class="bd-answer-name">{{ answer.author.name }}</text>
-                  <view v-if="answer.author.title" class="bd-answer-badge">
-                    <text class="bd-answer-badge-text">{{ answer.author.title }}</text>
+                  <text class="bd-answer-name">
+                    {{ answer.author.name }}
+                  </text>
+                  <view
+                    v-if="answer.author.title"
+                    class="bd-answer-badge"
+                  >
+                    <text class="bd-answer-badge-text">
+                      {{ answer.author.title }}
+                    </text>
                   </view>
-                  <view v-if="answer.isAccepted" class="bd-accepted">
-                    <app-icon name="check-circle" :size="24" color="#16a34a" />
-                    <text class="bd-accepted-text">已采纳</text>
+                  <view
+                    v-if="answer.isAccepted"
+                    class="bd-accepted"
+                  >
+                    <app-icon
+                      name="check-circle"
+                      :size="24"
+                      color="#16a34a"
+                    />
+                    <text class="bd-accepted-text">
+                      已采纳
+                    </text>
                   </view>
                 </view>
-                <text class="bd-answer-time">{{ formatDateTime(answer.createdAt) }}</text>
+                <text class="bd-answer-time">
+                  {{ formatDateTime(answer.createdAt) }}
+                </text>
               </view>
             </view>
 
             <!-- Answer Content -->
-            <text class="bd-answer-content">{{ answer.content }}</text>
+            <text class="bd-answer-content">
+              {{ answer.content }}
+            </text>
 
             <!-- Answer Actions -->
             <view class="bd-answer-actions">
@@ -126,16 +266,31 @@
                 :class="{ 'bd-like-active': answer.isLiked }"
                 @tap="likeAnswer(answer.id)"
               >
-                <app-icon name="thumbs-up" :size="28" :color="answer.isLiked ? '#c41e3a' : '#999999'" />
-                <text class="bd-like-text" :class="{ 'bd-like-text-active': answer.isLiked }">{{ answer.likes }}</text>
+                <app-icon
+                  name="thumbs-up"
+                  :size="28"
+                  :color="answer.isLiked ? '#c41e3a' : '#999999'"
+                />
+                <text
+                  class="bd-like-text"
+                  :class="{ 'bd-like-text-active': answer.isLiked }"
+                >
+                  {{ answer.likes }}
+                </text>
               </view>
               <view
                 v-if="isPoster && bounty.status === 'open' && !answer.isAccepted && !bounty.acceptedAnswerId"
                 class="bd-accept-btn"
                 @tap="acceptAnswer(answer.id)"
               >
-                <app-icon name="award" :size="28" color="#ffffff" />
-                <text class="bd-accept-btn-text">采纳答案</text>
+                <app-icon
+                  name="award"
+                  :size="28"
+                  color="#ffffff"
+                />
+                <text class="bd-accept-btn-text">
+                  采纳答案
+                </text>
               </view>
             </view>
           </view>
@@ -144,16 +299,28 @@
     </template>
 
     <!-- Answer Form Modal -->
-    <view v-if="showAnswerForm" class="bd-modal-mask">
+    <view
+      v-if="showAnswerForm"
+      class="bd-modal-mask"
+    >
       <view class="bd-modal">
         <view class="bd-modal-head">
-          <text class="bd-modal-cancel" @tap="showAnswerForm = false">取消</text>
-          <text class="bd-modal-title">写回答</text>
+          <text
+            class="bd-modal-cancel"
+            @tap="showAnswerForm = false"
+          >
+            取消
+          </text>
+          <text class="bd-modal-title">
+            写回答
+          </text>
           <text
             class="bd-modal-submit"
             :class="{ 'bd-modal-submit-disabled': submitting || answerContent.length < 20 }"
             @tap="submitAnswer"
-          >{{ submitting ? '提交中...' : '提交' }}</text>
+          >
+            {{ submitting ? '提交中...' : '提交' }}
+          </text>
         </view>
         <view class="bd-modal-body">
           <textarea
@@ -162,31 +329,75 @@
             placeholder="请输入您的回答，至少20字..."
             :maxlength="2000"
           />
-          <text class="bd-modal-counter">{{ answerContent.length }}/2000</text>
+          <text class="bd-modal-counter">
+            {{ answerContent.length }}/2000
+          </text>
         </view>
       </view>
     </view>
 
     <!-- Bottom Actions -->
-    <view v-if="bounty" class="bd-bottom">
-      <view v-if="isPoster" class="bd-bottom-row">
-        <view v-if="bounty.status === 'open' && bounty.acceptedAnswerId" class="bd-btn-primary" @tap="settle">
-          <text class="bd-btn-primary-text">结算悬赏</text>
+    <view
+      v-if="bounty"
+      class="bd-bottom"
+    >
+      <view
+        v-if="isPoster"
+        class="bd-bottom-row"
+      >
+        <view
+          v-if="bounty.status === 'open' && bounty.acceptedAnswerId"
+          class="bd-btn-primary"
+          @tap="settle"
+        >
+          <text class="bd-btn-primary-text">
+            结算悬赏
+          </text>
         </view>
-        <view v-if="bounty.status === 'expired' && bounty.answers.length === 0" class="bd-btn-warn" @tap="refund">
-          <text class="bd-btn-warn-text">申请退款</text>
+        <view
+          v-if="bounty.status === 'expired' && bounty.answers.length === 0"
+          class="bd-btn-warn"
+          @tap="refund"
+        >
+          <text class="bd-btn-warn-text">
+            申请退款
+          </text>
         </view>
-        <view v-if="bounty.status === 'open' && !bounty.acceptedAnswerId" class="bd-btn-muted" @tap="toQa">
-          <text class="bd-btn-muted-text">查看更多回答</text>
+        <view
+          v-if="bounty.status === 'open' && !bounty.acceptedAnswerId"
+          class="bd-btn-muted"
+          @tap="toQa"
+        >
+          <text class="bd-btn-muted-text">
+            查看更多回答
+          </text>
         </view>
       </view>
-      <view v-else class="bd-bottom-row">
-        <view v-if="bounty.status === 'open' && !hasAnswered" class="bd-btn-primary" @tap="showAnswerForm = true">
-          <app-icon name="send" :size="32" color="#ffffff" />
-          <text class="bd-btn-primary-text">我要回答</text>
+      <view
+        v-else
+        class="bd-bottom-row"
+      >
+        <view
+          v-if="bounty.status === 'open' && !hasAnswered"
+          class="bd-btn-primary"
+          @tap="showAnswerForm = true"
+        >
+          <app-icon
+            name="send"
+            :size="32"
+            color="#ffffff"
+          />
+          <text class="bd-btn-primary-text">
+            我要回答
+          </text>
         </view>
-        <view v-if="hasAnswered" class="bd-btn-done">
-          <text class="bd-btn-done-text">已提交回答</text>
+        <view
+          v-if="hasAnswered"
+          class="bd-btn-done"
+        >
+          <text class="bd-btn-done-text">
+            已提交回答
+          </text>
         </view>
       </view>
     </view>

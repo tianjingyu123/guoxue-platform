@@ -1,12 +1,34 @@
 <template>
   <view class="cfg-page">
     <!-- Header (动态主题色) -->
-    <view class="cfg-header" :style="{ paddingTop: statusBarHeight + 'px', background: theme.primary }">
+    <view
+      class="cfg-header"
+      :style="{ paddingTop: statusBarHeight + 'px', background: theme.primary }"
+    >
       <view class="cfg-header-inner">
-        <view class="cfg-hbtn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
-        <text class="cfg-title">分站配置</text>
-        <view class="cfg-hbtn" @tap="handleSave">
-          <app-icon :name="saving ? 'loader-2' : 'save'" :size="40" color="#ffffff" :class="{ 'cfg-spin': saving }" />
+        <view
+          class="cfg-hbtn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="40"
+            color="#ffffff"
+          />
+        </view>
+        <text class="cfg-title">
+          分站配置
+        </text>
+        <view
+          class="cfg-hbtn"
+          @tap="handleSave"
+        >
+          <app-icon
+            :name="saving ? 'loader-2' : 'save'"
+            :size="40"
+            color="#ffffff"
+            :class="{ 'cfg-spin': saving }"
+          />
         </view>
       </view>
     </view>
@@ -14,43 +36,85 @@
     <view class="cfg-body">
       <!-- Logo -->
       <view class="cfg-card">
-        <text class="cfg-label">分站Logo</text>
+        <text class="cfg-label">
+          分站Logo
+        </text>
         <view class="cfg-logo-row">
-          <view class="cfg-logo" :style="{ borderColor: theme.primary }">
-            <app-icon name="camera" :size="64" color="#9ca3af" />
+          <view
+            class="cfg-logo"
+            :style="{ borderColor: theme.primary }"
+          >
+            <app-icon
+              name="camera"
+              :size="64"
+              color="#9ca3af"
+            />
           </view>
           <view class="cfg-logo-tip">
-            <text class="cfg-logo-t1">建议尺寸：200x200像素</text>
-            <text class="cfg-logo-t2">支持 JPG、PNG 格式，最大 2MB</text>
+            <text class="cfg-logo-t1">
+              建议尺寸：200x200像素
+            </text>
+            <text class="cfg-logo-t2">
+              支持 JPG、PNG 格式，最大 2MB
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 基本信息 -->
       <view class="cfg-card">
-        <text class="cfg-h3">基本信息</text>
+        <text class="cfg-h3">
+          基本信息
+        </text>
         <view class="cfg-field">
-          <text class="cfg-flabel">分站名称 *</text>
-          <input class="cfg-input" v-model="form.name" maxlength="20" placeholder="请输入分站名称" />
-          <text class="cfg-count">{{ (form.name || '').length }}/20</text>
+          <text class="cfg-flabel">
+            分站名称 *
+          </text>
+          <input
+            v-model="form.name"
+            class="cfg-input"
+            maxlength="20"
+            placeholder="请输入分站名称"
+          >
+          <text class="cfg-count">
+            {{ (form.name || '').length }}/20
+          </text>
         </view>
         <view class="cfg-field">
-          <text class="cfg-flabel">分站简介</text>
-          <textarea class="cfg-textarea" v-model="form.description" maxlength="200" placeholder="介绍一下你的分站..." />
-          <text class="cfg-count">{{ (form.description || '').length }}/200</text>
+          <text class="cfg-flabel">
+            分站简介
+          </text>
+          <textarea
+            v-model="form.description"
+            class="cfg-textarea"
+            maxlength="200"
+            placeholder="介绍一下你的分站..."
+          />
+          <text class="cfg-count">
+            {{ (form.description || '').length }}/200
+          </text>
         </view>
       </view>
 
       <!-- 主题色 -->
       <view class="cfg-card">
         <view class="cfg-theme-head">
-          <text class="cfg-h3">主题色</text>
-          <text class="cfg-theme-toggle" :style="{ color: theme.primary }" @tap="useCustomColor = !useCustomColor">
+          <text class="cfg-h3">
+            主题色
+          </text>
+          <text
+            class="cfg-theme-toggle"
+            :style="{ color: theme.primary }"
+            @tap="useCustomColor = !useCustomColor"
+          >
             {{ useCustomColor ? '使用预设' : '自定义' }}
           </text>
         </view>
 
-        <view v-if="!useCustomColor" class="cfg-presets">
+        <view
+          v-if="!useCustomColor"
+          class="cfg-presets"
+        >
           <view
             v-for="p in presets"
             :key="p.id"
@@ -58,110 +122,257 @@
             :class="{ active: selectedTheme === p.id }"
             @tap="selectedTheme = p.id"
           >
-            <view class="cfg-preset-swatch" :style="{ background: `linear-gradient(135deg, ${p.primary} 50%, ${p.secondary} 50%)` }" />
-            <text class="cfg-preset-name">{{ p.name }}</text>
-            <view v-if="selectedTheme === p.id" class="cfg-preset-check">
-              <app-icon name="check" :size="20" color="#ffffff" />
+            <view
+              class="cfg-preset-swatch"
+              :style="{ background: `linear-gradient(135deg, ${p.primary} 50%, ${p.secondary} 50%)` }"
+            />
+            <text class="cfg-preset-name">
+              {{ p.name }}
+            </text>
+            <view
+              v-if="selectedTheme === p.id"
+              class="cfg-preset-check"
+            >
+              <app-icon
+                name="check"
+                :size="20"
+                color="#ffffff"
+              />
             </view>
           </view>
         </view>
 
-        <view v-else class="cfg-custom">
+        <view
+          v-else
+          class="cfg-custom"
+        >
           <view class="cfg-custom-row">
-            <text class="cfg-custom-label">主色调</text>
-            <view class="cfg-color-box" :style="{ background: customColor.primary }" />
-            <input class="cfg-input cfg-color-input" v-model="customColor.primary" placeholder="#C41E3A" />
+            <text class="cfg-custom-label">
+              主色调
+            </text>
+            <view
+              class="cfg-color-box"
+              :style="{ background: customColor.primary }"
+            />
+            <input
+              v-model="customColor.primary"
+              class="cfg-input cfg-color-input"
+              placeholder="#C41E3A"
+            >
           </view>
           <view class="cfg-custom-row">
-            <text class="cfg-custom-label">辅助色</text>
-            <view class="cfg-color-box" :style="{ background: customColor.secondary }" />
-            <input class="cfg-input cfg-color-input" v-model="customColor.secondary" placeholder="#C9A96E" />
+            <text class="cfg-custom-label">
+              辅助色
+            </text>
+            <view
+              class="cfg-color-box"
+              :style="{ background: customColor.secondary }"
+            />
+            <input
+              v-model="customColor.secondary"
+              class="cfg-input cfg-color-input"
+              placeholder="#C9A96E"
+            >
           </view>
         </view>
 
         <!-- 预览 -->
-        <view class="cfg-preview" :style="{ background: theme.primary + '1a' }">
+        <view
+          class="cfg-preview"
+          :style="{ background: theme.primary + '1a' }"
+        >
           <view class="cfg-preview-head">
-            <app-icon name="eye" :size="28" :color="theme.primary" />
-            <text class="cfg-preview-title" :style="{ color: theme.primary }">预览效果</text>
+            <app-icon
+              name="eye"
+              :size="28"
+              :color="theme.primary"
+            />
+            <text
+              class="cfg-preview-title"
+              :style="{ color: theme.primary }"
+            >
+              预览效果
+            </text>
           </view>
-          <view class="cfg-preview-nav" :style="{ background: theme.primary }">
-            <text class="cfg-preview-nav-txt">导航栏样式</text>
+          <view
+            class="cfg-preview-nav"
+            :style="{ background: theme.primary }"
+          >
+            <text class="cfg-preview-nav-txt">
+              导航栏样式
+            </text>
           </view>
           <view class="cfg-preview-btns">
-            <view class="cfg-pv-btn" :style="{ background: theme.primary }"><text class="cfg-pv-btn-txt">主按钮</text></view>
-            <view class="cfg-pv-btn cfg-pv-btn-out" :style="{ borderColor: theme.primary }"><text class="cfg-pv-btn-txt" :style="{ color: theme.primary }">次按钮</text></view>
+            <view
+              class="cfg-pv-btn"
+              :style="{ background: theme.primary }"
+            >
+              <text class="cfg-pv-btn-txt">
+                主按钮
+              </text>
+            </view>
+            <view
+              class="cfg-pv-btn cfg-pv-btn-out"
+              :style="{ borderColor: theme.primary }"
+            >
+              <text
+                class="cfg-pv-btn-txt"
+                :style="{ color: theme.primary }"
+              >
+                次按钮
+              </text>
+            </view>
           </view>
         </view>
       </view>
 
       <!-- 联系方式 -->
       <view class="cfg-card">
-        <text class="cfg-h3">联系方式</text>
+        <text class="cfg-h3">
+          联系方式
+        </text>
         <view class="cfg-contact-row">
-          <view class="cfg-contact-icon"><app-icon name="phone" :size="36" color="#6b7280" /></view>
-          <input class="cfg-input cfg-contact-input" v-model="form.contactPhone" placeholder="联系电话" />
+          <view class="cfg-contact-icon">
+            <app-icon
+              name="phone"
+              :size="36"
+              color="#6b7280"
+            />
+          </view>
+          <input
+            v-model="form.contactPhone"
+            class="cfg-input cfg-contact-input"
+            placeholder="联系电话"
+          >
         </view>
         <view class="cfg-contact-row">
-          <view class="cfg-contact-icon"><app-icon name="message-circle" :size="36" color="#6b7280" /></view>
-          <input class="cfg-input cfg-contact-input" v-model="form.contactWechat" placeholder="微信号" />
+          <view class="cfg-contact-icon">
+            <app-icon
+              name="message-circle"
+              :size="36"
+              color="#6b7280"
+            />
+          </view>
+          <input
+            v-model="form.contactWechat"
+            class="cfg-input cfg-contact-input"
+            placeholder="微信号"
+          >
         </view>
         <view class="cfg-contact-row">
-          <view class="cfg-contact-icon"><app-icon name="mail" :size="36" color="#6b7280" /></view>
-          <input class="cfg-input cfg-contact-input" v-model="form.contactEmail" placeholder="邮箱地址" />
+          <view class="cfg-contact-icon">
+            <app-icon
+              name="mail"
+              :size="36"
+              color="#6b7280"
+            />
+          </view>
+          <input
+            v-model="form.contactEmail"
+            class="cfg-input cfg-contact-input"
+            placeholder="邮箱地址"
+          >
         </view>
       </view>
 
       <!-- 小程序码 -->
       <view class="cfg-card">
-        <text class="cfg-label">小程序码</text>
+        <text class="cfg-label">
+          小程序码
+        </text>
         <view class="cfg-qr-row">
           <view class="cfg-qr-box">
-            <app-icon name="upload" :size="64" color="#9ca3af" />
-            <text class="cfg-qr-tip">上传小程序码</text>
+            <app-icon
+              name="upload"
+              :size="64"
+              color="#9ca3af"
+            />
+            <text class="cfg-qr-tip">
+              上传小程序码
+            </text>
           </view>
           <view class="cfg-qr-info">
-            <text class="cfg-qr-t1">上传小程序码供用户扫码访问</text>
-            <text class="cfg-qr-t2">建议尺寸：430x430像素</text>
+            <text class="cfg-qr-t1">
+              上传小程序码供用户扫码访问
+            </text>
+            <text class="cfg-qr-t2">
+              建议尺寸：430x430像素
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 站长信息 -->
       <view class="cfg-card">
-        <text class="cfg-h3">站长信息</text>
+        <text class="cfg-h3">
+          站长信息
+        </text>
         <view class="cfg-master">
-          <image class="cfg-master-avatar" :src="masterAvatar" mode="aspectFill" />
+          <image
+            class="cfg-master-avatar"
+            :src="masterAvatar"
+            mode="aspectFill"
+          />
           <view class="cfg-master-info">
-            <text class="cfg-master-name">{{ master.nickname }}</text>
-            <text class="cfg-master-phone">{{ master.phone }}</text>
+            <text class="cfg-master-name">
+              {{ master.nickname }}
+            </text>
+            <text class="cfg-master-phone">
+              {{ master.phone }}
+            </text>
           </view>
-          <text class="cfg-master-join">入驻：{{ master.joinDate }}</text>
+          <text class="cfg-master-join">
+            入驻：{{ master.joinDate }}
+          </text>
         </view>
       </view>
 
       <!-- 状态信息 -->
       <view class="cfg-card">
         <view class="cfg-status-row">
-          <text class="cfg-status-label">分站状态</text>
-          <text class="cfg-status-badge">运营中</text>
+          <text class="cfg-status-label">
+            分站状态
+          </text>
+          <text class="cfg-status-badge">
+            运营中
+          </text>
         </view>
         <view class="cfg-status-row">
-          <text class="cfg-status-label">分站代码</text>
-          <text class="cfg-status-val cfg-mono">demo_station</text>
+          <text class="cfg-status-label">
+            分站代码
+          </text>
+          <text class="cfg-status-val cfg-mono">
+            demo_station
+          </text>
         </view>
         <view class="cfg-status-row">
-          <text class="cfg-status-label">最后更新</text>
-          <text class="cfg-status-val">2026-06-01 15:30:00</text>
+          <text class="cfg-status-label">
+            最后更新
+          </text>
+          <text class="cfg-status-val">
+            2026-06-01 15:30:00
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 底部保存 -->
     <view class="cfg-savebar">
-      <view class="cfg-save-btn" :style="{ background: theme.primary }" @tap="handleSave">
-        <app-icon v-if="saving" name="loader-2" :size="28" color="#ffffff" class="cfg-spin" />
-        <text class="cfg-save-txt">{{ saving ? '保存中...' : '保存配置' }}</text>
+      <view
+        class="cfg-save-btn"
+        :style="{ background: theme.primary }"
+        @tap="handleSave"
+      >
+        <app-icon
+          v-if="saving"
+          name="loader-2"
+          :size="28"
+          color="#ffffff"
+          class="cfg-spin"
+        />
+        <text class="cfg-save-txt">
+          {{ saving ? '保存中...' : '保存配置' }}
+        </text>
       </view>
     </view>
   </view>

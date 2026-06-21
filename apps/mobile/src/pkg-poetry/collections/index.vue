@@ -1,46 +1,112 @@
 <template>
   <view class="pl-page">
     <!-- 顶栏 -->
-    <view class="pl-header" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="pl-header"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="pl-header-row">
-        <view class="pl-back" @tap="goBack">
-          <app-icon name="arrow-left" :size="40" color="var(--foreground)" />
+        <view
+          class="pl-back"
+          @tap="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="40"
+            color="var(--foreground)"
+          />
         </view>
-        <text class="pl-title">诗词集锦</text>
-        <text class="pl-count">{{ items.length }} 首</text>
+        <text class="pl-title">
+          诗词集锦
+        </text>
+        <text class="pl-count">
+          {{ items.length }} 首
+        </text>
       </view>
     </view>
 
     <view class="pl-main">
       <!-- 搜索 -->
       <view class="pl-search">
-        <app-icon name="search" :size="32" color="var(--muted-foreground)" class="pl-search-icon" />
-        <input v-model="search" class="pl-search-input" placeholder="搜索诗词" />
+        <app-icon
+          name="search"
+          :size="32"
+          color="var(--muted-foreground)"
+          class="pl-search-icon"
+        />
+        <input
+          v-model="search"
+          class="pl-search-input"
+          placeholder="搜索诗词"
+        >
       </view>
 
-      <view v-if="!filtered.length" class="pl-empty">
-        <text class="pl-empty-text">暂无收藏</text>
+      <view
+        v-if="!filtered.length"
+        class="pl-empty"
+      >
+        <text class="pl-empty-text">
+          暂无收藏
+        </text>
       </view>
-      <view v-else class="pl-list">
-        <view v-for="poem in filtered" :key="poem.id" class="pl-item">
+      <view
+        v-else
+        class="pl-list"
+      >
+        <view
+          v-for="poem in filtered"
+          :key="poem.id"
+          class="pl-item"
+        >
           <view class="pl-item-head">
             <view class="pl-item-info">
               <view class="pl-item-titlerow">
-                <text class="pl-item-title">{{ poem.title }}</text>
-                <text class="pl-cat" :class="catClass(poem.category)">{{ poem.category }}</text>
+                <text class="pl-item-title">
+                  {{ poem.title }}
+                </text>
+                <text
+                  class="pl-cat"
+                  :class="catClass(poem.category)"
+                >
+                  {{ poem.category }}
+                </text>
               </view>
               <view class="pl-author">
-                <image class="pl-avatar" :src="poem.authorAvatar" mode="aspectFill" />
-                <text class="pl-author-text">{{ poem.author }} · {{ poem.dynasty }}</text>
+                <image
+                  class="pl-avatar"
+                  :src="poem.authorAvatar"
+                  mode="aspectFill"
+                />
+                <text class="pl-author-text">
+                  {{ poem.author }} · {{ poem.dynasty }}
+                </text>
               </view>
             </view>
-            <view class="pl-like" :class="{ 'pl-like-on': poem.liked }" @tap="toggleLike(poem.id)">
-              <app-icon name="heart" :size="28" :color="poem.liked ? '#ef4444' : 'var(--muted-foreground)'" :fill="poem.liked" />
-              <text class="pl-like-text" :style="{ color: poem.liked ? '#ef4444' : 'var(--muted-foreground)' }">{{ poem.likes }}</text>
+            <view
+              class="pl-like"
+              :class="{ 'pl-like-on': poem.liked }"
+              @tap="toggleLike(poem.id)"
+            >
+              <app-icon
+                name="heart"
+                :size="28"
+                :color="poem.liked ? '#ef4444' : 'var(--muted-foreground)'"
+                :fill="poem.liked"
+              />
+              <text
+                class="pl-like-text"
+                :style="{ color: poem.liked ? '#ef4444' : 'var(--muted-foreground)' }"
+              >
+                {{ poem.likes }}
+              </text>
             </view>
           </view>
-          <text class="pl-excerpt">{{ poem.excerpt }}</text>
-          <text class="pl-time">收藏于 {{ poem.collectedAt }}</text>
+          <text class="pl-excerpt">
+            {{ poem.excerpt }}
+          </text>
+          <text class="pl-time">
+            收藏于 {{ poem.collectedAt }}
+          </text>
         </view>
       </view>
     </view>

@@ -64,20 +64,33 @@ function backToTop() {
       <!-- AI 推荐瀑布流 Feed（双列） -->
       <view class="feed">
         <view class="col">
-          <feed-card v-for="ri in leftCol" :key="ri.key" :data="ri" />
+          <feed-card
+            v-for="ri in leftCol"
+            :key="ri.key"
+            :data="ri"
+          />
         </view>
         <view class="col">
-          <feed-card v-for="ri in rightCol" :key="ri.key" :data="ri" />
+          <feed-card
+            v-for="ri in rightCol"
+            :key="ri.key"
+            :data="ri"
+          />
         </view>
       </view>
 
       <!-- 到底提示 -->
       <view class="end">
-        <view class="end-line" /><text class="end-text">已经到底了</text><view class="end-line" />
+        <view class="end-line" /><text class="end-text">
+          已经到底了
+        </text><view class="end-line" />
       </view>
     </scroll-view>
 
-    <back-top :visible="showBackTop" @tap="backToTop" />
+    <back-top
+      :visible="showBackTop"
+      @tap="backToTop"
+    />
     <bottom-nav active="home" />
   </view>
 </template>

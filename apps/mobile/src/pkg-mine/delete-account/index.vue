@@ -68,128 +68,306 @@ function onCodeInput(e: any) {
 <template>
   <view class="page">
     <view class="nav-wrap">
-      <app-nav-bar title="账号注销" :back-size="40" :title-weight="500" custom-back no-border @back="onBack" />
+      <app-nav-bar
+        title="账号注销"
+        :back-size="40"
+        :title-weight="500"
+        custom-back
+        no-border
+        @back="onBack"
+      />
       <!-- 进度 -->
       <view class="steps">
-        <view v-for="s in 3" :key="s" class="step-item">
-          <view class="step-dot" :class="{ active: s <= step }">
-            <AppIcon v-if="s < step" name="check-circle" :size="18" color="#fff" />
-            <text v-else class="step-num" :class="{ 'num-active': s === step }">{{ s }}</text>
+        <view
+          v-for="s in 3"
+          :key="s"
+          class="step-item"
+        >
+          <view
+            class="step-dot"
+            :class="{ active: s <= step }"
+          >
+            <AppIcon
+              v-if="s < step"
+              name="check-circle"
+              :size="18"
+              color="#fff"
+            />
+            <text
+              v-else
+              class="step-num"
+              :class="{ 'num-active': s === step }"
+            >
+              {{ s }}
+            </text>
           </view>
-          <view v-if="s < 3" class="step-line" :class="{ active: s < step }" />
+          <view
+            v-if="s < 3"
+            class="step-line"
+            :class="{ active: s < step }"
+          />
         </view>
       </view>
     </view>
 
-    <scroll-view scroll-y class="scroll">
+    <scroll-view
+      scroll-y
+      class="scroll"
+    >
       <!-- Step 1: 须知 -->
       <template v-if="step === 1">
         <view class="warn-card">
-          <view class="warn-icon"><AppIcon name="alert-triangle" :size="20" color="#ef4444" /></view>
+          <view class="warn-icon">
+            <AppIcon
+              name="alert-triangle"
+              :size="20"
+              color="#ef4444"
+            />
+          </view>
           <view class="warn-body">
-            <text class="warn-title">注销账号前请仔细阅读</text>
-            <text class="warn-desc">账号注销后，以下数据将被永久删除且无法恢复</text>
+            <text class="warn-title">
+              注销账号前请仔细阅读
+            </text>
+            <text class="warn-desc">
+              账号注销后，以下数据将被永久删除且无法恢复
+            </text>
           </view>
         </view>
 
         <view class="card">
-          <text class="card-title">将被删除的数据</text>
-          <view v-for="(item, idx) in deleteAccountDataItems" :key="idx" class="data-row">
-            <view class="data-icon"><AppIcon :name="item.icon" :size="18" :color="item.color" /></view>
-            <text class="data-label">{{ item.label }}</text>
-            <AppIcon name="x-circle" :size="18" color="#ef4444" />
+          <text class="card-title">
+            将被删除的数据
+          </text>
+          <view
+            v-for="(item, idx) in deleteAccountDataItems"
+            :key="idx"
+            class="data-row"
+          >
+            <view class="data-icon">
+              <AppIcon
+                :name="item.icon"
+                :size="18"
+                :color="item.color"
+              />
+            </view>
+            <text class="data-label">
+              {{ item.label }}
+            </text>
+            <AppIcon
+              name="x-circle"
+              :size="18"
+              color="#ef4444"
+            />
           </view>
         </view>
 
         <view class="card">
-          <text class="card-title">您当前的资产</text>
+          <text class="card-title">
+            您当前的资产
+          </text>
           <view class="asset-grid">
             <view class="asset asset-orange">
-              <text class="asset-label">钱包余额</text>
-              <text class="asset-val">¥{{ assets.balance }}</text>
+              <text class="asset-label">
+                钱包余额
+              </text>
+              <text class="asset-val">
+                ¥{{ assets.balance }}
+              </text>
             </view>
             <view class="asset asset-purple">
-              <text class="asset-label">积分</text>
-              <text class="asset-val">{{ assets.points }}</text>
+              <text class="asset-label">
+                积分
+              </text>
+              <text class="asset-val">
+                {{ assets.points }}
+              </text>
             </view>
             <view class="asset asset-green">
-              <text class="asset-label">优惠券</text>
-              <text class="asset-val">{{ assets.coupons }}张</text>
+              <text class="asset-label">
+                优惠券
+              </text>
+              <text class="asset-val">
+                {{ assets.coupons }}张
+              </text>
             </view>
             <view class="asset asset-blue">
-              <text class="asset-label">会员剩余</text>
-              <text class="asset-val">{{ assets.memberDays }}天</text>
+              <text class="asset-label">
+                会员剩余
+              </text>
+              <text class="asset-val">
+                {{ assets.memberDays }}天
+              </text>
             </view>
           </view>
-          <text v-if="assets.balance > 0" class="asset-tip">* 您的钱包余额尚有 ¥{{ assets.balance }}，建议先提现后再注销</text>
+          <text
+            v-if="assets.balance > 0"
+            class="asset-tip"
+          >
+            * 您的钱包余额尚有 ¥{{ assets.balance }}，建议先提现后再注销
+          </text>
         </view>
 
         <view class="cool-card">
-          <text class="cool-title">7天冷静期</text>
-          <text class="cool-desc">提交注销申请后，账号将进入7天冷静期。期间登录即可撤销注销。</text>
+          <text class="cool-title">
+            7天冷静期
+          </text>
+          <text class="cool-desc">
+            提交注销申请后，账号将进入7天冷静期。期间登录即可撤销注销。
+          </text>
         </view>
 
-        <view class="agree" @tap="agreed = !agreed">
-          <view class="checkbox" :class="{ checked: agreed }">
-            <AppIcon v-if="agreed" name="check" :size="14" color="#fff" />
+        <view
+          class="agree"
+          @tap="agreed = !agreed"
+        >
+          <view
+            class="checkbox"
+            :class="{ checked: agreed }"
+          >
+            <AppIcon
+              v-if="agreed"
+              name="check"
+              :size="14"
+              color="#fff"
+            />
           </view>
-          <text class="agree-text">我已阅读并理解上述内容，确认要注销账号，并同意《账号注销协议》</text>
+          <text class="agree-text">
+            我已阅读并理解上述内容，确认要注销账号，并同意《账号注销协议》
+          </text>
         </view>
       </template>
 
       <!-- Step 2: 原因 -->
       <template v-if="step === 2">
         <view class="card">
-          <text class="card-title">请告诉我们您注销的原因</text>
-          <text class="card-sub">您的反馈将帮助我们改进服务</text>
-          <view v-for="r in deleteAccountReasons" :key="r.id" class="reason" :class="{ active: selectedReason === r.id }" @tap="selectedReason = r.id">
-            <view class="radio" :class="{ on: selectedReason === r.id }">
-              <view v-if="selectedReason === r.id" class="radio-dot" />
+          <text class="card-title">
+            请告诉我们您注销的原因
+          </text>
+          <text class="card-sub">
+            您的反馈将帮助我们改进服务
+          </text>
+          <view
+            v-for="r in deleteAccountReasons"
+            :key="r.id"
+            class="reason"
+            :class="{ active: selectedReason === r.id }"
+            @tap="selectedReason = r.id"
+          >
+            <view
+              class="radio"
+              :class="{ on: selectedReason === r.id }"
+            >
+              <view
+                v-if="selectedReason === r.id"
+                class="radio-dot"
+              />
             </view>
-            <text class="reason-label">{{ r.label }}</text>
+            <text class="reason-label">
+              {{ r.label }}
+            </text>
           </view>
         </view>
-        <view v-if="selectedReason === 'other'" class="card">
-          <text class="card-title">其他原因（选填）</text>
-          <textarea v-model="otherReason" class="textarea" placeholder="请输入您的原因..." :maxlength="200" placeholder-class="ph" />
-          <text class="textarea-count">{{ otherReason.length }}/200</text>
+        <view
+          v-if="selectedReason === 'other'"
+          class="card"
+        >
+          <text class="card-title">
+            其他原因（选填）
+          </text>
+          <textarea
+            v-model="otherReason"
+            class="textarea"
+            placeholder="请输入您的原因..."
+            :maxlength="200"
+            placeholder-class="ph"
+          />
+          <text class="textarea-count">
+            {{ otherReason.length }}/200
+          </text>
         </view>
       </template>
 
       <!-- Step 3: 验证 -->
       <template v-if="step === 3">
         <view class="card">
-          <text class="card-title">验证身份</text>
+          <text class="card-title">
+            验证身份
+          </text>
           <view class="method-toggle">
-            <view class="method" :class="{ active: verifyMethod === 'password' }" @tap="verifyMethod = 'password'">
-              <text class="method-text">密码验证</text>
+            <view
+              class="method"
+              :class="{ active: verifyMethod === 'password' }"
+              @tap="verifyMethod = 'password'"
+            >
+              <text class="method-text">
+                密码验证
+              </text>
             </view>
-            <view class="method" :class="{ active: verifyMethod === 'code' }" @tap="verifyMethod = 'code'">
-              <text class="method-text">短信验证</text>
+            <view
+              class="method"
+              :class="{ active: verifyMethod === 'code' }"
+              @tap="verifyMethod = 'code'"
+            >
+              <text class="method-text">
+                短信验证
+              </text>
             </view>
           </view>
 
           <template v-if="verifyMethod === 'password'">
-            <text class="field-label">请输入登录密码</text>
+            <text class="field-label">
+              请输入登录密码
+            </text>
             <view class="input-wrap">
-              <input class="input" :password="!showPassword" v-model="password" placeholder="输入当前登录密码" placeholder-class="ph" />
-              <view class="input-eye" @tap="showPassword = !showPassword">
-                <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="20" color="#9b948a" />
+              <input
+                v-model="password"
+                class="input"
+                :password="!showPassword"
+                placeholder="输入当前登录密码"
+                placeholder-class="ph"
+              >
+              <view
+                class="input-eye"
+                @tap="showPassword = !showPassword"
+              >
+                <AppIcon
+                  :name="showPassword ? 'eye-off' : 'eye'"
+                  :size="20"
+                  color="#9b948a"
+                />
               </view>
             </view>
           </template>
           <template v-else>
-            <text class="field-label">验证码将发送至 {{ phone }}</text>
+            <text class="field-label">
+              验证码将发送至 {{ phone }}
+            </text>
             <view class="code-row">
-              <input class="input flex1" type="number" :value="code" :maxlength="6" placeholder="输入6位验证码" placeholder-class="ph" @input="onCodeInput" />
-              <view class="btn-code" :class="{ disabled: countdown > 0 }" @tap="sendCode">
-                <text class="btn-code-text">{{ countdown > 0 ? `${countdown}s` : '获取验证码' }}</text>
+              <input
+                class="input flex1"
+                type="number"
+                :value="code"
+                :maxlength="6"
+                placeholder="输入6位验证码"
+                placeholder-class="ph"
+                @input="onCodeInput"
+              >
+              <view
+                class="btn-code"
+                :class="{ disabled: countdown > 0 }"
+                @tap="sendCode"
+              >
+                <text class="btn-code-text">
+                  {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
+                </text>
               </view>
             </view>
           </template>
         </view>
         <view class="yellow-tip">
-          <text class="yellow-tip-text">验证通过后，将进入最终确认步骤</text>
+          <text class="yellow-tip-text">
+            验证通过后，将进入最终确认步骤
+          </text>
         </view>
       </template>
 
@@ -198,23 +376,67 @@ function onCodeInput(e: any) {
 
     <!-- 底部按钮 -->
     <view class="footer-bar">
-      <view class="btn-danger" :class="{ disabled: nextDisabled }" @tap="next">
-        <text class="btn-danger-text">{{ step === 3 ? '确认注销' : '下一步' }}</text>
+      <view
+        class="btn-danger"
+        :class="{ disabled: nextDisabled }"
+        @tap="next"
+      >
+        <text class="btn-danger-text">
+          {{ step === 3 ? '确认注销' : '下一步' }}
+        </text>
       </view>
     </view>
 
     <!-- 最终确认弹窗 -->
-    <view v-if="showConfirm" class="mask center mask-fade-in">
+    <view
+      v-if="showConfirm"
+      class="mask center mask-fade-in"
+    >
       <view class="confirm">
-        <view class="confirm-icon"><AppIcon name="trash-2" :size="28" color="#ef4444" /></view>
-        <text class="confirm-title">最终确认</text>
-        <text class="confirm-desc">请输入 <text class="hl">"确认注销"</text> 以继续</text>
-        <input v-model="confirmText" class="confirm-input" placeholder='请输入"确认注销"' placeholder-class="ph" />
-        <text v-if="confirmText && confirmText !== '确认注销'" class="confirm-err">请输入正确的确认文字</text>
+        <view class="confirm-icon">
+          <AppIcon
+            name="trash-2"
+            :size="28"
+            color="#ef4444"
+          />
+        </view>
+        <text class="confirm-title">
+          最终确认
+        </text>
+        <text class="confirm-desc">
+          请输入 <text class="hl">
+            "确认注销"
+          </text> 以继续
+        </text>
+        <input
+          v-model="confirmText"
+          class="confirm-input"
+          placeholder="请输入&quot;确认注销&quot;"
+          placeholder-class="ph"
+        >
+        <text
+          v-if="confirmText && confirmText !== '确认注销'"
+          class="confirm-err"
+        >
+          请输入正确的确认文字
+        </text>
         <view class="confirm-actions">
-          <view class="confirm-btn ghost" @tap="showConfirm = false; confirmText = ''"><text class="confirm-btn-text">取消</text></view>
-          <view class="confirm-btn danger" :class="{ disabled: confirmText !== '确认注销' || loading }" @tap="doDelete">
-            <text class="confirm-btn-text danger-text">{{ loading ? '处理中...' : '确认注销' }}</text>
+          <view
+            class="confirm-btn ghost"
+            @tap="showConfirm = false; confirmText = ''"
+          >
+            <text class="confirm-btn-text">
+              取消
+            </text>
+          </view>
+          <view
+            class="confirm-btn danger"
+            :class="{ disabled: confirmText !== '确认注销' || loading }"
+            @tap="doDelete"
+          >
+            <text class="confirm-btn-text danger-text">
+              {{ loading ? '处理中...' : '确认注销' }}
+            </text>
           </view>
         </view>
       </view>

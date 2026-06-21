@@ -41,61 +41,152 @@ async function handleUnbind() {
 <template>
   <view class="page">
     <!-- 导航 -->
-    <app-nav-bar title="第三方账号" :back-size="40" background="rgba(250, 248, 245, 0.95)" />
+    <app-nav-bar
+      title="第三方账号"
+      :back-size="40"
+      background="rgba(250, 248, 245, 0.95)"
+    />
 
-    <scroll-view scroll-y class="scroll">
+    <scroll-view
+      scroll-y
+      class="scroll"
+    >
       <!-- 提示卡片 -->
       <view class="tip-wrap">
         <view class="tip-card">
-          <view class="tip-icon"><AppIcon name="alert-triangle" :size="16" color="#d97706" /></view>
+          <view class="tip-icon">
+            <AppIcon
+              name="alert-triangle"
+              :size="16"
+              color="#d97706"
+            />
+          </view>
           <view class="tip-body">
-            <text class="tip-title">绑定提示</text>
-            <text class="tip-text">绑定第三方账号后，可使用该账号快速登录。解绑后将无法使用该方式登录，请确保已绑定其他登录方式。</text>
+            <text class="tip-title">
+              绑定提示
+            </text>
+            <text class="tip-text">
+              绑定第三方账号后，可使用该账号快速登录。解绑后将无法使用该方式登录，请确保已绑定其他登录方式。
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 统计 -->
       <view class="stats">
-        <text class="stats-text">已绑定 {{ boundCount }}/3 个账号</text>
-        <view v-if="boundCount >= 2" class="stats-badge"><text class="stats-badge-text">账号安全</text></view>
+        <text class="stats-text">
+          已绑定 {{ boundCount }}/3 个账号
+        </text>
+        <view
+          v-if="boundCount >= 2"
+          class="stats-badge"
+        >
+          <text class="stats-badge-text">
+            账号安全
+          </text>
+        </view>
       </view>
 
       <!-- 账号列表 -->
       <view class="list">
-        <view v-for="acc in accounts" :key="acc.provider" class="acc-card">
-          <view class="acc-icon" :style="{ background: acc.color }">
-            <AppIcon :name="providerIcon[acc.provider]" :size="24" color="#fff" />
+        <view
+          v-for="acc in accounts"
+          :key="acc.provider"
+          class="acc-card"
+        >
+          <view
+            class="acc-icon"
+            :style="{ background: acc.color }"
+          >
+            <AppIcon
+              :name="providerIcon[acc.provider]"
+              :size="24"
+              color="#fff"
+            />
           </view>
           <view class="acc-info">
             <view class="acc-name-row">
-              <text class="acc-name">{{ acc.name }}</text>
-              <view v-if="acc.isBound" class="bound-tag">
-                <AppIcon name="check-circle" :size="12" color="#16a34a" />
-                <text class="bound-tag-text">已绑定</text>
+              <text class="acc-name">
+                {{ acc.name }}
+              </text>
+              <view
+                v-if="acc.isBound"
+                class="bound-tag"
+              >
+                <AppIcon
+                  name="check-circle"
+                  :size="12"
+                  color="#16a34a"
+                />
+                <text class="bound-tag-text">
+                  已绑定
+                </text>
               </view>
             </view>
-            <text v-if="acc.isBound" class="acc-sub">{{ acc.accountInfo }} · 绑定于 {{ acc.boundAt }}</text>
-            <text v-else class="acc-sub">未绑定，绑定后可快速登录</text>
+            <text
+              v-if="acc.isBound"
+              class="acc-sub"
+            >
+              {{ acc.accountInfo }} · 绑定于 {{ acc.boundAt }}
+            </text>
+            <text
+              v-else
+              class="acc-sub"
+            >
+              未绑定，绑定后可快速登录
+            </text>
           </view>
-          <view v-if="acc.isBound" class="unbind-btn" @tap="unbindTarget = acc">
-            <text class="unbind-btn-text">解绑</text>
+          <view
+            v-if="acc.isBound"
+            class="unbind-btn"
+            @tap="unbindTarget = acc"
+          >
+            <text class="unbind-btn-text">
+              解绑
+            </text>
           </view>
-          <view v-else class="bind-btn" :style="{ background: acc.color }" @tap="handleBind(acc)">
-            <AppIcon name="plus" :size="16" color="#fff" />
-            <text class="bind-btn-text">绑定</text>
+          <view
+            v-else
+            class="bind-btn"
+            :style="{ background: acc.color }"
+            @tap="handleBind(acc)"
+          >
+            <AppIcon
+              name="plus"
+              :size="16"
+              color="#fff"
+            />
+            <text class="bind-btn-text">
+              绑定
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 权益 -->
       <view class="benefits">
-        <text class="benefits-title">绑定后可享受</text>
+        <text class="benefits-title">
+          绑定后可享受
+        </text>
         <view class="benefits-grid">
-          <view v-for="(b, i) in bindBenefits" :key="i" class="benefit-cell">
-            <view class="benefit-icon"><AppIcon :name="b.icon" :size="20" color="#C41E3A" /></view>
-            <text class="benefit-name">{{ b.title }}</text>
-            <text class="benefit-desc">{{ b.desc }}</text>
+          <view
+            v-for="(b, i) in bindBenefits"
+            :key="i"
+            class="benefit-cell"
+          >
+            <view class="benefit-icon">
+              <AppIcon
+                :name="b.icon"
+                :size="20"
+                color="#C41E3A"
+              />
+            </view>
+            <text class="benefit-name">
+              {{ b.title }}
+            </text>
+            <text class="benefit-desc">
+              {{ b.desc }}
+            </text>
           </view>
         </view>
       </view>
@@ -103,35 +194,89 @@ async function handleUnbind() {
     </scroll-view>
 
     <!-- 解绑确认弹窗 -->
-    <view v-if="unbindTarget" class="mask mask-fade-in" @tap="unbindTarget = null">
-      <view class="sheet sheet-slide-up" @tap.stop>
-        <text class="sheet-title">确认解绑</text>
+    <view
+      v-if="unbindTarget"
+      class="mask mask-fade-in"
+      @tap="unbindTarget = null"
+    >
+      <view
+        class="sheet sheet-slide-up"
+        @tap.stop
+      >
+        <text class="sheet-title">
+          确认解绑
+        </text>
         <view class="sheet-acc">
-          <view class="sheet-acc-icon" :style="{ background: unbindTarget.color }">
-            <AppIcon :name="providerIcon[unbindTarget.provider]" :size="20" color="#fff" />
+          <view
+            class="sheet-acc-icon"
+            :style="{ background: unbindTarget.color }"
+          >
+            <AppIcon
+              :name="providerIcon[unbindTarget.provider]"
+              :size="20"
+              color="#fff"
+            />
           </view>
           <view>
-            <text class="sheet-acc-name">{{ unbindTarget.name }}</text>
-            <text class="sheet-acc-sub">{{ unbindTarget.accountInfo }}</text>
+            <text class="sheet-acc-name">
+              {{ unbindTarget.name }}
+            </text>
+            <text class="sheet-acc-sub">
+              {{ unbindTarget.accountInfo }}
+            </text>
           </view>
         </view>
-        <text class="sheet-label">解绑后：</text>
+        <text class="sheet-label">
+          解绑后：
+        </text>
         <view class="sheet-list">
-          <view class="sheet-li"><view class="li-dot" /><text class="li-text">无法使用该账号登录</text></view>
-          <view class="sheet-li"><view class="li-dot" /><text class="li-text">请确保已绑定手机号或其他账号</text></view>
-          <view class="sheet-li"><view class="li-dot" /><text class="li-text">解绑后可重新绑定</text></view>
+          <view class="sheet-li">
+            <view class="li-dot" /><text class="li-text">
+              无法使用该账号登录
+            </text>
+          </view>
+          <view class="sheet-li">
+            <view class="li-dot" /><text class="li-text">
+              请确保已绑定手机号或其他账号
+            </text>
+          </view>
+          <view class="sheet-li">
+            <view class="li-dot" /><text class="li-text">
+              解绑后可重新绑定
+            </text>
+          </view>
         </view>
         <view class="sheet-actions">
-          <view class="sheet-btn ghost" @tap="unbindTarget = null"><text class="sheet-btn-text ghost-text">取消</text></view>
-          <view class="sheet-btn danger" :class="{ disabled: processing }" @tap="handleUnbind">
-            <text class="sheet-btn-text danger-text">{{ processing ? '解绑中...' : '确认解绑' }}</text>
+          <view
+            class="sheet-btn ghost"
+            @tap="unbindTarget = null"
+          >
+            <text class="sheet-btn-text ghost-text">
+              取消
+            </text>
+          </view>
+          <view
+            class="sheet-btn danger"
+            :class="{ disabled: processing }"
+            @tap="handleUnbind"
+          >
+            <text class="sheet-btn-text danger-text">
+              {{ processing ? '解绑中...' : '确认解绑' }}
+            </text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- toast -->
-    <view v-if="toast" class="toast"><text class="toast-text">{{ toast }}</text></view>
+    <view
+      v-if="toast"
+      class="toast"
+    >
+      <text class="toast-text">
+        {{ toast }}
+      </text>
+    </view>
   </view>
 </template>
 

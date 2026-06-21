@@ -43,24 +43,61 @@ function toastSoon() {
 <template>
   <view class="sd">
     <!-- 固定顶部：品牌栏 + 搜索栏 -->
-    <view class="sd-fixed-top" :style="{ paddingTop: 'var(--status-bar-height, 0px)' }">
+    <view
+      class="sd-fixed-top"
+      :style="{ paddingTop: 'var(--status-bar-height, 0px)' }"
+    >
       <!-- 分站品牌栏 -->
-      <view class="sd-brandbar" :style="{ background: theme }">
+      <view
+        class="sd-brandbar"
+        :style="{ background: theme }"
+      >
         <view class="sd-brandbar-left">
-          <view class="sd-brand-logo"><text class="sd-brand-logo-txt">{{ station.name.charAt(0) }}</text></view>
-          <text class="sd-brand-name">{{ station.name }}</text>
-          <text class="sd-brand-tag">热卜国学</text>
+          <view class="sd-brand-logo">
+            <text class="sd-brand-logo-txt">
+              {{ station.name.charAt(0) }}
+            </text>
+          </view>
+          <text class="sd-brand-name">
+            {{ station.name }}
+          </text>
+          <text class="sd-brand-tag">
+            热卜国学
+          </text>
         </view>
-        <view class="sd-brandbar-my" @tap="toastSoon"><text class="sd-brandbar-my-txt">我的分站 ›</text></view>
+        <view
+          class="sd-brandbar-my"
+          @tap="toastSoon"
+        >
+          <text class="sd-brandbar-my-txt">
+            我的分站 ›
+          </text>
+        </view>
       </view>
       <!-- 搜索 Header -->
       <view class="sd-header">
-        <view class="sd-search" @tap="toastSoon">
-          <app-icon name="search" :size="32" color="#999" />
-          <text class="sd-search-ph">搜索课程、圈子、文章...</text>
+        <view
+          class="sd-search"
+          @tap="toastSoon"
+        >
+          <app-icon
+            name="search"
+            :size="32"
+            color="#999"
+          />
+          <text class="sd-search-ph">
+            搜索课程、圈子、文章...
+          </text>
         </view>
-        <view class="sd-bell" @tap="toastSoon">
-          <app-icon name="bell" :size="40" color="#1f1f1f" />
+        <view
+          class="sd-bell"
+          @tap="toastSoon"
+        >
+          <app-icon
+            name="bell"
+            :size="40"
+            color="#1f1f1f"
+          />
           <view class="sd-bell-dot" />
         </view>
       </view>
@@ -84,22 +121,49 @@ function toastSoon() {
             :duration="500"
             @change="onHeroChange"
           >
-            <swiper-item v-for="(img, i) in station.heroImages" :key="i">
-              <image class="sd-hero-img" :src="img" mode="aspectFill" />
+            <swiper-item
+              v-for="(img, i) in station.heroImages"
+              :key="i"
+            >
+              <image
+                class="sd-hero-img"
+                :src="img"
+                mode="aspectFill"
+              />
             </swiper-item>
           </swiper>
           <view class="sd-hero-mask" />
           <view class="sd-hero-master">
-            <view class="sd-hero-avatar" :style="{ background: theme }">
-              <image v-if="station.masterAvatar" class="sd-hero-avatar-img" :src="station.masterAvatar" mode="aspectFill" />
-              <text v-else class="sd-hero-avatar-txt">{{ station.masterName.charAt(0) }}</text>
+            <view
+              class="sd-hero-avatar"
+              :style="{ background: theme }"
+            >
+              <image
+                v-if="station.masterAvatar"
+                class="sd-hero-avatar-img"
+                :src="station.masterAvatar"
+                mode="aspectFill"
+              />
+              <text
+                v-else
+                class="sd-hero-avatar-txt"
+              >
+                {{ station.masterName.charAt(0) }}
+              </text>
             </view>
             <view class="sd-hero-meta">
-              <text class="sd-hero-name">{{ station.name }}</text>
-              <text class="sd-hero-stat">{{ station.memberCount }} 成员 · {{ station.contentCount }} 内容</text>
+              <text class="sd-hero-name">
+                {{ station.name }}
+              </text>
+              <text class="sd-hero-stat">
+                {{ station.memberCount }} 成员 · {{ station.contentCount }} 内容
+              </text>
             </view>
           </view>
-          <view v-if="station.heroImages.length > 1" class="sd-hero-dots">
+          <view
+            v-if="station.heroImages.length > 1"
+            class="sd-hero-dots"
+          >
             <view
               v-for="(img, i) in station.heroImages"
               :key="i"
@@ -109,12 +173,29 @@ function toastSoon() {
           </view>
         </view>
         <!-- 站长寄语 -->
-        <view class="sd-welcome" :style="{ background: theme + '1a' }" @tap="toastSoon">
+        <view
+          class="sd-welcome"
+          :style="{ background: theme + '1a' }"
+          @tap="toastSoon"
+        >
           <view class="sd-welcome-left">
-            <app-icon name="sparkles" :size="32" :color="theme" />
-            <text class="sd-welcome-txt" :style="{ color: theme }">欢迎来到{{ station.masterName }}的国学小站</text>
+            <app-icon
+              name="sparkles"
+              :size="32"
+              :color="theme"
+            />
+            <text
+              class="sd-welcome-txt"
+              :style="{ color: theme }"
+            >
+              欢迎来到{{ station.masterName }}的国学小站
+            </text>
           </view>
-          <app-icon name="chevron-right" :size="32" color="#999" />
+          <app-icon
+            name="chevron-right"
+            :size="32"
+            color="#999"
+          />
         </view>
       </view>
 
@@ -125,15 +206,37 @@ function toastSoon() {
       <view class="sd-featured">
         <view class="sd-featured-head">
           <view class="sd-featured-title">
-            <view class="sd-featured-bar" :style="{ background: theme }" />
-            <text class="sd-featured-title-txt">{{ station.masterName }}精选</text>
-            <view class="sd-featured-badge" :style="{ background: theme + '26' }">
-              <text class="sd-featured-badge-txt" :style="{ color: theme }">站长推荐</text>
+            <view
+              class="sd-featured-bar"
+              :style="{ background: theme }"
+            />
+            <text class="sd-featured-title-txt">
+              {{ station.masterName }}精选
+            </text>
+            <view
+              class="sd-featured-badge"
+              :style="{ background: theme + '26' }"
+            >
+              <text
+                class="sd-featured-badge-txt"
+                :style="{ color: theme }"
+              >
+                站长推荐
+              </text>
             </view>
           </view>
-          <view class="sd-featured-more" @tap="toastSoon">
-            <text class="sd-featured-more-txt">查看全部</text>
-            <app-icon name="chevron-right" :size="24" color="#999" />
+          <view
+            class="sd-featured-more"
+            @tap="toastSoon"
+          >
+            <text class="sd-featured-more-txt">
+              查看全部
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="24"
+              color="#999"
+            />
           </view>
         </view>
 
@@ -147,28 +250,72 @@ function toastSoon() {
           >
             <view class="sd-fcard-main">
               <view class="sd-fcard-cover">
-                <image v-if="item.cover" class="sd-fcard-cover-img" :src="item.cover" mode="aspectFill" />
-                <view v-else class="sd-fcard-cover-ph" :style="{ background: theme + '33' }">
-                  <app-icon :name="featuredTypeConfig[item.type].icon" :size="56" :color="theme" />
+                <image
+                  v-if="item.cover"
+                  class="sd-fcard-cover-img"
+                  :src="item.cover"
+                  mode="aspectFill"
+                />
+                <view
+                  v-else
+                  class="sd-fcard-cover-ph"
+                  :style="{ background: theme + '33' }"
+                >
+                  <app-icon
+                    :name="featuredTypeConfig[item.type].icon"
+                    :size="56"
+                    :color="theme"
+                  />
                 </view>
               </view>
               <view class="sd-fcard-info">
                 <view class="sd-fcard-tags">
-                  <view class="sd-fcard-type" :style="{ background: theme + '26' }">
-                    <text class="sd-fcard-type-txt" :style="{ color: theme }">{{ featuredTypeConfig[item.type].label }}</text>
+                  <view
+                    class="sd-fcard-type"
+                    :style="{ background: theme + '26' }"
+                  >
+                    <text
+                      class="sd-fcard-type-txt"
+                      :style="{ color: theme }"
+                    >
+                      {{ featuredTypeConfig[item.type].label }}
+                    </text>
                   </view>
-                  <text v-if="item.price !== undefined && item.price > 0" class="sd-fcard-price">¥{{ item.price }}</text>
-                  <text v-if="item.originalPrice" class="sd-fcard-original">¥{{ item.originalPrice }}</text>
+                  <text
+                    v-if="item.price !== undefined && item.price > 0"
+                    class="sd-fcard-price"
+                  >
+                    ¥{{ item.price }}
+                  </text>
+                  <text
+                    v-if="item.originalPrice"
+                    class="sd-fcard-original"
+                  >
+                    ¥{{ item.originalPrice }}
+                  </text>
                 </view>
-                <text class="sd-fcard-title">{{ item.title }}</text>
-                <view v-if="item.recommendation" class="sd-fcard-rec">
-                  <app-icon name="quote" :size="24" color="#999" />
-                  <text class="sd-fcard-rec-txt">{{ item.recommendation }}</text>
+                <text class="sd-fcard-title">
+                  {{ item.title }}
+                </text>
+                <view
+                  v-if="item.recommendation"
+                  class="sd-fcard-rec"
+                >
+                  <app-icon
+                    name="quote"
+                    :size="24"
+                    color="#999"
+                  />
+                  <text class="sd-fcard-rec-txt">
+                    {{ item.recommendation }}
+                  </text>
                 </view>
               </view>
             </view>
             <view class="sd-fcard-foot">
-              <text class="sd-fcard-foot-txt">{{ station.masterName }} 推荐</text>
+              <text class="sd-fcard-foot-txt">
+                {{ station.masterName }} 推荐
+              </text>
             </view>
           </view>
         </view>
@@ -176,23 +323,38 @@ function toastSoon() {
 
       <!-- 为你推荐 -->
       <view class="sd-recommend-head">
-        <text class="sd-recommend-title">为你推荐</text>
+        <text class="sd-recommend-title">
+          为你推荐
+        </text>
       </view>
       <view class="sd-feed">
         <view class="sd-feed-col">
-          <feed-card v-for="ri in leftCol" :key="ri.key" :data="ri" />
+          <feed-card
+            v-for="ri in leftCol"
+            :key="ri.key"
+            :data="ri"
+          />
         </view>
         <view class="sd-feed-col">
-          <feed-card v-for="ri in rightCol" :key="ri.key" :data="ri" />
+          <feed-card
+            v-for="ri in rightCol"
+            :key="ri.key"
+            :data="ri"
+          />
         </view>
       </view>
 
       <view class="sd-end">
-        <view class="sd-end-line" /><text class="sd-end-text">已经到底了</text><view class="sd-end-line" />
+        <view class="sd-end-line" /><text class="sd-end-text">
+          已经到底了
+        </text><view class="sd-end-line" />
       </view>
     </scroll-view>
 
-    <back-top :visible="showBackTop" @tap="backToTop" />
+    <back-top
+      :visible="showBackTop"
+      @tap="backToTop"
+    />
     <bottom-nav active="home" />
   </view>
 </template>

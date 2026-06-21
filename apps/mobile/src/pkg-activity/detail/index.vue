@@ -1,17 +1,40 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-btn" @tap="onBack">
-        <app-icon name="arrow-left" :size="44" color="#1A1A1A" />
+    <view
+      class="nav"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view
+        class="nav-btn"
+        @tap="onBack"
+      >
+        <app-icon
+          name="arrow-left"
+          :size="44"
+          color="#1A1A1A"
+        />
       </view>
-      <text class="nav-title">{{ config.title }}</text>
-      <view class="nav-btn" @tap="showShare = true">
-        <app-icon name="share-2" :size="40" color="#1A1A1A" />
+      <text class="nav-title">
+        {{ config.title }}
+      </text>
+      <view
+        class="nav-btn"
+        @tap="showShare = true"
+      >
+        <app-icon
+          name="share-2"
+          :size="40"
+          color="#1A1A1A"
+        />
       </view>
     </view>
 
-    <scroll-view scroll-y class="scroll" :style="{ paddingTop: navH + 'px' }">
+    <scroll-view
+      scroll-y
+      class="scroll"
+      :style="{ paddingTop: navH + 'px' }"
+    >
       <!-- Banner 轮播 -->
       <view class="banner">
         <view
@@ -20,8 +43,12 @@
           class="banner-slide"
           :class="{ active: currentBanner === i }"
         >
-          <text class="banner-title">{{ b.title }}</text>
-          <text class="banner-sub">{{ b.subtitle }}</text>
+          <text class="banner-title">
+            {{ b.title }}
+          </text>
+          <text class="banner-sub">
+            {{ b.subtitle }}
+          </text>
         </view>
         <view class="banner-dots">
           <view
@@ -37,17 +64,37 @@
       <view class="section-pad">
         <view class="countdown-card">
           <view class="cd-left">
-            <app-icon name="clock" :size="36" color="#C41E3A" />
-            <text class="cd-label">距离活动结束</text>
+            <app-icon
+              name="clock"
+              :size="36"
+              color="#C41E3A"
+            />
+            <text class="cd-label">
+              距离活动结束
+            </text>
           </view>
           <view class="cd-right">
-            <text class="cd-box">{{ countdown.days }}</text>
-            <text class="cd-unit">天</text>
-            <text class="cd-box">{{ pad(countdown.hours) }}</text>
-            <text class="cd-colon">:</text>
-            <text class="cd-box">{{ pad(countdown.minutes) }}</text>
-            <text class="cd-colon">:</text>
-            <text class="cd-box">{{ pad(countdown.seconds) }}</text>
+            <text class="cd-box">
+              {{ countdown.days }}
+            </text>
+            <text class="cd-unit">
+              天
+            </text>
+            <text class="cd-box">
+              {{ pad(countdown.hours) }}
+            </text>
+            <text class="cd-colon">
+              :
+            </text>
+            <text class="cd-box">
+              {{ pad(countdown.minutes) }}
+            </text>
+            <text class="cd-colon">
+              :
+            </text>
+            <text class="cd-box">
+              {{ pad(countdown.seconds) }}
+            </text>
           </view>
         </view>
       </view>
@@ -55,16 +102,38 @@
       <!-- 活动规则 -->
       <view class="section-px">
         <view class="rules-card">
-          <view class="rules-head" @tap="rulesExpanded = !rulesExpanded">
-            <text class="rules-title">活动规则</text>
-            <app-icon :name="rulesExpanded ? 'chevron-up' : 'chevron-down'" :size="32" color="#999" />
+          <view
+            class="rules-head"
+            @tap="rulesExpanded = !rulesExpanded"
+          >
+            <text class="rules-title">
+              活动规则
+            </text>
+            <app-icon
+              :name="rulesExpanded ? 'chevron-up' : 'chevron-down'"
+              :size="32"
+              color="#999"
+            />
           </view>
-          <view v-if="rulesExpanded" class="rules-body">
-            <text class="rule-line">1. 活动时间：2024年11月1日00:00 - 11月11日23:59</text>
-            <text class="rule-line">2. 活动期间，全场课程低至5折，部分商品参与满减活动</text>
-            <text class="rule-line">3. 新用户注册即送100国学币，可抵扣任意订单</text>
-            <text class="rule-line">4. 分享活动页面给好友，好友注册成功后双方各得50国学币</text>
-            <text class="rule-line">5. 本活动最终解释权归平台所有</text>
+          <view
+            v-if="rulesExpanded"
+            class="rules-body"
+          >
+            <text class="rule-line">
+              1. 活动时间：2024年11月1日00:00 - 11月11日23:59
+            </text>
+            <text class="rule-line">
+              2. 活动期间，全场课程低至5折，部分商品参与满减活动
+            </text>
+            <text class="rule-line">
+              3. 新用户注册即送100国学币，可抵扣任意订单
+            </text>
+            <text class="rule-line">
+              4. 分享活动页面给好友，好友注册成功后双方各得50国学币
+            </text>
+            <text class="rule-line">
+              5. 本活动最终解释权归平台所有
+            </text>
           </view>
         </view>
       </view>
@@ -73,15 +142,33 @@
       <view class="block">
         <view class="block-head">
           <view class="block-title-wrap">
-            <app-icon name="ticket" :size="40" color="#C9A96E" />
-            <text class="block-title">优惠券专区</text>
+            <app-icon
+              name="ticket"
+              :size="40"
+              color="#C9A96E"
+            />
+            <text class="block-title">
+              优惠券专区
+            </text>
           </view>
-          <view class="block-more" @tap="go('/coupons')">
-            <text class="more-txt">我的券</text>
-            <app-icon name="chevron-right" :size="24" color="#999" />
+          <view
+            class="block-more"
+            @tap="go('/coupons')"
+          >
+            <text class="more-txt">
+              我的券
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="24"
+              color="#999"
+            />
           </view>
         </view>
-        <scroll-view scroll-x class="hscroll">
+        <scroll-view
+          scroll-x
+          class="hscroll"
+        >
           <view class="hrow">
             <view
               v-for="c in coupons"
@@ -90,18 +177,29 @@
               :class="{ claimed: c.claimed }"
             >
               <view class="coupon-body">
-                <text class="coupon-amount" :class="{ gray: c.claimed }">
-                  <text class="coupon-yen">¥</text>{{ c.amount }}
+                <text
+                  class="coupon-amount"
+                  :class="{ gray: c.claimed }"
+                >
+                  <text class="coupon-yen">
+                    ¥
+                  </text>{{ c.amount }}
                 </text>
-                <text class="coupon-cond">{{ c.condition }}</text>
-                <text class="coupon-scope">{{ c.scope }}</text>
+                <text class="coupon-cond">
+                  {{ c.condition }}
+                </text>
+                <text class="coupon-scope">
+                  {{ c.scope }}
+                </text>
               </view>
               <view
                 class="coupon-btn"
                 :class="{ claimed: c.claimed }"
                 @tap="claimCoupon(c)"
               >
-                <text class="coupon-btn-txt">{{ c.claimed ? '已领取' : '立即领取' }}</text>
+                <text class="coupon-btn-txt">
+                  {{ c.claimed ? '已领取' : '立即领取' }}
+                </text>
               </view>
             </view>
           </view>
@@ -112,16 +210,38 @@
       <view class="block">
         <view class="block-head">
           <view class="block-title-wrap">
-            <app-icon name="flame" :size="40" color="#C41E3A" />
-            <text class="block-title">限时秒杀</text>
-            <view class="hot-badge"><text class="hot-txt">抢购中</text></view>
+            <app-icon
+              name="flame"
+              :size="40"
+              color="#C41E3A"
+            />
+            <text class="block-title">
+              限时秒杀
+            </text>
+            <view class="hot-badge">
+              <text class="hot-txt">
+                抢购中
+              </text>
+            </view>
           </view>
-          <view class="block-more" @tap="go('/seckill')">
-            <text class="more-txt">更多</text>
-            <app-icon name="chevron-right" :size="24" color="#999" />
+          <view
+            class="block-more"
+            @tap="go('/seckill')"
+          >
+            <text class="more-txt">
+              更多
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="24"
+              color="#999"
+            />
           </view>
         </view>
-        <scroll-view scroll-x class="hscroll">
+        <scroll-view
+          scroll-x
+          class="hscroll"
+        >
           <view class="hrow">
             <view
               v-for="p in config.seckillProducts"
@@ -130,18 +250,39 @@
               @tap="go('/course/' + p.id)"
             >
               <view class="sk-cover">
-                <app-icon name="book-open" :size="56" color="rgba(201,169,110,0.6)" />
-                <view class="sk-off"><text class="sk-off-txt">{{ offPercent(p) }}%OFF</text></view>
+                <app-icon
+                  name="book-open"
+                  :size="56"
+                  color="rgba(201,169,110,0.6)"
+                />
+                <view class="sk-off">
+                  <text class="sk-off-txt">
+                    {{ offPercent(p) }}%OFF
+                  </text>
+                </view>
               </view>
               <view class="sk-info">
-                <text class="sk-title">{{ p.title }}</text>
+                <text class="sk-title">
+                  {{ p.title }}
+                </text>
                 <view class="sk-price-row">
-                  <text class="sk-price">¥{{ p.seckillPrice }}</text>
-                  <text class="sk-origin">¥{{ p.originalPrice }}</text>
+                  <text class="sk-price">
+                    ¥{{ p.seckillPrice }}
+                  </text>
+                  <text class="sk-origin">
+                    ¥{{ p.originalPrice }}
+                  </text>
                 </view>
                 <view class="sk-progress">
-                  <view class="sk-bar"><view class="sk-bar-fill" :style="{ width: soldPercent(p) + '%' }" /></view>
-                  <text class="sk-sold">已抢{{ soldPercent(p) }}%</text>
+                  <view class="sk-bar">
+                    <view
+                      class="sk-bar-fill"
+                      :style="{ width: soldPercent(p) + '%' }"
+                    />
+                  </view>
+                  <text class="sk-sold">
+                    已抢{{ soldPercent(p) }}%
+                  </text>
                 </view>
               </view>
             </view>
@@ -153,8 +294,14 @@
       <view class="block">
         <view class="block-head no-more">
           <view class="block-title-wrap">
-            <app-icon name="gift" :size="40" color="#C9A96E" />
-            <text class="block-title">活动精选</text>
+            <app-icon
+              name="gift"
+              :size="40"
+              color="#C9A96E"
+            />
+            <text class="block-title">
+              活动精选
+            </text>
           </view>
         </view>
         <view class="grid">
@@ -165,18 +312,35 @@
             @tap="go(p.type === 'course' ? '/course/' + p.id : '/mall/product/' + p.id)"
           >
             <view class="prod-cover">
-              <app-icon :name="p.type === 'course' ? 'book-open' : 'shopping-bag'" :size="72" :color="p.type === 'course' ? 'rgba(201,169,110,0.6)' : 'rgba(196,30,58,0.6)'" />
-              <view class="prod-tag" :class="p.type">
-                <text class="prod-tag-txt">{{ p.type === 'course' ? '课程' : '商品' }}</text>
+              <app-icon
+                :name="p.type === 'course' ? 'book-open' : 'shopping-bag'"
+                :size="72"
+                :color="p.type === 'course' ? 'rgba(201,169,110,0.6)' : 'rgba(196,30,58,0.6)'"
+              />
+              <view
+                class="prod-tag"
+                :class="p.type"
+              >
+                <text class="prod-tag-txt">
+                  {{ p.type === 'course' ? '课程' : '商品' }}
+                </text>
               </view>
             </view>
             <view class="prod-info">
-              <text class="prod-title">{{ p.title }}</text>
+              <text class="prod-title">
+                {{ p.title }}
+              </text>
               <view class="prod-price-row">
-                <text class="prod-price">¥{{ p.price }}</text>
-                <text class="prod-origin">¥{{ p.originalPrice }}</text>
+                <text class="prod-price">
+                  ¥{{ p.price }}
+                </text>
+                <text class="prod-origin">
+                  ¥{{ p.originalPrice }}
+                </text>
               </view>
-              <text class="prod-sales">{{ p.sales }}人已购</text>
+              <text class="prod-sales">
+                {{ p.sales }}人已购
+              </text>
             </view>
           </view>
         </view>
@@ -187,8 +351,14 @@
         <view class="rank-card">
           <view class="rank-head">
             <view class="block-title-wrap">
-              <app-icon name="trophy" :size="40" color="#C9A96E" />
-              <text class="rank-title">活动排行榜</text>
+              <app-icon
+                name="trophy"
+                :size="40"
+                color="#C9A96E"
+              />
+              <text class="rank-title">
+                活动排行榜
+              </text>
             </view>
             <view class="rank-tabs">
               <view
@@ -198,7 +368,12 @@
                 :class="{ on: rankingType === t }"
                 @tap="rankingType = t"
               >
-                <text class="rank-tab-txt" :class="{ on: rankingType === t }">{{ t === 'consume' ? '消费榜' : '邀请榜' }}</text>
+                <text
+                  class="rank-tab-txt"
+                  :class="{ on: rankingType === t }"
+                >
+                  {{ t === 'consume' ? '消费榜' : '邀请榜' }}
+                </text>
               </view>
             </view>
           </view>
@@ -209,23 +384,56 @@
               class="rank-item"
               @tap="go('/user/' + u.id)"
             >
-              <view class="rank-no" :class="'rank-' + (i + 1)"><text class="rank-no-txt">{{ i + 1 }}</text></view>
-              <view class="rank-avatar"><text class="rank-avatar-txt">{{ u.name[0] }}</text></view>
-              <text class="rank-name">{{ u.name }}</text>
-              <text class="rank-amount">{{ rankingType === 'consume' ? '¥' + u.amount.toLocaleString() : u.amount + '人' }}</text>
+              <view
+                class="rank-no"
+                :class="'rank-' + (i + 1)"
+              >
+                <text class="rank-no-txt">
+                  {{ i + 1 }}
+                </text>
+              </view>
+              <view class="rank-avatar">
+                <text class="rank-avatar-txt">
+                  {{ u.name[0] }}
+                </text>
+              </view>
+              <text class="rank-name">
+                {{ u.name }}
+              </text>
+              <text class="rank-amount">
+                {{ rankingType === 'consume' ? '¥' + u.amount.toLocaleString() : u.amount + '人' }}
+              </text>
             </view>
           </view>
-          <view class="rank-foot" @tap="go('/ranking')">
-            <text class="rank-foot-txt">查看完整榜单</text>
-            <app-icon name="chevron-right" :size="24" color="#999" />
+          <view
+            class="rank-foot"
+            @tap="go('/ranking')"
+          >
+            <text class="rank-foot-txt">
+              查看完整榜单
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="24"
+              color="#999"
+            />
           </view>
         </view>
       </view>
 
       <!-- 更多精彩 -->
-      <view class="more-block" @tap="go('/discover')">
-        <text class="more-block-txt">更多精彩内容</text>
-        <app-icon name="chevron-right" :size="28" color="#999" />
+      <view
+        class="more-block"
+        @tap="go('/discover')"
+      >
+        <text class="more-block-txt">
+          更多精彩内容
+        </text>
+        <app-icon
+          name="chevron-right"
+          :size="28"
+          color="#999"
+        />
       </view>
 
       <view class="bottom-space" />
@@ -234,27 +442,69 @@
     <!-- 底部固定分享栏 -->
     <view class="share-bar">
       <view class="share-bar-text">
-        <text class="share-bar-sub">分享赚国学币</text>
-        <text class="share-bar-main">好友下单返<text class="share-bar-hl">10%</text>佣金</text>
+        <text class="share-bar-sub">
+          分享赚国学币
+        </text>
+        <text class="share-bar-main">
+          好友下单返<text class="share-bar-hl">
+            10%
+          </text>佣金
+        </text>
       </view>
-      <view class="share-bar-btn" @tap="showShare = true">
-        <text class="share-bar-btn-txt">立即分享</text>
+      <view
+        class="share-bar-btn"
+        @tap="showShare = true"
+      >
+        <text class="share-bar-btn-txt">
+          立即分享
+        </text>
       </view>
     </view>
 
     <!-- 分享弹窗 -->
-    <view v-if="showShare" class="mask" @tap="showShare = false">
-      <view class="share-sheet" @tap.stop>
-        <view class="share-sheet-head"><text class="share-sheet-title">分享活动</text></view>
+    <view
+      v-if="showShare"
+      class="mask"
+      @tap="showShare = false"
+    >
+      <view
+        class="share-sheet"
+        @tap.stop
+      >
+        <view class="share-sheet-head">
+          <text class="share-sheet-title">
+            分享活动
+          </text>
+        </view>
         <view class="share-grid">
-          <view v-for="it in shareItems" :key="it.icon" class="share-item">
-            <view class="share-icon" :style="{ background: it.color }">
-              <app-icon name="share-2" :size="40" color="#FFFFFF" />
+          <view
+            v-for="it in shareItems"
+            :key="it.icon"
+            class="share-item"
+          >
+            <view
+              class="share-icon"
+              :style="{ background: it.color }"
+            >
+              <app-icon
+                name="share-2"
+                :size="40"
+                color="#FFFFFF"
+              />
             </view>
-            <text class="share-item-label">{{ it.label }}</text>
+            <text class="share-item-label">
+              {{ it.label }}
+            </text>
           </view>
         </view>
-        <view class="share-cancel" @tap="showShare = false"><text class="share-cancel-txt">取消</text></view>
+        <view
+          class="share-cancel"
+          @tap="showShare = false"
+        >
+          <text class="share-cancel-txt">
+            取消
+          </text>
+        </view>
       </view>
     </view>
   </view>

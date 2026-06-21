@@ -3,27 +3,62 @@
     <!-- 红渐变头部 -->
     <view class="hero">
       <view class="hero-top">
-        <view class="hero-btn" @tap="goBack">
-          <app-icon name="arrow-left" :size="40" color="#fff" />
+        <view
+          class="hero-btn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="40"
+            color="#fff"
+          />
         </view>
         <view class="hero-title">
-          <app-icon name="sparkles" :size="34" color="#fff" />
-          <text class="hero-title-text">智能体广场</text>
+          <app-icon
+            name="sparkles"
+            :size="34"
+            color="#fff"
+          />
+          <text class="hero-title-text">
+            智能体广场
+          </text>
         </view>
-        <view class="hero-btn" @tap="goRanking">
-          <app-icon name="trending-up" :size="38" color="#fff" />
+        <view
+          class="hero-btn"
+          @tap="goRanking"
+        >
+          <app-icon
+            name="trending-up"
+            :size="38"
+            color="#fff"
+          />
         </view>
       </view>
       <!-- 搜索框 -->
-      <view class="search-box" @tap="openSearch">
-        <app-icon name="search" :size="34" color="#999" />
-        <text class="search-ph">搜索智能体、技能...</text>
+      <view
+        class="search-box"
+        @tap="openSearch"
+      >
+        <app-icon
+          name="search"
+          :size="34"
+          color="#999"
+        />
+        <text class="search-ph">
+          搜索智能体、技能...
+        </text>
       </view>
     </view>
 
-    <scroll-view class="body-scroll" scroll-y>
+    <scroll-view
+      class="body-scroll"
+      scroll-y
+    >
       <!-- 分类 Tab -->
-      <scroll-view class="cat-scroll" scroll-x>
+      <scroll-view
+        class="cat-scroll"
+        scroll-x
+      >
         <view class="cat-list">
           <view
             v-for="cat in categories"
@@ -32,18 +67,35 @@
             :class="{ 'cat-active': activeCat === cat.id }"
             @tap="activeCat = cat.id"
           >
-            <app-icon :name="cat.icon" :size="30" :color="activeCat === cat.id ? '#fff' : '#666'" />
-            <text class="cat-name" :class="{ 'cat-name-active': activeCat === cat.id }">{{ cat.name }}</text>
+            <app-icon
+              :name="cat.icon"
+              :size="30"
+              :color="activeCat === cat.id ? '#fff' : '#666'"
+            />
+            <text
+              class="cat-name"
+              :class="{ 'cat-name-active': activeCat === cat.id }"
+            >
+              {{ cat.name }}
+            </text>
           </view>
         </view>
       </scroll-view>
 
       <!-- Banner -->
       <view class="banner">
-        <image class="banner-img" :src="banner.image" mode="aspectFill" />
+        <image
+          class="banner-img"
+          :src="banner.image"
+          mode="aspectFill"
+        />
         <view class="banner-overlay">
-          <text class="banner-title">{{ banner.title }}</text>
-          <text class="banner-desc">{{ banner.desc }}</text>
+          <text class="banner-title">
+            {{ banner.title }}
+          </text>
+          <text class="banner-desc">
+            {{ banner.desc }}
+          </text>
         </view>
       </view>
 
@@ -51,37 +103,105 @@
       <view class="section">
         <view class="section-head">
           <view class="section-title-wrap">
-            <app-icon name="flame" :size="34" color="#C41E3A" />
-            <text class="section-title">热门智能体</text>
+            <app-icon
+              name="flame"
+              :size="34"
+              color="#C41E3A"
+            />
+            <text class="section-title">
+              热门智能体
+            </text>
           </view>
-          <view class="section-more" @tap="goRanking">
-            <text class="section-more-text">排行榜</text>
-            <app-icon name="chevron-right" :size="28" color="#999" />
+          <view
+            class="section-more"
+            @tap="goRanking"
+          >
+            <text class="section-more-text">
+              排行榜
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="28"
+              color="#999"
+            />
           </view>
         </view>
         <view class="bot-grid">
-          <view v-for="bot in hotBots" :key="bot.id" class="bot-card" @tap="openBot(bot)">
+          <view
+            v-for="bot in hotBots"
+            :key="bot.id"
+            class="bot-card"
+            @tap="openBot(bot)"
+          >
             <view class="bot-card-top">
-              <image class="bot-avatar" :src="bot.avatar" mode="aspectFill" />
-              <view v-if="bot.isOfficial" class="bot-badge bot-badge-official">
-                <app-icon name="badge-check" :size="22" color="#fff" />
-                <text class="bot-badge-text">官方</text>
+              <image
+                class="bot-avatar"
+                :src="bot.avatar"
+                mode="aspectFill"
+              />
+              <view
+                v-if="bot.isOfficial"
+                class="bot-badge bot-badge-official"
+              >
+                <app-icon
+                  name="badge-check"
+                  :size="22"
+                  color="#fff"
+                />
+                <text class="bot-badge-text">
+                  官方
+                </text>
               </view>
-              <view v-else-if="bot.isNew" class="bot-badge bot-badge-new">NEW</view>
+              <view
+                v-else-if="bot.isNew"
+                class="bot-badge bot-badge-new"
+              >
+                NEW
+              </view>
             </view>
-            <text class="bot-name">{{ bot.name }}</text>
-            <text class="bot-desc">{{ bot.desc }}</text>
+            <text class="bot-name">
+              {{ bot.name }}
+            </text>
+            <text class="bot-desc">
+              {{ bot.desc }}
+            </text>
             <view class="bot-foot">
               <view class="bot-rate">
-                <app-icon name="star" :size="22" color="#F5A623" />
-                <text class="bot-rate-text">{{ bot.rating }}</text>
-                <app-icon name="flame" :size="22" color="#C41E3A" />
-                <text class="bot-hot-text">{{ bot.hot }}</text>
+                <app-icon
+                  name="star"
+                  :size="22"
+                  color="#F5A623"
+                />
+                <text class="bot-rate-text">
+                  {{ bot.rating }}
+                </text>
+                <app-icon
+                  name="flame"
+                  :size="22"
+                  color="#C41E3A"
+                />
+                <text class="bot-hot-text">
+                  {{ bot.hot }}
+                </text>
               </view>
-              <view v-if="bot.isFree" class="bot-free">免费</view>
-              <view v-else class="bot-price">
-                <app-icon name="crown" :size="22" color="#C9A96E" />
-                <text class="bot-price-text">{{ bot.price }}</text>
+              <view
+                v-if="bot.isFree"
+                class="bot-free"
+              >
+                免费
+              </view>
+              <view
+                v-else
+                class="bot-price"
+              >
+                <app-icon
+                  name="crown"
+                  :size="22"
+                  color="#C9A96E"
+                />
+                <text class="bot-price-text">
+                  {{ bot.price }}
+                </text>
               </view>
             </view>
           </view>
@@ -92,16 +212,38 @@
       <view class="section">
         <view class="section-head">
           <view class="section-title-wrap">
-            <app-icon name="sparkles" :size="34" color="#C41E3A" />
-            <text class="section-title">新上线</text>
+            <app-icon
+              name="sparkles"
+              :size="34"
+              color="#C41E3A"
+            />
+            <text class="section-title">
+              新上线
+            </text>
           </view>
         </view>
-        <scroll-view class="new-scroll" scroll-x>
+        <scroll-view
+          class="new-scroll"
+          scroll-x
+        >
           <view class="new-list">
-            <view v-for="bot in newBots" :key="bot.id" class="new-card" @tap="openBot(bot)">
-              <image class="new-avatar" :src="bot.avatar" mode="aspectFill" />
-              <text class="new-name">{{ bot.name }}</text>
-              <text class="new-desc">{{ bot.desc }}</text>
+            <view
+              v-for="bot in newBots"
+              :key="bot.id"
+              class="new-card"
+              @tap="openBot(bot)"
+            >
+              <image
+                class="new-avatar"
+                :src="bot.avatar"
+                mode="aspectFill"
+              />
+              <text class="new-name">
+                {{ bot.name }}
+              </text>
+              <text class="new-desc">
+                {{ bot.desc }}
+              </text>
             </view>
           </view>
         </scroll-view>
@@ -111,20 +253,46 @@
       <view class="section">
         <view class="section-head">
           <view class="section-title-wrap">
-            <app-icon name="compass" :size="34" color="#C41E3A" />
-            <text class="section-title">为你推荐</text>
+            <app-icon
+              name="compass"
+              :size="34"
+              color="#C41E3A"
+            />
+            <text class="section-title">
+              为你推荐
+            </text>
           </view>
         </view>
         <view class="feed-list">
-          <view v-for="card in feedCards" :key="card.id" class="feed-card" @tap="onFeed(card)">
-            <view class="feed-icon" :class="'feed-icon-' + card.type">
-              <app-icon :name="feedIcon(card.type)" :size="32" color="#fff" />
+          <view
+            v-for="card in feedCards"
+            :key="card.id"
+            class="feed-card"
+            @tap="onFeed(card)"
+          >
+            <view
+              class="feed-icon"
+              :class="'feed-icon-' + card.type"
+            >
+              <app-icon
+                :name="feedIcon(card.type)"
+                :size="32"
+                color="#fff"
+              />
             </view>
             <view class="feed-body">
-              <text class="feed-title">{{ card.title }}</text>
-              <text class="feed-desc">{{ card.desc }}</text>
+              <text class="feed-title">
+                {{ card.title }}
+              </text>
+              <text class="feed-desc">
+                {{ card.desc }}
+              </text>
             </view>
-            <app-icon name="chevron-right" :size="28" color="#ccc" />
+            <app-icon
+              name="chevron-right"
+              :size="28"
+              color="#ccc"
+            />
           </view>
         </view>
         <view style="height: 40rpx" />
@@ -132,30 +300,46 @@
     </scroll-view>
 
     <!-- 搜索弹层 -->
-    <view v-if="searchOpen" class="search-mask">
+    <view
+      v-if="searchOpen"
+      class="search-mask"
+    >
       <view class="search-panel">
         <view class="search-bar">
           <view class="search-input-wrap">
-            <app-icon name="search" :size="32" color="#999" />
+            <app-icon
+              name="search"
+              :size="32"
+              color="#999"
+            />
             <input
-              class="search-input"
               v-model="searchKeyword"
+              class="search-input"
               placeholder="搜索智能体、技能..."
               focus
               confirm-type="search"
-            />
+            >
           </view>
-          <text class="search-cancel" @tap="closeSearch">取消</text>
+          <text
+            class="search-cancel"
+            @tap="closeSearch"
+          >
+            取消
+          </text>
         </view>
         <view class="hot-search">
-          <text class="hot-search-tip">热门搜索</text>
+          <text class="hot-search-tip">
+            热门搜索
+          </text>
           <view class="hot-tags">
             <view
               v-for="(tag, i) in hotSearches"
               :key="i"
               class="hot-tag"
               @tap="searchKeyword = tag"
-            >{{ tag }}</view>
+            >
+              {{ tag }}
+            </view>
           </view>
         </view>
       </view>

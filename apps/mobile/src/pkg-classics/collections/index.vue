@@ -1,29 +1,44 @@
 <template>
   <view class="cl-page">
-    <classics-header title="我的收藏" :show-search="false" />
+    <classics-header
+      title="我的收藏"
+      :show-search="false"
+    />
 
     <view class="cl-main">
       <!-- Hero -->
       <view class="cl-hero">
-        <text class="cl-kicker">珍藏一处</text>
-        <text class="cl-title">我的收藏</text>
+        <text class="cl-kicker">
+          珍藏一处
+        </text>
+        <text class="cl-title">
+          我的收藏
+        </text>
       </view>
 
       <!-- 搜索 -->
       <view class="cl-search-wrap">
         <view class="cl-search">
-          <app-icon name="search" :size="36" color="#999999" />
+          <app-icon
+            name="search"
+            :size="36"
+            color="#999999"
+          />
           <input
             v-model="searchText"
             class="cl-search-input"
             placeholder="搜索收藏的内容"
             placeholder-class="cl-ph"
-          />
+          >
         </view>
       </view>
 
       <!-- 类型筛选 -->
-      <scroll-view scroll-x class="cl-filters" :show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="cl-filters"
+        :show-scrollbar="false"
+      >
         <view class="cl-filters-row">
           <view
             v-for="f in filters"
@@ -32,46 +47,111 @@
             :class="{ 'cl-chip--active': filter === f.id }"
             @tap="filter = f.id"
           >
-            <text class="cl-chip-text" :class="{ 'cl-chip-text--active': filter === f.id }">{{ f.label }}</text>
+            <text
+              class="cl-chip-text"
+              :class="{ 'cl-chip-text--active': filter === f.id }"
+            >
+              {{ f.label }}
+            </text>
           </view>
         </view>
       </scroll-view>
 
       <!-- 收藏列表 -->
       <view class="cl-list-wrap">
-        <view v-if="filtered.length > 0" class="cl-list">
-          <view v-for="item in filtered" :key="item.id" class="cl-card">
-            <view class="cl-card-main" @tap="openItem(item)">
+        <view
+          v-if="filtered.length > 0"
+          class="cl-list"
+        >
+          <view
+            v-for="item in filtered"
+            :key="item.id"
+            class="cl-card"
+          >
+            <view
+              class="cl-card-main"
+              @tap="openItem(item)"
+            >
               <view class="cl-cover">
-                <flat-cover :title="shortTitle(item.title)" :cover-color="coverColorForBook(item.title)" :title-size="22" />
+                <flat-cover
+                  :title="shortTitle(item.title)"
+                  :cover-color="coverColorForBook(item.title)"
+                  :title-size="22"
+                />
               </view>
               <view class="cl-info">
-                <text class="cl-name">{{ item.title }}</text>
+                <text class="cl-name">
+                  {{ item.title }}
+                </text>
                 <view class="cl-meta">
-                  <app-icon :name="typeMeta[item.type].icon" :size="28" color="#999999" />
-                  <text class="cl-type-tag">{{ typeMeta[item.type].label }}</text>
-                  <text class="cl-author">{{ item.author }}</text>
+                  <app-icon
+                    :name="typeMeta[item.type].icon"
+                    :size="28"
+                    color="#999999"
+                  />
+                  <text class="cl-type-tag">
+                    {{ typeMeta[item.type].label }}
+                  </text>
+                  <text class="cl-author">
+                    {{ item.author }}
+                  </text>
                 </view>
-                <text v-if="item.plays > 0" class="cl-plays">已播放 {{ item.plays }} 次</text>
+                <text
+                  v-if="item.plays > 0"
+                  class="cl-plays"
+                >
+                  已播放 {{ item.plays }} 次
+                </text>
               </view>
             </view>
-            <view class="cl-del" @tap="removeItem(item.id)">
-              <app-icon name="trash-2" :size="36" color="#bbbbbb" />
+            <view
+              class="cl-del"
+              @tap="removeItem(item.id)"
+            >
+              <app-icon
+                name="trash-2"
+                :size="36"
+                color="#bbbbbb"
+              />
             </view>
           </view>
         </view>
 
         <!-- 空状态 -->
-        <view v-else class="cl-empty">
+        <view
+          v-else
+          class="cl-empty"
+        >
           <view class="cl-empty-icon">
-            <app-icon name="heart" :size="48" color="#999999" />
+            <app-icon
+              name="heart"
+              :size="48"
+              color="#999999"
+            />
           </view>
-          <text class="cl-empty-title">还没有收藏任何内容</text>
-          <text class="cl-empty-sub">浏览古籍，把喜欢的收进来</text>
-          <view class="cl-empty-btn" @tap="goHome">
-            <app-icon name="book-open" :size="32" color="#ffffff" />
-            <text class="cl-empty-btn-text">去逛古籍馆</text>
-            <app-icon name="chevron-right" :size="32" color="#ffffff" />
+          <text class="cl-empty-title">
+            还没有收藏任何内容
+          </text>
+          <text class="cl-empty-sub">
+            浏览古籍，把喜欢的收进来
+          </text>
+          <view
+            class="cl-empty-btn"
+            @tap="goHome"
+          >
+            <app-icon
+              name="book-open"
+              :size="32"
+              color="#ffffff"
+            />
+            <text class="cl-empty-btn-text">
+              去逛古籍馆
+            </text>
+            <app-icon
+              name="chevron-right"
+              :size="32"
+              color="#ffffff"
+            />
           </view>
         </view>
       </view>

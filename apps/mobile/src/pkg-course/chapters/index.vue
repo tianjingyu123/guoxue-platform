@@ -31,64 +31,137 @@ function onRefresh() {
     <!-- 顶部导航 + 进度条 -->
     <view class="topbar">
       <view class="nav">
-        <view class="nav-btn" @tap="goBack">
-          <app-icon name="arrow-left" :size="40" color="#2C2C2C" />
+        <view
+          class="nav-btn"
+          @tap="goBack"
+        >
+          <app-icon
+            name="arrow-left"
+            :size="40"
+            color="#2C2C2C"
+          />
         </view>
-        <text class="nav-title">{{ course.title }}</text>
-        <view class="nav-btn" @tap="onRefresh">
-          <app-icon name="refresh-cw" :size="32" color="#666666" :class="{ spinning: isRefreshing }" />
+        <text class="nav-title">
+          {{ course.title }}
+        </text>
+        <view
+          class="nav-btn"
+          @tap="onRefresh"
+        >
+          <app-icon
+            name="refresh-cw"
+            :size="32"
+            color="#666666"
+            :class="{ spinning: isRefreshing }"
+          />
         </view>
       </view>
       <view class="progress-wrap">
         <view class="progress-hdr">
-          <text class="progress-label">学习进度 <text class="progress-done">{{ course.completedLessons }}</text>/{{ course.totalLessons }}课时</text>
-          <text class="progress-pct">{{ course.progressPercent }}%</text>
+          <text class="progress-label">
+            学习进度 <text class="progress-done">
+              {{ course.completedLessons }}
+            </text>/{{ course.totalLessons }}课时
+          </text>
+          <text class="progress-pct">
+            {{ course.progressPercent }}%
+          </text>
         </view>
         <view class="progress-track">
-          <view class="progress-fill" :style="{ width: course.progressPercent + '%' }" />
+          <view
+            class="progress-fill"
+            :style="{ width: course.progressPercent + '%' }"
+          />
         </view>
       </view>
     </view>
 
     <!-- 章节列表 -->
     <view class="list">
-      <view v-for="chapter in chapters" :key="chapter.id" class="chapter-card">
+      <view
+        v-for="chapter in chapters"
+        :key="chapter.id"
+        class="chapter-card"
+      >
         <view class="chapter-hdr">
-          <text class="chapter-title">{{ chapter.title }}</text>
+          <text class="chapter-title">
+            {{ chapter.title }}
+          </text>
           <text
             class="chapter-badge"
             :class="chapterDone(chapter.lessons) === chapter.lessons.length ? 'done' : 'normal'"
-          >{{ chapterDone(chapter.lessons) }}/{{ chapter.lessons.length }}</text>
+          >
+            {{ chapterDone(chapter.lessons) }}/{{ chapter.lessons.length }}
+          </text>
         </view>
         <view class="lesson-list">
           <view
-            v-for="lesson in chapter.lessons" :key="lesson.id"
-            class="lesson-item" :class="{ locked: lesson.status === 'locked' }"
+            v-for="lesson in chapter.lessons"
+            :key="lesson.id"
+            class="lesson-item"
+            :class="{ locked: lesson.status === 'locked' }"
             @tap="onLessonClick(lesson)"
           >
             <!-- 状态图标 -->
-            <view class="status-ico" :class="lesson.status">
-              <app-icon v-if="lesson.status === 'completed'" name="check-circle" :size="32" color="#16A34A" />
-              <view v-else-if="lesson.status === 'in-progress'" class="dot" />
-              <app-icon v-else-if="lesson.status === 'available'" name="play" :size="26" color="#C41E3A" :fill="true" />
-              <app-icon v-else name="lock" :size="26" color="#9CA3AF" />
+            <view
+              class="status-ico"
+              :class="lesson.status"
+            >
+              <app-icon
+                v-if="lesson.status === 'completed'"
+                name="check-circle"
+                :size="32"
+                color="#16A34A"
+              />
+              <view
+                v-else-if="lesson.status === 'in-progress'"
+                class="dot"
+              />
+              <app-icon
+                v-else-if="lesson.status === 'available'"
+                name="play"
+                :size="26"
+                color="#C41E3A"
+                :fill="true"
+              />
+              <app-icon
+                v-else
+                name="lock"
+                :size="26"
+                color="#9CA3AF"
+              />
             </view>
             <!-- 课时信息 -->
             <view class="lesson-meta">
               <text
                 class="lesson-title"
                 :class="{ completed: lesson.status === 'completed', active: lesson.status === 'in-progress' }"
-              >{{ lesson.title }}</text>
+              >
+                {{ lesson.title }}
+              </text>
               <view class="lesson-sub">
-                <app-icon name="clock" :size="22" color="#999999" />
-                <text class="lesson-dur">{{ formatDuration(lesson.duration) }}</text>
-                <text v-if="lesson.status === 'in-progress'" class="lesson-learning">学习中</text>
+                <app-icon
+                  name="clock"
+                  :size="22"
+                  color="#999999"
+                />
+                <text class="lesson-dur">
+                  {{ formatDuration(lesson.duration) }}
+                </text>
+                <text
+                  v-if="lesson.status === 'in-progress'"
+                  class="lesson-learning"
+                >
+                  学习中
+                </text>
               </view>
             </view>
             <!-- 右侧播放图标 -->
             <app-icon
               v-if="lesson.status !== 'locked' && lesson.status !== 'completed'"
-              name="play" :size="28" color="#C41E3A"
+              name="play"
+              :size="28"
+              color="#C41E3A"
             />
           </view>
         </view>

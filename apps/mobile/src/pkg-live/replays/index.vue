@@ -1,70 +1,153 @@
 <template>
   <view class="page">
     <!-- 头部 -->
-    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="nav"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="nav-bar">
-        <view class="nav-btn" @tap="goBack">
-          <AppIcon name="chevron-left" :size="44" color="#2c2c2c" />
+        <view
+          class="nav-btn"
+          @tap="goBack"
+        >
+          <AppIcon
+            name="chevron-left"
+            :size="44"
+            color="#2c2c2c"
+          />
         </view>
-        <text class="nav-title">直播回放</text>
-        <view class="nav-btn" @tap="onSearch">
-          <AppIcon name="search" :size="40" color="#2c2c2c" />
+        <text class="nav-title">
+          直播回放
+        </text>
+        <view
+          class="nav-btn"
+          @tap="onSearch"
+        >
+          <AppIcon
+            name="search"
+            :size="40"
+            color="#2c2c2c"
+          />
         </view>
       </view>
     </view>
 
     <!-- 排序栏 -->
     <view class="sort-bar">
-      <text class="sort-count">全部回放 {{ replays.length }} 个</text>
-      <view class="sort-trigger" @tap="showSort = true">
-        <AppIcon name="sliders-horizontal" :size="28" color="#666" />
-        <text class="sort-label">{{ currentSortLabel }}</text>
+      <text class="sort-count">
+        全部回放 {{ replays.length }} 个
+      </text>
+      <view
+        class="sort-trigger"
+        @tap="showSort = true"
+      >
+        <AppIcon
+          name="sliders-horizontal"
+          :size="28"
+          color="#666"
+        />
+        <text class="sort-label">
+          {{ currentSortLabel }}
+        </text>
       </view>
     </view>
 
     <!-- 回放列表(单列横向卡) -->
     <view class="list">
-      <view v-for="item in replays" :key="item.id" class="card" @tap="openReplay(item)">
+      <view
+        v-for="item in replays"
+        :key="item.id"
+        class="card"
+        @tap="openReplay(item)"
+      >
         <view class="card-inner">
           <!-- 封面 -->
           <view class="cover">
-            <image class="cover-img" :src="item.cover" mode="aspectFill" />
+            <image
+              class="cover-img"
+              :src="item.cover"
+              mode="aspectFill"
+            />
             <view class="replay-tag">
-              <AppIcon name="play" :size="20" color="#fff" />
-              <text class="replay-txt">回放</text>
+              <AppIcon
+                name="play"
+                :size="20"
+                color="#fff"
+              />
+              <text class="replay-txt">
+                回放
+              </text>
             </view>
-            <view class="dur-tag">{{ formatLiveDuration(item.duration) }}</view>
+            <view class="dur-tag">
+              {{ formatLiveDuration(item.duration) }}
+            </view>
           </view>
           <!-- 信息 -->
           <view class="info">
-            <text class="title">{{ item.title }}</text>
+            <text class="title">
+              {{ item.title }}
+            </text>
             <view class="info-bottom">
               <view class="host-row">
-                <image class="host-avatar" :src="item.hostAvatar" mode="aspectFill" />
-                <text class="host-name">{{ item.hostName }}</text>
-                <text class="cat-tag">{{ item.category }}</text>
+                <image
+                  class="host-avatar"
+                  :src="item.hostAvatar"
+                  mode="aspectFill"
+                />
+                <text class="host-name">
+                  {{ item.hostName }}
+                </text>
+                <text class="cat-tag">
+                  {{ item.category }}
+                </text>
               </view>
               <view class="data-row">
                 <view class="data-views">
-                  <AppIcon name="eye" :size="24" color="#999" />
-                  <text class="data-txt">{{ formatLiveViews(item.viewers) }}次播放</text>
+                  <AppIcon
+                    name="eye"
+                    :size="24"
+                    color="#999"
+                  />
+                  <text class="data-txt">
+                    {{ formatLiveViews(item.viewers) }}次播放
+                  </text>
                 </view>
-                <text class="data-date">{{ item.dateText }}</text>
+                <text class="data-date">
+                  {{ item.dateText }}
+                </text>
               </view>
             </view>
           </view>
         </view>
       </view>
-      <text class="list-end">已显示全部回放</text>
+      <text class="list-end">
+        已显示全部回放
+      </text>
     </view>
 
     <!-- 排序弹层 -->
-    <view v-if="showSort" class="sheet-mask" @tap="showSort = false">
-      <view class="sheet" @tap.stop>
+    <view
+      v-if="showSort"
+      class="sheet-mask"
+      @tap="showSort = false"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
         <view class="sheet-header">
-          <text class="sheet-title">排序方式</text>
-          <view class="sheet-close" @tap="showSort = false">
-            <AppIcon name="x" :size="36" color="#999" />
+          <text class="sheet-title">
+            排序方式
+          </text>
+          <view
+            class="sheet-close"
+            @tap="showSort = false"
+          >
+            <AppIcon
+              name="x"
+              :size="36"
+              color="#999"
+            />
           </view>
         </view>
         <view class="sheet-options">
@@ -75,7 +158,9 @@
             :class="{ 'sheet-item-active': sortBy === opt.value }"
             @tap="selectSort(opt.value)"
           >
-            <text class="sheet-item-label">{{ opt.label }}</text>
+            <text class="sheet-item-label">
+              {{ opt.label }}
+            </text>
           </view>
         </view>
       </view>

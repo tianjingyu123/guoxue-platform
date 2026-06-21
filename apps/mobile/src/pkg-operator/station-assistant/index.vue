@@ -1,46 +1,100 @@
 <template>
   <view class="asst-page">
     <!-- 顶部导航 -->
-    <view class="asst-header" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="asst-header"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="asst-hd-row">
         <view class="asst-hd-left">
-          <view class="asst-icon-btn" @tap="goBack">
-            <app-icon name="arrow-left" :size="40" color="#ffffff" />
+          <view
+            class="asst-icon-btn"
+            @tap="goBack"
+          >
+            <app-icon
+              name="arrow-left"
+              :size="40"
+              color="#ffffff"
+            />
           </view>
           <view class="asst-avatar">
-            <app-icon name="sparkles" :size="36" color="#ffffff" />
+            <app-icon
+              name="sparkles"
+              :size="36"
+              color="#ffffff"
+            />
           </view>
           <view>
-            <text class="asst-name">{{ config.name }}</text>
-            <text class="asst-sub">AI 运营助手</text>
+            <text class="asst-name">
+              {{ config.name }}
+            </text>
+            <text class="asst-sub">
+              AI 运营助手
+            </text>
           </view>
         </view>
-        <view class="asst-icon-btn" @tap="showClear = true">
-          <app-icon name="trash-2" :size="38" color="#ffffff" />
+        <view
+          class="asst-icon-btn"
+          @tap="showClear = true"
+        >
+          <app-icon
+            name="trash-2"
+            :size="38"
+            color="#ffffff"
+          />
         </view>
       </view>
     </view>
 
     <!-- 对话区域 -->
-    <scroll-view class="asst-body" scroll-y :scroll-top="scrollTop" :scroll-with-animation="true">
+    <scroll-view
+      class="asst-body"
+      scroll-y
+      :scroll-top="scrollTop"
+      :scroll-with-animation="true"
+    >
       <!-- 欢迎区 -->
-      <view v-if="messages.length === 0 && !sending" class="asst-welcome">
+      <view
+        v-if="messages.length === 0 && !sending"
+        class="asst-welcome"
+      >
         <view class="asst-msg-row">
           <view class="asst-msg-avatar">
-            <app-icon name="sparkles" :size="32" color="#C41E3A" />
+            <app-icon
+              name="sparkles"
+              :size="32"
+              color="#C41E3A"
+            />
           </view>
           <view class="asst-bubble asst-bubble-ai">
-            <text class="asst-bubble-text">{{ config.welcomeMessage }}</text>
+            <text class="asst-bubble-text">
+              {{ config.welcomeMessage }}
+            </text>
           </view>
         </view>
         <view class="asst-caps">
-          <text v-for="(cap, i) in config.capabilities" :key="i" class="asst-cap">{{ cap }}</text>
+          <text
+            v-for="(cap, i) in config.capabilities"
+            :key="i"
+            class="asst-cap"
+          >
+            {{ cap }}
+          </text>
         </view>
         <view class="asst-suggest-wrap">
-          <text class="asst-suggest-hint">您可以试着问我：</text>
+          <text class="asst-suggest-hint">
+            您可以试着问我：
+          </text>
           <view class="asst-suggest-list">
-            <view v-for="s in config.suggestions" :key="s.id" class="asst-suggest-btn" @tap="send(s.text)">
-              <text class="asst-suggest-txt">{{ s.text }}</text>
+            <view
+              v-for="s in config.suggestions"
+              :key="s.id"
+              class="asst-suggest-btn"
+              @tap="send(s.text)"
+            >
+              <text class="asst-suggest-txt">
+                {{ s.text }}
+              </text>
             </view>
           </view>
         </view>
@@ -53,59 +107,160 @@
         class="asst-msg-row"
         :class="{ 'asst-msg-row-user': m.role === 'user' }"
       >
-        <view v-if="m.role === 'assistant'" class="asst-msg-avatar">
-          <app-icon name="sparkles" :size="32" color="#C41E3A" />
+        <view
+          v-if="m.role === 'assistant'"
+          class="asst-msg-avatar"
+        >
+          <app-icon
+            name="sparkles"
+            :size="32"
+            color="#C41E3A"
+          />
         </view>
         <view
           class="asst-bubble"
           :class="m.role === 'user' ? 'asst-bubble-user' : 'asst-bubble-ai'"
         >
           <!-- 用户纯文本 -->
-          <text v-if="m.role === 'user'" class="asst-bubble-text asst-bubble-text-user">{{ m.content }}</text>
+          <text
+            v-if="m.role === 'user'"
+            class="asst-bubble-text asst-bubble-text-user"
+          >
+            {{ m.content }}
+          </text>
           <!-- AI 富文本 -->
           <view v-else>
-            <view v-for="(blk, bi) in parseMarkdown(m.content)" :key="bi">
-              <text v-if="blk.tag === 'h2'" class="asst-h2">{{ blk.text }}</text>
-              <text v-else-if="blk.tag === 'h3'" class="asst-h3">{{ blk.text }}</text>
-              <view v-else-if="blk.tag === 'quote'" class="asst-quote"><text class="asst-quote-txt">{{ blk.text }}</text></view>
-              <view v-else-if="blk.tag === 'li'" class="asst-li">
-                <text class="asst-li-dot">{{ blk.ordered ? blk.index + '.' : '•' }}</text>
-                <rich-text class="asst-li-txt" :nodes="renderInline(blk.text)" />
+            <view
+              v-for="(blk, bi) in parseMarkdown(m.content)"
+              :key="bi"
+            >
+              <text
+                v-if="blk.tag === 'h2'"
+                class="asst-h2"
+              >
+                {{ blk.text }}
+              </text>
+              <text
+                v-else-if="blk.tag === 'h3'"
+                class="asst-h3"
+              >
+                {{ blk.text }}
+              </text>
+              <view
+                v-else-if="blk.tag === 'quote'"
+                class="asst-quote"
+              >
+                <text class="asst-quote-txt">
+                  {{ blk.text }}
+                </text>
               </view>
-              <rich-text v-else class="asst-p" :nodes="renderInline(blk.text)" />
+              <view
+                v-else-if="blk.tag === 'li'"
+                class="asst-li"
+              >
+                <text class="asst-li-dot">
+                  {{ blk.ordered ? blk.index + '.' : '•' }}
+                </text>
+                <rich-text
+                  class="asst-li-txt"
+                  :nodes="renderInline(blk.text)"
+                />
+              </view>
+              <rich-text
+                v-else
+                class="asst-p"
+                :nodes="renderInline(blk.text)"
+              />
             </view>
             <!-- 图表 -->
-            <view v-if="m.chart" class="asst-chart">
-              <text class="asst-chart-title">{{ m.chart.title }}</text>
+            <view
+              v-if="m.chart"
+              class="asst-chart"
+            >
+              <text class="asst-chart-title">
+                {{ m.chart.title }}
+              </text>
               <!-- 柱状 -->
-              <view v-if="m.chart.type === 'line'" class="asst-bars">
-                <view v-for="(d, di) in m.chart.data" :key="di" class="asst-bar-col">
-                  <view class="asst-bar" :style="{ height: barHeight(m.chart, d.value) }" />
-                  <text class="asst-bar-label">{{ d.label }}</text>
+              <view
+                v-if="m.chart.type === 'line'"
+                class="asst-bars"
+              >
+                <view
+                  v-for="(d, di) in m.chart.data"
+                  :key="di"
+                  class="asst-bar-col"
+                >
+                  <view
+                    class="asst-bar"
+                    :style="{ height: barHeight(m.chart, d.value) }"
+                  />
+                  <text class="asst-bar-label">
+                    {{ d.label }}
+                  </text>
                 </view>
               </view>
               <!-- 饼图（列表式） -->
-              <view v-else class="asst-pie-list">
-                <view v-for="(d, di) in m.chart.data" :key="di" class="asst-pie-row">
-                  <view class="asst-pie-dot" :style="{ background: d.color || '#C41E3A' }" />
-                  <text class="asst-pie-label">{{ d.label }}</text>
-                  <text class="asst-pie-val">{{ d.value }}人</text>
-                  <text class="asst-pie-pct">({{ piePct(m.chart, d.value) }}%)</text>
+              <view
+                v-else
+                class="asst-pie-list"
+              >
+                <view
+                  v-for="(d, di) in m.chart.data"
+                  :key="di"
+                  class="asst-pie-row"
+                >
+                  <view
+                    class="asst-pie-dot"
+                    :style="{ background: d.color || '#C41E3A' }"
+                  />
+                  <text class="asst-pie-label">
+                    {{ d.label }}
+                  </text>
+                  <text class="asst-pie-val">
+                    {{ d.value }}人
+                  </text>
+                  <text class="asst-pie-pct">
+                    ({{ piePct(m.chart, d.value) }}%)
+                  </text>
                 </view>
               </view>
             </view>
             <!-- 表格 -->
-            <view v-if="m.table" class="asst-table">
-              <text class="asst-chart-title">{{ m.table.title }}</text>
+            <view
+              v-if="m.table"
+              class="asst-table"
+            >
+              <text class="asst-chart-title">
+                {{ m.table.title }}
+              </text>
               <view class="asst-tr asst-tr-head">
-                <text v-for="(h, hi) in m.table.headers" :key="hi" class="asst-th">{{ h }}</text>
+                <text
+                  v-for="(h, hi) in m.table.headers"
+                  :key="hi"
+                  class="asst-th"
+                >
+                  {{ h }}
+                </text>
               </view>
-              <view v-for="(row, ri) in m.table.rows" :key="ri" class="asst-tr">
-                <text v-for="(cell, ci) in row" :key="ci" class="asst-td">{{ cell }}</text>
+              <view
+                v-for="(row, ri) in m.table.rows"
+                :key="ri"
+                class="asst-tr"
+              >
+                <text
+                  v-for="(cell, ci) in row"
+                  :key="ci"
+                  class="asst-td"
+                >
+                  {{ cell }}
+                </text>
               </view>
             </view>
             <!-- 操作建议 -->
-            <view v-if="m.actions && m.actions.length" class="asst-actions">
+            <view
+              v-if="m.actions && m.actions.length"
+              class="asst-actions"
+            >
               <view
                 v-for="(a, ai) in m.actions"
                 :key="ai"
@@ -113,8 +268,18 @@
                 :class="'asst-action-' + a.priority"
                 @tap="onAction(a)"
               >
-                <text class="asst-action-txt" :class="'asst-action-txt-' + a.priority">{{ a.title }}</text>
-                <app-icon v-if="a.link" name="external-link" :size="22" :color="actionColor(a.priority)" />
+                <text
+                  class="asst-action-txt"
+                  :class="'asst-action-txt-' + a.priority"
+                >
+                  {{ a.title }}
+                </text>
+                <app-icon
+                  v-if="a.link"
+                  name="external-link"
+                  :size="22"
+                  :color="actionColor(a.priority)"
+                />
               </view>
             </view>
           </view>
@@ -122,9 +287,16 @@
       </view>
 
       <!-- 流式占位（打字动效） -->
-      <view v-if="sending" class="asst-msg-row">
+      <view
+        v-if="sending"
+        class="asst-msg-row"
+      >
         <view class="asst-msg-avatar">
-          <app-icon name="sparkles" :size="32" color="#C41E3A" />
+          <app-icon
+            name="sparkles"
+            :size="32"
+            color="#C41E3A"
+          />
         </view>
         <view class="asst-bubble asst-bubble-ai">
           <view class="asst-typing">
@@ -140,8 +312,16 @@
 
     <!-- 底部输入区 -->
     <view class="asst-input-bar">
-      <view class="asst-voice-btn" :class="{ 'asst-voice-on': recording }" @tap="recording = !recording">
-        <app-icon :name="recording ? 'mic-off' : 'mic'" :size="40" :color="recording ? '#ef4444' : '#6b7280'" />
+      <view
+        class="asst-voice-btn"
+        :class="{ 'asst-voice-on': recording }"
+        @tap="recording = !recording"
+      >
+        <app-icon
+          :name="recording ? 'mic-off' : 'mic'"
+          :size="40"
+          :color="recording ? '#ef4444' : '#6b7280'"
+        />
       </view>
       <input
         v-model="inputText"
@@ -150,24 +330,62 @@
         :disabled="sending"
         confirm-type="send"
         @confirm="send()"
-      />
-      <view class="asst-send-btn" :class="{ 'asst-send-off': !inputText.trim() || sending }" @tap="send()">
-        <app-icon name="send" :size="38" color="#ffffff" />
+      >
+      <view
+        class="asst-send-btn"
+        :class="{ 'asst-send-off': !inputText.trim() || sending }"
+        @tap="send()"
+      >
+        <app-icon
+          name="send"
+          :size="38"
+          color="#ffffff"
+        />
       </view>
     </view>
-    <view v-if="recording" class="asst-recording">
+    <view
+      v-if="recording"
+      class="asst-recording"
+    >
       <view class="asst-rec-dot" />
-      <text class="asst-rec-txt">正在录音...</text>
+      <text class="asst-rec-txt">
+        正在录音...
+      </text>
     </view>
 
     <!-- 清除对话确认 -->
-    <view v-if="showClear" class="asst-modal-mask" @tap="showClear = false">
-      <view class="asst-modal" @tap.stop>
-        <text class="asst-modal-title">清除对话</text>
-        <text class="asst-modal-desc">确定要清除所有对话记录吗？此操作不可恢复。</text>
+    <view
+      v-if="showClear"
+      class="asst-modal-mask"
+      @tap="showClear = false"
+    >
+      <view
+        class="asst-modal"
+        @tap.stop
+      >
+        <text class="asst-modal-title">
+          清除对话
+        </text>
+        <text class="asst-modal-desc">
+          确定要清除所有对话记录吗？此操作不可恢复。
+        </text>
         <view class="asst-modal-foot">
-          <view class="asst-modal-cancel" @tap="showClear = false"><text class="asst-modal-cancel-txt">取消</text></view>
-          <view class="asst-modal-ok" @tap="clearSession"><text class="asst-modal-ok-txt">确定清除</text></view>
+          <view
+            class="asst-modal-cancel"
+            @tap="showClear = false"
+          >
+            <text class="asst-modal-cancel-txt">
+              取消
+            </text>
+          </view>
+          <view
+            class="asst-modal-ok"
+            @tap="clearSession"
+          >
+            <text class="asst-modal-ok-txt">
+              确定清除
+            </text>
+          </view>
         </view>
       </view>
     </view>

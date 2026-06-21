@@ -58,20 +58,30 @@ function handleSubmit() {
 
 <template>
   <view class="page">
-    <app-nav-bar title="充值国学币" back-icon="arrow-left" @back="goBack" />
+    <app-nav-bar
+      title="充值国学币"
+      back-icon="arrow-left"
+      @back="goBack"
+    />
 
     <view class="body">
       <!-- 说明文字 -->
       <view class="intro">
-        <text class="intro-main"
-          >国学币与人民币比例为 <text class="ratio">10:1</text></text
-        >
-        <text class="intro-sub">充值后可用于购买课程、加入圈子、打赏、付费问答等</text>
+        <text class="intro-main">
+          国学币与人民币比例为 <text class="ratio">
+            10:1
+          </text>
+        </text>
+        <text class="intro-sub">
+          充值后可用于购买课程、加入圈子、打赏、付费问答等
+        </text>
       </view>
 
       <!-- 预设档位 -->
       <view class="section">
-        <text class="sec-title">选择充值金额</text>
+        <text class="sec-title">
+          选择充值金额
+        </text>
         <view class="opt-grid">
           <view
             v-for="o in options"
@@ -80,17 +90,45 @@ function handleSubmit() {
             :class="{ active: selectedCoins === o.coins }"
             @tap="selectOption(o.coins)"
           >
-            <view v-if="o.popular" class="badge-pop">推荐</view>
-            <view v-if="o.bonus > 0" class="badge-bonus">
-              <app-icon name="sparkles" :size="20" color="#FFFFFF" />
-              <text class="bonus-txt">+{{ o.bonus }}</text>
+            <view
+              v-if="o.popular"
+              class="badge-pop"
+            >
+              推荐
             </view>
-            <view class="opt-coins" :class="{ active: selectedCoins === o.coins }">
-              {{ o.coins + o.bonus }}<text class="opt-unit">币</text>
+            <view
+              v-if="o.bonus > 0"
+              class="badge-bonus"
+            >
+              <app-icon
+                name="sparkles"
+                :size="20"
+                color="#FFFFFF"
+              />
+              <text class="bonus-txt">
+                +{{ o.bonus }}
+              </text>
             </view>
-            <text class="opt-price">¥{{ o.price }}</text>
-            <view v-if="selectedCoins === o.coins" class="opt-check">
-              <app-icon name="check" :size="20" color="#FFFFFF" />
+            <view
+              class="opt-coins"
+              :class="{ active: selectedCoins === o.coins }"
+            >
+              {{ o.coins + o.bonus }}<text class="opt-unit">
+                币
+              </text>
+            </view>
+            <text class="opt-price">
+              ¥{{ o.price }}
+            </text>
+            <view
+              v-if="selectedCoins === o.coins"
+              class="opt-check"
+            >
+              <app-icon
+                name="check"
+                :size="20"
+                color="#FFFFFF"
+              />
             </view>
           </view>
         </view>
@@ -98,10 +136,17 @@ function handleSubmit() {
 
       <!-- 自定义金额 -->
       <view class="section">
-        <text class="sec-title">自定义金额</text>
-        <view class="custom-card" :class="{ active: !!customAmount }">
+        <text class="sec-title">
+          自定义金额
+        </text>
+        <view
+          class="custom-card"
+          :class="{ active: !!customAmount }"
+        >
           <view class="custom-row">
-            <text class="custom-yen">¥</text>
+            <text class="custom-yen">
+              ¥
+            </text>
             <input
               class="custom-input"
               type="number"
@@ -109,18 +154,25 @@ function handleSubmit() {
               placeholder="输入其他金额（整数）"
               placeholder-class="custom-ph"
               @input="onCustomInput"
-            />
-            <text v-if="customAmount" class="custom-coins"
-              >= {{ (parseInt(customAmount) || 0) * 10 }} 币</text
             >
+            <text
+              v-if="customAmount"
+              class="custom-coins"
+            >
+              = {{ (parseInt(customAmount) || 0) * 10 }} 币
+            </text>
           </view>
-          <text class="custom-tip">最低充值金额 ¥1，最高单次充值 ¥50000</text>
+          <text class="custom-tip">
+            最低充值金额 ¥1，最高单次充值 ¥50000
+          </text>
         </view>
       </view>
 
       <!-- 支付方式 -->
       <view class="section">
-        <text class="sec-title">支付方式</text>
+        <text class="sec-title">
+          支付方式
+        </text>
         <view class="pay-list">
           <view
             v-for="m in payMethods"
@@ -130,10 +182,20 @@ function handleSubmit() {
             @tap="payMethod = m.id"
           >
             <view class="pay-left">
-              <view class="pay-badge" :class="m.badgeClass">{{ m.badge }}</view>
-              <text class="pay-name">{{ m.name }}</text>
+              <view
+                class="pay-badge"
+                :class="m.badgeClass"
+              >
+                {{ m.badge }}
+              </view>
+              <text class="pay-name">
+                {{ m.name }}
+              </text>
             </view>
-            <view class="pay-radio" :class="{ active: payMethod === m.id }">
+            <view
+              class="pay-radio"
+              :class="{ active: payMethod === m.id }"
+            >
               <app-icon
                 v-if="payMethod === m.id"
                 name="check"
@@ -147,33 +209,60 @@ function handleSubmit() {
 
       <!-- 充值说明 -->
       <view class="notice">
-        <text class="notice-title">充值说明</text>
+        <text class="notice-title">
+          充值说明
+        </text>
         <view class="notice-item">
-          <text class="dot">•</text>
-          <text class="notice-txt">国学币为平台虚拟货币，仅限在本平台内使用</text>
+          <text class="dot">
+            •
+          </text>
+          <text class="notice-txt">
+            国学币为平台虚拟货币，仅限在本平台内使用
+          </text>
         </view>
         <view class="notice-item">
-          <text class="dot">•</text>
-          <text class="notice-txt">充值后不支持退款，请确认后再进行充值</text>
+          <text class="dot">
+            •
+          </text>
+          <text class="notice-txt">
+            充值后不支持退款，请确认后再进行充值
+          </text>
         </view>
         <view class="notice-item">
-          <text class="dot">•</text>
-          <text class="notice-txt">赠送的国学币有效期为充值后365天</text>
+          <text class="dot">
+            •
+          </text>
+          <text class="notice-txt">
+            赠送的国学币有效期为充值后365天
+          </text>
         </view>
         <view class="notice-item">
-          <text class="dot">•</text>
-          <text class="notice-txt">如有疑问，请联系客服处理</text>
+          <text class="dot">
+            •
+          </text>
+          <text class="notice-txt">
+            如有疑问，请联系客服处理
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 底部操作栏 -->
     <view class="bottom-bar">
-      <view v-if="selectedAmount > 0" class="preview-row">
-        <text class="preview-label">本次充值</text>
+      <view
+        v-if="selectedAmount > 0"
+        class="preview-row"
+      >
+        <text class="preview-label">
+          本次充值
+        </text>
         <view>
-          <text class="preview-coins">{{ totalCoins }}</text>
-          <text class="preview-unit">国学币</text>
+          <text class="preview-coins">
+            {{ totalCoins }}
+          </text>
+          <text class="preview-unit">
+            国学币
+          </text>
         </view>
       </view>
       <view
@@ -181,9 +270,15 @@ function handleSubmit() {
         :class="{ disabled: selectedAmount <= 0 }"
         @tap="handleSubmit"
       >
-        <text v-if="isSubmitting">支付中...</text>
-        <text v-else-if="selectedAmount > 0">确认充值 ¥{{ selectedAmount }}</text>
-        <text v-else>请选择充值金额</text>
+        <text v-if="isSubmitting">
+          支付中...
+        </text>
+        <text v-else-if="selectedAmount > 0">
+          确认充值 ¥{{ selectedAmount }}
+        </text>
+        <text v-else>
+          请选择充值金额
+        </text>
       </view>
     </view>
   </view>

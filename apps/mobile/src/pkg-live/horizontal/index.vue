@@ -7,28 +7,59 @@
         <!-- 顶部信息栏 -->
         <view class="host-bar">
           <view class="host-bar__left">
-            <view class="host-bar__close" @tap="goBack">
-              <AppIcon name="x" :size="20" unit="px" color="rgba(255,255,255,0.8)" />
+            <view
+              class="host-bar__close"
+              @tap="goBack"
+            >
+              <AppIcon
+                name="x"
+                :size="20"
+                unit="px"
+                color="rgba(255,255,255,0.8)"
+              />
             </view>
-            <image class="host-bar__avatar" :src="room.hostAvatar" mode="aspectFill" />
+            <image
+              class="host-bar__avatar"
+              :src="room.hostAvatar"
+              mode="aspectFill"
+            />
             <view class="host-bar__info">
-              <text class="host-bar__title">{{ room.title }}</text>
+              <text class="host-bar__title">
+                {{ room.title }}
+              </text>
               <view class="host-bar__meta">
-                <text class="host-bar__meta-item">{{ room.hostName }}</text>
-                <text class="host-bar__dot">·</text>
-                <text class="host-bar__meta-item">{{ room.hostTitle }}</text>
+                <text class="host-bar__meta-item">
+                  {{ room.hostName }}
+                </text>
+                <text class="host-bar__dot">
+                  ·
+                </text>
+                <text class="host-bar__meta-item">
+                  {{ room.hostTitle }}
+                </text>
               </view>
             </view>
           </view>
           <view class="host-bar__right">
             <view class="host-bar__viewers">
-              <AppIcon name="users" :size="16" unit="px" color="rgba(255,255,255,0.8)" />
-              <text class="host-bar__viewers-txt">{{ room.viewers.toLocaleString() }}</text>
+              <AppIcon
+                name="users"
+                :size="16"
+                unit="px"
+                color="rgba(255,255,255,0.8)"
+              />
+              <text class="host-bar__viewers-txt">
+                {{ room.viewers.toLocaleString() }}
+              </text>
             </view>
             <view class="host-bar__live">
               <view class="host-bar__live-dot" />
-              <text class="host-bar__live-txt">直播中</text>
-              <text class="host-bar__live-time">{{ room.duration }}</text>
+              <text class="host-bar__live-txt">
+                直播中
+              </text>
+              <text class="host-bar__live-time">
+                {{ room.duration }}
+              </text>
             </view>
           </view>
         </view>
@@ -36,62 +67,143 @@
         <!-- 视频/课件区域 -->
         <view class="video-area">
           <!-- 课件展示（showVideo=false 时在上层） -->
-          <view class="slide-stage" :class="{ 'slide-stage--top': !showVideo }">
+          <view
+            class="slide-stage"
+            :class="{ 'slide-stage--top': !showVideo }"
+          >
             <view class="slide-stage__inner">
-              <text class="slide-stage__symbol">☯</text>
-              <text class="slide-stage__title">{{ currentSlide?.title }}</text>
-              <text class="slide-stage__page">第 {{ currentSlideNum }} / {{ slides.length }} 页</text>
+              <text class="slide-stage__symbol">
+                ☯
+              </text>
+              <text class="slide-stage__title">
+                {{ currentSlide?.title }}
+              </text>
+              <text class="slide-stage__page">
+                第 {{ currentSlideNum }} / {{ slides.length }} 页
+              </text>
             </view>
             <!-- 非跟随时显示翻页按钮 -->
             <template v-if="!followSlide">
-              <view class="slide-nav slide-nav--prev" @tap="onPrevSlide">
-                <AppIcon name="chevron-left" :size="24" unit="px" color="#fff" />
+              <view
+                class="slide-nav slide-nav--prev"
+                @tap="onPrevSlide"
+              >
+                <AppIcon
+                  name="chevron-left"
+                  :size="24"
+                  unit="px"
+                  color="#fff"
+                />
               </view>
-              <view class="slide-nav slide-nav--next" @tap="onNextSlide">
-                <AppIcon name="chevron-right" :size="24" unit="px" color="#fff" />
+              <view
+                class="slide-nav slide-nav--next"
+                @tap="onNextSlide"
+              >
+                <AppIcon
+                  name="chevron-right"
+                  :size="24"
+                  unit="px"
+                  color="#fff"
+                />
               </view>
             </template>
           </view>
 
           <!-- 讲师视频画面（showVideo=true 铺满；否则缩为右下角小窗） -->
-          <view class="teacher-cam" :class="{ 'teacher-cam--pip': !showVideo }">
+          <view
+            class="teacher-cam"
+            :class="{ 'teacher-cam--pip': !showVideo }"
+          >
             <view class="teacher-cam__inner">
               <view class="teacher-cam__avatar">
-                <image class="teacher-cam__img" :src="room.hostAvatar" mode="aspectFill" />
+                <image
+                  class="teacher-cam__img"
+                  :src="room.hostAvatar"
+                  mode="aspectFill"
+                />
               </view>
-              <text class="teacher-cam__label">讲师画面</text>
+              <text class="teacher-cam__label">
+                讲师画面
+              </text>
             </view>
           </view>
 
           <!-- 切换课件/视频 -->
-          <view class="switch-btn" @tap="onToggleVideo">
-            <AppIcon name="book-open" :size="16" unit="px" color="#fff" />
-            <text class="switch-btn__txt">{{ showVideo ? '显示课件' : '显示视频' }}</text>
+          <view
+            class="switch-btn"
+            @tap="onToggleVideo"
+          >
+            <AppIcon
+              name="book-open"
+              :size="16"
+              unit="px"
+              color="#fff"
+            />
+            <text class="switch-btn__txt">
+              {{ showVideo ? '显示课件' : '显示视频' }}
+            </text>
           </view>
 
           <!-- 全屏按钮 -->
-          <view class="round-btn round-btn--fullscreen" @tap="onToggleFullscreen">
-            <AppIcon :name="isFullscreen ? 'minimize-2' : 'maximize-2'" :size="20" unit="px" color="#fff" />
+          <view
+            class="round-btn round-btn--fullscreen"
+            @tap="onToggleFullscreen"
+          >
+            <AppIcon
+              :name="isFullscreen ? 'minimize-2' : 'maximize-2'"
+              :size="20"
+              unit="px"
+              color="#fff"
+            />
           </view>
 
           <!-- 音量按钮 -->
-          <view class="round-btn round-btn--volume" @tap="onToggleMute">
-            <AppIcon :name="isMuted ? 'volume-x' : 'volume-2'" :size="20" unit="px" color="#fff" />
+          <view
+            class="round-btn round-btn--volume"
+            @tap="onToggleMute"
+          >
+            <AppIcon
+              :name="isMuted ? 'volume-x' : 'volume-2'"
+              :size="20"
+              unit="px"
+              color="#fff"
+            />
           </view>
 
           <!-- 连麦中状态 -->
-          <view v-if="micStatus === 'connected'" class="mic-badge">
-            <AppIcon name="mic" :size="16" unit="px" color="#fff" />
-            <text class="mic-badge__txt">连麦中</text>
-            <view class="mic-badge__close" @tap="micStatus = 'none'">
-              <AppIcon name="x" :size="12" unit="px" color="#fff" />
+          <view
+            v-if="micStatus === 'connected'"
+            class="mic-badge"
+          >
+            <AppIcon
+              name="mic"
+              :size="16"
+              unit="px"
+              color="#fff"
+            />
+            <text class="mic-badge__txt">
+              连麦中
+            </text>
+            <view
+              class="mic-badge__close"
+              @tap="micStatus = 'none'"
+            >
+              <AppIcon
+                name="x"
+                :size="12"
+                unit="px"
+                color="#fff"
+              />
             </view>
           </view>
         </view>
 
         <!-- 底部课件缩略图横条 -->
         <view class="slide-bar">
-          <scroll-view scroll-x class="slide-bar__scroll">
+          <scroll-view
+            scroll-x
+            class="slide-bar__scroll"
+          >
             <view class="slide-bar__row">
               <view
                 v-for="(s, idx) in slides"
@@ -101,9 +213,16 @@
                 @tap="onSelectSlide(idx + 1)"
               >
                 <view class="thumb__bg" />
-                <text class="thumb__num">{{ idx + 1 }}</text>
-                <view v-if="currentSlideNum === idx + 1" class="thumb__cur">
-                  <text class="thumb__cur-txt">当前</text>
+                <text class="thumb__num">
+                  {{ idx + 1 }}
+                </text>
+                <view
+                  v-if="currentSlideNum === idx + 1"
+                  class="thumb__cur"
+                >
+                  <text class="thumb__cur-txt">
+                    当前
+                  </text>
                 </view>
               </view>
               <view class="slide-bar__divider" />
@@ -112,7 +231,9 @@
                 :class="{ 'follow-btn--on': followSlide }"
                 @tap="followSlide = true"
               >
-                <text class="follow-btn__txt">跟随讲师</text>
+                <text class="follow-btn__txt">
+                  跟随讲师
+                </text>
               </view>
             </view>
           </scroll-view>
@@ -129,51 +250,130 @@
             class="panel-tab"
             @tap="activeTab = t.key"
           >
-            <text class="panel-tab__txt" :class="{ 'panel-tab__txt--on': activeTab === t.key }">{{ t.label }}</text>
-            <view v-if="activeTab === t.key" class="panel-tab__line" />
+            <text
+              class="panel-tab__txt"
+              :class="{ 'panel-tab__txt--on': activeTab === t.key }"
+            >
+              {{ t.label }}
+            </text>
+            <view
+              v-if="activeTab === t.key"
+              class="panel-tab__line"
+            />
           </view>
         </view>
 
         <!-- 聊天 Tab -->
-        <view v-if="activeTab === 'chat'" class="tab-chat">
-          <scroll-view scroll-y class="tab-chat__list">
-            <view v-for="m in messages" :key="m.id" class="chat-row">
+        <view
+          v-if="activeTab === 'chat'"
+          class="tab-chat"
+        >
+          <scroll-view
+            scroll-y
+            class="tab-chat__list"
+          >
+            <view
+              v-for="m in messages"
+              :key="m.id"
+              class="chat-row"
+            >
               <view class="chat-row__avatar">
-                <text class="chat-row__avatar-txt">{{ m.userName.charAt(0) }}</text>
+                <text class="chat-row__avatar-txt">
+                  {{ m.userName.charAt(0) }}
+                </text>
               </view>
               <view class="chat-row__body">
                 <view class="chat-row__head">
-                  <text class="chat-row__name">{{ m.userName }}</text>
-                  <text class="chat-row__time">{{ m.time }}</text>
+                  <text class="chat-row__name">
+                    {{ m.userName }}
+                  </text>
+                  <text class="chat-row__time">
+                    {{ m.time }}
+                  </text>
                 </view>
-                <text class="chat-row__txt">{{ m.content }}</text>
+                <text class="chat-row__txt">
+                  {{ m.content }}
+                </text>
               </view>
             </view>
           </scroll-view>
           <!-- 底部操作区 -->
           <view class="chat-foot">
             <view class="chat-foot__actions">
-              <view class="like-btn" :class="{ 'like-btn--on': liked }" @tap="onLike">
-                <AppIcon name="heart" :size="20" unit="px" :color="liked ? '#C41E3A' : 'rgba(255,255,255,0.6)'" :fill="liked" />
-                <text class="like-btn__txt" :class="{ 'like-btn__txt--on': liked }">{{ likeCount.toLocaleString() }}</text>
+              <view
+                class="like-btn"
+                :class="{ 'like-btn--on': liked }"
+                @tap="onLike"
+              >
+                <AppIcon
+                  name="heart"
+                  :size="20"
+                  unit="px"
+                  :color="liked ? '#C41E3A' : 'rgba(255,255,255,0.6)'"
+                  :fill="liked"
+                />
+                <text
+                  class="like-btn__txt"
+                  :class="{ 'like-btn__txt--on': liked }"
+                >
+                  {{ likeCount.toLocaleString() }}
+                </text>
               </view>
-              <view class="mic-btn" :class="'mic-btn--' + micStatus" @tap="onApplyMic">
+              <view
+                class="mic-btn"
+                :class="'mic-btn--' + micStatus"
+                @tap="onApplyMic"
+              >
                 <template v-if="micStatus === 'none'">
-                  <AppIcon name="hand" :size="16" unit="px" color="#fff" />
-                  <text class="mic-btn__txt">举手</text>
+                  <AppIcon
+                    name="hand"
+                    :size="16"
+                    unit="px"
+                    color="#fff"
+                  />
+                  <text class="mic-btn__txt">
+                    举手
+                  </text>
                 </template>
-                <text v-else-if="micStatus === 'applying'" class="mic-btn__txt mic-btn__txt--applying">申请中...</text>
+                <text
+                  v-else-if="micStatus === 'applying'"
+                  class="mic-btn__txt mic-btn__txt--applying"
+                >
+                  申请中...
+                </text>
                 <template v-else-if="micStatus === 'waiting'">
-                  <AppIcon name="clock" :size="16" unit="px" color="#60a5fa" />
-                  <text class="mic-btn__txt mic-btn__txt--waiting">排队中</text>
+                  <AppIcon
+                    name="clock"
+                    :size="16"
+                    unit="px"
+                    color="#60a5fa"
+                  />
+                  <text class="mic-btn__txt mic-btn__txt--waiting">
+                    排队中
+                  </text>
                 </template>
                 <template v-else>
-                  <AppIcon name="mic-off" :size="16" unit="px" color="#4ade80" />
-                  <text class="mic-btn__txt mic-btn__txt--connected">结束</text>
+                  <AppIcon
+                    name="mic-off"
+                    :size="16"
+                    unit="px"
+                    color="#4ade80"
+                  />
+                  <text class="mic-btn__txt mic-btn__txt--connected">
+                    结束
+                  </text>
                 </template>
               </view>
-              <view class="share-btn" @tap="onShare">
-                <AppIcon name="share-2" :size="20" unit="px" color="rgba(255,255,255,0.6)" />
+              <view
+                class="share-btn"
+                @tap="onShare"
+              >
+                <AppIcon
+                  name="share-2"
+                  :size="20"
+                  unit="px"
+                  color="rgba(255,255,255,0.6)"
+                />
               </view>
             </view>
             <view class="chat-input">
@@ -184,47 +384,114 @@
                 placeholder-class="input-ph"
                 confirm-type="send"
                 @confirm="onSendChat"
-              />
-              <view class="chat-input__send" @tap="onSendChat">
-                <AppIcon name="send" :size="16" unit="px" color="#fff" />
+              >
+              <view
+                class="chat-input__send"
+                @tap="onSendChat"
+              >
+                <AppIcon
+                  name="send"
+                  :size="16"
+                  unit="px"
+                  color="#fff"
+                />
               </view>
             </view>
           </view>
         </view>
 
         <!-- 问答 Tab -->
-        <view v-else-if="activeTab === 'qa'" class="tab-qa">
+        <view
+          v-else-if="activeTab === 'qa'"
+          class="tab-qa"
+        >
           <view class="qa-subtabs">
-            <view class="qa-subtab" :class="{ 'qa-subtab--on': questionTab === 'pending' }" @tap="questionTab = 'pending'">
-              <text class="qa-subtab__txt">待解答 ({{ pendingCount }})</text>
+            <view
+              class="qa-subtab"
+              :class="{ 'qa-subtab--on': questionTab === 'pending' }"
+              @tap="questionTab = 'pending'"
+            >
+              <text class="qa-subtab__txt">
+                待解答 ({{ pendingCount }})
+              </text>
             </view>
-            <view class="qa-subtab" :class="{ 'qa-subtab--on': questionTab === 'answered' }" @tap="questionTab = 'answered'">
-              <text class="qa-subtab__txt">已解答 ({{ answeredCount }})</text>
+            <view
+              class="qa-subtab"
+              :class="{ 'qa-subtab--on': questionTab === 'answered' }"
+              @tap="questionTab = 'answered'"
+            >
+              <text class="qa-subtab__txt">
+                已解答 ({{ answeredCount }})
+              </text>
             </view>
           </view>
-          <scroll-view scroll-y class="tab-qa__list">
-            <view v-if="filteredQuestions.length === 0" class="qa-empty">
-              <AppIcon name="help-circle" :size="40" unit="px" color="rgba(255,255,255,0.2)" />
-              <text class="qa-empty__txt">暂无{{ questionTab === 'pending' ? '待解答' : '已解答' }}问题</text>
+          <scroll-view
+            scroll-y
+            class="tab-qa__list"
+          >
+            <view
+              v-if="filteredQuestions.length === 0"
+              class="qa-empty"
+            >
+              <AppIcon
+                name="help-circle"
+                :size="40"
+                unit="px"
+                color="rgba(255,255,255,0.2)"
+              />
+              <text class="qa-empty__txt">
+                暂无{{ questionTab === 'pending' ? '待解答' : '已解答' }}问题
+              </text>
             </view>
-            <view v-for="q in filteredQuestions" :key="q.id" class="qa-card">
+            <view
+              v-for="q in filteredQuestions"
+              :key="q.id"
+              class="qa-card"
+            >
               <view class="qa-card__head">
-                <image class="qa-card__avatar" :src="q.userAvatar" mode="aspectFill" />
+                <image
+                  class="qa-card__avatar"
+                  :src="q.userAvatar"
+                  mode="aspectFill"
+                />
                 <view class="qa-card__body">
                   <view class="qa-card__meta">
-                    <text class="qa-card__name">{{ q.userName }}</text>
-                    <text class="qa-card__time">{{ q.time }}</text>
-                    <view v-if="!q.isPublic" class="qa-card__private">
-                      <text class="qa-card__private-txt">私密</text>
+                    <text class="qa-card__name">
+                      {{ q.userName }}
+                    </text>
+                    <text class="qa-card__time">
+                      {{ q.time }}
+                    </text>
+                    <view
+                      v-if="!q.isPublic"
+                      class="qa-card__private"
+                    >
+                      <text class="qa-card__private-txt">
+                        私密
+                      </text>
                     </view>
                   </view>
-                  <text class="qa-card__q">{{ q.content }}</text>
-                  <view v-if="q.status === 'answered' && q.answer" class="qa-card__answer">
+                  <text class="qa-card__q">
+                    {{ q.content }}
+                  </text>
+                  <view
+                    v-if="q.status === 'answered' && q.answer"
+                    class="qa-card__answer"
+                  >
                     <view class="qa-card__answer-label">
-                      <AppIcon name="check-circle-2" :size="12" unit="px" color="#4ade80" />
-                      <text class="qa-card__answer-label-txt">讲师回复</text>
+                      <AppIcon
+                        name="check-circle-2"
+                        :size="12"
+                        unit="px"
+                        color="#4ade80"
+                      />
+                      <text class="qa-card__answer-label-txt">
+                        讲师回复
+                      </text>
                     </view>
-                    <text class="qa-card__answer-txt">{{ q.answer }}</text>
+                    <text class="qa-card__answer-txt">
+                      {{ q.answer }}
+                    </text>
                   </view>
                 </view>
               </view>
@@ -232,11 +499,23 @@
           </scroll-view>
           <view class="qa-ask">
             <view class="qa-ask__modes">
-              <view class="qa-mode" :class="{ 'qa-mode--on': isPublicQuestion }" @tap="isPublicQuestion = true">
-                <text class="qa-mode__txt">公开提问</text>
+              <view
+                class="qa-mode"
+                :class="{ 'qa-mode--on': isPublicQuestion }"
+                @tap="isPublicQuestion = true"
+              >
+                <text class="qa-mode__txt">
+                  公开提问
+                </text>
               </view>
-              <view class="qa-mode" :class="{ 'qa-mode--on': !isPublicQuestion }" @tap="isPublicQuestion = false">
-                <text class="qa-mode__txt">私密提问</text>
+              <view
+                class="qa-mode"
+                :class="{ 'qa-mode--on': !isPublicQuestion }"
+                @tap="isPublicQuestion = false"
+              >
+                <text class="qa-mode__txt">
+                  私密提问
+                </text>
               </view>
             </view>
             <view class="qa-ask__row">
@@ -247,50 +526,107 @@
                 placeholder-class="input-ph"
                 confirm-type="send"
                 @confirm="onSubmitQuestion"
-              />
-              <view class="qa-ask__btn" :class="{ 'qa-ask__btn--disabled': !questionDraft.trim() }" @tap="onSubmitQuestion">
-                <text class="qa-ask__btn-txt">提问</text>
+              >
+              <view
+                class="qa-ask__btn"
+                :class="{ 'qa-ask__btn--disabled': !questionDraft.trim() }"
+                @tap="onSubmitQuestion"
+              >
+                <text class="qa-ask__btn-txt">
+                  提问
+                </text>
               </view>
             </view>
           </view>
         </view>
 
         <!-- 资料 Tab -->
-        <view v-else-if="activeTab === 'files'" class="tab-files">
-          <scroll-view scroll-y class="tab-files__list">
-            <view v-for="f in files" :key="f.id" class="file-row">
+        <view
+          v-else-if="activeTab === 'files'"
+          class="tab-files"
+        >
+          <scroll-view
+            scroll-y
+            class="tab-files__list"
+          >
+            <view
+              v-for="f in files"
+              :key="f.id"
+              class="file-row"
+            >
               <view class="file-row__icon">
-                <AppIcon name="file-text" :size="20" unit="px" color="#C41E3A" />
+                <AppIcon
+                  name="file-text"
+                  :size="20"
+                  unit="px"
+                  color="#C41E3A"
+                />
               </view>
               <view class="file-row__info">
-                <text class="file-row__name">{{ f.name }}</text>
-                <text class="file-row__size">{{ f.size }}</text>
+                <text class="file-row__name">
+                  {{ f.name }}
+                </text>
+                <text class="file-row__size">
+                  {{ f.size }}
+                </text>
               </view>
-              <view class="file-row__dl" @tap="onDownloadFile(f.id)">
-                <AppIcon name="download" :size="16" unit="px" color="rgba(255,255,255,0.6)" />
+              <view
+                class="file-row__dl"
+                @tap="onDownloadFile(f.id)"
+              >
+                <AppIcon
+                  name="download"
+                  :size="16"
+                  unit="px"
+                  color="rgba(255,255,255,0.6)"
+                />
               </view>
             </view>
           </scroll-view>
         </view>
 
         <!-- 简介 Tab -->
-        <view v-else class="tab-intro">
-          <scroll-view scroll-y class="tab-intro__scroll">
+        <view
+          v-else
+          class="tab-intro"
+        >
+          <scroll-view
+            scroll-y
+            class="tab-intro__scroll"
+          >
             <view class="intro-host">
               <view class="intro-host__avatar">
-                <image class="intro-host__img" :src="room.hostAvatar" mode="aspectFill" />
+                <image
+                  class="intro-host__img"
+                  :src="room.hostAvatar"
+                  mode="aspectFill"
+                />
               </view>
-              <text class="intro-host__name">{{ room.hostName }}</text>
-              <text class="intro-host__title">{{ room.hostTitle }}</text>
-              <text class="intro-host__fans">{{ room.followers.toLocaleString() }} 粉丝</text>
+              <text class="intro-host__name">
+                {{ room.hostName }}
+              </text>
+              <text class="intro-host__title">
+                {{ room.hostTitle }}
+              </text>
+              <text class="intro-host__fans">
+                {{ room.followers.toLocaleString() }} 粉丝
+              </text>
             </view>
             <view class="intro-block">
-              <text class="intro-block__h">课程介绍</text>
-              <text class="intro-block__p">{{ room.title }}</text>
+              <text class="intro-block__h">
+                课程介绍
+              </text>
+              <text class="intro-block__p">
+                {{ room.title }}
+              </text>
             </view>
             <view class="intro-block">
-              <text class="intro-block__h">讲师简介</text>
-              <text class="intro-block__p intro-block__p--dim">{{ room.hostName }}，资深易学研究员，从事周易研究二十余年，著有《周易入门》《八字命理精解》等多部著作。</text>
+              <text class="intro-block__h">
+                讲师简介
+              </text>
+              <text class="intro-block__p intro-block__p--dim">
+                {{ room.hostName }}，资深易学研究员，从事周易研究二十余年，著有《周易入门》《八字命理精解》等多部著作。
+              </text>
             </view>
           </scroll-view>
         </view>
@@ -300,12 +636,26 @@
     <!-- ============ 窄屏（<1024px）旋转引导遮罩，照原型 lg:hidden ============ -->
     <view class="rotate-overlay">
       <view class="rotate-overlay__icon">
-        <AppIcon name="smartphone" :size="32" unit="px" color="#fff" />
+        <AppIcon
+          name="smartphone"
+          :size="32"
+          unit="px"
+          color="#fff"
+        />
       </view>
-      <text class="rotate-overlay__title">请将手机横屏观看</text>
-      <text class="rotate-overlay__sub">或使用平板/电脑获得更好的学习体验</text>
-      <view class="rotate-overlay__back" @tap="goBack">
-        <text class="rotate-overlay__back-txt">返回直播列表</text>
+      <text class="rotate-overlay__title">
+        请将手机横屏观看
+      </text>
+      <text class="rotate-overlay__sub">
+        或使用平板/电脑获得更好的学习体验
+      </text>
+      <view
+        class="rotate-overlay__back"
+        @tap="goBack"
+      >
+        <text class="rotate-overlay__back-txt">
+          返回直播列表
+        </text>
       </view>
     </view>
   </view>

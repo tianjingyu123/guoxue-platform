@@ -1,16 +1,35 @@
 <template>
   <view class="page">
     <!-- 顶部导航(红色渐变) -->
-    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="nav"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="nav-bar">
         <view class="nav-left">
-          <view class="nav-btn" @tap="goBack">
-            <AppIcon name="chevron-left" :size="48" color="#fff" />
+          <view
+            class="nav-btn"
+            @tap="goBack"
+          >
+            <AppIcon
+              name="chevron-left"
+              :size="48"
+              color="#fff"
+            />
           </view>
-          <text class="nav-title">数据中心</text>
+          <text class="nav-title">
+            数据中心
+          </text>
         </view>
-        <view class="nav-btn" @tap="handleRefresh">
-          <AppIcon name="refresh-cw" :size="40" color="#fff" />
+        <view
+          class="nav-btn"
+          @tap="handleRefresh"
+        >
+          <AppIcon
+            name="refresh-cw"
+            :size="40"
+            color="#fff"
+          />
         </view>
       </view>
     </view>
@@ -19,46 +38,106 @@
     <view class="overview">
       <view class="stat-card">
         <view class="stat-head">
-          <AppIcon name="eye" :size="32" color="#666" />
-          <text class="stat-label">总观看</text>
+          <AppIcon
+            name="eye"
+            :size="32"
+            color="#666"
+          />
+          <text class="stat-label">
+            总观看
+          </text>
         </view>
-        <text class="stat-value">{{ formatHostNumber(stats.totalViews) }}</text>
+        <text class="stat-value">
+          {{ formatHostNumber(stats.totalViews) }}
+        </text>
         <view class="stat-trend">
-          <AppIcon :name="stats.viewsGrowthRate >= 0 ? 'trending-up' : 'trending-down'" :size="24" :color="stats.viewsGrowthRate >= 0 ? '#22c55e' : '#ef4444'" />
-          <text class="trend-rate" :class="stats.viewsGrowthRate >= 0 ? 'up' : 'down'">{{ Math.abs(stats.viewsGrowthRate) }}%</text>
-          <text class="trend-note">较上月</text>
+          <AppIcon
+            :name="stats.viewsGrowthRate >= 0 ? 'trending-up' : 'trending-down'"
+            :size="24"
+            :color="stats.viewsGrowthRate >= 0 ? '#22c55e' : '#ef4444'"
+          />
+          <text
+            class="trend-rate"
+            :class="stats.viewsGrowthRate >= 0 ? 'up' : 'down'"
+          >
+            {{ Math.abs(stats.viewsGrowthRate) }}%
+          </text>
+          <text class="trend-note">
+            较上月
+          </text>
         </view>
       </view>
 
       <view class="stat-card">
         <view class="stat-head">
-          <AppIcon name="coins" :size="32" color="#C9A96E" />
-          <text class="stat-label">总收益</text>
+          <AppIcon
+            name="coins"
+            :size="32"
+            color="#C9A96E"
+          />
+          <text class="stat-label">
+            总收益
+          </text>
         </view>
-        <text class="stat-value gold">¥{{ formatHostNumber(stats.totalRevenue) }}</text>
+        <text class="stat-value gold">
+          ¥{{ formatHostNumber(stats.totalRevenue) }}
+        </text>
         <view class="stat-trend">
-          <AppIcon :name="stats.revenueGrowthRate >= 0 ? 'trending-up' : 'trending-down'" :size="24" :color="stats.revenueGrowthRate >= 0 ? '#22c55e' : '#ef4444'" />
-          <text class="trend-rate" :class="stats.revenueGrowthRate >= 0 ? 'up' : 'down'">{{ Math.abs(stats.revenueGrowthRate) }}%</text>
-          <text class="trend-note">较上月</text>
+          <AppIcon
+            :name="stats.revenueGrowthRate >= 0 ? 'trending-up' : 'trending-down'"
+            :size="24"
+            :color="stats.revenueGrowthRate >= 0 ? '#22c55e' : '#ef4444'"
+          />
+          <text
+            class="trend-rate"
+            :class="stats.revenueGrowthRate >= 0 ? 'up' : 'down'"
+          >
+            {{ Math.abs(stats.revenueGrowthRate) }}%
+          </text>
+          <text class="trend-note">
+            较上月
+          </text>
         </view>
       </view>
 
       <view class="stat-card">
         <view class="stat-head">
-          <AppIcon name="clock" :size="32" color="#666" />
-          <text class="stat-label">场均时长</text>
+          <AppIcon
+            name="clock"
+            :size="32"
+            color="#666"
+          />
+          <text class="stat-label">
+            场均时长
+          </text>
         </view>
-        <text class="stat-value">{{ stats.avgDuration }}<text class="stat-unit">分钟</text></text>
-        <text class="stat-note">共{{ stats.totalRooms }}场直播</text>
+        <text class="stat-value">
+          {{ stats.avgDuration }}<text class="stat-unit">
+            分钟
+          </text>
+        </text>
+        <text class="stat-note">
+          共{{ stats.totalRooms }}场直播
+        </text>
       </view>
 
       <view class="stat-card">
         <view class="stat-head">
-          <AppIcon name="users" :size="32" color="#666" />
-          <text class="stat-label">粉丝增长</text>
+          <AppIcon
+            name="users"
+            :size="32"
+            color="#666"
+          />
+          <text class="stat-label">
+            粉丝增长
+          </text>
         </view>
-        <text class="stat-value red">+{{ formatHostNumber(stats.fansGrowth) }}</text>
-        <text class="stat-note">本月新增</text>
+        <text class="stat-value red">
+          +{{ formatHostNumber(stats.fansGrowth) }}
+        </text>
+        <text class="stat-note">
+          本月新增
+        </text>
       </view>
     </view>
 
@@ -66,10 +145,24 @@
     <view class="trend-wrap">
       <view class="trend-card">
         <view class="trend-head">
-          <text class="trend-title">近30天趋势</text>
+          <text class="trend-title">
+            近30天趋势
+          </text>
           <view class="trend-tabs">
-            <view class="trend-tab" :class="{ 'trend-tab-active': trendType === 'views' }" @tap="trendType = 'views'">观看</view>
-            <view class="trend-tab" :class="{ 'trend-tab-active': trendType === 'revenue' }" @tap="trendType = 'revenue'">收益</view>
+            <view
+              class="trend-tab"
+              :class="{ 'trend-tab-active': trendType === 'views' }"
+              @tap="trendType = 'views'"
+            >
+              观看
+            </view>
+            <view
+              class="trend-tab"
+              :class="{ 'trend-tab-active': trendType === 'revenue' }"
+              @tap="trendType = 'revenue'"
+            >
+              收益
+            </view>
           </view>
         </view>
         <view class="chart">
@@ -81,9 +174,15 @@
           />
         </view>
         <view class="chart-axis">
-          <text class="axis-label">{{ trend[0].dateLabel }}</text>
-          <text class="axis-label">{{ trend[14].dateLabel }}</text>
-          <text class="axis-label">{{ trend[29].dateLabel }}</text>
+          <text class="axis-label">
+            {{ trend[0].dateLabel }}
+          </text>
+          <text class="axis-label">
+            {{ trend[14].dateLabel }}
+          </text>
+          <text class="axis-label">
+            {{ trend[29].dateLabel }}
+          </text>
         </view>
       </view>
     </view>
@@ -91,30 +190,74 @@
     <!-- 直播记录 -->
     <view class="records">
       <view class="records-head">
-        <text class="records-title">直播记录</text>
-        <text class="records-count">共{{ rooms.length }}场</text>
+        <text class="records-title">
+          直播记录
+        </text>
+        <text class="records-count">
+          共{{ rooms.length }}场
+        </text>
       </view>
       <view class="record-list">
-        <view v-for="room in rooms" :key="room.id" class="record-card" @tap="openRoom(room)">
+        <view
+          v-for="room in rooms"
+          :key="room.id"
+          class="record-card"
+          @tap="openRoom(room)"
+        >
           <view class="record-inner">
             <view class="record-cover">
-              <image class="record-img" :src="room.cover" mode="aspectFill" />
-              <view v-if="room.status === 'preview'" class="rc-preview">预告</view>
-              <view v-else class="rc-dur">{{ formatHostDuration(room.duration) }}</view>
+              <image
+                class="record-img"
+                :src="room.cover"
+                mode="aspectFill"
+              />
+              <view
+                v-if="room.status === 'preview'"
+                class="rc-preview"
+              >
+                预告
+              </view>
+              <view
+                v-else
+                class="rc-dur"
+              >
+                {{ formatHostDuration(room.duration) }}
+              </view>
             </view>
             <view class="record-info">
-              <text class="record-title-txt">{{ room.title }}</text>
-              <text class="record-date">{{ room.dateText }}</text>
-              <view v-if="room.status === 'ended'" class="record-stats">
+              <text class="record-title-txt">
+                {{ room.title }}
+              </text>
+              <text class="record-date">
+                {{ room.dateText }}
+              </text>
+              <view
+                v-if="room.status === 'ended'"
+                class="record-stats"
+              >
                 <view class="rs-item">
-                  <AppIcon name="eye" :size="24" color="#666" />
-                  <text class="rs-txt">{{ formatHostNumber(room.views) }}</text>
+                  <AppIcon
+                    name="eye"
+                    :size="24"
+                    color="#666"
+                  />
+                  <text class="rs-txt">
+                    {{ formatHostNumber(room.views) }}
+                  </text>
                 </view>
                 <view class="rs-item">
-                  <AppIcon name="gift" :size="24" color="#C9A96E" />
-                  <text class="rs-txt">{{ room.gifts }}</text>
+                  <AppIcon
+                    name="gift"
+                    :size="24"
+                    color="#C9A96E"
+                  />
+                  <text class="rs-txt">
+                    {{ room.gifts }}
+                  </text>
                 </view>
-                <text class="rs-revenue">¥{{ room.revenue }}</text>
+                <text class="rs-revenue">
+                  ¥{{ room.revenue }}
+                </text>
               </view>
             </view>
           </view>
