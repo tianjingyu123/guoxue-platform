@@ -1,5 +1,15 @@
 <template>
-  <view class="center">
+  <view v-if="isLoading" class="center">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无订单" />
+  <view v-else class="center">
     <!-- 头部 -->
     <view
       class="header"
@@ -253,18 +263,31 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  mockUnifiedOrders, orderCategories, unifiedStatusConfig, categoryColorMap,
+  mockUnifiedOrders as _mockUnifiedOrders, orderCategories as _orderCategories, unifiedStatusConfig as _unifiedStatusConfig, categoryColorMap as _categoryColorMap,
   type OrderCategory, type UnifiedOrderStatus,
 } from '@/lib/order-data'
 
-const categories = orderCategories
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { orders: _mockUnifiedOrders, categories: _orderCategories, config: _unifiedStatusConfig, colorMap: _categoryColorMap }
+})
+
+const categories = computed(() => pageData.value?.categories ?? [])
+const unifiedStatusConfig = computed(() => pageData.value?.config ?? {})
+const categoryColorMap = computed(() => pageData.value?.colorMap ?? {})
 const statusConfig = unifiedStatusConfig
+const mockUnifiedOrders = computed(() => pageData.value?.orders ?? [])
+const isEmpty = computed(() => mockUnifiedOrders.value.length === 0)
+
 const activeCategory = ref<OrderCategory>('all')
 const activeStatus = ref<UnifiedOrderStatus | ''>('')
 
 const filtered = computed(() =>
-  mockUnifiedOrders.filter((o) => {
+  mockUnifiedOrders.value.filter((o) => {
     if (activeCategory.value !== 'all' && o.category !== activeCategory.value) return false
     if (activeStatus.value && o.status !== activeStatus.value) return false
     return true
@@ -272,15 +295,15 @@ const filtered = computed(() =>
 )
 const counts = computed(() => {
   const acc: Record<string, number> = {}
-  for (const cat of categories) {
-    acc[cat.key] = cat.key === 'all' ? mockUnifiedOrders.length : mockUnifiedOrders.filter((o) => o.category === cat.key).length
+  for (const cat of categories.value) {
+    acc[cat.key] = cat.key === 'all' ? mockUnifiedOrders.value.length : mockUnifiedOrders.value.filter((o) => o.category === cat.key).length
   }
   return acc
 })
 
-function catColor(c: OrderCategory) { return categoryColorMap[c] }
-function catIcon(c: OrderCategory) { return categories.find((x) => x.key === c)?.icon || 'package' }
-function catLabel(c: OrderCategory) { return categories.find((x) => x.key === c)?.label || '' }
+function catColor(c: OrderCategory) { return categoryColorMap.value[c] }
+function catIcon(c: OrderCategory) { return categories.value.find((x) => x.key === c)?.icon || 'package' }
+function catLabel(c: OrderCategory) { return categories.value.find((x) => x.key === c)?.label || '' }
 function isExpired(date: string) { return new Date(date).getTime() < Date.now() }
 </script>
 

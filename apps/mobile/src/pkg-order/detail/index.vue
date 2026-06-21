@@ -1,5 +1,15 @@
 <template>
-  <view class="detail">
+  <view v-if="isLoading" class="detail">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无订单" />
+  <view v-else class="detail">
     <!-- 顶部 -->
     <app-nav-bar
       title="订单详情"
@@ -412,18 +422,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
-import { mockOrderDetail, detailSteps, detailStatusConfig, type OrderDetail } from '@/lib/order-data'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { mockOrderDetail as _mockOrderDetail, detailSteps as _detailSteps, detailStatusConfig as _detailStatusConfig, type OrderDetail } from '@/lib/order-data'
 
-const steps = detailSteps
-const order = ref<OrderDetail>({ ...mockOrderDetail })
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { detail: _mockOrderDetail, steps: _detailSteps, config: _detailStatusConfig }
+})
+
+const steps = computed(() => pageData.value?.steps ?? [])
+const detailStatusConfig = computed(() => pageData.value?.config ?? {})
+const isEmpty = computed(() => !pageData.value?.detail?.id)
+const order = ref<OrderDetail>({ ..._mockOrderDetail })
+watch(() => pageData.value?.detail, (val) => { if (val) order.value = { ...val } }, { immediate: true })
 const copied = ref(false)
 const orderId = ref('1')
 
-const status = computed(() => detailStatusConfig[order.value.status] || detailStatusConfig.pending_pay)
+const status = computed(() => detailStatusConfig.value[order.value.status] || detailStatusConfig.value.pending_pay)
 
 onLoad((q) => { if (q?.id) orderId.value = q.id })
 

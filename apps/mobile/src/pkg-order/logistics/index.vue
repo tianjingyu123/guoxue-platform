@@ -1,5 +1,14 @@
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="400rpx" radius="24rpx" mb="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无物流信息" />
+  <view v-else class="page">
     <app-nav-bar
       title="物流详情"
       :back-size="40"
@@ -173,9 +182,19 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { mockLogistics as logisticsDetail, logisticsStatusMap } from '@/lib/order-data'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { mockLogistics as _mockLogistics, logisticsStatusMap as _logisticsStatusMap } from '@/lib/order-data'
 
-const data = ref(logisticsDetail)
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { logistics: _mockLogistics }
+})
+
+const logisticsStatusMap = _logisticsStatusMap
+const isEmpty = computed(() => !pageData.value?.logistics?.trackingNo)
+const data = computed(() => pageData.value?.logistics ?? { trackingNo: '', status: '', companyPhone: '', steps: [] })
 const statusMeta = computed(
   () => logisticsStatusMap[data.value.status] || { label: '运输中', color: '#C41E3A' },
 )

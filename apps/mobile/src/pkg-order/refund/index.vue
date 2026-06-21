@@ -1,5 +1,14 @@
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无退款信息" />
+  <view v-else class="page">
     <app-nav-bar
       title="退款进度"
       :back-size="40"
@@ -300,11 +309,21 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
-import { mockRefund as refundProgress } from '@/lib/order-data'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { mockRefund as _mockRefund } from '@/lib/order-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { refund: _mockRefund }
+})
+
+const isEmpty = computed(() => !pageData.value?.refund?.id)
 
 const safeBottom = ref(0)
-const data = ref(refundProgress)
+const data = computed(() => pageData.value?.refund ?? { id: '', status: '', timeline: [], amount: 0, reason: '', items: [], refundMethod: '' })
 
 const refundMethod = '微信支付'
 const estimatedDate = '2024年1月18日'

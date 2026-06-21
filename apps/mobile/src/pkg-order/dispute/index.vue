@@ -1,5 +1,14 @@
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无申诉信息" />
+  <view v-else class="page">
     <app-nav-bar
       :title="navTitle"
       :back-size="40"
@@ -415,25 +424,38 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
   disputeTypes,
   disputeStatusConfig,
-  mockDisputeOrder as disputeOrder,
-  mockMyDisputes as myDisputes,
-  mockDisputeDetail as disputeDetail,
+  mockDisputeOrder as _disputeOrder,
+  mockMyDisputes as _myDisputes,
+  mockDisputeDetail as _disputeDetail,
 } from '@/lib/order-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { order: _disputeOrder, disputes: _myDisputes, detail: _disputeDetail }
+})
+
+const isEmpty = computed(() => !pageData.value?.order?.id && (pageData.value?.detail !== undefined && !pageData.value?.detail?.id))
 
 const safeBottom = ref(0)
 
 // view: create | list | detail
 const view = ref<'create' | 'list' | 'detail'>('create')
 
-const order = ref(disputeOrder)
-const disputes = ref(myDisputes)
-const detail = ref(disputeDetail)
+const order = ref(_disputeOrder)
+watch(() => pageData.value?.order, (val) => { if (val) order.value = val }, { immediate: true })
+const disputes = ref(_myDisputes)
+watch(() => pageData.value?.disputes, (val) => { if (val) disputes.value = val }, { immediate: true })
+const detail = ref(_disputeDetail)
+watch(() => pageData.value?.detail, (val) => { if (val) detail.value = val }, { immediate: true })
 
 const form = reactive({
   type: disputeTypes[0].value,

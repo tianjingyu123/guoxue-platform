@@ -1,5 +1,14 @@
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无评价" />
+  <view v-else class="page">
     <app-nav-bar
       back-icon="arrow-left"
       :back-size="40"
@@ -168,22 +177,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
-import { reviewItems as orderReviewItems, reviewTagsByRating, reviewRatingLabels } from '@/lib/order-data'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { reviewItems as _orderReviewItems, reviewTagsByRating, reviewRatingLabels } from '@/lib/order-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { items: _orderReviewItems }
+})
+
+const reviewItems = computed(() => pageData.value?.items ?? [])
+const isEmpty = computed(() => reviewItems.value.length === 0)
 
 const safeBottom = ref(0)
 const orderId = ref('1')
 
-const reviewItems = ref(orderReviewItems)
 const tagsByRating = reviewTagsByRating
 const ratingLabels = reviewRatingLabels
 
 interface ReviewForm { rating: number; tags: string[]; content: string; images: string[] }
-const forms = reactive<ReviewForm[]>(
-  orderReviewItems.map(() => ({ rating: 0, tags: [], content: '', images: [] })),
-)
+const forms = reactive<ReviewForm[]>([])
+watch(() => pageData.value?.items, (val) => {
+  if (val && forms.length === 0) {
+    val.forEach(() => forms.push({ rating: 0, tags: [], content: '', images: [] }))
+  }
+}, { immediate: true })
 
 const allRated = computed(() => forms.every((f) => f.rating > 0))
 

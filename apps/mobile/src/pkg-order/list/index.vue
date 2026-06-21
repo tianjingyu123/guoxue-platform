@@ -1,5 +1,15 @@
 <template>
-  <view class="orders">
+  <view v-if="isLoading" class="orders">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无订单" />
+  <view v-else class="orders">
     <!-- 顶部导航 + 状态Tab -->
     <view
       class="header"
@@ -262,15 +272,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
-import { mockOrders, orderStatusTabs, orderStatusConfig, orderCancelReasons, type OrderListItem } from '@/lib/order-data'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { mockOrders as _mockOrders, orderStatusTabs as _orderStatusTabs, orderStatusConfig as _orderStatusConfig, orderCancelReasons as _orderCancelReasons, type OrderListItem } from '@/lib/order-data'
 
-const statusTabs = orderStatusTabs
-const cancelReasons = orderCancelReasons
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { mockOrders: _mockOrders, tabs: _orderStatusTabs, config: _orderStatusConfig, reasons: _orderCancelReasons }
+})
+
+const statusTabs = computed(() => pageData.value?.tabs ?? [])
+const cancelReasons = computed(() => pageData.value?.reasons ?? [])
+const orderStatusConfig = computed(() => pageData.value?.config ?? {})
+const isEmpty = computed(() => {
+  const raw = pageData.value?.mockOrders
+  return raw !== undefined && raw.length === 0
+})
 const activeTab = ref('')
-const orders = ref<OrderListItem[]>([...mockOrders])
+const orders = ref<OrderListItem[]>([])
+watch(() => pageData.value?.mockOrders, (val) => { if (val) orders.value = [...val] }, { immediate: true })
 const showCancel = ref(false)
 const cancelId = ref<string | null>(null)
 const cancelReason = ref('')
@@ -280,7 +304,7 @@ const filteredOrders = computed(() =>
 )
 
 function cfg(status: string) {
-  return orderStatusConfig[status] || orderStatusConfig.completed
+  return orderStatusConfig.value[status] || orderStatusConfig.value.completed
 }
 function copyNo(no: string) {
   uni.setClipboardData({ data: no, success: () => uni.showToast({ title: '已复制', icon: 'none' }) })

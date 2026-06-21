@@ -1,5 +1,14 @@
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无发票信息" />
+  <view v-else class="page">
     <app-nav-bar
       title="发票管理"
       :back-size="40"
@@ -375,15 +384,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { mockInvoiceOrders, mockInvoices, invoiceStatusConfig } from '@/lib/order-data'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { mockInvoiceOrders as _mockInvoiceOrders, mockInvoices as _mockInvoices, invoiceStatusConfig } from '@/lib/order-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { orders: _mockInvoiceOrders, invoices: _mockInvoices }
+})
+
+const isEmpty = computed(() => {
+  const o = pageData.value?.orders
+  return o !== undefined && o.length === 0
+})
 
 const safeBottom = ref(0)
 const activeTab = ref<'apply' | 'list'>('apply')
 
-const applicableOrders = ref(mockInvoiceOrders)
-const records = ref(mockInvoices)
+const applicableOrders = ref(_mockInvoiceOrders)
+watch(() => pageData.value?.orders, (val) => { if (val) applicableOrders.value = val }, { immediate: true })
+const records = ref(_mockInvoices)
+watch(() => pageData.value?.invoices, (val) => { if (val) records.value = val }, { immediate: true })
 
 const tabList = computed(() => [
   { key: 'apply' as const, label: '申请开票', count: applicableOrders.value.length },
