@@ -1,18 +1,40 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  pointsInfo as infoData,
-  pointsTasks,
-  pointsHistory,
-  pointsExchangeItems,
+  pointsInfo as _pointsInfo,
+  pointsTasks as _pointsTasks,
+  pointsHistory as _pointsHistory,
+  pointsExchangeItems as _pointsExchangeItems,
   type PointsExchangeItem,
 } from '@/lib/points-data'
 
-const info = ref({ ...infoData })
-const tasks = ref(pointsTasks)
-const history = ref(pointsHistory)
-const exchangeItems = ref(pointsExchangeItems)
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { info: _pointsInfo, tasks: _pointsTasks, history: _pointsHistory, exchangeItems: _pointsExchangeItems }
+})
+
+const dataIsEmpty = computed(() => {
+  const raw = pageData.value
+  return raw !== undefined && raw.info === undefined
+})
+
+const info = ref({ balance: 0, totalEarned: 0, totalSpent: 0, todayEarned: 0 })
+const tasks = ref<any[]>([])
+const history = ref<any[]>([])
+const exchangeItems = ref<PointsExchangeItem[]>([])
+
+watch(() => pageData.value, (val) => {
+  if (val) {
+    info.value = { ...val.info }
+    tasks.value = val.tasks.map((t: any) => ({ ...t }))
+    history.value = val.history.map((h: any) => ({ ...h }))
+    exchangeItems.value = val.exchangeItems.map((e: any) => ({ ...e }))
+  }
+}, { immediate: true })
 
 const showExchangeModal = ref(false)
 const selectedItem = ref<PointsExchangeItem | null>(null)
@@ -48,7 +70,17 @@ function confirmExchange() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="280rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="320rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="260rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="dataIsEmpty" title="暂无数据" />
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="nav">
       <view

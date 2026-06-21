@@ -1,20 +1,30 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  walletInfo,
-  rechargeOptions,
-  walletTransactions,
+  walletInfo as _walletInfo,
+  rechargeOptions as _rechargeOptions,
+  walletTransactions as _walletTransactions,
   type WalletTxType,
 } from '@/lib/mine-data'
 
-const info = walletInfo
-const options = rechargeOptions
-const transactions = walletTransactions
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { info: _walletInfo, options: _rechargeOptions, transactions: _walletTransactions }
+})
+
+const isEmpty = computed(() => !pageData.value?.info)
+
+const info = computed(() => pageData.value?.info ?? { balance: 0, rmb: 0, level: '', growthValue: 0, nextLevelGrowth: 0, totalRecharge: 0, totalSpent: 0, points: 0 })
+const options = computed(() => pageData.value?.options ?? [])
+const transactions = computed(() => pageData.value?.transactions ?? [])
 
 const levelProgress = computed(() =>
-  Math.round((info.growthValue / info.nextLevelGrowth) * 100),
+  Math.round((info.value.growthValue / info.value.nextLevelGrowth) * 100),
 )
 
 const txIcon: Record<WalletTxType, { icon: string; color: string }> = {
@@ -30,7 +40,18 @@ function notReady() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="280rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="260rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
+  <view v-else class="page">
     <app-nav-bar
       title="我的钱包"
       back-icon="arrow-left"

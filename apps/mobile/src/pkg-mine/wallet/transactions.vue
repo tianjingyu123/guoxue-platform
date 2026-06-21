@@ -1,16 +1,26 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  walletBalanceBrief,
-  walletTxRecords,
+  walletBalanceBrief as _walletBalanceBrief,
+  walletTxRecords as _walletTxRecords,
   type WalletTxRecord,
   type WalletTxCategory,
 } from '@/lib/mine-data'
 
-const balance = walletBalanceBrief
-const allRecords = walletTxRecords
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { balance: _walletBalanceBrief, records: _walletTxRecords }
+})
+
+const isEmpty = computed(() => !pageData.value?.balance)
+
+const balance = computed(() => pageData.value?.balance ?? { coin: 0, frozen: 0, points: 0 })
+const allRecords = computed(() => pageData.value?.records ?? [])
 
 // 筛选状态
 const filterType = ref<'' | 'income' | 'expense'>('')
@@ -63,7 +73,7 @@ const catClass: Record<WalletTxCategory, string> = {
 
 // 过滤
 const filtered = computed(() => {
-  let list = allRecords
+  let list = allRecords.value
   if (filterType.value) list = list.filter((t) => t.type === filterType.value)
   if (selectedMonth.value)
     list = list.filter((t) => t.createdAt.slice(0, 7) === selectedMonth.value)
@@ -112,7 +122,17 @@ function openDetail(id: string) {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="80rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
+  <view v-else class="page">
     <!-- 顶部导航(红色渐变) -->
     <view class="topbar">
       <view
