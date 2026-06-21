@@ -1,5 +1,14 @@
 <template>
-  <view class="cd-page">
+  <view v-if="isLoading" class="cd-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="300rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无书单数据" />
+  <view v-else class="cd-page">
     <!-- 顶部导航 -->
     <view class="cd-header">
       <view class="cd-nav">
@@ -253,7 +262,17 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { collectionsDetailData } from '@/lib/classics-data'
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() => !collection.value || !collection.value.books || collection.value.books.length === 0)
+function reload() {
+  loadError.value = null
+}
 
 const collectionId = ref('1')
 const isAddedToShelf = ref(false)

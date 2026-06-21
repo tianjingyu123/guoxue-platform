@@ -2,9 +2,19 @@
 /** 直播广场页 - 从原型 app/live/page.tsx 迁移 */
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import LiveCard from '@/components/live/live-card.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveTabs, liveList, type LiveItem } from '@/lib/live-data'
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() => filtered.value.length === 0)
+function reload() {
+  loadError.value = null
+}
 
 const activeTab = ref<string>('全部')
 
@@ -27,7 +37,17 @@ function onSearch() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="80rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无直播" />
+  <view v-else class="page">
     <!-- 固定头部 -->
     <view class="header">
       <view class="title-bar">

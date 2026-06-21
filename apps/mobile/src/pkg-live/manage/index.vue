@@ -1,5 +1,15 @@
 <template>
-  <view class="manage-page">
+  <view v-if="isLoading" class="manage-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="80rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="300rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无直播" />
+  <view v-else class="manage-page">
     <!-- 顶部导航 -->
     <view class="nav-bar">
       <view class="nav-left">
@@ -434,6 +444,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
 import {
   liveManageStats,
@@ -442,6 +455,13 @@ import {
   liveManageStatusConfig,
   type LiveManageItem,
 } from '@/lib/live-data'
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() => list.length === 0)
+function reload() {
+  loadError.value = null
+}
 
 const stats = liveManageStats
 const list = liveManageList

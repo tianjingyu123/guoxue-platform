@@ -1,5 +1,15 @@
 <template>
-  <view class="ed-page">
+  <view v-if="isLoading" class="ed-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="80rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="300rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="180rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无书籍信息" />
+  <view v-else class="ed-page">
     <!-- 顶部导航 毛玻璃 -->
     <view class="ed-header">
       <view class="ed-bar">
@@ -414,6 +424,9 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import FlatBookCover from '@/components/ebook/flat-book-cover.vue'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
 import type { DiscussionConfig } from '@/lib/discussion-types'
@@ -424,6 +437,13 @@ import {
   EBOOK_COVER,
   type EbookChapter,
 } from '@/lib/ebook-data'
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() => false)
+function reload() {
+  loadError.value = null
+}
 
 const book = ebookDetailData
 const isFavorite = ref(false)

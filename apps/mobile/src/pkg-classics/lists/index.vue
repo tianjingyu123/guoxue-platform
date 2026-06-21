@@ -1,10 +1,20 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { listsPageData, type BookListFull } from '@/lib/classics-data'
 import { coverColorForBook } from '@/lib/classics-cover'
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() => lists.value.length === 0)
+function reload() {
+  loadError.value = null
+}
 
 const lists = ref<BookListFull[]>(listsPageData.map((l) => ({ ...l })))
 
@@ -32,7 +42,17 @@ function fmtLikes(n: number): string {
 </script>
 
 <template>
-  <view class="lp-page">
+  <view v-if="isLoading" class="lp-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="40%" height="40rpx" radius="12rpx" mb="24rpx" />
+      <AppSkeleton width="60%" height="60rpx" radius="16rpx" mb="48rpx" />
+      <AppSkeleton width="100%" height="280rpx" radius="32rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="280rpx" radius="32rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无书单" />
+  <view v-else class="lp-page">
     <ClassicsHeader title="精选书单">
       <template #right>
         <view

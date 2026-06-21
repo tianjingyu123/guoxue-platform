@@ -2,8 +2,22 @@
 /** 商品评价页 - 从原型 app/mall/product/[id]/reviews/page.tsx 1:1 迁移 */
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
-import { reviewTags, reviewSortOptions, fullReviews, reviewSummary } from '@/lib/shop-data'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { reviewTags as _reviewTags, reviewSortOptions as _reviewSortOptions, fullReviews as _fullReviews, reviewSummary as _reviewSummary } from '@/lib/shop-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { tags: _reviewTags, sortOptions: _reviewSortOptions, reviews: _fullReviews, summary: _reviewSummary }
+})
+
+const reviewTags = computed(() => pageData.value?.tags ?? [])
+const reviewSortOptions = computed(() => pageData.value?.sortOptions ?? [])
+const fullReviews = computed(() => pageData.value?.reviews ?? [])
+const reviewSummary = computed(() => pageData.value?.summary ?? { total: 0, rating: 0, goodRatePercent: 0 })
+const isEmpty = computed(() => fullReviews.value.length === 0)
 
 const selectedTag = ref('all')
 const sortBy = ref('default')
@@ -11,9 +25,9 @@ const showSortMenu = ref(false)
 const likedReviews = ref<number[]>([])
 const previewImage = ref<{ reviewId: number; index: number } | null>(null)
 
-const sortLabel = computed(() => reviewSortOptions.find((o) => o.id === sortBy.value)?.label)
+const sortLabel = computed(() => reviewSortOptions.value.find((o) => o.id === sortBy.value)?.label)
 const sortedReviews = computed(() => {
-  const list = fullReviews.filter((r) => selectedTag.value === 'all' || r.tags.includes(selectedTag.value))
+  const list = fullReviews.value.filter((r) => selectedTag.value === 'all' || r.tags.includes(selectedTag.value))
   return [...list].sort((a, b) => {
     switch (sortBy.value) {
       case 'newest': return new Date(b.time).getTime() - new Date(a.time).getTime()
@@ -23,7 +37,7 @@ const sortedReviews = computed(() => {
     }
   })
 })
-const previewReview = computed(() => fullReviews.find((r) => r.id === previewImage.value?.reviewId) || null)
+const previewReview = computed(() => fullReviews.value.find((r) => r.id === previewImage.value?.reviewId) || null)
 
 function pickSort(id: string) { sortBy.value = id; showSortMenu.value = false }
 function toggleLike(id: number) {
@@ -36,7 +50,17 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无评价" />
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">

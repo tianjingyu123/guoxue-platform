@@ -1,5 +1,14 @@
 <template>
-  <view class="cd-page">
+  <view v-if="isLoading" class="cd-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="240rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无书籍数据" />
+  <view v-else class="cd-page">
     <classics-header
       :title="book.title"
       right-type="share"
@@ -363,9 +372,19 @@ import { onLoad } from '@dcloudio/uni-app'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
 import type { DiscussionConfig, DiscussionItem } from '@/lib/discussion-types'
 import type { CoverColor } from '@/lib/classics-cover'
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() => !book.value)
+function reload() {
+  loadError.value = null
+}
 
 interface Chapter {
   id: string

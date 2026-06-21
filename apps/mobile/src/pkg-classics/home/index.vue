@@ -1,11 +1,23 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
 import {
   libraryStats, categories, todayFeature, lastReading, weeklyMinutes,
   bookLists, rankingData, audioBooks, featuredBooks, filterTypes, fmtReads,
 } from '@/lib/classics-data'
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() =>
+  !categories || categories.length === 0
+)
+function reload() {
+  loadError.value = null
+}
 
 const activeType = ref('all')
 
@@ -45,7 +57,16 @@ function onRefreshRanking() {}
 </script>
 
 <template>
-  <view class="ch-page">
+  <view v-if="isLoading" class="ch-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
+  <view v-else class="ch-page">
     <!-- 顶部导航 - 苹果式半透明 -->
     <view class="ch-topbar">
       <view class="ch-statusbar" />

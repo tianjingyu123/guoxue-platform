@@ -1,14 +1,34 @@
 <script setup lang="ts">
 /** 商城首页 - 从原型 app/mall/page.tsx 1:1 迁移 */
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import ProductCard from '@/components/cards/product-card.vue'
 import LiveCard from '@/components/cards/live-card.vue'
 import MarketingZone from '@/components/mall/marketing-zone.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  mallQuickEntries, mallBanners, mallCommerceLives, mallCategories, mallProducts, cartCount,
+  mallQuickEntries as _mallQuickEntries, mallBanners as _mallBanners, mallCommerceLives as _mallCommerceLives,
+  mallCategories as _mallCategories, mallProducts as _mallProducts, cartCount as _cartCount,
 } from '@/lib/shop-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return {
+    entries: _mallQuickEntries, banners: _mallBanners, lives: _mallCommerceLives,
+    categories: _mallCategories, products: _mallProducts, cartCount: _cartCount,
+  }
+})
+
+const mallQuickEntries = computed(() => pageData.value?.entries ?? [])
+const mallBanners = computed(() => pageData.value?.banners ?? [])
+const mallCommerceLives = computed(() => pageData.value?.lives ?? [])
+const mallCategories = computed(() => pageData.value?.categories ?? [])
+const mallProducts = computed(() => pageData.value?.products ?? [])
+const cartCount = computed(() => pageData.value?.cartCount ?? 0)
+const isEmpty = computed(() => mallProducts.value.length === 0 && mallBanners.value.length === 0)
 
 const bannerIndex = ref(0)
 function onBannerChange(e: { detail: { current: number } }) { bannerIndex.value = e.detail.current }
@@ -19,7 +39,17 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="240rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无商品" />
+  <view v-else class="page">
     <!-- 顶部搜索栏 -->
     <view class="topbar">
       <view

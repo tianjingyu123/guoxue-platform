@@ -1,5 +1,15 @@
 <template>
-  <view class="bs-page">
+  <view v-if="isLoading" class="bs-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="80rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="240rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="240rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="书架暂无书籍" />
+  <view v-else class="bs-page">
     <!-- 顶部导航 -->
     <view
       class="bs-header"
@@ -406,7 +416,17 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() => filteredBooks.value.length === 0 && activeTab.value === 'shelf')
+function reload() {
+  loadError.value = null
+}
 
 const statusBarH = ref(0)
 try {

@@ -1,5 +1,15 @@
 <template>
-  <view class="ebs-page">
+  <view v-if="isLoading" class="ebs-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="80rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无电子书" />
+  <view v-else class="ebs-page">
     <!-- 顶栏 -->
     <view class="ebs-header">
       <view class="ebs-bar">
@@ -357,6 +367,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import FlatBookCover from '@/components/ebook/flat-book-cover.vue'
 import {
   ebookShelfBooks,
@@ -364,6 +377,13 @@ import {
   type EbookFilterType,
   type EbookShelfBook,
 } from '@/lib/ebook-data'
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() => sortedBooks.value.length === 0)
+function reload() {
+  loadError.value = null
+}
 
 const filter = ref<EbookFilterType>('all')
 const viewMode = ref<'grid' | 'list'>('grid')

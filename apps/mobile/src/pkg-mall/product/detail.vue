@@ -3,12 +3,21 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import GroupBuyInfoCard from '@/components/marketing/group-buy-info-card.vue'
 import CouponClaimCard from '@/components/marketing/coupon-claim-card.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
-import { getProductDetail, cartCount as initialCart } from '@/lib/shop-data'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { getProductDetail as _getProductDetail, cartCount as initialCart } from '@/lib/shop-data'
 
-const product = getProductDetail()
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { detail: _getProductDetail() }
+})
+
+const product = computed(() => pageData.value?.detail ?? {} as any)
+const isEmpty = computed(() => !pageData.value?.detail?.id)
 const swiperIndex = ref(0)
 const isFavorite = ref(false)
 const cartCount = ref(initialCart)
@@ -18,22 +27,22 @@ const selectedSpecs = ref<Record<string, string>>({ 版本: 'standard', 数量: 
 
 onLoad(() => {})
 
-const discount = computed(() => Math.round((1 - product.price / product.originalPrice) * 100))
+const discount = computed(() => Math.round((1 - product.value.price / product.value.originalPrice) * 100))
 const currentPrice = computed(() => {
-  const v = product.specs.find((s) => s.name === '版本')?.options.find((o) => o.id === selectedSpecs.value['版本'])
-  return v?.price || product.price
+  const v = product.value.specs?.find((s: any) => s.name === '版本')?.options.find((o: any) => o.id === selectedSpecs.value['版本'])
+  return v?.price || product.value.price
 })
 const currentStock = computed(() => {
-  const v = product.specs.find((s) => s.name === '版本')?.options.find((o) => o.id === selectedSpecs.value['版本'])
-  return v?.stock || product.stock
+  const v = product.value.specs?.find((s: any) => s.name === '版本')?.options.find((o: any) => o.id === selectedSpecs.value['版本'])
+  return v?.stock || product.value.stock
 })
 const selectedSpecLabels = computed(() =>
   Object.entries(selectedSpecs.value)
-    .map(([k, v]) => product.specs.find((s) => s.name === k)?.options.find((o) => o.id === v)?.label)
+    .map(([k, v]) => product.value.specs?.find((s: any) => s.name === k)?.options.find((o: any) => o.id === v)?.label)
     .filter(Boolean)
     .join('、'),
 )
-const previewReviews = computed(() => product.reviews.slice(0, 2))
+const previewReviews = computed(() => product.value.reviews?.slice(0, 2) ?? [])
 
 function onSwiperChange(e: any) { swiperIndex.value = e.detail.current }
 function selectSpec(name: string, id: string) { selectedSpecs.value = { ...selectedSpecs.value, [name]: id } }
@@ -45,7 +54,17 @@ function goCart() { navigateTo('/shop/cart') }
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="750rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无商品" />
+  <view v-else class="page">
     <!-- 图片轮播 -->
     <view class="carousel">
       <view

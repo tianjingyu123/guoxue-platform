@@ -2,6 +2,9 @@
 /** 主播列表 - 从原型 app/live/hosts/page.tsx 迁移 */
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveHosts, type LiveHost } from '@/lib/live-data'
 
@@ -11,6 +14,13 @@ const filters: { key: FilterKey; label: string }[] = [
   { key: 'live', label: '直播中' },
   { key: 'followed', label: '已关注' },
 ]
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() => filtered.value.length === 0)
+function reload() {
+  loadError.value = null
+}
 
 const search = ref('')
 const filter = ref<FilterKey>('all')
@@ -36,7 +46,17 @@ function fmtLikes(n: number) {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="80rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无主播" />
+  <view v-else class="page">
     <!-- 头部 -->
     <view class="header">
       <view

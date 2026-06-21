@@ -1,5 +1,15 @@
 <template>
-  <view class="cl-page">
+  <view v-if="isLoading" class="cl-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="50%" height="60rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="80rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无收藏" />
+  <view v-else class="cl-page">
     <classics-header
       title="我的收藏"
       :show-search="false"
@@ -164,8 +174,18 @@ import { ref, computed } from 'vue'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
 import { mockCollections, collectionTypeMeta, collectionFilters, type CollectionItem } from '@/lib/classics-data'
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() => collections.value.length === 0)
+function reload() {
+  loadError.value = null
+}
 
 const searchText = ref('')
 const filter = ref<string>('all')

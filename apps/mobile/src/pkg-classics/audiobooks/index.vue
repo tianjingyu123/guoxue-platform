@@ -2,8 +2,18 @@
 import { ref, computed } from 'vue'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
 import { mockAudioBooks, fmtPlays } from '@/lib/classics-data'
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() => !mockAudioBooks || mockAudioBooks.length === 0)
+function reload() {
+  loadError.value = null
+}
 
 const favorites = ref<string[]>([])
 
@@ -22,7 +32,18 @@ function goPlayer(id: string) {
 </script>
 
 <template>
-  <view class="ab-page">
+  <view v-if="isLoading" class="ab-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="50%" height="40rpx" radius="12rpx" mb="24rpx" />
+      <AppSkeleton width="60%" height="60rpx" radius="16rpx" mb="48rpx" />
+      <AppSkeleton width="100%" height="240rpx" radius="32rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无有声书" />
+  <view v-else class="ab-page">
     <classics-header title="听书" />
 
     <view class="ab-main">

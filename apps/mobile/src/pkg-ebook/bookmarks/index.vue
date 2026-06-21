@@ -1,5 +1,15 @@
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="80rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无书签" />
+  <view v-else class="page">
     <!-- Header -->
     <view class="hd">
       <view class="hd-bar">
@@ -149,10 +159,20 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { ebookBookmarks, type EbookBookmark } from '@/lib/ebook-data'
 
 const C = {
   text: '#1e293b', primary: '#2563eb', slate400: '#94a3b8', slate200: '#e2e8f0',
+}
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() => items.value.length === 0)
+function reload() {
+  loadError.value = null
 }
 
 const search = ref('')

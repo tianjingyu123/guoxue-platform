@@ -1,5 +1,15 @@
 <template>
-  <view class="cat-page">
+  <view v-if="isLoading" class="cat-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="60%" height="56rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无书籍" />
+  <view v-else class="cat-page">
     <classics-header
       :title="config.name"
       right-type="search"
@@ -143,7 +153,17 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { CAT_CONFIG, CAT_BOOKS, fmtReads, type CatId } from '@/lib/classics-data'
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() => !books.value || books.value.length === 0)
+function reload() {
+  loadError.value = null
+}
 
 const catId = ref<CatId>('jing')
 const activeSub = ref('全部')

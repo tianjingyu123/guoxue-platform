@@ -2,8 +2,21 @@
 /** 商品分类页 - 从原型 app/mall/category/page.tsx 1:1 迁移 */
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { categoryTabs, categorySortOptions, categoryProducts } from '@/lib/shop-data'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { categoryTabs as _categoryTabs, categorySortOptions as _categorySortOptions, categoryProducts as _categoryProducts } from '@/lib/shop-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { tabs: _categoryTabs, sortOptions: _categorySortOptions, products: _categoryProducts }
+})
+
+const categoryTabs = computed(() => pageData.value?.tabs ?? [])
+const categorySortOptions = computed(() => pageData.value?.sortOptions ?? [])
+const categoryProducts = computed(() => pageData.value?.products ?? [])
+const isEmpty = computed(() => categoryProducts.value.length === 0)
 
 const activeCategory = ref('all')
 const sortBy = ref('default')
@@ -16,11 +29,11 @@ const onlyMemberFree = ref(false)
 
 const quickPrices: Array<[number, number]> = [[0, 50], [50, 100], [100, 300], [300, 500], [500, 1000]]
 
-const sortName = computed(() => categorySortOptions.find((s) => s.id === sortBy.value)?.name)
+const sortName = computed(() => categorySortOptions.value.find((s) => s.id === sortBy.value)?.name)
 const hasFilter = computed(() => priceMin.value > 0 || priceMax.value < 1000 || onlyMemberFree.value)
 
 const sortedProducts = computed(() => {
-  const list = categoryProducts.filter((p) => {
+  const list = categoryProducts.value.filter((p) => {
     if (activeCategory.value !== 'all' && p.category !== activeCategory.value) return false
     if (searchQuery.value && !p.name.includes(searchQuery.value)) return false
     if (p.price < priceMin.value || p.price > priceMax.value) return false
@@ -47,7 +60,16 @@ function openProduct(id: number) { navigateTo(`/mall/product/${id}`) }
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="80rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="300rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无商品" />
+  <view v-else class="page">
     <!-- 顶部搜索栏 -->
     <view class="header">
       <view class="header-inner">

@@ -1,5 +1,15 @@
 <template>
-  <view class="analytics-page">
+  <view v-if="isLoading" class="analytics-page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="80rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="400rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
+  <view v-else class="analytics-page">
     <!-- 顶部导航 -->
     <view class="nav-bar">
       <view class="nav-left">
@@ -699,10 +709,20 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import {
   analyticsLiveInfo, analyticsCoreStats, analyticsTrafficData, analyticsKeyMoments,
   analyticsAudience, analyticsInteraction, analyticsWordCloud, analyticsProductStats, analyticsReplay,
 } from '@/lib/live-data'
+
+const isLoading = ref(false)
+const loadError = ref<string | null>(null)
+const isEmpty = computed(() => false)
+function reload() {
+  loadError.value = null
+}
 
 const liveInfo = analyticsLiveInfo
 const coreStats = analyticsCoreStats
