@@ -3,13 +3,33 @@
 import { ref, computed } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 学习中心聚合, 参数 courseId, 返回 { course, progress, chapters, notes, questions }
 // mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
 import {
-  learnCourse as course, learnProgress as progress, learnChapters as chapters,
-  learnNotes as notes, learnQuestions as questions,
-  type LearnChapter, type LearnLesson,
+  learnCourse as _course, learnProgress as _progress, learnChapters as _chapters,
+  learnNotes as _notes, learnQuestions as _questions,
 } from '@/lib/course-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return {
+    course: _course,
+    progress: _progress,
+    chapters: _chapters,
+    notes: _notes,
+    questions: _questions,
+  }
+})
+
+const course = computed(() => pageData.value?.course ?? {} as any)
+const progress = computed(() => pageData.value?.progress ?? {} as any)
+const chapters = computed(() => pageData.value?.chapters ?? [])
+const notes = computed(() => pageData.value?.notes ?? [])
+const questions = computed(() => pageData.value?.questions ?? [])
+const isEmpty = computed(() => !pageData.value?.course)
 
 type TabKey = 'catalog' | 'notes' | 'questions'
 const activeTab = ref<TabKey>('catalog')
@@ -22,17 +42,17 @@ const ringSize = 80
 const ringStroke = 6
 const ringRadius = (ringSize - ringStroke) / 2
 const ringCircumference = ringRadius * 2 * Math.PI
-const ringOffset = computed(() => ringCircumference - (progress.progressPercent / 100) * ringCircumference)
+const ringOffset = computed(() => ringCircumference - (progress.value.progressPercent / 100) * ringCircumference)
 
 const tabs = computed(() => [
-  { id: 'catalog' as TabKey, label: '目录', icon: 'book-open', count: chapters.length },
-  { id: 'notes' as TabKey, label: '笔记', icon: 'file-text', count: notes.length },
-  { id: 'questions' as TabKey, label: '问答', icon: 'message-circle', count: questions.length },
+  { id: 'catalog' as TabKey, label: '目录', icon: 'book-open', count: chapters.value.length },
+  { id: 'notes' as TabKey, label: '笔记', icon: 'file-text', count: notes.value.length },
+  { id: 'questions' as TabKey, label: '问答', icon: 'message-circle', count: questions.value.length },
 ])
 
 function toggleChapter(id: string) { expanded.value[id] = !expanded.value[id] }
-function chapterDone(c: LearnChapter) { return c.lessons.filter((l) => l.isCompleted).length }
-function onLessonClick(lessonId: string) { navigateTo(`/courses/${course.id}/player?lesson=${lessonId}`) }
+function chapterDone(c: { lessons: { isCompleted: boolean }[] }) { return c.lessons.filter((l) => l.isCompleted).length }
+function onLessonClick(lessonId: string) { navigateTo(`/courses/${course.value.id}/player?lesson=${lessonId}`) }
 function fmtTimestamp(s: number) { return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}` }
 function fmtStudyTime(min: number) { return `${Math.floor(min / 60)}小时${min % 60}分钟` }
 function submitQuestion() {
@@ -49,7 +69,16 @@ function lessonIcon(chapter: LearnChapter, lesson: LearnLesson) {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="80rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无学习内容" />
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="topnav">
       <view

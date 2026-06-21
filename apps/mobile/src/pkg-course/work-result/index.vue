@@ -1,18 +1,29 @@
 <script setup lang="ts">
 /** 作业批改结果页 - 从原型 app/courses/work-result/page.tsx 迁移(graded 状态) */
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 作业批改结果, 参数 workId, 返回 WorkResult
 // mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { workResult as work } from '@/lib/course-data'
+import { workResult as _work } from '@/lib/course-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { work: _work }
+})
+
+const work = computed(() => pageData.value?.work ?? {} as any)
+const isEmpty = computed(() => !pageData.value?.work)
 
 const statusMap = {
   pending: { text: '批改中', color: '#f97316', bg: '#FFF7ED', iconBg: '#FFEDD5', icon: 'clock' },
   graded: { text: '已批改', color: '#16a34a', bg: '#F0FDF4', iconBg: '#DCFCE7', icon: 'check-circle' },
   returned: { text: '已退回', color: '#ef4444', bg: '#FEF2F2', iconBg: '#FEE2E2', icon: 'alert-circle' },
 } as const
-const st = computed(() => statusMap[work.status])
+const st = computed(() => statusMap[work.value.status as keyof typeof statusMap] ?? statusMap.pending)
 
 function scoreColor(score: number, max: number) {
   const p = score / max
@@ -31,7 +42,16 @@ function barColor(score: number, max: number) {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无批改结果" />
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="nav">
       <view

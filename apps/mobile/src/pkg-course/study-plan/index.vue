@@ -3,9 +3,23 @@
 import { ref, computed } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 学习计划聚合, 参数 无, 返回 { goal, courses, streak, checkInLevels }
 // mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { studyGoal, plannedCourses, studyStreak, checkInLevels } from '@/lib/course-data'
+import { studyGoal as _studyGoal, plannedCourses as _plannedCourses, studyStreak as _studyStreak, checkInLevels as _checkInLevels } from '@/lib/course-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { goal: _studyGoal, courses: _plannedCourses, streak: _studyStreak, checkInLevels: _checkInLevels }
+})
+
+const studyGoal = computed(() => pageData.value?.goal ?? {} as any)
+const plannedCourses = computed(() => pageData.value?.courses ?? [])
+const studyStreak = computed(() => pageData.value?.streak ?? 0)
+const checkInLevels = computed(() => pageData.value?.checkInLevels ?? [])
+const isEmpty = computed(() => plannedCourses.value.length === 0)
 
 const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六']
 const DAY_MS = 86400000
@@ -13,8 +27,8 @@ const today = new Date()
 const todayDay = today.getDay()
 const todayStr = today.toISOString().slice(0, 10)
 
-const goal = ref({ ...studyGoal })
-const courses = ref(plannedCourses.map((c) => ({ ...c })))
+const goal = ref({ ...studyGoal.value })
+const courses = ref(plannedCourses.value.map((c) => ({ ...c })))
 
 // 今日任务：取计划日含今天的课程
 const tasks = ref(
@@ -55,7 +69,7 @@ const weeks = computed(() => {
       date.setDate(date.getDate() + w * 7 + d)
       const dateStr = date.toISOString().slice(0, 10)
       const daysAgo = Math.round((today.getTime() - date.getTime()) / DAY_MS)
-      const level = daysAgo >= 0 && daysAgo < checkInLevels.length ? checkInLevels[daysAgo] : 0
+      const level = daysAgo >= 0 && daysAgo < checkInLevels.value.length ? checkInLevels.value[daysAgo] : 0
       row.push({ dateStr, month: date.getMonth() + 1, level, isToday: dateStr === todayStr, isFuture: date.getTime() > today.getTime() })
     }
     out.push(row)
@@ -80,7 +94,17 @@ function coursePct(c: { completedLessons: number; totalLessons: number }) {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="240rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="240rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="240rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无学习计划" desc="去课程广场添加课程" />
+  <view v-else class="page">
     <!-- 导航栏 -->
     <view class="nav">
       <view

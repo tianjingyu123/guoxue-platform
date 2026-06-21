@@ -3,12 +3,23 @@
 import { ref, computed } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 课时播放内容+目录, 参数 lessonId/courseId, 返回 { content:ChapterContent, chapters:PlayerChapter[] }
 // mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口(含视频流地址/播放进度)
 import {
-  playerContent as content, playerChapters as chapters,
-  type PlayerChapter, type PlayerChapterLesson,
+  playerContent as _content, playerChapters as _chapters,
 } from '@/lib/course-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { content: _content, chapters: _chapters }
+})
+
+const content = computed(() => pageData.value?.content ?? {} as any)
+const chapters = computed(() => pageData.value?.chapters ?? [])
+const isEmpty = computed(() => !pageData.value?.content)
 
 // 纯 UI 播放状态
 const isPlaying = ref(false)
@@ -41,7 +52,7 @@ function changeSpeed(rate: number) { playbackRate.value = rate; showSpeedMenu.va
 function switchLesson(id: string) {
   currentLessonId.value = id
   showChapterDrawer.value = false
-  navigateTo(`/courses/${content.courseId}/player?lesson=${id}`)
+  navigateTo(`/courses/${content.value.courseId}/player?lesson=${id}`)
 }
 function submitNote() {
   if (!noteContent.value.trim()) return
@@ -51,11 +62,20 @@ function submitQuestion() {
   if (!questionContent.value.trim()) return
   uni.showToast({ title: '问题已提交', icon: 'success' }); questionContent.value = ''; showQuestionPanel.value = false
 }
-function lessonLocked(chapter: PlayerChapter, lesson: PlayerChapterLesson) { return !lesson.isFree && !chapter.isFree }
+function lessonLocked(chapter: { isFree: boolean }, lesson: { isFree: boolean }) { return !lesson.isFree && !chapter.isFree }
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="400rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无播放内容" />
+  <view v-else class="page">
     <!-- 视频播放器 -->
     <view class="player">
       <view class="video-placeholder" />

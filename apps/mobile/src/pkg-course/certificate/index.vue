@@ -1,12 +1,24 @@
 <script setup lang="ts">
 /** 课程结业证书页 - 从原型 app/courses/certificate/page.tsx 迁移 */
+import { ref, computed } from 'vue'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 结业证书, 参数 courseId, 返回 Certificate。证书图建议由后端或 canvas 生成 imageUrl 填充 .cert-img
 // mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { courseCertificate as cert } from '@/lib/course-data'
+import { courseCertificate as _cert } from '@/lib/course-data'
 
-const dateStr = cert.completedAt
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { cert: _cert }
+})
+
+const cert = computed(() => pageData.value?.cert ?? {} as any)
+const isEmpty = computed(() => !pageData.value?.cert)
+
+const dateStr = computed(() => cert.value.completedAt)
 function fmtDate(s: string) {
   const d = new Date(s)
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
@@ -14,7 +26,16 @@ function fmtDate(s: string) {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="400rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="80rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无证书信息" />
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="nav">
       <view

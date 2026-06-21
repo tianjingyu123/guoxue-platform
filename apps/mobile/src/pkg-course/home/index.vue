@@ -6,19 +6,54 @@ import AppIcon from '@/components/common/app-icon.vue'
 import HomeBanner from '@/components/home/home-banner.vue'
 import CourseCard from '@/components/cards/course-card.vue'
 import SectionHeader from '@/components/courses/section-header.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  courseBanners, categoryNav, allCourses,
-  featured, ranking, flashSaleCourses, freeCourses, newCourses, feedFilters,
+  courseBanners as _courseBanners, categoryNav as _categoryNav, allCourses as _allCourses,
+  featured as _featured, ranking as _ranking, flashSaleCourses as _flashSaleCourses, freeCourses as _freeCourses, newCourses as _newCourses, feedFilters as _feedFilters,
 } from '@/lib/course-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  // 模拟异步获取数据，上线后替换为真实API
+  return {
+    banners: _courseBanners,
+    categories: _categoryNav,
+    all: _allCourses,
+    featured: _featured,
+    ranking: _ranking,
+    flashSale: _flashSaleCourses,
+    free: _freeCourses,
+    newest: _newCourses,
+    filters: _feedFilters,
+  }
+})
+
+const courseBanners = computed(() => pageData.value?.banners ?? [])
+const categoryNav = computed(() => pageData.value?.categories ?? [])
+const allCourses = computed(() => pageData.value?.all ?? [])
+const featured = computed(() => pageData.value?.featured ?? [])
+const ranking = computed(() => pageData.value?.ranking ?? [])
+const flashSaleCourses = computed(() => pageData.value?.flashSale ?? [])
+const freeCourses = computed(() => pageData.value?.free ?? [])
+const newCourses = computed(() => pageData.value?.newest ?? [])
+const feedFilters = computed(() => pageData.value?.filters ?? [])
 
 const activeCategory = ref('all')
 
 const selected = computed(() =>
-  allCourses.filter((c) => activeCategory.value === 'all' || c.category === activeCategory.value),
+  allCourses.value.filter((c) => activeCategory.value === 'all' || c.category === activeCategory.value),
 )
 // react-masonry-css 按索引轮流填列:偶数→左列,奇数→右列
 const colLeft = computed(() => selected.value.filter((_, i) => i % 2 === 0))
 const colRight = computed(() => selected.value.filter((_, i) => i % 2 === 1))
+
+const isEmpty = computed(() => {
+  if (!pageData.value) return false
+  const d = pageData.value
+  return d.all.length === 0 && d.featured.length === 0 && d.ranking.length === 0 && d.flashSale.length === 0
+})
 
 function goBack() { navigateBack(1) }
 function openSearch() { navigateTo('/search?from=course') }
@@ -26,7 +61,16 @@ function openCategory(id: string) { navigateTo(`/courses-list?category=${id}`) }
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无课程数据" />
+  <view v-else class="page">
     <!-- 顶部栏 -->
     <view class="hdr">
       <view class="hdr-bar">

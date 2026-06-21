@@ -1,17 +1,28 @@
 <script setup lang="ts">
 /** 讲师详情页 - 从原型 institute/instructors/[id]/page.tsx 迁移 */
-import { ref } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  instructorDetail as detail,
+  instructorDetail as _detail,
   getInstructorLevelLabel,
   getInstructorLevelStyle,
 } from '@/lib/instructor-data'
 
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { detail: _detail }
+})
+
+const detail = computed(() => pageData.value?.detail ?? {} as any)
+const isEmpty = computed(() => !pageData.value?.detail)
+
 const tab = ref<'intro' | 'courses' | 'reviews'>('intro')
-const following = ref(detail.isFollowing)
-const levelStyle = getInstructorLevelStyle(detail.level)
+const following = ref(false)
+const levelStyle = computed(() => getInstructorLevelStyle(detail.value.level))
 
 const tabs = [
   { key: 'intro' as const, label: '简介' },
@@ -23,12 +34,24 @@ function toggleFollow() {
   following.value = !following.value
 }
 function onBooking() {
-  navigateTo(`/offline/teacher-booking?instructorId=${detail.id}`)
+  navigateTo(`/offline/teacher-booking?instructorId=${detail.value.id}`)
 }
+// 监听数据加载完成后设置关注状态
+import { watch } from 'vue'
+watch(() => detail.value?.isFollowing, (v) => { if (v !== undefined) following.value = v }, { immediate: true })
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="240rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无讲师信息" />
+  <view v-else class="page">
     <!-- 顶栏 -->
     <view class="nav">
       <view

@@ -3,9 +3,21 @@
 import { ref, computed } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 章节学习进度, 参数 courseId, 返回 { progress:CourseProgress, chapters:ProgressChapter[] }
 // mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { courseProgress as course, progressChapters as chapters, type LessonStatus, type ProgressLesson } from '@/lib/course-data'
+import { courseProgress as _course, progressChapters as _chapters } from '@/lib/course-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { course: _course, chapters: _chapters }
+})
+
+const course = computed(() => pageData.value?.course ?? {} as any)
+const chapters = computed(() => pageData.value?.chapters ?? [])
+const isEmpty = computed(() => !pageData.value?.course || chapters.value.length === 0)
 
 const isRefreshing = ref(false)
 
@@ -14,10 +26,10 @@ function formatDuration(seconds: number) {
   const secs = seconds % 60
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
-function chapterDone(lessons: ProgressLesson[]) { return lessons.filter((l) => l.status === 'completed').length }
-function onLessonClick(lesson: ProgressLesson) {
+function chapterDone(lessons: { status: string }[]) { return lessons.filter((l) => l.status === 'completed').length }
+function onLessonClick(lesson: { id: string; status: string }) {
   if (lesson.status === 'locked') { uni.showToast({ title: '请先完成前面的课程或购买完整课程以解锁', icon: 'none' }); return }
-  navigateTo(`/courses/${course.id}/player?lesson=${lesson.id}`)
+  navigateTo(`/courses/${course.value.id}/player?lesson=${lesson.id}`)
 }
 function onRefresh() {
   if (isRefreshing.value) return
@@ -27,7 +39,16 @@ function onRefresh() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无学习进度" />
+  <view v-else class="page">
     <!-- 顶部导航 + 进度条 -->
     <view class="topbar">
       <view class="nav">

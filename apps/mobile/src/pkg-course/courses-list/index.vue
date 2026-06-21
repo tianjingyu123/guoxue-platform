@@ -3,13 +3,34 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import CourseCard from '@/components/cards/course-card.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  courseListCategories, courseSortOptions, recommendedCourses,
-  flashSaleCourses, courseListMock,
+  courseListCategories as _courseListCategories, courseSortOptions as _courseSortOptions, recommendedCourses as _recommendedCourses,
+  flashSaleCourses as _flashSaleCourses, courseListMock as _courseListMock,
 } from '@/lib/courses-list-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return {
+    categories: _courseListCategories,
+    sortOptions: _courseSortOptions,
+    recommended: _recommendedCourses,
+    flashSale: _flashSaleCourses,
+    list: _courseListMock,
+  }
+})
+
+const courseListCategories = computed(() => pageData.value?.categories ?? [])
+const courseSortOptions = computed(() => pageData.value?.sortOptions ?? [])
+const recommendedCourses = computed(() => pageData.value?.recommended ?? [])
+const flashSaleCourses = computed(() => pageData.value?.flashSale ?? [])
+const courseListMock = computed(() => pageData.value?.list ?? [])
+const isEmpty = computed(() => courseListMock.value.length === 0 && recommendedCourses.value.length === 0)
 
 // 路由参数初始化
 const searchQuery = ref('')
@@ -38,7 +59,7 @@ const flashEndTimes: Record<string, number> = {}
 function updateCountdowns() {
   const now = Date.now()
   const next: Record<string, Countdown> = {}
-  flashSaleCourses.forEach((c) => {
+  flashSaleCourses.value.forEach((c) => {
     const remaining = Math.max(0, flashEndTimes[c.id] - now)
     const h = Math.floor(remaining / (1000 * 60 * 60))
     const m = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
@@ -55,11 +76,11 @@ function updateCountdowns() {
 onMounted(() => {
   // 初始化秒杀结束时间
   const base = Date.now()
-  flashSaleCourses.forEach((c) => { flashEndTimes[c.id] = base + c.offsetMs })
+  flashSaleCourses.value.forEach((c) => { flashEndTimes[c.id] = base + c.offsetMs })
   updateCountdowns()
   flashTimer = setInterval(updateCountdowns, 1000)
   bannerTimer = setInterval(() => {
-    currentBanner.value = (currentBanner.value + 1) % recommendedCourses.length
+    currentBanner.value = (currentBanner.value + 1) % recommendedCourses.value.length
   }, 4000)
 })
 onUnmounted(() => {
@@ -68,11 +89,11 @@ onUnmounted(() => {
 })
 
 // 当前排序名
-const activeSortName = computed(() => courseSortOptions.find((s) => s.id === activeSort.value)?.name ?? '')
+const activeSortName = computed(() => courseSortOptions.value.find((s) => s.id === activeSort.value)?.name ?? '')
 
 // 过滤后的课程
 const filteredCourses = computed(() =>
-  courseListMock.filter((course) => {
+  courseListMock.value.filter((course) => {
     const matchCategory = activeCategory.value === 'all' || course.category === activeCategory.value
     const matchSearch = searchQuery.value === '' || course.title.includes(searchQuery.value) || (course.teacher ?? '').includes(searchQuery.value)
     const matchFree = !onlyFree.value || course.free
@@ -90,7 +111,17 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="256rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无课程" desc="课程列表为空" />
+  <view v-else class="page">
     <!-- 顶部栏 -->
     <view class="hdr">
       <view class="hdr-bar">

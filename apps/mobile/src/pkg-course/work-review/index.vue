@@ -1,14 +1,25 @@
 <script setup lang="ts">
 /** 作业批改页 - 从原型 app/courses/work-review/page.tsx 迁移（默认列表态） */
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 作业提交列表, 参数 courseId, 返回 WorkSubmission[]
 // mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { workSubmissions } from '@/lib/course-data'
+import { workSubmissions as _workSubmissions } from '@/lib/course-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { submissions: _workSubmissions }
+})
 
 type FilterKey = 'all' | 'pending' | 'graded'
-const submissions = ref(workSubmissions)
+const submissions = ref<any[]>([])
+const isEmpty = computed(() => submissions.value.length === 0)
+
+watch(() => pageData.value?.submissions, (v) => { if (v) submissions.value = v }, { immediate: true })
 const filter = ref<FilterKey>('all')
 const batchMode = ref(false)
 const selectedIds = ref<Set<string>>(new Set())
@@ -34,7 +45,17 @@ function toggleSelect(id: string) {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="100rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="180rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="180rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="180rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无作业" desc="还没有学生提交作业" />
+  <view v-else class="page">
     <!-- 导航栏 -->
     <view class="nav">
       <view class="nav-l">

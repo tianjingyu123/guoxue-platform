@@ -3,9 +3,21 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 限时特惠聚合, 参数 无, 返回 { sessions:SaleSession[], courses:SaleCourse[] }
 // mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { saleSessions as sessions, saleCourses as courses } from '@/lib/course-data'
+import { saleSessions as _sessions, saleCourses as _courses } from '@/lib/course-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { sessions: _sessions, courses: _courses }
+})
+
+const sessions = computed(() => pageData.value?.sessions ?? [])
+const courses = computed(() => pageData.value?.courses ?? [])
+const isEmpty = computed(() => sessions.value.length === 0)
 
 const activeSession = ref('2')
 const secs = ref(3600)
@@ -20,8 +32,8 @@ const cd = computed(() => {
   const s = secs.value % 60
   return [pad(h), pad(m), pad(s)]
 })
-const session = computed(() => sessions.find((s) => s.id === activeSession.value))
-const sessionCourses = computed(() => courses.filter((c) => c.sessionId === activeSession.value))
+const session = computed(() => sessions.value.find((s) => s.id === activeSession.value))
+const sessionCourses = computed(() => courses.value.filter((c) => c.sessionId === activeSession.value))
 
 function sessionTip(status?: string) {
   return status === 'active' ? '距本场结束' : status === 'past' ? '本场已结束' : '本场即将开始'
@@ -32,7 +44,16 @@ function sessionState(status: string) {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="320rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="320rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无限时特惠" />
+  <view v-else class="page">
     <!-- 顶部品牌渐变 -->
     <view class="header">
       <view class="nav">

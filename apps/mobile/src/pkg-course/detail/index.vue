@@ -3,9 +3,22 @@
 import { ref, computed } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 课程详情聚合, 参数 courseId, 返回 { detail:CourseDetail, chapters:CourseChapter[], reviews:CourseReview[], hasAccess:boolean }
 // mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { courseDetail as course, courseChapters as chapters, courseReviews as reviews } from '@/lib/course-data'
+import { courseDetail as _course, courseChapters as _chapters, courseReviews as _reviews } from '@/lib/course-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { course: _course, chapters: _chapters, reviews: _reviews }
+})
+
+const course = computed(() => pageData.value?.course ?? {} as any)
+const chapters = computed(() => pageData.value?.chapters ?? [])
+const reviews = computed(() => pageData.value?.reviews ?? [])
+const isEmpty = computed(() => !pageData.value?.course)
 
 // 纯 UI 状态
 const activeTab = ref<'intro' | 'chapters' | 'reviews'>('intro')
@@ -16,13 +29,13 @@ const showConsultPanel = ref(false)
 const showGroupPanel = ref(false)
 const hasAccess = ref(false)
 
-const totalLessons = computed(() => chapters.reduce((s, c) => s + c.lessons.length, 0))
-const totalDuration = computed(() => chapters.reduce((s, c) => s + c.duration, 0))
+const totalLessons = computed(() => chapters.value.reduce((s, c) => s + c.lessons.length, 0))
+const totalDuration = computed(() => chapters.value.reduce((s, c) => s + c.duration, 0))
 
 const tabs = computed(() => [
   { key: 'intro', label: '简介' },
   { key: 'chapters', label: `目录(${totalLessons.value})` },
-  { key: 'reviews', label: `评价(${reviews.length})` },
+  { key: 'reviews', label: `评价(${reviews.value.length})` },
 ])
 
 function toggleChapter(id: string) { expanded.value[id] = !expanded.value[id] }
@@ -32,18 +45,28 @@ function fmtDuration(min: number) {
 }
 function fmtStudents(n: number) { return n.toLocaleString() }
 function onLessonClick(chapterId: string, lessonId: string) {
-  navigateTo(`/courses/${course.id}/learn?chapter=${chapterId}&lesson=${lessonId}`)
+  navigateTo(`/courses/${course.value.id}/learn?chapter=${chapterId}&lesson=${lessonId}`)
 }
-function onPurchase() { navigateTo(`/courses/${course.id}/purchase`) }
-function onStartLearning() { navigateTo(`/courses/${course.id}/learn`) }
+function onPurchase() { navigateTo(`/courses/${course.value.id}/purchase`) }
+function onStartLearning() { navigateTo(`/courses/${course.value.id}/learn`) }
 const ratingBars = computed(() => [5, 4, 3, 2, 1].map((star) => {
-  const count = reviews.filter((r) => r.rating === star).length
-  return { star, percent: reviews.length ? (count / reviews.length) * 100 : 0 }
+  const count = reviews.value.filter((r) => r.rating === star).length
+  return { star, percent: reviews.value.length ? (count / reviews.value.length) * 100 : 0 }
 }))
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="448rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无课程信息" />
+  <view v-else class="page">
     <!-- 封面区域 -->
     <view class="cover">
       <image
