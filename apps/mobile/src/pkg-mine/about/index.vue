@@ -1,5 +1,14 @@
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="300rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <app-nav-bar
       title="关于我们"
@@ -131,11 +140,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import { navigateTo } from '@/utils/router'
-import { aboutStats, aboutFeatures } from '@/lib/mine-data'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { aboutStats as _aboutStats, aboutFeatures as _aboutFeatures } from '@/lib/mine-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { stats: _aboutStats, features: _aboutFeatures }
+})
+
+const aboutStats = computed(() => pageData.value?.stats ?? [])
+const aboutFeatures = computed(() => pageData.value?.features ?? [])
+const isEmpty = computed(() => aboutStats.value.length === 0 && aboutFeatures.value.length === 0)
 
 // 热卜 logo（根 public 与 vue3 共享，:src 动态绑定避免 Vite 静态解析报错）
 const logoSrc = ref('/images/logo.jpg')

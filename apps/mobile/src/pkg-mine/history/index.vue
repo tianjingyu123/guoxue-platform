@@ -1,15 +1,31 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  historyGroups as seedGroups,
+  historyGroups as _seedGroups,
   historyTypeConfig,
   type HistoryGroup,
   type HistoryItem,
 } from '@/lib/mine-data'
 
-const groups = ref<HistoryGroup[]>(seedGroups.map((g) => ({ ...g, items: g.items.map((i) => ({ ...i })) })))
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { groups: _seedGroups }
+})
+
+const isEmpty = computed(() => {
+  const g = pageData.value?.groups
+  return g !== undefined && g.length === 0
+})
+
+const groups = ref<HistoryGroup[]>([])
+watch(() => pageData.value?.groups, (val) => {
+  if (val) groups.value = val.map((g: any) => ({ ...g, items: g.items.map((i: any) => ({ ...i })) }))
+}, { immediate: true })
 const showClearConfirm = ref(false)
 const activeId = ref<string | null>(null)
 
@@ -56,7 +72,17 @@ function openItem() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无浏览记录" />
+  <view v-else class="page">
     <app-nav-bar
       title="浏览历史"
       :back-size="40"

@@ -1,9 +1,27 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { blacklistUsers, blacklistSearchPool, type BlacklistItem, type SearchUserItem } from '@/lib/mine-data'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { blacklistUsers as _blacklistUsers, blacklistSearchPool as _blacklistSearchPool, type BlacklistItem, type SearchUserItem } from '@/lib/mine-data'
 
-const list = ref<BlacklistItem[]>(blacklistUsers.map((u) => ({ ...u })))
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { users: _blacklistUsers, pool: _blacklistSearchPool }
+})
+
+const isEmpty = computed(() => {
+  const u = pageData.value?.users
+  return u !== undefined && u.length === 0
+})
+
+const list = ref<BlacklistItem[]>([])
+watch(() => pageData.value?.users, (val) => {
+  if (val) list.value = val.map((u: any) => ({ ...u }))
+}, { immediate: true })
+
+const blacklistSearchPool = computed(() => pageData.value?.pool ?? [])
 
 // 移除确认
 const removeDialog = ref(false)
@@ -70,7 +88,17 @@ const isEmpty = computed(() => list.value.length === 0)
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="黑名单为空" />
+  <view v-else class="page">
     <app-nav-bar
       title="黑名单管理"
       title-align="left"

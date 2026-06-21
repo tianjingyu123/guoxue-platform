@@ -1,19 +1,33 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  myComments,
+  myComments as _myComments,
   commentTypeNames,
   commentTypeStyles,
   type MyCommentItem,
 } from '@/lib/mine-data'
 
-const list = ref<MyCommentItem[]>(myComments.map((c) => ({ ...c })))
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { comments: _myComments }
+})
+
+const isEmpty = computed(() => {
+  const c = pageData.value?.comments
+  return c !== undefined && c.length === 0
+})
+
+const list = ref<MyCommentItem[]>([])
+watch(() => pageData.value?.comments, (val) => {
+  if (val) list.value = val.map((c: any) => ({ ...c }))
+}, { immediate: true })
 const isEditMode = ref(false)
 const selectedIds = ref<number[]>([])
 const activeId = ref<number | null>(null)
-
-const isEmpty = computed(() => list.value.length === 0)
 
 function toggleEdit() {
   isEditMode.value = !isEditMode.value
@@ -50,7 +64,17 @@ function openTarget() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无评论" />
+  <view v-else class="page">
     <app-nav-bar
       title="我的评论"
       back-icon="arrow-left"

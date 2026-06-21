@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  myLikes,
+  myLikes as _myLikes,
   likeTypeNames,
   likeTypeStyles,
   likeFilterOptions,
@@ -11,7 +15,19 @@ import {
   type LikeTargetType,
 } from '@/lib/mine-data'
 
-const list = ref<LikeItem[]>(myLikes.map((i) => ({ ...i })))
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { likes: _myLikes }
+})
+
+const dataIsEmpty = computed(() => {
+  const l = pageData.value?.likes
+  return l !== undefined && l.length === 0
+})
+
+const list = ref<LikeItem[]>([])
+watch(() => pageData.value?.likes, (val) => {
+  if (val) list.value = val.map((i: any) => ({ ...i }))
+}, { immediate: true })
 const filter = ref<LikeTargetType | 'all'>('all')
 const unliking = ref<number | null>(null)
 
@@ -36,7 +52,17 @@ function openTarget() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="dataIsEmpty" title="暂无收藏" />
+  <view v-else class="page">
     <app-nav-bar
       title="我的点赞"
       :title-size="36"
