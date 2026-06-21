@@ -1,5 +1,15 @@
 <template>
-  <view class="square">
+  <view v-if="isLoading" class="square">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="180rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="60rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无智能体" />
+  <view v-else class="square">
     <!-- 顶部搜索区（红色，sticky） -->
     <view
       class="topbar"
@@ -361,13 +371,29 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  hotBots,
-  hotQuestions,
+  hotBots as _hotBots,
+  hotQuestions as _hotQuestions,
   formatCount,
   type SquareQuestion,
 } from '@/lib/agents-square-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { bots: _hotBots, questions: _hotQuestions }
+})
+
+const isEmpty = computed(() => {
+  const b = pageData.value?.bots
+  return b !== undefined && b.length === 0
+})
+
+const hotBots = computed(() => pageData.value?.bots ?? [])
+const hotQuestions = computed(() => pageData.value?.questions ?? [])
 
 const statusBarHeight = ref(0)
 const searchQuery = ref('')
@@ -380,7 +406,7 @@ uni.getSystemInfo({
   },
 })
 
-const displayBots = computed(() => (showAllBots.value ? hotBots : hotBots.slice(0, 4)))
+const displayBots = computed(() => (showAllBots.value ? hotBots.value : hotBots.value.slice(0, 4)))
 
 function handleVoiceSearch() {
   if (isListening.value) return

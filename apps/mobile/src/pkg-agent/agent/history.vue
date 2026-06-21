@@ -1,10 +1,28 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { initialHistory, historyGroups, type HistoryItem } from '@/lib/agent-data'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { initialHistory as _initialHistory, historyGroups as _historyGroups, type HistoryItem } from '@/lib/agent-data'
 
-const history = ref<HistoryItem[]>([...initialHistory])
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { history: _initialHistory, groups: _historyGroups }
+})
+
+const isEmpty = computed(() => {
+  const h = pageData.value?.history
+  return h !== undefined && h.length === 0
+})
+
+const history = ref<HistoryItem[]>([])
+const historyGroups = computed(() => pageData.value?.groups ?? [])
+
+watch(() => pageData.value?.history, (val) => {
+  if (val) history.value = val.map((h: any) => ({ ...h }))
+}, { immediate: true })
 const searchQuery = ref('')
 const showClearConfirm = ref(false)
 const swipedId = ref<number | null>(null)
@@ -45,7 +63,17 @@ function openChat(item: HistoryItem) {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无历史记录" />
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="header safe-pt">
       <view class="head-bar">

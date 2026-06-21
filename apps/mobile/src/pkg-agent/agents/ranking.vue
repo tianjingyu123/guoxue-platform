@@ -1,5 +1,16 @@
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="60rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="140rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="140rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="140rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无排行榜" />
+  <view v-else class="page">
     <!-- 顶栏 -->
     <view
       class="topbar"
@@ -143,8 +154,23 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
-import { agentsRanking } from '@/lib/agents-square-data'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { agentsRanking as _agentsRanking } from '@/lib/agents-square-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { ranking: _agentsRanking }
+})
+
+const isEmpty = computed(() => {
+  const r = pageData.value?.ranking
+  return r !== undefined && r.length === 0
+})
+
+const agentsRanking = computed(() => pageData.value?.ranking ?? [])
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({
@@ -155,9 +181,9 @@ uni.getSystemInfo({
 
 const selectedCategory = ref<string | null>(null)
 
-const categories = computed(() => Array.from(new Set(agentsRanking.map((a) => a.category))))
+const categories = computed(() => Array.from(new Set(agentsRanking.value.map((a) => a.category))))
 const filteredAgents = computed(() =>
-  selectedCategory.value ? agentsRanking.filter((a) => a.category === selectedCategory.value) : agentsRanking,
+  selectedCategory.value ? agentsRanking.value.filter((a) => a.category === selectedCategory.value) : agentsRanking.value,
 )
 
 function goChat(id: string) {

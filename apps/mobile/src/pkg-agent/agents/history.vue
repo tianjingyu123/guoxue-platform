@@ -1,5 +1,15 @@
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无聊天记录" />
+  <view v-else class="page">
     <!-- 顶栏 -->
     <view
       class="topbar"
@@ -121,10 +131,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
-import { agentConversations, type AgentConversation } from '@/lib/agents-square-data'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { agentConversations as _agentConversations, type AgentConversation } from '@/lib/agents-square-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { convs: _agentConversations }
+})
+
+const isEmpty = computed(() => {
+  const c = pageData.value?.convs
+  return c !== undefined && c.length === 0
+})
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({
@@ -133,7 +156,11 @@ uni.getSystemInfo({
   },
 })
 
-const convs = ref<AgentConversation[]>([...agentConversations])
+const convs = ref<AgentConversation[]>([])
+
+watch(() => pageData.value?.convs, (val) => {
+  if (val) convs.value = val.map((c: any) => ({ ...c }))
+}, { immediate: true })
 const search = ref('')
 
 const filtered = computed(() =>

@@ -1,5 +1,15 @@
 <template>
-  <view class="page">
+  <view v-if="isLoading" class="page">
+    <view style="padding: 24rpx;">
+      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
+      <AppSkeleton width="100%" height="120rpx" radius="24rpx" />
+    </view>
+  </view>
+  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
+  <AppEmpty v-else-if="isEmpty" title="暂无常见问题" />
+  <view v-else class="page">
     <!-- 顶栏 -->
     <view
       class="topbar"
@@ -121,7 +131,22 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { agentFaqs } from '@/lib/agents-square-data'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
+import { agentFaqs as _agentFaqs } from '@/lib/agents-square-data'
+
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { faqs: _agentFaqs }
+})
+
+const isEmpty = computed(() => {
+  const f = pageData.value?.faqs
+  return f !== undefined && f.length === 0
+})
+
+const agentFaqs = computed(() => pageData.value?.faqs ?? [])
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({
@@ -134,10 +159,10 @@ const search = ref('')
 const openId = ref<string | null>(null)
 const activeCategory = ref('全部')
 
-const allCategories = computed(() => ['全部', ...Array.from(new Set(agentFaqs.map((f) => f.category)))])
+const allCategories = computed(() => ['全部', ...Array.from(new Set(agentFaqs.value.map((f) => f.category)))])
 
 const filtered = computed(() =>
-  agentFaqs.filter((f) => {
+  agentFaqs.value.filter((f) => {
     const matchCategory = activeCategory.value === '全部' || f.category === activeCategory.value
     const matchSearch = !search.value || f.question.includes(search.value) || f.answer.includes(search.value)
     return matchCategory && matchSearch
