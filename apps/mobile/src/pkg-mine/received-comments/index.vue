@@ -1,36 +1,30 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
+import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  receivedComments,
+  receivedComments as _receivedComments,
   commentTypeNames,
   type ReceivedCommentItem,
 } from '@/lib/mine-data'
 
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  return { comments: _receivedComments }
+})
+
+const dataIsEmpty = computed(() => {
+  const c = pageData.value?.comments
+  return c !== undefined && c.length === 0
+})
+
 const list = ref<ReceivedCommentItem[]>([])
+watch(() => pageData.value?.comments, (val) => {
+  if (val) list.value = val.map((c: any) => ({ ...c }))
+}, { immediate: true })
 const filter = ref<'all' | 'unreplied'>('all')
-
-// 页面四状态：loading / error / empty / normal
-const loading = ref(true)
-const loadError = ref(false)
-
-function loadData() {
-  loading.value = true
-  loadError.value = false
-  setTimeout(() => {
-    try {
-      list.value = receivedComments.map((c) => ({ ...c }))
-      loading.value = false
-    } catch {
-      loadError.value = true
-      loading.value = false
-    }
-  }, 600)
-}
-
-onLoad(() => loadData())
 
 const unrepliedCount = computed(() => list.value.filter((c) => !c.isReplied).length)
 const filtered = computed(() =>
@@ -113,7 +107,7 @@ function openContent() {
 
     <!-- 加载骨架 -->
     <view
-      v-if="loading"
+      v-if="isLoading"
       class="skeleton"
     >
       <view
@@ -135,28 +129,16 @@ function openContent() {
       v-else-if="loadError"
       title="评论加载失败"
       desc="网络异常，请稍后重试"
-      @retry="loadData"
+      @retry="reload"
     />
 
-    <!-- 空态 -->
-    <view
-      v-else-if="isEmpty"
-      class="empty"
-    >
-      <view class="empty-icon">
-        <AppIcon
-          name="message-circle"
-          :size="44"
-          color="#C9C2B6"
-        />
-      </view>
-      <text class="empty-title">
-        {{ filter === 'unreplied' ? '暂无待回复的评论' : '暂无新评论' }}
-      </text>
-    </view>
+    <AppEmpty
+      v-else-if="dataIsEmpty"
+      title="暂无评论"
+    />
 
     <scroll-view
-      v-else-if="!loading && !loadError"
+      v-else
       scroll-y
       class="scroll"
     >
