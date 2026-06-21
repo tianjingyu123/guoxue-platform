@@ -37,7 +37,6 @@ function onBooking() {
   navigateTo(`/offline/teacher-booking?instructorId=${detail.value.id}`)
 }
 // 监听数据加载完成后设置关注状态
-import { watch } from 'vue'
 watch(() => detail.value?.isFollowing, (v) => { if (v !== undefined) following.value = v }, { immediate: true })
 </script>
 

@@ -11,7 +11,7 @@ const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () =
   return { users: _blacklistUsers, pool: _blacklistSearchPool }
 })
 
-const isEmpty = computed(() => {
+const dataIsEmpty = computed(() => {
   const u = pageData.value?.users
   return u !== undefined && u.length === 0
 })
@@ -58,7 +58,7 @@ watch(keyword, (kw) => {
   }
   searching.value = true
   setTimeout(() => {
-    results.value = blacklistSearchPool
+    results.value = blacklistSearchPool.value
       .filter((u) => u.nickname.includes(kw.trim()))
       .map((u) => ({ ...u }))
     searching.value = false
@@ -97,7 +97,7 @@ const isEmpty = computed(() => list.value.length === 0)
     </view>
   </view>
   <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="黑名单为空" />
+  <AppEmpty v-else-if="dataIsEmpty" title="黑名单为空" />
   <view v-else class="page">
     <app-nav-bar
       title="黑名单管理"

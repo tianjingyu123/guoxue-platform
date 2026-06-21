@@ -11,7 +11,7 @@ import { useAsyncData } from '@/composables/useAsyncData'
 // mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
 import {
   learnCourse as _course, learnProgress as _progress, learnChapters as _chapters,
-  learnNotes as _notes, learnQuestions as _questions,
+  learnNotes as _notes, learnQuestions as _questions, type LearnChapter, type LearnLesson,
 } from '@/lib/course-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
