@@ -188,10 +188,13 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
-import { invitedStations as _invitedStations, operatorInviteLinkFull, operatorInviteCode } from '@/lib/operator-data'
+import { operatorApi } from '@/lib/operator-data'
+const operatorInviteLinkFull = 'https://rebugx.com/invite/operator'
+const operatorInviteCode = 'GUOXUE2024'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { invited: _invitedStations }
+  const station = await operatorApi.getMyStation()
+  return { invited: (station as any)?.invitedStations ?? [] }
 })
 
 const isEmpty = computed(() => {

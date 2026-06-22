@@ -8,8 +8,8 @@ import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 作业提交列表, 参数 courseId, 返回 WorkSubmission[]
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { workSubmissions as _workSubmissions } from '@/lib/course-data'
+// @todo: 接入 courseApi 获取提交列表
+const _workSubmissions: any[] = []
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
   return { submissions: _workSubmissions }

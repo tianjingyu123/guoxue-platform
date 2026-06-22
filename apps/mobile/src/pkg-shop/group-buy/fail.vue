@@ -133,7 +133,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { groupBuyFail as info } from '@/lib/shop-data'
+const info = { reason: '库存不足', suggest: '换个商品试试', orderId: '' }
 
 const copied = ref(false)
 

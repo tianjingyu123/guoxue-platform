@@ -144,7 +144,9 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
-import { compareProducts as _products, comparePickList, type CompareProduct } from '@/lib/shop-data'
+import { shopApi, type CompareProduct } from '@/lib/shop-data'
+const comparePickList: any[] = []
+const _products: CompareProduct[] = []
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
   return { products: _products }

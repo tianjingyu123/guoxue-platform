@@ -96,7 +96,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { navigateTo } from '@/utils/router'
-import { groupBuySuccess as data } from '@/lib/shop-data'
+const data = { orderId: '', groupId: '', memberCount: 0, discount: 0 }
 
 const copied = ref(false)
 

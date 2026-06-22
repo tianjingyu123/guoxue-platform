@@ -479,10 +479,12 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
-import { quotaData as _quotaData, quotaRecords as _quotaRecords, quotaSaleLink } from '@/lib/operator-data'
+import { operatorApi } from '@/lib/operator-data'
+const quotaSaleLink = 'https://rebugx.com/buy/quota'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { quotaData: _quotaData, records: _quotaRecords }
+  const station = await operatorApi.getMyStation()
+  return { quotaData: (station as any)?.quotaData, records: (station as any)?.quotaRecords ?? [] }
 })
 
 const isEmpty = computed(() => !pageData.value?.quotaData)

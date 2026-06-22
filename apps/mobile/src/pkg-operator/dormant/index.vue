@@ -142,10 +142,11 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
-import { dormantMembers as _dormantMembers } from '@/lib/operator-data'
+import { operatorApi } from '@/lib/operator-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { members: _dormantMembers }
+  const station = await operatorApi.getMyStation()
+  return { members: (station as any)?.members ?? [] }
 })
 
 const isEmpty = computed(() => {

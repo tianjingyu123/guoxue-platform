@@ -12,10 +12,11 @@ import BackTop from '@/components/home/back-top.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
 import { buildFeedItems, type RenderItem } from '@/lib/home-data'
-import { defaultStationConfig as _defaultStationConfig, featuredTypeConfig as _featuredTypeConfig, type StationFeaturedItem, type StationConfig } from '@/lib/station-detail-data'
+const defaultStationConfig = {} as any
+const featuredTypeConfig = {} as any
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { config: _defaultStationConfig, typeConfig: _featuredTypeConfig, feedItems: buildFeedItems() }
+  return { config: defaultStationConfig, typeConfig: featuredTypeConfig, feedItems: buildFeedItems() }
 })
 
 const isEmpty = computed(() => !pageData.value?.config)

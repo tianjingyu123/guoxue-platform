@@ -4,8 +4,8 @@ import { ref, computed } from 'vue'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 // @data-needs: 作业要求, 参数 chapterId, 返回 WorkRequirement
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { workRequirement as requirement } from '@/lib/course-data'
+// @todo: 接入 courseApi 获取作业要求
+const requirement = { title: '第3课作业', deadline: '6月30日', content: '完成八字案例分析报告', attachments: [] }
 
 const content = ref('')
 const images = ref<string[]>([])
