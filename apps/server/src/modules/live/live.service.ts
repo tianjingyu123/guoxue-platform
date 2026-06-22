@@ -789,4 +789,43 @@ export class LiveService {
       },
     };
   }
+
+  // ───────── 公开浏览服务 ─────────
+
+  async getHosts(filter?: string) {
+    const rooms = await this.prisma.liveRoom.findMany({
+      where: { status: filter === 'live' ? 'LIVE' : undefined },
+      select: { id: true, title: true, coverUrl: true, hostName: true, hostAvatar: true, status: true, viewerCount: true },
+      take: 20, orderBy: { viewerCount: 'desc' },
+    });
+    return { items: rooms.map(r => ({ id: r.id, name: r.hostName, avatar: r.hostAvatar, cover: r.coverUrl, specialty: '', followers: 0, likes: 0, liveCount: 0, rating: 4.5, isLive: r.status === 'LIVE', viewerCount: r.viewerCount, tags: [], verified: false })), total: rooms.length };
+  }
+
+  async getReplays(sortBy?: string) {
+    const rooms = await this.prisma.liveRoom.findMany({
+      where: { status: 'ENDED' },
+      select: { id: true, title: true, coverUrl: true, hostName: true, hostAvatar: true, viewerCount: true, duration: true, createdAt: true },
+      take: 20,
+      orderBy: sortBy === 'popular' ? { viewerCount: 'desc' } : { createdAt: 'desc' },
+    });
+    return { items: rooms.map(r => ({ id: r.id, title: r.title, cover: r.coverUrl, hostName: r.hostName, hostAvatar: r.hostAvatar, category: '', viewers: r.viewerCount, duration: r.duration || 0, dateText: r.createdAt.toISOString().slice(0, 10) })), total: rooms.length };
+  }
+
+  async getPreview(id: string) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id } });
+    if (!room) return null;
+    return { id: room.id, title: room.title, cover: room.coverUrl, hostName: room.hostName, hostAvatar: room.hostAvatar, hostFollowers: 0, bookedCount: 0, estimatedDuration: room.duration || 60, scheduledAt: room.scheduledAt, tags: [], descriptionLines: [] };
+  }
+
+  async getReplayDetail(id: string) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id, status: 'ENDED' } });
+    if (!room) return null;
+    return { id: room.id, title: room.title, cover: room.coverUrl, hostName: room.hostName, hostAvatar: room.hostAvatar, duration: room.duration || 0, viewerCount: room.viewerCount, chapters: [], discussions: [], qaList: [], products: [] };
+  }
+
+  async getEndRoom(id: string) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id, status: 'ENDED' } });
+    if (!room) return null;
+    return { room: { id: room.id, title: room.title, cover: room.coverUrl, hostName: room.hostName, hostAvatar: room.hostAvatar, viewerCount: room.viewerCount, duration: room.duration || 0, likeCount: 0, commentCount: 0 }, recommendLives: [], recommendCourses: [] };
+  }
 }

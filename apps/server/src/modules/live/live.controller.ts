@@ -530,4 +530,37 @@ export class LiveController {
   listAuditLogs(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     return this.svc.listAuditLogs(id, +page, +pageSize);
   }
+
+  // ───────── 公开浏览端点 ─────────
+
+  @Get("hosts")
+  @ApiOperation({ summary: "主播列表" })
+  @ApiQuery({ name: "filter", required: false })
+  getHosts(@Query("filter") filter?: string) {
+    return this.svc.getHosts(filter);
+  }
+
+  @Get("replays")
+  @ApiOperation({ summary: "回放列表" })
+  getReplays(@Query("sortBy") sortBy?: string) {
+    return this.svc.getReplays(sortBy);
+  }
+
+  @Get("preview/:id")
+  @ApiOperation({ summary: "直播预告详情" })
+  getPreview(@Param("id") id: string) {
+    return this.svc.getPreview(id);
+  }
+
+  @Get("replay/:id")
+  @ApiOperation({ summary: "回放详情" })
+  getReplayDetail(@Param("id") id: string) {
+    return this.svc.getReplayDetail(id);
+  }
+
+  @Get("end/:id")
+  @ApiOperation({ summary: "直播结束统计" })
+  getEndRoom(@Param("id") id: string) {
+    return this.svc.getEndRoom(id);
+  }
 }

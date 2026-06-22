@@ -45,6 +45,9 @@
       <!-- 顶栏 -->
       <el-header>
         <div class="header-left">
+          <div class="mobile-toggle" @click="mobileMenuOpen = !mobileMenuOpen">
+            <span v-if="!mobileMenuOpen">☰</span><span v-else>✕</span>
+          </div>
           <el-breadcrumb separator="">
             <el-breadcrumb-item :to="{ path: '/dashboard' }">
               <span class="breadcrumb-home">首页</span>
