@@ -38,6 +38,7 @@ const mockPrisma: any = {
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     count: jest.fn(),
   },
   financialReport: {
@@ -222,13 +223,14 @@ describe("FinanceService", () => {
 
   describe("approveWithdrawal", () => {
     it("批准提现成功", async () => {
-      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "PENDING" });
-      mockPrisma.withdrawalApplication.update.mockResolvedValue({ id: "w1", status: "APPROVED" });
+      mockPrisma.withdrawalApplication.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "APPROVED" });
       const result = await svc.approveWithdrawal("w1", "admin1");
-      expect(result.status).toBe("APPROVED");
+      expect(result?.status).toBe("APPROVED");
     });
 
-    it("非PENDING状态无法批准", async () => {
+    it("非PENDING状态无法批准（原子拦截）", async () => {
+      mockPrisma.withdrawalApplication.updateMany.mockResolvedValue({ count: 0 });
       mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "APPROVED" });
       await expect(svc.approveWithdrawal("w1", "admin1")).rejects.toThrow(BusinessException);
     });
@@ -236,19 +238,25 @@ describe("FinanceService", () => {
 
   describe("rejectWithdrawal", () => {
     it("驳回提现成功", async () => {
-      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "PENDING" });
-      mockPrisma.withdrawalApplication.update.mockResolvedValue({ id: "w1", status: "REJECTED", reviewNote: "资料不全" });
+      mockPrisma.withdrawalApplication.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "REJECTED", reviewNote: "资料不全" });
       const result = await svc.rejectWithdrawal("w1", "admin1", "资料不全");
-      expect(result.status).toBe("REJECTED");
+      expect(result?.status).toBe("REJECTED");
     });
   });
 
   describe("confirmWithdrawalPay", () => {
     it("确认打款成功", async () => {
-      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "APPROVED" });
-      mockPrisma.withdrawalApplication.update.mockResolvedValue({ id: "w1", status: "PAID" });
+      mockPrisma.withdrawalApplication.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "PAID" });
       const result = await svc.confirmWithdrawalPay("w1");
-      expect(result.status).toBe("PAID");
+      expect(result?.status).toBe("PAID");
+    });
+
+    it("非APPROVED状态无法打款（原子拦截）", async () => {
+      mockPrisma.withdrawalApplication.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "PENDING" });
+      await expect(svc.confirmWithdrawalPay("w1")).rejects.toThrow(BusinessException);
     });
   });
 

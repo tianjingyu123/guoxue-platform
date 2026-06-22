@@ -394,37 +394,45 @@ export class FinanceService {
     return { withdrawals, total, page: dto.page, pageSize: dto.pageSize };
   }
 
-  async approveWithdrawal(id: string, adminId: string, reviewNote?: string) {
-    const w = await this.prisma.withdrawalApplication.findUnique({ where: { id } });
-    if (!w) throw new BusinessException(ErrorCode.NOT_FOUND, "提现申请不存在");
-    if (w.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许审批");
-
-    return this.prisma.withdrawalApplication.update({
-      where: { id },
-      data: { status: "APPROVED", reviewedBy: adminId, reviewNote: reviewNote || null },
+  /**
+   * 原子推进提现申请状态：仅当当前状态 == fromStatus 时更新为 toStatus。
+   * 用条件 updateMany 避免并发下的重复审批 / 重复打款（TOCTOU）。
+   */
+  private async transitWithdrawal(
+    id: string,
+    fromStatus: string,
+    toStatus: string,
+    extra: Record<string, unknown>,
+    forbidMsg: string,
+  ) {
+    const result = await this.prisma.withdrawalApplication.updateMany({
+      where: { id, status: fromStatus },
+      data: { status: toStatus, ...extra },
     });
+    if (result.count === 0) {
+      const exists = await this.prisma.withdrawalApplication.findUnique({ where: { id } });
+      if (!exists) throw new BusinessException(ErrorCode.NOT_FOUND, "提现申请不存在");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, forbidMsg);
+    }
+    return this.prisma.withdrawalApplication.findUnique({ where: { id } });
+  }
+
+  async approveWithdrawal(id: string, adminId: string, reviewNote?: string) {
+    return this.transitWithdrawal(
+      id,
+      "PENDING",
+      "APPROVED",
+      { reviewedBy: adminId, reviewNote: reviewNote || null },
+      "当前状态不允许审批",
+    );
   }
 
   async rejectWithdrawal(id: string, adminId: string, reviewNote: string) {
-    const w = await this.prisma.withdrawalApplication.findUnique({ where: { id } });
-    if (!w) throw new BusinessException(ErrorCode.NOT_FOUND, "提现申请不存在");
-    if (w.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许驳回");
-
-    return this.prisma.withdrawalApplication.update({
-      where: { id },
-      data: { status: "REJECTED", reviewedBy: adminId, reviewNote },
-    });
+    return this.transitWithdrawal(id, "PENDING", "REJECTED", { reviewedBy: adminId, reviewNote }, "当前状态不允许驳回");
   }
 
   async confirmWithdrawalPay(id: string) {
-    const w = await this.prisma.withdrawalApplication.findUnique({ where: { id } });
-    if (!w) throw new BusinessException(ErrorCode.NOT_FOUND, "提现申请不存在");
-    if (w.status !== "APPROVED") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许打款");
-
-    return this.prisma.withdrawalApplication.update({
-      where: { id },
-      data: { status: "PAID" },
-    });
+    return this.transitWithdrawal(id, "APPROVED", "PAID", {}, "当前状态不允许打款");
   }
 
   // ───────── 6. 资金冻结/解冻 ─────────
