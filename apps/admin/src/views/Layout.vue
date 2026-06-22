@@ -124,6 +124,7 @@ const route = useRoute();
 const auth = useAuthStore();
 const isCollapse = ref(false);
 const unreadCount = ref(0);
+const mobileMenuOpen = ref(false);
 
 async function fetchUnread() {
   try {
