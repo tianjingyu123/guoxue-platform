@@ -82,11 +82,7 @@ export const qimenApi = {
   /** 奇门遁甲排盘 */
   async calculate(input: QimenInput): Promise<QimenResult> {
     if (useMock()) return _mockQimenResult
-    try {
-      return await apiPost<QimenResult>('/paipan/qimen', input)
-    } catch (_err) {
-      return _mockQimenResult
-    }
+    return await apiPost<QimenResult>('/paipan/qimen', input)
   },
 
   /** 保存排盘记录 POST /paipan/qimen/save */

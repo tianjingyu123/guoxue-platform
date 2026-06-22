@@ -98,11 +98,7 @@ export const yangpanApi = {
   /** 阳盘命理奇门排盘 */
   async calculate(input: YangpanInput): Promise<YangpanResult> {
     if (useMock()) return _mockYangpanResult
-    try {
-      return await apiPost<YangpanResult>('/paipan/yangpan', input)
-    } catch (_err) {
-      return _mockYangpanResult
-    }
+    return await apiPost<YangpanResult>('/paipan/yangpan', input)
   },
 
   /** 保存排盘记录 POST /paipan/yangpan/save */
