@@ -22,10 +22,10 @@ const mockPrisma = {
     findUnique: jest.fn(), upsert: jest.fn(),
   },
   ebookBookmark: {
-    findMany: jest.fn(), create: jest.fn(), delete: jest.fn(), count: jest.fn(),
+    findMany: jest.fn(), create: jest.fn(), delete: jest.fn(), deleteMany: jest.fn(), count: jest.fn(),
   },
   ebookNote: {
-    findMany: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), count: jest.fn(),
+    findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn(), delete: jest.fn(), deleteMany: jest.fn(), count: jest.fn(),
   },
   user: { findUnique: jest.fn() },
 };
@@ -395,14 +395,15 @@ describe("EbookService", () => {
 
   describe("deleteBookmark", () => {
     it("deletes bookmark", async () => {
-      mockPrisma.ebookBookmark.delete.mockResolvedValue({});
-      const result = await svc.deleteBookmark("bm1");
+      mockPrisma.ebookBookmark.deleteMany.mockResolvedValue({ count: 1 });
+      const result = await svc.deleteBookmark("u1", "bm1");
       expect(result).toBeDefined();
+      expect(mockPrisma.ebookBookmark.deleteMany).toHaveBeenCalledWith({ where: { id: "bm1", userId: "u1" } });
     });
 
     it("throws NotFoundException", async () => {
-      mockPrisma.ebookBookmark.delete.mockRejectedValue(new Error());
-      await expect(svc.deleteBookmark("invalid")).rejects.toThrow(BusinessException);
+      mockPrisma.ebookBookmark.deleteMany.mockResolvedValue({ count: 0 });
+      await expect(svc.deleteBookmark("u1", "invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -428,22 +429,30 @@ describe("EbookService", () => {
 
   describe("updateNote", () => {
     it("updates note", async () => {
-      mockPrisma.ebookNote.update.mockResolvedValue({ id: "n1", content: "updated" });
-      const result = await svc.updateNote("n1", { content: "updated" });
-      expect(result.content).toBe("updated");
+      mockPrisma.ebookNote.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.ebookNote.findUnique.mockResolvedValue({ id: "n1", content: "updated" });
+      const result = await svc.updateNote("u1", "n1", { content: "updated" });
+      expect(result?.content).toBe("updated");
+      expect(mockPrisma.ebookNote.updateMany).toHaveBeenCalledWith({ where: { id: "n1", userId: "u1" }, data: { content: "updated" } });
+    });
+
+    it("throws NotFoundException when not owner", async () => {
+      mockPrisma.ebookNote.updateMany.mockResolvedValue({ count: 0 });
+      await expect(svc.updateNote("u1", "invalid", { content: "x" })).rejects.toThrow(BusinessException);
     });
   });
 
   describe("deleteNote", () => {
     it("deletes note", async () => {
-      mockPrisma.ebookNote.delete.mockResolvedValue({});
-      const result = await svc.deleteNote("n1");
+      mockPrisma.ebookNote.deleteMany.mockResolvedValue({ count: 1 });
+      const result = await svc.deleteNote("u1", "n1");
       expect(result).toBeDefined();
+      expect(mockPrisma.ebookNote.deleteMany).toHaveBeenCalledWith({ where: { id: "n1", userId: "u1" } });
     });
 
     it("throws NotFoundException", async () => {
-      mockPrisma.ebookNote.delete.mockRejectedValue(new Error());
-      await expect(svc.deleteNote("invalid")).rejects.toThrow(BusinessException);
+      mockPrisma.ebookNote.deleteMany.mockResolvedValue({ count: 0 });
+      await expect(svc.deleteNote("u1", "invalid")).rejects.toThrow(BusinessException);
     });
   });
 

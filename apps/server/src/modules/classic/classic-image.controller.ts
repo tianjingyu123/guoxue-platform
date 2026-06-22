@@ -1,9 +1,19 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
-import { Request } from "express";
 import { ClassicImageService } from "./classic-image.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 import { CreateImageDto } from "./classic-image.dto";
+
+/**
+ * IIIF Manifest 对外可访问的基础 URL。
+ * 必须使用服务端配置（APP_URL），不可使用客户端可控的 Host 头，
+ * 否则攻击者可注入恶意 Host 使 manifest 中的资源指向钓鱼地址（Host 注入）。
+ */
+function getManifestBaseUrl(): string {
+  return process.env.APP_URL?.replace(/\/+$/, "") || "https://guoxue.local/api/v1";
+}
 
 @ApiTags("经典-原图对照")
 @Controller("classic")
@@ -40,9 +50,8 @@ export class ClassicImageController {
   getManifest(
     @Param("id") bookId: string,
     @Query("textOverlay") textOverlay?: string,
-    @Req() req?: Request,
   ) {
-    const baseUrl = req ? `${req.protocol}://${req.get("host")}` : "https://guoxue.local/api/v1";
+    const baseUrl = getManifestBaseUrl();
     if (textOverlay === "true") {
       return this.imageSvc.generateManifestWithTextOverlay(bookId, baseUrl);
     }
@@ -68,34 +77,40 @@ export class ClassicImageController {
     return this.imageSvc.searchOcrText(bookId, keyword);
   }
 
-  // ── 图像管理（需登录） ──
-  @UseGuards(JwtAuthGuard)
+  // ── 图像管理（需 SUPER_ADMIN，与其他古籍写操作一致） ──
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @Post("books/:id/images")
-  @ApiOperation({ summary: "添加书籍图像记录" })
+  @ApiOperation({ summary: "添加书籍图像记录（需超级管理员）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 403, description: "无权限（需超级管理员）" })
   createImage(@Param("id") bookId: string, @Body() dto: CreateImageDto) {
     return this.imageSvc.createImage(bookId, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @Put("images/:id")
-  @ApiOperation({ summary: "更新图像记录" })
+  @ApiOperation({ summary: "更新图像记录（需超级管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 403, description: "无权限（需超级管理员）" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   updateImage(@Param("id") id: string, @Body() dto: CreateImageDto) {
     return this.imageSvc.updateImage(id, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @Delete("images/:id")
-  @ApiOperation({ summary: "删除图像记录" })
+  @ApiOperation({ summary: "删除图像记录（需超级管理员）" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 403, description: "无权限（需超级管理员）" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   deleteImage(@Param("id") id: string) {
     return this.imageSvc.deleteImage(id);

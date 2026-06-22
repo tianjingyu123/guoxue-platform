@@ -327,6 +327,20 @@ export class ImService {
     });
   }
 
+  /** 判断 targetUserId 是否为 userId 的好友（用于授权校验） */
+  async isFriend(userId: string, targetUserId: string): Promise<boolean> {
+    const resp = (await this.getFriendList(userId)) as TimApiResponse;
+    const items = (resp.UserDataItem as Array<{ To_Account?: string }>) || [];
+    return items.some((it) => it.To_Account === targetUserId);
+  }
+
+  /** 判断 userId 是否为该群成员（用于授权校验） */
+  async isGroupMember(groupId: string, userId: string): Promise<boolean> {
+    const resp = (await this.getGroupMembers(groupId)) as TimApiResponse;
+    const members = (resp.MemberList as Array<{ Member_Account?: string }>) || [];
+    return members.some((m) => m.Member_Account === userId);
+  }
+
   /** 发送图片消息（单聊） */
   async sendC2CImage(fromUserId: string, toUserId: string, imageUrl: string, width?: number, height?: number) {
     return this.callImApi("openim/sendmsg", {

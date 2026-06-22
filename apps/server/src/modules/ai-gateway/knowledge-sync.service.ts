@@ -300,6 +300,18 @@ export class KnowledgeSyncService {
     return false;
   }
 
+  /** 校验当前用户是该圈子圈主，跨模块只读 circle 表 */
+  async assertCircleOwner(circleId: string, userId: string) {
+    const circle = await this.prisma.circle.findUnique({
+      where: { id: circleId },
+      select: { ownerId: true },
+    });
+    if (!circle) throw new BusinessException(ErrorCode.NOT_FOUND, "圈子不存在");
+    if (circle.ownerId !== userId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主可操作圈子知识库");
+    }
+  }
+
   /** 手动添加内容到知识库（圈主操作） */
   async manuallyAddToKnowledge(
     circleId: string,
@@ -308,6 +320,9 @@ export class KnowledgeSyncService {
     targetId: string,
     extra?: { title?: string; content?: string; fileName?: string },
   ) {
+    // 安全：校验当前用户为圈主，userId 由控制器强制取自 req.user.id
+    await this.assertCircleOwner(circleId, userId);
+
     let title = "";
     let content = "";
 
@@ -375,10 +390,17 @@ export class KnowledgeSyncService {
 
   /** 从知识库移除内容 */
   async removeFromKnowledge(circleId: string, userId: string, knowledgeId: string) {
-    await this.prisma.circleKnowledge.update({
-      where: { id: knowledgeId },
+    // 安全：校验当前用户为圈主
+    await this.assertCircleOwner(circleId, userId);
+
+    // 安全：where 加 circleId 约束，禁止越权删除其他圈子的知识条目
+    const result = await this.prisma.circleKnowledge.updateMany({
+      where: { id: knowledgeId, circleId },
       data: { status: "removed" },
     });
+    if (result.count === 0) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "知识条目不存在或不属于该圈子");
+    }
 
     await this.prisma.circleKnowledgeManual.create({
       data: {

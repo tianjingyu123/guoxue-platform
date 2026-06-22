@@ -50,10 +50,19 @@ export class ImController {
   @ApiOperation({ summary: "查询账号在线状态" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限（仅可查询自己或好友）" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  queryAccountState(@Query("userIds") userIds: string) {
-    const ids = userIds.split(",").filter(Boolean);
+  async queryAccountState(@Req() req: Request, @Query("userIds") userIds: string) {
+    const ids = (userIds || "").split(",").filter(Boolean);
+    if (ids.length === 0) return this.im.queryAccountState([]);
+    // 鉴权：仅允许查询自己或好友的在线状态，防止枚举任意用户在线状态
+    const selfId = req.user.id;
+    for (const id of ids) {
+      if (id === selfId) continue;
+      const ok = await this.im.isFriend(selfId, id);
+      if (!ok) throw new ForbiddenException("只能查询自己或好友的在线状态");
+    }
     return this.im.queryAccountState(ids);
   }
 
@@ -308,9 +317,13 @@ export class ImController {
   @ApiOperation({ summary: "获取群组详细信息" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限（非群成员）" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  getGroupInfo(@Param("groupId") groupId: string) {
+  async getGroupInfo(@Req() req: Request, @Param("groupId") groupId: string) {
+    // 鉴权：仅群成员可查看群信息
+    const ok = await this.im.isGroupMember(groupId, req.user.id);
+    if (!ok) throw new ForbiddenException("只有群成员可查看群信息");
     return this.im.getGroupInfo([groupId]);
   }
 
@@ -318,9 +331,13 @@ export class ImController {
   @ApiOperation({ summary: "获取群成员列表" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限（非群成员）" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  getGroupMembers(@Param("groupId") groupId: string) {
+  async getGroupMembers(@Req() req: Request, @Param("groupId") groupId: string) {
+    // 鉴权：仅群成员可查看群成员列表
+    const ok = await this.im.isGroupMember(groupId, req.user.id);
+    if (!ok) throw new ForbiddenException("只有群成员可查看群成员列表");
     return this.im.getGroupMembers(groupId);
   }
 

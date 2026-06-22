@@ -205,8 +205,8 @@ export class EbookController {
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  deleteBookmark(@Param("id") id: string) {
-    return this.svc.deleteBookmark(id);
+  deleteBookmark(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.deleteBookmark(req.user.id, id);
   }
 
   // ── 笔记 ──
@@ -236,8 +236,8 @@ export class EbookController {
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  updateNote(@Param("id") id: string, @Body() dto: UpdateNoteDto) {
-    return this.svc.updateNote(id, dto);
+  updateNote(@Req() req: Request, @Param("id") id: string, @Body() dto: UpdateNoteDto) {
+    return this.svc.updateNote(req.user.id, id, dto);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -247,8 +247,8 @@ export class EbookController {
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  deleteNote(@Param("id") id: string) {
-    return this.svc.deleteNote(id);
+  deleteNote(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.deleteNote(req.user.id, id);
   }
 
   // ── AI 翻译 ──
@@ -374,11 +374,13 @@ export class EbookController {
 
   // ── 管理端 ──
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @Get("admin/purchases")
   @ApiOperation({ summary: "管理端-所有购买记录" })
   @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "无权限（需管理员）" })
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
   @ApiQuery({ name: "ebookId", required: false })
@@ -392,32 +394,38 @@ export class EbookController {
     return this.svc.getAllPurchases({ page: +page, pageSize: +pageSize, ebookId, userId });
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @Delete("admin/reviews/:id")
   @ApiOperation({ summary: "管理端-删除书评" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 403, description: "无权限（需管理员）" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   deleteReview(@Param("id") id: string) {
     return this.svc.deleteReview(id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @Get("admin/reading-stats")
   @ApiOperation({ summary: "管理端-平台阅读统计概览" })
   @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "无权限（需管理员）" })
   @ApiQuery({ name: "days", required: false })
   getAdminReadingStats(@Query("days") days = 30) {
     return this.svc.getPlatformReadingStats(+days);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @Get("admin/notes")
   @ApiOperation({ summary: "管理端-所有公开笔记" })
   @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "无权限（需管理员）" })
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
   @ApiQuery({ name: "ebookId", required: false })

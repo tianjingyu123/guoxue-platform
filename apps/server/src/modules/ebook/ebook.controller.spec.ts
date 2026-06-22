@@ -162,8 +162,10 @@ describe("EbookController", () => {
   });
 
   it("DELETE /ebook/bookmarks/:id — 删除书签", async () => {
-    const result: any = await ctrl.deleteBookmark("bm1");
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.deleteBookmark(req, "bm1");
     expect(result.success).toBe(true);
+    expect(mockEbookSvc.deleteBookmark).toHaveBeenCalledWith("u1", "bm1");
   });
 
   it("GET /ebook/notes — 笔记列表", async () => {
@@ -181,14 +183,18 @@ describe("EbookController", () => {
   });
 
   it("PUT /ebook/notes/:id — 更新笔记", async () => {
+    const req: any = { user: { id: "u1" } };
     const dto: any = { text: "更新笔记" };
-    const result: any = await ctrl.updateNote("n1", dto);
+    const result: any = await ctrl.updateNote(req, "n1", dto);
     expect(result.text).toBe("更新笔记");
+    expect(mockEbookSvc.updateNote).toHaveBeenCalledWith("u1", "n1", dto);
   });
 
   it("DELETE /ebook/notes/:id — 删除笔记", async () => {
-    const result: any = await ctrl.deleteNote("n1");
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.deleteNote(req, "n1");
     expect(result.success).toBe(true);
+    expect(mockEbookSvc.deleteNote).toHaveBeenCalledWith("u1", "n1");
   });
 
   it("POST /ebook/translate — AI翻译", async () => {

@@ -4,6 +4,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { WebhookService, WebhookEvent } from "./webhook.service";
+import { CreateWebhookDto, UpdateWebhookDto, ToggleWebhookDto } from "./webhook.dto";
 
 @ApiTags("Webhook")
 @Controller("webhooks")
@@ -17,9 +18,7 @@ export class WebhookController {
   @ApiOperation({ summary: "注册 Webhook 订阅" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  register(
-    @Body() body: { event: WebhookEvent; url: string; secret?: string; description?: string },
-  ) {
+  register(@Body() body: CreateWebhookDto) {
     return this.svc.register(body);
   }
 
@@ -36,10 +35,7 @@ export class WebhookController {
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  update(
-    @Param("id") id: string,
-    @Body() body: { url?: string; secret?: string; description?: string },
-  ) {
+  update(@Param("id") id: string, @Body() body: UpdateWebhookDto) {
     return this.svc.update(id, body);
   }
 
@@ -47,8 +43,8 @@ export class WebhookController {
   @ApiOperation({ summary: "启用/禁用 Webhook 订阅" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  toggle(@Param("id") id: string, @Body("isActive") isActive: boolean) {
-    return this.svc.toggleActive(id, isActive);
+  toggle(@Param("id") id: string, @Body() body: ToggleWebhookDto) {
+    return this.svc.toggleActive(id, body.isActive);
   }
 
   @Delete(":id")

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Cacheable } from "../../common/cache.decorator";
 
@@ -6,8 +6,23 @@ import { Cacheable } from "../../common/cache.decorator";
 export class CircleDashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * 归属校验（防 IDOR 越权）：当前用户必须是该圈子的圈主或管理员（OWNER/PARTNER/ADMIN），
+   * 否则禁止访问圈子经营数据。
+   */
+  private async assertCircleOwner(circleId: string, userId: string) {
+    const member = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+      select: { role: true },
+    });
+    if (!member || !["OWNER", "PARTNER", "ADMIN"].includes(member.role)) {
+      throw new ForbiddenException("无权访问该圈子数据");
+    }
+  }
+
   @Cacheable({ key: (args) => `circle:dashboard:overview:${args[0]}`, ttl: 30 })
-  async getOverview(circleId: string) {
+  async getOverview(circleId: string, userId: string) {
+    await this.assertCircleOwner(circleId, userId);
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -54,7 +69,8 @@ export class CircleDashboardService {
   }
 
   @Cacheable({ key: (args) => `circle:dashboard:trends:${args[0]}`, ttl: 60 })
-  async getTrends(circleId: string) {
+  async getTrends(circleId: string, userId: string) {
+    await this.assertCircleOwner(circleId, userId);
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -93,7 +109,8 @@ export class CircleDashboardService {
     };
   }
 
-  async getRevenueBreakdown(circleId: string) {
+  async getRevenueBreakdown(circleId: string, userId: string) {
+    await this.assertCircleOwner(circleId, userId);
     const joinRevenue = await this.prisma.order.aggregate({
       where: { type: "CIRCLE_JOIN", targetId: circleId, status: "PAID" },
       _sum: { amount: true },
@@ -134,7 +151,8 @@ export class CircleDashboardService {
     };
   }
 
-  async getTopContributors(circleId: string) {
+  async getTopContributors(circleId: string, userId: string) {
+    await this.assertCircleOwner(circleId, userId);
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -186,7 +204,8 @@ export class CircleDashboardService {
     };
   }
 
-  async getHotContent(circleId: string) {
+  async getHotContent(circleId: string, userId: string) {
+    await this.assertCircleOwner(circleId, userId);
     const posts = await this.prisma.post.findMany({
       where: { circleId, status: "PUBLISHED" },
       select: { id: true, title: true, content: true, createdAt: true },
@@ -224,7 +243,8 @@ export class CircleDashboardService {
     return { posts: ranked };
   }
 
-  async getRecentMembers(circleId: string) {
+  async getRecentMembers(circleId: string, userId: string) {
+    await this.assertCircleOwner(circleId, userId);
     const members = await this.prisma.circleMember.findMany({
       where: { circleId },
       select: { user: { select: { id: true, nickname: true, avatar: true } }, joinedAt: true },
@@ -234,7 +254,8 @@ export class CircleDashboardService {
     return { members: members.map(m => ({ userId: m.user.id, nickname: m.user.nickname, avatar: m.user.avatar, joinedAt: m.joinedAt })) };
   }
 
-  async getChurnWarning(circleId: string) {
+  async getChurnWarning(circleId: string, userId: string) {
+    await this.assertCircleOwner(circleId, userId);
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
@@ -277,7 +298,8 @@ export class CircleDashboardService {
     };
   }
 
-  async getPendingQuestions(circleId: string) {
+  async getPendingQuestions(circleId: string, userId: string) {
+    await this.assertCircleOwner(circleId, userId);
     const questions = await this.prisma.paidQuestion.findMany({
       where: { circleId, status: "PENDING" },
       select: { id: true, questionTitle: true, question: true, priceCoin: true, createdAt: true, asker: { select: { id: true, nickname: true } } },
@@ -287,7 +309,8 @@ export class CircleDashboardService {
     return { questions };
   }
 
-  async getKnowledgeCandidates(circleId: string) {
+  async getKnowledgeCandidates(circleId: string, userId: string) {
+    await this.assertCircleOwner(circleId, userId);
     const candidates = await this.prisma.circleKnowledgeCandidate.findMany({
       where: { circleId, status: "pending" },
       select: { id: true, content: true, similarityScore: true, sourceType: true, createdAt: true },

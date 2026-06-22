@@ -41,7 +41,7 @@ describe("WebhookController", () => {
   });
 
   it("POST /webhooks/:id/toggle — 启用/禁用", async () => {
-    const result: any = await ctrl.toggle("w1", false);
+    const result: any = await ctrl.toggle("w1", { isActive: false });
     expect(result.isActive).toBe(false);
     expect(mockWebhookSvc.toggleActive).toHaveBeenCalledWith("w1", false);
   });

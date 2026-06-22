@@ -299,10 +299,13 @@ export class EbookService {
     });
   }
 
-  async deleteBookmark(id: string) {
-    return this.prisma.ebookBookmark.delete({ where: { id } }).catch(() => {
+  async deleteBookmark(userId: string, id: string) {
+    // IDOR 防护：仅删除归属于当前用户的书签
+    const { count } = await this.prisma.ebookBookmark.deleteMany({ where: { id, userId } });
+    if (count === 0) {
       throw new BusinessException(ErrorCode.NOT_FOUND, "书签不存在");
-    });
+    }
+    return { success: true };
   }
 
   // ═══════════════════════════════════════════
@@ -335,14 +338,22 @@ export class EbookService {
     });
   }
 
-  async updateNote(id: string, dto: { content?: string; isPublic?: boolean }) {
-    return this.prisma.ebookNote.update({ where: { id }, data: dto });
+  async updateNote(userId: string, id: string, dto: { content?: string; isPublic?: boolean }) {
+    // IDOR 防护：仅更新归属于当前用户的笔记
+    const { count } = await this.prisma.ebookNote.updateMany({ where: { id, userId }, data: dto });
+    if (count === 0) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "笔记不存在");
+    }
+    return this.prisma.ebookNote.findUnique({ where: { id } });
   }
 
-  async deleteNote(id: string) {
-    return this.prisma.ebookNote.delete({ where: { id } }).catch(() => {
+  async deleteNote(userId: string, id: string) {
+    // IDOR 防护：仅删除归属于当前用户的笔记
+    const { count } = await this.prisma.ebookNote.deleteMany({ where: { id, userId } });
+    if (count === 0) {
       throw new BusinessException(ErrorCode.NOT_FOUND, "笔记不存在");
-    });
+    }
+    return { success: true };
   }
 
   // ═══════════════════════════════════════════

@@ -17,6 +17,7 @@ describe("KnowledgeSyncService", () => {
         create: jest.fn(),
         groupBy: jest.fn().mockResolvedValue([]),
         update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       circleKnowledgeCandidate: {
         upsert: jest.fn(),
@@ -29,6 +30,10 @@ describe("KnowledgeSyncService", () => {
       post: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn() },
       course: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn() },
       circleMember: { findMany: jest.fn().mockResolvedValue([]) },
+      // 归属校验：默认圈主为 u1，使授权通过
+      circle: {
+        findUnique: jest.fn().mockResolvedValue({ ownerId: "u1" }),
+      },
     };
 
     vector = {
@@ -190,16 +195,37 @@ describe("KnowledgeSyncService", () => {
         svc.manuallyAddToKnowledge("c1", "u1", "post", "nonexistent"),
       ).rejects.toThrow(BusinessException);
     });
+
+    it("非圈主操作时抛出异常（归属校验）", async () => {
+      prisma.circle.findUnique.mockResolvedValue({ ownerId: "owner" });
+      await expect(
+        svc.manuallyAddToKnowledge("c1", "intruder", "post", "p1"),
+      ).rejects.toThrow(BusinessException);
+    });
   });
 
   describe("removeFromKnowledge", () => {
-    it("将知识库条目标记为已移除", async () => {
+    it("将知识库条目标记为已移除（where 加 circleId 约束）", async () => {
       const result = await svc.removeFromKnowledge("c1", "u1", "k1");
       expect(result.removed).toBe(true);
-      expect(prisma.circleKnowledge.update).toHaveBeenCalledWith({
-        where: { id: "k1" },
+      expect(prisma.circleKnowledge.updateMany).toHaveBeenCalledWith({
+        where: { id: "k1", circleId: "c1" },
         data: { status: "removed" },
       });
+    });
+
+    it("条目不存在或不属于该圈子时抛出异常", async () => {
+      prisma.circleKnowledge.updateMany.mockResolvedValue({ count: 0 });
+      await expect(
+        svc.removeFromKnowledge("c1", "u1", "k1"),
+      ).rejects.toThrow(BusinessException);
+    });
+
+    it("非圈主操作时抛出异常（归属校验）", async () => {
+      prisma.circle.findUnique.mockResolvedValue({ ownerId: "owner" });
+      await expect(
+        svc.removeFromKnowledge("c1", "intruder", "k1"),
+      ).rejects.toThrow(BusinessException);
     });
   });
 

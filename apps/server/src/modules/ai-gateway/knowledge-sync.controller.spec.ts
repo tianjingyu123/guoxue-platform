@@ -14,6 +14,7 @@ describe("KnowledgeSyncController", () => {
         {
           provide: KnowledgeSyncService,
           useValue: {
+            assertCircleOwner: jest.fn(),
             syncCircleKnowledge: jest.fn(),
             autoSyncAll: jest.fn(),
             manuallyAddToKnowledge: jest.fn(),
@@ -35,12 +36,16 @@ describe("KnowledgeSyncController", () => {
     jest.clearAllMocks();
   });
 
+  // 模拟带登录用户的 Express Request
+  const req = (userId = "u1") => ({ user: { id: userId } }) as any;
+
   describe("syncCircle — 同步指定圈子知识库", () => {
     it("调用 service 并返回同步结果", async () => {
       svc.syncCircleKnowledge.mockResolvedValue(5);
 
-      const result = await ctrl.syncCircle("c1");
+      const result = await ctrl.syncCircle(req("u1"), "c1");
 
+      expect(svc.assertCircleOwner).toHaveBeenCalledWith("c1", "u1");
       expect(svc.syncCircleKnowledge).toHaveBeenCalledWith("c1");
       expect(result).toEqual({ circleId: "c1", syncedCount: 5 });
     });
@@ -48,7 +53,7 @@ describe("KnowledgeSyncController", () => {
     it("同步结果为 0 时正确返回", async () => {
       svc.syncCircleKnowledge.mockResolvedValue(0);
 
-      const result = await ctrl.syncCircle("empty");
+      const result = await ctrl.syncCircle(req("u1"), "empty");
 
       expect(result).toEqual({ circleId: "empty", syncedCount: 0 });
     });
@@ -66,16 +71,15 @@ describe("KnowledgeSyncController", () => {
   });
 
   describe("addToKnowledge — 手动添加", () => {
-    it("调用 service 添加内容到知识库", async () => {
+    it("调用 service 添加内容到知识库（操作人取自 req.user.id）", async () => {
       const body = {
         circleId: "c1",
-        userId: "u1",
         targetType: "post" as const,
         targetId: "p1",
       };
       svc.manuallyAddToKnowledge.mockResolvedValue({ added: true, message: "已添加到知识库" });
 
-      const result = await ctrl.addToKnowledge(body);
+      const result = await ctrl.addToKnowledge(req("u1"), body);
 
       expect(svc.manuallyAddToKnowledge).toHaveBeenCalledWith(
         "c1",
@@ -88,12 +92,11 @@ describe("KnowledgeSyncController", () => {
   });
 
   describe("removeFromKnowledge — 从知识库移除", () => {
-    it("调用 service 移除内容", async () => {
+    it("调用 service 移除内容（操作人取自 req.user.id）", async () => {
       svc.removeFromKnowledge.mockResolvedValue({ removed: true, message: "已从知识库移除" });
 
-      const result = await ctrl.removeFromKnowledge("k1", {
+      const result = await ctrl.removeFromKnowledge(req("u1"), "k1", {
         circleId: "c1",
-        userId: "u1",
       });
 
       expect(svc.removeFromKnowledge).toHaveBeenCalledWith("c1", "u1", "k1");
@@ -105,8 +108,9 @@ describe("KnowledgeSyncController", () => {
     it("不传 status 时传入 undefined", async () => {
       svc.getCandidates.mockResolvedValue([]);
 
-      await ctrl.getCandidates("c1");
+      await ctrl.getCandidates(req("u1"), "c1");
 
+      expect(svc.assertCircleOwner).toHaveBeenCalledWith("c1", "u1");
       expect(svc.getCandidates).toHaveBeenCalledWith("c1", undefined);
     });
 
@@ -118,7 +122,7 @@ describe("KnowledgeSyncController", () => {
       };
       svc.getCandidates.mockResolvedValue([fullCandidate]);
 
-      const result = await ctrl.getCandidates("c1", "pending");
+      const result = await ctrl.getCandidates(req("u1"), "c1", "pending");
 
       expect(svc.getCandidates).toHaveBeenCalledWith("c1", "pending");
       expect(result).toEqual([fullCandidate]);
@@ -127,7 +131,7 @@ describe("KnowledgeSyncController", () => {
     it("返回空列表", async () => {
       svc.getCandidates.mockResolvedValue([]);
 
-      const result = await ctrl.getCandidates("empty", "confirmed");
+      const result = await ctrl.getCandidates(req("u1"), "empty", "confirmed");
 
       expect(result).toEqual([]);
     });

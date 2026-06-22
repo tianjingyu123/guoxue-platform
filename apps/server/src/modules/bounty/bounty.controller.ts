@@ -74,7 +74,8 @@ export class BountyController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
-  refund(@Param("id") id: string) {
-    return this.svc.refund(id);
+  refund(@Req() req: Request, @Param("id") id: string) {
+    // 安全：service 内校验当前用户为提问者本人
+    return this.svc.refund(req.user.id, id);
   }
 }

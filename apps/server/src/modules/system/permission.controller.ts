@@ -4,6 +4,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { PermissionService } from "./permission.service";
+import { SetRolePermissionsDto } from "./system.dto";
 
 @ApiTags("角色权限")
 @ApiBearerAuth()
@@ -29,7 +30,7 @@ export class PermissionController {
   @ApiParam({ name: "role", description: "角色类型" })
   async setRolePermissions(
     @Param("role") role: string,
-    @Body() body: { permissions: string[] },
+    @Body() body: SetRolePermissionsDto,
   ) {
     const result = await this.permSvc.setRolePermissions(role, body.permissions || []);
     return { permissions: result.permissions, data: result.permissions };

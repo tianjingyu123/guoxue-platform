@@ -89,19 +89,28 @@ export class BountyService {
 
   // ───────── 退款 ─────────
 
-  async refund(questionId: string) {
+  async refund(userId: string, questionId: string) {
     const question = await this.prisma.bountyQuestion.findUnique({ where: { id: questionId } });
     if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "悬赏不存在");
+    // 安全：仅悬赏提问者本人可触发退款，禁止任意登录用户对他人悬赏退款
+    if (question.askerId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作该悬赏");
     if (!["OPEN", "CLAIMED"].includes(question.status)) throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可退款");
 
     if (this.coinSvc) {
       await this.coinSvc.unfreeze(question.askerId, question.bountyCoin);
     }
 
-    return this.prisma.bountyQuestion.update({
+    const updated = await this.prisma.bountyQuestion.update({
       where: { id: questionId },
       data: { status: "REFUNDED" },
     });
+
+    // 审计：记录退款操作（执行者、目标悬赏、金额）
+    this.logger.log(
+      `悬赏退款 [审计] 操作人=${userId} 悬赏=${questionId} 金额=${question.bountyCoin}币 原状态=${question.status}`,
+    );
+
+    return updated;
   }
 
   // ───────── 列表/详情 ─────────

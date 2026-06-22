@@ -161,8 +161,9 @@ export class BotController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  bindToCircle(@Param("id") id: string, @Body() dto: BindBotToCircleDto) {
-    return this.svc.bindToCircle(id, dto);
+  bindToCircle(@Req() req: Request, @Param("id") id: string, @Body() dto: BindBotToCircleDto) {
+    // 安全：service 内校验当前用户为目标圈子圈主
+    return this.svc.bindToCircle(id, dto, req.user.id);
   }
 
   @Get("circle/:circleId")
@@ -180,8 +181,9 @@ export class BotController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  addKnowledge(@Param("id") id: string, @Body() dto: AddKnowledgeDto) {
-    return this.svc.addKnowledge(id, dto);
+  addKnowledge(@Req() req: Request, @Param("id") id: string, @Body() dto: AddKnowledgeDto) {
+    // 安全：service 内校验当前用户为该智能体绑定圈子的圈主
+    return this.svc.addKnowledge(id, dto, req.user.id);
   }
 
   @Delete("knowledge/:knowledgeId")
@@ -191,8 +193,9 @@ export class BotController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  deleteKnowledge(@Param("knowledgeId") knowledgeId: string) {
-    return this.svc.deleteKnowledge(knowledgeId);
+  deleteKnowledge(@Req() req: Request, @Param("knowledgeId") knowledgeId: string) {
+    // 安全：service 内校验当前用户为该知识条目所属圈子的圈主
+    return this.svc.deleteKnowledgeAsOwner(knowledgeId, req.user.id);
   }
 
   // ───────── COZE 对话 ─────────
@@ -339,10 +342,19 @@ export class BotController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   uploadFile(
-    @Req() req: Request,
+    @Req() _req: Request,
     @Param("id") id: string,
     @Body() body: { file: string; filename: string },
   ) {
+    // 安全：解码前先按 base64 字符串长度预检，避免超大载荷在内存中解码（5MB 二进制 ≈ 6.99MB base64）
+    if (!body?.file) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "文件内容不能为空");
+    }
+    const MAX_BASE64_LEN = Math.ceil((5 * 1024 * 1024) / 3) * 4; // 5MB 对应的 base64 长度上限
+    if (body.file.length > MAX_BASE64_LEN) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "文件大小超过 5MB 上限");
+    }
+    // service 内再次按解码后的真实字节数校验（双重保险）
     return this.svc.uploadFile(id, Buffer.from(body.file, "base64"), body.filename);
   }
 

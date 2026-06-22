@@ -33,6 +33,35 @@ export interface NlQueryResult {
 export class DataExplorerService {
   private readonly logger = new Logger(DataExplorerService.name);
 
+  /**
+   * 敏感列黑名单（小写）。
+   * NL2SQL 由 AI 生成、$queryRawUnsafe 执行，若不加限制可导出 User.phone/email 等全量 PII。
+   * isSafeSql 拦截显式查询，maskSensitiveColumns 对结果列做兜底脱敏（防 SELECT * / 别名绕过）。
+   */
+  private readonly SENSITIVE_COLUMNS = [
+    "phone",
+    "email",
+    "passwordhash",
+    "password",
+    "idcard",
+    "id_card",
+    "realname",
+    "real_name",
+    "openid",
+    "unionid",
+    "apikey",
+    "api_key",
+    "accesstoken",
+    "access_token",
+    "refreshtoken",
+    "refresh_token",
+    "secret",
+    "wechat",
+    "bankcard",
+    "bank_card",
+    "address",
+  ];
+
   // 数据库 Schema 摘要，供 AI 理解表结构
   private readonly SCHEMA_CONTEXT = `
 你是一个 SQL 专家。数据库是 PostgreSQL。以下是可查询的表和关键字段：
@@ -129,6 +158,9 @@ AI相关：
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, `查询执行失败: ${err.message}`);
     }
 
+    // 列级脱敏兜底：防止 SELECT * / 别名绕过 isSafeSql 的敏感列拦截
+    data = this.maskSensitiveColumns(data);
+
     // 3. 生成图表建议
     const chartSuggestion = this.suggestChart(question, data);
 
@@ -218,7 +250,40 @@ AI相关：
         return false;
       }
     }
+
+    // 4. 敏感列黑名单：拦截显式引用 PII 列的查询（防数据导出）
+    const lower = trimmed.toLowerCase();
+    for (const col of this.SENSITIVE_COLUMNS) {
+      // 用单词边界匹配列名，避免误杀（如 emailVerified 仍会命中 email 子串，从严拦截）
+      if (new RegExp(`\\b${col}\\b`).test(lower)) {
+        this.logger.warn(`SQL引用敏感列被拦截: ${col}`);
+        return false;
+      }
+    }
     return true;
+  }
+
+  /**
+   * 结果列级脱敏兜底：即使 SQL 用 SELECT * 或别名绕过列名检测，
+   * 仍对结果中命中敏感字段名的列做掩码，防止 PII 通过返回值泄露。
+   */
+  private maskSensitiveColumns(
+    data: Record<string, unknown>[],
+  ): Record<string, unknown>[] {
+    if (data.length === 0) return data;
+    const keys = Object.keys(data[0]);
+    const sensitiveKeys = keys.filter((k) => {
+      const lk = k.toLowerCase();
+      return this.SENSITIVE_COLUMNS.some((c) => lk.includes(c));
+    });
+    if (sensitiveKeys.length === 0) return data;
+    return data.map((row) => {
+      const masked = { ...row };
+      for (const k of sensitiveKeys) {
+        if (masked[k] != null) masked[k] = "***";
+      }
+      return masked;
+    });
   }
 
   /** 自动推荐图表类型 */

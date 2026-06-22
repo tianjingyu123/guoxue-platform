@@ -1,16 +1,30 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
 export class LiveDashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getOverview(roomId: string) {
+  /**
+   * 归属校验（防 IDOR 越权）：当前用户必须是该直播间的主播（hostUserId），
+   * 否则禁止访问直播间经营数据。
+   */
+  private async assertRoomHost(roomId: string, userId: string) {
+    const room = await this.prisma.liveRoom.findUnique({
+      where: { id: roomId },
+      select: { hostUserId: true },
+    });
+    if (!room) throw new NotFoundException("直播间不存在");
+    if (room.hostUserId !== userId) throw new ForbiddenException("无权访问该直播间数据");
+  }
+
+  async getOverview(roomId: string, userId: string) {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id: roomId },
       select: { id: true, title: true, viewCount: true, status: true, startTime: true, endTime: true, hostUserId: true },
     });
     if (!room) throw new NotFoundException("直播间不存在");
+    if (room.hostUserId !== userId) throw new ForbiddenException("无权访问该直播间数据");
 
     const [commentCount, likeCount, giftAgg, orderAgg, peakMinute] = await Promise.all([
       this.prisma.comment.count({ where: { targetType: "LIVESTREAM", targetId: roomId } }),
@@ -43,7 +57,8 @@ export class LiveDashboardService {
     };
   }
 
-  async getTrends(roomId: string) {
+  async getTrends(roomId: string, userId: string) {
+    await this.assertRoomHost(roomId, userId);
     const data = await this.prisma.liveMinuteData.findMany({
       where: { roomId },
       orderBy: { minute: "asc" },
@@ -63,7 +78,8 @@ export class LiveDashboardService {
     };
   }
 
-  async getProducts(roomId: string) {
+  async getProducts(roomId: string, userId: string) {
+    await this.assertRoomHost(roomId, userId);
     const products = await this.prisma.liveProduct.findMany({
       where: { liveId: roomId },
       select: { productId: true, sortOrder: true },
@@ -103,7 +119,8 @@ export class LiveDashboardService {
     };
   }
 
-  async getInteractions(roomId: string) {
+  async getInteractions(roomId: string, userId: string) {
+    await this.assertRoomHost(roomId, userId);
     const [topGifters, recentComments] = await Promise.all([
       this.prisma.giftRecord.groupBy({
         by: ["userId"],
@@ -138,7 +155,8 @@ export class LiveDashboardService {
     };
   }
 
-  async getAudience(roomId: string) {
+  async getAudience(roomId: string, userId: string) {
+    await this.assertRoomHost(roomId, userId);
     const giftUserIds = await this.prisma.giftRecord.findMany({
       where: { liveRoomId: roomId },
       select: { userId: true },
@@ -190,12 +208,13 @@ export class LiveDashboardService {
     };
   }
 
-  async getHostStats(roomId: string) {
+  async getHostStats(roomId: string, userId: string) {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id: roomId },
       select: { hostUserId: true, startTime: true, endTime: true },
     });
     if (!room) throw new NotFoundException("直播间不存在");
+    if (room.hostUserId !== userId) throw new ForbiddenException("无权访问该直播间数据");
 
     const duration = room.startTime && room.endTime
       ? Math.round((room.endTime.getTime() - room.startTime.getTime()) / 60000)

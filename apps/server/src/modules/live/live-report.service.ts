@@ -1,16 +1,17 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
 export class LiveReportService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getReport(roomId: string) {
+  async getReport(roomId: string, userId: string) {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id: roomId },
       select: { id: true, title: true, hostUserId: true, viewCount: true, startTime: true, endTime: true, status: true },
     });
     if (!room) throw new NotFoundException("直播间不存在");
+    if (room.hostUserId !== userId) throw new ForbiddenException("无权访问该直播间数据");
 
     const duration = room.startTime && room.endTime
       ? Math.round((room.endTime.getTime() - room.startTime.getTime()) / 60000)
@@ -65,12 +66,13 @@ export class LiveReportService {
     };
   }
 
-  async getCompare(roomId: string) {
+  async getCompare(roomId: string, userId: string) {
     const current = await this.prisma.liveRoom.findUnique({
       where: { id: roomId },
       select: { id: true, hostUserId: true, viewCount: true, startTime: true, endTime: true },
     });
     if (!current) throw new NotFoundException("直播间不存在");
+    if (current.hostUserId !== userId) throw new ForbiddenException("无权访问该直播间数据");
 
     const previous = await this.prisma.liveRoom.findFirst({
       where: { hostUserId: current.hostUserId, id: { not: roomId }, status: "ENDED" },
@@ -78,7 +80,7 @@ export class LiveReportService {
       select: { id: true, title: true, viewCount: true, startTime: true, endTime: true },
     });
 
-    if (!previous) return { current: await this.getReport(roomId), previous: null };
+    if (!previous) return { current: await this.getReport(roomId, userId), previous: null };
 
     const [currentData, previousData] = await Promise.all([
       this.prisma.liveMinuteData.aggregate({ where: { roomId }, _sum: { gmw: true, orderCount: true, commentCount: true, likeCount: true, giftAmount: true }, _max: { onlineCount: true } }),

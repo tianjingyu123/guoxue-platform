@@ -1,5 +1,6 @@
-import { Controller, Post, Get, Param, Query, Body, UseGuards } from "@nestjs/common";
+import { Controller, Post, Get, Param, Query, Body, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
+import { Request } from "express";
 import { KnowledgeSyncService } from "./knowledge-sync.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
@@ -17,7 +18,9 @@ export class KnowledgeSyncController {
   @ApiOperation({ summary: "同步指定圈子的知识库" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  async syncCircle(@Param("circleId") circleId: string) {
+  async syncCircle(@Req() req: Request, @Param("circleId") circleId: string) {
+    // 安全：仅圈主可触发同步
+    await this.syncService.assertCircleOwner(circleId, req.user.id);
     const synced = await this.syncService.syncCircleKnowledge(circleId);
     return { circleId, syncedCount: synced };
   }
@@ -38,17 +41,18 @@ export class KnowledgeSyncController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async addToKnowledge(
+    @Req() req: Request,
     @Body()
     body: {
       circleId: string;
-      userId: string;
       targetType: "post" | "article";
       targetId: string;
     },
   ) {
+    // 安全：操作人强制取自 req.user.id，不信任 body.userId；service 内校验圈主
     return this.syncService.manuallyAddToKnowledge(
       body.circleId,
-      body.userId,
+      req.user.id,
       body.targetType,
       body.targetId,
     );
@@ -59,10 +63,12 @@ export class KnowledgeSyncController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async removeFromKnowledge(
+    @Req() req: Request,
     @Param("knowledgeId") knowledgeId: string,
-    @Body() body: { circleId: string; userId: string },
+    @Body() body: { circleId: string },
   ) {
-    return this.syncService.removeFromKnowledge(body.circleId, body.userId, knowledgeId);
+    // 安全：操作人强制取自 req.user.id；service 内校验圈主 + where 加 circleId 约束
+    return this.syncService.removeFromKnowledge(body.circleId, req.user.id, knowledgeId);
   }
 
   @Get("candidates/:circleId")
@@ -70,9 +76,12 @@ export class KnowledgeSyncController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "status", required: false })
   async getCandidates(
+    @Req() req: Request,
     @Param("circleId") circleId: string,
     @Query("status") status?: string,
   ) {
+    // 安全：仅圈主可查看本圈子候选内容
+    await this.syncService.assertCircleOwner(circleId, req.user.id);
     return this.syncService.getCandidates(circleId, status as any);
   }
 

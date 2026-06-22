@@ -21,6 +21,10 @@ const mockImSvc = {
   deleteFriend: jest.fn().mockResolvedValue({ success: true }),
   getFriendList: jest.fn().mockResolvedValue([{ userId: "u2", remark: "好友" }]),
   addBlacklist: jest.fn().mockResolvedValue({ success: true }),
+  isFriend: jest.fn().mockResolvedValue(true),
+  isGroupMember: jest.fn().mockResolvedValue(true),
+  getGroupInfo: jest.fn().mockResolvedValue({ GroupInfo: [{ GroupId: "g1" }] }),
+  getGroupMembers: jest.fn().mockResolvedValue({ MemberList: [{ Member_Account: "u1" }] }),
 };
 
 describe("ImController", () => {
@@ -54,10 +58,17 @@ describe("ImController", () => {
     expect(mockImSvc.importAccount).toHaveBeenCalledWith("u1", "张三", "https://...");
   });
 
-  it("GET /im/account/state — 查询在线状态", async () => {
-    const result: any = await ctrl.queryAccountState("u1,u2,u3");
+  it("GET /im/account/state — 查询自己/好友在线状态", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.queryAccountState(req, "u1,u2,u3");
     expect(result).toHaveLength(1);
     expect(mockImSvc.queryAccountState).toHaveBeenCalledWith(["u1", "u2", "u3"]);
+  });
+
+  it("GET /im/account/state — 禁止查询非好友在线状态", async () => {
+    mockImSvc.isFriend.mockResolvedValueOnce(false);
+    const req: any = { user: { id: "u1" } };
+    await expect(ctrl.queryAccountState(req, "stranger")).rejects.toThrow();
   });
 
   it("POST /im/account/:userId/profile — 更新自己的资料", async () => {

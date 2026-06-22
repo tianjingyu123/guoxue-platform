@@ -19,6 +19,7 @@ const mockBotSvc = {
   bindToCircle: jest.fn().mockResolvedValue({ botId: "bot1", circleId: "c1" }),
   getCircleBot: jest.fn().mockResolvedValue({ id: "bot1", name: "圈主助理" }),
   addKnowledge: jest.fn().mockResolvedValue({ id: "k1", title: "知识条目" }),
+  deleteKnowledgeAsOwner: jest.fn().mockResolvedValue({ success: true }),
   deleteKnowledge: jest.fn().mockResolvedValue({ success: true }),
   chat: jest.fn().mockResolvedValue({ reply: "你好！有什么可以帮你的？" }),
   getBotForChat: jest.fn().mockResolvedValue({ botId: "bot1", apiKey: "key123" }),
@@ -85,11 +86,12 @@ describe("BotController", () => {
     expect(mockBotSvc.delete).toHaveBeenCalledWith("bot1");
   });
 
-  it("POST /bots/:id/bind-circle — 绑定圈子", async () => {
+  it("POST /bots/:id/bind-circle — 绑定圈子（操作人取自 req.user.id）", async () => {
+    const req: any = { user: { id: "u1" } };
     const dto: any = { circleId: "c1" };
-    const result: any = await ctrl.bindToCircle("bot1", dto);
+    const result: any = await ctrl.bindToCircle(req, "bot1", dto);
     expect(result.circleId).toBe("c1");
-    expect(mockBotSvc.bindToCircle).toHaveBeenCalledWith("bot1", dto);
+    expect(mockBotSvc.bindToCircle).toHaveBeenCalledWith("bot1", dto, "u1");
   });
 
   it("GET /bots/circle/:circleId — 圈子绑定的智能体", async () => {
@@ -98,17 +100,19 @@ describe("BotController", () => {
     expect(mockBotSvc.getCircleBot).toHaveBeenCalledWith("c1");
   });
 
-  it("POST /bots/:id/knowledge — 添加知识库", async () => {
+  it("POST /bots/:id/knowledge — 添加知识库（操作人取自 req.user.id）", async () => {
+    const req: any = { user: { id: "u1" } };
     const dto: any = { title: "知识条目", content: "..." };
-    const result: any = await ctrl.addKnowledge("bot1", dto);
+    const result: any = await ctrl.addKnowledge(req, "bot1", dto);
     expect(result.title).toBe("知识条目");
-    expect(mockBotSvc.addKnowledge).toHaveBeenCalledWith("bot1", dto);
+    expect(mockBotSvc.addKnowledge).toHaveBeenCalledWith("bot1", dto, "u1");
   });
 
-  it("DELETE /bots/knowledge/:knowledgeId — 删除知识库", async () => {
-    const result: any = await ctrl.deleteKnowledge("k1");
+  it("DELETE /bots/knowledge/:knowledgeId — 删除知识库（校验圈主）", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.deleteKnowledge(req, "k1");
     expect(result.success).toBe(true);
-    expect(mockBotSvc.deleteKnowledge).toHaveBeenCalledWith("k1");
+    expect(mockBotSvc.deleteKnowledgeAsOwner).toHaveBeenCalledWith("k1", "u1");
   });
 
   it("POST /bots/:id/chat — 非流式对话", async () => {

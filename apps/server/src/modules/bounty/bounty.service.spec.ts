@@ -111,30 +111,36 @@ describe("BountyService", () => {
   });
 
   describe("refund", () => {
-    it("退款OPEN状态的悬赏", async () => {
+    it("提问者本人退款OPEN状态的悬赏", async () => {
       prisma.bountyQuestion.findUnique.mockResolvedValue({ id: "q1", status: "OPEN", askerId: "u1", bountyCoin: 100 });
       prisma.bountyQuestion.update.mockResolvedValue({ id: "q1", status: "REFUNDED" });
 
-      const result = await svc.refund("q1");
+      const result = await svc.refund("u1", "q1");
       expect(result.status).toBe("REFUNDED");
     });
 
-    it("退款CLAIMED状态的悬赏", async () => {
+    it("提问者本人退款CLAIMED状态的悬赏", async () => {
       prisma.bountyQuestion.findUnique.mockResolvedValue({ id: "q1", status: "CLAIMED", askerId: "u1", bountyCoin: 100 });
       prisma.bountyQuestion.update.mockResolvedValue({ id: "q1", status: "REFUNDED" });
 
-      const result = await svc.refund("q1");
+      const result = await svc.refund("u1", "q1");
       expect(result.status).toBe("REFUNDED");
+    });
+
+    it("非提问者本人无权退款", async () => {
+      prisma.bountyQuestion.findUnique.mockResolvedValue({ id: "q1", status: "OPEN", askerId: "u1", bountyCoin: 100 });
+      await expect(svc.refund("intruder", "q1")).rejects.toThrow(BusinessException);
+      expect(prisma.bountyQuestion.update).not.toHaveBeenCalled();
     });
 
     it("不能退款已解付悬赏", async () => {
       prisma.bountyQuestion.findUnique.mockResolvedValue({ id: "q1", status: "SETTLED", askerId: "u1", bountyCoin: 100 });
-      await expect(svc.refund("q1")).rejects.toThrow(BusinessException);
+      await expect(svc.refund("u1", "q1")).rejects.toThrow(BusinessException);
     });
 
     it("不存在悬赏抛出异常", async () => {
       prisma.bountyQuestion.findUnique.mockResolvedValue(null);
-      await expect(svc.refund("q99")).rejects.toThrow(BusinessException);
+      await expect(svc.refund("u1", "q99")).rejects.toThrow(BusinessException);
     });
   });
 

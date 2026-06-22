@@ -76,9 +76,10 @@ describe("BountyController", () => {
     expect(mockBountySvc.settle).toHaveBeenCalledWith("u1", "q1");
   });
 
-  it("POST /bounty/questions/:id/refund — 退款", async () => {
-    const result = await ctrl.refund("q1");
+  it("POST /bounty/questions/:id/refund — 退款（操作人取自 req.user.id）", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result = await ctrl.refund(req, "q1");
     expect(result).toBeDefined();
-    expect(mockBountySvc.refund).toHaveBeenCalledWith("q1");
+    expect(mockBountySvc.refund).toHaveBeenCalledWith("u1", "q1");
   });
 });

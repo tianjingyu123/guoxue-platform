@@ -213,8 +213,16 @@ export class QuestionService {
     return { questions, total, page, pageSize };
   }
 
-  /** 问答详情 */
-  async getQuestion(questionId: string) {
+  /**
+   * 问答详情
+   *
+   * 安全：付费问答的 answer 全文受付费墙保护。仅以下用户可见 answer：
+   *  - 提问者本人 / 回答者本人
+   *  - 已围观（存在 PEEK_ANSWER 消费记录）的用户
+   *  - 公开问答（isPublic=true）且 peekPriceCoin<=0（免费围观）时所有人可见
+   * 其余情况剔除 answer 字段，避免绕过围观币付费墙。
+   */
+  async getQuestion(questionId: string, currentUserId?: string) {
     const question = await this.prisma.paidQuestion.findUnique({
       where: { id: questionId },
       include: {
@@ -224,6 +232,37 @@ export class QuestionService {
       },
     });
     if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+
+    const canViewAnswer = await this.canViewAnswer(question, currentUserId);
+    if (!canViewAnswer && question.answer != null) {
+      // 剔除 answer 全文，仅保留是否已回答的状态
+      const { answer: _answer, ...rest } = question;
+      return { ...rest, answer: null, answerLocked: true };
+    }
     return question;
+  }
+
+  /** 判断当前用户是否有权查看 answer 全文 */
+  private async canViewAnswer(
+    question: { id: string; askerId: string; answererId: string; isPublic: boolean; peekPriceCoin: number },
+    currentUserId?: string,
+  ): Promise<boolean> {
+    // 当事人始终可见
+    if (currentUserId && (currentUserId === question.askerId || currentUserId === question.answererId)) {
+      return true;
+    }
+    // 公开且免费围观：任何人可见
+    if (question.isPublic && question.peekPriceCoin <= 0) {
+      return true;
+    }
+    // 已围观（付费查看过）：查 PEEK_ANSWER 消费记录
+    if (currentUserId) {
+      const peeked = await this.prisma.virtualCoinTransaction.findFirst({
+        where: { userId: currentUserId, scene: "PEEK_ANSWER", refId: question.id },
+        select: { id: true },
+      });
+      if (peeked) return true;
+    }
+    return false;
   }
 }

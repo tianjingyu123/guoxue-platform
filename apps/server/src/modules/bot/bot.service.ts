@@ -78,7 +78,33 @@ export class BotService {
 
   // ───────── 圈子绑定 ─────────
 
-  async bindToCircle(botConfigId: string, dto: BindBotToCircleDto) {
+  /** 校验当前用户是该圈子圈主，跨模块只读 circle 表 */
+  private async assertCircleOwner(circleId: string, userId: string) {
+    const circle = await this.prisma.circle.findUnique({
+      where: { id: circleId },
+      select: { ownerId: true },
+    });
+    if (!circle) throw new BusinessException(ErrorCode.NOT_FOUND, "圈子不存在");
+    if (circle.ownerId !== userId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主可执行此操作");
+    }
+  }
+
+  /** 通过 botConfig 反查其绑定的圈子，并校验当前用户为圈主 */
+  private async assertBotConfigOwner(botConfigId: string, userId: string) {
+    const circleBot = await this.prisma.circleBot.findFirst({
+      where: { botConfigId },
+      select: { circleId: true },
+    });
+    if (!circleBot) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "该智能体未绑定圈子，无权操作");
+    }
+    await this.assertCircleOwner(circleBot.circleId, userId);
+  }
+
+  async bindToCircle(botConfigId: string, dto: BindBotToCircleDto, userId: string) {
+    // 安全：仅目标圈子的圈主可绑定/换绑智能体
+    await this.assertCircleOwner(dto.circleId, userId);
     return this.prisma.circleBot.upsert({
       where: { circleId: dto.circleId },
       create: { botConfigId, circleId: dto.circleId, knowledgeBaseId: dto.knowledgeBaseId },
@@ -105,7 +131,9 @@ export class BotService {
 
   // ───────── 知识库 ─────────
 
-  async addKnowledge(botConfigId: string, dto: AddKnowledgeDto) {
+  async addKnowledge(botConfigId: string, dto: AddKnowledgeDto, userId: string) {
+    // 安全：仅该智能体所绑定圈子的圈主可写入知识库
+    await this.assertBotConfigOwner(botConfigId, userId);
     return this.prisma.botKnowledgeBase.create({
       data: {
         botConfigId,
@@ -117,7 +145,20 @@ export class BotService {
     });
   }
 
+  /** 删除知识库条目（管理端调用，无圈主校验，由 RolesGuard 兜底） */
   async deleteKnowledge(knowledgeId: string) {
+    await this.prisma.botKnowledgeBase.delete({ where: { id: knowledgeId } });
+    return { success: true };
+  }
+
+  /** 删除知识库条目（圈主端调用，校验当前用户为对应圈子圈主） */
+  async deleteKnowledgeAsOwner(knowledgeId: string, userId: string) {
+    const item = await this.prisma.botKnowledgeBase.findUnique({
+      where: { id: knowledgeId },
+      select: { botConfigId: true },
+    });
+    if (!item) throw new BusinessException(ErrorCode.NOT_FOUND, "知识条目不存在");
+    await this.assertBotConfigOwner(item.botConfigId, userId);
     await this.prisma.botKnowledgeBase.delete({ where: { id: knowledgeId } });
     return { success: true };
   }
@@ -519,8 +560,18 @@ export class BotService {
 
   // ───────── 文件上传 ─────────
 
+  /** 单文件上传大小上限（5MB） */
+  private static readonly MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
   /** 上传文件到 Coze（多模态对话用） */
   async uploadFile(botConfigId: string, file: Buffer, filename: string) {
+    // 安全：限制上传文件大小，防止超大 base64 占用内存/带宽
+    if (!file || file.length === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "文件内容不能为空");
+    }
+    if (file.length > BotService.MAX_UPLOAD_BYTES) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "文件大小超过 5MB 上限");
+    }
     const bot = await this.getBotOrThrow(botConfigId);
     return this.coze.uploadFile(file, filename, bot.apiKey);
   }

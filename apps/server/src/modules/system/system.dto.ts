@@ -1,4 +1,13 @@
 import { IsString, IsOptional, IsInt, IsNumber, IsBoolean, IsObject, IsArray, MinLength } from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
+
+/** 更新角色权限入参（防止裸内联类型绕过校验） */
+export class SetRolePermissionsDto {
+  @ApiProperty({ description: "权限标识数组", type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  permissions: string[];
+}
 
 export class CreateConfigDto {
   @IsString()

@@ -16,10 +16,16 @@ const mockPrisma = {
     upsert: jest.fn(),
     deleteMany: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
   },
   botKnowledgeBase: {
     create: jest.fn(),
     delete: jest.fn(),
+    findUnique: jest.fn(),
+  },
+  // 归属校验：跨模块只读 circle 表
+  circle: {
+    findUnique: jest.fn(),
   },
 };
 
@@ -120,16 +126,28 @@ describe("BotService", () => {
   });
 
   describe("bindToCircle", () => {
-    it("绑定智能体到圈子成功（新建）", async () => {
+    it("绑定智能体到圈子成功（新建，圈主操作）", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ ownerId: "u1" });
       mockPrisma.circleBot.upsert.mockResolvedValue({ botConfigId: "b1", circleId: "c1" });
-      const result = await svc.bindToCircle("b1", { circleId: "c1" });
+      const result = await svc.bindToCircle("b1", { circleId: "c1" }, "u1");
       expect(result.circleId).toBe("c1");
+      expect(mockPrisma.circle.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "c1" } }),
+      );
     });
 
     it("绑定智能体到圈子带 knowledgeBaseId", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ ownerId: "u1" });
       mockPrisma.circleBot.upsert.mockResolvedValue({ botConfigId: "b1", circleId: "c1", knowledgeBaseId: "kb-1" });
-      const result = await svc.bindToCircle("b1", { circleId: "c1", knowledgeBaseId: "kb-1" });
+      const result = await svc.bindToCircle("b1", { circleId: "c1", knowledgeBaseId: "kb-1" }, "u1");
       expect(result.knowledgeBaseId).toBe("kb-1");
+    });
+
+    it("非圈主绑定时抛出异常", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ ownerId: "owner" });
+      await expect(
+        svc.bindToCircle("b1", { circleId: "c1" }, "intruder"),
+      ).rejects.toThrow(BusinessException);
     });
   });
 
@@ -163,18 +181,63 @@ describe("BotService", () => {
   });
 
   describe("addKnowledge", () => {
-    it("添加知识库条目成功", async () => {
+    it("添加知识库条目成功（圈主操作）", async () => {
+      // assertBotConfigOwner：先反查绑定圈子，再校验圈主
+      mockPrisma.circleBot.findFirst.mockResolvedValue({ circleId: "c1" });
+      mockPrisma.circle.findUnique.mockResolvedValue({ ownerId: "u1" });
       mockPrisma.botKnowledgeBase.create.mockResolvedValue({ id: "k1", title: "论语", content: "学而时习之" });
-      const result = await svc.addKnowledge("b1", { title: "论语", content: "学而时习之" });
+      const result = await svc.addKnowledge("b1", { title: "论语", content: "学而时习之" }, "u1");
       expect(result.id).toBe("k1");
+    });
+
+    it("智能体未绑定圈子时抛出异常", async () => {
+      mockPrisma.circleBot.findFirst.mockResolvedValue(null);
+      await expect(
+        svc.addKnowledge("b1", { title: "论语", content: "学而时习之" }, "u1"),
+      ).rejects.toThrow(BusinessException);
+    });
+
+    it("非圈主添加时抛出异常", async () => {
+      mockPrisma.circleBot.findFirst.mockResolvedValue({ circleId: "c1" });
+      mockPrisma.circle.findUnique.mockResolvedValue({ ownerId: "owner" });
+      await expect(
+        svc.addKnowledge("b1", { title: "论语", content: "学而时习之" }, "intruder"),
+      ).rejects.toThrow(BusinessException);
     });
   });
 
   describe("deleteKnowledge", () => {
-    it("删除知识库条目成功", async () => {
+    it("删除知识库条目成功（管理端，无圈主校验）", async () => {
       mockPrisma.botKnowledgeBase.delete.mockResolvedValue({});
       const result = await svc.deleteKnowledge("k1");
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe("deleteKnowledgeAsOwner", () => {
+    it("圈主删除知识库条目成功", async () => {
+      mockPrisma.botKnowledgeBase.findUnique.mockResolvedValue({ botConfigId: "b1" });
+      mockPrisma.circleBot.findFirst.mockResolvedValue({ circleId: "c1" });
+      mockPrisma.circle.findUnique.mockResolvedValue({ ownerId: "u1" });
+      mockPrisma.botKnowledgeBase.delete.mockResolvedValue({});
+      const result = await svc.deleteKnowledgeAsOwner("k1", "u1");
+      expect(result.success).toBe(true);
+    });
+
+    it("知识条目不存在时抛出异常", async () => {
+      mockPrisma.botKnowledgeBase.findUnique.mockResolvedValue(null);
+      await expect(
+        svc.deleteKnowledgeAsOwner("k1", "u1"),
+      ).rejects.toThrow(BusinessException);
+    });
+
+    it("非圈主删除时抛出异常", async () => {
+      mockPrisma.botKnowledgeBase.findUnique.mockResolvedValue({ botConfigId: "b1" });
+      mockPrisma.circleBot.findFirst.mockResolvedValue({ circleId: "c1" });
+      mockPrisma.circle.findUnique.mockResolvedValue({ ownerId: "owner" });
+      await expect(
+        svc.deleteKnowledgeAsOwner("k1", "intruder"),
+      ).rejects.toThrow(BusinessException);
     });
   });
 });

@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { ClassicImageController } from "./classic-image.controller";
 import { ClassicImageService } from "./classic-image.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
 
 const mockImageSvc = {
   listBookImages: jest.fn().mockResolvedValue({
@@ -37,15 +38,24 @@ const mockImageSvc = {
 
 describe("ClassicImageController", () => {
   let ctrl: ClassicImageController;
+  const prevAppUrl = process.env.APP_URL;
 
   beforeAll(async () => {
+    // manifest baseUrl 现使用服务端配置（APP_URL），不再依赖客户端 Host 头
+    process.env.APP_URL = "http://localhost:3000";
     const mod = await Test.createTestingModule({
       controllers: [ClassicImageController],
       providers: [{ provide: ClassicImageService, useValue: mockImageSvc }],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(ClassicImageController);
+  });
+
+  afterAll(() => {
+    if (prevAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = prevAppUrl;
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
@@ -64,8 +74,7 @@ describe("ClassicImageController", () => {
   });
 
   it("GET /classic/books/:id/manifest — IIIF Manifest", async () => {
-    const req: any = { protocol: "http", get: () => "localhost:3000" };
-    const result: any = await ctrl.getManifest("b1", undefined, req);
+    const result: any = await ctrl.getManifest("b1", undefined);
     expect(result.label.none[0]).toBe("论语");
     expect(mockImageSvc.generateManifest).toHaveBeenCalledWith("b1", "http://localhost:3000");
   });
@@ -84,8 +93,7 @@ describe("ClassicImageController", () => {
   });
 
   it("GET /classic/books/:id/manifest?textOverlay=true — 含文字叠加层的 Manifest", async () => {
-    const req: any = { protocol: "http", get: () => "localhost:3000" };
-    const result: any = await ctrl.getManifest("b1", "true", req);
+    const result: any = await ctrl.getManifest("b1", "true");
     expect(result["@context"]).toHaveLength(2);
     expect(mockImageSvc.generateManifestWithTextOverlay).toHaveBeenCalledWith("b1", "http://localhost:3000");
   });

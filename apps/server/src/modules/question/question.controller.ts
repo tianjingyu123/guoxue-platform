@@ -4,6 +4,7 @@ import { Request } from "express";
 import { QuestionService } from "./question.service";
 import { AskQuestionDto, AnswerQuestionDto, QuestionQueryDto, RejectQuestionDto } from "./question.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { SanitizePipe } from "../../common/sanitize.pipe";
@@ -63,11 +64,13 @@ export class QuestionController {
   }
 
   @Get(":id")
-  @ApiOperation({ summary: "问答详情", description: "查看单条付费问答的完整信息" })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "问答详情", description: "查看单条付费问答的完整信息；非当事人/未围观时 answer 受付费墙保护" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  getQuestion(@Param("id") id: string) {
-    return this.svc.getQuestion(id);
+  getQuestion(@Req() req: Request, @Param("id") id: string) {
+    // 安全：付费墙判断需当前用户身份，OptionalAuthGuard 允许匿名访问（req.user 可能为 undefined）
+    return this.svc.getQuestion(id, req.user?.id);
   }
 
   @Post("admin/refund-expired")

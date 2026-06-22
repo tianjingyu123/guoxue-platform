@@ -1,10 +1,11 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { ForbiddenException } from "@nestjs/common";
 import { CircleDashboardService } from "./circle-dashboard.service";
 import { PrismaService } from "../../prisma/prisma.service";
 
 const mockPrisma = {
   circle: { findUnique: jest.fn() },
-  circleMember: { findMany: jest.fn(), count: jest.fn() },
+  circleMember: { findMany: jest.fn(), findUnique: jest.fn(), count: jest.fn() },
   post: { findMany: jest.fn(), count: jest.fn(), groupBy: jest.fn() },
   comment: { findMany: jest.fn(), count: jest.fn(), groupBy: jest.fn() },
   like: { count: jest.fn(), groupBy: jest.fn() },
@@ -14,6 +15,9 @@ const mockPrisma = {
   paidQuestion: { findMany: jest.fn() },
   circleKnowledgeCandidate: { findMany: jest.fn() },
 };
+
+// 调用方传入的当前用户（圈主），归属校验通过用
+const UID = "owner1";
 
 describe("CircleDashboardService", () => {
   let svc: CircleDashboardService;
@@ -25,7 +29,11 @@ describe("CircleDashboardService", () => {
     svc = mod.get(CircleDashboardService);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // 默认归属校验通过：当前用户是该圈子的 OWNER
+    mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "OWNER" });
+  });
 
   describe("getOverview", () => {
     it("返回圈子月度概览数据", async () => {
@@ -37,7 +45,7 @@ describe("CircleDashboardService", () => {
       mockPrisma.like.count.mockResolvedValue(80);
       mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 5000 } });
 
-      const result = await svc.getOverview("c1");
+      const result = await svc.getOverview("c1", UID);
 
       expect(result.name).toBe("易经研习社");
       expect(result.memberCount).toBe(120);
@@ -50,7 +58,20 @@ describe("CircleDashboardService", () => {
 
     it("圈子不存在抛出异常", async () => {
       mockPrisma.circle.findUnique.mockResolvedValue(null);
-      await expect(svc.getOverview("bad")).rejects.toThrow("圈子不存在");
+      mockPrisma.circleMember.count.mockResolvedValue(0);
+      mockPrisma.post.count.mockResolvedValue(0);
+      mockPrisma.post.findMany.mockResolvedValue([]);
+      await expect(svc.getOverview("bad", UID)).rejects.toThrow("圈子不存在");
+    });
+
+    it("非圈主/管理员访问抛出 ForbiddenException", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER" });
+      await expect(svc.getOverview("c1", "other")).rejects.toThrow(ForbiddenException);
+    });
+
+    it("非成员访问抛出 ForbiddenException", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue(null);
+      await expect(svc.getOverview("c1", "stranger")).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -65,7 +86,7 @@ describe("CircleDashboardService", () => {
         { amount: 100, createdAt: base },
       ]);
 
-      const result = await svc.getTrends("c1");
+      const result = await svc.getTrends("c1", UID);
 
       expect(Array.isArray(result.trends)).toBe(true);
       expect(result.trends.length).toBeGreaterThan(0);
@@ -81,7 +102,7 @@ describe("CircleDashboardService", () => {
       mockPrisma.course.findMany.mockResolvedValue([{ id: "course1" }]);
       mockPrisma.product.findMany.mockResolvedValue([{ id: "prod1" }]);
 
-      const result = await svc.getRevenueBreakdown("c1");
+      const result = await svc.getRevenueBreakdown("c1", UID);
 
       expect(result.breakdown).toHaveLength(3);
       expect(result.breakdown[0]).toEqual({ type: "CIRCLE_JOIN", label: "入圈费", amount: 3000 });
@@ -94,7 +115,7 @@ describe("CircleDashboardService", () => {
       mockPrisma.course.findMany.mockResolvedValue([]);
       mockPrisma.product.findMany.mockResolvedValue([]);
 
-      const result = await svc.getRevenueBreakdown("c1");
+      const result = await svc.getRevenueBreakdown("c1", UID);
 
       expect(result.breakdown[1].amount).toBe(0);
       expect(result.breakdown[2].amount).toBe(0);
@@ -117,7 +138,7 @@ describe("CircleDashboardService", () => {
         { userId: "u2", _count: 3 },
       ]);
 
-      const result = await svc.getTopContributors("c1");
+      const result = await svc.getTopContributors("c1", UID);
 
       expect(result.contributors.length).toBeGreaterThan(0);
       expect(result.contributors[0].nickname).toBe("张三"); // 5*10 + 10*3 = 80 > 2*10+3*3=29
@@ -132,7 +153,7 @@ describe("CircleDashboardService", () => {
       mockPrisma.like.groupBy.mockResolvedValue([{ targetId: "p1", _count: 20 }]);
       mockPrisma.comment.groupBy.mockResolvedValue([{ targetId: "p1", _count: 5 }]);
 
-      const result = await svc.getHotContent("c1");
+      const result = await svc.getHotContent("c1", UID);
 
       expect(result.posts).toHaveLength(1);
       expect(result.posts[0].likeCount).toBe(20);
@@ -147,7 +168,7 @@ describe("CircleDashboardService", () => {
         { user: { id: "u1", nickname: "新成员", avatar: "av.jpg" }, joinedAt: new Date() },
       ]);
 
-      const result = await svc.getRecentMembers("c1");
+      const result = await svc.getRecentMembers("c1", UID);
 
       expect(result.members).toHaveLength(1);
       expect(result.members[0].nickname).toBe("新成员");
@@ -165,7 +186,7 @@ describe("CircleDashboardService", () => {
         .mockResolvedValueOnce([{ userId: "u1" }]); // activePosts
       mockPrisma.comment.findMany.mockResolvedValue([]);
 
-      const result = await svc.getChurnWarning("c1");
+      const result = await svc.getChurnWarning("c1", UID);
 
       expect(result.count).toBe(1);
       expect(result.atRisk[0].nickname).toBe("沉默用户");
@@ -178,7 +199,7 @@ describe("CircleDashboardService", () => {
         { id: "q1", questionTitle: "求教", question: "详细", priceCoin: 100, createdAt: new Date(), asker: { id: "u1", nickname: "提问者" } },
       ]);
 
-      const result = await svc.getPendingQuestions("c1");
+      const result = await svc.getPendingQuestions("c1", UID);
 
       expect(result.questions).toHaveLength(1);
       expect(result.questions[0].questionTitle).toBe("求教");
@@ -191,7 +212,7 @@ describe("CircleDashboardService", () => {
         { id: "k1", content: "易经智慧", similarityScore: 0.95, sourceType: "POST", createdAt: new Date() },
       ]);
 
-      const result = await svc.getKnowledgeCandidates("c1");
+      const result = await svc.getKnowledgeCandidates("c1", UID);
 
       expect(result.candidates).toHaveLength(1);
       expect(result.candidates[0].similarityScore).toBe(0.95);
