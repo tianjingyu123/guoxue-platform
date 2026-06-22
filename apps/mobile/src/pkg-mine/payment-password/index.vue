@@ -66,13 +66,18 @@ function startCountdown() {
     if (countdown.value <= 0 && timer) clearInterval(timer)
   }, 1000)
 }
-function handleSendCode() {
+async function handleSendCode() {
   if (!/^1[3-9]\d{9}$/.test(phone.value)) {
     error.value = '请输入正确的手机号'
     return
   }
-  startCountdown()
-  error.value = ''
+  const res = await mineApi.sendSmsCode(phone.value, 'payment_password')
+  if (res.success) {
+    startCountdown()
+    error.value = ''
+  } else {
+    error.value = res.message || '发送失败'
+  }
 }
 function handleForget() {
   step.value = 'verify_phone'

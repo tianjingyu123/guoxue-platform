@@ -259,7 +259,7 @@
  * 推荐电子书（从原型 app/circles/[id]/recommend-ebook/page.tsx 高保真迁移）
  * 浅色书库主题，双Tab选书/已推荐，最多推荐12本
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { circleDetailApi } from '@/lib/circle-detail-data'
@@ -267,16 +267,25 @@ import { circleDetailApi } from '@/lib/circle-detail-data'
 const circleInfo = { id: '1', name: '八字命理研习圈' }
 
 interface Book { id: string; title: string; author: string; cover: string; price: number; rating: number; readers: number; isMemberFree: boolean; isRecommended: boolean }
-const allBooks: Book[] = [
-  { id: '1', title: '《滴天髓》白话精解', author: '古籍研究院', cover: '', price: 68, rating: 4.9, readers: 8560, isMemberFree: false, isRecommended: true },
-  { id: '2', title: '《穷通宝鉴》注解版', author: '命理古籍馆', cover: '', price: 0, rating: 4.7, readers: 5280, isMemberFree: true, isRecommended: false },
-  { id: '3', title: '八字实战案例精选 100例', author: '玄微子', cover: '', price: 48, rating: 4.8, readers: 12800, isMemberFree: false, isRecommended: true },
-  { id: '4', title: '紫微斗数入门到精通', author: '星命研究所', cover: '', price: 58, rating: 4.6, readers: 7320, isMemberFree: false, isRecommended: false },
-  { id: '5', title: '《三命通会》现代解析', author: '传统命学院', cover: '', price: 38, rating: 4.5, readers: 4160, isMemberFree: true, isRecommended: false },
-  { id: '6', title: '六爻预测实战手册', author: '易学大师', cover: '', price: 42, rating: 4.7, readers: 6890, isMemberFree: false, isRecommended: false },
-  { id: '7', title: '四柱预测学精讲', author: '邵伟华传承', cover: '', price: 0, rating: 4.8, readers: 15600, isMemberFree: false, isRecommended: false },
-  { id: '8', title: '命理十神详解', author: '玄微子', cover: '', price: 29, rating: 4.9, readers: 9320, isMemberFree: true, isRecommended: false },
-]
+const allBooks = ref<Book[]>([])
+const booksLoading = ref(true)
+
+onMounted(async () => {
+  booksLoading.value = true
+  try {
+    const recommendedIds = await circleDetailApi.getRecommendedEbooks(circleInfo.id)
+    // @todo: 接入 ebookApi.list() 获取全部电子书列表后富化 isRecommended
+    // 当前降级使用推荐ID列表，待 ebook 模块 API 完成
+    allBooks.value = recommendedIds.map((id: string) => ({
+      id, title: `电子书 ${id}`, author: '加载中', cover: '',
+      price: 0, rating: 0, readers: 0, isMemberFree: false, isRecommended: true,
+    }))
+  } catch {
+    // 降级为空列表
+  } finally {
+    booksLoading.value = false
+  }
+})
 
 const coverColors = ['#1e3a5f', '#1a4731', '#4a1942', '#3d1f00', '#2d3561', '#1e3a2f', '#3a1a1a', '#1a2a4a']
 function coverColor(id: string) { return coverColors[parseInt(id) % coverColors.length] }

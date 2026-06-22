@@ -298,11 +298,11 @@ onMounted(async () => {
           </view>
           <view
             class="sheet-btn danger"
-            :class="{ disabled: processing }"
+            :class="{ disabled: submitting }"
             @tap="handleUnbind"
           >
             <text class="sheet-btn-text danger-text">
-              {{ processing ? '解绑中...' : '确认解绑' }}
+              {{ submitting ? '解绑中...' : '确认解绑' }}
             </text>
           </view>
         </view>

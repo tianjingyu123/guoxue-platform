@@ -702,8 +702,9 @@ async function handleCheckin() {
     showCheckinModal.value = false
     showSuccess.value = true
     activity.value.hasCheckedToday = true
-  activity.value.myStreak += 1
-  activity.value.myTotalDays += 1
+    activity.value.myStreak += 1
+    activity.value.myTotalDays += 1
+  }
 }
 </script>
 

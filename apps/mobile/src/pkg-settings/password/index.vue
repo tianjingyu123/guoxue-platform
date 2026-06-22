@@ -331,12 +331,15 @@ async function handleSubmit() {
   if (!canSubmit.value) return
   oldPasswordError.value = ''
   isSubmitting.value = true
-  const res = await mineApi.changePassword(oldPassword.value, newPassword.value)
-  isSubmitting.value = false
-  if (res.success) {
-    isSuccess.value = true
-  } else {
-    oldPasswordError.value = res.message || '修改失败'
+  try {
+    const res = await mineApi.changePassword(oldPassword.value, newPassword.value)
+    if (res.success) {
+      isSuccess.value = true
+    } else {
+      oldPasswordError.value = res.message || '修改失败'
+    }
+  } finally {
+    isSubmitting.value = false
   }
 }
 function go(path: string) {

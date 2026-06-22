@@ -41,6 +41,7 @@ function validate() {
 
 async function handleSubmit() {
   if (!validate()) return
+  if (loading.value) return
   loading.value = true
   try {
     const res = await mineApi.changePassword(oldPwd.value, newPwd.value)

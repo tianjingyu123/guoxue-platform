@@ -274,8 +274,13 @@ function handleSendCode() {
   }, 1000)
 }
 
-function handleVerifyCode() {
+async function handleVerifyCode() {
   if (verifyCode.value.length !== 6) { error.value = '请输入6位验证码'; return }
+  const res = await mineApi.sendSmsCode(phone, 'payment_password')
+  if (!res.success) {
+    error.value = res.message || '发送失败'
+    return
+  }
   error.value = ''
   step.value = 'set'
 }
@@ -299,12 +304,15 @@ async function handleConfirmPassword() {
     return
   }
   isLoading.value = true
-  const res = await mineApi.setPayPassword(password.value, verifyCode.value)
-  isLoading.value = false
-  if (res.success) {
-    step.value = 'success'
-  } else {
-    error.value = res.message || '设置失败'
+  try {
+    const res = await mineApi.setPayPassword(password.value, verifyCode.value)
+    if (res.success) {
+      step.value = 'success'
+    } else {
+      error.value = res.message || '设置失败'
+    }
+  } finally {
+    isLoading.value = false
   }
 }
 

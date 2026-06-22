@@ -384,7 +384,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { navigateTo } from '@/utils/router'
 import { operatorApi } from '@/lib/operator-data'
 
@@ -492,6 +492,21 @@ async function handleSave() {
 }
 
 function goBack() { uni.navigateBack({ fail: () => navigateTo('/pages/index/index') }) }
+
+onMounted(async () => {
+  try {
+    const station = await operatorApi.getMyStation()
+    if (station) {
+      basic.name = station.name || basic.name
+      basic.slogan = station.slogan || basic.slogan
+      basic.intro = station.intro || basic.intro
+      basic.contactEmail = station.contactEmail || basic.contactEmail
+      basic.contactPhone = station.contactPhone || basic.contactPhone
+    }
+  } catch {
+    // 未开通分站或无数据，使用默认值
+  }
+})
 </script>
 
 <style scoped lang="scss">

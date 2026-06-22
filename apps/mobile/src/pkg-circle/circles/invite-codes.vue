@@ -28,20 +28,15 @@ interface InviteCode {
   usedBy?: UsedUser[]
 }
 
-const mockStats = { totalInvited: 156, usedCodes: 12, pendingCodes: 5, thisWeek: 23 }
-const mockInviteCodes: InviteCode[] = [
-  { id: '1', code: 'GUOXUE2024A', maxUses: 10, usedCount: 8, status: 'active', createdAt: '2024-01-15T10:00:00Z', usedBy: [
-    { id: '1', name: '张三', avatar: '/static/avatars/u1.png', usedAt: '2024-01-16' },
-    { id: '2', name: '李四', avatar: '/static/avatars/u2.png', usedAt: '2024-01-17' },
-  ] },
-  { id: '2', code: 'GUOXUE2024B', maxUses: 5, usedCount: 5, status: 'expired', createdAt: '2024-01-10T10:00:00Z', expiresAt: '2024-01-20T10:00:00Z' },
-  { id: '3', code: 'VIP888', maxUses: 100, usedCount: 45, status: 'active', createdAt: '2024-01-01T10:00:00Z' },
-  { id: '4', code: 'TEST123', maxUses: 3, usedCount: 1, status: 'disabled', createdAt: '2024-01-05T10:00:00Z' },
-]
-
 const isLoading = ref(true)
-const stats = ref({ ...mockStats })
 const inviteCodes = ref<InviteCode[]>([])
+
+const stats = computed(() => ({
+  totalInvited: inviteCodes.value.reduce((s, c) => s + c.usedCount, 0),
+  usedCodes: inviteCodes.value.filter(c => c.usedCount > 0).length,
+  pendingCodes: inviteCodes.value.filter(c => c.status === 'active' && c.usedCount < c.maxUses).length,
+  thisWeek: 0, // @todo: 后端返回本周统计
+}))
 const showCreateModal = ref(false)
 const newCodeMaxUses = ref(10)
 const creating = ref(false)
