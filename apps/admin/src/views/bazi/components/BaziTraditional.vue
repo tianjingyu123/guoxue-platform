@@ -12,7 +12,7 @@ const props = defineProps<{
   result: BaziResult
 }>()
 
-const { siZhu, qiYun, kongWang, shengXiao, taiYuan, mingGong, shenGong, wangXiang, fenXiTiShi, shenSha, geJu } = props.result
+const { siZhu, qiYun, kongWang, shengXiao, taiYuan, mingGong, shenGong, wangXiang, fenXiTiShi, shenSha, geJu, ziZuo, taiYangShi, daylightSaving, liuShiList } = props.result
 </script>
 
 <template>
@@ -27,6 +27,25 @@ const { siZhu, qiYun, kongWang, shengXiao, taiYuan, mingGong, shenGong, wangXian
       <span class="info-item">身宫：<strong>{{ shenGong.gan }}{{ shenGong.zhi }}</strong></span>
     </div>
 
+    <!-- 时间校正信息（真太阳时/夏令时） -->
+    <div
+      v-if="taiYangShi || daylightSaving"
+      class="time-correction-bar"
+    >
+      <span
+        v-if="taiYangShi"
+        class="correction-item"
+      >
+        🌞 真太阳时校正：{{ taiYangShi.desc }}
+      </span>
+      <span
+        v-if="daylightSaving && daylightSaving.adjusted"
+        class="correction-item"
+      >
+        ⏰ 夏令时校正：{{ daylightSaving.desc }}
+      </span>
+    </div>
+
     <!-- 四柱主表 -->
     <SiZhuDisplay
       :si-zhu="siZhu"
@@ -35,6 +54,16 @@ const { siZhu, qiYun, kongWang, shengXiao, taiYuan, mingGong, shenGong, wangXian
       :show-nayin="true"
       :show-di-shi="true"
     />
+
+    <!-- 自坐 -->
+    <div
+      v-if="ziZuo"
+      class="zizuo-card"
+    >
+      <span class="zizuo-label">自坐：</span>
+      <span class="zizuo-value">{{ ziZuo.riGan }}坐{{ ziZuo.riZhi }}（{{ ziZuo.shiShen }}）</span>
+      <span class="zizuo-desc">{{ ziZuo.desc }}</span>
+    </div>
 
     <!-- 格局（如果有） -->
     <div
@@ -169,6 +198,57 @@ const { siZhu, qiYun, kongWang, shengXiao, taiYuan, mingGong, shenGong, wangXian
             >{{ h }}</span>
           </div>
         </template>
+        <template v-if="fenXiTiShi.anHe?.length">
+          <span class="fx-label">暗合</span>
+          <div class="fx-tags">
+            <span
+              v-for="h in fenXiTiShi.anHe"
+              :key="h"
+              class="fx-tag tag-anhe"
+            >{{ h }}</span>
+          </div>
+        </template>
+        <template v-if="fenXiTiShi.xiangPo?.length">
+          <span class="fx-label">相破</span>
+          <div class="fx-tags">
+            <span
+              v-for="h in fenXiTiShi.xiangPo"
+              :key="h"
+              class="fx-tag tag-po"
+            >{{ h }}</span>
+          </div>
+        </template>
+        <template v-if="fenXiTiShi.anJue?.length">
+          <span class="fx-label">暗绝</span>
+          <div class="fx-tags">
+            <span
+              v-for="h in fenXiTiShi.anJue"
+              :key="h"
+              class="fx-tag tag-jue"
+            >{{ h }}</span>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- 流时列表 -->
+    <div
+      v-if="liuShiList?.length"
+      class="section"
+    >
+      <h3 class="section-title">
+        流时（十二时辰）
+      </h3>
+      <div class="liushi-grid">
+        <div
+          v-for="ls in liuShiList"
+          :key="ls.hour"
+          class="liushi-cell"
+        >
+          <span class="ls-hour">{{ String(ls.hour).padStart(2, '0') }}:00</span>
+          <span class="ls-ganzhi">{{ ls.ganZhi }}</span>
+          <span class="ls-shishen">{{ ls.ganShiShen }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -297,4 +377,40 @@ const { siZhu, qiYun, kongWang, shengXiao, taiYuan, mingGong, shenGong, wangXian
 .tag-chong { background: #fce4ec; color: #c62828; }
 .tag-hai { background: #fff3e0; color: #e65100; }
 .tag-xing { background: #fbe9e7; color: #bf360c; }
+.tag-anhe { background: #fce4ec; color: #880e4f; }
+.tag-po { background: #ede7f6; color: #4527a0; }
+.tag-jue { background: #eceff1; color: #37474f; }
+
+/* 时间校正信息 */
+.time-correction-bar {
+  display: flex; gap: 16px; padding: 8px 16px;
+  margin: 12px 0; background: #fff8e1; border-radius: 8px;
+  font-size: 12px; color: #f57f17; flex-wrap: wrap;
+}
+.correction-item { white-space: nowrap; }
+
+/* 自坐 */
+.zizuo-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; margin: 12px 0;
+  background: #f3e5f5; border-radius: 10px; font-size: 13px;
+}
+.zizuo-label { color: #7b1fa2; font-weight: 600; }
+.zizuo-value { color: #4a148c; font-weight: 500; }
+.zizuo-desc { color: #6a1b9a; }
+
+/* 流时列表 */
+.liushi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 6px;
+}
+.liushi-cell {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; background: #f5f5f5;
+  border-radius: 8px; font-size: 12px;
+}
+.ls-hour { color: #999; }
+.ls-ganzhi { color: #2c2c2c; font-weight: 600; }
+.ls-shishen { color: v-bind('UI_COLORS.primary'); }
 </style>
