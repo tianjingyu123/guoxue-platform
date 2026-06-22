@@ -1149,4 +1149,34 @@ export const liveApi = {
     if (useMock()) return scheduleList
     try { return await apiGet<any[]>(`/live/schedule?${new URLSearchParams(params || {}).toString()}`) } catch { return scheduleList }
   },
+
+  /** 主播列表 GET /live/hosts */
+  async hosts(): Promise<any[]> {
+    if (useMock()) return liveHosts
+    try { return await apiGet<any>('/live/hosts') } catch { return liveHosts }
+  },
+
+  /** 直播预告详情 GET /live/preview/:id */
+  async preview(id: string): Promise<any> {
+    if (useMock()) return livePreviewRoom
+    try { return await apiGet<any>(`/live/preview/${id}`) } catch { return livePreviewRoom }
+  },
+
+  /** 结束页 GET /live/end/:id */
+  async endRoom(id: string): Promise<any> {
+    if (useMock()) return { room: liveEndRoom }
+    try { return await apiGet<any>(`/live/end/${id}`) } catch { return { room: liveEndRoom } }
+  },
+
+  /** 回放列表 GET /live/replays */
+  async replays(): Promise<any[]> {
+    if (useMock()) return liveReplays
+    try { return await apiGet<any>('/live/replays') } catch { return liveReplays }
+  },
+
+  /** 回放详情 GET /live/replay/:id */
+  async replayDetail(id: string): Promise<any> {
+    if (useMock()) return replayDetail
+    try { return await apiGet<any>(`/live/replay/${id}`) } catch { return replayDetail }
+  },
 }
