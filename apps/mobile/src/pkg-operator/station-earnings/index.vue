@@ -179,12 +179,12 @@ const overview = {
 }
 
 const earningsList = [
-  { id: 1, type: 'course_commission' as'all' | 'live' | 'course' | 'shop' | 'membership', title: '课程分销佣金', description: '用户"国学爱好者"购买了《八字命理入门》', amount: 29.9, status: 'settled' as EarnStatus, createdAt: '2026-06-03 14:30', relatedUser: { id: 101, nickname: '国学爱好者', avatar: '/static/experts/expert-1.jpg' }, relatedOrder: { orderId: 'ORD202606031430', orderAmount: 299.0 } },
-  { id: 2, type: 'member_commission' as'all' | 'live' | 'course' | 'shop' | 'membership', title: '会员推广佣金', description: '用户"易学新人"开通了年度VIP', amount: 99.0, status: 'settled' as EarnStatus, createdAt: '2026-06-03 10:15', relatedUser: { id: 102, nickname: '易学新人', avatar: '/static/experts/expert-2.jpg' }, relatedOrder: { orderId: 'ORD202606031015', orderAmount: 998.0 } },
-  { id: 3, type: 'team_bonus' as'all' | 'live' | 'course' | 'shop' | 'membership', title: '团队奖励', description: '团队本周业绩达标奖励', amount: 200.0, status: 'pending' as EarnStatus, createdAt: '2026-06-02 18:00', relatedUser: null, relatedOrder: null },
-  { id: 4, type: 'product_commission' as'all' | 'live' | 'course' | 'shop' | 'membership', title: '商品分销佣金', description: '用户"风水学徒"购买了专业风水罗盘', amount: 58.0, status: 'frozen' as EarnStatus, createdAt: '2026-06-02 15:20', relatedUser: { id: 103, nickname: '风水学徒', avatar: '/static/experts/expert-1.jpg' }, relatedOrder: { orderId: 'ORD202606021520', orderAmount: 580.0 } },
-  { id: 5, type: 'invite_reward' as'all' | 'live' | 'course' | 'shop' | 'membership', title: '邀请奖励', description: '成功邀请用户"玄学入门者"注册', amount: 10.0, status: 'settled' as EarnStatus, createdAt: '2026-06-01 09:30', relatedUser: { id: 104, nickname: '玄学入门者', avatar: '/static/experts/expert-2.jpg' }, relatedOrder: null },
-  { id: 6, type: 'platform_reward' as'all' | 'live' | 'course' | 'shop' | 'membership', title: '平台奖励', description: '月度推广达人奖励', amount: 500.0, status: 'settled' as EarnStatus, createdAt: '2026-06-01 00:00', relatedUser: null, relatedOrder: null },
+  { id: 1, type: 'course_commission' as EarnType, title: '课程分销佣金', description: '用户"国学爱好者"购买了《八字命理入门》', amount: 29.9, status: 'settled' as EarnStatus, createdAt: '2026-06-03 14:30', relatedUser: { id: 101, nickname: '国学爱好者', avatar: '/static/experts/expert-1.jpg' }, relatedOrder: { orderId: 'ORD202606031430', orderAmount: 299.0 } },
+  { id: 2, type: 'member_commission' as EarnType, title: '会员推广佣金', description: '用户"易学新人"开通了年度VIP', amount: 99.0, status: 'settled' as EarnStatus, createdAt: '2026-06-03 10:15', relatedUser: { id: 102, nickname: '易学新人', avatar: '/static/experts/expert-2.jpg' }, relatedOrder: { orderId: 'ORD202606031015', orderAmount: 998.0 } },
+  { id: 3, type: 'team_bonus' as EarnType, title: '团队奖励', description: '团队本周业绩达标奖励', amount: 200.0, status: 'pending' as EarnStatus, createdAt: '2026-06-02 18:00', relatedUser: null, relatedOrder: null },
+  { id: 4, type: 'product_commission' as EarnType, title: '商品分销佣金', description: '用户"风水学徒"购买了专业风水罗盘', amount: 58.0, status: 'frozen' as EarnStatus, createdAt: '2026-06-02 15:20', relatedUser: { id: 103, nickname: '风水学徒', avatar: '/static/experts/expert-1.jpg' }, relatedOrder: { orderId: 'ORD202606021520', orderAmount: 580.0 } },
+  { id: 5, type: 'invite_reward' as EarnType, title: '邀请奖励', description: '成功邀请用户"玄学入门者"注册', amount: 10.0, status: 'settled' as EarnStatus, createdAt: '2026-06-01 09:30', relatedUser: { id: 104, nickname: '玄学入门者', avatar: '/static/experts/expert-2.jpg' }, relatedOrder: null },
+  { id: 6, type: 'platform_reward' as EarnType, title: '平台奖励', description: '月度推广达人奖励', amount: 500.0, status: 'settled' as EarnStatus, createdAt: '2026-06-01 00:00', relatedUser: null, relatedOrder: null },
 ]
 
 const withdrawRecords = [
@@ -192,7 +192,7 @@ const withdrawRecords = [
   { id: 2, amount: 500.0, fee: 3.0, actualAmount: 497.0, status: 'processing' as WdStatus, method: 'bank', account: '6222****1234', createdAt: '2026-06-02 14:00', completedAt: '', failReason: '' },
 ]
 
-const filterTypes = [
+const filterTypes: { value: EarnType | 'all'; label: string }[] = [
   { value: 'all', label: '全部' },
   { value: 'course_commission', label: '课程佣金' },
   { value: 'product_commission', label: '商品佣金' },
@@ -206,10 +206,10 @@ const filterType = ref<EarnType | 'all'>('all')
 const refreshing = ref(false)
 
 const filteredEarnings = computed(() =>
-  filterType.value === 'all' | 'live' | 'course' | 'shop' | 'membership'? earningsList : earningsList.filter((i) => i.type === filterType.value),
+  filterType.value === 'all' ? earningsList : earningsList.filter((i) => i.type === filterType.value),
 )
 
-function typeIcon(type:'all' | 'live' | 'course' | 'shop' | 'membership'): string {
+function typeIcon(type: EarnType): string {
   const map: Record<EarnType, string> = {
     course_commission: 'book-open',
     product_commission: 'shopping-bag',

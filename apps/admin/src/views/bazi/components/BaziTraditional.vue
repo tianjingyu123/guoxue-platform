@@ -412,5 +412,5 @@ const { siZhu, qiYun, kongWang, shengXiao, taiYuan, mingGong, shenGong, wangXian
 }
 .ls-hour { color: #999; }
 .ls-ganzhi { color: #2c2c2c; font-weight: 600; }
-.ls-shishen { color: v-bind('UI_COLORS.primary'); }
+.ls-shishen { color: v-bind('UI_COLORS.brand'); }
 </style>

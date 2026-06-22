@@ -186,7 +186,7 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
-import { mockLogistics as _mockLogistics, logisticsStatusMap as _logisticsStatusMap } from '@/lib/order-data'
+import { mockLogistics as _mockLogistics, logisticsStatusMap as _logisticsStatusMap, type LogisticsDetail } from '@/lib/order-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
   return { logistics: _mockLogistics }
@@ -194,7 +194,12 @@ const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () =
 
 const logisticsStatusMap = _logisticsStatusMap
 const isEmpty = computed(() => !pageData.value?.logistics?.trackingNo)
-const data = computed(() => pageData.value?.logistics ?? { trackingNo: '', status: '', companyPhone: '', steps: [] })
+const emptyLogistics: LogisticsDetail = {
+  orderId: '', orderNo: '', company: '', companyPhone: '', trackingNo: '',
+  status: '', estimatedDelivery: '', courierName: '', courierPhone: '',
+  receiver: { name: '', phone: '', address: '' }, tracks: [],
+}
+const data = computed<LogisticsDetail>(() => pageData.value?.logistics ?? emptyLogistics)
 const statusMeta = computed(
   () => logisticsStatusMap[data.value.status] || { label: '运输中', color: '#C41E3A' },
 )

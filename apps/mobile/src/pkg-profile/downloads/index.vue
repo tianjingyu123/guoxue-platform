@@ -280,7 +280,7 @@ function toggleAll() {
   tasks.value.forEach(t => { if (t.status === 'downloading' || t.status === 'paused') { t.status = allPaused.value ? 'paused' : 'downloading'; t.speed = allPaused.value ? 0 : 768 } })
 }
 function open(t: Task) { navigateTo(t.type === 'ebook' ? '/reader/' + t.id : '/learn/' + t.id) }
-function back() { navigateBack('/profile') }
+function back() { navigateBack() }
 function typeIcon(tp: string) { return tp === 'ebook' ? 'book-open' : tp === 'video' ? 'video' : 'file-text' }
 function typeColor(tp: string) { return tp === 'video' ? '#3b82f6' : tp === 'ebook' ? '#d99a2b' : '#8b5cf6' }
 function statusLabel(s: Status) { return { downloading: '下载中', paused: '已暂停', completed: '已完成', failed: '下载失败', waiting: '等待中' }[s] }

@@ -314,7 +314,7 @@ import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
 import { useAsyncData } from '@/composables/useAsyncData'
-import { mockRefund as _mockRefund } from '@/lib/order-data'
+import { mockRefund as _mockRefund, type RefundDetail } from '@/lib/order-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
   return { refund: _mockRefund }
@@ -323,7 +323,13 @@ const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () =
 const isEmpty = computed(() => !pageData.value?.refund?.id)
 
 const safeBottom = ref(0)
-const data = computed(() => pageData.value?.refund ?? { id: '', status: '', timeline: [], amount: 0, reason: '', items: [], refundMethod: '' })
+const emptyRefund: RefundDetail = {
+  id: '', orderId: '', orderNo: '', type: 'refund_only', status: 'submitted',
+  reason: '', amount: 0, description: '',
+  product: { id: '', name: '', cover: '', skuName: '', price: 0, quantity: 0 },
+  timeline: [], createdAt: '', canCancel: false,
+}
+const data = computed<RefundDetail>(() => pageData.value?.refund ?? emptyRefund)
 
 const refundMethod = '微信支付'
 const estimatedDate = '2024年1月18日'

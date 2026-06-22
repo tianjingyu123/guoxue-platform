@@ -86,7 +86,7 @@
                 <flat-cover
                   :title="shortTitle(item.title)"
                   :cover-color="coverColorForBook(item.title)"
-                  :title-size="22"
+                  title-size="22rpx"
                 />
               </view>
               <view class="cl-info">

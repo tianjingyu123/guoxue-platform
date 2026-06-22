@@ -150,7 +150,7 @@ function goDetail(id: string) {
                     name="star"
                     :size="24"
                     color="#fbbf24"
-                    fill="#fbbf24"
+                    :fill="true"
                   />
                   <text>{{ book.rating }}</text>
                 </view>

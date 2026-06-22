@@ -74,7 +74,7 @@
                 name="star"
                 :size="32"
                 color="#fbbf24"
-                fill="#fbbf24"
+                :fill="true"
               />
               <text class="ed-rate-num">
                 {{ book.rating }}

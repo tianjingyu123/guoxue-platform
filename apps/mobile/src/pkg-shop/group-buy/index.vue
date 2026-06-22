@@ -206,11 +206,12 @@ const groupBuyList = computed(() => pageData.value?.groupBuyList ?? [])
 const myGroupBuyList = computed(() => pageData.value?.myGroupBuyList ?? [])
 const isEmpty = computed(() => groupBuyList.value.length === 0 && myGroupBuyList.value.length === 0)
 
-const tabList = [
+type GroupBuyTab = 'all' | 'my'
+const tabList: { key: GroupBuyTab; label: string }[] = [
   { key: 'all', label: '拼团商品' },
   { key: 'my', label: '我的拼团' },
 ]
-const tab = ref<'all' | 'my'>('all')
+const tab = ref<GroupBuyTab>('all')
 const myGroups = myGroupBuyList
 const showShare = ref(false)
 const shareTarget = ref<MyGroupBuyItem | null>(null)

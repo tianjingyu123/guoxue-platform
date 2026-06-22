@@ -64,9 +64,9 @@
               <AppSkeleton width="40%" height="22rpx" />
             </view>
           </view>
-          <view v-else-if="products.length" class="goods-grid content-fade-in">
+          <view v-else-if="currentProducts.length" class="goods-grid content-fade-in">
             <view
-              v-for="p in products"
+              v-for="p in currentProducts"
               :key="p.id"
               class="goods-card"
               hover-class="card-hover"
@@ -96,13 +96,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from '@/utils/router'
-import { shopApi, type ShopCategoryNode } from '@/lib/shop-data'
+import { shopApi, type ShopCategoryNode, type ShopCategoryProduct } from '@/lib/shop-data'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 
 const categories = ref<ShopCategoryNode[]>([])
-const products = ref<Record<string, any[]>>({})
+const products = ref<Record<string, ShopCategoryProduct[]>>({})
 const selectedCategory = ref('')
 const selectedSubCategory = ref('')
 const loading = ref(true)
@@ -147,6 +147,11 @@ async function reload() {
 }
 
 const currentCategory = computed(() => categories.value.find((c) => c.id === selectedCategory.value))
+
+// 当前展示的商品列表：优先按选中的二级分类取桶，回退到一级分类
+const currentProducts = computed<ShopCategoryProduct[]>(
+  () => products.value[selectedSubCategory.value] ?? products.value[selectedCategory.value] ?? [],
+)
 
 async function loadProducts(categoryId: string) {
   loading.value = true

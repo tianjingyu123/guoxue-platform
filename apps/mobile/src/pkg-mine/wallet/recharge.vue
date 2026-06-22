@@ -25,8 +25,9 @@ function selectOption(coins: number) {
   customAmount.value = ''
 }
 
-function onCustomInput(e: { detail: { value: string } }) {
-  const v = e.detail.value
+// uni input @input 事件边界：H5 Event 无 detail，内部断言提取字符串值
+function onCustomInput(e: Event) {
+  const v = (e as unknown as { detail: { value: string } }).detail.value
   if (/^\d*$/.test(v)) {
     customAmount.value = v
     if (v) selectedCoins.value = null

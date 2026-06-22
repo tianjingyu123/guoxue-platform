@@ -1420,7 +1420,7 @@ export const shopApi = {
   },
   /** 获取分类商品 GET /shop/categories/:id/products */
   async getCategoryProducts(categoryId: string): Promise<any[]> {
-    if (useMock()) return shopCategoryProducts[categoryId as keyof typeof shopCategoryProducts] || []
+    if (useMock()) return shopCategoryProducts
     try { return await apiGet<any[]>(`/shop/categories/${categoryId}/products`) } catch { return [] }
   },
   /** 获取结算数据（mock组合） */

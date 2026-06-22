@@ -164,7 +164,9 @@ function formatDate(dateStr: string) {
 }
 function onItem(type: 'edit' | 'copy' | 'del') {
   showMenu.value = false
-  emit(type as 'edit' | 'copy' | 'del')
+  if (type === 'edit') emit('edit')
+  else if (type === 'copy') emit('copy')
+  else emit('del')
 }
 </script>
 

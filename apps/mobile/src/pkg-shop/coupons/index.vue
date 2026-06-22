@@ -144,7 +144,7 @@ const isEmpty = computed(() => myCoupons.value.length === 0 && centerCoupons.val
 
 const activeTab = ref('unused')
 const myList = ref([..._myCoupons])
-const centerList = ref([...centerCoupons])
+const centerList = ref([...centerCoupons.value])
 const claimingId = ref<string | null>(null)
 
 const unusedCount = computed(() => myList.value.filter((c) => c.status === 'unused').length)

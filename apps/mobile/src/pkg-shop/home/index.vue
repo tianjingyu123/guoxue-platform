@@ -26,8 +26,8 @@ const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () =
 const shopQuickActions = computed(() => pageData.value?.quickActions ?? [])
 const shopBanners = computed(() => pageData.value?.banners ?? [])
 const shopCategories = computed(() => pageData.value?.categories ?? [])
-const shopFlashSale = computed(() => pageData.value?.flashSale ?? {} as any)
-const shopGroupBuy = computed(() => pageData.value?.groupBuy ?? {})
+const shopFlashSale = computed(() => pageData.value?.flashSale ?? _shopFlashSale)
+const shopGroupBuy = computed(() => pageData.value?.groupBuy ?? _shopGroupBuy)
 const shopRecProducts = computed(() => pageData.value?.recProducts ?? [])
 const isEmpty = computed(() => shopBanners.value.length === 0 && shopCategories.value.length === 0)
 

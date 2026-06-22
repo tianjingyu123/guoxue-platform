@@ -136,7 +136,7 @@
                 name="star"
                 :size="28"
                 color="#fbbf24"
-                fill="#fbbf24"
+                :fill="true"
               />
               <text class="es-feat-rating">
                 {{ featured.rating }}

@@ -215,14 +215,14 @@
           </view>
           <view class="smp-trend-tabs">
             <view
-              v-for="p in ['week', 'month']"
+              v-for="p in (['week', 'month'] as const)"
               :key="p"
               class="smp-trend-tab"
               :class="{ active: trendPeriod === p }"
               @tap="trendPeriod = p"
             >
               <text class="smp-trend-tab-txt">
-                {{ p ==='month' | 'week' ? '本周' : '本月' }}
+                {{ p === 'month' ? '本月' : '本周' }}
               </text>
             </view>
           </view>
@@ -367,6 +367,9 @@ import {
   stationActionIconMap,
   stationPanelNotices as _stationPanelNotices,
   type StationPanelQuickAction,
+  type StationOverviewItem,
+  type StationTrendData,
+  type StationNotice,
 } from '@/lib/operator-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
@@ -375,12 +378,12 @@ const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () =
 
 const isEmpty = computed(() => !pageData.value?.info)
 
-const stationPanelInfo = computed(() => pageData.value?.info ?? { status: 'active', name: '', avatar: '' })
-const stationPanelOverview = computed(() => pageData.value?.overview ?? { todayOrders: 0, monthOrders: 0, totalOrders: 0, todayRevenue: 0, monthRevenue: 0, totalRevenue: 0 })
-const stationPanelTrends = computed(() => pageData.value?.trends ?? [])
-const stationPanelBalance = computed(() => pageData.value?.balance ?? { available: 0, frozen: 0, pending: 0 })
-const stationPanelQuickActions = computed(() => pageData.value?.quickActions ?? [])
-const stationPanelNotices = computed(() => pageData.value?.notices ?? [])
+const stationPanelInfo = computed(() => pageData.value?.info ?? { id: 0, name: '', level: 0, levelName: '', createTime: '', expireTime: '', status: 'active' as 'active' | 'expired' | 'paused' })
+const stationPanelOverview = computed<StationOverviewItem[]>(() => pageData.value?.overview ?? [])
+const stationPanelTrends = computed<StationTrendData[]>(() => pageData.value?.trends ?? [])
+const stationPanelBalance = computed(() => pageData.value?.balance ?? { available: 0, pending: 0, withdrawn: 0, frozen: 0 })
+const stationPanelQuickActions = computed<StationPanelQuickAction[]>(() => pageData.value?.quickActions ?? [])
+const stationPanelNotices = computed<StationNotice[]>(() => pageData.value?.notices ?? [])
 
 const trendIndex = ref(0)
 const trendPeriod = ref<'week' | 'month'>('week')

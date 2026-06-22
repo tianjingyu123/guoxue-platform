@@ -82,8 +82,9 @@ function openPwd() {
   pwd.value = ['', '', '', '', '', '']
   showPwd.value = true
 }
-function onPwdInput(e: { detail: { value: string } }) {
-  const v = e.detail.value.replace(/\D/g, '')
+// uni input @input 事件边界：H5 Event 无 detail，内部断言提取字符串值
+function onPwdInput(e: Event) {
+  const v = (e as unknown as { detail: { value: string } }).detail.value.replace(/\D/g, '')
   const arr = ['', '', '', '', '', '']
   for (let i = 0; i < v.length && i < 6; i++) arr[i] = v[i]
   pwd.value = arr

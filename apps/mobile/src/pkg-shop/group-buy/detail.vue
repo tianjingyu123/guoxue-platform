@@ -50,10 +50,10 @@
     <view class="section">
       <view class="section-head">
         <text class="section-title">正在拼团</text>
-        <text class="section-count">{{ groups.length }}个团进行中</text>
+        <text class="section-count">{{ activeGroups.length }}个团进行中</text>
       </view>
       <view class="groups">
-        <view v-for="g in groups" :key="g.id" class="group">
+        <view v-for="g in activeGroups" :key="g.id" class="group">
           <view class="g-owner">
             <image class="g-owner-avatar" :src="g.owner.avatar" mode="aspectFill" />
             <view class="g-crown">
@@ -88,7 +88,7 @@
           </view>
         </view>
       </view>
-      <view v-if="!groups.length" class="g-empty">
+      <view v-if="!activeGroups.length" class="g-empty">
         <app-icon name="users" :size="64" color="#d4c5a9" />
         <text class="g-empty-text">暂无进行中的拼团</text>
         <text class="g-empty-sub">快来开启第一个拼团吧</text>

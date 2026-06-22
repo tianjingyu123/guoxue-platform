@@ -12,11 +12,11 @@ const deleteAccountReasons = [
   { id: 'other', label: '其他原因' },
 ]
 const deleteAccountDataItems = [
-  { icon: 'message-circle', label: '帖子、评论、消息等内容' },
-  { icon: 'users', label: '圈子、关注、粉丝关系' },
-  { icon: 'shopping-bag', label: '订单记录和购买历史' },
-  { icon: 'gift', label: '积分、优惠券和会员权益' },
-  { icon: 'credit-card', label: '钱包余额（需先提现）' },
+  { icon: 'message-circle', label: '帖子、评论、消息等内容', color: '#3b82f6' },
+  { icon: 'users', label: '圈子、关注、粉丝关系', color: '#22c55e' },
+  { icon: 'shopping-bag', label: '订单记录和购买历史', color: '#f97316' },
+  { icon: 'gift', label: '积分、优惠券和会员权益', color: '#a855f7' },
+  { icon: 'credit-card', label: '钱包余额（需先提现）', color: '#ef4444' },
 ]
 const deleteAccountAssets = { balance: 0, points: 0, coupons: 0, memberDays: 0 }
 

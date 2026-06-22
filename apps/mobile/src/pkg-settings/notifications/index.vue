@@ -41,7 +41,7 @@
             :checked="pushEnabled"
             color="#c41e3a"
             style="transform:scale(0.8)"
-            @change="pushEnabled=$event.detail.value"
+            @change="pushEnabled=switchValue($event)"
           />
         </view>
 
@@ -154,7 +154,7 @@
                   :checked="quietMode"
                   color="#c41e3a"
                   style="transform:scale(0.8)"
-                  @change="quietMode=$event.detail.value"
+                  @change="quietMode=switchValue($event)"
                 />
               </view>
               <view
@@ -211,6 +211,11 @@ import { ref, reactive } from 'vue'
 
 const pushEnabled = ref(true)
 const quietMode = ref(true)
+
+// uni switch @change 事件边界：H5 Event 无 detail，统一在此提取布尔值
+function switchValue(e: Event): boolean {
+  return (e as unknown as { detail: { value: boolean } }).detail.value
+}
 const quietStart = ref('22:00')
 const quietEnd = ref('08:00')
 

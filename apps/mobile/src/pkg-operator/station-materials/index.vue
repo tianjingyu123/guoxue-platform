@@ -109,7 +109,7 @@
     >
       <!-- 海报区 -->
       <view
-        v-if="(activeTab === 'all' | 'poster' | 'qrcode' | 'copywriting'|| activeTab === 'poster') && posters.length"
+        v-if="(activeTab === 'all' || activeTab === 'poster') && posters.length"
         class="mat-section"
       >
         <view class="mat-section-title">
@@ -166,7 +166,7 @@
 
       <!-- 文案区 -->
       <view
-        v-if="(activeTab === 'all' | 'poster' | 'qrcode' | 'copywriting'|| activeTab ==='all' | 'poster' | 'qrcode' | 'copywriting') && copywritings.length"
+        v-if="(activeTab === 'all' || activeTab === 'copywriting') && copywritings.length"
         class="mat-section"
       >
         <view class="mat-section-title">
@@ -248,7 +248,7 @@
 
       <!-- 二维码区 -->
       <view
-        v-if="(activeTab === 'all' | 'poster' | 'qrcode' | 'copywriting'|| activeTab === 'qrcode') && qrcodes.length"
+        v-if="(activeTab === 'all' || activeTab === 'qrcode') && qrcodes.length"
         class="mat-section"
       >
         <view class="mat-section-title">
@@ -437,14 +437,15 @@ const mockQrcodes: Qr[] = [
   { id: 203, title: '官方圈子二维码', targetUrl: 'https://example.com/circle/1', scanCount: 2156 },
 ]
 
-const tabs = [
+type MatTab = 'all' | 'poster' | 'qrcode' | 'copywriting'
+const tabs: { value: MatTab; label: string; icon: string }[] = [
   { value: 'all', label: '全部', icon: '' },
   { value: 'poster', label: '海报', icon: 'image' },
-  { value:'all' | 'poster' | 'qrcode' | 'copywriting', label: '文案', icon: 'file-text' },
+  { value: 'copywriting', label: '文案', icon: 'file-text' },
   { value: 'qrcode', label: '二维码', icon: 'qr-code' },
 ]
 
-const activeTab = ref<'all' | 'poster' | 'qrcode' | 'copywriting'|'all' | 'poster' | 'qrcode' | 'copywriting'|'all' | 'poster' | 'qrcode' | 'copywriting' | 'qrcode'>('all')
+const activeTab = ref<MatTab>('all')
 const searchKeyword = ref('')
 const expandedCopy = ref<number | null>(null)
 const copiedId = ref<number | null>(null)
@@ -453,15 +454,15 @@ const selectedQrcode = ref<Qr | null>(null)
 
 const kw = computed(() => searchKeyword.value.trim())
 const posters = computed(() => {
-  if (activeTab.value !== 'all' | 'poster' | 'qrcode' | 'copywriting'&& activeTab.value !== 'poster') return []
+  if (activeTab.value !== 'all' && activeTab.value !== 'poster') return []
   return mockPosters.filter((p) => !kw.value || p.title.includes(kw.value) || p.tags.some((t) => t.includes(kw.value)))
 })
 const copywritings = computed(() => {
-  if (activeTab.value !== 'all' | 'poster' | 'qrcode' | 'copywriting'&& activeTab.value !=='all' | 'poster' | 'qrcode' | 'copywriting') return []
+  if (activeTab.value !== 'all' && activeTab.value !== 'copywriting') return []
   return mockCopywritings.filter((c) => !kw.value || c.title.includes(kw.value) || c.content.includes(kw.value))
 })
 const qrcodes = computed(() => {
-  if (activeTab.value !== 'all' | 'poster' | 'qrcode' | 'copywriting'&& activeTab.value !== 'qrcode') return []
+  if (activeTab.value !== 'all' && activeTab.value !== 'qrcode') return []
   return mockQrcodes.filter((q) => !kw.value || q.title.includes(kw.value))
 })
 const filteredEmpty = computed(() => posters.value.length === 0 && copywritings.value.length === 0 && qrcodes.value.length === 0)

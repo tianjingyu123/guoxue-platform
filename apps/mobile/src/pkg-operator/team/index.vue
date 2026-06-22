@@ -636,6 +636,7 @@ import {
   teamActivityIconMap,
   teamInviteLink as inviteLink,
   type TeamMgmtMember,
+  type TeamMgmtOverview,
 } from '@/lib/operator-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
@@ -644,7 +645,7 @@ const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () =
 
 const isEmpty = computed(() => !pageData.value?.overview)
 
-const overview = computed(() => pageData.value?.overview ?? { totalCommission: 0, nextLevelRequirement: 0, level: '', memberCount: 0, activeCount: 0 })
+const overview = computed<TeamMgmtOverview>(() => pageData.value?.overview ?? { totalMembers: 0, newMembersThisMonth: 0, totalCommission: 0, commissionRate: 0, myLevel: '', nextLevelRequirement: 0 })
 const teamMgmtMembers = computed(() => pageData.value?.members ?? [])
 const leaderboard = computed(() => pageData.value?.leaderboard ?? [])
 const myRank = computed(() => pageData.value?.myRank ?? { rank: 0, total: 0 })

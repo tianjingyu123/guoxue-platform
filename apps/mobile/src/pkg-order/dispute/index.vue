@@ -443,7 +443,7 @@ const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () =
   return { order: _disputeOrder, disputes: _myDisputes, detail: _disputeDetail }
 })
 
-const isEmpty = computed(() => !pageData.value?.order?.id && (pageData.value?.detail !== undefined && !pageData.value?.detail?.id))
+const isEmpty = computed(() => !pageData.value?.order?.orderId && (pageData.value?.detail !== undefined && !pageData.value?.detail?.id))
 
 const safeBottom = ref(0)
 

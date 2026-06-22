@@ -80,7 +80,7 @@
         </text>
         <view
           class="empty-btn"
-          @click="goEditor"
+          @click="goEditor()"
         >
           <text class="empty-btn-text">
             去投稿

@@ -152,6 +152,10 @@ export interface FenXiTiShi {
   anHe?: string[];
   /** 破 */
   po?: string[];
+  /** 相破（传统模式展示用，引擎待补） */
+  xiangPo?: string[];
+  /** 暗绝（传统模式展示用，引擎待补） */
+  anJue?: string[];
 }
 
 /** 格局 */
@@ -198,4 +202,12 @@ export interface BaziResult {
     adjustedTime: string;
     offsetMinutes: number;
   };
+  /** 真太阳时校正（传统模式展示，引擎待补） */
+  taiYangShi?: { desc: string };
+  /** 夏令时校正（传统模式展示，引擎待补） */
+  daylightSaving?: { adjusted: boolean; desc: string };
+  /** 自坐（传统模式展示，引擎待补） */
+  ziZuo?: { riGan: string; riZhi: string; shiShen: string; desc: string };
+  /** 流时列表（传统模式展示，引擎待补） */
+  liuShiList?: { hour: number; ganZhi: string; ganShiShen: string }[];
 }

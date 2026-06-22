@@ -93,7 +93,7 @@
                 :checked="twoFactor"
                 color="#c41e3a"
                 style="transform:scale(0.8)"
-                @change="twoFactor=$event.detail.value"
+                @change="twoFactor=switchValue($event)"
               />
             </view>
           </view>
@@ -124,7 +124,7 @@
                 :checked="showFavorites"
                 color="#c41e3a"
                 style="transform:scale(0.8)"
-                @change="showFavorites=$event.detail.value"
+                @change="showFavorites=switchValue($event)"
               />
             </view>
             <view class="row">
@@ -144,7 +144,7 @@
                 :checked="recordHistory"
                 color="#c41e3a"
                 style="transform:scale(0.8)"
-                @change="recordHistory=$event.detail.value"
+                @change="recordHistory=switchValue($event)"
               />
             </view>
           </view>
@@ -175,7 +175,7 @@
                 :checked="pushEnabled"
                 color="#c41e3a"
                 style="transform:scale(0.8)"
-                @change="pushEnabled=$event.detail.value"
+                @change="pushEnabled=switchValue($event)"
               />
             </view>
             <view
@@ -570,6 +570,10 @@ const themeOptions = [
 type SelectModal = { title: string; options: string[]; current: string; onSelect: (v: string) => void }
 const selectModal = ref<SelectModal | null>(null)
 
+// uni switch @change 事件边界：H5 Event 无 detail，统一在此提取布尔值
+function switchValue(e: Event): boolean {
+  return (e as unknown as { detail: { value: boolean } }).detail.value
+}
 function go(path: string) {
   navigateTo(path)
 }

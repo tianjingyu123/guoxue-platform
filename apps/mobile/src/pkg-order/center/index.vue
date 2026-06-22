@@ -276,9 +276,9 @@ const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () =
   return { orders: _mockUnifiedOrders, categories: _orderCategories, config: _unifiedStatusConfig, colorMap: _categoryColorMap }
 })
 
-const categories = computed(() => pageData.value?.categories ?? [])
-const unifiedStatusConfig = computed(() => pageData.value?.config ?? {})
-const categoryColorMap = computed(() => pageData.value?.colorMap ?? {})
+const categories = computed<typeof _orderCategories>(() => pageData.value?.categories ?? [])
+const unifiedStatusConfig = computed<typeof _unifiedStatusConfig>(() => pageData.value?.config ?? _unifiedStatusConfig)
+const categoryColorMap = computed<typeof _categoryColorMap>(() => pageData.value?.colorMap ?? _categoryColorMap)
 const statusConfig = unifiedStatusConfig
 const mockUnifiedOrders = computed(() => pageData.value?.orders ?? [])
 const isEmpty = computed(() => mockUnifiedOrders.value.length === 0)
