@@ -425,3 +425,61 @@ export class AnalysisQueryDto {
   @IsInt()
   pageSize?: number;
 }
+
+// ────────── 六爻排盘 ──────────
+export class LiuYaoInputDto {
+  @ApiPropertyOptional({ description: "事项内容" })
+  @IsOptional() @IsString()
+  matter?: string;
+
+  @ApiProperty({ description: "年份", example: 2026 })
+  @IsInt() @Min(1900) @Max(2100)
+  year: number;
+
+  @ApiProperty({ description: "月份", example: 6 })
+  @IsInt() @Min(1) @Max(12)
+  month: number;
+
+  @ApiProperty({ description: "日", example: 22 })
+  @IsInt() @Min(1) @Max(31)
+  day: number;
+
+  @ApiPropertyOptional({ description: "小时", example: 12 })
+  @IsOptional() @IsInt() @Min(0) @Max(23)
+  hour?: number;
+
+  @ApiPropertyOptional({ description: "起卦方式: coin/time/manual", example: "time" })
+  @IsOptional() @IsString()
+  method?: string;
+
+  @ApiPropertyOptional({ description: "手动摇卦结果(6爻数组)" })
+  @IsOptional()
+  manualYao?: number[];
+}
+
+// ────────── 大六壬排盘 ──────────
+export class DaLiuRenInputDto {
+  @ApiPropertyOptional({ description: "事项内容" })
+  @IsOptional() @IsString()
+  matter?: string;
+
+  @ApiProperty({ description: "年份", example: 2026 })
+  @IsInt() @Min(1900) @Max(2100)
+  year: number;
+
+  @ApiProperty({ description: "月份", example: 6 })
+  @IsInt() @Min(1) @Max(12)
+  month: number;
+
+  @ApiProperty({ description: "日", example: 22 })
+  @IsInt() @Min(1) @Max(31)
+  day: number;
+
+  @ApiPropertyOptional({ description: "小时", example: 12 })
+  @IsOptional() @IsInt() @Min(0) @Max(23)
+  hour?: number;
+
+  @ApiPropertyOptional({ description: "起课方式: chushi/qimen", example: "chushi" })
+  @IsOptional() @IsString()
+  method?: string;
+}

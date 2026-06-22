@@ -4,7 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { BaziInputDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto } from "./paipan.dto";
+import { BaziInputDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, DaLiuRenInputDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto } from "./paipan.dto";
 import { calcBazi, calcRiZhu, calcTrueSolarTime, type BaziInput, type BaziResult } from "@guoxue/bazi-engine";
 import { calcZiwei, type ZiweiInput, type ZiweiResult } from "@guoxue/ziwei-engine";
 import { calculateQimenYang, calculateQimenYin } from "../tool-registry/calculators/qimen.calculator";
@@ -725,5 +725,94 @@ export class PaipanService {
     const payload = { y: dto.year, m: dto.month, d: dto.day, h: dto.hour, g: dto.gender, pm: dto.panMethod, jm: dto.jigongMethod, sm: dto.startMethod, am: dto.anganMethod };
     const hash = createHash("md5").update(JSON.stringify(payload)).digest("hex");
     return `${YANGPAN_CACHE_PREFIX}${hash}`;
+  }
+
+  // ────────── 六爻排盘 ──────────
+
+  async calcLiuYao(dto: LiuYaoInputDto) {
+    const { calculateLiuYao } = await import("../tool-registry/calculators/liuyao.calculator");
+    return calculateLiuYao({
+      datetime: `${dto.year}-${String(dto.month).padStart(2,'0')}-${String(dto.day).padStart(2,'0')}T${String(dto.hour||12).padStart(2,'0')}:00:00`,
+      method: dto.method || 'time',
+      manualYao: dto.manualYao,
+      matter: dto.matter,
+    });
+  }
+
+  async calcLiuYaoAndSave(userId: string, dto: LiuYaoInputDto) {
+    const result = await this.calcLiuYao(dto);
+    const record = await this.prisma.paipanRecord.create({
+      data: {
+        userId,
+        paipanType: "LIUYAO",
+        clientName: dto.matter || "",
+        clientBirth: `${dto.year}-${dto.month}-${dto.day}`,
+        inputParams: dto as any,
+        resultData: result as any,
+      },
+    });
+    return { id: record.id, result };
+  }
+
+  async getLiuYaoRecord(id: string, userId: string) {
+    const record = await this.prisma.paipanRecord.findFirst({
+      where: { id, userId },
+      select: { id: true, clientName: true, clientBirth: true, inputParams: true, resultData: true, createdAt: true },
+    });
+    if (!record) throw new BusinessException(ErrorCode.PAIPAN_RECORD_NOT_FOUND, "排盘记录不存在");
+    return this.decryptRecord(record);
+  }
+
+  async getUserLiuYaoHistory(userId: string, page = 1, pageSize = 20) {
+    const where = { userId, paipanType: "LIUYAO" as const };
+    const [records, total] = await Promise.all([
+      this.prisma.paipanRecord.findMany({ where, select: { id: true, clientName: true, clientBirth: true, createdAt: true }, skip: (page-1)*pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.paipanRecord.count({ where }),
+    ]);
+    return { records: this.decryptRecords(records), total, page, pageSize };
+  }
+
+  // ────────── 大六壬排盘 ──────────
+
+  async calcDaLiuRen(dto: DaLiuRenInputDto) {
+    const { calculateDaLiuRen } = await import("../tool-registry/calculators/daliuren.calculator");
+    return calculateDaLiuRen({
+      datetime: `${dto.year}-${String(dto.month).padStart(2,'0')}-${String(dto.day).padStart(2,'0')}T${String(dto.hour||12).padStart(2,'0')}:00:00`,
+      method: dto.method || 'chushi',
+      matter: dto.matter,
+    });
+  }
+
+  async calcDaLiuRenAndSave(userId: string, dto: DaLiuRenInputDto) {
+    const result = await this.calcDaLiuRen(dto);
+    const record = await this.prisma.paipanRecord.create({
+      data: {
+        userId,
+        paipanType: "DALIUREN",
+        clientName: dto.matter || "",
+        clientBirth: `${dto.year}-${dto.month}-${dto.day}`,
+        inputParams: dto as any,
+        resultData: result as any,
+      },
+    });
+    return { id: record.id, result };
+  }
+
+  async getDaLiuRenRecord(id: string, userId: string) {
+    const record = await this.prisma.paipanRecord.findFirst({
+      where: { id, userId },
+      select: { id: true, clientName: true, clientBirth: true, inputParams: true, resultData: true, createdAt: true },
+    });
+    if (!record) throw new BusinessException(ErrorCode.PAIPAN_RECORD_NOT_FOUND, "排盘记录不存在");
+    return this.decryptRecord(record);
+  }
+
+  async getUserDaLiuRenHistory(userId: string, page = 1, pageSize = 20) {
+    const where = { userId, paipanType: "DALIUREN" as const };
+    const [records, total] = await Promise.all([
+      this.prisma.paipanRecord.findMany({ where, select: { id: true, clientName: true, clientBirth: true, createdAt: true }, skip: (page-1)*pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.paipanRecord.count({ where }),
+    ]);
+    return { records: this.decryptRecords(records), total, page, pageSize };
   }
 }

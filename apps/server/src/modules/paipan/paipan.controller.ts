@@ -17,7 +17,7 @@ import type { ZiweiResult } from "@guoxue/ziwei-engine";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
-import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, AnalyzeDto, AnalysisQueryDto, GroupListQueryDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto } from "./paipan.dto";
+import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, DaLiuRenInputDto, AnalyzeDto, AnalysisQueryDto, GroupListQueryDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto } from "./paipan.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -342,6 +342,74 @@ export class PaipanController {
     return this.paipan.getYangpanRecord(id, req.user.id);
   }
 
+  // ────────── 六爻排盘 ──────────
+
+  @Post("liuyao")
+  @UseGuards(StrictRedisThrottleGuard)
+  @Header("Cache-Control", "public, max-age=600")
+  @ApiOperation({ summary: "六爻排盘（无需登录）" })
+  liuyaoCalc(@Body() dto: LiuYaoInputDto) {
+    return this.paipan.calcLiuYao(dto);
+  }
+
+  @Post("liuyao/save")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "六爻排盘并保存" })
+  @ApiBearerAuth()
+  liuyaoSave(@Req() req: Request, @Body() dto: LiuYaoInputDto) {
+    return this.paipan.calcLiuYaoAndSave(req.user.id, dto);
+  }
+
+  @Get("liuyao/history")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "六爻排盘历史" })
+  @ApiBearerAuth()
+  liuyaoHistory(@Req() req: Request, @Query() q: BaziRecordQueryDto) {
+    return this.paipan.getUserLiuYaoHistory(req.user.id, q.page || 1, q.pageSize || 20);
+  }
+
+  @Get("liuyao/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "六爻排盘详情" })
+  @ApiBearerAuth()
+  liuyaoRecord(@Param("id") id: string, @Req() req: Request) {
+    return this.paipan.getLiuYaoRecord(id, req.user.id);
+  }
+
+  // ────────── 大六壬排盘 ──────────
+
+  @Post("daliuren")
+  @UseGuards(StrictRedisThrottleGuard)
+  @Header("Cache-Control", "public, max-age=600")
+  @ApiOperation({ summary: "大六壬排盘（无需登录）" })
+  daliurenCalc(@Body() dto: DaLiuRenInputDto) {
+    return this.paipan.calcDaLiuRen(dto);
+  }
+
+  @Post("daliuren/save")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "大六壬排盘并保存" })
+  @ApiBearerAuth()
+  daliurenSave(@Req() req: Request, @Body() dto: DaLiuRenInputDto) {
+    return this.paipan.calcDaLiuRenAndSave(req.user.id, dto);
+  }
+
+  @Get("daliuren/history")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "大六壬排盘历史" })
+  @ApiBearerAuth()
+  daliurenHistory(@Req() req: Request, @Query() q: BaziRecordQueryDto) {
+    return this.paipan.getUserDaLiuRenHistory(req.user.id, q.page || 1, q.pageSize || 20);
+  }
+
+  @Get("daliuren/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "大六壬排盘详情" })
+  @ApiBearerAuth()
+  daliurenRecord(@Param("id") id: string, @Req() req: Request) {
+    return this.paipan.getDaLiuRenRecord(id, req.user.id);
+  }
+
   // ────────── 案例库 ──────────
 
   /** 获取八字案例库（公开，无需登录） */
@@ -392,15 +460,24 @@ export class PaipanController {
 
   // ────────── 分享 ──────────
 
-  /** 排盘结果公开分享 */
+  /** 排盘结果分享（仅记录所有者可查看，防止枚举主键泄露他人命理隐私） */
   @Get("record/:id/share")
-  @ApiOperation({ summary: "排盘结果公开分享（无需登录）" })
-  async shareRecord(@Param("id") id: string) {
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "排盘结果分享（仅所有者可查看）" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权限（非记录所有者）" })
+  @ApiResponse({ status: 404, description: "记录不存在" })
+  async shareRecord(@Param("id") id: string, @Req() req: Request) {
     const record = await this.prisma.paipanRecord.findUnique({
       where: { id },
-      select: { id: true, paipanType: true, resultData: true, inputParams: true, createdAt: true },
+      select: { id: true, userId: true, paipanType: true, resultData: true, inputParams: true, createdAt: true },
     });
     if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "记录不存在");
+    // IDOR 防护：仅记录所有者可读取，避免可枚举主键泄露他人命理隐私
+    if (record.userId !== req.user.id) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "无权查看该记录");
+    }
     const input = (record.inputParams as any) || {};
     return {
       type: record.paipanType,
