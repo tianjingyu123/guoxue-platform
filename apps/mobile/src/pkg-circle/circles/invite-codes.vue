@@ -5,8 +5,16 @@
  * 复制/分享改用 uni.setClipboardData 跨端
  */
 import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { circleDetailApi } from '@/lib/circle-detail-data'
+
+const circleId = ref('1')
+
+onLoad((q?: any) => {
+  if (q?.circleId) circleId.value = q.circleId
+})
 
 interface UsedUser { id: string; name: string; avatar: string; usedAt: string }
 interface InviteCode {
@@ -41,8 +49,15 @@ const expandedCode = ref<string | null>(null)
 const activeMenu = ref<string | null>(null)
 const copiedCode = ref<string | null>(null)
 
-onMounted(() => {
-  setTimeout(() => { inviteCodes.value = mockInviteCodes; isLoading.value = false }, 800)
+onMounted(async () => {
+  isLoading.value = true
+  try {
+    inviteCodes.value = await circleDetailApi.getInviteCodes(circleId.value)
+  } catch {
+    // 加载失败，保持为空
+  } finally {
+    isLoading.value = false
+  }
 })
 
 function statusLabel(s: string) { return s === 'active' ? '有效' : s === 'disabled' ? '已禁用' : '已过期' }
@@ -50,20 +65,15 @@ function statusCls(s: string) { return s === 'active' ? 'ic-st-active' : s === '
 function formatDate(s: string) { const d = new Date(s); return `${d.getMonth() + 1}/${d.getDate()}` }
 
 async function createCode() {
+  if (creating.value) return
   creating.value = true
-  await new Promise((r) => setTimeout(r, 1000))
-  const newCode: InviteCode = {
-    id: Date.now().toString(),
-    code: `NEW${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-    maxUses: newCodeMaxUses.value,
-    usedCount: 0,
-    status: 'active',
-    createdAt: new Date().toISOString(),
-  }
-  inviteCodes.value = [newCode, ...inviteCodes.value]
-  stats.value.pendingCodes += 1
-  showCreateModal.value = false
+  const res = await circleDetailApi.createInviteCode(circleId.value, newCodeMaxUses.value)
   creating.value = false
+  if (res.success && res.code) {
+    inviteCodes.value = [res.code, ...inviteCodes.value]
+  } else {
+    uni.showToast({ title: res.message || '生成失败', icon: 'none' })
+  }
 }
 
 function copyCode(code: string) {

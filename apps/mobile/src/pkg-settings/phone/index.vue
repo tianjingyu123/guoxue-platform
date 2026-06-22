@@ -311,6 +311,7 @@ import { ref, watch } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { mineApi } from '@/lib/mine-data'
 
 const step = ref<1 | 2 | 3>(1)
 const currentPhone = '138****8888'
@@ -352,24 +353,21 @@ async function sendCurrentCode() {
   if (currentCountdown.value > 0 || currentSending.value) return
   currentSending.value = true
   currentCodeError.value = ''
-  await new Promise((r) => setTimeout(r, 800))
+  const res = await mineApi.sendSmsCode(currentPhone, 'change_phone')
   currentSending.value = false
-  currentCountdown.value = 60
-  tick(currentCountdown, 'cur')
+  if (res.success) {
+    currentCountdown.value = 60
+    tick(currentCountdown, 'cur')
+  } else {
+    currentCodeError.value = res.message || '发送失败'
+  }
 }
 
-async function verifyCurrentPhone() {
+function verifyCurrentPhone() {
   if (currentCode.value.length !== 6 || currentVerifying.value) return
   currentVerifying.value = true
   currentCodeError.value = ''
-  await new Promise((r) => setTimeout(r, 1000))
-  if (currentCode.value === '123456') {
-    step.value = 2
-  } else if (currentCode.value === '000000') {
-    currentCodeError.value = '验证码已过期，请重新获取'
-  } else {
-    currentCodeError.value = '验证码错误，请重新输入'
-  }
+  step.value = 2
   currentVerifying.value = false
 }
 
@@ -377,30 +375,34 @@ async function sendNewCode() {
   if (newCountdown.value > 0 || newSending.value || !validPhone(newPhone.value)) return
   newSending.value = true
   newCodeError.value = ''
-  await new Promise((r) => setTimeout(r, 800))
+  const res = await mineApi.sendSmsCode(newPhone.value, 'change_phone')
   newSending.value = false
-  newCountdown.value = 60
-  tick(newCountdown, 'new')
+  if (res.success) {
+    newCountdown.value = 60
+    tick(newCountdown, 'new')
+  } else {
+    newCodeError.value = res.message || '发送失败'
+  }
 }
 
 async function bindNewPhone() {
   if (newCode.value.length !== 6 || !validPhone(newPhone.value) || newVerifying.value) return
   newVerifying.value = true
   newCodeError.value = ''
-  await new Promise((r) => setTimeout(r, 1000))
-  if (newPhone.value === '13900001111') {
-    phoneExistsModal.value = true
+  try {
+    const res = await mineApi.changePhone(currentPhone, currentCode.value, newPhone.value, newCode.value)
+    if (res.success) {
+      step.value = 3
+    } else {
+      if (res.message && res.message.includes('已被绑定')) {
+        phoneExistsModal.value = true
+      } else {
+        newCodeError.value = res.message || '绑定失败'
+      }
+    }
+  } finally {
     newVerifying.value = false
-    return
   }
-  if (newCode.value === '123456') {
-    step.value = 3
-  } else if (newCode.value === '000000') {
-    newCodeError.value = '验证码已过期，请重新获取'
-  } else {
-    newCodeError.value = '验证码错误，请重新输入'
-  }
-  newVerifying.value = false
 }
 
 function backToStep1() {

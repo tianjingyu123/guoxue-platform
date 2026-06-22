@@ -636,3 +636,40 @@ export const analysisMembers: MemberPerf[] = [
   { id: 'm3', name: '吴芳', level: '普通站长', visits: 480, clicks: 156, orders: 38, commission: 2280, trend: 8, diagnosis: { type: 'warn', text: '转化率高但流量不足，建议加大推广曝光' } },
   { id: 'm4', name: '郑浩', level: '普通站长', visits: 1900, clicks: 620, orders: 8, commission: 480, trend: -15, diagnosis: { type: 'warn', text: '点击多成交少，建议推荐高性价比内容' } },
 ]
+
+// ─── 分站运营商 API ───
+import { apiGet, apiPost, apiPut, useMock } from '@/utils/request'
+
+export const operatorApi = {
+  /** 获取我的分站信息 — GET /station/my */
+  getMyStation: async (): Promise<any> => {
+    if (useMock()) return null  // mock 下返回 null 表示未开通
+    try {
+      return await apiGet('/station/my')
+    } catch (e: any) {
+      return null  // 404 表示未开通分站
+    }
+  },
+
+  /** 更新分站设置 — PUT /station/my */
+  updateMyStation: async (dto: Record<string, any>): Promise<{ success: boolean; message: string }> => {
+    if (useMock()) return { success: true, message: '保存成功' }
+    try {
+      await apiPut('/station/my', dto)
+      return { success: true, message: '保存成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '保存失败' }
+    }
+  },
+
+  /** 申请开通分站 — POST /station/apply */
+  applyStation: async (dto: { name: string; code: string; intro?: string; logo?: string }): Promise<{ success: boolean; message: string }> => {
+    if (useMock()) return { success: true, message: '申请已提交，等待审核' }
+    try {
+      await apiPost('/station/apply', dto)
+      return { success: true, message: '申请已提交，等待审核' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '申请失败' }
+    }
+  },
+}

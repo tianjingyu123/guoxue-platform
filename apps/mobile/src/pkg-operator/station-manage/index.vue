@@ -386,6 +386,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
 import { navigateTo } from '@/utils/router'
+import { operatorApi } from '@/lib/operator-data'
 
 const statusBarHeight = ref(20)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 20 } })
@@ -466,20 +467,28 @@ function onGateClick() {
 async function submitApply() {
   if (!applyReason.value.trim() || submitting.value) return
   submitting.value = true
-  await new Promise((r) => setTimeout(r, 800))
+  const res = await operatorApi.applyStation({ name: basic.name, code: applyReason.value.trim().slice(0, 30), intro: basic.intro })
   submitting.value = false
-  liveStatus.value = 'reviewing'
-  showApply.value = false
+  if (res.success) {
+    liveStatus.value = 'reviewing'
+    showApply.value = false
+    uni.showToast({ title: '申请已提交', icon: 'success' })
+  } else {
+    uni.showToast({ title: res.message || '申请失败', icon: 'none' })
+  }
 }
 
-function handleSave() {
+async function handleSave() {
   if (saving.value) return
   saving.value = true
-  setTimeout(() => {
-    saving.value = false
+  const res = await operatorApi.updateMyStation(basic)
+  saving.value = false
+  if (res.success) {
     saved.value = true
     setTimeout(() => { saved.value = false }, 2500)
-  }, 900)
+  } else {
+    uni.showToast({ title: res.message || '保存失败', icon: 'none' })
+  }
 }
 
 function goBack() { uni.navigateBack({ fail: () => navigateTo('/pages/index/index') }) }

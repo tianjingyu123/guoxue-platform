@@ -4,7 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { CreateStationDto, UpdateStationDto, CreateOperatorDto, SetStationTemplateDto, UpdateOperatorBrandDto } from "./station.dto";
+import { CreateStationDto, UpdateStationDto, CreateOperatorDto, SetStationTemplateDto, UpdateOperatorBrandDto, ApplyStationDto } from "./station.dto";
 
 /** 模版定义 */
 export const STATION_TEMPLATES = {
@@ -80,6 +80,28 @@ export class StationService {
         miniAppId: dto.miniAppId,
         mpAppId: dto.mpAppId,
         miniPages: dto.miniPages as any,
+      },
+    });
+  }
+
+  /** 用户自助申请开通分站 */
+  async applyStation(userId: string, dto: ApplyStationDto) {
+    // 检查是否已有分站
+    const existing = await this.prisma.station.findFirst({ where: { userId } });
+    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "你已开通分站，无需重复申请");
+
+    // 检查推广码是否已被占用
+    const codeExists = await this.prisma.station.findUnique({ where: { code: dto.code } });
+    if (codeExists) throw new BusinessException(ErrorCode.BAD_REQUEST, "推广码已被占用，请更换");
+
+    return this.prisma.station.create({
+      data: {
+        userId,
+        name: dto.name,
+        code: dto.code,
+        intro: dto.intro,
+        logo: dto.logo,
+        status: "PENDING",
       },
     });
   }

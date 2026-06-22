@@ -1,11 +1,29 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { boundAccounts, bindBenefits, type BoundAccount } from '@/lib/mine-data'
+import { mineApi } from '@/lib/mine-data'
 
-const accounts = ref<BoundAccount[]>(boundAccounts.map((a) => ({ ...a })))
+interface BoundAccount {
+  provider: 'wechat' | 'qq' | 'apple'
+  name: string
+  color: string
+  isBound: boolean
+  accountInfo?: string
+  boundAt?: string
+}
+
+const bindBenefits = [
+  { icon: 'zap', title: '快速登录', desc: '一键授权登录' },
+  { icon: 'shield', title: '账号安全', desc: '多重验证保护' },
+  { icon: 'smartphone', title: '多端同步', desc: '数据云端同步' },
+  { icon: 'gift', title: '专属福利', desc: '绑定送积分' },
+]
+
+const accounts = ref<BoundAccount[]>([])
+const loading = ref(true)
+const loadError = ref('')
 const unbindTarget = ref<BoundAccount | null>(null)
-const processing = ref(false)
+const submitting = ref(false)
 const toast = ref('')
 
 const providerIcon: Record<string, string> = {
@@ -25,17 +43,40 @@ function handleBind(acc: BoundAccount) {
 }
 async function handleUnbind() {
   if (!unbindTarget.value) return
-  processing.value = true
-  await new Promise((r) => setTimeout(r, 1000))
-  const target = unbindTarget.value
-  accounts.value = accounts.value.map((acc) =>
-    acc.provider === target.provider
-      ? { ...acc, isBound: false, accountInfo: undefined, boundAt: undefined }
-      : acc,
-  )
-  processing.value = false
-  unbindTarget.value = null
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    const target = unbindTarget.value
+    const res = await mineApi.unbindAccount(target.provider)
+    if (res.success) {
+      accounts.value = accounts.value.map((acc) =>
+        acc.provider === target.provider
+          ? { ...acc, isBound: false, accountInfo: undefined, boundAt: undefined }
+          : acc,
+      )
+      showToast('解绑成功')
+    } else {
+      showToast(res.message || '解绑失败')
+    }
+  } catch {
+    showToast('解绑失败，请稍后重试')
+  } finally {
+    submitting.value = false
+    unbindTarget.value = null
+  }
 }
+
+onMounted(async () => {
+  loading.value = true
+  loadError.value = ''
+  try {
+    accounts.value = await mineApi.getBoundAccounts()
+  } catch {
+    loadError.value = '加载失败'
+  } finally {
+    loading.value = false
+  }
+})
 </script>
 
 <template>

@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards 
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { StationService } from "./station.service";
-import { CreateStationDto, UpdateStationDto, CreateOperatorDto, SetStationTemplateDto, UpdateOperatorBrandDto } from "./station.dto";
+import { CreateStationDto, UpdateStationDto, CreateOperatorDto, SetStationTemplateDto, UpdateOperatorBrandDto, ApplyStationDto } from "./station.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -16,6 +16,16 @@ export class StationController {
   constructor(private svc: StationService) {}
 
   // ───────── 自服务（站长管理自己的分站） ─────────
+
+  @Post("apply")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "用户自助申请开通分站" })
+  @ApiResponse({ status: 201, description: "申请成功，等待审核" })
+  @ApiResponse({ status: 400, description: "参数校验失败或已开通分站" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  applyStation(@Req() req: Request, @Body() dto: ApplyStationDto) {
+    return this.svc.applyStation(req.user.id, dto);
+  }
 
   @Get("my")
   @UseGuards(JwtAuthGuard)

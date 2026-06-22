@@ -248,6 +248,7 @@ import { ref, watch, nextTick } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { mineApi } from '@/lib/mine-data'
 
 type Step = 'verify' | 'set' | 'confirm' | 'success'
 const step = ref<Step>('verify')
@@ -275,7 +276,6 @@ function handleSendCode() {
 
 function handleVerifyCode() {
   if (verifyCode.value.length !== 6) { error.value = '请输入6位验证码'; return }
-  if (verifyCode.value !== '123456') { error.value = '验证码错误'; return }
   error.value = ''
   step.value = 'set'
 }
@@ -291,7 +291,7 @@ function onConfirmInput(e: any) {
   error.value = ''
 }
 
-function handleConfirmPassword() {
+async function handleConfirmPassword() {
   if (confirmPwd.value.length !== 6) { error.value = '请输入完整的6位密码'; return }
   if (password.value !== confirmPwd.value) {
     error.value = '两次输入的密码不一致'
@@ -299,7 +299,13 @@ function handleConfirmPassword() {
     return
   }
   isLoading.value = true
-  setTimeout(() => { isLoading.value = false; step.value = 'success' }, 1200)
+  const res = await mineApi.setPayPassword(password.value, verifyCode.value)
+  isLoading.value = false
+  if (res.success) {
+    step.value = 'success'
+  } else {
+    error.value = res.message || '设置失败'
+  }
 }
 
 function backToSet() {

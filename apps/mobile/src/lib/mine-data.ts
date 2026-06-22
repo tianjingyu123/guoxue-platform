@@ -748,3 +748,123 @@ export const walletTxRecords: WalletTxRecord[] = [
   { id: '5', type: 'income', category: 'reward', title: '签到奖励', description: '连续签到7天奖励', amount: 50, balance: 2348, createdAt: '2024-01-11 08:00' },
   { id: '6', type: 'expense', category: 'transfer', title: '打赏作者', description: '打赏文章《八字命理基础》', amount: -20, balance: 2298, createdAt: '2024-01-10 20:30' },
 ]
+
+// ─── 个人中心 API ───
+import { apiGet, apiPost, apiDelete, useMock } from '@/utils/request'
+
+export const mineApi = {
+  /** 修改密码 — PUT /auth/password */
+  async changePassword(oldPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '密码修改成功' }
+    try {
+      await apiPost('/auth/password', { oldPassword, newPassword })
+      return { success: true, message: '密码修改成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '修改失败' }
+    }
+  },
+
+  /** 换手机号 — PUT /auth/phone */
+  async changePhone(oldPhone: string, oldCode: string, newPhone: string, newCode: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '手机号更换成功' }
+    try {
+      await apiPost('/auth/phone', { oldPhone, oldCode, newPhone, newCode })
+      return { success: true, message: '手机号更换成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '更换失败' }
+    }
+  },
+
+  /** 发送短信验证码 — POST /auth/sms/send */
+  async sendSmsCode(phone: string, scene: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '验证码已发送' }
+    try {
+      const data = await apiPost<any>('/auth/sms/send', { phone, scene })
+      return { success: !!data?.ok, message: data?.message || '验证码已发送' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '发送失败' }
+    }
+  },
+
+  /** 获取已绑定的第三方账号 — GET /users/bound-accounts */
+  async getBoundAccounts(): Promise<any[]> {
+    if (useMock()) return [
+      { provider: 'wechat', name: '微信', color: '#07C160', isBound: true, accountInfo: 'wx_user***123' },
+      { provider: 'qq', name: 'QQ', color: '#12B7F5', isBound: false },
+      { provider: 'apple', name: 'Apple ID', color: '#000000', isBound: false },
+    ]
+    return apiGet('/users/bound-accounts')
+  },
+
+  /** 解绑第三方账号 — DELETE /users/bound-accounts/:provider */
+  async unbindAccount(provider: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '解绑成功' }
+    try {
+      await apiDelete(`/users/bound-accounts/${provider}`)
+      return { success: true, message: '解绑成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '解绑失败' }
+    }
+  },
+
+  /** 验证支付密码 — POST /users/me/payment-password/verify */
+  async verifyPayPassword(password: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '验证成功' }
+    try {
+      await apiPost('/users/me/payment-password/verify', { password })
+      return { success: true, message: '验证成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '验证失败' }
+    }
+  },
+
+  /** 设置支付密码 — POST /users/me/payment-password */
+  async setPayPassword(password: string, smsCode: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '设置成功' }
+    try {
+      await apiPost('/users/me/payment-password', { password, smsCode })
+      return { success: true, message: '设置成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '设置失败' }
+    }
+  },
+
+  /** 修改支付密码 — POST /users/me/payment-password/update */
+  async updatePayPassword(oldPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '修改成功' }
+    try {
+      await apiPost('/users/me/payment-password/update', { oldPassword, newPassword })
+      return { success: true, message: '修改成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '修改失败' }
+    }
+  },
+
+  /** 重置支付密码 — POST /users/me/payment-password/reset */
+  async resetPayPassword(newPassword: string, smsCode: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '重置成功' }
+    try {
+      await apiPost('/users/me/payment-password/reset', { newPassword, smsCode })
+      return { success: true, message: '重置成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '重置失败' }
+    }
+  },
+
+  /** 签到 — POST /users/me/checkin */
+  async checkin(): Promise<{ success: boolean; message: string; data?: any }> {
+    if (useMock()) return { success: true, message: '签到成功', data: { streak: 7, points: 10 } }
+    try {
+      const data = await apiPost<any>('/users/me/checkin')
+      return { success: true, message: '签到成功', data }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '签到失败' }
+    }
+  },
+
+  /** 获取签到状态 — GET /users/me/checkin/status */
+  async getCheckinStatus(): Promise<any> {
+    if (useMock()) return { checkedIn: false, streak: 0 }
+    return apiGet('/users/me/checkin/status')
+  },
+}

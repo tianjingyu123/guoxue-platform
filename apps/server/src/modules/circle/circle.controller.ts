@@ -191,6 +191,26 @@ export class CircleController {
     return this.circle.getInvitationStats(circleId, req.user.id);
   }
 
+  // ───────── 推荐电子书 ─────────
+
+  @Get(":id/recommended-ebooks")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取圈子推荐的电子书ID列表" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "成功返回推荐的电子书ID列表" })
+  getRecommendedEbooks(@Param("id") circleId: string, @Req() req: Request) {
+    return this.circle.getRecommendedEbooks(circleId, req.user.id);
+  }
+
+  @Put(":id/recommended-ebooks")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "设置圈子推荐的电子书" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "设置成功" })
+  setRecommendedEbooks(@Param("id") circleId: string, @Req() req: Request, @Body("ebookIds") ebookIds: string[]) {
+    return this.circle.setRecommendedEbooks(circleId, req.user.id, ebookIds);
+  }
+
   @Post(":id/join")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "加入圈子（免费圈直接加入，付费圈请先调用 prepare-join）" })

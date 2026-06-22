@@ -65,6 +65,17 @@ export class UserController {
     return this.user.getBoundAccounts(req.user.id);
   }
 
+  @Delete("bound-accounts/:provider")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "解绑第三方账号" })
+  @ApiResponse({ status: 200, description: "解绑成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "未绑定该账号" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  unbindAccount(@Req() req: Request, @Param("provider") provider: string) {
+    return this.user.unbindAccount(req.user.id, provider);
+  }
+
   // ── 浏览历史 ──
 
   @Get("history")

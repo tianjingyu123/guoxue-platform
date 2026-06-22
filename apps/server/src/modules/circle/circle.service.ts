@@ -322,6 +322,40 @@ export class CircleService {
     return { total, records };
   }
 
+  // ───────── 推荐电子书 ─────────
+
+  async getRecommendedEbooks(circleId: string, userId: string) {
+    // 验证圈子存在且用户是成员
+    const member = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+    });
+    if (!member) throw new BusinessException(ErrorCode.FORBIDDEN, "请先加入圈子");
+
+    const circle = await this.prisma.circle.findUnique({
+      where: { id: circleId },
+      select: { recommendedEbookIds: true },
+    });
+    const ids = (circle?.recommendedEbookIds as string[]) ?? [];
+    return { ebookIds: ids };
+  }
+
+  async setRecommendedEbooks(circleId: string, userId: string, ebookIds: string[]) {
+    // 验证圈子存在且用户是圈主或管理员
+    const member = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+    });
+    if (!member) throw new BusinessException(ErrorCode.FORBIDDEN, "请先加入圈子");
+    if (member.role !== "OWNER" && member.role !== "ADMIN") {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主和管理员可以设置推荐电子书");
+    }
+
+    await this.prisma.circle.update({
+      where: { id: circleId },
+      data: { recommendedEbookIds: ebookIds as any },
+    });
+    return { success: true, ebookIds };
+  }
+
   // ───────── 成员管理 ─────────
 
   /**

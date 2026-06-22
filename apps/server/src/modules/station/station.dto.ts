@@ -103,6 +103,25 @@ export class UpdateStationDto {
   templateConfig?: Record<string, unknown>;
 }
 
+export class ApplyStationDto {
+  @IsString()
+  @MaxLength(50)
+  name: string;
+
+  @IsString()
+  @MaxLength(30)
+  code: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  intro?: string;
+
+  @IsOptional()
+  @IsString()
+  logo?: string;
+}
+
 export class UpdateOperatorBrandDto {
   @IsOptional()
   @IsString()

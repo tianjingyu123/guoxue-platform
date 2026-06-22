@@ -6,6 +6,7 @@
 import { ref, reactive } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, reLaunch } from '@/utils/router'
+import { circleApi } from '@/lib/circle-data'
 
 type JoinMethod = 'free' | 'paid' | 'approval'
 
@@ -68,11 +69,23 @@ function validate() {
 
 async function submit() {
   if (!validate()) return
+  if (loading.value) return
   loading.value = true
-  await new Promise((r) => setTimeout(r, 1200))
+  const res = await circleApi.create({
+    name: name.value,
+    intro: desc.value,
+    cover: cover.value || undefined,
+    tags: tags.value,
+    type: joinMethod.value === 'paid' ? 'PAID' : 'FREE',
+    price: joinMethod.value === 'paid' ? Number(yearlyPrice.value) || 0 : 0,
+  })
   loading.value = false
-  uni.showToast({ title: '创建成功', icon: 'success' })
-  setTimeout(() => reLaunch('/pages/circles/index'), 600)
+  if (res.success) {
+    uni.showToast({ title: '创建成功', icon: 'success' })
+    setTimeout(() => reLaunch('/pages/circles/index'), 600)
+  } else {
+    uni.showToast({ title: res.message || '创建失败', icon: 'none' })
+  }
 }
 </script>
 

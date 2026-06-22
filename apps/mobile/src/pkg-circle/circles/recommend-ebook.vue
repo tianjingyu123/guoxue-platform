@@ -262,6 +262,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { circleDetailApi } from '@/lib/circle-detail-data'
 
 const circleInfo = { id: '1', name: '八字命理研习圈' }
 
@@ -299,9 +300,15 @@ function toggleRecommend(id: string) {
 async function handleSave() {
   if (isSaving.value) return
   isSaving.value = true
-  await new Promise((r) => setTimeout(r, 800))
+  const ids = recommended.value.map(b => b.id)
+  const res = await circleDetailApi.setRecommendedEbooks(circleInfo.id, ids)
   isSaving.value = false
-  goBack()
+  if (res.success) {
+    uni.showToast({ title: '保存成功', icon: 'success' })
+    setTimeout(() => goBack(), 600)
+  } else {
+    uni.showToast({ title: res.message || '保存失败', icon: 'none' })
+  }
 }
 </script>
 

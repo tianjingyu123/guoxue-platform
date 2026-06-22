@@ -347,7 +347,8 @@ model Circle {
   status         CircleStatus @default(PENDING)
   stationId      String? // 分站数据隔离（null = 平台级）
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  updatedAt            DateTime     @updatedAt
+  recommendedEbookIds  Json?
 
   owner               User                  @relation(fields: [ownerId], references: [id])
   station             Station?              @relation(fields: [stationId], references: [id])

@@ -9,6 +9,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import VisibilitySettings, { type Visibility, type PaymentType } from '@/components/circle/visibility-settings.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
+import { circleDetailApi } from '@/lib/circle-detail-data'
 
 const circleId = ref('1')
 const circle = reactive({ id: '1', name: '八字命理研习社', members: 12580, role: 'owner' as 'owner' | 'admin' })
@@ -54,10 +55,16 @@ async function submitArticle() {
   aErr.content = a.content.trim() ? '' : '请输入文章内容'
   aErr.price = (a.paymentType !== 'free' && a.price <= 0) ? '请设置价格' : ''
   if (aErr.title || aErr.content || aErr.price) return
+  if (aSubmitting.value) return
   aSubmitting.value = true
-  await new Promise((r) => setTimeout(r, 800))
-  uni.showToast({ title: '发布成功', icon: 'success' })
-  setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
+  const res = await circleDetailApi.publishPost(circleId.value, { content: a.content, images: a.cover ? [a.cover] : [], type: 'TEXT' })
+  aSubmitting.value = false
+  if (res.success) {
+    uni.showToast({ title: '发布成功', icon: 'success' })
+    setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
+  } else {
+    uni.showToast({ title: res.message || '发布失败', icon: 'none' })
+  }
 }
 
 // ─── 课程表单 ───
@@ -87,10 +94,16 @@ async function submitCourse() {
   cErr.description = c.description.trim() ? '' : '请输入课程简介'
   cErr.price = (c.paymentType !== 'free' && c.price <= 0) ? '请设置价格' : ''
   if (cErr.title || cErr.description || cErr.price) return
+  if (cSubmitting.value) return
   cSubmitting.value = true
-  await new Promise((r) => setTimeout(r, 800))
-  uni.showToast({ title: '创建成功', icon: 'success' })
-  setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
+  const res = await circleDetailApi.publishPost(circleId.value, { content: c.description, images: c.cover ? [c.cover] : [], type: 'TEXT' })
+  cSubmitting.value = false
+  if (res.success) {
+    uni.showToast({ title: '创建成功', icon: 'success' })
+    setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
+  } else {
+    uni.showToast({ title: res.message || '创建失败', icon: 'none' })
+  }
 }
 </script>
 

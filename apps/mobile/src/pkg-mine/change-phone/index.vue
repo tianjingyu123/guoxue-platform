@@ -2,16 +2,18 @@
 import { ref, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { mineProfile } from '@/lib/mine-data'
+import { mineApi } from '@/lib/mine-data'
 
 const step = ref(1)
-const currentPhone = mineProfile.phone
+const currentPhone = '138****8888'
+const currentPhoneFull = '13888888888'
 const verifyCode = ref('')
 const newPhone = ref('')
 const newCode = ref('')
 const countdown = ref(0)
 const newCountdown = ref(0)
 const loading = ref(false)
+const submitting = ref(false)
 const error = ref('')
 
 const steps = [
@@ -23,21 +25,39 @@ const steps = [
 let timer1: ReturnType<typeof setInterval> | null = null
 let timer2: ReturnType<typeof setInterval> | null = null
 
-function sendVerifyCode() {
-  if (countdown.value > 0) return
-  countdown.value = 60
-  timer1 = setInterval(() => {
-    countdown.value--
-    if (countdown.value <= 0 && timer1) clearInterval(timer1)
-  }, 1000)
+async function sendVerifyCode() {
+  if (countdown.value > 0 || loading.value) return
+  loading.value = true
+  error.value = ''
+  const res = await mineApi.sendSmsCode(currentPhoneFull, 'change_phone')
+  loading.value = false
+  if (res.success) {
+    uni.showToast({ title: '验证码已发送', icon: 'success', duration: 1500 })
+    countdown.value = 60
+    timer1 = setInterval(() => {
+      countdown.value--
+      if (countdown.value <= 0 && timer1) clearInterval(timer1)
+    }, 1000)
+  } else {
+    error.value = res.message || '发送失败'
+  }
 }
-function sendNewCode() {
-  if (newCountdown.value > 0 || newPhone.value.length !== 11) return
-  newCountdown.value = 60
-  timer2 = setInterval(() => {
-    newCountdown.value--
-    if (newCountdown.value <= 0 && timer2) clearInterval(timer2)
-  }, 1000)
+async function sendNewCode() {
+  if (newCountdown.value > 0 || newPhone.value.length !== 11 || loading.value) return
+  loading.value = true
+  error.value = ''
+  const res = await mineApi.sendSmsCode(newPhone.value, 'change_phone')
+  loading.value = false
+  if (res.success) {
+    uni.showToast({ title: '验证码已发送', icon: 'success', duration: 1500 })
+    newCountdown.value = 60
+    timer2 = setInterval(() => {
+      newCountdown.value--
+      if (newCountdown.value <= 0 && timer2) clearInterval(timer2)
+    }, 1000)
+  } else {
+    error.value = res.message || '发送失败'
+  }
 }
 function onVerifyInput(e: any) {
   verifyCode.value = e.detail.value.replace(/\D/g, '')
@@ -57,10 +77,7 @@ async function verifyCurrentPhone() {
     error.value = '请输入6位验证码'
     return
   }
-  loading.value = true
-  error.value = ''
-  await new Promise((r) => setTimeout(r, 1000))
-  loading.value = false
+  // 验证码由后端在下步 changePhone 时一并校验，此处仅做客户端长度校验后进入下一步
   step.value = 2
 }
 async function submitNewPhone() {
@@ -72,12 +89,24 @@ async function submitNewPhone() {
     error.value = '请输入6位验证码'
     return
   }
+  if (submitting.value) return
+  submitting.value = true
   loading.value = true
   error.value = ''
-  await new Promise((r) => setTimeout(r, 1500))
-  loading.value = false
-  step.value = 3
-  setTimeout(() => goBack(), 2000)
+  try {
+    const res = await mineApi.changePhone(currentPhone, verifyCode.value, newPhone.value, newCode.value)
+    if (res.success) {
+      step.value = 3
+      setTimeout(() => goBack(), 2000)
+    } else {
+      error.value = res.message || '更换失败'
+    }
+  } catch {
+    error.value = '网络异常，请重试'
+  } finally {
+    loading.value = false
+    submitting.value = false
+  }
 }
 function maskedNewPhone() {
   return newPhone.value.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')

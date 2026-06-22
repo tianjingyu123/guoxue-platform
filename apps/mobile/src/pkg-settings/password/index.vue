@@ -290,6 +290,7 @@ import { ref, computed } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { mineApi } from '@/lib/mine-data'
 
 const oldPassword = ref('')
 const newPassword = ref('')
@@ -330,14 +331,13 @@ async function handleSubmit() {
   if (!canSubmit.value) return
   oldPasswordError.value = ''
   isSubmitting.value = true
-  await new Promise((r) => setTimeout(r, 1200))
-  if (oldPassword.value !== '123456') {
-    oldPasswordError.value = '原密码错误'
-    isSubmitting.value = false
-    return
-  }
+  const res = await mineApi.changePassword(oldPassword.value, newPassword.value)
   isSubmitting.value = false
-  isSuccess.value = true
+  if (res.success) {
+    isSuccess.value = true
+  } else {
+    oldPasswordError.value = res.message || '修改失败'
+  }
 }
 function go(path: string) {
   navigateTo(path)

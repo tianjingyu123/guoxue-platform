@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { mineApi } from '@/lib/mine-data'
 
 type Step = 'enter_old' | 'enter_new' | 'confirm_new' | 'verify_phone' | 'done'
 
@@ -82,22 +83,36 @@ function handleForget() {
 async function advance() {
   error.value = ''
   loading.value = true
-  await new Promise((r) => setTimeout(r, 600))
-  loading.value = false
 
   if (step.value === 'enter_old') {
-    if (oldPin.value.length < 6) { error.value = '请输入完整的6位密码'; return }
-    if (oldPin.value !== '123456') { oldPin.value = ''; error.value = '密码错误，请重试'; return }
-    step.value = 'enter_new'
+    if (oldPin.value.length < 6) { error.value = '请输入完整的6位密码'; loading.value = false; return }
+    const res = await mineApi.verifyPayPassword(oldPin.value)
+    loading.value = false
+    if (res.success) {
+      step.value = 'enter_new'
+    } else {
+      oldPin.value = ''
+      error.value = res.message || '密码错误，请重试'
+    }
   } else if (step.value === 'enter_new') {
-    if (newPin.value.length < 6) { error.value = '请输入完整的6位新密码'; return }
+    if (newPin.value.length < 6) { error.value = '请输入完整的6位新密码'; loading.value = false; return }
+    loading.value = false
     step.value = 'confirm_new'
   } else if (step.value === 'confirm_new') {
-    if (confirmPin.value.length < 6) { error.value = '请输入完整的确认密码'; return }
-    if (confirmPin.value !== newPin.value) { confirmPin.value = ''; error.value = '两次密码不一致，请重新输入'; return }
-    step.value = 'done'
+    if (confirmPin.value.length < 6) { error.value = '请输入完整的确认密码'; loading.value = false; return }
+    if (confirmPin.value !== newPin.value) { confirmPin.value = ''; error.value = '两次密码不一致，请重新输入'; loading.value = false; return }
+    const res = mode === 'set'
+      ? await mineApi.setPayPassword(newPin.value, smsCode.value)
+      : await mineApi.updatePayPassword(oldPin.value, newPin.value)
+    loading.value = false
+    if (res.success) {
+      step.value = 'done'
+    } else {
+      error.value = res.message || '操作失败'
+    }
   } else if (step.value === 'verify_phone') {
-    if (smsCode.value.length < 6) { error.value = '请输入6位验证码'; return }
+    if (smsCode.value.length < 6) { error.value = '请输入6位验证码'; loading.value = false; return }
+    loading.value = false
     step.value = 'enter_new'
   }
 }

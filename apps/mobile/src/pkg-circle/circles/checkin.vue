@@ -611,6 +611,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
+import { mineApi } from '@/lib/mine-data'
 
 const activity = ref({
   id: '1', title: '《滴天髓》共读打卡', description: '每日阅读一章，记录心得体会，坚持21天养成阅读习惯',
@@ -693,12 +694,14 @@ function chooseImg() {
 }
 async function handleCheckin() {
   if (checkinContent.value.trim().length < 50) { uni.showToast({ title: '心得至少需要50字哦', icon: 'none' }); return }
+  if (isSubmitting.value) return
   isSubmitting.value = true
-  await new Promise((r) => setTimeout(r, 1500))
+  const res = await mineApi.checkin()
   isSubmitting.value = false
-  showCheckinModal.value = false
-  showSuccess.value = true
-  activity.value.hasCheckedToday = true
+  if (res.success) {
+    showCheckinModal.value = false
+    showSuccess.value = true
+    activity.value.hasCheckedToday = true
   activity.value.myStreak += 1
   activity.value.myTotalDays += 1
 }

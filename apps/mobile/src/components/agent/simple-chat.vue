@@ -6,7 +6,7 @@
 import { ref, nextTick } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { nowTime, type ChatMessage } from '@/lib/agent-data'
+import { nowTime, type ChatMessage, agentChatApi } from '@/lib/agent-data'
 
 const props = defineProps<{
   title: string
@@ -15,10 +15,12 @@ const props = defineProps<{
   iconBg: string
   welcome: string
   quickPrompts: string[]
-  /** 自定义回复解析；返回字符串 */
+  /** 自定义回复解析；返回字符串（botId 为空时的备用方案） */
   resolveReply: (text: string) => string
-  /** 回复延迟毫秒 */
+  /** 回复延迟毫秒（botId 为空时生效） */
   delay?: number
+  /** 智能体ID，传入后将使用真实API替代resolveReply */
+  botId?: string
 }>()
 
 const messages = ref<ChatMessage[]>([{ id: 0, role: 'assistant', content: props.welcome, time: nowTime() }])
@@ -38,9 +40,22 @@ async function send(text: string) {
   input.value = ''
   loading.value = true
   scrollToBottom()
-  await new Promise((r) => setTimeout(r, props.delay ?? 1000))
-  messages.value.push({ id: Date.now() + 1, role: 'assistant', content: props.resolveReply(t), time: nowTime() })
-  loading.value = false
+
+  if (props.botId) {
+    // 真实 API 调用
+    const res = await agentChatApi.send(props.botId, t)
+    loading.value = false
+    if (res.success && res.reply) {
+      messages.value.push({ id: Date.now() + 1, role: 'assistant', content: res.reply, time: nowTime() })
+    } else {
+      messages.value.push({ id: Date.now() + 1, role: 'assistant', content: res.message || '抱歉，回复出了点问题', time: nowTime() })
+    }
+  } else {
+    // 降级：使用 resolveReply 回调（mock 模式）
+    await new Promise((r) => setTimeout(r, props.delay ?? 1000))
+    messages.value.push({ id: Date.now() + 1, role: 'assistant', content: props.resolveReply(t), time: nowTime() })
+    loading.value = false
+  }
   scrollToBottom()
 }
 

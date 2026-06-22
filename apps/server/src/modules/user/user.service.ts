@@ -724,4 +724,32 @@ export class UserService {
       };
     });
   }
+
+  /** 解绑第三方账号，至少保留一种登录方式 */
+  async unbindAccount(userId: string, provider: string) {
+    const validProviders = ["wechat", "qq", "apple"];
+    const normalized = provider.toLowerCase();
+    if (!validProviders.includes(normalized)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `不支持的 provider: ${provider}`);
+    }
+
+    // 检查是否已绑定
+    const auths = await this.prisma.auth.findMany({
+      where: { userId },
+      select: { provider: true, id: true },
+    });
+    const targetAuth = auths.find(a => a.provider.toLowerCase() === normalized);
+    if (!targetAuth) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "该账号未绑定");
+    }
+
+    // 至少保留一种登录方式
+    if (auths.length <= 1) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "至少保留一种登录方式，无法解绑最后一个账号");
+    }
+
+    await this.prisma.auth.delete({ where: { id: targetAuth.id } });
+    this.logger.log(`用户 ${userId} 解绑了 ${provider} 账号`);
+    return { success: true, provider: normalized };
+  }
 }
