@@ -1,10 +1,14 @@
-import { Controller, Post, Get, Body, Param, Query, UseGuards } from "@nestjs/common";
+import { Controller, Post, Get, Body, Param, Query, UseGuards, Req } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { IdentityService } from "./identity.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { IdCardOcrDto, IdCardVerifyDto, FaceTokenDto, AuditIdentityDto } from "./identity.dto";
+
+interface AuthRequest extends Request {
+  user: { id: string; role: string };
+}
 
 @ApiTags("实名认证")
 @ApiBearerAuth()
@@ -17,24 +21,24 @@ export class IdentityController {
   @ApiOperation({ summary: "身份证OCR识别" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  ocr(@Body() body: IdCardOcrDto) {
-    return this.svc.idCardOcr(body);
+  ocr(@Req() req: AuthRequest, @Body() body: IdCardOcrDto) {
+    return this.svc.idCardOcr(req.user.id, body);
   }
 
   @Post("verify")
-  @ApiOperation({ summary: "身份证二要素核验（姓名+身份证号）" })
+  @ApiOperation({ summary: "身份证二要素核验（姓名+身份证号）— 仅限本人" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  verify(@Body() body: IdCardVerifyDto) {
-    return this.svc.idCardVerification(body.name, body.idCard);
+  verify(@Req() req: AuthRequest, @Body() body: IdCardVerifyDto) {
+    return this.svc.idCardVerification(req.user.id, body.name, body.idCard);
   }
 
   @Post("face/token")
   @ApiOperation({ summary: "获取人脸核身URL" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  faceToken(@Body() body: FaceTokenDto) {
-    return this.svc.getFaceIdToken(body.name, body.idCard, body.returnUrl);
+  faceToken(@Req() req: AuthRequest, @Body() body: FaceTokenDto) {
+    return this.svc.getFaceIdToken(req.user.id, body.name, body.idCard, body.returnUrl);
   }
 
   @Get("face/result/:token")

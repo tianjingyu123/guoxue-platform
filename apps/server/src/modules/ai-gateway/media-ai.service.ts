@@ -135,6 +135,8 @@ export class MediaAiService {
     }
 
     try {
+      // SSRF 防护：仅允许白名单域名
+      this.validateAudioUrl(params.audioUrl);
       // 下载音频文件
       const audioResp = await fetch(params.audioUrl);
       if (!audioResp.ok) throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `下载音频失败: ${audioResp.status}`);
@@ -180,6 +182,33 @@ export class MediaAiService {
   }
 
   /** AI 文本模拟转写（腾讯云未配置时使用） */
+  /** SSRF 防护：仅允许白名单域名的音频URL */
+  private validateAudioUrl(url: string) {
+    try {
+      const parsed = new URL(url);
+      const allowedHosts = [
+        "cos.ap-beijing.myqcloud.com",
+        "cos.ap-shanghai.myqcloud.com",
+        "cos.ap-guangzhou.myqcloud.com",
+        process.env.COS_DOMAIN,
+        process.env.CDN_DOMAIN,
+      ].filter(Boolean) as string[];
+
+      // 允许本地开发环境
+      if (process.env.NODE_ENV === "development" && (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")) {
+        return;
+      }
+
+      const isAllowed = allowedHosts.some((host) => parsed.hostname === host || parsed.hostname?.endsWith(`.${host}`));
+      if (!isAllowed) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的音频来源");
+      }
+    } catch (err) {
+      if (err instanceof BusinessException) throw err;
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的音频URL");
+    }
+  }
+
   private async transcribeFallback(params: { audioUrl: string; language?: string }) {
     const prompt = [
       "你是一个语音转文字助手。请根据提供的音频信息进行转写。",

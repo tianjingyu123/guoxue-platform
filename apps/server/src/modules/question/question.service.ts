@@ -16,7 +16,7 @@ export class QuestionService {
     private revenue: RevenueService,
   ) {}
 
-  /** 发起付费提问 */
+  /** 发起付费提问（扣币与建记录同一事务，防丢钱） */
   async ask(userId: string, dto: {
     circleId: string;
     answererId: string;
@@ -37,33 +37,36 @@ export class QuestionService {
     });
     if (!member) throw new BusinessException(ErrorCode.BAD_REQUEST, "回答者不在该圈子中");
 
-    await this.coin.spend(userId, {
-      amountCoin: dto.priceCoin,
-      scene: "PAID_QUESTION",
-      description: `向圈主/嘉宾付费提问`,
-    });
-
     const questionText = dto.questionTitle
       ? `【${dto.questionTitle}】${dto.question}`
       : dto.question;
 
-    return this.prisma.paidQuestion.create({
-      data: {
-        circleId: dto.circleId,
-        stationId: (dto as any).stationId || circle.stationId || null,
-        askerId: userId,
-        answererId: dto.answererId,
-        question: questionText,
-        images: dto.images || [],
-        priceCoin: dto.priceCoin,
-        peekPriceCoin: dto.peekPriceCoin || 0,
-        status: "PENDING",
-      },
-      include: {
-        asker: { select: { id: true, nickname: true, avatar: true } },
-        answerer: { select: { id: true, nickname: true, avatar: true } },
-        circle: { select: { id: true, name: true } },
-      },
+    // 扣币与创建问题在同一事务内，确保中间异常时币不会丢失
+    return this.prisma.$transaction(async (tx) => {
+      await this.coin.spend(userId, {
+        amountCoin: dto.priceCoin,
+        scene: "PAID_QUESTION",
+        description: `向圈主/嘉宾付费提问`,
+      }, tx);
+
+      return tx.paidQuestion.create({
+        data: {
+          circleId: dto.circleId,
+          stationId: (dto as any).stationId || circle.stationId || null,
+          askerId: userId,
+          answererId: dto.answererId,
+          question: questionText,
+          images: dto.images || [],
+          priceCoin: dto.priceCoin,
+          peekPriceCoin: dto.peekPriceCoin || 0,
+          status: "PENDING",
+        },
+        include: {
+          asker: { select: { id: true, nickname: true, avatar: true } },
+          answerer: { select: { id: true, nickname: true, avatar: true } },
+          circle: { select: { id: true, name: true } },
+        },
+      });
     });
   }
 
@@ -130,13 +133,20 @@ export class QuestionService {
       return question;
     }
 
+    // 扣币与围观计数在同一事务，防重复扣费
+    const checkPeeked = await this.prisma.virtualCoinTransaction.findFirst({
+      where: { userId, scene: "PEEK_ANSWER", refId: questionId },
+      select: { id: true },
+    });
+    if (checkPeeked) return question; // 已围观，直接返回
+
     await this.prisma.$transaction(async (tx) => {
       await this.coin.spend(userId, {
         amountCoin: question.peekPriceCoin,
         scene: "PEEK_ANSWER",
         refId: questionId,
         description: `围观答案`,
-      });
+      }, tx); // 传入外层 tx，避免嵌套事务
 
       await tx.paidQuestion.update({
         where: { id: questionId },

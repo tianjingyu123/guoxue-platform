@@ -510,7 +510,7 @@ ${chapterCtx}
 
   // ═══════════════════ 课程购买 ═══════════════════
 
-  /** 创建课程购买订单 */
+  /** 创建课程购买订单（Redis 锁防并发重复下单） */
   async purchase(userId: string, courseId: string, dto?: PurchaseCourseDto) {
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
@@ -521,31 +521,36 @@ ${chapterCtx}
     // 通过统一价格引擎计算实付价格（检查限时折扣）
     const pricing = await this.unifiedPricing.calculateTargetPrice(courseId, "COURSE", userId);
 
-    // 检查是否已购买（含有效期判断）
-    const existingOrder = await this.prisma.order.findFirst({
-      where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] } },
-      orderBy: { paidAt: "desc" },
-    });
-    if (existingOrder && existingOrder.paidAt) {
-      // 如果课程有有效期且未过期，禁止重复购买
-      if (course.validityDays > 0) {
-        const expiresAt = new Date(existingOrder.paidAt.getTime() + course.validityDays * 86400000);
-        if (expiresAt > new Date()) {
-          throw new BusinessException(ErrorCode.COURSE_ALREADY_ENROLLED, "该课程仍在有效期内，无需重复购买");
-        }
-      } else {
-        // 永久有效课程禁止重复购买
-        throw new BusinessException(ErrorCode.COURSE_ALREADY_ENROLLED, "已购买该课程");
-      }
+    // Redis 锁防并发：同一用户对同一课程只能有一个下单流程
+    const lockKey = `purchase:lock:${userId}:${courseId}`;
+    const locked = await this.redis.setNX(lockKey, "1", 10);
+    if (!locked) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "订单处理中，请稍后再试");
     }
 
-    // 检查是否有待支付订单
-    const pendingOrder = await this.prisma.order.findFirst({
-      where: { userId, type: "COURSE", targetId: courseId, status: "PENDING" },
-    });
-    if (pendingOrder) return pendingOrder;
-
     try {
+      // 锁内再次检查是否已购买（含有效期判断）
+      const existingOrder = await this.prisma.order.findFirst({
+        where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] } },
+        orderBy: { paidAt: "desc" },
+      });
+      if (existingOrder && existingOrder.paidAt) {
+        if (course.validityDays > 0) {
+          const expiresAt = new Date(existingOrder.paidAt.getTime() + course.validityDays * 86400000);
+          if (expiresAt > new Date()) {
+            throw new BusinessException(ErrorCode.COURSE_ALREADY_ENROLLED, "该课程仍在有效期内，无需重复购买");
+          }
+        } else {
+          throw new BusinessException(ErrorCode.COURSE_ALREADY_ENROLLED, "已购买该课程");
+        }
+      }
+
+      // 检查是否有待支付订单（复用）
+      const pendingOrder = await this.prisma.order.findFirst({
+        where: { userId, type: "COURSE", targetId: courseId, status: "PENDING" },
+      });
+      if (pendingOrder) return pendingOrder;
+
       const orderData: any = {
         userId,
         type: "COURSE",
@@ -562,15 +567,8 @@ ${chapterCtx}
       }
       const order = await this.prisma.order.create({ data: orderData });
       return order;
-    } catch (e: unknown) {
-      if (isUniqueConstraintError(e)) {
-        const existing = await this.prisma.order.findFirst({
-          where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PENDING", "PAID", "COMPLETED"] } },
-        });
-        if (existing) return existing;
-        throw e;
-      }
-      throw e;
+    } finally {
+      await this.redis.del(lockKey).catch(() => {});
     }
   }
 

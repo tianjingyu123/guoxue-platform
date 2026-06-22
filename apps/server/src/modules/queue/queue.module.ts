@@ -29,6 +29,8 @@ const queues = [
         url: redisUrl,
       },
       defaultJobOptions: {
+        attempts: 3, // 全局重试3次，避免瞬时故障进死信
+        backoff: { type: "exponential", delay: 2000 }, // 指数退避 2s→4s→8s
         removeOnComplete: { age: 3600 * 24 },
         removeOnFail: { age: 3600 * 24 * 7 },
       },

@@ -75,7 +75,8 @@ describe("QuestionService", () => {
       mockPrisma.paidQuestion.create.mockResolvedValue({ id: "q1", status: "PENDING" })
       const result = await svc.ask("u1", askDto)
       expect(result.status).toBe("PENDING")
-      expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ scene: "PAID_QUESTION" }))
+      // coin.spend 在事务内调用，传入了 tx 参数
+      expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ scene: "PAID_QUESTION" }), expect.any(Object))
     })
   })
 
@@ -133,9 +134,12 @@ describe("QuestionService", () => {
     it("付费围观成功", async () => {
       mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", status: "ANSWERED", peekPriceCoin: 10, askerId: "u1", answererId: "u2" })
       mockPrisma.paidQuestion.update.mockResolvedValue({})
+      // 新增的幂等检查：未围观过
+      mockPrisma.virtualCoinTransaction = { findFirst: jest.fn().mockResolvedValue(null) }
       const result = await svc.peek("u3", "q1")
       expect(result.id).toBe("q1")
-      expect(mockCoin.spend).toHaveBeenCalled()
+      // coin.spend 在事务内调用，传入了 tx 参数
+      expect(mockCoin.spend).toHaveBeenCalledWith("u3", expect.objectContaining({ scene: "PEEK_ANSWER" }), expect.any(Object))
     })
   })
 

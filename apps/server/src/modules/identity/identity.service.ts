@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
+import { RedisService } from "../../redis/redis.service";
 
 export interface AuditItem {
   id: string;
@@ -24,13 +25,30 @@ export class IdentityService {
   private readonly secretId: string;
   private readonly secretKey: string;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+  ) {
     this.secretId = process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || "";
     this.secretKey = process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || "";
 
     if (!this.secretId || !this.secretKey) {
       this.logger.warn("腾讯云密钥未配置，实名认证服务不可用");
     }
+  }
+
+  /**
+   * 每用户实名核验类操作的频率限制（24h 滚动窗口），防批量撞库 / 刷第三方费用。
+   * 注：RedisService 无 incr，用 get+set 固定窗口实现（配额无需强一致）。
+   */
+  private async assertDailyQuota(userId: string, action: string, limit: number) {
+    const key = `identity:quota:${action}:${userId}`;
+    const cur = Number((await this.redis.get(key)) || 0);
+    if (cur >= limit) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "今日实名核验次数过多，请明日再试");
+    }
+    const remain = cur === 0 ? 86400 : await this.redis.ttl(key);
+    await this.redis.set(key, String(cur + 1), remain > 0 ? remain : 86400);
   }
 
   /** TC3-HMAC-SHA256 通用签名调用 */
@@ -60,12 +78,13 @@ export class IdentityService {
 
   // ───────── 身份证OCR识别 ─────────
 
-  /** 身份证OCR正反面识别 */
-  async idCardOcr(params: {
+  /** 身份证OCR正反面识别（仅限本人使用，结果脱敏） */
+  async idCardOcr(userId: string, params: {
     imageBase64?: string;
     imageUrl?: string;
-    side: "FRONT" | "BACK"; // FRONT=正面(人像), BACK=反面(国徽)
+    side: "FRONT" | "BACK";
   }) {
+    await this.assertDailyQuota(userId, "ocr", 5); // 收紧：20→5次/天
     const body: Record<string, unknown> = {
       Config: JSON.stringify({ CropIdCard: true, CropPortrait: true, CopyWarn: true, BorderCheckWarn: true }),
     };
@@ -82,23 +101,66 @@ export class IdentityService {
 
     const result = await this.callApi("ocr", "IDCardOCR", body);
 
+    // 审计日志：记录OCR操作
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        action: "IDENTITY_OCR",
+        targetType: "USER",
+        targetId: userId,
+        detail: `OCR识别完成，side=${params.side}`,
+      },
+    }).catch((e) => this.logger.warn("OCR审计日志记录失败", e));
+
+    // 返回脱敏后的信息
+    const rawIdNum = result.IdNum as string || "";
+    const rawAddress = result.Address as string || "";
     return {
       name: result.Name,
       sex: result.Sex,
       nation: result.Nation,
       birth: result.Birth,
-      address: result.Address,
-      idNum: result.IdNum,
-      authority: result.Authority,    // 签发机关(反面)
-      validDate: result.ValidDate,    // 有效期限(反面)
+      address: this.maskAddress(rawAddress),      // 脱敏：只保留省市
+      idNum: this.maskIdNum(rawIdNum),            // 脱敏：只保留前3后4
+      authority: result.Authority,
+      validDate: result.ValidDate,
       advancedInfo: result.AdvancedInfo,
     };
   }
 
+  /** 身份证号脱敏：前3后4可见，其余用*替换 */
+  private maskIdNum(idNum: string): string {
+    if (!idNum || idNum.length < 8) return idNum;
+    return idNum.slice(0, 3) + "*".repeat(idNum.length - 7) + idNum.slice(-4);
+  }
+
+  /** 地址脱敏：只保留省市区信息 */
+  private maskAddress(address: string): string {
+    if (!address) return address;
+    // 取前6个字符（省市区），其余隐藏
+    if (address.length <= 6) return address;
+    return address.slice(0, 6) + "***";
+  }
+
   // ───────── 身份证二要素核验 ─────────
 
-  /** 身份证二要素核验（姓名 + 身份证号）*/
-  async idCardVerification(name: string, idCard: string) {
+  /** 身份证二要素核验（姓名 + 身份证号）— 仅限本人，绑定账户 */
+  async idCardVerification(userId: string, name: string, idCard: string) {
+    await this.assertDailyQuota(userId, "verify", 3); // 收紧：10→3次/天，防撞库
+
+    // 如果该用户已通过核验，禁止再次核验（防撞库预言机）
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { identityVerified: true },
+    });
+    if (user?.identityVerified) {
+      // 已核验用户不得再次核验，除非走人工申诉
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        "您已完成实名认证，如需更换身份信息请联系客服",
+      );
+    }
+
     const result = await this.callApi(
       "faceid",
       "CheckIdCardInformation",
@@ -108,6 +170,29 @@ export class IdentityService {
 
     // Result: 0=认证通过, -1=认证未通过, -2=身份证号非法, -3=姓名非法
     const passed = result.Result === "0";
+
+    // 审计日志：记录所有核验尝试
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        action: "IDENTITY_VERIFY",
+        targetType: "USER",
+        targetId: userId,
+        detail: `二要素核验${passed ? "通过" : "未通过"}，result=${result.Result}`,
+      },
+    }).catch((e) => this.logger.warn("核验审计日志记录失败", e));
+
+    // 核验通过后，标记用户已完成实名认证
+    if (passed) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          identityVerified: true,
+          identityVerifiedAt: new Date(),
+        },
+      });
+    }
+
     return {
       passed,
       result: result.Result,
@@ -118,7 +203,8 @@ export class IdentityService {
   // ───────── 人脸核身 ─────────
 
   /** 获取人脸核身URL（活体检测 + 身份证比对）*/
-  async getFaceIdToken(name: string, idCard: string, returnUrl?: string) {
+  async getFaceIdToken(userId: string, name: string, idCard: string, returnUrl?: string) {
+    await this.assertDailyQuota(userId, "face", 3); // 收紧：10→3次/天
     const result = await this.callApi(
       "faceid",
       "GetDetectInfoEnhanced",

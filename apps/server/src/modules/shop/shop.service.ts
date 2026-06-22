@@ -812,6 +812,7 @@ export class ShopService {
 
   /**
    * 校验退款金额：必须 > 0 且不超过订单实付金额。
+   * 同时检查订单未被全额退款过。
    * outTradeNo 即创建支付时写入的 order.payTransactionId（唯一）。
    */
   private async assertRefundAmountValid(outTradeNo: string, refundRmb: number) {
@@ -821,6 +822,9 @@ export class ShopService {
     const order = await this.prisma.order.findUnique({ where: { payTransactionId: outTradeNo } });
     if (!order) {
       throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "未找到对应订单，无法退款");
+    }
+    if (order.status === "REFUNDED") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单已全额退款，不可重复退款");
     }
     const paid = Number(order.payAmount ?? order.amount);
     if (refundRmb > paid + 1e-6) {

@@ -1,9 +1,20 @@
 import { Test } from "@nestjs/testing";
 import { CheckinService } from "./checkin.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PointsService } from "../user/points.service";
 import { BusinessException } from "../../common/business.exception";
 
+const mockTx = {
+  checkIn: {
+    create: jest.fn(),
+  },
+  dailyTask: {
+    upsert: jest.fn(),
+  },
+};
+
 const mockPrisma = {
+  $transaction: jest.fn((arg: any) => (typeof arg === "function" ? arg(mockTx) : arg)),
   checkIn: {
     findUnique: jest.fn(),
     findMany: jest.fn(),
@@ -18,6 +29,10 @@ const mockPrisma = {
   },
 };
 
+const mockPoints = {
+  earnPoints: jest.fn().mockResolvedValue({ balance: 5 }),
+};
+
 describe("CheckinService", () => {
   let svc: CheckinService;
 
@@ -26,6 +41,7 @@ describe("CheckinService", () => {
       providers: [
         CheckinService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: PointsService, useValue: mockPoints },
       ],
     }).compile();
     svc = mod.get(CheckinService);
@@ -38,66 +54,66 @@ describe("CheckinService", () => {
       mockPrisma.checkIn.findUnique
         .mockResolvedValueOnce(null) // 今天未签到
         .mockResolvedValueOnce(null); // 昨天也没签到
-      mockPrisma.checkIn.create.mockResolvedValue({ consecutiveDays: 1, rewardPoints: 5 });
-      mockPrisma.dailyTask.upsert.mockResolvedValue({});
 
       const result = await svc.checkIn("u1");
       expect(result.consecutiveDays).toBe(1);
       expect(result.rewardPoints).toBe(5);
-      expect(mockPrisma.checkIn.create).toHaveBeenCalledWith({
+      // 事务内创建签到记录
+      expect(mockTx.checkIn.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ userId: "u1", consecutiveDays: 1, rewardPoints: 5 }),
       });
+      // 积分入账
+      expect(mockPoints.earnPoints).toHaveBeenCalledWith("u1", 5, "CHECKIN", expect.any(String));
     });
 
     it("连续签到3天，奖励额外3积分", async () => {
       mockPrisma.checkIn.findUnique
         .mockResolvedValueOnce(null) // 今天未签到
         .mockResolvedValueOnce({ consecutiveDays: 2 }); // 昨天已签到2天
-      mockPrisma.checkIn.create.mockResolvedValue({ consecutiveDays: 3, rewardPoints: 5 });
-      mockPrisma.dailyTask.upsert.mockResolvedValue({});
 
       await svc.checkIn("u1");
       // consecutiveDays = 3, rewardPoints = 5 + floor((3-1)/3)*3 = 5 + 0*3 = 5
-      // Wait: (3-1)/3 = 0.66, floor = 0, so 5+0=5. At day 4: (4-1)/3 = 1, so 5+3=8
-      expect(mockPrisma.checkIn.create).toHaveBeenCalledWith({
+      expect(mockTx.checkIn.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ consecutiveDays: 3, rewardPoints: 5 }),
       });
+      expect(mockPoints.earnPoints).toHaveBeenCalledWith("u1", 5, "CHECKIN", expect.any(String));
     });
 
     it("连续签到4天，奖励8积分", async () => {
       mockPrisma.checkIn.findUnique
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ consecutiveDays: 3 });
-      mockPrisma.checkIn.create.mockResolvedValue({ consecutiveDays: 4, rewardPoints: 8 });
-      mockPrisma.dailyTask.upsert.mockResolvedValue({});
 
       await svc.checkIn("u1");
       // consecutiveDays = 4, rewardPoints = 5 + floor((4-1)/3)*3 = 5 + 1*3 = 8
-      expect(mockPrisma.checkIn.create).toHaveBeenCalledWith({
+      expect(mockTx.checkIn.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ consecutiveDays: 4, rewardPoints: 8 }),
       });
+      expect(mockPoints.earnPoints).toHaveBeenCalledWith("u1", 8, "CHECKIN", expect.any(String));
     });
 
     it("重复签到抛出异常", async () => {
       mockPrisma.checkIn.findUnique.mockResolvedValueOnce({ id: "existing" });
 
       await expect(svc.checkIn("u1")).rejects.toThrow(BusinessException);
-      expect(mockPrisma.checkIn.create).not.toHaveBeenCalled();
+      expect(mockTx.checkIn.create).not.toHaveBeenCalled();
+      expect(mockPoints.earnPoints).not.toHaveBeenCalled();
     });
 
     it("签到同步更新每日任务", async () => {
       mockPrisma.checkIn.findUnique
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(null);
-      mockPrisma.checkIn.create.mockResolvedValue({ consecutiveDays: 1, rewardPoints: 5 });
-      mockPrisma.dailyTask.upsert.mockResolvedValue({});
 
       await svc.checkIn("u1");
-      expect(mockPrisma.dailyTask.upsert).toHaveBeenCalledWith(
+      // 事务内同步更新每日任务
+      expect(mockTx.dailyTask.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           create: expect.objectContaining({ taskType: "checkin", completed: true }),
         }),
       );
+      // 积分入账
+      expect(mockPoints.earnPoints).toHaveBeenCalledWith("u1", 5, "CHECKIN", expect.any(String));
     });
   });
 

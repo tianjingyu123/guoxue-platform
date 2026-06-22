@@ -30,25 +30,27 @@ describe("IdentityController", () => {
 
   beforeEach(() => { jest.clearAllMocks(); });
 
+  const mockReq = { user: { id: "u1", role: "USER" } } as any;
+
   it("POST /identity/ocr — 身份证OCR", async () => {
     const body: any = { idCardFrontUrl: "https://...front.jpg" };
-    const result: any = await ctrl.ocr(body);
+    const result: any = await ctrl.ocr(mockReq, body);
     expect(result.name).toBe("张三");
-    expect(mockIdentitySvc.idCardOcr).toHaveBeenCalledWith(body);
+    expect(mockIdentitySvc.idCardOcr).toHaveBeenCalledWith("u1", body);
   });
 
   it("POST /identity/verify — 二要素核验", async () => {
     const body = { name: "张三", idCard: "110101199001011234" };
-    const result: any = await ctrl.verify(body);
+    const result: any = await ctrl.verify(mockReq, body);
     expect(result.valid).toBe(true);
-    expect(mockIdentitySvc.idCardVerification).toHaveBeenCalledWith("张三", "110101199001011234");
+    expect(mockIdentitySvc.idCardVerification).toHaveBeenCalledWith("u1", "张三", "110101199001011234");
   });
 
   it("POST /identity/face/token — 人脸核身URL", async () => {
     const body = { name: "张三", idCard: "110101...", returnUrl: "https://..." };
-    const result: any = await ctrl.faceToken(body);
+    const result: any = await ctrl.faceToken(mockReq, body);
     expect(result.token).toBe("tk123");
-    expect(mockIdentitySvc.getFaceIdToken).toHaveBeenCalledWith("张三", "110101...", "https://...");
+    expect(mockIdentitySvc.getFaceIdToken).toHaveBeenCalledWith("u1", "张三", "110101...", "https://...");
   });
 
   it("GET /identity/face/result/:token — 人脸核身结果", async () => {

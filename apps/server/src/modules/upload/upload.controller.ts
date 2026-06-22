@@ -27,8 +27,9 @@ export class UploadController {
       storage: memoryStorage(),
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith("image/")) {
-          cb(new BadRequestException("仅支持图片文件"), false);
+        // 禁止 SVG（可含XSS）和 HTML 伪装成图片
+        if (!file.mimetype.startsWith("image/") || file.mimetype.includes("svg")) {
+          cb(new BadRequestException("仅支持图片文件（JPEG/PNG/GIF/WebP）"), false);
         } else {
           cb(null, true);
         }
@@ -51,8 +52,9 @@ export class UploadController {
       storage: memoryStorage(),
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith("image/")) {
-          cb(new BadRequestException("仅支持图片文件"), false);
+        // 禁止 SVG（可含XSS）和 HTML 伪装成图片
+        if (!file.mimetype.startsWith("image/") || file.mimetype.includes("svg")) {
+          cb(new BadRequestException("仅支持图片文件（JPEG/PNG/GIF/WebP）"), false);
         } else {
           cb(null, true);
         }

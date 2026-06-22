@@ -15,6 +15,7 @@ describe("BountyService", () => {
         updateMany: jest.fn(),
         count: jest.fn(),
       },
+      $transaction: jest.fn((arg: any) => typeof arg === "function" ? arg(prisma) : Promise.all(arg)),
     };
 
     // BountyService 中 CoinService 是 @Optional forwardRef，直接 new 绕过 DI 解析

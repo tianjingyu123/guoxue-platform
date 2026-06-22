@@ -2,13 +2,17 @@ import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PointsService } from "../user/points.service";
 import { CheckInCalendarQueryDto } from "./checkin.dto";
 
 @Injectable()
 export class CheckinService {
   private readonly logger = new Logger(CheckinService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private pointsService: PointsService,
+  ) {}
 
   /** 每日签到 */
   async checkIn(userId: string) {
@@ -31,20 +35,25 @@ export class CheckinService {
     // 积分规则：基础5分 + 连续签到额外（每连续3天+3分）
     const rewardPoints = 5 + Math.floor((consecutiveDays - 1) / 3) * 3;
 
-    await this.prisma.checkIn.create({
-      data: { userId, checkInDate: today, consecutiveDays, rewardPoints },
+    // 事务内：创建签到记录 + 积分入账 + 每日任务，保证一致性
+    await this.prisma.$transaction(async (tx) => {
+      await tx.checkIn.create({
+        data: { userId, checkInDate: today, consecutiveDays, rewardPoints },
+      });
+
+      await tx.dailyTask.upsert({
+        where: { userId_taskType_taskDate: { userId, taskType: "checkin", taskDate: today } },
+        create: {
+          userId, taskType: "checkin", taskDate: today,
+          title: "每日签到", rewardPoints,
+          doneCount: 1, completed: true, completedAt: new Date(),
+        },
+        update: { doneCount: 1, completed: true, completedAt: new Date() },
+      });
     });
 
-    // 同步更新每日任务中的签到任务
-    await this.prisma.dailyTask.upsert({
-      where: { userId_taskType_taskDate: { userId, taskType: "checkin", taskDate: today } },
-      create: {
-        userId, taskType: "checkin", taskDate: today,
-        title: "每日签到", rewardPoints,
-        doneCount: 1, completed: true, completedAt: new Date(),
-      },
-      update: { doneCount: 1, completed: true, completedAt: new Date() },
-    });
+    // 积分真正入账（PointsService 内部有独立的 upsert + 流水记录）
+    await this.pointsService.earnPoints(userId, rewardPoints, "CHECKIN", `连续签到第${consecutiveDays}天`);
 
     return { consecutiveDays, rewardPoints, date: today };
   }

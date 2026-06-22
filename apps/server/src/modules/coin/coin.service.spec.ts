@@ -58,6 +58,10 @@ const mockPrisma: any = {
           findMany: mockPrisma.virtualCoinRecharge.findMany,
           count: mockPrisma.virtualCoinRecharge.count,
         },
+        giftRecord: {
+          create: mockPrisma.giftRecord.create,
+          findMany: mockPrisma.giftRecord.findMany,
+        },
       };
       return arg(tx);
     }

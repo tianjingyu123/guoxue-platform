@@ -1,10 +1,17 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { PaymentPasswordService } from "./payment-password.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import * as bcrypt from "bcryptjs";
 
 const mockPrisma = {
   user: { findUnique: jest.fn(), update: jest.fn() },
+};
+
+const mockRedis = {
+  get: jest.fn().mockResolvedValue(null),
+  set: jest.fn().mockResolvedValue("OK"),
+  del: jest.fn().mockResolvedValue(1),
 };
 
 describe("PaymentPasswordService", () => {
@@ -15,6 +22,7 @@ describe("PaymentPasswordService", () => {
       providers: [
         PaymentPasswordService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: mockRedis },
       ],
     }).compile();
     svc = mod.get(PaymentPasswordService);
@@ -87,14 +95,14 @@ describe("PaymentPasswordService", () => {
   });
 
   describe("resetPassword", () => {
-    it("成功重置密码", async () => {
+    it("成功重置密码（smsCode 已由 controller 预先校验）", async () => {
       mockPrisma.user.update.mockResolvedValue({});
-      const result = await svc.resetPassword("u1", "654321", "9999");
+      const result = await svc.resetPassword("u1", "654321", "123456");
       expect(result).toEqual({ ok: true });
     });
 
     it("空短信验证码应抛出异常", async () => {
-      await expect(svc.resetPassword("u1", "654321", "")).rejects.toThrow("短信验证码不能为空");
+      await expect(svc.resetPassword("u1", "654321", "")).rejects.toThrow("短信验证码未校验");
     });
   });
 });

@@ -351,6 +351,63 @@ export class RedisService implements OnModuleDestroy {
     return Array.from(allKeys).filter((k) => regex.test(k));
   }
 
+  /**
+   * 缓存读取 + 防击穿锁（Cache-Aside with Mutex）。
+   *
+   * 先查缓存，命中直接返回；未命中时获取互斥锁，仅一个请求穿透到 DB/外部服务，
+   * 其余请求等待并重试读取缓存。防止缓存失效瞬间大量请求压垮数据库。
+   *
+   * @param key       缓存键
+   * @param ttlSeconds 缓存 TTL（秒）
+   * @param factory   缓存未命中时的数据生成函数（DB查询/API调用等）
+   * @param lockTtlSeconds 互斥锁 TTL（默认 10 秒），防止死锁
+   */
+  async getOrSet<T>(
+    key: string,
+    ttlSeconds: number,
+    factory: () => Promise<T>,
+    lockTtlSeconds = 10,
+  ): Promise<T> {
+    // 1. 先查缓存
+    const cached = await this.getJson<T>(key);
+    if (cached !== null) return cached;
+
+    // 2. 尝试获取互斥锁
+    const lockKey = `mutex:${key}`;
+    const lockId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const locked = await this.setNX(lockKey, lockId, lockTtlSeconds);
+
+    if (locked) {
+      try {
+        // 3. 双检：获取锁后再次检查缓存（可能其他请求已刷新）
+        const recheck = await this.getJson<T>(key);
+        if (recheck !== null) return recheck;
+
+        // 4. 唯一穿透：调用 factory 获取数据
+        const data = await factory();
+        await this.setJson(key, data, ttlSeconds);
+        return data;
+      } finally {
+        // 5. 释放锁（仅删除自己持有的锁，防误删）
+        const currentLock = await this.get(lockKey);
+        if (currentLock === lockId) await this.del(lockKey);
+      }
+    }
+
+    // 6. 未获取到锁：等待后重试读缓存（最多等 lockTtlSeconds）
+    const maxRetries = Math.ceil(lockTtlSeconds * 2);
+    for (let i = 0; i < maxRetries; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      const retry = await this.getJson<T>(key);
+      if (retry !== null) return retry;
+    }
+
+    // 7. 最终降级：直接调用 factory（锁可能已过期，避免无限等待）
+    const data = await factory();
+    await this.setJson(key, data, ttlSeconds);
+    return data;
+  }
+
   /** 获取原始 ioredis 客户端（用于 pipeline 等高级操作），不可用时返回 null */
   getClient(): Redis | null {
     if (this.connected && this.client) return this.client;

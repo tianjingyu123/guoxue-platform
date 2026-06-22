@@ -470,19 +470,31 @@ export class CircleService {
       throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已是圈子成员");
     }
 
-    // 虚拟币支付：扣币（使用统一价格）
+    // 计算到期时间
+    let expireAt: Date | null = null;
+    if (circle.type === "YEARLY") {
+      expireAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    }
+
+    let member: any;
+
+    // 虚拟币支付：扣币与建成员关系在同一事务内，防止钱货两空
     if (dto.payMethod === "COIN") {
       const coinPricing = await this.unifiedPricing.calculateTargetPrice(circleId, "CIRCLE", userId);
       const priceYuan = coinPricing.effectivePrice;
       const coinNeeded = Math.ceil(priceYuan * 10);
-      if (this.coinService) {
-        await this.coinService.spend(userId, {
+      if (!this.coinService) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付服务暂不可用");
+
+      member = await this.prisma.$transaction(async (tx) => {
+        await this.coinService!.spend(userId, {
           amountCoin: coinNeeded,
           scene: "CIRCLE_JOIN",
           refId: circleId,
           description: `加入圈子: ${circle.name}`,
-        });
-      }
+        }, tx);
+
+        return this.createMembershipTx(circleId, userId, expireAt, dto.referrerId, tx);
+      });
     } else if (dto.orderNo || dto.orderId) {
       // 外部支付：校验订单状态
       const order = await this.prisma.order.findFirst({
@@ -499,17 +511,18 @@ export class CircleService {
       if (!order || order.status !== "PAID") {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "订单未支付或不存在");
       }
+      member = await this.createMembership(circleId, userId, expireAt, dto.referrerId);
+    } else {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供支付方式或订单号");
     }
 
-    // 计算到期时间
-    let expireAt: Date | null = null;
-    if (circle.type === "YEARLY") {
-      expireAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-    }
+    // 缓存清理（事务外操作）
+    await Promise.all([
+      this.redis.del(`circles:member:${circleId}:${userId}`),
+      this.redis.del(`circles:detail:${circleId}`),
+    ]);
 
-    const member = await this.createMembership(circleId, userId, expireAt, dto.referrerId);
-
-    // 记录圈子收益
+    // 记录圈子收益（fire-and-forget，不影响主流程）
     const priceYuan = Number(circle.price);
     if (priceYuan > 0 && this.commissionService) {
       this.commissionService.recordCircleRevenue(circleId, "circle_join", member.id, priceYuan).catch(
@@ -555,12 +568,6 @@ export class CircleService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "续费仅支持虚拟币支付");
     }
     if (!this.coinService) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付服务暂不可用");
-    await this.coinService.spend(userId, {
-      amountCoin: coinNeeded,
-      scene: "CIRCLE_RENEW",
-      refId: circleId,
-      description: `续费圈子: ${circle.name}`,
-    });
 
     // 延长到期时间：从当前到期时间或现在开始 +365天
     const baseDate = member.expireAt && new Date(member.expireAt) > new Date()
@@ -568,9 +575,19 @@ export class CircleService {
       : new Date();
     const newExpireAt = new Date(baseDate.getTime() + 365 * 24 * 60 * 60 * 1000);
 
-    const updated = await this.prisma.circleMember.update({
-      where: { circleId_userId: { circleId, userId } },
-      data: { expireAt: newExpireAt },
+    // 扣币与续费在同一事务，防止钱已扣但未延期
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await this.coinService!.spend(userId, {
+        amountCoin: coinNeeded,
+        scene: "CIRCLE_RENEW",
+        refId: circleId,
+        description: `续费圈子: ${circle.name}`,
+      }, tx);
+
+      return tx.circleMember.update({
+        where: { circleId_userId: { circleId, userId } },
+        data: { expireAt: newExpireAt },
+      });
     });
 
     // 记录续费收益
@@ -727,6 +744,32 @@ export class CircleService {
     }
 
     return member;
+  }
+
+  /**
+   * 事务内创建成员关系（供 confirmJoin 等需要与扣币同事务的场景使用）。
+   * Redis 缓存清理在外部调用方处理。
+   */
+  private async createMembershipTx(
+    circleId: string,
+    userId: string,
+    expireAt: Date | null,
+    referrerId: string | undefined,
+    tx: Prisma.TransactionClient,
+  ) {
+    try {
+      const member = await tx.circleMember.create({
+        data: { circleId, userId, role: "MEMBER", expireAt },
+      });
+      await tx.circle.update({
+        where: { id: circleId },
+        data: { memberCount: { increment: 1 } },
+      });
+      return member;
+    } catch (e: unknown) {
+      if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已加入该圈子");
+      throw e;
+    }
   }
 
   async leave(circleId: string, userId: string) {

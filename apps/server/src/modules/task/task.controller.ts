@@ -42,11 +42,13 @@ export class TaskController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "创建任务" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "创建任务（仅管理员）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async create(@Body() dto: CreateTaskDto) {
     return this.taskService.create(dto);
@@ -64,8 +66,9 @@ export class TaskController {
   }
 
   @Put(":id")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "更新任务状态" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "更新任务状态（仅管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
@@ -81,8 +84,9 @@ export class TaskController {
   }
 
   @Post(":id/claim")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "认领任务" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "认领任务（仅管理员）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -95,8 +99,9 @@ export class TaskController {
   }
 
   @Post(":id/transfer")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "转交任务" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "转交任务（仅管理员）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })

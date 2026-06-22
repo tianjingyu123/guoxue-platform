@@ -28,6 +28,7 @@ describe("CallService", () => {
         count: jest.fn(),
       },
       audioCallBilling: { create: jest.fn() },
+      $transaction: jest.fn((arg: any) => typeof arg === "function" ? arg(prisma) : Promise.all(arg)),
     };
     coin = {
       getBalance: jest.fn().mockResolvedValue({ balance: 500, frozen: 0 }),

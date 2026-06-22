@@ -119,18 +119,18 @@ describe("FinanceController", () => {
   });
 
   it("PUT /finance/withdrawals/:id/approve — 批准提现", async () => {
-    const result = await ctrl.approveWithdrawal("w1", {}, mockReq());
-    expect(result.status).toBe("APPROVED");
+    const result: any = await ctrl.approveWithdrawal("w1", {} as any, mockReq());
+    expect(result!.status).toBe("APPROVED");
   });
 
   it("PUT /finance/withdrawals/:id/reject — 驳回提现", async () => {
-    const result = await ctrl.rejectWithdrawal("w1", { reviewNote: "资料不全" }, mockReq());
-    expect(result.status).toBe("REJECTED");
+    const result: any = await ctrl.rejectWithdrawal("w1", { reviewNote: "资料不全" } as any, mockReq());
+    expect(result!.status).toBe("REJECTED");
   });
 
   it("POST /finance/withdrawals/:id/pay — 确认打款", async () => {
-    const result = await ctrl.confirmWithdrawalPay("w1");
-    expect(result.status).toBe("PAID");
+    const result: any = await ctrl.confirmWithdrawalPay("w1");
+    expect(result!.status).toBe("PAID");
   });
 
   // ─── 冻结/解冻 ───

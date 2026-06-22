@@ -146,9 +146,17 @@ export class SmsService {
     }
   }
 
-  /** 验证短信验证码 */
+  /** 验证短信验证码（含爆破防护：5次失败后锁定30分钟） */
   async verifyCode(phone: string, code: string, scene: string = "LOGIN"): Promise<boolean> {
     const codeKey = `sms:code:${scene}:${phone}`;
+    const failKey = `sms:fail:${scene}:${phone}`;
+
+    // 检查是否已被锁定
+    const failCount = parseInt(await this.redis.get(failKey) || "0", 10);
+    if (failCount >= 5) {
+      throw new BusinessException(ErrorCode.AUTH_SMS_CODE_INVALID, "验证码错误次数过多，请30分钟后再试");
+    }
+
     const storedCode = await this.redis.get(codeKey);
 
     if (!storedCode) {
@@ -156,11 +164,17 @@ export class SmsService {
     }
 
     if (storedCode !== code) {
+      // 验证失败：递增失败计数并消耗本次验证码
+      await this.redis.set(failKey, String(failCount + 1), 1800); // 30分钟锁定
+      await this.redis.del(codeKey); // 消耗验证码，防止继续爆破
       throw new BusinessException(ErrorCode.AUTH_SMS_CODE_INVALID, "验证码错误");
     }
 
-    // 验证成功后删除验证码，防止重复使用
-    await this.redis.del(codeKey);
+    // 验证成功：清除验证码和失败计数
+    await Promise.all([
+      this.redis.del(codeKey),
+      this.redis.del(failKey),
+    ]);
 
     return true;
   }

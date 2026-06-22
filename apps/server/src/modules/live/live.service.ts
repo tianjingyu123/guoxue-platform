@@ -586,28 +586,31 @@ export class LiveService {
 
     const totalCoin = gift.priceCoin * quantity;
 
-    if (this.coin) {
-      await this.coin.spend(userId, {
-        amountCoin: totalCoin,
-        scene: "LIVE_GIFT",
-        refId: giftId,
-        description: `在直播间 ${room.title} 送出 ${gift.name} x${quantity}`,
-      });
-    }
+    // 扣币与打赏记录在同一事务
+    const record = await this.prisma.$transaction(async (tx) => {
+      if (this.coin) {
+        await this.coin.spend(userId, {
+          amountCoin: totalCoin,
+          scene: "LIVE_GIFT",
+          refId: giftId,
+          description: `在直播间 ${room.title} 送出 ${gift.name} x${quantity}`,
+        }, tx);
+      }
 
-    const record = await this.prisma.giftRecord.create({
-      data: {
-        userId,
-        liveRoomId: roomId,
-        toUserId: room.hostUserId,
-        giftId,
-        quantity,
-        totalCoin,
-      },
-      include: {
-        user: { select: { id: true, nickname: true, avatar: true } },
-        gift: { select: { id: true, name: true, icon: true, level: true } },
-      },
+      return tx.giftRecord.create({
+        data: {
+          userId,
+          liveRoomId: roomId,
+          toUserId: room.hostUserId,
+          giftId,
+          quantity,
+          totalCoin,
+        },
+        include: {
+          user: { select: { id: true, nickname: true, avatar: true } },
+          gift: { select: { id: true, name: true, icon: true, level: true } },
+        },
+      });
     });
 
     return record;

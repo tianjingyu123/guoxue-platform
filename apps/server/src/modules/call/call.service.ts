@@ -140,41 +140,49 @@ export class CallService {
     const now = new Date();
     let durationSeconds = 0;
     let totalCoin = 0;
+    let updated = call; // 默认返回原始记录
 
     if (call.status === "IN_PROGRESS" && call.startedAt) {
       durationSeconds = Math.ceil((now.getTime() - call.startedAt.getTime()) / 1000);
-      // 不足1分钟按1分钟计
       const minutes = Math.ceil(durationSeconds / 60);
       totalCoin = minutes * call.pricePerMinuteCoin;
 
-      // 最后一分钟扣费
-      await this.coin.spend(call.callerId, {
-        amountCoin: totalCoin - call.totalCoin,
-        scene: "AUDIO_CALL",
-        refId: callId,
-        description: `连麦通话结束结算（${minutes}分钟）`,
+      // 扣币与记录更新在同一事务
+      updated = await this.prisma.$transaction(async (tx) => {
+        await this.coin.spend(call.callerId, {
+          amountCoin: totalCoin - call.totalCoin,
+          scene: "AUDIO_CALL",
+          refId: callId,
+          description: `连麦通话结束结算（${minutes}分钟）`,
+        }, tx);
+
+        return tx.audioCallRecord.update({
+          where: { id: callId },
+          data: {
+            status: "COMPLETED",
+            durationSeconds,
+            totalCoin: totalCoin > 0 ? totalCoin : call.totalCoin,
+            endedAt: now,
+          },
+        });
       });
 
-      // 收益分佣
+      // 收益分佣（事务外，fire-and-forget）
       this.revenue.record({
         userId: call.calleeId,
         scene: "AUDIO_CALL",
         refId: callId,
         amountCoin: totalCoin,
-      }).catch((err) => this.logger.warn("通话回调处理失败", err));
+      }).catch((err) => this.logger.warn("通话收益记录失败", err));
+    } else {
+      // WAITING 状态：未正式开始就挂断，直接标记结束
+      updated = await this.prisma.audioCallRecord.update({
+        where: { id: callId },
+        data: { status: "COMPLETED", endedAt: now },
+      });
     }
 
-    const updated = await this.prisma.audioCallRecord.update({
-      where: { id: callId },
-      data: {
-        status: "COMPLETED",
-        durationSeconds,
-        totalCoin: totalCoin > 0 ? totalCoin : call.totalCoin,
-        endedAt: now,
-      },
-    });
-
-    // 推送挂断通知
+    // 推送挂断通知（事务外，非关键）
     this.wsGateway.sendToUser(call.callerId, "call_ended", { callId, durationSeconds, totalCoin });
     this.wsGateway.sendToUser(call.calleeId, "call_ended", { callId, durationSeconds, totalCoin });
 
@@ -240,29 +248,29 @@ export class CallService {
           });
         }
 
-        // 扣除当前分钟费用
-        const updated = await this.coin.spend(call.callerId, {
-          amountCoin: call.pricePerMinuteCoin,
-          scene: "AUDIO_CALL",
-          refId: call.id,
-          description: `连麦第${currentMinute}分钟扣费`,
-        });
+        // 扣币+明细+累计在同一事务
+        await this.prisma.$transaction(async (tx) => {
+          const updated = await this.coin.spend(call.callerId, {
+            amountCoin: call.pricePerMinuteCoin,
+            scene: "AUDIO_CALL",
+            refId: call.id,
+            description: `连麦第${currentMinute}分钟扣费`,
+          }, tx);
 
-        // 生成扣费明细
-        await this.prisma.audioCallBilling.create({
-          data: {
-            callRecordId: call.id,
-            billingMinute: currentMinute,
-            coinDeducted: call.pricePerMinuteCoin,
-            balanceBefore: updated.account.balance + call.pricePerMinuteCoin,
-            balanceAfter: updated.account.balance,
-          },
-        });
+          await tx.audioCallBilling.create({
+            data: {
+              callRecordId: call.id,
+              billingMinute: currentMinute,
+              coinDeducted: call.pricePerMinuteCoin,
+              balanceBefore: updated.account.balance + call.pricePerMinuteCoin,
+              balanceAfter: updated.account.balance,
+            },
+          });
 
-        // 更新通话总消费
-        await this.prisma.audioCallRecord.update({
-          where: { id: call.id },
-          data: { totalCoin: { increment: call.pricePerMinuteCoin } },
+          await tx.audioCallRecord.update({
+            where: { id: call.id },
+            data: { totalCoin: { increment: call.pricePerMinuteCoin } },
+          });
         });
       } catch (err: unknown) {
         this.logger.error(`连麦扣费失败 callId=${call.id}: ${err instanceof Error ? err.message : String(err)}`);

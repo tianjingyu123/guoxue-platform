@@ -46,6 +46,7 @@ model User {
   timezone            String?     @default("Asia/Shanghai") // 时区（国际化预留）
   preferredCurrency   String?     @default("CNY") // 偏好货币（国际化预留）
   notifySettings      Json?       // 通知开关（JSON: {message/course/live/interact/system: bool}）
+  deletedAt           DateTime?   // 软删除时间（NULL=正常），删除用户时不物理删除，仅标记此字段
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
@@ -373,6 +374,7 @@ model Circle {
 
   @@index([ownerId])
   @@index([status])
+  @@index([status, memberCount])
   @@index([stationId])
 }
 
@@ -1161,6 +1163,7 @@ model LiveRoom {
 
   @@index([userId])
   @@index([status])
+  @@index([status, viewCount])
   @@index([circleId])
   @@index([circleId, status])
   @@index([courseId])

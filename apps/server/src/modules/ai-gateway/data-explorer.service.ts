@@ -210,6 +210,15 @@ AI相关：
     return sql;
   }
 
+  /** 允许查询的表名白名单（小写） */
+  private readonly ALLOWED_TABLES = [
+    "user", "auth", "content", "comment", "order", "subscription",
+    "favorite", "toolrecord", "station", "aievent", "aidecision", "aicollaboration",
+    "circle", "course", "livemood", "post", "article", "video",
+    "checkin", "dailytask", "reconciliationrecord", "financialreport",
+    "settlementorder", "invoice", "userearning", "stationearning",
+  ];
+
   /** SQL安全检查：白名单优先 + 黑名单兜底 */
   private isSafeSql(sql: string): boolean {
     // 1. 必须是 SELECT 或 WITH (CTE) 开头
@@ -225,14 +234,14 @@ AI相关：
       return false;
     }
 
-    // 3. 黑名单：DML/DDL 关键字 + 危险函数
-    // 用单词边界匹配，避免误杀字段名中的子串
+    // 3. 黑名单：DML/DDL 关键字 + 危险函数 + COPY TO PROGRAM
     const upper = trimmed.toUpperCase();
     const forbidden = [
       /\bINSERT\b/, /\bUPDATE\b/, /\bDELETE\b/, /\bDROP\b/,
       /\bALTER\b/, /\bTRUNCATE\b/, /\bCREATE\b/,
       /\bGRANT\b/, /\bREVOKE\b/, /\bEXEC\b/, /\bEXECUTE\b/,
-      /\bCOPY\b/,
+      /\bCOPY\b/, // COPY TO/FROM 可读写文件系统
+      /\bPROGRAM\b/, // COPY ... TO PROGRAM 可执行系统命令
       /\bPG_READ_FILE\b/, /\bPG_READ_BINARY_FILE\b/,
       /\bPG_WRITE_FILE\b/, /\bPG_LS_DIR\b/,
       /\bPG_SLEEP\b/,
@@ -242,6 +251,8 @@ AI相关：
       /\bTXID_CURRENT\b/,
       /\bINTO\s+(OUTFILE|DUMPFILE)\b/i,
       /\bPG_SHADOW\b/, /\bPG_AUTHID\b/,
+      /\bCURRENT_SETTING\b/, // 可读取数据库配置
+      /\bSET\s+SESSION\b/, /\bSET\s+LOCAL\b/,
     ];
     for (const pattern of forbidden) {
       if (pattern.test(upper)) {
@@ -251,12 +262,41 @@ AI相关：
       }
     }
 
-    // 4. 敏感列黑名单：拦截显式引用 PII 列的查询（防数据导出）
+    // 4. 表名白名单校验：仅允许查询预定义的安全表
+    if (!this.hasOnlyAllowedTables(trimmed)) {
+      this.logger.warn("SQL引用了不在白名单中的表");
+      return false;
+    }
+
+    // 5. 敏感列黑名单：拦截显式引用 PII 列的查询（防数据导出）
     const lower = trimmed.toLowerCase();
     for (const col of this.SENSITIVE_COLUMNS) {
-      // 用单词边界匹配列名，避免误杀（如 emailVerified 仍会命中 email 子串，从严拦截）
       if (new RegExp(`\\b${col}\\b`).test(lower)) {
         this.logger.warn(`SQL引用敏感列被拦截: ${col}`);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * 校验 SQL 中引用的所有表名是否在白名单中。
+   * 匹配 FROM / JOIN 后的标识符，并与白名单比对。
+   */
+  private hasOnlyAllowedTables(sql: string): boolean {
+    // 匹配 FROM "Table" 或 FROM Table 或 JOIN "Table" 或 JOIN Table
+    const tableRegex = /(?:FROM|JOIN)\s+"?(\w+)"?/gi;
+    let match: RegExpExecArray | null;
+    const tables = new Set<string>();
+    while ((match = tableRegex.exec(sql)) !== null) {
+      tables.add(match[1].toLowerCase());
+    }
+    if (tables.size === 0) {
+      // 无法解析表名（如纯子查询），允许通过（列级脱敏+超时会兜底）
+      return true;
+    }
+    for (const t of tables) {
+      if (!this.ALLOWED_TABLES.includes(t)) {
         return false;
       }
     }

@@ -4,6 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CoinService } from "../coin/coin.service";
 import { RedisService } from "../../redis/redis.service";
+import { Prisma } from "@prisma/client";
 
 /** 提现门槛与上限（元），与 PRD 一致 */
 const MIN_WITHDRAW_RMB = 100;
@@ -86,8 +87,14 @@ export class WalletService {
 
   /**
    * 提交提现申请。
-   * 资金口径：仅可提现"赚来的收益"(UserEarning)，不可提现充值的虚拟币。
-   * 并发安全：用 Redis 锁串行化同一用户的提交，防止并发绕过额度校验重复套现。
+   *
+   * 资金安全机制（三层防护）：
+   * 1. 资金口径：仅可提现"赚来的收益"(UserEarning)，不可提现充值的虚拟币。
+   * 2. 并发安全：Redis 锁串行化同一用户的提交，防止并发绕过额度校验。
+   * 3. 额度占用：OCCUPYING_WITHDRAW_STATUSES（PENDING/APPROVED/PAID）状态的提现
+   *    金额从可提现余额中扣除，防止同一笔收益被多次提现。
+   *
+   * 驳回(REJECTED)的提现自动释放额度，因为 REJECTED 不在 OCCUPYING_STATUSES 中。
    */
   async submitWithdraw(userId: string, data: { amount: number; method: string; account: Record<string, string> }) {
     if (!data.amount || data.amount <= 0) {

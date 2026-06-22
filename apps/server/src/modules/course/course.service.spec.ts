@@ -58,6 +58,7 @@ const mockRedis = {
   getJson: jest.fn(),
   setJson: jest.fn(),
   del: jest.fn(),
+  setNX: jest.fn().mockResolvedValue(true), // Redis 锁：默认加锁成功
 };
 
 describe("CourseService", () => {

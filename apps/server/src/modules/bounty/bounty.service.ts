@@ -72,37 +72,40 @@ export class BountyService {
 
   // ───────── 满意解付 ─────────
 
+  /** 解付悬赏：转移冻结币+更新状态在同一事务 */
   async settle(userId: string, questionId: string) {
     const question = await this.prisma.bountyQuestion.findUnique({ where: { id: questionId } });
     if (!question || question.askerId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作");
     if (question.status !== "ANSWERED") throw new BusinessException(ErrorCode.BAD_REQUEST, "悬赏无可解付的回答");
 
-    if (this.coinSvc && question.answererId) {
-      await this.coinSvc.transferFrozen(userId, question.answererId, question.bountyCoin);
-    }
-
-    return this.prisma.bountyQuestion.update({
-      where: { id: questionId },
-      data: { status: "SETTLED", settledAt: new Date() },
+    return this.prisma.$transaction(async (tx) => {
+      if (this.coinSvc && question.answererId) {
+        await this.coinSvc.transferFrozen(userId, question.answererId, question.bountyCoin, question.id, tx);
+      }
+      return tx.bountyQuestion.update({
+        where: { id: questionId },
+        data: { status: "SETTLED", settledAt: new Date() },
+      });
     });
   }
 
   // ───────── 退款 ─────────
 
+  /** 悬赏退款：解冻+更新状态在同一事务 */
   async refund(userId: string, questionId: string) {
     const question = await this.prisma.bountyQuestion.findUnique({ where: { id: questionId } });
     if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "悬赏不存在");
-    // 安全：仅悬赏提问者本人可触发退款，禁止任意登录用户对他人悬赏退款
     if (question.askerId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作该悬赏");
     if (!["OPEN", "CLAIMED"].includes(question.status)) throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可退款");
 
-    if (this.coinSvc) {
-      await this.coinSvc.unfreeze(question.askerId, question.bountyCoin);
-    }
-
-    const updated = await this.prisma.bountyQuestion.update({
-      where: { id: questionId },
-      data: { status: "REFUNDED" },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (this.coinSvc) {
+        await this.coinSvc.unfreeze(question.askerId, question.bountyCoin, question.id, tx);
+      }
+      return tx.bountyQuestion.update({
+        where: { id: questionId },
+        data: { status: "REFUNDED" },
+      });
     });
 
     // 审计：记录退款操作（执行者、目标悬赏、金额）
@@ -228,14 +231,15 @@ export class BountyService {
 
     for (const bounty of expired) {
       try {
-        if (this.coinSvc && bounty.status === "CLAIMED") {
-          await this.coinSvc.unfreeze(bounty.askerId, bounty.bountyCoin);
-        } else if (this.coinSvc) {
-          await this.coinSvc.unfreeze(bounty.askerId, bounty.bountyCoin);
-        }
-        await this.prisma.bountyQuestion.update({
-          where: { id: bounty.id },
-          data: { status: "EXPIRED" },
+        // 解冻+标记过期在同一事务
+        await this.prisma.$transaction(async (tx) => {
+          if (this.coinSvc) {
+            await this.coinSvc.unfreeze(bounty.askerId, bounty.bountyCoin, bounty.id, tx);
+          }
+          await tx.bountyQuestion.update({
+            where: { id: bounty.id },
+            data: { status: "EXPIRED" },
+          });
         });
         this.logger.log(`悬赏自动退款: ${bounty.id}, ${bounty.bountyCoin}币`);
       } catch (err: any) {

@@ -87,13 +87,20 @@ export class CoinService {
     return { account: updatedAccount, recharge, transaction };
   }
 
-  /** 消费虚拟币（交互式事务 + 原子扣减防超额） */
-  async spend(userId: string, dto: { amountCoin: number; scene: string; refId?: string; description?: string }) {
+  /**
+   * 消费虚拟币（交互式事务 + 原子扣减防超额）。
+   * 调用方可传入 prismaTx 以合并到外层事务，避免嵌套事务导致回滚无效。
+   */
+  async spend(
+    userId: string,
+    dto: { amountCoin: number; scene: string; refId?: string; description?: string },
+    prismaTx?: Prisma.TransactionClient,
+  ) {
     if (dto.amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "消费币数必须大于0");
 
     await this.getOrCreateAccount(userId);
 
-    return this.prisma.$transaction(async (tx) => {
+    const run = async (tx: Prisma.TransactionClient) => {
       const result = await tx.virtualCoinAccount.updateMany({
         where: { userId, balance: { gte: dto.amountCoin } },
         data: {
@@ -116,16 +123,27 @@ export class CoinService {
         },
       });
       return { account: acc!, transaction: txn };
-    });
+    };
+
+    if (prismaTx) return run(prismaTx);
+    return this.prisma.$transaction(run);
   }
 
-  /** 退款（平台赠送等，交互式事务 + 原子增量） */
-  async refund(userId: string, amountCoin: number, description: string) {
+  /**
+   * 退款（平台赠送等，交互式事务 + 原子增量）。
+   * 调用方可传入 prismaTx 以合并到外层事务。
+   */
+  async refund(
+    userId: string,
+    amountCoin: number,
+    description: string,
+    prismaTx?: Prisma.TransactionClient,
+  ) {
     if (amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "退款币数必须大于0");
 
     await this.getOrCreateAccount(userId);
 
-    return this.prisma.$transaction(async (tx) => {
+    const run = async (tx: Prisma.TransactionClient) => {
       const acc = await tx.virtualCoinAccount.update({
         where: { userId },
         data: { balance: { increment: amountCoin } },
@@ -141,7 +159,10 @@ export class CoinService {
         },
       });
       return { account: acc, transaction: txn };
-    });
+    };
+
+    if (prismaTx) return run(prismaTx);
+    return this.prisma.$transaction(run);
   }
 
   /** 交易流水 */
@@ -268,24 +289,25 @@ export class CoinService {
     return { success: true };
   }
 
-  /** 打赏 */
+  /** 打赏（扣币与记录在同一事务，防丢币） */
   async sendGift(userId: string, liveRoomId: string, toUserId: string, giftId: string, quantity = 1) {
     const gift = await this.prisma.gift.findUnique({ where: { id: giftId } });
     if (!gift) throw new BusinessException(ErrorCode.NOT_FOUND, "礼物不存在");
 
     const totalCoin = gift.priceCoin * quantity;
 
-    // 扣减虚拟币
-    await this.spend(userId, {
-      amountCoin: totalCoin,
-      scene: "LIVE_GIFT",
-      refId: liveRoomId,
-      description: `赠送 ${gift.name} x${quantity}`,
-    });
+    // 扣币与打赏记录在同一事务
+    const record = await this.prisma.$transaction(async (tx) => {
+      await this.spend(userId, {
+        amountCoin: totalCoin,
+        scene: "LIVE_GIFT",
+        refId: liveRoomId,
+        description: `赠送 ${gift.name} x${quantity}`,
+      }, tx);
 
-    // 记录打赏
-    const record = await this.prisma.giftRecord.create({
-      data: { userId, liveRoomId, toUserId, giftId, quantity, totalCoin },
+      return tx.giftRecord.create({
+        data: { userId, liveRoomId, toUserId, giftId, quantity, totalCoin },
+      });
     });
 
     // 平台抽成 + 圈主收益（fire-and-forget）
@@ -425,11 +447,11 @@ export class CoinService {
     });
   }
 
-  /** 解冻虚拟币（归还原余额） */
-  async unfreeze(userId: string, amountCoin: number, refId?: string) {
+  /** 解冻虚拟币（归还原余额）。调用方可传入 prismaTx 合并到外层事务。 */
+  async unfreeze(userId: string, amountCoin: number, refId?: string, prismaTx?: Prisma.TransactionClient) {
     if (amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "解冻币数必须大于0");
 
-    return this.prisma.$transaction(async (tx) => {
+    const run = async (tx: Prisma.TransactionClient) => {
       const result = await tx.virtualCoinAccount.updateMany({
         where: { userId, frozen: { gte: amountCoin } },
         data: { balance: { increment: amountCoin }, frozen: { decrement: amountCoin } },
@@ -445,24 +467,25 @@ export class CoinService {
 
       const acc = await tx.virtualCoinAccount.findUnique({ where: { userId } });
       return { frozen: acc!.frozen, balance: acc!.balance };
-    });
+    };
+
+    if (prismaTx) return run(prismaTx);
+    return this.prisma.$transaction(run);
   }
 
-  /** 转移冻结币（从冻结方转给接收方） */
-  async transferFrozen(fromUserId: string, toUserId: string, amountCoin: number, refId?: string) {
+  /** 转移冻结币（从冻结方转给接收方）。调用方可传入 prismaTx 合并到外层事务。 */
+  async transferFrozen(fromUserId: string, toUserId: string, amountCoin: number, refId?: string, prismaTx?: Prisma.TransactionClient) {
     if (amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "转移币数必须大于0");
 
     await this.getOrCreateAccount(toUserId);
 
-    return this.prisma.$transaction(async (tx) => {
-      // 减扣冻结方
+    const run = async (tx: Prisma.TransactionClient) => {
       const decResult = await tx.virtualCoinAccount.updateMany({
         where: { userId: fromUserId, frozen: { gte: amountCoin } },
         data: { frozen: { decrement: amountCoin } },
       });
       if (decResult.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "冻结币数不足");
 
-      // 增加接收方余额
       await tx.virtualCoinAccount.update({
         where: { userId: toUserId },
         data: { balance: { increment: amountCoin } },
@@ -490,6 +513,9 @@ export class CoinService {
 
       const fromAcc = await tx.virtualCoinAccount.findUnique({ where: { userId: fromUserId } });
       return { fromFrozen: fromAcc!.frozen, toBalance: toAcc!.balance };
-    });
+    };
+
+    if (prismaTx) return run(prismaTx);
+    return this.prisma.$transaction(run);
   }
 }
