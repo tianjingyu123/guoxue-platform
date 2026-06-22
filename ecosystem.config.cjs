@@ -6,7 +6,7 @@ module.exports = {
       cwd: "C:/Users/Administrator/Desktop/guoxue-platform",
       env: {
         NODE_ENV: "development",
-        DATABASE_URL: "postgresql://guoxue:guoxue123@localhost:5432/guoxue",
+        DATABASE_URL: "postgresql://guoxue:guoxue123@localhost:5433/guoxue",
         REDIS_URL: "redis://localhost:6379",
         JWT_SECRET: "dev-jwt-secret-for-local-testing-only-change-in-prod",
         ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef",
