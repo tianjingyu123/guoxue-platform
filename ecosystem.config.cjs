@@ -11,6 +11,7 @@ module.exports = {
         JWT_SECRET: "dev-jwt-secret-for-local-testing-only-change-in-prod",
         ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef",
         BIGSCREEN_SECRET: "dev-bigscreen-secret",
+        BULLMQ_DISABLED: "true",
       },
       watch: false,
       max_memory_restart: "2G",
