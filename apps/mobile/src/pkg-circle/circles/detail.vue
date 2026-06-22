@@ -64,18 +64,24 @@ async function loadData() {
   }
 }
 
+const submitting = ref(false)
+
 function handleJoin() {
   if (!isJoined.value) {
     showBenefits.value = true
   } else {
+    if (submitting.value) return
+    submitting.value = true
     isJoined.value = false
-    circleDetailApi.leave(circleId.value).catch(() => { isJoined.value = true })
+    circleDetailApi.leave(circleId.value).finally(() => { submitting.value = false }).catch(() => { isJoined.value = true })
   }
 }
 function confirmJoin() {
+  if (submitting.value) return
+  submitting.value = true
   showBenefits.value = false
   isJoined.value = true
-  circleDetailApi.join(circleId.value).catch(() => { isJoined.value = false })
+  circleDetailApi.join(circleId.value).finally(() => { submitting.value = false }).catch(() => { isJoined.value = false })
 }
 function handleLikePost(postId: string) {
   const next = new Set(likedPosts.value)
