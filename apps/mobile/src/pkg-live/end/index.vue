@@ -291,15 +291,21 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { liveEndRoom, liveEndRecommendLives, liveEndRecommendCourses } from '@/lib/live-data'
+import { liveApi } from '@/lib/live-data'
+import { onMounted } from 'vue'
 
 const statusBarHeight = ref(0)
 
 // UI 临时状态
-const room = ref(liveEndRoom)
-const recommendLives = ref(liveEndRecommendLives)
-const recommendCourses = ref(liveEndRecommendCourses)
+const room = ref<any>(null)
+const recommendLives = ref<any[]>([])
+const recommendCourses = ref<any[]>([])
 const isFollowing = ref(false)
+
+onMounted(async () => {
+  const res = await liveApi.endRoom('1')
+  if (res) { room.value = res.room; recommendLives.value = res.recommendLives || []; recommendCourses.value = res.recommendCourses || [] }
+})
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600)

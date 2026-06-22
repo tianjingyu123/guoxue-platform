@@ -185,7 +185,16 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
-import { liveReplays, replaySortOptions, formatLiveDuration, formatLiveViews } from '@/lib/live-data'
+import { liveApi, formatLiveDuration, formatLiveViews } from '@/lib/live-data'
+import { onMounted } from 'vue'
+
+const replaySortOptions = [
+  { value: 'latest', label: '最新发布' },
+  { value: 'popular', label: '最多播放' },
+  { value: 'duration', label: '时长最长' },
+] as const
+
+const replays = ref<any[]>([])
 
 const isLoading = ref(false)
 const loadError = ref<string | null>(null)

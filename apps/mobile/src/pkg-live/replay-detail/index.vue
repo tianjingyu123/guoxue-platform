@@ -465,7 +465,10 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { replayDetail } from '@/lib/live-data'
+import { liveApi } from '@/lib/live-data'
+import { onMounted } from 'vue'
+
+const replay = ref<any>(null)
 
 const statusBarHeight = ref(0)
 

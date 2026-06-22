@@ -284,7 +284,10 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
-import { livePreviewRoom } from '@/lib/live-data'
+import { liveApi } from '@/lib/live-data'
+import { onMounted } from 'vue'
+
+const room = ref<any>(null)
 
 const isLoading = ref(false)
 const loadError = ref<string | null>(null)

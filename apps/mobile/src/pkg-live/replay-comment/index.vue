@@ -209,7 +209,9 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { replayCommentAspects, replayCommentTagsByRating, replayCommentLabels } from '@/lib/live-data'
+const replayCommentAspects = [{ key: 'content', label: '内容质量' }, { key: 'interaction', label: '互动体验' }, { key: 'audio', label: '音画质量' }, { key: 'value', label: '价值感受' }]
+const replayCommentTagsByRating: Record<number, string[]> = { 5: ['内容丰富','讲解清晰','干货满满','强烈推荐'], 4: ['内容不错','收获较大'], 3: ['一般般','内容普通'], 2: ['讲解不清','内容较少'], 1: ['内容差','不推荐'] }
+const replayCommentLabels = ['', '很差', '较差', '一般', '不错', '非常好']
 
 const statusBarHeight = ref(0)
 

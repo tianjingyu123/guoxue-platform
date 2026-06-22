@@ -154,7 +154,22 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { obsGuideSteps, obsGuideRequirements, obsGuideFaq } from '@/lib/live-data'
+const obsGuideSteps = [
+  { step: 1, title: '下载并安装 OBS Studio', desc: 'OBS Studio 是免费开源的直播推流软件，支持 Windows / macOS / Linux。', action: '前往官网下载', icon: 'download' },
+  { step: 2, title: '添加视频和音频来源', desc: '在 OBS「来源」面板中添加「显示器采集」或「视频采集设备」，再添加「音频输入采集」。', action: null, icon: 'video' },
+  { step: 3, title: '配置推流设置', desc: '打开「设置」→「推流」，选择「自定义」，填写平台推流地址和推流码。', action: null, icon: 'settings' },
+  { step: 4, title: '填写推流地址', desc: '在平台「开始直播」页面获取您的专属推流地址和推流码，填入 OBS 对应字段。', action: '获取我的推流码', icon: 'wifi' },
+  { step: 5, title: '调整编码参数', desc: '「输出」→「视频编码器」选 x264，码率 2500-4000 Kbps，分辨率 1280×720。', action: null, icon: 'monitor' },
+]
+const obsGuideRequirements = [
+  { label: 'CPU', value: 'i5 / Ryzen 5 及以上' }, { label: '内存', value: '8GB RAM 及以上' },
+  { label: '上传网速', value: '≥ 6Mbps' }, { label: '操作系统', value: 'Windows 10 / macOS 10.15+' },
+]
+const obsGuideFaq = [
+  { q: '推流码在哪里找？', a: '进入「开始直播」页面 → 点击「获取推流码」按钮即可查看和复制。' },
+  { q: '直播卡顿怎么办？', a: '降低码率至 2000Kbps，关闭其他占用网络的程序。' },
+  { q: 'OBS 显示推流失败？', a: '检查推流地址是否正确，推流码是否已过期，防火墙是否阻止了 OBS 的网络请求。' },
+]
 
 const statusBarHeight = ref(0)
 const steps = ref(obsGuideSteps)

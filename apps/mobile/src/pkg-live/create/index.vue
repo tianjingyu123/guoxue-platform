@@ -356,7 +356,11 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { liveCreateCategories } from '@/lib/live-data'
+const liveCreateCategories = [
+  { id: '1', name: '易经国学' }, { id: '2', name: '风水堪舆' }, { id: '3', name: '命理八字' },
+  { id: '4', name: '紫微斗数' }, { id: '5', name: '面相手相' }, { id: '6', name: '六爻占卜' },
+  { id: '7', name: '奇门遁甲' }, { id: '8', name: '其他' },
+]
 
 // UI 临时状态
 const liveMode = ref<'vertical' | 'horizontal'>('vertical')

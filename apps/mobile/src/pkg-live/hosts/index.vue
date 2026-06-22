@@ -6,7 +6,11 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { liveHosts, type LiveHost } from '@/lib/live-data'
+import { liveApi } from '@/lib/live-data'
+import type { LiveHost } from '@/lib/live-data'
+import { onMounted } from 'vue'
+
+const hosts = ref<LiveHost[]>([])
 
 type FilterKey = 'all' | 'live' | 'followed'
 const filters: { key: FilterKey; label: string }[] = [
@@ -33,6 +37,10 @@ const filtered = computed<LiveHost[]>(() =>
     return matchFilter && matchSearch
   }),
 )
+
+onMounted(async () => {
+  try { hosts.value = await liveApi.hosts() } catch { /* */ }
+})
 
 function open(id: string) {
   navigateTo(`/live/${id}`)

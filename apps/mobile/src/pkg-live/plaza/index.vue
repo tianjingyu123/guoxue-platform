@@ -7,7 +7,13 @@ import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import LiveCard from '@/components/live/live-card.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { liveTabs, liveList, type LiveItem } from '@/lib/live-data'
+import { liveApi } from '@/lib/live-data'
+import type { LiveItem } from '@/lib/live-data'
+import { onMounted } from 'vue'
+
+const liveTabs = ['全部', '知识授课', '电商带货', '关注的'] as const
+
+const list = ref<LiveItem[]>([])
 
 const isLoading = ref(false)
 const loadError = ref<string | null>(null)

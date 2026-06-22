@@ -296,7 +296,19 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { streamConfig, obsConfigSteps, streamConfigFaq } from '@/lib/live-data'
+const streamConfig = { roomId: 'room1', roomTitle: '周易六十四卦深度解读', streamUrl: 'rtmp://live.rebu.com/live', streamKey: 'stream_key_abc123', playUrl: 'https://live.rebu.com/play/room1.flv', recommendedSettings: { resolution: '1920x1080', bitrate: '4000-6000 Kbps', fps: '30', encoder: 'x264 / NVENC' } }
+const obsConfigSteps = [
+  { title: '打开OBS Studio', description: '下载并安装最新版OBS Studio，打开软件' },
+  { title: '进入推流设置', description: '点击「设置」→「推流」，服务选择「自定义」' },
+  { title: '填写推流信息', description: '将下方的「推流地址」填入服务器，「推流密钥」填入串流密钥' },
+  { title: '配置视频参数', description: '设置编码器和比特率、分辨率' },
+  { title: '开始推流', description: '点击主界面的「开始推流」按钮' },
+]
+const streamConfigFaq = [
+  { q: '推流失败怎么办？', a: '请检查网络连接、推流地址和密钥是否正确，确保防火墙未阻止OBS' },
+  { q: '画面卡顿怎么办？', a: '尝试降低比特率或分辨率，检查上行带宽是否足够' },
+  { q: '可以使用其他推流软件吗？', a: '支持任何RTMP推流软件，如Streamlabs、XSplit等' },
+]
 
 const statusBarHeight = ref(0)
 const config = ref(streamConfig)
