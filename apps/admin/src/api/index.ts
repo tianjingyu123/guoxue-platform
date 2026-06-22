@@ -204,6 +204,16 @@ export const paipanApi = {
   ziweiSave: (data: any) => api.post("/paipan/ziwei", data),
   ziweiHistory: (params?: any) => api.get("/paipan/ziwei", { params }),
   ziweiDetail: (id: string) => api.get(`/paipan/ziwei/${id}`),
+  // 奇门遁甲
+  qimenPreview: (data: any) => api.post("/paipan/qimen", data),
+  qimenSave: (data: any) => api.post("/paipan/qimen/save", data),
+  qimenHistory: (params?: any) => api.get("/paipan/qimen/history", { params }),
+  qimenDetail: (id: string) => api.get(`/paipan/qimen/${id}`),
+  // 阳盘命理
+  yangpanPreview: (data: any) => api.post("/paipan/yangpan", data),
+  yangpanSave: (data: any) => api.post("/paipan/yangpan/save", data),
+  yangpanHistory: (params?: any) => api.get("/paipan/yangpan/history", { params }),
+  yangpanDetail: (id: string) => api.get(`/paipan/yangpan/${id}`),
   // 管理员
   adminRecords: (params?: any) => api.get("/paipan/admin/records", { params }),
 };

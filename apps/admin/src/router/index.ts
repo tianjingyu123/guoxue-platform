@@ -158,6 +158,24 @@ const routes = [
         meta: { title: "紫微排盘", roles: ALL_ADMIN },
       },
       {
+        path: "qimen",
+        name: "QimenPan",
+        component: () => import("@/views/qimen/QimenPan.vue"),
+        meta: { title: "奇门排盘", roles: ALL_ADMIN },
+      },
+      {
+        path: "liuyao",
+        name: "LiuYaoPan",
+        component: () => import("@/views/liuyao/LiuYaoPan.vue"),
+        meta: { title: "六爻排盘", roles: ALL_ADMIN },
+      },
+      {
+        path: "daliuren",
+        name: "DaLiuRenPan",
+        component: () => import("@/views/daliuren/DaLiuRenPan.vue"),
+        meta: { title: "大六壬排盘", roles: ALL_ADMIN },
+      },
+      {
         path: "paipan-records",
         name: "PaipanRecords",
         component: () => import("@/views/PaipanRecords.vue"),
