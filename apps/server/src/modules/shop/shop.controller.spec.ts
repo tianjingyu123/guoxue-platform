@@ -384,10 +384,12 @@ describe("ShopController", () => {
   });
 
   // ─── 物流 ───
-  it("GET /shop/orders/:id/logistics — 物流信息", async () => {
+  it("GET /shop/orders/:id/logistics — 物流信息（带当前用户做归属校验）", async () => {
     const req: any = { user: { id: "u1" } };
     const result: any = await ctrl.getLogistics(req, "o1");
     expect(result.status).toBe("IN_TRANSIT");
+    // 防越权：必须把当前登录用户 id 传给 service 做归属校验
+    expect(mockShopSvc.getLogistics).toHaveBeenCalledWith("o1", "u1");
   });
 
   it("GET /shop/logistics/track — 快递查询", async () => {

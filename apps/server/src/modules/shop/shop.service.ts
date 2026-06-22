@@ -1268,10 +1268,10 @@ export class ShopService {
   // ═══════════════════ 物流追踪 ═══════════════════
 
   /** 获取物流信息 */
-  async getLogistics(orderId: string, userId?: string) {
+  async getLogistics(orderId: string, userId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
-    if (userId && order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权查看他人订单物流");
+    if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权查看他人订单物流");
 
     const logistics = await this.prisma.orderLogistics.findUnique({
       where: { orderId },

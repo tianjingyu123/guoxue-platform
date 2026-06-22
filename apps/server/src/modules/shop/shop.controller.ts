@@ -716,7 +716,7 @@ export class ShopController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getLogistics(@Req() req: AuthRequest, @Param("id") id: string) {
-    return this.shop.getLogistics(id);
+    return this.shop.getLogistics(id, req.user.id);
   }
 
   @Get("logistics/track")

@@ -369,16 +369,21 @@ describe("ShopService", () => {
   // ═══════════════════ 物流追踪 ═══════════════════
 
   describe("getLogistics", () => {
-    it("返回物流信息", async () => {
-      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "SHIPPED" })
+    it("返回物流信息（本人订单）", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "SHIPPED", userId: "u1" })
       mockPrisma.orderLogistics.findUnique.mockResolvedValue({ orderId: "o1", logisticsNo: "SF123" })
-      const result = await svc.getLogistics("o1")
+      const result = await svc.getLogistics("o1", "u1")
       expect(result.logistics?.logisticsNo).toBe("SF123")
     })
 
     it("订单不存在", async () => {
       mockPrisma.order.findUnique.mockResolvedValue(null)
-      await expect(svc.getLogistics("no")).rejects.toThrow(BusinessException)
+      await expect(svc.getLogistics("no", "u1")).rejects.toThrow(BusinessException)
+    })
+
+    it("拒绝查看他人订单物流（防越权）", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "SHIPPED", userId: "u1" })
+      await expect(svc.getLogistics("o1", "u2")).rejects.toThrow(BusinessException)
     })
   })
 
