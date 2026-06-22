@@ -37,4 +37,19 @@ page {
   font-size: 28rpx;
   line-height: 1.6;
 }
+
+/* 响应式：H5 大屏居中，限制最大宽度防止卡片等比无限放大 */
+@media screen and (min-width: 768px) {
+  body, uni-app, #app {
+    max-width: 450px !important;
+    margin: 0 auto !important;
+    box-shadow: 0 0 60rpx rgba(0, 0, 0, 0.08);
+    border-left: 1px solid var(--line, #e8e0d5);
+    border-right: 1px solid var(--line, #e8e0d5);
+    overflow-x: hidden;
+  }
+  html {
+    background: var(--bg-paper, #faf8f5);
+  }
+}
 </style>

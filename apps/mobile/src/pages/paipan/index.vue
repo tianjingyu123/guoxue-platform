@@ -1,19 +1,35 @@
 <script setup lang="ts">
 /**
  * 排盘工具入口页（从原型 app/paipan/page.tsx 1:1 高保真迁移）
- * 结构：顶栏 / AI智能解盘卡 / 排盘工具网格(展开收起) / 中医工具 / AI智能体横滚 / 合规提示 / 底部导航
+ * 数据源：通过 toolsApi 从后端获取，失败时降级 mock
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolIcon from '@/components/paipan/tool-icon.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
-import { tools, medicalTools, agents, AGENT_AVATAR_GRADIENT } from '@/lib/tools-data'
+import { tools as mockTools, medicalTools, agents, AGENT_AVATAR_GRADIENT, toolsApi, type Tool } from '@/lib/tools-data'
 import { navigateTo } from '@/utils/router'
+
+const tools = ref<Tool[]>(mockTools)
+const toolsLoading = ref(true)
+const toolsError = ref(false)
 
 const showAllTools = ref(false)
 const showMedical = ref(false)
 
-const displayTools = computed(() => (showAllTools.value ? tools : tools.slice(0, 32)))
+onMounted(async () => {
+  try {
+    tools.value = await toolsApi.list()
+    toolsError.value = false
+  } catch {
+    toolsError.value = true
+    tools.value = mockTools // 降级 mock
+  } finally {
+    toolsLoading.value = false
+  }
+})
+
+const displayTools = computed(() => (showAllTools.value ? tools.value : tools.value.slice(0, 32)))
 const displayMedical = computed(() => (showMedical.value ? medicalTools : medicalTools.slice(0, 8)))
 const displayAgents = computed(() => agents.slice(0, 6))
 

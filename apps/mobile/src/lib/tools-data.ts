@@ -3,6 +3,8 @@
  * href 保持原型路径风格，路由跳转时由 utils/router 统一处理（详见路由表）。
  * 未开发工具统一指向 coming-soon 占位页。
  */
+import { apiGet, useMock } from '@/utils/request'
+
 export interface Tool { id: string; name: string; iconId: string; href: string; badge?: boolean }
 export interface MedicalTool { id: string; name: string; iconId: string; href: string; badge?: boolean }
 export interface Agent { id: string; name: string; description: string; avatar: string; href: string }
@@ -89,4 +91,33 @@ export const AGENT_AVATAR_GRADIENT: Record<string, [string, string]> = {
   ziwei: ['#06b6d4', '#0284c7'],    // cyan-500 -> sky-600
   fengshui: ['#84cc16', '#16a34a'], // lime-500 -> green-600
   naming: ['#d946ef', '#9333ea'],   // fuchsia-500 -> purple-600
+}
+
+// ───────── API 层 ─────────
+
+/** 后端返回的工具格式 → 前端 Tool 格式的字段映射 */
+function mapBackendTool(b: { id: string; name: string; icon?: string; route?: string; desc?: string }): Tool {
+  return {
+    id: b.id,
+    name: b.name,
+    iconId: b.icon || b.id,
+    href: (b.route || '/paipan/' + b.id).replace('/fortune/', '/paipan/'),
+  }
+}
+
+export const toolsApi = {
+  /** 获取排盘工具列表 */
+  async list(): Promise<Tool[]> {
+    if (useMock()) return tools
+    try {
+      const res = await apiGet<{ tools: Array<{ id: string; name: string; icon?: string; route?: string; desc?: string }> }>('/fortune/tools')
+      return (res.tools || []).map(mapBackendTool)
+    } catch { return tools }
+  },
+
+  /** 获取引导卡数据 */
+  async getGuideCard(): Promise<any> {
+    if (useMock()) return { fortune: null, tools: [] }
+    try { return await apiGet('/fortune/guide-card') } catch { return { fortune: null, tools: [] } }
+  },
 }

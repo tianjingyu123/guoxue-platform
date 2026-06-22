@@ -96,13 +96,21 @@ function backToTop() {
 </template>
 
 <style scoped lang="scss">
-.home { min-height: 100vh; background: var(--bg-paper, #faf8f5); }
+.home {
+  min-height: 100vh;
+  background: var(--bg-paper, #faf8f5);
+  // 响应式：大屏居中 + 最大宽度限制（375px 设计基准 + 留白 = 450px）
+  max-width: 450px;
+  margin: 0 auto;
+  position: relative;
+}
 .content { position: absolute; top: calc(176rpx + var(--status-bar-height, 0)); bottom: 112rpx; left: 0; right: 0; }
 .feed {
   display: flex; gap: 12rpx;
   padding: 12rpx 32rpx 0;
+  flex-wrap: wrap;
 }
-.col { flex: 1; min-width: 0; }
+.col { flex: 1 1 340rpx; min-width: 320rpx; max-width: 100%; }
 .end {
   display: flex; align-items: center; justify-content: center; gap: 24rpx;
   padding: 48rpx 0 64rpx;
