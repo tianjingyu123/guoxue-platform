@@ -108,19 +108,23 @@ export class AiController {
   // ───────── 翻译 ─────────
 
   @Post("translate")
-  @UseGuards(ThrottleGuard)
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
   @ApiOperation({ summary: "文本翻译" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
   translateText(@Body() dto: TranslateTextDto) {
     return this.ai.translateText(dto.text, dto.sourceLang, dto.targetLang);
   }
 
   @Post("detect-language")
-  @UseGuards(ThrottleGuard)
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
   @ApiOperation({ summary: "语种识别" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
   detectLanguage(@Body() dto: SentimentAnalyzeDto) {
     return this.ai.detectLanguage(dto.text);
   }

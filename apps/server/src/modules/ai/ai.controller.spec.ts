@@ -3,6 +3,7 @@ import { AiController } from "./ai.controller";
 import { AiService } from "./ai.service";
 import { RolesGuard } from "../../common/roles.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
+import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 
 const mockAiSvc: Record<string, jest.Mock> = {
   sentenceRecognition: jest.fn().mockResolvedValue({ text: "识别结果" } as any),
@@ -36,11 +37,20 @@ describe("AiController", () => {
     })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
       .overrideGuard(ThrottleGuard).useValue({ canActivate: () => true })
+      .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(AiController);
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  // ── 鉴权守卫（C10：防匿名刷付费 AI 翻译）──
+  it("翻译与语种识别接口必须挂 JwtAuthGuard", () => {
+    const tGuards = Reflect.getMetadata("__guards__", AiController.prototype.translateText) || [];
+    const dGuards = Reflect.getMetadata("__guards__", AiController.prototype.detectLanguage) || [];
+    expect(tGuards).toContain(JwtAuthGuard);
+    expect(dGuards).toContain(JwtAuthGuard);
+  });
 
   // ── 语音识别 ──
 
