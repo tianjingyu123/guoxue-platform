@@ -92,7 +92,17 @@ function toggleYao(index: number) {
     <template #output>
       <div v-if="errorMsg" class="error-box">{{ errorMsg }}</div>
       <div v-else-if="!result" class="empty-hint">请先设置参数并排盘</div>
-      <LiuYaoBoard v-else :data="result" />
+      <LiuYaoBoard
+        v-else-if="result"
+        :ben-gua="result.benGua || result.gua"
+        :bian-gua="result.bianGua"
+        :hu-gua="result.huGua"
+        :yaos="result.yaos || []"
+        :shi-yao="result.shiYao || 0"
+        :ying-yao="result.yingYao || 0"
+        :gua-gong="result.guaGong"
+        :wu-xing="result.wuXing"
+      />
     </template>
   </PageTool>
 </template>

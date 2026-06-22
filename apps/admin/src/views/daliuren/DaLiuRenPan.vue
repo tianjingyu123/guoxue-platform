@@ -69,7 +69,19 @@ async function doCalc() {
     <template #output>
       <div v-if="errorMsg" class="error-box">{{ errorMsg }}</div>
       <div v-else-if="!result" class="empty-hint">请先设置参数并排盘</div>
-      <DaLiuRenBoard v-else :data="result" />
+      <DaLiuRenBoard
+        v-else-if="result"
+        :gongs="result.gongs || []"
+        :si-ke="result.siKe || []"
+        :san-chuan="result.sanChuan || { chu: {}, zhong: {}, mo: {} }"
+        :zong-men="result.zongMen"
+        :zong-men-desc="result.zongMenDesc"
+        :ri-gan-zhi="result.riGanZhi"
+        :yue-jiang="result.yueJiang"
+        :zhan-shi="result.zhanShi"
+        :day-night="result.dayNight"
+        :ke-jing="result.keJing"
+      />
     </template>
   </PageTool>
 </template>
