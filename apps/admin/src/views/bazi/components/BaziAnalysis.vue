@@ -13,8 +13,8 @@ const { siZhu, qiYun, fenXiTiShi, shenSha, geJu, wuXingEnergy, wangXiang, kongWa
 
 const wuXingNames: Record<string, string> = { mu: '木', huo: '火', tu: '土', jin: '金', shui: '水' }
 
-const jiShen = shenSha.filter(s => s.type === 'ji')
-const xiongShen = shenSha.filter(s => s.type === 'xiong')
+const jiShen = shenSha.filter((s: { type: string }) => s.type === 'ji')
+const xiongShen = shenSha.filter((s: { type: string }) => s.type === 'xiong')
 </script>
 
 <template>
@@ -105,7 +105,7 @@ const xiongShen = shenSha.filter(s => s.type === 'xiong')
 
     <!-- 合冲刑害 -->
     <section
-      v-if="Object.values(fenXiTiShi).some(v => v.length)"
+      v-if="Object.values(fenXiTiShi).some((v: any) => v.length)"
       class="analysis-section"
     >
       <h3>合冲刑害</h3>
