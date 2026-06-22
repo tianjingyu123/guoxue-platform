@@ -293,10 +293,10 @@ function coverColor(id: string) { return coverColors[parseInt(id) % coverColors.
 const search = ref('')
 const activeTab = ref<'search' | 'recommended'>('recommended')
 const isSaving = ref(false)
-const recommended = ref<string[]>(allBooks.filter((b) => b.isRecommended).map((b) => b.id))
+const recommended = ref<string[]>(allBooks.value.filter((b) => b.isRecommended).map((b) => b.id))
 
-const filteredBooks = computed(() => allBooks.filter((b) => b.title.includes(search.value) || b.author.includes(search.value)))
-const recommendedBooks = computed(() => allBooks.filter((b) => recommended.value.includes(b.id)))
+const filteredBooks = computed(() => allBooks.value.filter((b) => b.title.includes(search.value) || b.author.includes(search.value)))
+const recommendedBooks = computed(() => allBooks.value.filter((b) => recommended.value.includes(b.id)))
 function isRec(id: string) { return recommended.value.includes(id) }
 function toggleRecommend(id: string) {
   if (recommended.value.includes(id)) {
@@ -309,7 +309,7 @@ function toggleRecommend(id: string) {
 async function handleSave() {
   if (isSaving.value) return
   isSaving.value = true
-  const ids = recommended.value.map(b => b.id)
+  const ids = recommended.value
   const res = await circleDetailApi.setRecommendedEbooks(circleInfo.id, ids)
   isSaving.value = false
   if (res.success) {

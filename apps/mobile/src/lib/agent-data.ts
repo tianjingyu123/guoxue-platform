@@ -257,7 +257,7 @@ export const agentChatApi = {
   send: async (botId: string, query: string, conversationId?: string): Promise<{ success: boolean; reply?: string; conversationId?: string; message: string }> => {
     if (useMock()) {
       // mock 延迟由调用方 (simple-chat.vue) 控制
-      return { success: true, reply: '这是AI助手的模拟回复。实际使用时将接入真实智能体API。', conversationId: conversationId || Date.now().toString() }
+      return { success: true, reply: '这是AI助手的模拟回复。实际使用时将接入真实智能体API。', conversationId: conversationId || Date.now().toString(), message: 'ok' }
     }
     try {
       const data = await apiPost<any>(`/bots/${botId}/chat`, { query, conversationId })

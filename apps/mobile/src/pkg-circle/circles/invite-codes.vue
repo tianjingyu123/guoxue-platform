@@ -4,7 +4,7 @@
  * 4统计卡 + 邀请码列表(状态徽章/操作菜单禁用·删除/使用进度条/复制·分享/使用记录展开) + 创建底部弹窗 + 骨架屏
  * 复制/分享改用 uni.setClipboardData 跨端
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
