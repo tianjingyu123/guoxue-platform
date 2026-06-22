@@ -30,7 +30,7 @@ const search = ref('')
 const filter = ref<FilterKey>('all')
 
 const filtered = computed<LiveHost[]>(() =>
-  liveHosts.filter((h) => {
+  hosts.value.filter((h: LiveHost) => {
     const matchFilter = filter.value === 'all' ? true : filter.value === 'live' ? h.isLive : false
     const kw = search.value.trim()
     const matchSearch = !kw || h.name.includes(kw) || h.specialty.includes(kw) || h.tags.some((t) => t.includes(kw))

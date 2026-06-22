@@ -401,19 +401,23 @@ export function getDisputeTypeLabel(type: string) {
 
 // ── API ──
 export const orderApi = {
-  /** 订单列表 GET /order */
+  /** 订单列表 GET /orders/my（统一订单中心，返回 { orders, total }，此处映射为 { items, total }） */
   async list(params?: Record<string, any>): Promise<{ items: any[]; total: number }> {
     if (useMock()) return { items: [], total: 0 }
-    try { return await apiGet<any>(`/order${params ? '?' + new URLSearchParams(params).toString() : ''}`) } catch { return { items: [], total: 0 } }
+    try {
+      const res = await apiGet<any>(`/orders/my${params ? '?' + new URLSearchParams(params).toString() : ''}`)
+      return { items: res?.orders ?? res?.items ?? [], total: res?.total ?? 0 }
+    } catch { return { items: [], total: 0 } }
   },
-  /** 订单详情 GET /order/:id */
+  /** 订单详情 GET /shop/orders/:id（商品订单） */
   async detail(id: string): Promise<any> {
     if (useMock()) return null
-    try { return await apiGet<any>(`/order/${id}`) } catch { return null }
+    try { return await apiGet<any>(`/shop/orders/${id}`) } catch { return null }
   },
-  /** 提交申诉 POST /order/dispute */
+  /** 提交售后/申诉 POST /shop/orders/:orderId/after-sale */
   async submitDispute(data: Record<string, any>): Promise<any> {
     if (useMock()) return { success: true }
-    return await apiPost<any>('/order/dispute', data)
+    const orderId = data.orderId ?? data.orderNo
+    return await apiPost<any>(`/shop/orders/${orderId}/after-sale`, data)
   },
 }

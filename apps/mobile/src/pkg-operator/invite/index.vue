@@ -188,7 +188,7 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
-import { operatorApi } from '@/lib/operator-data'
+import { operatorApi, type InvitedStation } from '@/lib/operator-data'
 const operatorInviteLinkFull = 'https://rebugx.com/invite/operator'
 const operatorInviteCode = 'GUOXUE2024'
 
@@ -202,7 +202,7 @@ const isEmpty = computed(() => {
   return i !== undefined && i.length === 0
 })
 
-const invited = computed(() => pageData.value?.invited ?? [])
+const invited = computed<InvitedStation[]>(() => pageData.value?.invited ?? [])
 const inviteLink = operatorInviteLinkFull
 const inviteCode = operatorInviteCode
 
@@ -212,14 +212,14 @@ const sent = ref(false)
 
 const statItems = computed(() => [
   { label: '已邀请', value: invited.value.length, icon: 'users' },
-  { label: '已激活', value: invited.value.filter((s) => s.status === 'active').length, icon: 'check-circle-2' },
+  { label: '已激活', value: invited.value.filter((s: InvitedStation) => s.status === 'active').length, icon: 'check-circle-2' },
   { label: '累计佣金', value: `¥${totalCommission.value.toLocaleString()}`, icon: 'gift' },
 ])
 
 const totalCommission = computed(() =>
   invited.value
-    .filter((s) => s.status === 'active')
-    .reduce((sum, s) => sum + parseFloat(s.commission.replace(/[¥,]/g, '')), 0),
+    .filter((s: InvitedStation) => s.status === 'active')
+    .reduce((sum: number, s: InvitedStation) => sum + parseFloat(s.commission.replace(/[¥,]/g, '')), 0),
 )
 
 const rewardDesc =

@@ -3,15 +3,37 @@
 import { ref, computed } from 'vue'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-// @data-needs: 作业要求, 参数 chapterId, 返回 WorkRequirement
+// @data-needs: 作业要求, 参数 chapterId, 返回 WorkSubmitInfo
 // @todo: 接入 courseApi 获取作业要求
-const requirement = { title: '第3课作业', deadline: '6月30日', content: '完成八字案例分析报告', attachments: [] }
+interface WorkSubmitInfo {
+  title: string
+  courseTitle: string
+  chapterTitle: string
+  deadline: string
+  description: string
+  content: string
+  minWords: number
+  maxImages: number
+  attachments: string[]
+}
+
+const requirement = ref<WorkSubmitInfo>({
+  title: '第3课作业',
+  courseTitle: '八字命理基础',
+  chapterTitle: '第3课 十神详解',
+  deadline: '6月30日',
+  description: '完成八字案例分析报告',
+  content: '完成八字案例分析报告',
+  minWords: 200,
+  maxImages: 9,
+  attachments: [],
+})
 
 const content = ref('')
 const images = ref<string[]>([])
 
 const wordCount = computed(() => content.value.length)
-const canSubmit = computed(() => wordCount.value >= requirement.minWords)
+const canSubmit = computed(() => wordCount.value >= requirement.value.minWords)
 
 function removeImage(index: number) {
   images.value = images.value.filter((_, i) => i !== index)

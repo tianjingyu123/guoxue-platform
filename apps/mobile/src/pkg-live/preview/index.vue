@@ -285,7 +285,6 @@ import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
-import { onMounted } from 'vue'
 
 const room = ref<any>(null)
 
@@ -296,14 +295,15 @@ function reload() {
   loadError.value = null
 }
 
-const room = ref(livePreviewRoom)
+// room 已在 liveApi 接入处声明
 
 // 开播时间 = 当前时间 + 2 小时（与原型一致：动态计算 + 实时倒计时）
 const startTime = Date.now() + 2 * 60 * 60 * 1000
 const now = ref(Date.now())
 let timer: ReturnType<typeof setInterval> | null = null
 
-onMounted(() => {
+onMounted(async () => {
+  try { room.value = await liveApi.preview('1') } catch { /* 由 empty/error 态兜底 */ }
   timer = setInterval(() => {
     now.value = Date.now()
   }, 1000)
@@ -338,7 +338,7 @@ function pad(n: number) {
 
 // markdown 行解析(纯UI渲染)
 const descLines = computed(() => {
-  return room.value.descriptionLines.map((line) => {
+  return (room.value?.descriptionLines ?? []).map((line: string) => {
     if (line.startsWith('### ')) return { type: 'h3', text: line.replace('### ', '') }
     if (line.startsWith('**') && line.endsWith('**')) return { type: 'bold', text: line.replace(/\*\*/g, '') }
     if (line.startsWith('- ')) return { type: 'bullet', text: line.replace('- ', '') }

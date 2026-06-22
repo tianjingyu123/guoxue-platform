@@ -1,5 +1,10 @@
 <template>
-  <view class="page">
+  <view v-if="!replay || !currentChapter" class="page" style="padding: 24rpx;">
+    <AppSkeleton width="100%" height="420rpx" radius="24rpx" mb="24rpx" />
+    <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
+    <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
+  </view>
+  <view v-else class="page">
     <!-- 播放器区域 -->
     <view class="player">
       <!-- 返回按钮 -->
@@ -462,30 +467,37 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
 import { goBack } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
-import { onMounted } from 'vue'
+import type { ReplayDetail, ReplayChapter } from '@/lib/live-data'
 
-const replay = ref<any>(null)
+const replay = ref<ReplayDetail | null>(null)
 
 const statusBarHeight = ref(0)
 
 // UI 临时状态
-const replay = ref(replayDetail)
 const isPlaying = ref(false)
 const speed = ref(1)
 const activeTab = ref<'chapters' | 'discussion' | 'qa' | 'products'>('chapters')
 const isCollected = ref(false)
-const currentChapter = ref(replayDetail.chapters[0])
+const currentChapter = ref<ReplayChapter | null>(null)
 
-const tabs = ref([
-  { key: 'chapters' as const, label: '章节', icon: 'list', count: replayDetail.chapters.length },
-  { key: 'discussion' as const, label: '讨论', icon: 'message-circle', count: replayDetail.discussions.length },
-  { key: 'qa' as const, label: '问答', icon: 'help-circle', count: replayDetail.qaList.length },
-  { key: 'products' as const, label: '商品', icon: 'shopping-bag', count: replayDetail.products.length },
+const tabs = computed(() => [
+  { key: 'chapters' as const, label: '章节', icon: 'list', count: replay.value?.chapters.length ?? 0 },
+  { key: 'discussion' as const, label: '讨论', icon: 'message-circle', count: replay.value?.discussions.length ?? 0 },
+  { key: 'qa' as const, label: '问答', icon: 'help-circle', count: replay.value?.qaList.length ?? 0 },
+  { key: 'products' as const, label: '商品', icon: 'shopping-bag', count: replay.value?.products.length ?? 0 },
 ])
+
+onMounted(async () => {
+  try {
+    replay.value = await liveApi.replayDetail('1')
+    currentChapter.value = replay.value?.chapters[0] ?? null
+  } catch { /* 由页面空态兜底 */ }
+})
 </script>
 
 <style scoped>

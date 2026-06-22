@@ -206,7 +206,6 @@ function reload() {
 const statusBarHeight = ref(20)
 
 // UI 临时状态
-const replays = ref(liveReplays)
 const sortBy = ref<string>('latest')
 const showSort = ref(false)
 

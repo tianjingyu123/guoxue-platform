@@ -750,14 +750,14 @@ export const walletTxRecords: WalletTxRecord[] = [
 ]
 
 // ─── 个人中心 API ───
-import { apiGet, apiPost, apiDelete, useMock } from '@/utils/request'
+import { apiGet, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
 
 export const mineApi = {
   /** 修改密码 — PUT /auth/password */
   async changePassword(oldPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
     if (useMock()) return { success: true, message: '密码修改成功' }
     try {
-      await apiPost('/auth/password', { oldPassword, newPassword })
+      await apiPut('/auth/password', { oldPassword, newPassword })
       return { success: true, message: '密码修改成功' }
     } catch (e: any) {
       return { success: false, message: e?.message || '修改失败' }
@@ -768,7 +768,7 @@ export const mineApi = {
   async changePhone(oldPhone: string, oldCode: string, newPhone: string, newCode: string): Promise<{ success: boolean; message: string }> {
     if (useMock()) return { success: true, message: '手机号更换成功' }
     try {
-      await apiPost('/auth/phone', { oldPhone, oldCode, newPhone, newCode })
+      await apiPut('/auth/phone', { oldPhone, oldCode, newPhone, newCode })
       return { success: true, message: '手机号更换成功' }
     } catch (e: any) {
       return { success: false, message: e?.message || '更换失败' }
@@ -895,17 +895,17 @@ export const mineApi = {
     catch { return '' }
   },
 
-  /** 提交意见反馈 — POST /feedback */
+  /** 提交意见反馈 — POST /users/feedback */
   async submitFeedback(p: { type: string; content: string; contact?: string }): Promise<{ success: boolean; message: string }> {
     if (useMock()) return { success: true, message: '提交成功' }
-    try { await apiPost('/feedback', p); return { success: true, message: '提交成功' } }
+    try { await apiPost('/users/feedback', p); return { success: true, message: '提交成功' } }
     catch (e: any) { return { success: false, message: e?.message || '提交失败' } }
   },
 
-  /** 获取反馈历史 — GET /feedback/history */
+  /** 获取反馈历史 — GET /users/feedback/history */
   async getFeedbackHistory(): Promise<any[]> {
     if (useMock()) return []
-    return apiGet('/feedback/history')
+    return apiGet('/users/feedback/history')
   },
 
   /** 提交注销申请 — POST /users/delete-request */

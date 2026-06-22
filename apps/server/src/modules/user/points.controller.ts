@@ -60,6 +60,22 @@ export class PointsController {
     return this.svc.spendPoints(req.user.id, dto.amount, "EXCHANGE", `兑换${dto.targetType}:${dto.targetId}`);
   }
 
+  @Get("points/tasks")
+  @ApiOperation({ summary: "积分任务列表（每日可做的赚积分任务）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  getPointsTasks() {
+    // 复用赚积分规则，映射为前端任务卡片结构
+    return this.getDefaultEarnRules().map((r, i) => ({
+      id: i + 1,
+      title: r.title,
+      points: r.points,
+      icon: r.icon,
+      action: "去完成",
+      limit: r.limit,
+      completed: false,
+    }));
+  }
+
   @Get("points/overview")
   @ApiOperation({ summary: "积分概览（积分+成长值+规则+等级）" })
   @ApiResponse({ status: 200, description: "成功" })

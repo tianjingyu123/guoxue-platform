@@ -1134,20 +1134,20 @@ export const liveManageStatusConfig: Record<string, { label: string; color: stri
 
 // ── API ──
 export const liveApi = {
-  /** 直播广场列表 GET /live */
+  /** 直播广场列表 GET /live/rooms */
   async list(params?: Record<string, any>): Promise<{ items: any[]; total: number }> {
     if (useMock()) return { items: liveList, total: liveList.length }
-    try { return await apiGet<any>(`/live${params ? '?' + new URLSearchParams(params).toString() : ''}`) } catch { return { items: liveList, total: liveList.length } }
+    try { return await apiGet<any>(`/live/rooms${params ? '?' + new URLSearchParams(params).toString() : ''}`) } catch { return { items: liveList, total: liveList.length } }
   },
-  /** 直播详情 GET /live/:id */
+  /** 直播详情 GET /live/rooms/:id */
   async detail(id: string): Promise<any> {
     if (useMock()) return liveList.find(l => l.id === id) || liveList[0]
-    try { return await apiGet<any>(`/live/${id}`) } catch { return liveList[0] }
+    try { return await apiGet<any>(`/live/rooms/${id}`) } catch { return liveList[0] }
   },
-  /** 直播排期 GET /live/schedule */
+  /** 直播排期 GET /live/scheduled */
   async schedule(params?: Record<string, any>): Promise<any[]> {
     if (useMock()) return scheduleList
-    try { return await apiGet<any[]>(`/live/schedule?${new URLSearchParams(params || {}).toString()}`) } catch { return scheduleList }
+    try { return await apiGet<any[]>(`/live/scheduled?${new URLSearchParams(params || {}).toString()}`) } catch { return scheduleList }
   },
 
   /** 主播列表 GET /live/hosts */
@@ -1156,16 +1156,16 @@ export const liveApi = {
     try { return await apiGet<any>('/live/hosts') } catch { return liveHosts }
   },
 
-  /** 直播预告详情 GET /live/preview/:id */
+  /** 直播预告详情 — 复用房间详情 GET /live/rooms/:id（预告即 status=scheduled 的房间） */
   async preview(id: string): Promise<any> {
     if (useMock()) return livePreviewRoom
-    try { return await apiGet<any>(`/live/preview/${id}`) } catch { return livePreviewRoom }
+    try { return await apiGet<any>(`/live/rooms/${id}`) } catch { return livePreviewRoom }
   },
 
-  /** 结束页 GET /live/end/:id */
+  /** 结束页 — 复用房间详情 GET /live/rooms/:id（结束页即 status=ended 的房间） */
   async endRoom(id: string): Promise<any> {
     if (useMock()) return { room: liveEndRoom }
-    try { return await apiGet<any>(`/live/end/${id}`) } catch { return { room: liveEndRoom } }
+    try { const room = await apiGet<any>(`/live/rooms/${id}`); return { room } } catch { return { room: liveEndRoom } }
   },
 
   /** 回放列表 GET /live/replays */
@@ -1174,9 +1174,9 @@ export const liveApi = {
     try { return await apiGet<any>('/live/replays') } catch { return liveReplays }
   },
 
-  /** 回放详情 GET /live/replay/:id */
+  /** 回放详情 — 复用房间详情 GET /live/rooms/:id（含 replayUrl 字段） */
   async replayDetail(id: string): Promise<any> {
     if (useMock()) return replayDetail
-    try { return await apiGet<any>(`/live/replay/${id}`) } catch { return replayDetail }
+    try { return await apiGet<any>(`/live/rooms/${id}`) } catch { return replayDetail }
   },
 }

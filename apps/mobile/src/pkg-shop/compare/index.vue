@@ -145,14 +145,14 @@ import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
 import { shopApi, type CompareProduct } from '@/lib/shop-data'
-const comparePickList: any[] = []
-const _products: CompareProduct[] = []
+const comparePickList: string[] = []
+const _products: Record<string, CompareProduct> = {}
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
   return { products: _products }
 })
 
-const products = computed(() => pageData.value?.products ?? {})
+const products = computed<Record<string, CompareProduct>>(() => pageData.value?.products ?? {})
 const isEmpty = computed(() => Object.keys(products.value).length === 0)
 
 const safeBottom = ref(0)

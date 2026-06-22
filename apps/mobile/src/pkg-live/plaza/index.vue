@@ -25,7 +25,7 @@ function reload() {
 const activeTab = ref<string>('全部')
 
 const filtered = computed<LiveItem[]>(() => {
-  return liveList.filter((live) => {
+  return list.value.filter((live: LiveItem) => {
     if (activeTab.value === '全部') return true
     if (activeTab.value === '知识授课') return live.type === 'knowledge'
     if (activeTab.value === '电商带货') return live.type === 'commerce'
@@ -34,8 +34,15 @@ const filtered = computed<LiveItem[]>(() => {
   })
 })
 
-const livesNow = computed(() => filtered.value.filter((l) => l.status === 'live'))
-const livesUpcoming = computed(() => filtered.value.filter((l) => l.status === 'upcoming'))
+const livesNow = computed(() => filtered.value.filter((l: LiveItem) => l.status === 'live'))
+const livesUpcoming = computed(() => filtered.value.filter((l: LiveItem) => l.status === 'upcoming'))
+
+onMounted(async () => {
+  try {
+    const res = await liveApi.list()
+    list.value = res.items
+  } catch { /* 保持空列表，由 empty 态兜底 */ }
+})
 
 function onSearch() {
   navigateTo('/search')
