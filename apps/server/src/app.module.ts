@@ -29,6 +29,7 @@ import { CommissionModule } from "./modules/commission/commission.module";
 import { SystemModule } from "./modules/system/system.module";
 import { HealthModule } from "./modules/health/health.module";
 import { HomeModule } from "./modules/home/home.module";
+import { PoetryModule } from "./modules/poetry/poetry.module";
 import { CoinModule } from "./modules/coin/coin.module";
 import { QuestionModule } from "./modules/question/question.module";
 import { ImModule } from "./modules/im/im.module";
@@ -88,6 +89,6 @@ if (process.env.COMPETITION_ENABLED === "true") {
 }
 
 @Module({
-  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, TaskModule, ...conditionalModules, AuthModule, UserModule, BrowseHistoryModule, BundleModule, RenewalModule, CheckinModule, CircleModule, ArticleModule, PaipanModule, ToolRegistryModule, WannianliModule, CourseModule, InteractionModule, ShopModule, HuifuModule, TenantModule, ChurnModule, FortuneModule, PricingModule, BountyModule, ShareModule, CategoryModule, DiscoverModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, StationPickModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, HomeModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, AiGatewayModule, ContentGenerationModule, OperationRobotModule, OperationEngineModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule, OrderCenterModule, MemberModule, ExportModule],
+  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, TaskModule, ...conditionalModules, AuthModule, UserModule, BrowseHistoryModule, BundleModule, RenewalModule, CheckinModule, CircleModule, ArticleModule, PaipanModule, ToolRegistryModule, WannianliModule, CourseModule, InteractionModule, ShopModule, HuifuModule, TenantModule, ChurnModule, FortuneModule, PricingModule, BountyModule, ShareModule, CategoryModule, DiscoverModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, StationPickModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, HomeModule, PoetryModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, AiGatewayModule, ContentGenerationModule, OperationRobotModule, OperationEngineModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule, OrderCenterModule, MemberModule, ExportModule],
 })
 export class AppModule {}

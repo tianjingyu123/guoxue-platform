@@ -5498,3 +5498,86 @@ model WanNianLiDay {
   @@index([jieQi])
 }
 
+// ─────────────────────────────────────────────────
+// 诗词雅集（公开内容）
+// ─────────────────────────────────────────────────
+
+// 诗词分类（古典诗词/易经诗歌/命理赋文 等）
+model PoetryCategory {
+  id            String   @id @default(uuid())
+  name          String   @unique // 分类名称
+  icon          String?  // 图标 emoji
+  intro         String?  // 分类描述
+  subCategories Json?    // 子分类数组 ["唐诗","宋词","元曲"]
+  sortOrder     Int      @default(0)
+  poems         Poetry[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+// 诗词合集 / 收藏集（如「易经象辞集」「命理赋文选」）
+model PoetryCollection {
+  id          String   @id @default(uuid())
+  title       String // 合集标题
+  author      String? // 编者/作者
+  authorAvatar String? // 作者头像
+  dynasty     String? // 朝代
+  excerpt     String?  @db.Text // 摘录/简介
+  category    String?  // 所属分类名
+  cover       String?
+  likes       Int      @default(0)
+  sortOrder   Int      @default(0)
+  status      String   @default("PUBLISHED") // DRAFT/PUBLISHED/HIDDEN
+  poems       Poetry[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([sortOrder])
+}
+
+// 诗词正文
+model Poetry {
+  id            String   @id @default(uuid())
+  title         String // 诗词标题
+  author        String // 作者
+  authorId      String? // 关联诗人ID（预留）
+  dynasty       String // 朝代
+  form          String?  // 体裁：五言绝句/七律/词/赋 等
+  content       String   @db.Text // 正文（多句用换行分隔）
+  pinyin        Json?    // 逐句拼音数组，与正文句序对应
+  translation   String?  @db.Text // 白话译文
+  appreciation  String?  @db.Text // 赏析
+  aiAppreciation String? @db.Text // AI 赏析
+  notes         Json?    // 注释 [{word,note}]
+  authorIntro   String?  @db.Text // 作者简介
+  authorYears   String?  // 作者生卒年
+  authorTitle   String?  // 作者称号（诗仙等）
+  tags          Json?    // 标签 ["思乡","月亮"]
+  categoryId    String?  // 所属分类
+  collectionId  String?  // 所属合集
+  cover         String?
+  likes         Int      @default(0)
+  collectCount  Int      @default(0)
+  viewCount     Int      @default(0)
+  isRecommended Boolean  @default(false) // 是否首页推荐
+  isToday       Boolean  @default(false) // 是否「每日一首」
+  status        String   @default("PUBLISHED") // DRAFT/PUBLISHED/HIDDEN
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  category   PoetryCategory?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  collection PoetryCollection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([dynasty])
+  @@index([author])
+  @@index([categoryId])
+  @@index([collectionId])
+  @@index([status, isRecommended])
+  @@index([status, likes])
+}
+

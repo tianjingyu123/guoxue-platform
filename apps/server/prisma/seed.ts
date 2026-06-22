@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
+import { seedPoetry } from "./seeds/poetry.seed";
 
 const prisma = new PrismaClient();
 
@@ -2806,6 +2807,9 @@ async function main() {
   } else {
     console.log("✅ 案例库: 已存在 " + casesCount + " 条，跳过");
   }
+
+  // 诗词雅集种子数据
+  await seedPoetry(prisma);
 
   console.log("\n🎉 种子数据填充完成！");
   console.log("   管理员: 13800000000 / guoxue123");
