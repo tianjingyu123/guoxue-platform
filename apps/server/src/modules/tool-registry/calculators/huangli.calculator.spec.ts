@@ -36,6 +36,26 @@ describe("huangli calculator", () => {
     }
   });
 
+  // ── 吉时算法（黄道吉时，基于日支，禁止 charCodeAt 散列）──
+  it("同一日期吉时确定且可复现", () => {
+    const r1 = calculateHuangLi({ date: "2024-06-15" });
+    const r2 = calculateHuangLi({ date: "2024-06-15" });
+    expect(r1.jiShi).toEqual(r2.jiShi);
+  });
+
+  it("2024-06-15（庚戌日）黄道吉时由日支戌定", () => {
+    // 日支戌 → 青龙起辰；黄道吉神（青龙/明堂/金匮/天德/玉堂/司命）当值时辰按序排布
+    // 结果取前4个吉时：寅时、辰时、巳时、申时
+    const result = calculateHuangLi({ date: "2024-06-15" });
+    expect(result.jiShi).toEqual(["寅时", "辰时", "巳时", "申时"]);
+  });
+
+  it("吉时数量不超过4个且不重复", () => {
+    const result = calculateHuangLi({ date: "2024-03-03" });
+    expect(result.jiShi.length).toBeLessThanOrEqual(4);
+    expect(new Set(result.jiShi).size).toBe(result.jiShi.length);
+  });
+
   it("summary包含日期和宜忌概要", () => {
     const result = calculateHuangLi({ date: "2024-06-15" });
     expect(result.summary).toContain("2024-06-15");

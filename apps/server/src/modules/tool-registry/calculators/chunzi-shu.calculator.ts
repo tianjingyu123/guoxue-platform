@@ -2,6 +2,19 @@
 // 算法参考：《蠢子数》《邵子神数》
 import type { ChunZiShuResult, ChunZiItem } from "@guoxue/shared";
 
+// ── 时辰干支起卦辅助 ──
+// 禁止 Date.now() 毫秒/随机定签。未传报数时，用求签时刻的「日干支序数」(六十甲子) 起卦，
+// 同一日得同一签，符合传统神数「同时同卦」逻辑，结果可复现。
+const GANZHI_EPOCH_UTC = Date.UTC(1984, 1, 2); // 甲子日
+const DAY_MS = 86400000;
+
+/** 计算给定时刻的日干支序数（0=甲子 … 59=癸亥）。 */
+function getDayGanZhiIndex(date?: string | number | Date): number {
+  const t = date !== undefined ? new Date(date).getTime() : Date.now();
+  const days = Math.floor((t - GANZHI_EPOCH_UTC) / DAY_MS);
+  return ((days % 60) + 60) % 60;
+}
+
 // 蠢子数96条签名（简化集，源自民间蠢子数签文）
 const CHUNZI_ITEMS: ChunZiItem[] = [
   { id: 1, text: "日出东方照九州，万里无云万里天。", jiXiong: "上上", category: "天时" },
@@ -103,19 +116,23 @@ const CHUNZI_ITEMS: ChunZiItem[] = [
 ];
 
 export function calculateChunZiShu(input: Record<string, unknown>): ChunZiShuResult {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const random = input.random !== false;
   const number = input.number as number | undefined;
+  const date = input.date as string | number | undefined;
 
+  // 起卦：报数优先，未传报数时用求签时刻的日干支序数兜底（确定性、可复现，禁止毫秒/随机）
   let selectedId: number;
+  let qiGuaNote: string;
   if (number && number >= 1 && number <= 96) {
     selectedId = number;
+    qiGuaNote = `报数 ${number}`;
   } else {
-    selectedId = (Date.now() % 96) + 1;
+    const gzIndex = getDayGanZhiIndex(date); // 0-59
+    selectedId = (gzIndex % 96) + 1;
+    qiGuaNote = `依时辰日干支（六十甲子第 ${gzIndex + 1} 位）`;
   }
 
   const selected = CHUNZI_ITEMS.find(i => i.id === selectedId) || CHUNZI_ITEMS[0];
-  const summary = `蠢子数第${selected.id}签：${selected.text}（${selected.jiXiong}·${selected.category}）`;
+  const summary = `蠢子数第${selected.id}签：${selected.text}（${selected.jiXiong}·${selected.category}）｜起卦：${qiGuaNote}`;
 
   return { items: CHUNZI_ITEMS, selected, summary };
 }

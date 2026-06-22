@@ -4,6 +4,19 @@
 
 import type { LingQiJingInput, LingQiJingResult, LingQiJingGua } from "@guoxue/shared";
 
+// ── 时辰干支起卦辅助 ──
+// 禁止 Date.now() 毫秒/随机定卦。未传卦号时，依次用「所问文字」或「占卜时刻日干支」起卦，
+// 同一时辰/同一问得同一卦，符合传统「同事同时占以首占为准」逻辑，结果可复现。
+const GANZHI_EPOCH_UTC = Date.UTC(1984, 1, 2); // 甲子日
+const DAY_MS = 86400000;
+
+/** 计算给定时刻的日干支序数（0=甲子 … 59=癸亥）。 */
+function getDayGanZhiIndex(date?: string | number | Date): number {
+  const t = date !== undefined ? new Date(date).getTime() : Date.now();
+  const days = Math.floor((t - GANZHI_EPOCH_UTC) / DAY_MS);
+  return ((days % 60) + 60) % 60;
+}
+
 const LING_QI_125: LingQiJingGua[] = [
   { index:1, name:"大通卦", xiangDesc:"一上一中一下", jiXiong:"大吉", yanZhu:"阳升阴降，天地交泰，万物资始。此卦三象皆阳，纯刚至健，在人得之则为大通之象。凡事进取必成，退守则失。", heZhu:"三阳开泰，君子道长，小人道消。仕宦者高升，经商者获利，婚姻者得配，疾病者痊愈。然阳极则阴生，当知进退。", baiHua:"此卦大吉大利，三阳开泰之象。事业上有贵人相助，财运亨通，感情顺遂，诸事可成。但阳极生阴，得意时须防失意，居安思危方可长久。", suoyi:"出行/开业/婚嫁/上任/求财/祭祀/祈福", suoji:"安葬/诉讼/争强好胜", shiYue:"三阳开泰运，天地正通亨。进取皆如意，退藏亦太平。" },
   { index:2, name:"渐泰卦", xiangDesc:"一上一中二下", jiXiong:"上吉", yanZhu:"一阴在下，二阳在上，阴气始萌而阳气尚盛。如春天初至，寒气未消而暖意已回。事虽未全吉而渐入佳境。", heZhu:"仕途渐进有升迁之兆，经商谋事需耐心，婚姻虽迟终成，病体渐愈。凡事不可急进，守正待时则吉。", baiHua:"此卦上吉，如春日回暖之象。虽有小阻碍但整体向好发展。事业需耐心耕耘，感情虽迟必成，健康渐有起色。以柔克刚，循序渐进可得成功。", suoyi:"经营/求财/婚姻/种植/学习", suoji:"急进/冒险/远行不备/诉讼", shiYue:"阳气渐回春，寒消暖意生。守正徐徐进，功成自有辰。" },
@@ -264,16 +277,24 @@ const EXTRA_GUA: LingQiJingGua[] = (() => {
 const ALL_125 = [...LING_QI_125, ...EXTRA_GUA].sort((a, b) => a.index - b.index);
 
 export function calculateLingQiJing(input: Record<string, unknown>): LingQiJingResult {
-  const { guaNumber, random, question } = input as unknown as LingQiJingInput;
+  const { guaNumber, question } = input as unknown as LingQiJingInput;
+  const date = (input as Record<string, unknown>).date as string | number | undefined;
 
+  // 起卦：卦号优先 → 所问文字（确定性字符起卦）→ 占卜时刻日干支序数兜底。
+  // 全程禁止 Date.now() 毫秒/随机决定卦象，保证同输入同结果、可复现。
   let idx: number;
-  if (random) {
-    idx = (Date.now() % 125);
-  } else if (typeof guaNumber === "number" && guaNumber >= 1 && guaNumber <= 125) {
+  let qiGuaNote: string;
+  if (typeof guaNumber === "number" && guaNumber >= 1 && guaNumber <= 125) {
     idx = guaNumber - 1;
-  } else {
-    const seed = question ? question.split("").reduce((a: number, c: string) => a + c.charCodeAt(0), 0) : Date.now();
+    qiGuaNote = `指定第 ${guaNumber} 卦`;
+  } else if (question && question.trim().length > 0) {
+    const seed = question.split("").reduce((a: number, c: string) => a + c.charCodeAt(0), 0);
     idx = seed % 125;
+    qiGuaNote = "依所问文字起卦";
+  } else {
+    const gzIndex = getDayGanZhiIndex(date); // 0-59
+    idx = gzIndex % 125;
+    qiGuaNote = `依占卜时刻日干支（六十甲子第 ${gzIndex + 1} 位）起卦`;
   }
 
   const gua = ALL_125[idx];
@@ -319,6 +340,7 @@ export function calculateLingQiJing(input: Record<string, unknown>): LingQiJingR
     `│ 「灵棋者，法天象地，通于神明」——灵棋经序`,
     `│`,
     `└─ 占卜提示 ──────────────────`,
+    `   起卦方式：${qiGuaNote}。`,
     `   ${gua.jiXiong === "大吉" || gua.jiXiong === "上吉" ? "吉卦当运，所求可成，顺势而为。" : gua.jiXiong === "中平" ? "中平之卦，吉凶未定，宜静观其变。" : "凶卦当道，宜守不宜攻，静待时机。"}`,
     `   灵棋经共125卦，每卦有颜幼明/何承天双家古注，互为参照。`,
     `   同一事不同时占，卦象可不同，以首占为准。`,

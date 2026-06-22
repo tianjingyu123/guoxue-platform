@@ -3,6 +3,20 @@
 
 import type { LingQianResult, QianEntry, LingQianType, QianGrade } from "@guoxue/shared";
 
+// ── 时辰干支起卦辅助 ──
+// 禁止 Date.now() 毫秒/随机定签。未传报数时，用求签时刻的「日干支序数」(六十甲子 1-60) 起卦，
+// 同一日得同一签，符合传统「心诚则灵、同时同签」逻辑，结果可复现。
+// 基准：1984-02-02（甲子日，序数 0），按真太阳日累加干支。
+const GANZHI_EPOCH_UTC = Date.UTC(1984, 1, 2); // 甲子日
+const DAY_MS = 86400000;
+
+/** 计算给定时刻的日干支序数（0=甲子 … 59=癸亥）。date 缺省用当前时刻。 */
+function getDayGanZhiIndex(date?: string | number | Date): number {
+  const t = date !== undefined ? new Date(date).getTime() : Date.now();
+  const days = Math.floor((t - GANZHI_EPOCH_UTC) / DAY_MS);
+  return ((days % 60) + 60) % 60;
+}
+
 type QianData = [number, QianGrade, string, string, string, string, string, string, string, string];
 
 // [签号, 等级, 签名, 签诗, 解签, 综合, 财运, 姻缘, 事业, 健康]
@@ -129,23 +143,26 @@ export function calculateLingQian(input: Record<string, unknown>): LingQianResul
   const type = (input.type as LingQianType) || "guanyin";
   const question = (input.question as string) || "";
   const seed = input.seed as number | undefined;
+  const date = input.date as string | number | undefined;
 
   const signs = GUANYIN_100;
   const totalSigns = signs.length;
 
-  // 随机选签（如传入 seed 则确定性）
+  // 起卦：报数优先，未传报数时用求签时刻的日干支序数兜底（确定性、可复现，禁止毫秒/随机）
   let idx: number;
+  let ganZhiIndex: number | null = null;
   if (seed !== undefined) {
     idx = Math.abs(seed) % totalSigns;
   } else {
-    idx = (Date.now() % totalSigns);
+    ganZhiIndex = getDayGanZhiIndex(date);
+    idx = ganZhiIndex % totalSigns;
   }
 
   const sign = buildEntry(signs[idx]);
 
   const shakeProcess = seed !== undefined
     ? `诚心报数 ${seed}，取第 ${sign.number} 签`
-    : `虔诚摇签，得第 ${sign.number} 签`;
+    : `依求签时刻日干支（六十甲子第 ${ganZhiIndex! + 1} 位）起卦，得第 ${sign.number} 签`;
 
   const summary = [
     "┌──────────────────────────────────────┐",
@@ -164,7 +181,8 @@ export function calculateLingQian(input: Record<string, unknown>): LingQianResul
     "├──────────────────────────────────────┤",
     "│ 出处：《观音灵签》一百签，依周易六   │",
     "│ 十四卦推演，历代宫观参校              │",
-    "│ " + shakeProcess.padEnd(37) + "│",
+    "│ 起卦：报数优先，缺则依时辰日干支      │",
+    "│ " + shakeProcess.slice(0, 35).padEnd(37) + "│",
     "└──────────────────────────────────────┘",
   ].join("\n");
 

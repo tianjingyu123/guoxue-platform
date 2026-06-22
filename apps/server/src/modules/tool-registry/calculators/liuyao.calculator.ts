@@ -4,7 +4,7 @@
 // 纳甲法源自京房易学体系
 
 import type { LiuYaoResult, Yao } from "@guoxue/shared";
-import { calcRiZhu } from "@guoxue/bazi-engine";
+import { calcRiZhu, calcNianZhu } from "@guoxue/bazi-engine";
 
 
 // 六十四卦数据（编码：上卦3爻+下卦3爻，1=阳0=阴，上→下）
@@ -144,48 +144,139 @@ function getLiuQin(guaWuXing: string, yaoWuXing: string): string {
   return WU_XING_REL[guaWuXing]?.[yaoWuXing] ?? "兄弟";
 }
 
+// ── 起卦法常量与工具 ──────────────────────────────────────────────
+// 先天八卦数 → 三爻编码（上爻→中爻→下爻，1=阳0=阴），与 GUA_64 编码方向一致
+// 乾1☰ 兑2☱ 离3☲ 震4☳ 巽5☴ 坎6☵ 艮7☶ 坤8☷
+// 依据：《梅花易数》先天八卦数（乾一兑二离三震四巽五坎六艮七坤八）
+const XIAN_TIAN_BAGUA: Record<number, { name: string; code: string }> = {
+  1: { name: "乾", code: "111" },
+  2: { name: "兑", code: "011" },
+  3: { name: "离", code: "101" },
+  4: { name: "震", code: "001" },
+  5: { name: "巽", code: "110" },
+  6: { name: "坎", code: "010" },
+  7: { name: "艮", code: "100" },
+  8: { name: "坤", code: "000" },
+};
+
+const DI_ZHI = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
+
+/** 余数归一到 1..n（整除时取 n），用于"除尽得末卦/末爻"的传统规则 */
+function modTo(value: number, n: number): number {
+  const r = value % n;
+  return r === 0 ? n : r;
+}
+
+/** 八卦数（1-8）→ 三爻编码 */
+function baguaCode(num: number): string {
+  return XIAN_TIAN_BAGUA[modTo(num, 8)].code;
+}
+
+/** 时辰地支序数：子时(23:00-01:00)=1 … 亥时=12 */
+function getShiChenIndex(hour: number): number {
+  // 子时跨日：23 点与 0 点同属子时
+  return Math.floor(((hour + 1) % 24) / 2) + 1;
+}
+
+/** 起卦结果：上卦数、下卦数、动爻位（1-6）、说明片段、起卦方法名 */
+interface QiGuaResult {
+  upperNum: number;
+  lowerNum: number;
+  dongYao: number;
+  methodLabel: string;
+  basis: string;
+}
+
+/**
+ * 数字（报数）起卦法 —— 《梅花易数》数字卦例
+ * 两数法：第一数 ÷8 余定上卦，第二数 ÷8 余定下卦，两数之和 ÷6 余定动爻
+ * 三数法：前两数同上，三数之和 ÷6 余定动爻
+ */
+function qiGuaByNumbers(nums: number[]): QiGuaResult {
+  const sanitized = nums.map((n) => Math.abs(Math.trunc(n)));
+  const upperSrc = sanitized[0] ?? 0;
+  const lowerSrc = sanitized[1] ?? upperSrc;
+  const upperNum = modTo(upperSrc, 8);
+  const lowerNum = modTo(lowerSrc, 8);
+  const total = sanitized.reduce((s, n) => s + n, 0);
+  const dongYao = modTo(total, 6);
+  const label = nums.length >= 3 ? "数字起卦·三数法" : "数字起卦·两数法";
+  const basis =
+    `报数 ${nums.join("、")}：` +
+    `首数${upperSrc}÷8余${upperNum}得上卦${XIAN_TIAN_BAGUA[upperNum].name}，` +
+    `次数${lowerSrc}÷8余${lowerNum}得下卦${XIAN_TIAN_BAGUA[lowerNum].name}，` +
+    `总数${total}÷6余${dongYao}为动爻（《梅花易数》先天八卦数起卦法）`;
+  return { upperNum, lowerNum, dongYao, methodLabel: label, basis };
+}
+
+/**
+ * 时间起卦法 —— 《梅花易数》年月日时起卦（移植至六爻装卦）
+ * 上卦 = (年支序数 + 月数 + 日数) ÷8 取余
+ * 下卦 = (年支序数 + 月数 + 日数 + 时辰序数) ÷8 取余
+ * 动爻 = (年支序数 + 月数 + 日数 + 时辰序数) ÷6 取余
+ * 关键：同一时辰必得同一卦（确定性、可复现），绝不使用毫秒/随机
+ */
+function qiGuaByTime(date: Date): QiGuaResult {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hour = date.getHours();
+
+  // 年支序数（子=1 … 亥=12），用立春分界的年柱地支，依据《梅花易数》以地支配数
+  const nianZhi = calcNianZhu(year, month, day, hour).zhi;
+  const nianZhiNum = DI_ZHI.indexOf(nianZhi) + 1;
+  const shiChenNum = getShiChenIndex(hour);
+
+  const upperSum = nianZhiNum + month + day;
+  const lowerSum = nianZhiNum + month + day + shiChenNum;
+  const upperNum = modTo(upperSum, 8);
+  const lowerNum = modTo(lowerSum, 8);
+  const dongYao = modTo(lowerSum, 6);
+
+  const basis =
+    `年支${nianZhi}(${nianZhiNum})、月${month}、日${day}、` +
+    `${DI_ZHI[shiChenNum - 1]}时(${shiChenNum})：` +
+    `(${nianZhiNum}+${month}+${day})÷8余${upperNum}得上卦${XIAN_TIAN_BAGUA[upperNum].name}，` +
+    `(上+${shiChenNum})÷8余${lowerNum}得下卦${XIAN_TIAN_BAGUA[lowerNum].name}，` +
+    `总和÷6余${dongYao}为动爻（《梅花易数》年月日时起卦法移植）`;
+  return { upperNum, lowerNum, dongYao, methodLabel: "时间起卦", basis };
+}
+
 /** 主计算函数 */
 export function calculateLiuYao(input: Record<string, unknown>): LiuYaoResult {
   const method = (input.method as string) ?? "auto";
   const datetime = input.datetime as string ?? new Date().toISOString();
 
-  // 根据起卦方式生成6个爻（0=阴, 1=阳）
-  const yaoNums: number[] = [];
-  if (method === "auto" || method === "shake") {
-    const d = new Date(datetime);
-    const seed = d.getTime();
-    for (let i = 0; i < 6; i++) {
-      yaoNums.push(((seed >> i) & 1));
-    }
-  } else if (method === "number-2" && input.numbers2) {
-    const [a, b] = input.numbers2 as [number, number];
-    for (let i = 0; i < 6; i++) {
-      yaoNums.push(((a >> i) & 1) ^ ((b >> i) & 1) ? 1 : 0);
-    }
-  } else if (method === "number-3" && input.numbers3) {
-    const [a, b, c] = input.numbers3 as [number, number, number];
-    for (let i = 0; i < 6; i++) {
-      const sum = ((a >> i) & 1) + ((b >> i) & 1) + ((c >> i) & 1);
-      yaoNums.push(sum % 2);
-    }
+  // ── 起卦：确定性传统起卦法（报数优先、时间兜底），杜绝毫秒/伪随机 ──
+  // 1) 若提供报数（number-2/number-3 或裸 numbers2/numbers3），用《梅花易数》数字起卦法
+  // 2) 否则用求卦时刻的年支/月/日/时（《梅花易数》时间起卦法移植）
+  //    —— 同一时辰必得同一卦，确定性可复现
+  let qi: QiGuaResult;
+  const nums2 = input.numbers2 as [number, number] | undefined;
+  const nums3 = input.numbers3 as [number, number, number] | undefined;
+
+  if ((method === "number-3" || method === "number-2") && nums3 && nums3.length >= 3) {
+    qi = qiGuaByNumbers(nums3);
+  } else if ((method === "number-2" || method === "number-3") && nums2 && nums2.length >= 2) {
+    qi = qiGuaByNumbers(nums2);
+  } else if (nums3 && nums3.length >= 3) {
+    // method 未声明但传了三数 → 报数起卦优先
+    qi = qiGuaByNumbers(nums3);
+  } else if (nums2 && nums2.length >= 2) {
+    qi = qiGuaByNumbers(nums2);
   } else {
-    const d = new Date(datetime);
-    const seed = d.getTime();
-    for (let i = 0; i < 6; i++) {
-      yaoNums.push(((seed >> (i * 7)) & 1));
-    }
+    // 时间起卦兜底（auto/shake/time 及缺报数的所有情形）
+    qi = qiGuaByTime(new Date(datetime));
   }
 
-  // 动爻判断：随机产生1-3个动爻
-  const dongYaoPositions: number[] = [];
-  const seed2 = new Date(datetime).getTime() + 42;
-  for (let i = 0; i < 6; i++) {
-    if (((seed2 >> (i * 5)) & 7) === 0) dongYaoPositions.push(i + 1);
-  }
-  if (dongYaoPositions.length === 0) dongYaoPositions.push(((seed2 & 5) % 6) + 1);
+  // 由上下卦数组装本卦六爻编码（上卦三爻在前，与 GUA_64 编码方向一致）
+  const upperCode = baguaCode(qi.upperNum);
+  const lowerCode = baguaCode(qi.lowerNum);
+  const benGuaCode = upperCode + lowerCode;
+  const yaoNums = benGuaCode.split("").map(Number);
 
-  // 本卦码
-  const benGuaCode = yaoNums.join("");
+  // 动爻：由起卦法确定的单一动爻位（《梅花易数》一卦一动爻）
+  const dongYaoPositions: number[] = [qi.dongYao];
 
   // 查找本卦
   const benGuaEntry = getGuaByCode(benGuaCode);
@@ -255,6 +346,9 @@ export function calculateLiuYao(input: Record<string, unknown>): LiuYaoResult {
     "│ 爻位 卦象 六亲 纳甲    六兽 世应 动  │",
     yaoList.split("\n").map(l => "│ " + l.padEnd(37) + "│").join("\n"),
     "├──────────────────────────────────────┤",
+    "│ 起卦：" + qi.methodLabel.padEnd(31) + "│",
+    "│ 依据：" + qi.basis,
+    "├──────────────────────────────────────┤",
     "│ 出处：《卜筮正宗》《增删卜易》        │",
     "│ 纳甲法源自京房易学，《火珠林》传世    │",
     "│ 六十四卦八宫卦序·王洪绪订正本         │",
@@ -271,6 +365,7 @@ export function calculateLiuYao(input: Record<string, unknown>): LiuYaoResult {
     yingYao,
     guaGong: benGuaEntry.gong,
     wuXing: benGuaEntry.wuXing,
+    qiGua: { method: qi.methodLabel, basis: qi.basis },
     summary,
-  } as LiuYaoResult & { summary: string };
+  } as LiuYaoResult & { summary: string; qiGua: { method: string; basis: string } };
 }

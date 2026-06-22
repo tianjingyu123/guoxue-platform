@@ -143,12 +143,39 @@ function getDefaultJi(dayGZ: string): string[] {
   return result;
 }
 
+// ── 黄道吉时（基于日支定时辰黄黑道，《协纪辨方书》）──
+// 摒弃 charCodeAt Unicode 散列，改用传统「日支起黄道」定吉时：
+// 每日十二时辰按黄道十二神（青龙、明堂、天刑、朱雀、金匮、天德、白虎、玉堂、天牢、玄武、司命、勾陈）排布，
+// 起神时辰随日支三合而定（口诀：子午起申、丑未起戌、寅申起子、卯酉起寅、辰戌起辰、巳亥起午），
+// 取黄道吉神（青龙0/明堂1/金匮4/天德5/玉堂7/司命10）当值的时辰为吉时。结果由日支唯一确定，可复现。
+const ZHI_ORDER = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
+const SHI_CHEN = ["子时","丑时","寅时","卯时","辰时","巳时","午时","未时","申时","酉时","戌时","亥时"];
+// 黄道吉神在十二神序列中的位置（青龙、明堂、金匮、天德、玉堂、司命）
+const HUANG_DAO_GOOD = new Set([0, 1, 4, 5, 7, 10]);
+// 日支 → 青龙(黄道首神)所临的起始时辰索引
+const QING_LONG_START: Record<string, number> = {
+  "子": 8, "午": 8, // 子午起申
+  "丑": 10, "未": 10, // 丑未起戌
+  "寅": 0, "申": 0, // 寅申起子
+  "卯": 2, "酉": 2, // 卯酉起寅
+  "辰": 4, "戌": 4, // 辰戌起辰
+  "巳": 6, "亥": 6, // 巳亥起午
+};
+
 function getJiShi(dayGZ: string): string[] {
-  const shiChen = ["子时","丑时","寅时","卯时","辰时","巳时","午时","未时","申时","酉时","戌时","亥时"];
-  const seed = dayGZ.charCodeAt(0) + dayGZ.charCodeAt(1);
+  const dayZhi = dayGZ.length >= 2 ? dayGZ[1] : "子";
+  const start = QING_LONG_START[dayZhi] ?? 0;
   const result: string[] = [];
-  for (let i = 0; i < 4; i++) result.push(shiChen[(seed + i * 3) % 12]);
-  return [...new Set(result)];
+  // 从青龙起始时辰开始，依次为十二神，黄道吉神当值的时辰即吉时
+  for (let god = 0; god < 12; god++) {
+    if (HUANG_DAO_GOOD.has(god)) {
+      const shiIdx = (start + god) % 12;
+      result.push(SHI_CHEN[shiIdx]);
+    }
+  }
+  // 按时辰顺序输出，取前 4 个吉时
+  result.sort((a, b) => SHI_CHEN.indexOf(a) - SHI_CHEN.indexOf(b));
+  return [...new Set(result)].slice(0, 4);
 }
 
 function buildSummary(date: string, lunarDate: string, yearGZ: string, monthGZ: string, dayGZ: string, jieQi: string | null, chongSha: string, caiShen: string, xiShen: string, fuShen: string, jiShen: string[], xiongShen: string[], yi: string[], ji: string[], xiu: ErShiBaXiuDetail, jianChu: string): string {

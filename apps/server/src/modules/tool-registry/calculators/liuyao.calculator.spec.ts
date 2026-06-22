@@ -199,7 +199,7 @@ describe("六爻纳甲计算器", () => {
     it("手动数字起卦（两数法）", () => {
       const result: any = calculateLiuYao({
         method: "number-2",
-        numbers2: [0x3f, 0x00],
+        numbers2: [5, 8],
       });
       expect(result.yaos).toHaveLength(6);
       expect(result.benGua.name).toBeTruthy();
@@ -212,7 +212,7 @@ describe("六爻纳甲计算器", () => {
     it("手动数字起卦（三数法）", () => {
       const result: any = calculateLiuYao({
         method: "number-3",
-        numbers3: [0xff, 0x00, 0x55],
+        numbers3: [3, 4, 9],
       });
       expect(result.yaos).toHaveLength(6);
       expect(result.benGua.name).toBeTruthy();
@@ -222,11 +222,11 @@ describe("六爻纳甲计算器", () => {
     it("两数法结果确定性", () => {
       const r1: any = calculateLiuYao({
         method: "number-2",
-        numbers2: [0x3f, 0x00],
+        numbers2: [5, 8],
       });
       const r2: any = calculateLiuYao({
         method: "number-2",
-        numbers2: [0x3f, 0x00],
+        numbers2: [5, 8],
       });
       expect(r1.benGua.name).toBe(r2.benGua.name);
     });
@@ -234,11 +234,11 @@ describe("六爻纳甲计算器", () => {
     it("三数法结果确定性", () => {
       const r1: any = calculateLiuYao({
         method: "number-3",
-        numbers3: [0xff, 0x00, 0x55],
+        numbers3: [3, 4, 9],
       });
       const r2: any = calculateLiuYao({
         method: "number-3",
-        numbers3: [0xff, 0x00, 0x55],
+        numbers3: [3, 4, 9],
       });
       expect(r1.benGua.name).toBe(r2.benGua.name);
     });
@@ -446,6 +446,124 @@ describe("六爻纳甲计算器", () => {
       // 验证互卦存在
       expect(result.huGua).toBeDefined();
       expect(result.huGua.name).toBeTruthy();
+    });
+  });
+
+  // ====================================================================
+  // 9. 起卦算法正确性 — 《梅花易数》报数/时间起卦法（确定性，杜绝毫秒/随机）
+  // ====================================================================
+  describe("起卦算法正确性", () => {
+    it("两数法按先天八卦数起卦：[5,8] → 风地观，动爻第1爻", () => {
+      // 首数5÷8余5=巽(110)上卦，次数8÷8余8=坤(000)下卦 → 110000 风地观
+      // 总数13÷6余1 → 动爻第1爻
+      const r: any = calculateLiuYao({ method: "number-2", numbers2: [5, 8] });
+      expect(r.benGua.name).toBe("风地观");
+      expect(r.benGua.upper).toBe("巽");
+      expect(r.benGua.lower).toBe("坤");
+      const dong = r.yaos.filter((y: any) => y.isDongYao).map((y: any) => y.position);
+      expect(dong).toEqual([1]);
+      expect(r.qiGua.method).toContain("两数法");
+    });
+
+    it("三数法按先天八卦数起卦：[3,4,9] → 火雷噬嗑，动爻第4爻", () => {
+      // 首数3÷8余3=离(101)上卦，次数4÷8余4=震(001)下卦 → 101001 火雷噬嗑
+      // 总数16÷6余4 → 动爻第4爻
+      const r: any = calculateLiuYao({ method: "number-3", numbers3: [3, 4, 9] });
+      expect(r.benGua.name).toBe("火雷噬嗑");
+      expect(r.benGua.upper).toBe("离");
+      expect(r.benGua.lower).toBe("震");
+      const dong = r.yaos.filter((y: any) => y.isDongYao).map((y: any) => y.position);
+      expect(dong).toEqual([4]);
+      expect(r.qiGua.method).toContain("三数法");
+    });
+
+    it("整除归一规则：余0取末卦（8卦/6爻），如 numbers2:[8,16]", () => {
+      // 8÷8余0→取8=坤，16÷8余0→取8=坤 → 000000 坤为地；总24÷6余0→第6爻
+      const r: any = calculateLiuYao({ method: "number-2", numbers2: [8, 16] });
+      expect(r.benGua.name).toBe("坤为地");
+      const dong = r.yaos.filter((y: any) => y.isDongYao).map((y: any) => y.position);
+      expect(dong).toEqual([6]);
+    });
+
+    it("报数优先：未声明 method 但传 numbers3 时走报数起卦", () => {
+      const r: any = calculateLiuYao({ method: "auto", numbers3: [3, 4, 9] });
+      expect(r.benGua.name).toBe("火雷噬嗑");
+      expect(r.qiGua.method).toContain("数字起卦");
+    });
+
+    it("时间起卦：2024-06-15T10:00:00 → 泽地萃，动爻第2爻", () => {
+      // 甲辰年(辰=5)+月6+日15=26÷8余2=兑(011)上卦
+      // +巳时(6)=32÷8余0→8=坤(000)下卦 → 011000 泽地萃；32÷6余2→第2爻
+      const r: any = calculateLiuYao({
+        method: "time",
+        datetime: "2024-06-15T10:00:00",
+      });
+      expect(r.benGua.name).toBe("泽地萃");
+      expect(r.benGua.upper).toBe("兑");
+      expect(r.benGua.lower).toBe("坤");
+      const dong = r.yaos.filter((y: any) => y.isDongYao).map((y: any) => y.position);
+      expect(dong).toEqual([2]);
+      expect(r.qiGua.method).toBe("时间起卦");
+    });
+
+    it("时间起卦说明含年支/月/日/时辰与依据出处", () => {
+      const r: any = calculateLiuYao({
+        method: "time",
+        datetime: "2024-06-15T10:00:00",
+      });
+      expect(r.qiGua.basis).toContain("年支");
+      expect(r.qiGua.basis).toContain("梅花易数");
+    });
+  });
+
+  // ====================================================================
+  // 10. 造假回归防护 — 同一时辰必同卦，绝不因毫秒/随机变化
+  // ====================================================================
+  describe("造假回归防护", () => {
+    it("同一时辰内不同毫秒得到完全相同的卦（杜绝 Date.now 毫秒起卦）", () => {
+      const a: any = calculateLiuYao({
+        method: "time",
+        datetime: "2024-06-15T10:00:00.000",
+      });
+      const b: any = calculateLiuYao({
+        method: "time",
+        datetime: "2024-06-15T10:59:59.999",
+      });
+      // 10:00 与 10:59 同属巳时，应得同卦同动爻
+      expect(a.benGua.name).toBe(b.benGua.name);
+      expect(a.yaos.map((y: any) => y.type)).toEqual(
+        b.yaos.map((y: any) => y.type),
+      );
+      expect(
+        a.yaos.filter((y: any) => y.isDongYao).map((y: any) => y.position),
+      ).toEqual(
+        b.yaos.filter((y: any) => y.isDongYao).map((y: any) => y.position),
+      );
+    });
+
+    it("不同时辰可得不同卦（起卦确随时辰变化，非固定）", () => {
+      const morning: any = calculateLiuYao({
+        method: "time",
+        datetime: "2024-06-15T10:00:00",
+      });
+      const night: any = calculateLiuYao({
+        method: "time",
+        datetime: "2024-06-15T23:30:00",
+      });
+      // 至少卦象或动爻其一不同（不同时辰序数参与上卦/下卦/动爻）
+      const changed =
+        morning.benGua.name !== night.benGua.name ||
+        morning.yaos.filter((y: any) => y.isDongYao)[0].position !==
+          night.yaos.filter((y: any) => y.isDongYao)[0].position;
+      expect(changed).toBe(true);
+    });
+
+    it("恰有一个动爻（《梅花易数》一卦一动爻）", () => {
+      const r: any = calculateLiuYao({
+        method: "time",
+        datetime: "2024-06-15T10:00:00",
+      });
+      expect(r.yaos.filter((y: any) => y.isDongYao)).toHaveLength(1);
     });
   });
 });

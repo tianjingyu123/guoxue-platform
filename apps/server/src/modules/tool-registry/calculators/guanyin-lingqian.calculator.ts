@@ -4,6 +4,19 @@
 
 import type { GuanYinLingQianResult, LingQianDetail } from "@guoxue/shared";
 
+// ── 时辰干支起卦辅助 ──
+// 禁止 Date.now() 毫秒/随机定签。未传签号时，用求签时刻的「日干支序数」(六十甲子) 起卦，
+// 同一日得同一签，符合传统「心诚则灵、同时同签」逻辑，结果可复现。
+const GANZHI_EPOCH_UTC = Date.UTC(1984, 1, 2); // 甲子日
+const DAY_MS = 86400000;
+
+/** 计算给定时刻的日干支序数（0=甲子 … 59=癸亥）。 */
+function getDayGanZhiIndex(date?: string | number | Date): number {
+  const t = date !== undefined ? new Date(date).getTime() : Date.now();
+  const days = Math.floor((t - GANZHI_EPOCH_UTC) / DAY_MS);
+  return ((days % 60) + 60) % 60;
+}
+
 const QIAN_DB: LingQianDetail[] = [
   // ════════════════════════════════════════════
   // 第1签 ~ 第30签：完整详细格式
@@ -1437,21 +1450,23 @@ const QIAN_DB: LingQianDetail[] = [
 export function calculateGuanYinLingQian(input: Record<string, unknown>): GuanYinLingQianResult {
   const qianNumber = input.qianNumber as number | undefined;
   const question = (input.question as string) || "";
+  const date = input.date as string | number | undefined;
 
   let selectedQian: LingQianDetail;
+  let qiGuaNote: string;
 
-  if (qianNumber !== undefined && qianNumber >= 1 && qianNumber <= 100) {
-    const found = QIAN_DB.find((q) => q.number === qianNumber);
-    if (found) {
-      selectedQian = found;
-    } else {
-      // fallback: 时间确定性选择
-      const idx = (Date.now() % QIAN_DB.length);
-      selectedQian = QIAN_DB[idx];
-    }
+  // 起卦：签号优先，未传/未命中时用求签时刻的日干支序数兜底（确定性、可复现，禁止毫秒/随机）
+  const found =
+    qianNumber !== undefined && qianNumber >= 1 && qianNumber <= 100
+      ? QIAN_DB.find((q) => q.number === qianNumber)
+      : undefined;
+  if (found) {
+    selectedQian = found;
+    qiGuaNote = `指定第 ${qianNumber} 签`;
   } else {
-    const idx = (Date.now() % QIAN_DB.length);
-    selectedQian = QIAN_DB[idx];
+    const gzIndex = getDayGanZhiIndex(date); // 0-59
+    selectedQian = QIAN_DB[gzIndex % QIAN_DB.length];
+    qiGuaNote = `依求签时刻日干支（六十甲子第 ${gzIndex + 1} 位）起卦`;
   }
 
   const allQian = QIAN_DB.map((q) => ({
@@ -1493,6 +1508,7 @@ export function calculateGuanYinLingQian(input: Record<string, unknown>): GuanYi
     `│ 100签中上签36/中签36/下签28，反映人生百态。`,
     ``,
     `└─ 解签提示 ──────────────────`,
+    `   起卦方式：${qiGuaNote}。`,
     `   「观音签」重于心诚——心诚则灵，疑则不验。`,
     `   签文仅为参考指引，最终命运握在自己手中。`,
     `   上签莫骄，下签莫沮，存好心行好事即是转运之道。`,
