@@ -792,40 +792,45 @@ export class LiveService {
 
   // ───────── 公开浏览服务 ─────────
 
+  private calcDuration(start?: Date | null, end?: Date | null): number {
+    if (start && end) return Math.floor((end.getTime() - start.getTime()) / 1000);
+    return 0;
+  }
+
   async getHosts(filter?: string) {
     const rooms = await this.prisma.liveRoom.findMany({
-      where: { status: filter === 'live' ? 'LIVE' : undefined },
-      select: { id: true, title: true, coverUrl: true, hostName: true, hostAvatar: true, status: true, viewerCount: true },
-      take: 20, orderBy: { viewerCount: 'desc' },
+      where: { status: filter === 'live' ? 'LIVING' : undefined },
+      select: { id: true, cover: true, status: true, viewCount: true, user: { select: { nickname: true, avatar: true } } },
+      take: 20, orderBy: { viewCount: 'desc' },
     });
-    return { items: rooms.map(r => ({ id: r.id, name: r.hostName, avatar: r.hostAvatar, cover: r.coverUrl, specialty: '', followers: 0, likes: 0, liveCount: 0, rating: 4.5, isLive: r.status === 'LIVE', viewerCount: r.viewerCount, tags: [], verified: false })), total: rooms.length };
+    return { items: rooms.map(r => ({ id: r.id, name: r.user?.nickname || '', avatar: r.user?.avatar || '', cover: r.cover || '', specialty: '', followers: 0, likes: 0, liveCount: 0, rating: 4.5, isLive: r.status === 'LIVING', viewerCount: r.viewCount, tags: [], verified: false })), total: rooms.length };
   }
 
   async getReplays(sortBy?: string) {
     const rooms = await this.prisma.liveRoom.findMany({
       where: { status: 'ENDED' },
-      select: { id: true, title: true, coverUrl: true, hostName: true, hostAvatar: true, viewerCount: true, duration: true, createdAt: true },
+      select: { id: true, title: true, cover: true, viewCount: true, startTime: true, endTime: true, createdAt: true, user: { select: { nickname: true, avatar: true } } },
       take: 20,
-      orderBy: sortBy === 'popular' ? { viewerCount: 'desc' } : { createdAt: 'desc' },
+      orderBy: sortBy === 'popular' ? { viewCount: 'desc' } : { createdAt: 'desc' },
     });
-    return { items: rooms.map(r => ({ id: r.id, title: r.title, cover: r.coverUrl, hostName: r.hostName, hostAvatar: r.hostAvatar, category: '', viewers: r.viewerCount, duration: r.duration || 0, dateText: r.createdAt.toISOString().slice(0, 10) })), total: rooms.length };
+    return { items: rooms.map(r => ({ id: r.id, title: r.title, cover: r.cover || '', hostName: r.user?.nickname || '', hostAvatar: r.user?.avatar || '', category: '', viewers: r.viewCount, duration: this.calcDuration(r.startTime, r.endTime), dateText: r.createdAt.toISOString().slice(0, 10) })), total: rooms.length };
   }
 
   async getPreview(id: string) {
-    const room = await this.prisma.liveRoom.findUnique({ where: { id } });
+    const room = await this.prisma.liveRoom.findUnique({ where: { id }, include: { user: { select: { nickname: true, avatar: true } } } });
     if (!room) return null;
-    return { id: room.id, title: room.title, cover: room.coverUrl, hostName: room.hostName, hostAvatar: room.hostAvatar, hostFollowers: 0, bookedCount: 0, estimatedDuration: room.duration || 60, scheduledAt: room.scheduledAt, tags: [], descriptionLines: [] };
+    return { id: room.id, title: room.title, cover: room.cover || '', hostName: room.user?.nickname || '', hostAvatar: room.user?.avatar || '', hostFollowers: 0, bookedCount: 0, estimatedDuration: this.calcDuration(room.startTime, room.endTime) || 60, scheduledAt: room.startTime, tags: [], descriptionLines: [] };
   }
 
   async getReplayDetail(id: string) {
-    const room = await this.prisma.liveRoom.findUnique({ where: { id, status: 'ENDED' } });
+    const room = await this.prisma.liveRoom.findFirst({ where: { id, status: 'ENDED' }, include: { user: { select: { nickname: true, avatar: true } } } });
     if (!room) return null;
-    return { id: room.id, title: room.title, cover: room.coverUrl, hostName: room.hostName, hostAvatar: room.hostAvatar, duration: room.duration || 0, viewerCount: room.viewerCount, chapters: [], discussions: [], qaList: [], products: [] };
+    return { id: room.id, title: room.title, cover: room.cover || '', hostName: room.user?.nickname || '', hostAvatar: room.user?.avatar || '', duration: this.calcDuration(room.startTime, room.endTime), viewerCount: room.viewCount, chapters: [], discussions: [], qaList: [], products: [] };
   }
 
   async getEndRoom(id: string) {
-    const room = await this.prisma.liveRoom.findUnique({ where: { id, status: 'ENDED' } });
+    const room = await this.prisma.liveRoom.findFirst({ where: { id, status: 'ENDED' }, include: { user: { select: { nickname: true, avatar: true } } } });
     if (!room) return null;
-    return { room: { id: room.id, title: room.title, cover: room.coverUrl, hostName: room.hostName, hostAvatar: room.hostAvatar, viewerCount: room.viewerCount, duration: room.duration || 0, likeCount: 0, commentCount: 0 }, recommendLives: [], recommendCourses: [] };
+    return { room: { id: room.id, title: room.title, cover: room.cover || '', hostName: room.user?.nickname || '', hostAvatar: room.user?.avatar || '', viewerCount: room.viewCount, duration: this.calcDuration(room.startTime, room.endTime), likeCount: 0, commentCount: 0 }, recommendLives: [], recommendCourses: [] };
   }
 }
