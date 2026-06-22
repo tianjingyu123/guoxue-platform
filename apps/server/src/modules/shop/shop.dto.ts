@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, Min, Max, IsBoolean, IsObject, MinLength } from "class-validator";
+import { IsString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, Min, Max, IsBoolean, IsObject, MinLength, MaxLength, IsPositive } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -499,6 +499,7 @@ export class AlipayRefundDto {
 
   @ApiProperty({ description: "退款金额（元）" })
   @IsNumber()
+  @IsPositive()
   @Type(() => Number)
   refundAmount: number;
 
@@ -515,12 +516,22 @@ export class AlipayRefundDto {
 
 export class UnionpayRefundDto {
   @ApiProperty({ description: "商户订单号" })
+  @IsString()
   outTradeNo: string;
+
   @ApiProperty({ description: "商户退款单号" })
+  @IsString()
   outRefundNo: string;
+
   @ApiProperty({ description: "退款金额(分)" })
+  @IsInt()
+  @IsPositive()
+  @Type(() => Number)
   amount: number;
-  @ApiProperty({ description: "原交易查询ID", required: false })
+
+  @ApiPropertyOptional({ description: "原交易查询ID" })
+  @IsOptional()
+  @IsString()
   origQryId?: string;
 }
 
@@ -528,10 +539,18 @@ export class UnionpayRefundDto {
 
 export class ApplyAfterSaleDto {
   @ApiProperty({ description: "售后类型" })
+  @IsString()
   type: string;
+
   @ApiProperty({ description: "售后原因" })
+  @IsString()
+  @MaxLength(500)
   reason: string;
-  @ApiProperty({ description: "退款金额", required: false })
+
+  @ApiPropertyOptional({ description: "退款金额" })
+  @IsOptional()
+  @IsPositive()
+  @Type(() => Number)
   amount?: number;
 }
 

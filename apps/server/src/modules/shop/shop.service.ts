@@ -793,8 +793,9 @@ export class ShopService {
     return this.alipay.query(outTradeNo);
   }
 
-  /** 支付宝退款 */
+  /** 支付宝退款（金额单位：元）*/
   async alipayRefund(params: { outTradeNo: string; refundAmount: number; outRefundNo: string; reason?: string }) {
+    await this.assertRefundAmountValid(params.outTradeNo, params.refundAmount);
     return this.alipay.refund(params);
   }
 
@@ -803,9 +804,28 @@ export class ShopService {
     return this.unionpay.query(outTradeNo);
   }
 
-  /** 银联退款 */
+  /** 银联退款（金额单位：分）*/
   async unionpayRefund(params: { outTradeNo: string; outRefundNo: string; amount: number; origQryId?: string }) {
+    await this.assertRefundAmountValid(params.outTradeNo, params.amount / RMB_TO_FEN);
     return this.unionpay.refund(params);
+  }
+
+  /**
+   * 校验退款金额：必须 > 0 且不超过订单实付金额。
+   * outTradeNo 即创建支付时写入的 order.payTransactionId（唯一）。
+   */
+  private async assertRefundAmountValid(outTradeNo: string, refundRmb: number) {
+    if (!(refundRmb > 0)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "退款金额必须大于0");
+    }
+    const order = await this.prisma.order.findUnique({ where: { payTransactionId: outTradeNo } });
+    if (!order) {
+      throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "未找到对应订单，无法退款");
+    }
+    const paid = Number(order.payAmount ?? order.amount);
+    if (refundRmb > paid + 1e-6) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `退款金额不可超过订单实付金额（${paid.toFixed(2)} 元）`);
+    }
   }
 
   // ═══════════════════ 汇付天下支付 ═══════════════════

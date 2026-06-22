@@ -387,6 +387,39 @@ describe("ShopService", () => {
     })
   })
 
+  describe("退款金额校验 (C7)", () => {
+    beforeEach(() => { jest.clearAllMocks() })
+
+    it("支付宝退款超过订单实付额时拒绝", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", payAmount: 100, amount: 100, payTransactionId: "GX1" })
+      await expect(svc.alipayRefund({ outTradeNo: "GX1", refundAmount: 200, outRefundNo: "r1" })).rejects.toThrow(BusinessException)
+      expect(mockAlipay.refund).not.toHaveBeenCalled()
+    })
+
+    it("支付宝退款金额合法时放行", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", payAmount: 100, amount: 100, payTransactionId: "GX1" })
+      await svc.alipayRefund({ outTradeNo: "GX1", refundAmount: 50, outRefundNo: "r1" })
+      expect(mockAlipay.refund).toHaveBeenCalled()
+    })
+
+    it("订单不存在时拒绝退款", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(null)
+      await expect(svc.alipayRefund({ outTradeNo: "NOPE", refundAmount: 50, outRefundNo: "r1" })).rejects.toThrow(BusinessException)
+    })
+
+    it("银联退款(分)超过实付额时拒绝", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", payAmount: 100, amount: 100, payTransactionId: "GX1" })
+      await expect(svc.unionpayRefund({ outTradeNo: "GX1", outRefundNo: "r1", amount: 20000 })).rejects.toThrow(BusinessException)
+      expect(mockUnionpay.refund).not.toHaveBeenCalled()
+    })
+
+    it("银联退款(分)合法时放行", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", payAmount: 100, amount: 100, payTransactionId: "GX1" })
+      await svc.unionpayRefund({ outTradeNo: "GX1", outRefundNo: "r1", amount: 5000 })
+      expect(mockUnionpay.refund).toHaveBeenCalled()
+    })
+  })
+
   describe("updateLogistics", () => {
     it("更新物流并自动发货", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID" })
