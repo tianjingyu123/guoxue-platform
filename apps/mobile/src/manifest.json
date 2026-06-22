@@ -12,7 +12,6 @@
     "router": {
       "mode": "hash"
     },
-    "rpxCalcMaxDeviceWidth": 450,
     "rpxCalcBaseWidth": 375
   },
   "mp-harmony": {
