@@ -96,12 +96,12 @@ describe("AuditController", () => {
   });
 
   it("POST /audit/sensitive-words — 添加敏感词", async () => {
-    const result: any = await ctrl.addSensitiveWord("新违禁词");
+    const result: any = await ctrl.addSensitiveWord({ word: "新违禁词" });
     expect(result.success).toBe(true);
   });
 
   it("POST /audit/sensitive-words/batch — 批量添加", async () => {
-    const result: any = await ctrl.addSensitiveWords(["词1", "词2"]);
+    const result: any = await ctrl.addSensitiveWords({ words: ["词1", "词2"] });
     expect(result.count).toBe(5);
   });
 
@@ -111,7 +111,7 @@ describe("AuditController", () => {
   });
 
   it("POST /audit/sensitive-words/check — 检测敏感词", async () => {
-    const result: any = await ctrl.checkSensitive("包含违禁词1的内容");
+    const result: any = await ctrl.checkSensitive({ text: "包含违禁词1的内容" });
     expect(result.hasSensitive).toBe(true);
   });
 

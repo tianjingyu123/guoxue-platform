@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Put, Body, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { ContentGenerationService } from "./content-generation.service";
+import { GenerateContentDto, UpdateContentGenParamsDto } from "./content-generation.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -18,12 +19,7 @@ export class ContentGenerationController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async generate(
-    @Body()
-    body: {
-      categoryLevel1: string;
-      categoryLevel2?: string;
-      types?: ("knowledge" | "classics" | "tutorial")[];
-    },
+    @Body() body: GenerateContentDto,
   ) {
     return this.service.generateForCategory(
       body.categoryLevel1,
@@ -97,14 +93,7 @@ export class ContentGenerationController {
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   updateParams(
-    @Body() body: {
-      temperature?: number;
-      maxTokens?: number;
-      delayMs?: number;
-      knowledgeCountPerCat?: number;
-      classicsCountPerCat?: number;
-      tutorialCountPerCat?: number;
-    },
+    @Body() body: UpdateContentGenParamsDto,
   ) {
     return this.service.updateParams(body);
   }

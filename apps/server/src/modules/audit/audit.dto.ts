@@ -1,6 +1,6 @@
-import { IsString, IsOptional, IsInt, MinLength } from "class-validator";
+import { IsString, IsOptional, IsInt, IsArray, ArrayNotEmpty, MinLength } from "class-validator";
 import { Type } from "class-transformer";
-import { ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class AuditListQueryDto {
   @ApiPropertyOptional({ description: "用户ID" })
@@ -57,6 +57,28 @@ export class ModerateTextDto {
 
   @IsOptional() @IsString()
   dataId?: string;
+}
+
+export class AddSensitiveWordDto {
+  @ApiProperty({ description: "敏感词" })
+  @IsString()
+  @MinLength(1)
+  word: string;
+}
+
+export class AddSensitiveWordsDto {
+  @ApiProperty({ description: "敏感词数组", type: [String] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  words: string[];
+}
+
+export class CheckSensitiveDto {
+  @ApiProperty({ description: "待检测文本" })
+  @IsString()
+  @MinLength(1)
+  text: string;
 }
 
 export class OperationLogListQueryDto {

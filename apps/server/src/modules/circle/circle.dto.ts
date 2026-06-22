@@ -239,3 +239,12 @@ export class ExpertConfigDto {
     end: string;
   }>;
 }
+
+/** 设置嘉宾分账比例 DTO */
+export class SetGuestShareRateDto {
+  @ApiProperty({ description: "分账比例（百分比 0-100）", minimum: 0, maximum: 100, example: 30 })
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  shareRate: number;
+}

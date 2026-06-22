@@ -17,7 +17,7 @@ import type { ZiweiResult } from "@guoxue/ziwei-engine";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
-import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, DaLiuRenInputDto, AnalyzeDto, AnalysisQueryDto, GroupListQueryDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto } from "./paipan.dto";
+import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, DaLiuRenInputDto, AnalyzeDto, AnalysisQueryDto, GroupListQueryDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto, HehunDto } from "./paipan.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -248,7 +248,7 @@ export class PaipanController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "八字合婚（两人八字配对分析）" })
   @ApiBearerAuth()
-  async hehun(@Req() req: Request, @Body() dto: { male: string; female: string }) {
+  async hehun(@Req() req: Request, @Body() dto: HehunDto) {
     const [maleRecord, femaleRecord] = await Promise.all([
       this.paipan.getBaziRecord(dto.male, req.user.id),
       this.paipan.getBaziRecord(dto.female, req.user.id),

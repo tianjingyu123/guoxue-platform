@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Param, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { AnomalyDetectorService } from "./anomaly-detector.service";
+import { RegisterAnomalyRuleDto } from "./dto/ai-infra.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -44,16 +45,7 @@ export class AnomalyDetectorController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async registerRule(
-    @Body()
-    body: {
-      id: string;
-      metric: string;
-      dimension: "revenue" | "user" | "content" | "performance";
-      baselineWindow: number;
-      deviationThreshold: number;
-      severity: "info" | "warning" | "critical";
-      enabled: boolean;
-    },
+    @Body() body: RegisterAnomalyRuleDto,
   ) {
     this.detector.registerRule(body);
     return { success: true };

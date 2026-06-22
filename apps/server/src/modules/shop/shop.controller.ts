@@ -408,8 +408,17 @@ export class ShopController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  alipayRefund(@Body() body: AlipayRefundDto) {
-    return this.shop.alipayRefund(body);
+  async alipayRefund(@Req() req: AuthRequest, @Body() body: AlipayRefundDto) {
+    const result = await this.shop.alipayRefund(body);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "REFUND",
+      targetType: "ORDER",
+      targetId: body.outTradeNo,
+      detail: `支付宝退款: 订单 ${body.outTradeNo}, 退款单 ${body.outRefundNo}, 金额 ${body.refundAmount}元`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志记录失败", err));
+    return result;
   }
 
   @Post("unionpay/query")
@@ -434,8 +443,17 @@ export class ShopController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  unionpayRefund(@Body() dto: UnionpayRefundDto) {
-    return this.shop.unionpayRefund(dto);
+  async unionpayRefund(@Req() req: AuthRequest, @Body() dto: UnionpayRefundDto) {
+    const result = await this.shop.unionpayRefund(dto);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "REFUND",
+      targetType: "ORDER",
+      targetId: dto.outTradeNo,
+      detail: `银联退款: 订单 ${dto.outTradeNo}, 退款单 ${dto.outRefundNo}, 金额 ${dto.amount}分`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志记录失败", err));
+    return result;
   }
 
   @Put("orders/:id/cancel")

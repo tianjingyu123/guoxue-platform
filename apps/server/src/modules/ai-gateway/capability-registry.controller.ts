@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Put, Query, Body, Param, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { CapabilityRegistryService } from "./capability-registry.service";
-import { RegisterCapabilityDto } from "./dto/ai-infra.dto";
+import { RegisterCapabilityDto, SetCapabilityStatusDto } from "./dto/ai-infra.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -66,7 +66,7 @@ export class CapabilityRegistryController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async setStatus(
     @Param("name") name: string,
-    @Body() body: { status: "active" | "degraded" | "offline" },
+    @Body() body: SetCapabilityStatusDto,
   ) {
     await this.registry.setStatus(name, body.status);
     return { success: true };

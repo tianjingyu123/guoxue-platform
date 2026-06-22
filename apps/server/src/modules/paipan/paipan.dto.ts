@@ -160,6 +160,19 @@ export class AnalyzeDto {
   recordId: string;
 }
 
+/** 八字合婚输入 DTO */
+export class HehunDto {
+  @ApiProperty({ description: "男方八字排盘记录ID" })
+  @IsString()
+  @MinLength(1)
+  male: string;
+
+  @ApiProperty({ description: "女方八字排盘记录ID" })
+  @IsString()
+  @MinLength(1)
+  female: string;
+}
+
 /** 奇门遁甲排盘输入 DTO */
 export class QimenInputDto {
   @ApiPropertyOptional({ description: "事项内容（选填）" })

@@ -7,6 +7,7 @@ import { Roles } from "../../common/roles.decorator";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { SetGuestShareRateDto } from "./circle.dto";
 
 @ApiTags("圈主个人中心")
 @Controller("circle-backend")
@@ -111,7 +112,7 @@ export class CircleBackendController {
   @ApiOperation({ summary: "设置嘉宾分账比例" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  async setGuestShareRate(@Req() req: Request, @Param("userId") userId: string, @Body() body: { shareRate: number }) {
+  async setGuestShareRate(@Req() req: Request, @Param("userId") userId: string, @Body() body: SetGuestShareRateDto) {
     const { circle } = await this.getMyCircle(req.user.id);
 
     // 验证目标用户是当前圈子的嘉宾

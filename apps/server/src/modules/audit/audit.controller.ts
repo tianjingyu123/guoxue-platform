@@ -8,7 +8,7 @@ import { SensitiveWordService } from "./sensitive-word.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
-import { AuditListQueryDto, ModerateImageDto, ModerateTextDto, OperationLogListQueryDto } from "./audit.dto";
+import { AuditListQueryDto, ModerateImageDto, ModerateTextDto, OperationLogListQueryDto, AddSensitiveWordDto, AddSensitiveWordsDto, CheckSensitiveDto } from "./audit.dto";
 
 @ApiTags("审核与审计")
 @Controller("audit")
@@ -134,8 +134,8 @@ export class AuditController {
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  addSensitiveWord(@Body("word") word: string) {
-    return this.sensitiveWord.addWord(word);
+  addSensitiveWord(@Body() body: AddSensitiveWordDto) {
+    return this.sensitiveWord.addWord(body.word);
   }
 
   @Post("sensitive-words/batch")
@@ -147,8 +147,8 @@ export class AuditController {
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  addSensitiveWords(@Body("words") words: string[]) {
-    return this.sensitiveWord.addWords(words);
+  addSensitiveWords(@Body() body: AddSensitiveWordsDto) {
+    return this.sensitiveWord.addWords(body.words);
   }
 
   @Delete("sensitive-words/:word")
@@ -169,8 +169,8 @@ export class AuditController {
   @ApiOperation({ summary: "检测文本敏感词（公开接口）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  checkSensitive(@Body("text") text: string) {
-    const hits = this.sensitiveWord.check(text);
+  checkSensitive(@Body() body: CheckSensitiveDto) {
+    const hits = this.sensitiveWord.check(body.text);
     return { hasSensitive: hits.length > 0, hits };
   }
 

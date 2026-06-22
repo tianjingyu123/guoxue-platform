@@ -265,9 +265,11 @@ describe("ShopController", () => {
   });
 
   it("POST /shop/alipay/refund — 支付宝退款", async () => {
+    const req: any = { user: { id: "u1" }, ip: "127.0.0.1" };
     const body = { outTradeNo: "o1", refundAmount: 99, outRefundNo: "rf1" };
-    const result: any = await ctrl.alipayRefund(body);
+    const result: any = await ctrl.alipayRefund(req, body);
     expect(result.refundStatus).toBe("SUCCESS");
+    expect(mockSystemSvc.logAudit).toHaveBeenCalled();
   });
 
   it("POST /shop/unionpay/query — 银联查询", async () => {
@@ -276,9 +278,11 @@ describe("ShopController", () => {
   });
 
   it("POST /shop/unionpay/refund — 银联退款", async () => {
+    const req: any = { user: { id: "u1" }, ip: "127.0.0.1" };
     const body = { outTradeNo: "o1", outRefundNo: "rf1", amount: 99 };
-    const result: any = await ctrl.unionpayRefund(body);
+    const result: any = await ctrl.unionpayRefund(req, body);
     expect(result.respCode).toBe("00");
+    expect(mockSystemSvc.logAudit).toHaveBeenCalled();
   });
 
   it("PUT /shop/orders/:id/cancel — 取消订单", async () => {

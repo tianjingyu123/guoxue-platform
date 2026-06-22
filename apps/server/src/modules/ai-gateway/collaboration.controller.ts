@@ -1,9 +1,20 @@
-import { Controller, Get, Post, Query, Body, Param, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Query, Body, Param, Req, UseGuards } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { CollaborationService } from "./collaboration.service";
+import {
+  ProposeCollaborationDto,
+  ReviewCollaborationDto,
+  RollbackCollaborationDto,
+  FeedbackCollaborationDto,
+} from "./dto/ai-infra.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+
+type AuthRequest = Omit<Request, "user"> & {
+  user: { id: string; roles: string[]; [key: string]: unknown };
+};
 
 @ApiTags("🤖 人机协作协议")
 @Controller("ai/collaborations")
@@ -17,22 +28,12 @@ export class CollaborationController {
   @ApiOperation({ summary: "AI发起协作建议" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  async propose(
-    @Body()
-    body: {
-      type: string;
-      title: string;
-      description: string;
-      proposedBy: string;
-      confidence: number;
-      impactScope: Record<string, unknown>;
-      alternatives?: Array<{ option: string; description: string; score: number }>;
-      riskLevel: "low" | "medium" | "high";
-      executionPlan: Record<string, unknown>;
-      rollbackPlan?: Record<string, unknown>;
-    },
-  ) {
-    const id = await this.collaboration.propose(body);
+  async propose(@Req() req: AuthRequest, @Body() body: ProposeCollaborationDto) {
+    // proposedBy 从登录态注入，禁止前端伪造操作人
+    const id = await this.collaboration.propose({
+      ...body,
+      proposedBy: req.user.id,
+    });
     return { proposalId: id };
   }
 
@@ -42,18 +43,14 @@ export class CollaborationController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async review(
     @Param("id") id: string,
-    @Body()
-    body: {
-      action: "approved" | "rejected" | "modified";
-      reviewer?: string;
-      modifications?: Record<string, unknown>;
-      note?: string;
-    },
+    @Req() req: AuthRequest,
+    @Body() body: ReviewCollaborationDto,
   ) {
+    // reviewer 从登录态注入
     await this.collaboration.review(
       id,
       body.action,
-      body.reviewer || "admin",
+      req.user.id,
       body.modifications as any,
       body.note,
     );
@@ -64,11 +61,9 @@ export class CollaborationController {
   @ApiOperation({ summary: "执行已批准的建议" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  async execute(
-    @Param("id") id: string,
-    @Body() body?: { executor?: string },
-  ) {
-    await this.collaboration.execute(id, body?.executor || "admin");
+  async execute(@Param("id") id: string, @Req() req: AuthRequest) {
+    // executor 从登录态注入
+    await this.collaboration.execute(id, req.user.id);
     return { success: true };
   }
 
@@ -78,9 +73,11 @@ export class CollaborationController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async rollback(
     @Param("id") id: string,
-    @Body() body?: { operator?: string; reason?: string },
+    @Req() req: AuthRequest,
+    @Body() body?: RollbackCollaborationDto,
   ) {
-    await this.collaboration.rollback(id, body?.operator || body?.reason || "admin");
+    // operator 从登录态注入
+    await this.collaboration.rollback(id, req.user.id);
     return { success: true };
   }
 
@@ -90,7 +87,7 @@ export class CollaborationController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async feedback(
     @Param("id") id: string,
-    @Body() body: { rating: number; comment?: string },
+    @Body() body: FeedbackCollaborationDto,
   ) {
     await this.collaboration.feedback(id, body.rating, body.comment);
     return { success: true };
