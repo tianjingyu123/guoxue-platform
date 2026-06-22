@@ -148,11 +148,22 @@ import AppEmpty from '@/components/common/app-empty.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import { navigateTo } from '@/utils/router'
 import { useAsyncData } from '@/composables/useAsyncData'
-import { aboutStats as _aboutStats, aboutFeatures as _aboutFeatures } from '@/lib/mine-data'
+// 公司静态信息（内联，非mock数据）
+const aboutData = {
+  stats: [
+    { value: '100+', label: '专家讲师', color: '#c41e3a' },
+    { value: '500+', label: '精品课程', color: '#d4b87d' },
+    { value: '50万+', label: '学习用户', color: '#6ed24a' },
+  ],
+  features: [
+    { icon: 'book-open', title: '专业内容', desc: '严选优质国学课程与古籍资源' },
+    { icon: 'users', title: '圈子交流', desc: '加入志同道合的学习社区' },
+    { icon: 'award', title: '名师指导', desc: '一对一咨询，答疑解惑' },
+    { icon: 'building-2', title: '线下活动', desc: '定期举办国学文化体验活动' },
+  ],
+}
 
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { stats: _aboutStats, features: _aboutFeatures }
-})
+const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => aboutData)
 
 const aboutStats = computed(() => pageData.value?.stats ?? [])
 const aboutFeatures = computed(() => pageData.value?.features ?? [])

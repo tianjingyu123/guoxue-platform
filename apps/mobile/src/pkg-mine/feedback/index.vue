@@ -308,10 +308,17 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
-import { feedbackTypes, feedbackStatusConfig, historyFeedbacks } from '@/lib/mine-data'
+import { feedbackTypes, feedbackStatusConfig, mineApi } from '@/lib/mine-data'
+import { onMounted } from 'vue'
+import type { HistoryFeedbackItem } from '@/lib/mine-data'
 
 // UI 临时状态
 const activeTab = ref<'submit' | 'history'>('submit')
+const historyFeedbacks = ref<HistoryFeedbackItem[]>([])
+
+onMounted(async () => {
+  try { historyFeedbacks.value = await mineApi.getFeedbackHistory() } catch { /* 空列表 */ }
+})
 const selectedType = ref<string | null>(null)
 const content = ref('')
 const contact = ref('')

@@ -2,7 +2,23 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, redirectTo } from '@/utils/router'
-import { mineProfile, deleteAccountReasons, deleteAccountDataItems, deleteAccountAssets } from '@/lib/mine-data'
+const mineProfile = { phone: '138****8888' }
+const deleteAccountReasons = [
+  { id: 'not_useful', label: '不再使用该服务' },
+  { id: 'privacy', label: '隐私安全考虑' },
+  { id: 'found_better', label: '找到了更好的替代品' },
+  { id: 'too_many_notifications', label: '通知太多' },
+  { id: 'poor_experience', label: '使用体验不好' },
+  { id: 'other', label: '其他原因' },
+]
+const deleteAccountDataItems = [
+  { icon: 'message-circle', label: '帖子、评论、消息等内容' },
+  { icon: 'users', label: '圈子、关注、粉丝关系' },
+  { icon: 'shopping-bag', label: '订单记录和购买历史' },
+  { icon: 'gift', label: '积分、优惠券和会员权益' },
+  { icon: 'credit-card', label: '钱包余额（需先提现）' },
+]
+const deleteAccountAssets = { balance: 0, points: 0, coupons: 0, memberDays: 0 }
 
 const step = ref(1)
 const agreed = ref(false)

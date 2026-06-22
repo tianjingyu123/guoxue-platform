@@ -5,10 +5,11 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
-import { blacklistUsers as _blacklistUsers, blacklistSearchPool as _blacklistSearchPool, type BlacklistItem, type SearchUserItem } from '@/lib/mine-data'
+import { mineApi, type BlacklistItem, type SearchUserItem } from '@/lib/mine-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { users: _blacklistUsers, pool: _blacklistSearchPool }
+  const users = await mineApi.getBlacklist()
+  return { users, pool: [] as SearchUserItem[] }
 })
 
 const dataIsEmpty = computed(() => {

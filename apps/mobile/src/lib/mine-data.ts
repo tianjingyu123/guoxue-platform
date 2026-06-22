@@ -867,4 +867,58 @@ export const mineApi = {
     if (useMock()) return { checkedIn: false, streak: 0 }
     return apiGet('/users/me/checkin/status')
   },
+
+  /** 获取黑名单 — GET /users/blacklist/list */
+  async getBlacklist(): Promise<any[]> {
+    if (useMock()) return []
+    return apiGet('/users/blacklist/list')
+  },
+
+  /** 拉黑用户 — POST /users/:id/block */
+  async blockUser(userId: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '已拉黑' }
+    try { await apiPost(`/users/${userId}/block`); return { success: true, message: '已拉黑' } }
+    catch (e: any) { return { success: false, message: e?.message || '拉黑失败' } }
+  },
+
+  /** 取消拉黑 — DELETE /users/:id/block */
+  async unblockUser(userId: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '已取消拉黑' }
+    try { await apiDelete(`/users/${userId}/block`); return { success: true, message: '已取消拉黑' } }
+    catch (e: any) { return { success: false, message: e?.message || '取消拉黑失败' } }
+  },
+
+  /** 获取用户手机号 — GET /users/me */
+  async getPhone(): Promise<string> {
+    if (useMock()) return '138****8888'
+    try { const d = await apiGet<{ phone: string }>('/users/me'); return d?.phone || '' }
+    catch { return '' }
+  },
+
+  /** 提交意见反馈 — POST /feedback */
+  async submitFeedback(p: { type: string; content: string; contact?: string }): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '提交成功' }
+    try { await apiPost('/feedback', p); return { success: true, message: '提交成功' } }
+    catch (e: any) { return { success: false, message: e?.message || '提交失败' } }
+  },
+
+  /** 获取反馈历史 — GET /feedback/history */
+  async getFeedbackHistory(): Promise<any[]> {
+    if (useMock()) return []
+    return apiGet('/feedback/history')
+  },
+
+  /** 提交注销申请 — POST /users/delete-request */
+  async requestDeleteAccount(): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '注销申请已提交' }
+    try { await apiPost('/users/delete-request'); return { success: true, message: '注销申请已提交' } }
+    catch (e: any) { return { success: false, message: e?.message || '提交失败' } }
+  },
+
+  /** 取消注销 — POST /users/delete-cancel */
+  async cancelDeleteAccount(): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '注销已取消' }
+    try { await apiPost('/users/delete-cancel'); return { success: true, message: '注销已取消' } }
+    catch (e: any) { return { success: false, message: e?.message || '取消失败' } }
+  },
 }
