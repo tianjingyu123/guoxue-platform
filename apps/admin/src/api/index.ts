@@ -214,6 +214,16 @@ export const paipanApi = {
   yangpanSave: (data: any) => api.post("/paipan/yangpan/save", data),
   yangpanHistory: (params?: any) => api.get("/paipan/yangpan/history", { params }),
   yangpanDetail: (id: string) => api.get(`/paipan/yangpan/${id}`),
+  // 六爻
+  liuyaoPreview: (data: any) => api.post("/paipan/liuyao", data),
+  liuyaoSave: (data: any) => api.post("/paipan/liuyao/save", data),
+  liuyaoHistory: (params?: any) => api.get("/paipan/liuyao/history", { params }),
+  liuyaoDetail: (id: string) => api.get(`/paipan/liuyao/${id}`),
+  // 大六壬
+  daliurenPreview: (data: any) => api.post("/paipan/daliuren", data),
+  daliurenSave: (data: any) => api.post("/paipan/daliuren/save", data),
+  daliurenHistory: (params?: any) => api.get("/paipan/daliuren/history", { params }),
+  daliurenDetail: (id: string) => api.get(`/paipan/daliuren/${id}`),
   // 管理员
   adminRecords: (params?: any) => api.get("/paipan/admin/records", { params }),
 };
