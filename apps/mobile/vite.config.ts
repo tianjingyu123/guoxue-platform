@@ -16,8 +16,10 @@ export default defineConfig({
       compress: { drop_console: true, drop_debugger: true },
     },
   },
+  base: '/h5/',
   server: {
     port: 5173,
+    allowedHosts: ['api.rebugx.cn', '.rebugx.cn'],
     proxy: {
       "/api": {
         target: "http://localhost:3000",
