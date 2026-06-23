@@ -352,10 +352,11 @@
       </view>
       <view
         class="bc-submit"
+        :class="{ 'bc-submit-loading': submitting }"
         @tap="handleSubmit"
       >
         <text class="bc-submit-text">
-          发布悬赏
+          {{ submitting ? '处理中...' : '发布悬赏' }}
         </text>
       </view>
     </view>
@@ -413,17 +414,17 @@
         </view>
         <view
           class="bc-modal-pay"
-          :class="{ 'bc-modal-pay-loading': loading }"
+          :class="{ 'bc-modal-pay-loading': submitting }"
           @tap="confirmPay"
         >
           <app-icon
-            v-if="!loading"
+            v-if="!submitting"
             name="check-circle"
             :size="32"
             color="#ffffff"
           />
           <text class="bc-modal-pay-text">
-            {{ loading ? '处理中...' : '确认支付 ' + finalAmount + ' 国学币' }}
+            {{ submitting ? '处理中...' : '确认支付 ' + finalAmount + ' 国学币' }}
           </text>
         </view>
         <view
@@ -442,6 +443,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 
 const amountPresets = [10, 20, 50, 100, 200, 500]
 const expireOptions = [
@@ -461,6 +463,8 @@ try {
   statusBarHeight.value = info.statusBarHeight || 0
 } catch (e) {}
 
+const { submitting, withLock } = useSubmitLock()
+
 const balance = ref(200)
 
 const title = ref('')
@@ -475,7 +479,6 @@ const tags = ref<string[]>([])
 const tagInput = ref('')
 const isPublic = ref(true)
 const showPayConfirm = ref(false)
-const loading = ref(false)
 const errors = ref<Record<string, string>>({})
 
 const finalAmount = computed(() => (isCustom.value ? parseInt(customAmount.value) || 0 : selectedAmount.value))
@@ -521,25 +524,25 @@ function handleSubmit() {
 }
 
 function confirmPay() {
-  if (finalAmount.value > balance.value) {
-    showPayConfirm.value = false
-    uni.showModal({
-      title: '国学币余额不足',
-      content: `本次需 ${finalAmount.value} 国学币，当前余额 ${balance.value}，是否前往充值？`,
-      confirmText: '去充值',
-      success: (res) => {
-        if (res.confirm) navigateTo('/wallet/recharge')
-      },
-    })
-    return
-  }
-  loading.value = true
-  setTimeout(() => {
-    loading.value = false
-    showPayConfirm.value = false
-    uni.showToast({ title: '发布成功', icon: 'success' })
-    setTimeout(() => navigateTo('/bounty'), 800)
-  }, 800)
+  withLock(async () => {
+    if (finalAmount.value > balance.value) {
+      showPayConfirm.value = false
+      uni.showModal({
+        title: '国学币余额不足',
+        content: `本次需 ${finalAmount.value} 国学币，当前余额 ${balance.value}，是否前往充值？`,
+        confirmText: '去充值',
+        success: (res) => {
+          if (res.confirm) navigateTo('/wallet/recharge')
+        },
+      })
+      return
+    }
+    setTimeout(() => {
+      showPayConfirm.value = false
+      uni.showToast({ title: '发布成功', icon: 'success' })
+      setTimeout(() => navigateTo('/bounty'), 800)
+    }, 800)
+  })
 }
 
 function goBack() {
@@ -958,6 +961,10 @@ function goBack() {
   justify-content: center;
   background: #c41e3a;
   border-radius: 32rpx;
+}
+.bc-submit-loading {
+  opacity: 0.6;
+  pointer-events: none;
 }
 .bc-submit-text {
   font-size: 30rpx;

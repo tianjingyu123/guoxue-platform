@@ -370,9 +370,10 @@
           </view>
           <view
             class="fbtn primary"
+            :class="{ disabled: submitting }"
             @tap="confirmReceive"
           >
-            <text>确认收货</text>
+            <text>{{ submitting ? '确认中...' : '确认收货' }}</text>
           </view>
         </template>
         <template v-else-if="order.status === 'completed'">
@@ -429,6 +430,7 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import { useAsyncData } from '@/composables/useAsyncData'
 import { mockOrderDetail as _mockOrderDetail, detailSteps as _detailSteps, detailStatusConfig as _detailStatusConfig, type OrderDetail } from '@/lib/order-data'
 
@@ -441,6 +443,7 @@ const detailStatusConfig = computed(() => pageData.value?.config ?? {})
 const isEmpty = computed(() => !pageData.value?.detail?.id)
 const order = ref<OrderDetail>({ ..._mockOrderDetail })
 watch(() => pageData.value?.detail, (val) => { if (val) order.value = { ...val } }, { immediate: true })
+const { submitting, withLock } = useSubmitLock()
 const copied = ref(false)
 const orderId = ref('1')
 
@@ -458,8 +461,10 @@ function goPay() { navigateTo(`/shop/paying?orderId=${order.value.id}`) }
 function goShop() { navigateTo('/shop') }
 function toService() { navigateTo('/customer-service') }
 function confirmReceive() {
-  order.value = { ...order.value, status: 'completed', canConfirm: false, canReview: true }
-  uni.showToast({ title: '确认收货成功', icon: 'none' })
+  withLock(async () => {
+    order.value = { ...order.value, status: 'completed', canConfirm: false, canReview: true }
+    uni.showToast({ title: '确认收货成功', icon: 'none' })
+  })
 }
 </script>
 
@@ -536,6 +541,7 @@ function confirmReceive() {
 .fbtn.ghost { border: 1rpx solid #E8E3DB; color: #666666; }
 .fbtn.outline { border: 1rpx solid #C41E3A; color: #C41E3A; }
 .fbtn.primary { background: #C41E3A; color: #FFFFFF; }
+.fbtn.disabled { opacity: 0.5; pointer-events: none; }
 .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.7); padding: 16rpx 32rpx; border-radius: 12rpx; z-index: 100; }
 .toast text { font-size: 26rpx; color: #FFFFFF; }
 </style>

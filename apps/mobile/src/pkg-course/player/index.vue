@@ -7,6 +7,7 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 // @data-needs: 课时播放内容+目录, 参数 lessonId/courseId, 返回 { content:ChapterContent, chapters:PlayerChapter[] }
 // mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口(含视频流地址/播放进度)
 import {
@@ -38,6 +39,7 @@ const isPipMode = ref(false)
 const noteContent = ref('')
 const questionContent = ref('')
 const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2]
+const { submitting, withLock } = useSubmitLock()
 const currentLessonId = ref('1')
 
 const progressPercent = computed(() => duration.value ? (currentTime.value / duration.value) * 100 : 0)
@@ -54,13 +56,17 @@ function switchLesson(id: string) {
   showChapterDrawer.value = false
   navigateTo(`/courses/${content.value.courseId}/player?lesson=${id}`)
 }
-function submitNote() {
+async function submitNote() {
   if (!noteContent.value.trim()) return
-  uni.showToast({ title: '笔记已保存', icon: 'success' }); noteContent.value = ''; showNotePanel.value = false
+  await withLock(async () => {
+    uni.showToast({ title: '笔记已保存', icon: 'success' }); noteContent.value = ''; showNotePanel.value = false
+  })
 }
-function submitQuestion() {
+async function submitQuestion() {
   if (!questionContent.value.trim()) return
-  uni.showToast({ title: '问题已提交', icon: 'success' }); questionContent.value = ''; showQuestionPanel.value = false
+  await withLock(async () => {
+    uni.showToast({ title: '问题已提交', icon: 'success' }); questionContent.value = ''; showQuestionPanel.value = false
+  })
 }
 function lessonLocked(chapter: { isFree: boolean }, lesson: { isFree: boolean }) { return !lesson.isFree && !chapter.isFree }
 </script>
@@ -430,11 +436,11 @@ function lessonLocked(chapter: { isFree: boolean }, lesson: { isFree: boolean })
         <view class="dark-sheet-foot">
           <view
             class="dark-submit"
-            :class="{ disabled: !noteContent.trim() }"
+            :class="{ disabled: !noteContent.trim() || submitting }"
             @tap="submitNote"
           >
             <text class="dark-submit-txt">
-              保存笔记
+              {{ submitting ? '保存中...' : '保存笔记' }}
             </text>
           </view>
         </view>
@@ -474,11 +480,11 @@ function lessonLocked(chapter: { isFree: boolean }, lesson: { isFree: boolean })
         <view class="dark-sheet-foot">
           <view
             class="dark-submit"
-            :class="{ disabled: !questionContent.trim() }"
+            :class="{ disabled: !questionContent.trim() || submitting }"
             @tap="submitQuestion"
           >
             <text class="dark-submit-txt">
-              提交问题
+              {{ submitting ? '提交中...' : '提交问题' }}
             </text>
           </view>
         </view>

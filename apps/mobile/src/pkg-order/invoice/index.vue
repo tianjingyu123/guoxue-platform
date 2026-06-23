@@ -372,11 +372,11 @@
     >
       <view
         class="submit-btn"
-        :class="{ disabled: selectedOrders.length === 0 }"
+        :class="{ disabled: selectedOrders.length === 0 || submitting }"
         @tap="submitApply"
       >
         <text class="submit-text">
-          提交申请{{ totalAmount > 0 ? ' ¥' + totalAmount : '' }}
+          {{ submitting ? '提交中...' : '提交申请' + (totalAmount > 0 ? ' ¥' + totalAmount : '') }}
         </text>
       </view>
     </view>
@@ -389,6 +389,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import { useAsyncData } from '@/composables/useAsyncData'
 import { mockInvoiceOrders as _mockInvoiceOrders, mockInvoices as _mockInvoices, invoiceStatusConfig } from '@/lib/order-data'
 
@@ -402,6 +403,7 @@ const isEmpty = computed(() => {
 })
 
 const safeBottom = ref(0)
+const { submitting, withLock } = useSubmitLock()
 const activeTab = ref<'apply' | 'list'>('apply')
 
 const applicableOrders = ref(_mockInvoiceOrders)
@@ -450,29 +452,31 @@ onLoad(() => {
 })
 
 function submitApply() {
-  if (selectedOrders.value.length === 0) {
-    uni.showToast({ title: '请选择要开票的订单', icon: 'none' })
-    return
-  }
-  if (!title.value.trim()) {
-    uni.showToast({ title: invoiceType.value === 'company' ? '请输入公司名称' : '请输入个人姓名', icon: 'none' })
-    return
-  }
-  if (invoiceType.value === 'company' && !taxNumber.value.trim()) {
-    uni.showToast({ title: '请输入税号', icon: 'none' })
-    return
-  }
-  if (!email.value.trim()) {
-    uni.showToast({ title: '请输入接收邮箱', icon: 'none' })
-    return
-  }
-  selectedOrders.value = []
-  title.value = ''
-  taxNumber.value = ''
-  email.value = ''
-  phone.value = ''
-  activeTab.value = 'list'
-  uni.showToast({ title: '申请已提交', icon: 'success' })
+  withLock(async () => {
+    if (selectedOrders.value.length === 0) {
+      uni.showToast({ title: '请选择要开票的订单', icon: 'none' })
+      return
+    }
+    if (!title.value.trim()) {
+      uni.showToast({ title: invoiceType.value === 'company' ? '请输入公司名称' : '请输入个人姓名', icon: 'none' })
+      return
+    }
+    if (invoiceType.value === 'company' && !taxNumber.value.trim()) {
+      uni.showToast({ title: '请输入税号', icon: 'none' })
+      return
+    }
+    if (!email.value.trim()) {
+      uni.showToast({ title: '请输入接收邮箱', icon: 'none' })
+      return
+    }
+    selectedOrders.value = []
+    title.value = ''
+    taxNumber.value = ''
+    email.value = ''
+    phone.value = ''
+    activeTab.value = 'list'
+    uni.showToast({ title: '申请已提交', icon: 'success' })
+  })
 }
 
 function downloadInvoice(_rec: any) {

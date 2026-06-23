@@ -7,6 +7,7 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 // @data-needs: 学习中心聚合, 参数 courseId, 返回 { course, progress, chapters, notes, questions }
 // mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
 import {
@@ -36,6 +37,7 @@ const activeTab = ref<TabKey>('catalog')
 const expanded = ref<Record<string, boolean>>({ c1: true, c2: true })
 const showAskModal = ref(false)
 const askContent = ref('')
+const { submitting, withLock } = useSubmitLock()
 
 // 进度环参数
 const ringSize = 80
@@ -55,11 +57,13 @@ function chapterDone(c: { lessons: { isCompleted: boolean }[] }) { return c.less
 function onLessonClick(lessonId: string) { navigateTo(`/courses/${course.value.id}/player?lesson=${lessonId}`) }
 function fmtTimestamp(s: number) { return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}` }
 function fmtStudyTime(min: number) { return `${Math.floor(min / 60)}小时${min % 60}分钟` }
-function submitQuestion() {
+async function submitQuestion() {
   if (!askContent.value.trim()) return
-  uni.showToast({ title: '问题已提交', icon: 'success' })
-  askContent.value = ''
-  showAskModal.value = false
+  await withLock(async () => {
+    uni.showToast({ title: '问题已提交', icon: 'success' })
+    askContent.value = ''
+    showAskModal.value = false
+  })
 }
 function lessonIcon(chapter: LearnChapter, lesson: LearnLesson) {
   if (lesson.isCompleted) return { name: 'check-circle', color: '#C41E3A' }
@@ -426,7 +430,7 @@ function lessonIcon(chapter: LearnChapter, lesson: LearnLesson) {
         />
         <view
           class="submit-btn"
-          :class="{ disabled: !askContent.trim() }"
+          :class="{ disabled: !askContent.trim() || submitting }"
           @tap="submitQuestion"
         >
           <app-icon
@@ -435,7 +439,7 @@ function lessonIcon(chapter: LearnChapter, lesson: LearnLesson) {
             color="#ffffff"
           />
           <text class="submit-txt">
-            提交问题
+            {{ submitting ? '提交中...' : '提交问题' }}
           </text>
         </view>
       </view>

@@ -84,7 +84,7 @@
         </view>
         <text v-if="selectedCoupon" class="ft-saved">已优惠 ¥{{ selectedCoupon.value }}</text>
       </view>
-      <view class="pay-btn" @tap="submitOrder"><text>提交订单</text></view>
+      <view class="pay-btn" :class="{ 'pay-btn--disabled': submitting }" @tap="submitOrder"><text>{{ submitting ? '处理中...' : '提交订单' }}</text></view>
     </view>
 
     <!-- 地址选择 -->
@@ -132,6 +132,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { redirectTo } from '@/utils/router'
 import { shopApi, payMethods, formatCountdown, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 
 const items = ref<any[]>([])
 const addresses = ref<any[]>([])
@@ -143,6 +144,7 @@ const payMethod = ref('wechat')
 const showAddress = ref(false)
 const showCoupon = ref(false)
 const showTimeout = ref(false)
+const { submitting, withLock } = useSubmitLock()
 
 const goodsTotal = computed(() => items.value.reduce((s, i) => s + i.price * i.quantity, 0))
 const payTotal = computed(() => Math.max(0, goodsTotal.value - (selectedCoupon.value?.value || 0)))
@@ -174,7 +176,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 
 function selectAddress(a: ShippingAddress) { currentAddress.value = a; showAddress.value = false }
 function selectCoupon(c: CheckoutCoupon | null) { selectedCoupon.value = c; showCoupon.value = false }
-function submitOrder() { redirectTo('/shop/paying') }
+async function submitOrder() { await withLock(async () => { redirectTo('/shop/paying') }) }
 function onTimeout() { redirectTo('/shop/pay-timeout') }
 </script>
 
@@ -233,6 +235,7 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 .ft-saved { font-size: 22rpx; color: #16A34A; }
 .pay-btn { margin-left: auto; padding: 20rpx 60rpx; border-radius: 40rpx; background: linear-gradient(90deg, #C41E3A, #C8453E); }
 .pay-btn text { color: #FFFFFF; font-size: 30rpx; font-weight: 600; }
+.pay-btn--disabled { opacity: 0.6; pointer-events: none; }
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: flex-end; &.center { align-items: center; justify-content: center; } }
 .sheet { width: 100%; background: #FFFFFF; border-radius: 24rpx 24rpx 0 0; padding: 32rpx; max-height: 70vh; }
 .sheet-title { font-size: 32rpx; font-weight: 600; color: #1A1A1A; display: block; margin-bottom: 24rpx; }

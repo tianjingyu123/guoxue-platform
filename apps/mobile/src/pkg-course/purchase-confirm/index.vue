@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 // @data-needs: 购买确认聚合, 参数 courseId, 返回 { course:PurchaseCourse, coupons:PurchaseCoupon[] }
 // mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
 import { purchaseCourse as course, purchaseCoupons as coupons } from '@/lib/course-data'
@@ -11,6 +12,7 @@ const selectedCoupon = ref<string | null>(null)
 const payMethod = ref('wechat')
 const agreed = ref(false)
 const showCouponList = ref(false)
+const { submitting, withLock } = useSubmitLock()
 
 const payMethods = [
   { id: 'wechat', name: '微信支付', icon: 'smartphone', color: '#22c55e' },
@@ -35,6 +37,13 @@ function selectCoupon(id: string | null) {
 }
 function isCouponAvailable(c: typeof coupons[number]) {
   return c.isAvailable && c.minAmount <= course.price
+}
+async function submitPay() {
+  if (!agreed.value) return
+  await withLock(async () => {
+    // @todo: 接入真实支付接口
+    uni.showToast({ title: '支付成功', icon: 'success' })
+  })
 }
 </script>
 
@@ -324,7 +333,8 @@ function isCouponAvailable(c: typeof coupons[number]) {
       </view>
       <view
         class="footer-btn"
-        :class="{ disabled: !agreed }"
+        :class="{ disabled: !agreed || submitting }"
+        @tap="submitPay"
       >
         <app-icon
           name="shield-check"
@@ -332,7 +342,7 @@ function isCouponAvailable(c: typeof coupons[number]) {
           color="#ffffff"
         />
         <text class="footer-btn-txt">
-          确认支付
+          {{ submitting ? '支付中...' : '确认支付' }}
         </text>
       </view>
     </view>

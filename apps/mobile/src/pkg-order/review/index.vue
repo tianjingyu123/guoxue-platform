@@ -162,14 +162,14 @@
       </text>
       <view
         class="submit-btn"
-        :class="{ disabled: !allRated }"
+        :class="{ disabled: !allRated || submitting }"
         @tap="submit"
       >
         <text
           class="submit-text"
-          :class="{ disabled: !allRated }"
+          :class="{ disabled: !allRated || submitting }"
         >
-          提交评价
+          {{ submitting ? '提交中...' : '提交评价' }}
         </text>
       </view>
     </view>
@@ -183,6 +183,7 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import { useAsyncData } from '@/composables/useAsyncData'
 import { reviewItems as _orderReviewItems, reviewTagsByRating, reviewRatingLabels } from '@/lib/order-data'
 
@@ -194,6 +195,7 @@ const reviewItems = computed(() => pageData.value?.items ?? [])
 const isEmpty = computed(() => reviewItems.value.length === 0)
 
 const safeBottom = ref(0)
+const { submitting, withLock } = useSubmitLock()
 const orderId = ref('1')
 
 const tagsByRating = reviewTagsByRating
@@ -246,13 +248,15 @@ function addImage(idx: number) {
 }
 
 function submit() {
-  if (!allRated.value) return
-  uni.showLoading({ title: '提交中...' })
-  setTimeout(() => {
-    uni.hideLoading()
-    uni.showToast({ title: '评价成功', icon: 'success' })
-    setTimeout(() => goBack(), 1500)
-  }, 900)
+  withLock(async () => {
+    if (!allRated.value) return
+    uni.showLoading({ title: '提交中...' })
+    setTimeout(() => {
+      uni.hideLoading()
+      uni.showToast({ title: '评价成功', icon: 'success' })
+      setTimeout(() => goBack(), 1500)
+    }, 900)
+  })
 }
 </script>
 

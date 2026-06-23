@@ -205,8 +205,8 @@
           </view>
         </view>
         <view class="sku-foot" :style="{ paddingBottom: (safeBottom + 16) + 'px' }">
-          <view class="sku-submit" :class="buyMode === 'cart' ? 'submit-cart' : 'submit-buy'" hover-class="btn-hover" @tap="confirmSku">
-            <text class="sku-submit-text">{{ buyMode === 'cart' ? '加入购物车' : '立即购买' }}</text>
+          <view class="sku-submit" :class="[buyMode === 'cart' ? 'submit-cart' : 'submit-buy', submitting ? 'sku-submit--disabled' : '']" hover-class="btn-hover" @tap="confirmSku">
+            <text class="sku-submit-text">{{ submitting ? '处理中...' : (buyMode === 'cart' ? '加入购物车' : '立即购买') }}</text>
           </view>
         </view>
       </view>
@@ -250,6 +250,7 @@ import { goBack, navigateTo } from '@/utils/router'
 import { useAsyncData } from '@/composables/useAsyncData'
 import { getShopProductDetail as _getShopProductDetail, shopProductReviews as _shopProductReviews, type ShopProductSku } from '@/lib/shop-data'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
   return { product: _getShopProductDetail(), reviews: _shopProductReviews }
@@ -276,6 +277,7 @@ const showImageViewer = ref(false)
 const cartAdded = ref(false)
 const addedToast = ref(false)
 const flyBall = ref(false)
+const { submitting, withLock } = useSubmitLock()
 
 const currentPrice = computed(() => selectedSku.value?.price ?? product.value.price)
 const currentOriginalPrice = computed(() => selectedSku.value?.originalPrice ?? product.value.originalPrice)
@@ -325,33 +327,35 @@ function incQty() {
   const max = selectedSku.value?.stock ?? product.value.stock
   if (quantity.value < max) quantity.value++
 }
-function confirmSku() {
-  if (buyMode.value === 'cart') {
-    showSkuPanel.value = false
-    // 飞入购物车动画：小球从屏幕中下部飞向左下角购物车图标
-    try {
-      const info = uni.getSystemInfoSync()
-      const w = info.windowWidth || 375
-      const h = info.windowHeight || 667
-      flyBall.value = true
-      // 目标：左下角购物车（约 x=36px, 底部上方约 56px）相对小球初始中心位置的位移
-      const ball = document?.querySelector?.('.fly-ball') as HTMLElement | null
-      if (ball) {
-        ball.style.setProperty('--fly-x', `${36 - w / 2}px`)
-        ball.style.setProperty('--fly-y', `${h - 56 - (h - 120)}px`)
+async function confirmSku() {
+  await withLock(async () => {
+    if (buyMode.value === 'cart') {
+      showSkuPanel.value = false
+      // 飞入购物车动画：小球从屏幕中下部飞向左下角购物车图标
+      try {
+        const info = uni.getSystemInfoSync()
+        const w = info.windowWidth || 375
+        const h = info.windowHeight || 667
+        flyBall.value = true
+        // 目标：左下角购物车（约 x=36px, 底部上方约 56px）相对小球初始中心位置的位移
+        const ball = document?.querySelector?.('.fly-ball') as HTMLElement | null
+        if (ball) {
+          ball.style.setProperty('--fly-x', `${36 - w / 2}px`)
+          ball.style.setProperty('--fly-y', `${h - 56 - (h - 120)}px`)
+        }
+      } catch (e) {
+        flyBall.value = true
       }
-    } catch (e) {
-      flyBall.value = true
+      setTimeout(() => {
+        flyBall.value = false
+        cartAdded.value = true
+        addedToast.value = true
+        setTimeout(() => (addedToast.value = false), 1600)
+      }, 600)
+    } else {
+      navigateTo(`/shop/checkout?productId=${productId.value}&skuId=${selectedSku.value?.id}&quantity=${quantity.value}`)
     }
-    setTimeout(() => {
-      flyBall.value = false
-      cartAdded.value = true
-      addedToast.value = true
-      setTimeout(() => (addedToast.value = false), 1600)
-    }, 600)
-  } else {
-    navigateTo(`/shop/checkout?productId=${productId.value}&skuId=${selectedSku.value?.id}&quantity=${quantity.value}`)
-  }
+  })
 }
 function goReviews() {
   navigateTo(`/shop/reviews?productId=${productId.value}`)
@@ -842,6 +846,7 @@ function goCart() {
 .submit-buy {
   background: linear-gradient(90deg, #c41e3a, #e85a71);
 }
+.sku-submit--disabled { opacity: 0.6; pointer-events: none; }
 .sku-submit-text {
   font-size: 30rpx;
   font-weight: 500;

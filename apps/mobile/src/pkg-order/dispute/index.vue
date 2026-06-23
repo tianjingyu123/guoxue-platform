@@ -399,10 +399,11 @@
     >
       <view
         class="submit-btn"
+        :class="{ disabled: submitting }"
         @tap="submit"
       >
         <text class="submit-text">
-          提交申诉
+          {{ submitting ? '提交中...' : '提交申诉' }}
         </text>
       </view>
     </view>
@@ -413,10 +414,11 @@
     >
       <view
         class="cancel-btn"
+        :class="{ disabled: submitting }"
         @tap="cancelDispute"
       >
         <text class="cancel-text">
-          撤销申诉
+          {{ submitting ? '处理中...' : '撤销申诉' }}
         </text>
       </view>
     </view>
@@ -430,6 +432,7 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import { useAsyncData } from '@/composables/useAsyncData'
 import {
   disputeTypes,
@@ -446,6 +449,7 @@ const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () =
 const isEmpty = computed(() => !pageData.value?.order?.orderId && (pageData.value?.detail !== undefined && !pageData.value?.detail?.id))
 
 const safeBottom = ref(0)
+const { submitting, withLock } = useSubmitLock()
 
 // view: create | list | detail
 const view = ref<'create' | 'list' | 'detail'>('create')
@@ -513,33 +517,37 @@ function previewImage(urls: string[], current: number) {
 }
 
 function submit() {
-  if (!form.description.trim()) {
-    uni.showToast({ title: '请填写问题描述', icon: 'none' })
-    return
-  }
-  if (!form.expectation.trim()) {
-    uni.showToast({ title: '请填写期望解决方式', icon: 'none' })
-    return
-  }
-  uni.showLoading({ title: '提交中...' })
-  setTimeout(() => {
-    uni.hideLoading()
-    uni.showToast({ title: '申诉已提交', icon: 'success' })
-    setTimeout(() => (view.value = 'list'), 1200)
-  }, 1000)
+  withLock(async () => {
+    if (!form.description.trim()) {
+      uni.showToast({ title: '请填写问题描述', icon: 'none' })
+      return
+    }
+    if (!form.expectation.trim()) {
+      uni.showToast({ title: '请填写期望解决方式', icon: 'none' })
+      return
+    }
+    uni.showLoading({ title: '提交中...' })
+    setTimeout(() => {
+      uni.hideLoading()
+      uni.showToast({ title: '申诉已提交', icon: 'success' })
+      setTimeout(() => (view.value = 'list'), 1200)
+    }, 1000)
+  })
 }
 
 function cancelDispute() {
-  uni.showModal({
-    title: '撤销申诉',
-    content: '确定要撤销这次申诉吗？',
-    confirmColor: '#C41E3A',
-    success: (res) => {
-      if (res.confirm) {
-        uni.showToast({ title: '已撤销', icon: 'none' })
-        view.value = 'list'
-      }
-    },
+  withLock(async () => {
+    uni.showModal({
+      title: '撤销申诉',
+      content: '确定要撤销这次申诉吗？',
+      confirmColor: '#C41E3A',
+      success: (res) => {
+        if (res.confirm) {
+          uni.showToast({ title: '已撤销', icon: 'none' })
+          view.value = 'list'
+        }
+      },
+    })
   })
 }
 </script>
@@ -973,6 +981,10 @@ function cancelDispute() {
   align-items: center;
   justify-content: center;
 }
+.submit-btn.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
 .submit-text {
   font-size: 30rpx;
   font-weight: 600;
@@ -985,6 +997,10 @@ function cancelDispute() {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.cancel-btn.disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 .cancel-text {
   font-size: 30rpx;

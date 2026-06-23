@@ -238,6 +238,7 @@
             <view
               v-if="bounty.status === 'answered'"
               class="bm-act-settle"
+              :class="{ disabled: submitting }"
               @tap.stop="settle(bounty.id)"
             >
               <app-icon
@@ -246,7 +247,7 @@
                 color="#ffffff"
               />
               <text class="bm-act-settle-text">
-                结算悬赏
+                {{ submitting ? '结算中...' : '结算悬赏' }}
               </text>
             </view>
             <view
@@ -288,6 +289,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 
 interface Bounty {
   id: string
@@ -322,6 +324,7 @@ try {
 const activeTab = ref<'posted' | 'answered'>('posted')
 const loading = ref(true)
 const bounties = ref<Bounty[]>([])
+const { submitting, withLock } = useSubmitLock()
 
 const postedData: Bounty[] = [
   { id: '1', title: '求解八字命盘中的财运分析方法', description: '想了解如何从八字命盘中分析一个人的财运走势...', amount: 50, status: 'answered', answerCount: 3, createdAt: '2024-01-15T10:00:00Z', expireAt: '2024-01-22T10:00:00Z' },
@@ -355,8 +358,10 @@ const stats = computed(() => ({
   totalAmount: bounties.value.reduce((sum, b) => sum + b.amount, 0),
 }))
 
-function settle(id: string) {
-  uni.showToast({ title: '结算成功', icon: 'success' })
+async function settle(id: string) {
+  await withLock(async () => {
+    uni.showToast({ title: '结算成功', icon: 'success' })
+  })
 }
 function repost(id: string) {
   navigateTo(`/bounty/create?repost=${id}`)

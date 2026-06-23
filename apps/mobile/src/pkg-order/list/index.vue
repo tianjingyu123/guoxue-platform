@@ -186,9 +186,10 @@
               <view
                 v-if="order.canConfirm"
                 class="btn primary"
+                :class="{ disabled: submitting }"
                 @tap="confirmReceive(order.id)"
               >
-                <text>确认收货</text>
+                <text>{{ submitting ? '确认中...' : '确认收货' }}</text>
               </view>
             </template>
             <template v-else-if="order.status === 'completed'">
@@ -260,10 +261,10 @@
           </view>
           <view
             class="btn primary flex1"
-            :class="{ disabled: !cancelReason }"
+            :class="{ disabled: !cancelReason || submitting }"
             @tap="doCancel"
           >
-            <text>确认取消</text>
+            <text>{{ submitting ? '处理中...' : '确认取消' }}</text>
           </view>
         </view>
       </view>
@@ -278,6 +279,7 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import { useAsyncData } from '@/composables/useAsyncData'
 import { mockOrders as _mockOrders, orderStatusTabs as _orderStatusTabs, orderStatusConfig as _orderStatusConfig, orderCancelReasons as _orderCancelReasons, type OrderListItem } from '@/lib/order-data'
 
@@ -293,6 +295,7 @@ const isEmpty = computed(() => {
   return raw != null && raw.length === 0
 })
 const activeTab = ref('')
+const { submitting, withLock } = useSubmitLock()
 const orders = ref<OrderListItem[]>([])
 watch(() => pageData.value?.mockOrders, (val) => { if (val) orders.value = [...val] }, { immediate: true })
 const showCancel = ref(false)
@@ -317,19 +320,23 @@ function goAfterSale(id: string) { navigateTo(`/shop/after-sale?orderId=${id}`) 
 function goShop() { navigateTo('/shop') }
 function buyAgain() { navigateTo('/shop/cart') }
 function confirmReceive(id: string) {
-  orders.value = orders.value.map((o) =>
-    o.id === id ? { ...o, status: 'completed', canConfirm: false, canReview: true } : o
-  )
-  uni.showToast({ title: '确认收货成功', icon: 'none' })
+  withLock(async () => {
+    orders.value = orders.value.map((o) =>
+      o.id === id ? { ...o, status: 'completed', canConfirm: false, canReview: true } : o
+    )
+    uni.showToast({ title: '确认收货成功', icon: 'none' })
+  })
 }
 function askCancel(id: string) { cancelId.value = id; showCancel.value = true }
 function closeCancel() { showCancel.value = false; cancelId.value = null; cancelReason.value = '' }
 function doCancel() {
-  if (!cancelReason.value || !cancelId.value) return
-  orders.value = orders.value.map((o) =>
-    o.id === cancelId.value ? { ...o, status: 'cancelled', canCancel: false } : o
-  )
-  closeCancel()
+  withLock(async () => {
+    if (!cancelReason.value || !cancelId.value) return
+    orders.value = orders.value.map((o) =>
+      o.id === cancelId.value ? { ...o, status: 'cancelled', canCancel: false } : o
+    )
+    closeCancel()
+  })
 }
 </script>
 

@@ -85,7 +85,7 @@
 
     <view class="footer">
       <view class="footer-total"><text class="ft-label">实付</text><text class="ft-amount">¥{{ payTotal }}</text></view>
-      <view class="pay-btn" @tap="submitOrder"><text>提交订单</text></view>
+      <view class="pay-btn" :class="{ 'pay-btn--disabled': submitting }" @tap="submitOrder"><text>{{ submitting ? '处理中...' : '提交订单' }}</text></view>
     </view>
 
     <!-- 地址选择 -->
@@ -123,6 +123,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { redirectTo } from '@/utils/router'
 import { shopApi, payMethods, invoiceOptions, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 
 const items = ref<any[]>([])
 const addresses = ref<any[]>([])
@@ -136,6 +137,7 @@ const note = ref('')
 const showAddress = ref(false)
 const showCoupon = ref(false)
 const showInvoice = ref(false)
+const { submitting, withLock } = useSubmitLock()
 
 const currentInvoice = computed(() => invoiceOptions.find((o) => o.value === invoice.value) || invoiceOptions[0])
 const goodsTotal = computed(() => items.value.reduce((s, i) => s + i.price * i.quantity, 0))
@@ -154,7 +156,7 @@ onMounted(async () => {
 function selectAddress(a: ShippingAddress) { currentAddress.value = a; showAddress.value = false }
 function selectCoupon(c: CheckoutCoupon | null) { selectedCoupon.value = c; showCoupon.value = false }
 function selectInvoice(opt: { value: string }) { invoice.value = opt.value; showInvoice.value = false }
-function submitOrder() { redirectTo('/payment/result') }
+async function submitOrder() { await withLock(async () => { redirectTo('/payment/result') }) }
 </script>
 
 <style lang="scss" scoped>
@@ -212,6 +214,7 @@ function submitOrder() { redirectTo('/payment/result') }
 .ft-amount { font-size: 38rpx; color: #C41E3A; font-weight: 700; }
 .pay-btn { margin-left: auto; padding: 20rpx 60rpx; border-radius: 40rpx; background: linear-gradient(90deg, #C41E3A, #C8453E); }
 .pay-btn text { color: #FFFFFF; font-size: 30rpx; font-weight: 600; }
+.pay-btn--disabled { opacity: 0.6; pointer-events: none; }
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: flex-end; }
 .sheet { width: 100%; background: #FFFFFF; border-radius: 24rpx 24rpx 0 0; padding: 32rpx; max-height: 70vh; }
 .sheet-title { font-size: 32rpx; font-weight: 600; color: #1A1A1A; display: block; margin-bottom: 24rpx; }

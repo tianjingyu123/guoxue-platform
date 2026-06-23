@@ -83,8 +83,8 @@
               <text class="g-cd-text">{{ cdText(g.id) }}</text>
             </view>
           </view>
-          <view class="g-btn" hover-class="btn-hover" @tap="join(g.id)">
-            <text class="g-btn-text">{{ joiningId === g.id ? '加入中...' : '去参团' }}</text>
+          <view class="g-btn" :class="{ 'g-btn--disabled': submitting }" hover-class="btn-hover" @tap="join(g.id)">
+            <text class="g-btn-text">{{ submitting ? '加入中...' : '去参团' }}</text>
           </view>
         </view>
       </view>
@@ -108,9 +108,9 @@
 
     <!-- 底部开新团 -->
     <view class="footer">
-      <view class="footer-btn" hover-class="btn-hover" @tap="create">
+      <view class="footer-btn" :class="{ 'footer-btn--disabled': submitting }" hover-class="btn-hover" @tap="create">
         <app-icon name="plus" :size="28" color="#fff" />
-        <text class="footer-btn-text">¥{{ detail.price }} 开新团</text>
+        <text class="footer-btn-text">{{ submitting ? '处理中...' : `¥${detail.price} 开新团` }}</text>
       </view>
     </view>
   </view>
@@ -124,6 +124,7 @@ import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { useAsyncData } from '@/composables/useAsyncData'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import { groupBuyDetail as _detail, activeGroups as _activeGroups, formatCountdown } from '@/lib/shop-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
@@ -134,7 +135,7 @@ const detail = computed(() => pageData.value?.detail ?? {} as any)
 const activeGroups = computed(() => pageData.value?.groups ?? [])
 const isEmpty = computed(() => !detail.value.id)
 
-const joiningId = ref<string | null>(null)
+const { submitting, withLock } = useSubmitLock()
 
 const endMap: Record<string, number> = {}
 watch(() => activeGroups.value, (val) => {
@@ -161,15 +162,20 @@ function cdText(id: string): string {
   const c = formatCountdown((endMap[id] ?? Date.now()) - Date.now())
   return `${c.h}:${c.m}:${c.s}`
 }
-function join(id: string) {
-  joiningId.value = id
-  setTimeout(() => {
-    joiningId.value = null
-    navigateTo(`/shop/checkout?type=group&groupId=${id}`)
-  }, 800)
+async function join(id: string) {
+  await withLock(async () => {
+    await new Promise<void>((resolve) => {
+      setTimeout(() => {
+        navigateTo(`/shop/checkout?type=group&groupId=${id}`)
+        resolve()
+      }, 800)
+    })
+  })
 }
-function create() {
-  navigateTo(`/shop/checkout?type=group&groupId=${detail.value.id}`)
+async function create() {
+  await withLock(async () => {
+    navigateTo(`/shop/checkout?type=group&groupId=${detail.value.id}`)
+  })
 }
 </script>
 
@@ -396,6 +402,7 @@ function create() {
   padding: 14rpx 28rpx;
   background: linear-gradient(90deg, #ff6b35, #c41e3a);
   border-radius: 999rpx;
+  &--disabled { opacity: 0.6; pointer-events: none; }
 }
 .g-btn-text {
   font-size: 26rpx;
@@ -455,6 +462,7 @@ function create() {
   padding: 24rpx 0;
   background: linear-gradient(90deg, #ff6b35, #c41e3a);
   border-radius: 999rpx;
+  &--disabled { opacity: 0.6; pointer-events: none; }
 }
 .footer-btn-text {
   font-size: 30rpx;
