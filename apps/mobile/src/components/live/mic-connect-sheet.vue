@@ -66,7 +66,6 @@
       </view>
       <view class="mic-safe" />
     </view>
-  </view>
 </template>
 
 <script setup lang="ts">

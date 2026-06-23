@@ -121,7 +121,6 @@
         <text class="batch-del-text">删除 ({{ selectedIds.length }})</text>
       </view>
     </view>
-  </view>
 </template>
 
 <script setup lang="ts">

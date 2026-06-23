@@ -31,7 +31,6 @@ const emit = defineEmits<{ (e: 'retry'): void }>()
       <AppIcon name="refresh-cw" :size="28" color="#C41E3A" />
       <text class="app-error__action-text">{{ retryText }}</text>
     </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

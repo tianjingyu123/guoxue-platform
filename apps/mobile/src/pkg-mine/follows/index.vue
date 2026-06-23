@@ -59,7 +59,6 @@
         </view>
       </view>
     </scroll-view>
-  </view>
 </template>
 
 <script setup lang="ts">

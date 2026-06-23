@@ -92,7 +92,6 @@
         <text class="empty-text">暂无相关公告</text>
       </view>
     </view>
-  </view>
 </template>
 
 <script setup lang="ts">

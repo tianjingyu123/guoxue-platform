@@ -64,7 +64,6 @@ function addGroup() {
       </scroll-view>
       <view class="gp-safe" />
     </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

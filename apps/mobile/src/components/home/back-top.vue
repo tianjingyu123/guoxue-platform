@@ -9,7 +9,6 @@ const emit = defineEmits<{ (e: 'tap'): void }>()
 <template>
   <view v-if="visible" class="back-top animate-fade-in" @tap="emit('tap')">
     <app-icon name="arrow-up" :size="36" color="#999999" />
-  </view>
 </template>
 
 <style scoped lang="scss">

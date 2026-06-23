@@ -17,7 +17,6 @@ const innerSize = computed(() => Math.round(props.size * 0.55))
 <template>
   <view class="tool-icon" :style="{ width: size + 'rpx', height: size + 'rpx' }">
     <app-icon :name="iconId" :size="innerSize" color="#c41e3a" />
-  </view>
 </template>
 
 <style scoped lang="scss">

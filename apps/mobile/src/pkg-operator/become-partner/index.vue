@@ -88,7 +88,6 @@
         <text class="btn-text">返回首页</text>
       </view>
     </view>
-  </view>
 </template>
 
 <script setup lang="ts">

@@ -52,7 +52,6 @@ function onJoin() {
         <view v-else class="join-btn" @tap.stop="onJoin"><text class="join-text">加入</text></view>
       </view>
     </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

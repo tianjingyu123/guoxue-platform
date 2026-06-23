@@ -32,7 +32,6 @@ function open() { navigateTo(`/classics/${props.data.id}`) }
         <view class="read-btn"><AppIcon name="book-open" :size="22" color="#c41e3a" /><text class="read-txt">开始阅读</text></view>
       </view>
     </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

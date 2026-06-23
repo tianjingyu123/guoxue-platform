@@ -180,7 +180,6 @@ function openCategory(id: string) { navigateTo(`/courses-list?category=${id}`) }
       </view>
     </view>
   </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

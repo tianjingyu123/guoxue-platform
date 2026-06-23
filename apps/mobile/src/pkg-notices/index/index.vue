@@ -103,7 +103,6 @@
         <text v-else class="load-end">已加载全部公告</text>
       </template>
     </view>
-  </view>
 </template>
 
 <script setup lang="ts">

@@ -136,7 +136,6 @@ function confirm() {
         <view class="lp-explain-ok" @tap="showExplain = false"><text class="lp-explain-ok-text">我知道了</text></view>
       </view>
     </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

@@ -18,7 +18,6 @@
         class="ds-panel"
       />
     </view>
-  </view>
 </template>
 
 <script setup lang="ts">

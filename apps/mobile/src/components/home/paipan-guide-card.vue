@@ -11,12 +11,12 @@ const tags = ['八字', '紫微', '六爻', '奇门']
     <!-- 宣纸纹理层 -->
     <view class="paper-texture" />
     <!-- 八卦背景装饰 -->
-    <image src="/static/bagua-deco.svg" class="bagua-deco" mode="aspectFit" />
+    <image src="/h5/static/bagua-deco.svg" class="bagua-deco" mode="aspectFit" />
 
     <view class="row">
       <!-- 太极旋转图标 -->
       <view class="taiji-box gold-glow">
-        <image src="/static/taiji-gold.svg" class="taiji taiji-rotate" mode="aspectFit" />
+        <image src="/h5/static/taiji-gold.svg" class="taiji taiji-rotate" mode="aspectFit" />
       </view>
       <!-- 文案 -->
       <view class="copy">

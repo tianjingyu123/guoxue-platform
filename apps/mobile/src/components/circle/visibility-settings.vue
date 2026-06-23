@@ -97,7 +97,6 @@ function onPriceInput(e: any) {
         </view>
       </view>
     </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

@@ -36,7 +36,6 @@ function open() { navigateTo(`/mall/product/${props.data.id}`) }
         <text v-if="data.sales" class="sales">已售{{ formatCount(data.sales) }}</text>
       </view>
     </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

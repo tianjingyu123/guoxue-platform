@@ -52,7 +52,6 @@
       :balance="balance"
       @close="showInsufficient = false"
     />
-  </view>
 </template>
 
 <script setup lang="ts">
