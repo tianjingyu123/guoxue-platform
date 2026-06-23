@@ -1,15 +1,44 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { exportDataTypes, exportRecords, type ExportRecord, type ExportRecordStatus } from '@/lib/mine-data'
+import { mineApi, type ExportRecord, type ExportRecordStatus } from '@/lib/mine-data'
 
 const activeTab = ref<'create' | 'records'>('create')
 const selectedTypes = ref<string[]>([])
-const records = ref<ExportRecord[]>(exportRecords.map((r) => ({ ...r })))
+const exportDataTypes = ref<{ id: string; name: string; icon: string; description: string; estimatedSize: string }[]>([])
+const records = ref<ExportRecord[]>([])
 const submitting = ref(false)
+const loading = ref(true)
+const error = ref('')
+const recordsLoading = ref(false)
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [typesData, recordsData] = await Promise.all([
+      mineApi.getExportTypes(),
+      mineApi.getExportRecords(),
+    ])
+    exportDataTypes.value = typesData
+    records.value = recordsData.map((r: ExportRecord) => ({ ...r }))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
 
 const completedCount = computed(() => records.value.filter((r) => r.status === 'completed').length)
-const allSelected = computed(() => selectedTypes.value.length === exportDataTypes.length)
+const allSelected = computed(() => selectedTypes.value.length === exportDataTypes.value.length)
 
 function toggleType(id: string) {
   if (selectedTypes.value.includes(id)) {
@@ -19,22 +48,26 @@ function toggleType(id: string) {
   }
 }
 function selectAll() {
-  selectedTypes.value = allSelected.value ? [] : exportDataTypes.map((t) => t.id)
+  selectedTypes.value = allSelected.value ? [] : exportDataTypes.value.map((t) => t.id)
 }
 
-function submit() {
+async function submit() {
   if (selectedTypes.value.length === 0 || submitting.value) return
   submitting.value = true
-  setTimeout(() => {
+  try {
+    const result = await mineApi.requestExport(selectedTypes.value)
     records.value = [
-      { id: String(Date.now()), types: [...selectedTypes.value], status: 'processing', createdAt: new Date().toISOString() },
+      { id: result.id || String(Date.now()), types: [...selectedTypes.value], status: 'processing', createdAt: new Date().toISOString() },
       ...records.value,
     ]
     selectedTypes.value = []
-    submitting.value = false
     activeTab.value = 'records'
     uni.showToast({ title: '已提交导出申请', icon: 'none' })
-  }, 1000)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 
 function statusConfig(s: ExportRecordStatus) {
@@ -50,7 +83,7 @@ function fmtDate(s: string) {
   return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 function typeNames(ids: string[]) {
-  return ids.map((id) => exportDataTypes.find((t) => t.id === id)?.name || id).join('、')
+  return ids.map((id) => exportDataTypes.value.find((t) => t.id === id)?.name || id).join('、')
 }
 function download() {
   uni.showToast({ title: '开始下载文件', icon: 'none' })
@@ -76,7 +109,10 @@ function reapply(r: ExportRecord) {
       </view>
     </view>
 
-    <scroll-view scroll-y class="scroll">
+    <!-- 加载/错误 -->
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+    <scroll-view v-else scroll-y class="scroll">
       <!-- 申请导出 -->
       <template v-if="activeTab === 'create'">
         <view class="info">
@@ -166,6 +202,12 @@ function reapply(r: ExportRecord) {
 
 <style scoped>
 .page { min-height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
+
+/* 三态 */
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 
 .tabs { display: flex; background: #fff; border-bottom: 1rpx solid #EDE7DC; }
 .tab { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; gap: 8rpx; border-bottom: 4rpx solid transparent; }

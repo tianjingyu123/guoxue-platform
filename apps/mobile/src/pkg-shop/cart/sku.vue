@@ -6,6 +6,20 @@
       </template>
     </app-nav-bar>
 
+    <!-- 加载中 -->
+    <view v-if="loading" class="state-wrap">
+      <text class="state-text">加载中...</text>
+    </view>
+    <!-- 错误 -->
+    <view v-else-if="error" class="state-wrap">
+      <app-icon name="alert-circle" :size="56" color="#E74C3C" />
+      <text class="state-text">{{ error }}</text>
+      <view class="retry-btn" @tap="retry">
+        <text class="retry-btn-text">重试</text>
+      </view>
+    </view>
+    <!-- 数据内容 -->
+    <template v-else>
     <scroll-view scroll-y class="content" v-if="validItems.length || invalidItems.length">
       <!-- 有效商品 -->
       <view class="item-list">
@@ -88,17 +102,45 @@
         <text>删除</text>
       </view>
     </view>
+      </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { navigateTo, reLaunch } from '@/utils/router'
-import { skuCartItems, type SkuCartItem } from '@/lib/shop-data'
+import { shopApi, type SkuCartItem } from '@/lib/shop-data'
 
-const items = ref<SkuCartItem[]>(JSON.parse(JSON.stringify(skuCartItems)))
+const items = ref<SkuCartItem[]>([])
+const loading = ref(true)
+const error = ref('')
+const submitting = ref(false)
 const editMode = ref(false)
 const openId = ref<string | null>(null)
+
+onMounted(async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    items.value = await shopApi.getSkuCart()
+  } catch (_e) {
+    error.value = '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+})
+
+function retry() {
+  loading.value = true
+  error.value = ''
+  shopApi.getSkuCart().then((data) => {
+    items.value = data
+  }).catch(() => {
+    error.value = '加载失败，请重试'
+  }).finally(() => {
+    loading.value = false
+  })
+}
 
 const validItems = computed(() => items.value.filter((i) => i.isValid))
 const invalidItems = computed(() => items.value.filter((i) => !i.isValid))
@@ -131,15 +173,24 @@ function removeItem(id: string) {
   openId.value = null
 }
 function removeSelected() {
+  if (submitting.value) return
+  submitting.value = true
   items.value = items.value.filter((i) => !(i.isValid && i.selected))
+  submitting.value = false
 }
 function clearInvalid() {
+  if (submitting.value) return
+  submitting.value = true
   items.value = items.value.filter((i) => i.isValid)
+  submitting.value = false
 }
 function goShop() { reLaunch('/shop') }
 function goCheckout() {
+  if (submitting.value) return
   if (selectedCount.value === 0) { uni.showToast({ title: '请选择商品', icon: 'none' }); return }
+  submitting.value = true
   navigateTo('/shop/checkout')
+  setTimeout(() => (submitting.value = false), 500)
 }
 </script>
 
@@ -214,4 +265,28 @@ function goCheckout() {
 }
 .checkout-btn text { color: #FFFFFF; font-size: 30rpx; font-weight: 600; }
 .checkout-btn.danger { background: #E74C3C; }
+
+/* 加载/错误状态 */
+.state-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  padding: 120rpx 0;
+}
+.state-text {
+  font-size: 28rpx;
+  color: #999;
+}
+.retry-btn {
+  padding: 16rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.retry-btn-text {
+  font-size: 26rpx;
+  color: #fff;
+}
 </style>

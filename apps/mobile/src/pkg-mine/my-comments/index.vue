@@ -1,17 +1,40 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import {
-  myComments,
+  mineApi,
   commentTypeNames,
   commentTypeStyles,
   type MyCommentItem,
 } from '@/lib/mine-data'
 
-const list = ref<MyCommentItem[]>(myComments.map((c) => ({ ...c })))
+const list = ref<MyCommentItem[]>([])
+const loading = ref(true)
+const error = ref('')
 const isEditMode = ref(false)
 const selectedIds = ref<number[]>([])
 const activeId = ref<number | null>(null)
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await mineApi.getMyComments()
+    list.value = data.map((c: MyCommentItem) => ({ ...c }))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
 
 const isEmpty = computed(() => list.value.length === 0)
 
@@ -57,6 +80,10 @@ function openTarget() {
       </template>
     </app-nav-bar>
 
+    <!-- 加载/错误 -->
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+    <template v-else>
     <!-- 空态 -->
     <view v-if="isEmpty" class="empty">
       <view class="empty-icon"><AppIcon name="message-square" :size="44" color="#C9C2B6" /></view>
@@ -130,11 +157,18 @@ function openTarget() {
         <text class="batch-del-text">删除 ({{ selectedIds.length }})</text>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <style scoped>
 .page { min-height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
+
+/* 三态 */
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 .nav-action { font-size: 28rpx; color: #C41E3A; }
 
 .empty { flex: 1; padding: 140rpx 0; display: flex; flex-direction: column; align-items: center; gap: 16rpx; }

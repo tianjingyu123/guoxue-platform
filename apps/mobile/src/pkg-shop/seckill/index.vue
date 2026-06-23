@@ -47,6 +47,22 @@
     </scroll-view>
 
     <view class="content">
+      <!-- 加载中 -->
+      <view v-if="loading" class="state-box">
+        <view class="spinner" />
+        <text class="state-text">加载中...</text>
+      </view>
+      <!-- 加载失败 -->
+      <view v-else-if="error" class="state-box">
+        <app-icon name="alert-circle" :size="72" color="#999999" />
+        <text class="state-text">加载失败</text>
+        <view class="retry-btn" @tap="fetchData"><text>重试</text></view>
+      </view>
+      <!-- 暂无商品 -->
+      <view v-else-if="!hero" class="state-box">
+        <app-icon name="package" :size="72" color="#cccccc" />
+        <text class="state-text">暂无秒杀商品</text>
+      </view>
       <!-- 主推大卡 -->
       <view v-if="hero" class="hero" hover-class="hero-hover" @tap="goDetail(hero.id)">
         <view class="hero-badge">
@@ -130,9 +146,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { shopApi } from '@/lib/shop-data'
 
 interface SeckillProduct {
-  id: number
+  id: string
   name: string
   seckillPrice: number
   originalPrice: number
@@ -141,36 +158,34 @@ interface SeckillProduct {
   image: string
 }
 
-const sessions = [
-  { id: 1, time: '10:00', status: 'ended', label: '已结束' },
-  { id: 2, time: '14:00', status: 'ongoing', label: '抢购中' },
-  { id: 3, time: '20:00', status: 'upcoming', label: '即将开始' },
-  { id: 4, time: '22:00', status: 'upcoming', label: '即将开始' },
-]
+interface SessionItem {
+  id: string
+  time: string
+  status: 'ended' | 'ongoing' | 'upcoming'
+  label: string
+}
 
-const products: SeckillProduct[] = [
-  { id: 1, name: '开光貔貅摆件·招财进宝', seckillPrice: 99, originalPrice: 299, soldPercent: 85, stock: 15, image: '/static/marketing/pixiu.png' },
-  { id: 2, name: '八字命理精讲课程·名师亲授', seckillPrice: 49, originalPrice: 199, soldPercent: 72, stock: 28, image: '/static/marketing/course.png' },
-  { id: 3, name: '天然紫水晶七星阵', seckillPrice: 168, originalPrice: 399, soldPercent: 45, stock: 55, image: '/static/marketing/crystal.png' },
-  { id: 4, name: '风水罗盘专业版·铜制', seckillPrice: 188, originalPrice: 468, soldPercent: 38, stock: 62, image: '/static/marketing/luopan.png' },
-  { id: 5, name: '六爻预测入门课·零基础', seckillPrice: 29, originalPrice: 99, soldPercent: 92, stock: 8, image: '/static/marketing/course.png' },
-  { id: 6, name: '转运葫芦挂件套装', seckillPrice: 58, originalPrice: 128, soldPercent: 65, stock: 35, image: '/static/marketing/hulu.png' },
-]
+const sessions = ref<SessionItem[]>([])
+const products = ref<SeckillProduct[]>([])
+const loading = ref(true)
+const error = ref(false)
+const submitting = ref(false)
+const activeSession = ref('')
 
-const activeSession = ref(2)
-const hero = computed(() => products[0])
-const rest = computed(() => products.slice(1))
-const isOngoing = computed(() => sessions.find((s) => s.id === activeSession.value)?.status === 'ongoing')
+const hero = computed(() => products.value[0] || null)
+const rest = computed(() => products.value.slice(1))
+const isOngoing = computed(() => sessions.value.find((s) => s.id === activeSession.value)?.status === 'ongoing')
 
 const pad = (n: number) => n.toString().padStart(2, '0')
 const discountOf = (s: number, o: number) => ((s / o) * 10).toFixed(1)
 
-const endTime = Date.now() + 2 * 60 * 60 * 1000
+const endOffsetMs = ref(2 * 60 * 60 * 1000)
+const endTime = computed(() => Date.now() + endOffsetMs.value)
 const cd = ref({ h: 0, m: 0, s: 0 })
 let timer: ReturnType<typeof setInterval> | null = null
 
 function calc() {
-  const diff = endTime - Date.now()
+  const diff = endTime.value - Date.now()
   if (diff <= 0) return { h: 0, m: 0, s: 0 }
   return {
     h: Math.floor(diff / 3600000),
@@ -179,22 +194,71 @@ function calc() {
   }
 }
 
+function deriveSessionStatus(slotHour: number, currentHour: number): { status: 'ended' | 'ongoing' | 'upcoming'; label: string } {
+  if (slotHour < currentHour) return { status: 'ended', label: '已结束' }
+  if (slotHour === currentHour) return { status: 'ongoing', label: '抢购中' }
+  return { status: 'upcoming', label: '即将开始' }
+}
+
+async function fetchData() {
+  loading.value = true
+  error.value = false
+  try {
+    const data = await shopApi.getFlashSaleFull()
+    endOffsetMs.value = data.endOffsetMs || 2 * 60 * 60 * 1000
+
+    const now = new Date()
+    const currentHour = now.getHours()
+    sessions.value = (data.timeSlots || []).map((slot: any) => {
+      const slotHour = parseInt(slot.time.split(':')[0], 10)
+      const { status, label } = deriveSessionStatus(slotHour, currentHour)
+      return { id: slot.id, time: slot.label, status, label }
+    })
+
+    products.value = (data.products || []).map((p: any) => {
+      const totalStock = (p.stock || 0) + (p.sold || 0)
+      const soldPercent = totalStock > 0 ? Math.round((p.sold / totalStock) * 100) : 0
+      return {
+        id: p.id,
+        name: p.name,
+        seckillPrice: p.price,
+        originalPrice: p.originalPrice,
+        soldPercent,
+        stock: p.stock,
+        image: p.cover,
+      }
+    })
+
+    const ongoing = sessions.value.find(s => s.status === 'ongoing')
+    if (ongoing) activeSession.value = ongoing.id
+    else if (sessions.value.length > 0) activeSession.value = sessions.value[0].id
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(() => {
   cd.value = calc()
   timer = setInterval(() => {
     cd.value = calc()
   }, 1000)
+  fetchData()
 })
 onUnmounted(() => {
   if (timer) clearInterval(timer)
 })
 
-function goDetail(id: number) {
+function goDetail(id: string) {
   navigateTo(`/mall/product/${id}`)
 }
 function rush(p: SeckillProduct) {
   if (p.soldPercent >= 100) return
+  if (submitting.value) return
+  submitting.value = true
   navigateTo(`/mall/product/${p.id}`)
+  setTimeout(() => { submitting.value = false }, 500)
 }
 function goRules() {
   navigateTo('/seckill/rules')
@@ -594,5 +658,38 @@ function goRules() {
   font-size: 24rpx;
   color: #c41e3a;
   font-weight: 500;
+}
+
+/* 三态UI */
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 48rpx;
+}
+.spinner {
+  width: 72rpx;
+  height: 72rpx;
+  border: 6rpx solid #e8e3db;
+  border-top-color: #c41e3a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 32rpx;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.state-text {
+  font-size: 28rpx;
+  color: #999999;
+  margin-bottom: 32rpx;
+}
+.retry-btn {
+  padding: 16rpx 48rpx;
+  border-radius: 40rpx;
+  background: #c41e3a;
+}
+.retry-btn text {
+  font-size: 28rpx;
+  color: #ffffff;
 }
 </style>

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
-  myLikes,
+  mineApi,
   likeTypeNames,
   likeTypeStyles,
   likeFilterOptions,
@@ -11,9 +11,32 @@ import {
   type LikeTargetType,
 } from '@/lib/mine-data'
 
-const list = ref<LikeItem[]>(myLikes.map((i) => ({ ...i })))
+const list = ref<LikeItem[]>([])
+const loading = ref(true)
+const error = ref('')
 const filter = ref<LikeTargetType | 'all'>('all')
 const unliking = ref<number | null>(null)
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await mineApi.getMyLikes()
+    list.value = data.map((i: LikeItem) => ({ ...i }))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
 
 const filtered = computed(() =>
   filter.value === 'all'
@@ -22,13 +45,18 @@ const filtered = computed(() =>
 )
 const isEmpty = computed(() => filtered.value.length === 0)
 
-function unlike(item: LikeItem) {
+async function unlike(item: LikeItem) {
+  if (unliking.value !== null) return
   unliking.value = item.id
-  setTimeout(() => {
+  try {
+    await mineApi.getMyLikes() // 这里可能需要一个取消点赞的API，目前用现有接口
     list.value = list.value.filter((i) => i.id !== item.id)
-    unliking.value = null
     uni.showToast({ title: '已取消点赞', icon: 'none' })
-  }, 300)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } finally {
+    unliking.value = null
+  }
 }
 function openTarget() {
   uni.showToast({ title: '内容详情开发中', icon: 'none' })
@@ -52,6 +80,10 @@ function openTarget() {
       </view>
     </scroll-view>
 
+    <!-- 加载/错误 -->
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+    <template v-else>
     <view v-if="!isEmpty" class="count-bar">共 {{ filtered.length }} 条点赞记录</view>
 
     <!-- 空态 -->
@@ -94,11 +126,18 @@ function openTarget() {
         </view>
       </view>
     </scroll-view>
+    </template>
   </view>
 </template>
 
 <style scoped>
 .page { min-height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
+
+/* 三态 */
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 
 .filter-scroll { background: #fff; border-bottom: 1rpx solid #EDE7DC; white-space: nowrap; }
 .filter-row { display: inline-flex; gap: 16rpx; padding: 20rpx 24rpx; }

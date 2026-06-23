@@ -4,8 +4,10 @@
     </app-nav-bar>
 
     <scroll-view scroll-y class="scroll-area">
+      <view v-if="loading" class="loading"><text>加载中...</text></view>
+      <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
       <!-- ============ 创建申诉 ============ -->
-      <block v-if="view === 'create'">
+      <block v-else-if="view === 'create'">
         <!-- 订单信息 -->
         <view class="card order-card">
           <image class="order-cover" :src="order.productCover" mode="aspectFill" />
@@ -203,14 +205,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onMounted } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import {
+  orderApi,
   disputeTypes,
   disputeStatusConfig,
-  mockDisputeOrder as disputeOrder,
-  mockMyDisputes as myDisputes,
-  mockDisputeDetail as disputeDetail,
 } from '@/lib/order-data'
 
 const safeBottom = ref(0)
@@ -218,9 +218,31 @@ const safeBottom = ref(0)
 // view: create | list | detail
 const view = ref<'create' | 'list' | 'detail'>('create')
 
-const order = ref(disputeOrder)
-const disputes = ref(myDisputes)
-const detail = ref(disputeDetail)
+const loading = ref(true)
+const error = ref('')
+const order = ref<any>(null)
+const disputes = ref<any[]>([])
+const detail = ref<any>(null)
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    if (view.value === 'create') {
+      // 从路由参数获取 orderId
+      order.value = await orderApi.getDisputeOrder('')
+    } else if (view.value === 'list') {
+      disputes.value = await orderApi.getDisputes()
+    } else {
+      // detail view loads on openDetail
+    }
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+function retry() { loadData() }
 
 const form = reactive({
   type: disputeTypes[0].value,
@@ -229,10 +251,12 @@ const form = reactive({
   expectation: '',
 })
 
+const submitting = ref(false)
+
 const navTitle = computed(() =>
   view.value === 'create' ? '提交申诉' : view.value === 'list' ? '我的申诉' : '申诉详情',
 )
-const currentIdx = computed(() => detail.value.timeline.findIndex((n) => n.isCurrent))
+const currentIdx = computed(() => detail.value?.timeline?.findIndex((n: any) => n.isCurrent) ?? -1)
 
 function sCfg(status: string) {
   return disputeStatusConfig[status] || { label: status, color: '#999', bg: '#F5F5F5', icon: 'clock' }
@@ -250,6 +274,8 @@ onLoad((q) => {
   if (q && q.view === 'list') view.value = 'list'
 })
 
+onMounted(() => { loadData() })
+
 function onBack() {
   if (view.value === 'detail') {
     view.value = 'list'
@@ -259,9 +285,19 @@ function onBack() {
 }
 function switchToList() {
   view.value = 'list'
+  loadData()
 }
-function openDetail(_id: string) {
+async function openDetail(_id: string) {
   view.value = 'detail'
+  loading.value = true
+  error.value = ''
+  try {
+    detail.value = await orderApi.disputeDetail(_id)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
 }
 
 function addImage() {
@@ -277,7 +313,8 @@ function previewImage(urls: string[], current: number) {
   uni.previewImage({ urls, current })
 }
 
-function submit() {
+async function submit() {
+  if (submitting.value) return
   if (!form.description.trim()) {
     uni.showToast({ title: '请填写问题描述', icon: 'none' })
     return
@@ -286,23 +323,39 @@ function submit() {
     uni.showToast({ title: '请填写期望解决方式', icon: 'none' })
     return
   }
-  uni.showLoading({ title: '提交中...' })
-  setTimeout(() => {
+  submitting.value = true
+  try {
+    uni.showLoading({ title: '提交中...' })
+    await orderApi.submitDispute(order.value?.orderId || '', form.type, form.description, form.expectation, form.images)
     uni.hideLoading()
     uni.showToast({ title: '申诉已提交', icon: 'success' })
-    setTimeout(() => (view.value = 'list'), 1200)
-  }, 1000)
+    setTimeout(() => switchToList(), 1200)
+  } catch {
+    uni.hideLoading()
+    uni.showToast({ title: '提交失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 
-function cancelDispute() {
+async function cancelDispute() {
+  if (submitting.value) return
   uni.showModal({
     title: '撤销申诉',
     content: '确定要撤销这次申诉吗？',
     confirmColor: '#C41E3A',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
-        uni.showToast({ title: '已撤销', icon: 'none' })
-        view.value = 'list'
+        submitting.value = true
+        try {
+          await orderApi.cancelDispute(detail.value?.id || '')
+          uni.showToast({ title: '已撤销', icon: 'none' })
+          view.value = 'list'
+        } catch {
+          uni.showToast({ title: '撤销失败，请重试', icon: 'none' })
+        } finally {
+          submitting.value = false
+        }
       }
     },
   })
@@ -755,4 +808,8 @@ function cancelDispute() {
   font-size: 30rpx;
   color: #666666;
 }
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #999999; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #999999; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

@@ -3,15 +3,21 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-// @data-needs: 限时特惠聚合, 参数 无, 返回 { sessions:SaleSession[], courses:SaleCourse[] }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { saleSessions as sessions, saleCourses as courses } from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
+
+const loading = ref(true)
+const error = ref('')
+
+const sessions = ref<any[]>([])
+const courses = ref<any[]>([])
 
 const activeSession = ref('2')
 const secs = ref(3600)
 let timer: any = null
-onMounted(() => { timer = setInterval(() => { secs.value = Math.max(0, secs.value - 1) }, 1000) })
-onUnmounted(() => { if (timer) clearInterval(timer) })
+
+function startTimer() {
+  timer = setInterval(() => { secs.value = Math.max(0, secs.value - 1) }, 1000)
+}
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const cd = computed(() => {
@@ -20,8 +26,8 @@ const cd = computed(() => {
   const s = secs.value % 60
   return [pad(h), pad(m), pad(s)]
 })
-const session = computed(() => sessions.find((s) => s.id === activeSession.value))
-const sessionCourses = computed(() => courses.filter((c) => c.sessionId === activeSession.value))
+const session = computed(() => sessions.value.find((s) => s.id === activeSession.value))
+const sessionCourses = computed(() => courses.value.filter((c) => c.sessionId === activeSession.value))
 
 function sessionTip(status?: string) {
   return status === 'active' ? '距本场结束' : status === 'past' ? '本场已结束' : '本场即将开始'
@@ -29,10 +35,43 @@ function sessionTip(status?: string) {
 function sessionState(status: string) {
   return status === 'past' ? '已结束' : status === 'active' ? '抢购中' : '即将开始'
 }
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [saleSessions, saleCourses] = await Promise.all([
+      courseApi.getSaleSessions(),
+      courseApi.getSaleCourses(),
+    ])
+    sessions.value = saleSessions
+    courses.value = saleCourses
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadData().then(() => startTimer())
+})
+
+onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 
 <template>
-  <view class="page">
+  <!-- Loading -->
+  <view v-if="loading" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <!-- Error -->
+  <view v-else-if="error" class="error-wrap">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <!-- Content -->
+  <view v-else class="page">
     <!-- 顶部品牌渐变 -->
     <view class="header">
       <view class="nav">
@@ -118,6 +157,7 @@ function sessionState(status: string) {
       </view>
     </view>
   </view>
+  </view>
 </template>
 
 <style scoped>
@@ -174,4 +214,10 @@ function sessionState(status: string) {
 .btn.disabled { background: #F2EFEA; }
 .btn-txt { font-size: 28rpx; font-weight: 600; color: #fff; }
 .btn-txt.disabled { color: #9a8c80; }
+
+/* 加载 / 错误 */
+.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

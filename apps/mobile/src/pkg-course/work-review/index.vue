@@ -1,14 +1,17 @@
 <script setup lang="ts">
 /** 作业批改页 - 从原型 app/courses/work-review/page.tsx 迁移（默认列表态） */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-// @data-needs: 作业提交列表, 参数 courseId, 返回 WorkSubmission[]
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { workSubmissions } from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
+
+const loading = ref(true)
+const error = ref('')
+const courseId = ref('')
 
 type FilterKey = 'all' | 'pending' | 'graded'
-const submissions = ref(workSubmissions)
+const submissions = ref<any[]>([])
 const filter = ref<FilterKey>('all')
 const batchMode = ref(false)
 const selectedIds = ref<Set<string>>(new Set())
@@ -31,10 +34,41 @@ function toggleSelect(id: string) {
   next.has(id) ? next.delete(id) : next.add(id)
   selectedIds.value = next
 }
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await courseApi.getWorkSubmissions(courseId.value)
+    submissions.value = res
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((options: any) => {
+  courseId.value = options?.id || '1'
+})
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <template>
-  <view class="page">
+  <!-- Loading -->
+  <view v-if="loading" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <!-- Error -->
+  <view v-else-if="error" class="error-wrap">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <!-- Content -->
+  <view v-else class="page">
     <!-- 导航栏 -->
     <view class="nav">
       <view class="nav-l">
@@ -107,6 +141,7 @@ function toggleSelect(id: string) {
       </view>
     </view>
   </view>
+  </view>
 </template>
 
 <style scoped>
@@ -165,4 +200,10 @@ function toggleSelect(id: string) {
 .meta-item { display: flex; align-items: center; gap: 6rpx; }
 .meta-txt { font-size: 22rpx; color: #999; }
 .meta-time { font-size: 22rpx; color: #999; }
+
+/* 加载 / 错误 */
+.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

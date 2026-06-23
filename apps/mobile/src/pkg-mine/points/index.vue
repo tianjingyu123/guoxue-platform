@@ -1,22 +1,44 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import {
-  pointsInfo as infoData,
-  pointsTasks,
-  pointsHistory,
-  pointsExchangeItems,
+  pointsApi,
+  type PointsInfo,
+  type PointsTask,
+  type PointsHistoryItem,
   type PointsExchangeItem,
 } from '@/lib/points-data'
 
-const info = ref({ ...infoData })
-const tasks = ref(pointsTasks)
-const history = ref(pointsHistory)
-const exchangeItems = ref(pointsExchangeItems)
+const loading = ref(false)
+const error = ref('')
+const info = ref<PointsInfo>({ balance: 0, totalEarned: 0, totalSpent: 0, todayEarned: 0 })
+const tasks = ref<PointsTask[]>([])
+const history = ref<PointsHistoryItem[]>([])
+const exchangeItems = ref<PointsExchangeItem[]>([])
+
+const retry = () => { error.value = ''; loadData() }
+async function loadData() {
+  loading.value = true; error.value = ''
+  try {
+    const [i, t, h, ex] = await Promise.all([
+      pointsApi.getInfo(),
+      pointsApi.getTasks(),
+      pointsApi.getHistory(),
+      pointsApi.getExchangeItems(),
+    ])
+    info.value = i
+    tasks.value = t
+    history.value = h
+    exchangeItems.value = ex
+  } catch (e: any) { error.value = e?.message || '加载失败' }
+  finally { loading.value = false }
+}
+onMounted(loadData)
 
 const showExchangeModal = ref(false)
 const selectedItem = ref<PointsExchangeItem | null>(null)
 const exchangeSuccess = ref(false)
+const exchanging = ref(false)
 
 const userPoints = computed(() => info.value.balance)
 
@@ -45,14 +67,23 @@ function handleExchange(item: PointsExchangeItem) {
   }
 }
 function confirmExchange() {
-  if (!selectedItem.value) return
-  info.value.balance -= selectedItem.value.points
-  exchangeSuccess.value = true
-  setTimeout(() => {
-    showExchangeModal.value = false
-    exchangeSuccess.value = false
-    selectedItem.value = null
-  }, 2000)
+  if (!selectedItem.value || exchanging.value) return
+  exchanging.value = true
+  pointsApi.exchange(selectedItem.value.id).then(res => {
+    if (res.success) {
+      info.value.balance -= selectedItem.value!.points
+      exchangeSuccess.value = true
+      setTimeout(() => {
+        showExchangeModal.value = false
+        exchangeSuccess.value = false
+        selectedItem.value = null
+      }, 2000)
+    } else {
+      uni.showToast({ title: res.message, icon: 'none' })
+    }
+  }).catch((e: any) => {
+    uni.showToast({ title: e?.message || '兑换失败', icon: 'none' })
+  }).finally(() => { exchanging.value = false })
 }
 </script>
 
@@ -67,7 +98,9 @@ function confirmExchange() {
       <text class="nav-link" @tap="go('/pkg-mine/points/history')">明细</text>
     </view>
 
-    <scroll-view scroll-y class="scroll" :style="{ height: 'calc(100vh - 92rpx - ' + statusBarHeight + 'px)' }">
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+    <scroll-view v-else scroll-y class="scroll" :style="{ height: 'calc(100vh - 92rpx - ' + statusBarHeight + 'px)' }">
       <!-- 积分余额卡片 -->
       <view class="hero">
         <view class="hero-deco hero-deco-1" />
@@ -661,4 +694,9 @@ function confirmExchange() {
 .modal-btn-text-light {
   color: #fff;
 }
+
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 28rpx; color: #8a8178; padding-top: 200rpx; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding-top: 200rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #9a2e22; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

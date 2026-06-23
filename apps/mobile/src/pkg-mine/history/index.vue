@@ -1,17 +1,29 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
-  historyGroups as seedGroups,
+  mineApi,
   historyTypeConfig,
   type HistoryGroup,
   type HistoryItem,
 } from '@/lib/mine-data'
 
-const groups = ref<HistoryGroup[]>(seedGroups.map((g) => ({ ...g, items: g.items.map((i) => ({ ...i })) })))
+const loading = ref(true)
+const error = ref('')
+const groups = ref<HistoryGroup[]>([])
+
+const retry = () => { error.value = ''; loadData() }
+async function loadData() {
+  loading.value = true; error.value = ''
+  try { groups.value = await mineApi.getHistory() }
+  catch (e: any) { error.value = e?.message || '加载失败' }
+  finally { loading.value = false }
+}
+onMounted(loadData)
 const showClearConfirm = ref(false)
 const activeId = ref<string | null>(null)
+const submitting = ref(false)
 
 const totalCount = computed(() => groups.value.reduce((s, g) => s + g.items.length, 0))
 
@@ -40,9 +52,11 @@ function deleteItem(id: string) {
     .filter((g) => g.items.length > 0)
   activeId.value = null
 }
-function clearAll() {
-  groups.value = []
-  showClearConfirm.value = false
+async function clearAll() {
+  if (submitting.value) return; submitting.value = true
+  try { await mineApi.clearHistory(); groups.value = []; showClearConfirm.value = false }
+  catch { uni.showToast({ title: '清除失败', icon: 'none' }) }
+  finally { submitting.value = false }
 }
 function formatProgress(item: HistoryItem) {
   if (item.progress === undefined || !item.duration) return ''
@@ -63,6 +77,10 @@ function openItem() {
       </template>
     </app-nav-bar>
 
+    <!-- 加载/错误 -->
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+    <template v-else>
     <!-- 统计条 -->
     <view v-if="totalCount > 0" class="stat-bar">
       <view class="stat-cell">
@@ -167,11 +185,18 @@ function openItem() {
         </view>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <style scoped>
 .page { min-height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
+
+/* 三态 */
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 .nav-action { font-size: 28rpx; color: #EF4444; }
 
 .stat-bar { display: flex; align-items: center; gap: 32rpx; padding: 18rpx 24rpx; background: #F2ECE1; }

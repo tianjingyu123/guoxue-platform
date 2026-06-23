@@ -1,9 +1,32 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { blacklistUsers, blacklistSearchPool, type BlacklistItem, type SearchUserItem } from '@/lib/mine-data'
+import { mineApi, type BlacklistItem, type SearchUserItem } from '@/lib/mine-data'
 
-const list = ref<BlacklistItem[]>(blacklistUsers.map((u) => ({ ...u })))
+const list = ref<BlacklistItem[]>([])
+const loading = ref(true)
+const error = ref('')
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await mineApi.getBlacklist()
+    list.value = data.map((u: BlacklistItem) => ({ ...u }))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
 
 // 移除确认
 const removeDialog = ref(false)
@@ -14,16 +37,20 @@ function askRemove(u: BlacklistItem) {
   selected.value = u
   removeDialog.value = true
 }
-function confirmRemove() {
-  if (!selected.value) return
+async function confirmRemove() {
+  if (!selected.value || removing.value) return
   removing.value = true
-  setTimeout(() => {
+  try {
+    await mineApi.unblockUser(selected.value.userId)
     list.value = list.value.filter((u) => u.id !== selected.value!.id)
+    uni.showToast({ title: '已移出黑名单', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } finally {
     removing.value = false
     removeDialog.value = false
     selected.value = null
-    uni.showToast({ title: '已移出黑名单', icon: 'none' })
-  }, 500)
+  }
 }
 
 // 添加黑名单
@@ -33,18 +60,20 @@ const searching = ref(false)
 const results = ref<SearchUserItem[]>([])
 const adding = ref<number | null>(null)
 
-watch(keyword, (kw) => {
+watch(keyword, async (kw) => {
   if (!kw.trim()) {
     results.value = []
     return
   }
   searching.value = true
-  setTimeout(() => {
-    results.value = blacklistSearchPool
-      .filter((u) => u.nickname.includes(kw.trim()))
-      .map((u) => ({ ...u }))
+  try {
+    const data = await mineApi.searchUsers(kw.trim())
+    results.value = data.map((u: SearchUserItem) => ({ ...u }))
+  } catch {
+    results.value = []
+  } finally {
     searching.value = false
-  }, 300)
+  }
 })
 
 function openAdd() {
@@ -52,18 +81,22 @@ function openAdd() {
   keyword.value = ''
   results.value = []
 }
-function addToBlacklist(u: SearchUserItem) {
-  if (u.isBlocked) return
+async function addToBlacklist(u: SearchUserItem) {
+  if (u.isBlocked || adding.value !== null) return
   adding.value = u.id
-  setTimeout(() => {
+  try {
+    await mineApi.blockUser(u.id)
     results.value = results.value.map((r) => (r.id === u.id ? { ...r, isBlocked: true } : r))
     list.value = [
       { id: Date.now(), userId: u.id, nickname: u.nickname, avatar: u.avatar, blockedAt: new Date().toISOString().slice(0, 10) },
       ...list.value,
     ]
-    adding.value = null
     uni.showToast({ title: '已加入黑名单', icon: 'none' })
-  }, 500)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } finally {
+    adding.value = null
+  }
 }
 
 const isEmpty = computed(() => list.value.length === 0)
@@ -79,7 +112,10 @@ const isEmpty = computed(() => list.value.length === 0)
       </template>
     </app-nav-bar>
 
-    <scroll-view scroll-y class="scroll">
+    <!-- 加载/错误 -->
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+    <scroll-view v-else scroll-y class="scroll">
       <!-- 空状态 -->
       <view v-if="isEmpty" class="empty">
         <view class="empty-icon">
@@ -159,6 +195,12 @@ const isEmpty = computed(() => list.value.length === 0)
 
 <style scoped>
 .page { min-height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
+
+/* 三态 */
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 .nav-btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
 .scroll { flex: 1; padding: 24rpx; box-sizing: border-box; }
 

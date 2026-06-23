@@ -4,6 +4,20 @@
     <app-nav-bar title="优惠券详情" />
 
     <view class="body">
+      <!-- 加载中 -->
+      <view v-if="loading" class="state-wrap">
+        <text class="state-text">加载中...</text>
+      </view>
+      <!-- 错误 -->
+      <view v-else-if="error" class="state-wrap">
+        <app-icon name="alert-circle" :size="56" color="#E74C3C" />
+        <text class="state-text">{{ error }}</text>
+        <view class="retry-btn" hover-class="btn-hover" @tap="retry">
+          <text class="retry-btn-text">重试</text>
+        </view>
+      </view>
+      <!-- 内容 -->
+      <template v-else>
       <!-- 大卡片 -->
       <view class="big-card">
         <view class="bc-head">
@@ -71,26 +85,55 @@
       <view class="use-btn" hover-class="btn-hover" @tap="goUse">
         <text class="use-btn-text">立即使用</text>
       </view>
+      </template>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
-import { couponDetail, type CouponApplicableItem } from '@/lib/shop-data'
+import { shopApi, type CouponApplicableItem } from '@/lib/shop-data'
 
-const coupon = couponDetail
+const couponId = ref('1')
+const coupon = ref<any>({})
 const copied = ref(false)
+const loading = ref(true)
+const error = ref('')
+const submitting = ref(false)
 
-onLoad((q) => {
-  void q // q.id 预留：按 id 取对应券，当前用统一 mock
+onLoad((q: any) => {
+  if (q?.id) couponId.value = q.id
 })
+
+onMounted(async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    coupon.value = await shopApi.getCouponDetail(couponId.value)
+  } catch (_e) {
+    error.value = '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+})
+
+function retry() {
+  loading.value = true
+  error.value = ''
+  shopApi.getCouponDetail(couponId.value).then((data) => {
+    coupon.value = data
+  }).catch(() => {
+    error.value = '加载失败，请重试'
+  }).finally(() => {
+    loading.value = false
+  })
+}
 
 function copy() {
   uni.setClipboardData({
-    data: coupon.id,
+    data: coupon.value.id,
     success: () => {
       copied.value = true
       setTimeout(() => (copied.value = false), 2000)
@@ -105,7 +148,10 @@ function goItem(item: CouponApplicableItem) {
   }
 }
 function goUse() {
+  if (submitting.value) return
+  submitting.value = true
   navigateTo('/shop')
+  setTimeout(() => (submitting.value = false), 500)
 }
 </script>
 
@@ -301,5 +347,28 @@ function goUse() {
 }
 .btn-hover {
   opacity: 0.9;
+}
+
+/* 加载/错误状态 */
+.state-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 0;
+  gap: 24rpx;
+}
+.state-text {
+  font-size: 28rpx;
+  color: #999;
+}
+.retry-btn {
+  padding: 16rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.retry-btn-text {
+  font-size: 26rpx;
+  color: #fff;
 }
 </style>

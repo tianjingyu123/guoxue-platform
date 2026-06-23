@@ -87,6 +87,7 @@ const orderInfo = reactive({
 })
 const copied = ref(false)
 const showAnim = ref(false)
+const submitting = ref(false)
 
 onLoad((q) => {
   if (q?.orderId) orderInfo.orderId = q.orderId as string
@@ -96,6 +97,7 @@ onLoad((q) => {
 })
 
 function handleCopy() {
+  if (copied.value) return
   uni.setClipboardData({
     data: orderInfo.orderId,
     success: () => {
@@ -104,9 +106,23 @@ function handleCopy() {
     },
   })
 }
-function goOrder() { navigateTo(`/shop/orders/${orderInfo.orderId}`) }
-function goHome() { reLaunch('/') }
-function goShop() { navigateTo('/shop') }
+function goOrder() {
+  if (submitting.value) return
+  submitting.value = true
+  navigateTo(`/shop/orders/${orderInfo.orderId}`)
+  setTimeout(() => { submitting.value = false }, 500)
+}
+function goHome() {
+  if (submitting.value) return
+  submitting.value = true
+  reLaunch('/')
+}
+function goShop() {
+  if (submitting.value) return
+  submitting.value = true
+  navigateTo('/shop')
+  setTimeout(() => { submitting.value = false }, 500)
+}
 </script>
 
 <style lang="scss" scoped>

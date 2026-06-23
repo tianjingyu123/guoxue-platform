@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { pointsInfo as infoData, pointsTasks } from '@/lib/points-data'
+import { pointsApi } from '@/lib/points-data'
 
-const info = ref({ ...infoData })
-const tasks = ref(pointsTasks.map((t) => ({ ...t })))
+const info = ref({ balance: 0, totalEarned: 0, totalSpent: 0, todayEarned: 0 })
+const tasks = ref<any[]>([])
+const loading = ref(true)
+const error = ref('')
 const completing = ref<number | null>(null)
+const submitting = ref(false)
 
 const taskColors = ['#9a2e22', '#2563eb', '#16a34a', '#d97706', '#7c3aed']
 const completedCount = computed(() => tasks.value.filter((t) => t.completed).length)
@@ -13,6 +16,31 @@ const totalTasks = computed(() => tasks.value.length)
 const progressPercent = computed(() =>
   totalTasks.value > 0 ? Math.round((completedCount.value / totalTasks.value) * 100) : 0,
 )
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [pointsInfo, taskList] = await Promise.all([
+      pointsApi.getInfo(),
+      pointsApi.getTasks(),
+    ])
+    info.value = pointsInfo
+    tasks.value = taskList.map((t) => ({ ...t }))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
 
 function goBack() {
   uni.navigateBack()
@@ -25,13 +53,15 @@ function pct(cur: number, max: number) {
 }
 function handleComplete(taskId: number) {
   const task = tasks.value.find((t) => t.id === taskId)
-  if (!task || task.completed || completing.value !== null) return
+  if (!task || task.completed || completing.value !== null || submitting.value) return
   completing.value = taskId
+  submitting.value = true
   setTimeout(() => {
     task.completed = true
     info.value.balance += task.points
     info.value.todayEarned += task.points
     completing.value = null
+    submitting.value = false
   }, 400)
 }
 </script>
@@ -46,7 +76,13 @@ function handleComplete(taskId: number) {
       <view class="nav-placeholder" />
     </view>
 
-    <scroll-view scroll-y class="scroll">
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state">
+      <text>{{ error }}</text>
+      <view class="retry-btn" @tap="retry">重试</view>
+    </view>
+    <view v-else-if="!tasks.length" class="empty-page"><text>暂无任务</text></view>
+    <scroll-view v-else scroll-y class="scroll">
       <!-- 积分总览 -->
       <view class="overview">
         <view class="ov-top">
@@ -354,4 +390,9 @@ function handleComplete(taskId: number) {
 .bottom-space {
   height: 48rpx;
 }
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.empty-page { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 </style>

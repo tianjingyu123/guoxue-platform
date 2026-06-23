@@ -1,32 +1,71 @@
 <script setup lang="ts">
 /** 国学课程首页 - 从原型 app/courses/page.tsx 迁移 */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import HomeBanner from '@/components/home/home-banner.vue'
 import CourseCard from '@/components/cards/course-card.vue'
 import SectionHeader from '@/components/courses/section-header.vue'
-import {
-  courseBanners, categoryNav, allCourses,
-  featured, ranking, flashSaleCourses, freeCourses, newCourses, feedFilters,
-} from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
+
+const loading = ref(true)
+const error = ref('')
+
+const homeData = ref<any>(null)
+
+// 通过 computed 保持 template 变量名不变
+const courseBanners = computed(() => homeData.value?.banners ?? [])
+const categoryNav = computed(() => homeData.value?.categories ?? [])
+const allCourses = computed(() => homeData.value?.allCourses ?? [])
+const featured = computed(() => homeData.value?.featured ?? [])
+const ranking = computed(() => homeData.value?.ranking ?? [])
+const flashSaleCourses = computed(() => homeData.value?.flashSale ?? [])
+const freeCourses = computed(() => homeData.value?.free ?? [])
+const newCourses = computed(() => homeData.value?.newCourses ?? [])
+const feedFilters = computed(() => homeData.value?.feedFilters ?? [])
 
 const activeCategory = ref('all')
 
 const selected = computed(() =>
-  allCourses.filter((c) => activeCategory.value === 'all' || c.category === activeCategory.value),
+  allCourses.value.filter((c: any) => activeCategory.value === 'all' || c.category === activeCategory.value),
 )
 // react-masonry-css 按索引轮流填列:偶数→左列,奇数→右列
-const colLeft = computed(() => selected.value.filter((_, i) => i % 2 === 0))
-const colRight = computed(() => selected.value.filter((_, i) => i % 2 === 1))
+const colLeft = computed(() => selected.value.filter((_: any, i: number) => i % 2 === 0))
+const colRight = computed(() => selected.value.filter((_: any, i: number) => i % 2 === 1))
 
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await courseApi.getHome()
+    homeData.value = res
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadData()
+})
 
 function openSearch() { navigateTo('/search?from=course') }
 function openCategory(id: string) { navigateTo(`/courses-list?category=${id}`) }
 </script>
 
 <template>
-  <view class="page">
+  <!-- Loading -->
+  <view v-if="loading" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <!-- Error -->
+  <view v-else-if="error" class="error-wrap">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <!-- Content -->
+  <view v-else class="page">
     <!-- 顶部栏 -->
     <view class="hdr">
       <view class="hdr-bar">
@@ -141,6 +180,7 @@ function openCategory(id: string) { navigateTo(`/courses-list?category=${id}`) }
       </view>
     </view>
   </view>
+  </view>
 </template>
 
 <style scoped lang="scss">
@@ -188,4 +228,10 @@ function openCategory(id: string) { navigateTo(`/courses-list?category=${id}`) }
 .masonry-col { flex: 1; display: flex; flex-direction: column; gap: 24rpx; min-width: 0; }
 .empty { padding: 128rpx 0; text-align: center; }
 .empty-txt { font-size: 28rpx; color: var(--text-soft); }
+
+/* 加载 / 错误 */
+.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

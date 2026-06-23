@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { pointsInfo as infoData, pointsHistory } from '@/lib/points-data'
+import { pointsApi } from '@/lib/points-data'
 
-const info = ref({ ...infoData })
-const historyItems = ref(pointsHistory)
+const info = ref({ balance: 0, totalEarned: 0, totalSpent: 0, todayEarned: 0 })
+const historyItems = ref<any[]>([])
+const loading = ref(true)
+const error = ref('')
 const activeTab = ref<'all' | 'earn' | 'spend'>('all')
 
 const tabs: { key: 'all' | 'earn' | 'spend'; label: string }[] = [
@@ -16,6 +18,31 @@ const tabs: { key: 'all' | 'earn' | 'spend'; label: string }[] = [
 const filteredItems = computed(() =>
   historyItems.value.filter((item) => (activeTab.value === 'all' ? true : item.type === activeTab.value)),
 )
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [pointsInfo, history] = await Promise.all([
+      pointsApi.getInfo(),
+      pointsApi.getHistory(),
+    ])
+    info.value = pointsInfo
+    historyItems.value = history
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
 
 function goBack() {
   uni.navigateBack()
@@ -35,7 +62,13 @@ function go(url: string) {
       <view class="nav-placeholder" />
     </view>
 
-    <scroll-view scroll-y class="scroll">
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state">
+      <text>{{ error }}</text>
+      <view class="retry-btn" @tap="retry">重试</view>
+    </view>
+    <view v-else-if="!historyItems.length" class="empty-page"><text>暂无记录</text></view>
+    <scroll-view v-else scroll-y class="scroll">
       <!-- 积分统计 -->
       <view class="stat-grid">
         <view class="stat-balance">
@@ -295,4 +328,9 @@ function go(url: string) {
 .bottom-space {
   height: 48rpx;
 }
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.empty-page { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 </style>

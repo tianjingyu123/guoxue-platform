@@ -20,7 +20,9 @@
 
     <!-- 列表 -->
     <view class="content">
-      <view v-if="filteredOrders.length === 0" class="empty">
+      <view v-if="loading" class="loading"><text>加载中...</text></view>
+      <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+      <view v-else-if="filteredOrders.length === 0" class="empty">
         <app-icon name="package" :size="120" color="#E8E3DB" />
         <text class="empty-text">暂无订单</text>
         <view class="empty-btn" @tap="goShop"><text>去逛逛</text></view>
@@ -119,18 +121,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { mockOrders, orderStatusTabs, orderStatusConfig, orderCancelReasons, type OrderListItem } from '@/lib/order-data'
+import { orderApi, orderStatusTabs, orderStatusConfig, orderCancelReasons, type OrderListItem } from '@/lib/order-data'
 
 const statusTabs = orderStatusTabs
 const cancelReasons = orderCancelReasons
 const activeTab = ref('')
-const orders = ref<OrderListItem[]>([...mockOrders])
+const loading = ref(false)
+const error = ref('')
+const orders = ref<OrderListItem[]>([])
 const showCancel = ref(false)
 const cancelId = ref<string | null>(null)
 const cancelReason = ref('')
+const submitting = ref(false)
+
+const retry = () => { error.value = ''; loadData() }
+async function loadData() {
+  loading.value = true; error.value = ''
+  try { orders.value = await orderApi.list(activeTab.value || undefined) }
+  catch (e: any) { error.value = e?.message || '加载失败' }
+  finally { loading.value = false }
+}
+onMounted(loadData)
 
 const filteredOrders = computed(() =>
   activeTab.value ? orders.value.filter((o) => o.status === activeTab.value) : orders.value
@@ -149,20 +163,34 @@ function goReview(id: string) { navigateTo(`/orders/${id}/review`) }
 function goAfterSale(id: string) { navigateTo(`/shop/after-sale?orderId=${id}`) }
 function goShop() { navigateTo('/shop') }
 function buyAgain() { navigateTo('/shop/cart') }
-function confirmReceive(id: string) {
-  orders.value = orders.value.map((o) =>
-    o.id === id ? { ...o, status: 'completed', canConfirm: false, canReview: true } : o
-  )
-  uni.showToast({ title: '确认收货成功', icon: 'none' })
+async function confirmReceive(id: string) {
+  if (submitting.value) return; submitting.value = true
+  try {
+    const ok = await orderApi.confirm(id)
+    if (ok) {
+      orders.value = orders.value.map((o) =>
+        o.id === id ? { ...o, status: 'completed' as const, canConfirm: false, canReview: true } : o
+      )
+      uni.showToast({ title: '确认收货成功', icon: 'none' })
+    }
+  } catch { uni.showToast({ title: '操作失败', icon: 'none' }) }
+  finally { submitting.value = false }
 }
 function askCancel(id: string) { cancelId.value = id; showCancel.value = true }
 function closeCancel() { showCancel.value = false; cancelId.value = null; cancelReason.value = '' }
-function doCancel() {
-  if (!cancelReason.value || !cancelId.value) return
-  orders.value = orders.value.map((o) =>
-    o.id === cancelId.value ? { ...o, status: 'cancelled', canCancel: false } : o
-  )
-  closeCancel()
+async function doCancel() {
+  if (!cancelReason.value || !cancelId.value || submitting.value) return
+  submitting.value = true
+  try {
+    const ok = await orderApi.cancel(cancelId.value, cancelReason.value)
+    if (ok) {
+      orders.value = orders.value.map((o) =>
+        o.id === cancelId.value ? { ...o, status: 'cancelled' as const, canCancel: false } : o
+      )
+    }
+    closeCancel()
+  } catch { uni.showToast({ title: '操作失败', icon: 'none' }) }
+  finally { submitting.value = false }
 }
 </script>
 
@@ -220,4 +248,9 @@ function doCancel() {
 .reason-text { font-size: 28rpx; color: #2C2C2C; }
 .reason-text.active { color: #C41E3A; }
 .dialog-foot { display: flex; gap: 24rpx; padding: 24rpx; border-top: 1rpx solid #E8E3DB; }
+
+.loading { display: flex; align-items: center; justify-content: center; padding: 200rpx 0; font-size: 28rpx; color: #999999; }
+.error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #999999; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

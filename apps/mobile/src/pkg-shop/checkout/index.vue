@@ -2,6 +2,21 @@
   <view class="checkout">
     <app-nav-bar title="确认订单" :back-size="40" :title-size="36" :bar-height="106" />
 
+    <!-- 加载态 -->
+    <view v-if="loading" class="loading-zone">
+      <view class="sk-addr" />
+      <view class="sk-goods" />
+      <view class="sk-row" />
+      <view class="sk-row" />
+    </view>
+
+    <!-- 错误态 -->
+    <view v-else-if="error" class="error-zone">
+      <text class="error-text">{{ error }}</text>
+      <view class="error-retry" @tap="fetchCheckoutData()"><text>重试</text></view>
+    </view>
+
+    <template v-else>
     <!-- 超时倒计时条 -->
     <view class="timer-bar" :class="{ urgent: isUrgent }">
       <view class="timer-left">
@@ -125,33 +140,56 @@
         <view class="dialog-btn" @tap="onTimeout"><text>重新下单</text></view>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { redirectTo } from '@/utils/router'
-import { checkoutItems, checkoutAddresses, checkoutCoupons, payMethods, formatCountdown, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
+import { shopApi, formatCountdown, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
 
-const items = checkoutItems
-const addresses = checkoutAddresses
-const coupons = checkoutCoupons
-const currentAddress = ref<ShippingAddress | null>(addresses.find((a) => a.isDefault) || addresses[0])
+const loading = ref(true)
+const error = ref('')
+const items = ref<any[]>([])
+const addresses = ref<any[]>([])
+const coupons = ref<any[]>([])
+const payMethods = ref<any[]>([])
+const currentAddress = ref<ShippingAddress | null>(null)
 const selectedCoupon = ref<CheckoutCoupon | null>(null)
 const payMethod = ref('wechat')
 const showAddress = ref(false)
 const showCoupon = ref(false)
 const showTimeout = ref(false)
+const submitting = ref(false)
 
-const goodsTotal = computed(() => items.reduce((s, i) => s + i.price * i.quantity, 0))
+const goodsTotal = computed(() => items.value.reduce((s: number, i: any) => s + i.price * i.quantity, 0))
 const payTotal = computed(() => Math.max(0, goodsTotal.value - (selectedCoupon.value?.value || 0)))
+
+async function fetchCheckoutData() {
+  error.value = ''
+  loading.value = true
+  try {
+    const result = await shopApi.getCheckout()
+    items.value = result.items || []
+    addresses.value = result.addresses || []
+    coupons.value = result.coupons || []
+    payMethods.value = result.payMethods || []
+    currentAddress.value = addresses.value.find((a: ShippingAddress) => a.isDefault) || addresses.value[0] || null
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 // 15分钟倒计时
 const remain = ref(15 * 60 * 1000)
 const countdown = computed(() => formatCountdown(remain.value))
 const isUrgent = computed(() => remain.value <= 180 * 1000)
 let timer: ReturnType<typeof setInterval> | null = null
-onMounted(() => {
+onMounted(async () => {
+  await fetchCheckoutData()
   timer = setInterval(() => {
     remain.value -= 1000
     if (remain.value <= 0) {
@@ -165,7 +203,12 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 
 function selectAddress(a: ShippingAddress) { currentAddress.value = a; showAddress.value = false }
 function selectCoupon(c: CheckoutCoupon | null) { selectedCoupon.value = c; showCoupon.value = false }
-function submitOrder() { redirectTo('/shop/paying') }
+function submitOrder() {
+  if (submitting.value) return
+  submitting.value = true
+  redirectTo('/shop/paying')
+  setTimeout(() => { submitting.value = false }, 2000)
+}
 function onTimeout() { redirectTo('/shop/pay-timeout') }
 </script>
 
@@ -236,4 +279,16 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 .dialog-desc { font-size: 28rpx; color: #666666; text-align: center; }
 .dialog-btn { margin-top: 12rpx; width: 100%; height: 88rpx; border-radius: 44rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; }
 .dialog-btn text { color: #FFFFFF; font-size: 30rpx; }
+
+/* 加载态 */
+.loading-zone { padding: 20rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.sk-addr { height: 120rpx; background: #ececec; border-radius: 20rpx; }
+.sk-goods { height: 300rpx; background: #ececec; border-radius: 20rpx; }
+.sk-row { height: 96rpx; background: #ececec; border-radius: 20rpx; }
+
+/* 错误态 */
+.error-zone { min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; }
+.error-text { font-size: 28rpx; color: #999999; }
+.error-retry { padding: 16rpx 56rpx; background: #C41E3A; border-radius: 40rpx; }
+.error-retry text { color: #FFFFFF; font-size: 28rpx; }
 </style>

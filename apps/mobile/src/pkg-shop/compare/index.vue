@@ -15,7 +15,21 @@
     </app-nav-bar>
 
     <scroll-view scroll-y class="compare-body">
+      <!-- 加载中 -->
+      <view v-if="loading" class="state-wrap">
+        <app-icon name="loader" :size="48" color="#C9A96E" />
+        <text class="state-text">加载中...</text>
+      </view>
+      <!-- 错误 -->
+      <view v-else-if="error" class="state-wrap">
+        <app-icon name="alert-circle" :size="56" color="#E74C3C" />
+        <text class="state-text">{{ error }}</text>
+        <view class="retry-btn" hover-class="btn-hover" @tap="retry">
+          <text class="retry-btn-text">重试</text>
+        </view>
+      </view>
       <!-- 商品选择区 -->
+      <template v-else>
       <view class="picker">
         <scroll-view scroll-x class="picker-scroll">
           <view class="picker-list">
@@ -78,6 +92,7 @@
           </template>
         </view>
       </view>
+      </template>
     </scroll-view>
 
     <!-- 底部操作区 -->
@@ -130,22 +145,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { compareProducts as products, comparePickList, type CompareProduct } from '@/lib/shop-data'
+import { ref, computed, onMounted } from 'vue'
+import { shopApi, type CompareProduct } from '@/lib/shop-data'
 
 const safeBottom = ref(0)
 try {
   const sys = uni.getSystemInfoSync()
   safeBottom.value = sys.safeAreaInsets?.bottom ?? 0
-} catch (e) {}
+} catch (_e) {}
 
+const products = ref<Record<string, CompareProduct>>({})
+const pickList = ref<string[]>([])
+const loading = ref(true)
+const error = ref('')
 const selected = ref<string[]>(['p1', 'p2'])
 const showPicker = ref(false)
 const onlyDiff = ref(false)
 const collapsed = ref<string[]>([])
 
-const picked = computed<CompareProduct[]>(() => selected.value.map((id) => products[id]).filter(Boolean))
-const pickableIds = computed(() => comparePickList.filter((id) => !selected.value.includes(id)))
+onMounted(async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await shopApi.getCompare()
+    products.value = res.products
+    pickList.value = res.pickList
+  } catch (_e) {
+    error.value = '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+})
+
+function retry() {
+  loading.value = true
+  error.value = ''
+  shopApi.getCompare().then((res) => {
+    products.value = res.products
+    pickList.value = res.pickList
+  }).catch(() => {
+    error.value = '加载失败，请重试'
+  }).finally(() => {
+    loading.value = false
+  })
+}
+
+const picked = computed<CompareProduct[]>(() => selected.value.map((id) => products.value[id]).filter(Boolean))
+const pickableIds = computed(() => pickList.value.filter((id) => !selected.value.includes(id)))
 
 function goDetail(id: string) {
   uni.navigateTo({ url: `/pkg-shop/detail/index?id=${id}` })
@@ -542,5 +588,28 @@ const visibleGroups = computed<Group[]>(() => {
 .modal-empty-text {
   font-size: 26rpx;
   color: #999999;
+}
+
+/* 加载/错误状态 */
+.state-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 0;
+  gap: 24rpx;
+}
+.state-text {
+  font-size: 28rpx;
+  color: #999;
+}
+.retry-btn {
+  padding: 16rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.retry-btn-text {
+  font-size: 26rpx;
+  color: #fff;
 }
 </style>

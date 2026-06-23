@@ -2,6 +2,21 @@
   <view class="checkout">
     <app-nav-bar title="确认订单" :back-size="40" :title-size="36" :bar-height="106" />
 
+    <!-- 加载态 -->
+    <view v-if="loading" class="loading-zone">
+      <view class="sk-addr" />
+      <view class="sk-goods" />
+      <view class="sk-row" />
+      <view class="sk-row" />
+    </view>
+
+    <!-- 错误态 -->
+    <view v-else-if="error" class="error-zone">
+      <text class="error-text">{{ error }}</text>
+      <view class="error-retry" @tap="fetchCheckoutData()"><text>重试</text></view>
+    </view>
+
+    <template v-else>
     <scroll-view scroll-y class="content">
       <!-- 地址 -->
       <view class="address-card" @tap="showAddress = true">
@@ -116,18 +131,23 @@
         </view>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { redirectTo } from '@/utils/router'
-import { checkoutItems, checkoutAddresses, checkoutCoupons, payMethods, invoiceOptions, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
+import { shopApi, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
 
-const items = checkoutItems
-const addresses = checkoutAddresses
-const coupons = checkoutCoupons
-const currentAddress = ref<ShippingAddress | null>(addresses.find((a) => a.isDefault) || addresses[0])
+const loading = ref(true)
+const error = ref('')
+const items = ref<any[]>([])
+const addresses = ref<any[]>([])
+const coupons = ref<any[]>([])
+const payMethods = ref<any[]>([])
+const invoiceOptions = ref<any[]>([])
+const currentAddress = ref<ShippingAddress | null>(null)
 const selectedCoupon = ref<CheckoutCoupon | null>(null)
 const payMethod = ref('wechat')
 const invoice = ref('none')
@@ -135,15 +155,41 @@ const note = ref('')
 const showAddress = ref(false)
 const showCoupon = ref(false)
 const showInvoice = ref(false)
+const submitting = ref(false)
 
-const currentInvoice = computed(() => invoiceOptions.find((o) => o.value === invoice.value) || invoiceOptions[0])
-const goodsTotal = computed(() => items.reduce((s, i) => s + i.price * i.quantity, 0))
+const currentInvoice = computed(() => invoiceOptions.value.find((o: any) => o.value === invoice.value) || invoiceOptions.value[0])
+const goodsTotal = computed(() => items.value.reduce((s: number, i: any) => s + i.price * i.quantity, 0))
 const payTotal = computed(() => Math.max(0, goodsTotal.value - (selectedCoupon.value?.value || 0)))
+
+async function fetchCheckoutData() {
+  error.value = ''
+  loading.value = true
+  try {
+    const result = await shopApi.getCheckout()
+    items.value = result.items || []
+    addresses.value = result.addresses || []
+    coupons.value = result.coupons || []
+    payMethods.value = result.payMethods || []
+    invoiceOptions.value = result.invoiceOptions || []
+    currentAddress.value = addresses.value.find((a: ShippingAddress) => a.isDefault) || addresses.value[0] || null
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { fetchCheckoutData() })
 
 function selectAddress(a: ShippingAddress) { currentAddress.value = a; showAddress.value = false }
 function selectCoupon(c: CheckoutCoupon | null) { selectedCoupon.value = c; showCoupon.value = false }
 function selectInvoice(opt: { value: string }) { invoice.value = opt.value; showInvoice.value = false }
-function submitOrder() { redirectTo('/payment/result') }
+function submitOrder() {
+  if (submitting.value) return
+  submitting.value = true
+  redirectTo('/payment/result')
+  setTimeout(() => { submitting.value = false }, 2000)
+}
 </script>
 
 <style lang="scss" scoped>
@@ -208,4 +254,16 @@ function submitOrder() { redirectTo('/payment/result') }
 .addr-option-info { flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
 .co-name { font-size: 28rpx; color: #1A1A1A; display: block; }
 .co-min { font-size: 24rpx; color: #999999; }
+
+/* 加载态 */
+.loading-zone { padding: 20rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.sk-addr { height: 120rpx; background: #ececec; border-radius: 20rpx; }
+.sk-goods { height: 300rpx; background: #ececec; border-radius: 20rpx; }
+.sk-row { height: 96rpx; background: #ececec; border-radius: 20rpx; }
+
+/* 错误态 */
+.error-zone { min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; }
+.error-text { font-size: 28rpx; color: #999999; }
+.error-retry { padding: 16rpx 56rpx; background: #C41E3A; border-radius: 40rpx; }
+.error-retry text { color: #FFFFFF; font-size: 28rpx; }
 </style>

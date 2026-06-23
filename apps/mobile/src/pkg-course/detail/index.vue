@@ -1,11 +1,18 @@
 <script setup lang="ts">
 /** 课程详情页 - 从原型 app/courses/[id]/page.tsx 迁移 */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-// @data-needs: 课程详情聚合, 参数 courseId, 返回 { detail:CourseDetail, chapters:CourseChapter[], reviews:CourseReview[], hasAccess:boolean }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { courseDetail as course, courseChapters as chapters, courseReviews as reviews } from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
+
+const loading = ref(true)
+const error = ref('')
+const courseId = ref('')
+
+const course = ref<any>(null)
+const chapters = ref<any[]>([])
+const reviews = ref<any[]>([])
 
 // 纯 UI 状态
 const activeTab = ref<'intro' | 'chapters' | 'reviews'>('intro')
@@ -16,13 +23,13 @@ const showConsultPanel = ref(false)
 const showGroupPanel = ref(false)
 const hasAccess = ref(false)
 
-const totalLessons = computed(() => chapters.reduce((s, c) => s + c.lessons.length, 0))
-const totalDuration = computed(() => chapters.reduce((s, c) => s + c.duration, 0))
+const totalLessons = computed(() => chapters.value.reduce((s, c) => s + c.lessons.length, 0))
+const totalDuration = computed(() => chapters.value.reduce((s, c) => s + c.duration, 0))
 
 const tabs = computed(() => [
   { key: 'intro', label: '简介' },
   { key: 'chapters', label: `目录(${totalLessons.value})` },
-  { key: 'reviews', label: `评价(${reviews.length})` },
+  { key: 'reviews', label: `评价(${reviews.value.length})` },
 ])
 
 function toggleChapter(id: string) { expanded.value[id] = !expanded.value[id] }
@@ -32,18 +39,55 @@ function fmtDuration(min: number) {
 }
 function fmtStudents(n: number) { return n.toLocaleString() }
 function onLessonClick(chapterId: string, lessonId: string) {
-  navigateTo(`/courses/${course.id}/learn?chapter=${chapterId}&lesson=${lessonId}`)
+  navigateTo(`/courses/${course.value?.id}/learn?chapter=${chapterId}&lesson=${lessonId}`)
 }
-function onPurchase() { navigateTo(`/courses/${course.id}/purchase`) }
-function onStartLearning() { navigateTo(`/courses/${course.id}/learn`) }
+function onPurchase() { navigateTo(`/courses/${course.value?.id}/purchase`) }
+function onStartLearning() { navigateTo(`/courses/${course.value?.id}/learn`) }
 const ratingBars = computed(() => [5, 4, 3, 2, 1].map((star) => {
-  const count = reviews.filter((r) => r.rating === star).length
-  return { star, percent: reviews.length ? (count / reviews.length) * 100 : 0 }
+  const count = reviews.value.filter((r) => r.rating === star).length
+  return { star, percent: reviews.value.length ? (count / reviews.value.length) * 100 : 0 }
 }))
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [detail, chaps, revs] = await Promise.all([
+      courseApi.getDetail(courseId.value),
+      courseApi.getChapters(courseId.value),
+      courseApi.getReviews(courseId.value),
+    ])
+    course.value = detail
+    chapters.value = chaps
+    reviews.value = revs
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((options: any) => {
+  courseId.value = options?.id || '1'
+})
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <template>
-  <view class="page">
+  <!-- Loading -->
+  <view v-if="loading" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <!-- Error -->
+  <view v-else-if="error" class="error-wrap">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <!-- Content -->
+  <view v-else class="page">
     <!-- 封面区域 -->
     <view class="cover">
       <image class="cover-img" :src="course.cover" mode="aspectFill" />
@@ -316,6 +360,7 @@ const ratingBars = computed(() => [5, 4, 3, 2, 1].map((star) => {
       </view>
     </view>
   </view>
+  </view>
 </template>
 
 <style scoped>
@@ -450,4 +495,10 @@ const ratingBars = computed(() => [5, 4, 3, 2, 1].map((star) => {
 .group-sub { display: block; font-size: 22rpx; color: #999; }
 .group-welfare { background: #FFF9E6; border-radius: 24rpx; padding: 24rpx; margin-top: 16rpx; }
 .group-welfare-txt { font-size: 22rpx; color: #996600; line-height: 1.5; }
+
+/* 加载 / 错误 */
+.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

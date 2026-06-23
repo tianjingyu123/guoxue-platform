@@ -84,7 +84,7 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, redirectTo } from '@/utils/router'
-import { payTimeoutReasons } from '@/lib/shop-data'
+import { shopApi, payTimeoutReasons } from '@/lib/shop-data'
 
 const orderId = ref('ORD20241201123456')
 const amount = ref('344.00')

@@ -72,9 +72,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
+import { shopApi } from '@/lib/shop-data'
 
 const status = ref<'success' | 'fail'>('success')
 const orderId = ref('OD202606200001')
@@ -88,11 +89,10 @@ const statusDesc = computed(() =>
 )
 
 const payTime = ref('2026-06-20 14:30:25')
+const submitting = ref(false)
+const loadingRecommend = ref(false)
 
-const recommends = ref([
-  { id: 'p1', name: '黑曜石平安手链', price: '128', image: '/static/placeholder.png' },
-  { id: 'p2', name: '《周易》精装典藏版', price: '168', image: '/static/placeholder.png' },
-])
+const recommends = ref<Array<{ id: string; name: string; price: string; image: string }>>([])
 
 onLoad((options) => {
   if (options?.status) status.value = options.status === 'fail' ? 'fail' : 'success'
@@ -100,6 +100,25 @@ onLoad((options) => {
   if (options?.amount) amount.value = options.amount
   if (options?.reason) reason.value = decodeURIComponent(options.reason)
 })
+
+async function fetchRecommends() {
+  loadingRecommend.value = true
+  try {
+    const data = await shopApi.getMallHome()
+    recommends.value = (data.products || []).slice(0, 2).map((p: any) => ({
+      id: String(p.id),
+      name: p.title || p.name || '',
+      price: String(p.price),
+      image: p.cover || p.image || '/static/placeholder.png',
+    }))
+  } catch {
+    // 推荐加载失败不影响主流程
+  } finally {
+    loadingRecommend.value = false
+  }
+}
+
+onMounted(() => { fetchRecommends() })
 
 function goOrderDetail() {
   navigateTo(`/orders/${orderId.value}`)
@@ -111,7 +130,10 @@ function goHome() {
   uni.switchTab({ url: '/pages/index/index' })
 }
 function retryPay() {
+  if (submitting.value) return
+  submitting.value = true
   goBack()
+  setTimeout(() => { submitting.value = false }, 500)
 }
 function goMall() {
   navigateTo('/mall')

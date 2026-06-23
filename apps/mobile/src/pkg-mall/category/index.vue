@@ -1,9 +1,15 @@
 <script setup lang="ts">
 /** 商品分类页 - 从原型 app/mall/category/page.tsx 1:1 迁移 */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { categoryTabs, categorySortOptions, categoryProducts } from '@/lib/shop-data'
+import { shopApi } from '@/lib/shop-data'
+
+const loading = ref(true)
+const error = ref(false)
+const categoryTabs = ref<any[]>([])
+const categorySortOptions = ref<any[]>([])
+const categoryProducts = ref<any[]>([])
 
 const activeCategory = ref('all')
 const sortBy = ref('default')
@@ -16,18 +22,18 @@ const onlyMemberFree = ref(false)
 
 const quickPrices: Array<[number, number]> = [[0, 50], [50, 100], [100, 300], [300, 500], [500, 1000]]
 
-const sortName = computed(() => categorySortOptions.find((s) => s.id === sortBy.value)?.name)
+const sortName = computed(() => categorySortOptions.value.find((s: any) => s.id === sortBy.value)?.name)
 const hasFilter = computed(() => priceMin.value > 0 || priceMax.value < 1000 || onlyMemberFree.value)
 
 const sortedProducts = computed(() => {
-  const list = categoryProducts.filter((p) => {
+  const list = categoryProducts.value.filter((p: any) => {
     if (activeCategory.value !== 'all' && p.category !== activeCategory.value) return false
     if (searchQuery.value && !p.name.includes(searchQuery.value)) return false
     if (p.price < priceMin.value || p.price > priceMax.value) return false
     if (onlyMemberFree.value && !p.isMemberFree) return false
     return true
   })
-  return [...list].sort((a, b) => {
+  return [...list].sort((a: any, b: any) => {
     switch (sortBy.value) {
       case 'sales': return b.sales - a.sales
       case 'price_asc': return a.price - b.price
@@ -37,6 +43,23 @@ const sortedProducts = computed(() => {
     }
   })
 })
+
+async function fetchData() {
+  loading.value = true
+  error.value = false
+  try {
+    const data = await shopApi.getMallCategories()
+    categoryTabs.value = data.tabs || []
+    categorySortOptions.value = data.sortOptions || []
+    categoryProducts.value = data.products || []
+  } catch (e) {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { fetchData() })
 
 function formatSales(n: number) { return n > 1000 ? (n / 1000).toFixed(1) + 'k' : String(n) }
 function pickSort(id: string) { sortBy.value = id; showSortMenu.value = false }
@@ -60,6 +83,19 @@ function openProduct(id: number) { navigateTo(`/mall/product/${id}`) }
     </view>
 
     <view class="body">
+      <!-- 加载中 -->
+      <view v-if="loading" class="state-wrap">
+        <view class="state-spinner" />
+        <text class="state-text">加载中...</text>
+      </view>
+      <!-- 加载失败 -->
+      <view v-else-if="error" class="state-wrap">
+        <view class="state-icon"><AppIcon name="alert-circle" :size="56" color="#c41e3a" /></view>
+        <text class="state-text">加载失败，请重试</text>
+        <view class="state-retry" @tap="fetchData"><text class="state-retry-text">点击重试</text></view>
+      </view>
+      <!-- 内容 -->
+      <template v-else>
       <!-- 左侧分类栏 -->
       <scroll-view class="aside" scroll-y>
         <view
@@ -125,7 +161,7 @@ function openProduct(id: number) { navigateTo(`/mall/product/${id}`) }
           <text class="empty-text">暂无相关商品</text>
           <text class="empty-reset" @tap="resetAll">重置筛选条件</text>
         </view>
-      </view>
+        </template>
     </view>
 
     <!-- 筛选面板 -->
@@ -252,4 +288,13 @@ function openProduct(id: number) { navigateTo(`/mall/product/${id}`) }
 .fp-btn-reset-text { font-size: 26rpx; font-weight: 500; color: var(--text-strong); }
 .fp-btn-ok { flex: 1; height: 84rpx; border-radius: 16rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .fp-btn-ok-text { font-size: 26rpx; font-weight: 500; color: #fff; }
+
+/* 三态：加载/错误 */
+.state-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 0; }
+.state-spinner { width: 64rpx; height: 64rpx; border: 4rpx solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.state-icon { width: 120rpx; height: 120rpx; border-radius: 50%; background: rgba(196,30,58,0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx; }
+.state-text { font-size: 26rpx; color: var(--text-soft); margin-top: 20rpx; }
+.state-retry { margin-top: 32rpx; padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
+.state-retry-text { font-size: 26rpx; color: #fff; font-weight: 500; }
 </style>

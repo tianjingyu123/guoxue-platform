@@ -95,7 +95,7 @@
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
-import { reviewItems as orderReviewItems, reviewTagsByRating, reviewRatingLabels } from '@/lib/order-data'
+import { orderApi, reviewItems as orderReviewItems, reviewTagsByRating, reviewRatingLabels } from '@/lib/order-data'
 
 const safeBottom = ref(0)
 const orderId = ref('1')
@@ -110,6 +110,7 @@ const forms = reactive<ReviewForm[]>(
 )
 
 const allRated = computed(() => forms.every((f) => f.rating > 0))
+const submitting = ref(false)
 
 function ratingClass(r: number) {
   if (r >= 4) return 'good'
@@ -147,14 +148,27 @@ function addImage(idx: number) {
   })
 }
 
-function submit() {
-  if (!allRated.value) return
-  uni.showLoading({ title: '提交中...' })
-  setTimeout(() => {
+async function submit() {
+  if (!allRated.value || submitting.value) return
+  submitting.value = true
+  try {
+    uni.showLoading({ title: '提交中...' })
+    const items = forms.map((f, i) => ({
+      productId: reviewItems.value[i]?.id || '',
+      rating: f.rating,
+      tags: f.tags,
+      content: f.content,
+    }))
+    await orderApi.submitReview(orderId.value, items)
     uni.hideLoading()
     uni.showToast({ title: '评价成功', icon: 'success' })
     setTimeout(() => goBack(), 1500)
-  }, 900)
+  } catch {
+    uni.hideLoading()
+    uni.showToast({ title: '提交失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 

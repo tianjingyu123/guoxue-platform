@@ -1,15 +1,27 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
-  rechargeOptions,
+  mineApi,
   rechargePayMethods,
   type RechargeOption,
 } from '@/lib/mine-data'
 
-const options: RechargeOption[] = rechargeOptions
+const loading = ref(false)
+const error = ref('')
+const options = ref<RechargeOption[]>([])
+
+const retry = () => { error.value = ''; loadData() }
+async function loadData() {
+  loading.value = true; error.value = ''
+  try { options.value = await mineApi.getRechargeOptions() }
+  catch (e: any) { error.value = e?.message || '加载失败' }
+  finally { loading.value = false }
+}
+onMounted(loadData)
+
 const payMethods = rechargePayMethods
 
 // UI 状态
@@ -45,14 +57,16 @@ const totalCoins = computed(() => {
   return o ? o.coins + o.bonus : 0
 })
 
-// @data-needs: 创建充值订单，参数 {amount,paymentMethod}，返回 [{orderId}]，成功后跳支付结果页
-function handleSubmit() {
+async function handleSubmit() {
   if (selectedAmount.value <= 0 || isSubmitting.value) return
   isSubmitting.value = true
-  uni.showToast({ title: '功能开发中', icon: 'none' })
-  setTimeout(() => {
-    isSubmitting.value = false
-  }, 600)
+  try {
+    const selectedOpt = options.value.find(o => o.coins === selectedCoins.value)
+    const res = await mineApi.recharge(selectedOpt ? selectedOpt.coins : (parseInt(customAmount.value) || 0), payMethod.value)
+    uni.showToast({ title: res.message, icon: res.success ? 'success' : 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '充值失败', icon: 'none' })
+  } finally { isSubmitting.value = false }
 }
 </script>
 
@@ -60,6 +74,9 @@ function handleSubmit() {
   <view class="page">
     <app-nav-bar title="充值国学币" back-icon="arrow-left" @back="goBack" />
 
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+    <template v-else>
     <view class="body">
       <!-- 说明文字 -->
       <view class="intro">
@@ -186,6 +203,7 @@ function handleSubmit() {
         <text v-else>请选择充值金额</text>
       </view>
     </view>
+  </template>
   </view>
 </template>
 
@@ -499,4 +517,9 @@ function handleSubmit() {
   background: #ece6dd;
   color: #a89888;
 }
+
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 28rpx; color: #8a7a6d; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a7a6d; }
+.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

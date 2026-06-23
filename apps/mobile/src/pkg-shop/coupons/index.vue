@@ -22,8 +22,26 @@
       </view>
     </view>
 
+    <!-- 加载中 -->
+    <view v-if="loading" class="body">
+      <view class="empty">
+        <text class="empty-text">加载中...</text>
+      </view>
+    </view>
+
+    <!-- 错误 -->
+    <view v-else-if="error" class="body">
+      <view class="empty">
+        <app-icon name="alert-circle" :size="72" color="#E74C3C" />
+        <text class="empty-text">{{ error }}</text>
+        <view class="retry-btn" hover-class="btn-hover" @tap="retry">
+          <text class="retry-btn-text">重试</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 领券中心 -->
-    <view v-if="activeTab === 'center'" class="body">
+    <view v-else-if="activeTab === 'center'" class="body">
       <view class="center-banner">
         <view class="cb-head">
           <app-icon name="gift" :size="36" color="#fff" />
@@ -116,14 +134,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { myCoupons, centerCoupons, couponTabs, formatCouponValue, type CenterCoupon } from '@/lib/shop-data'
+import { shopApi, formatCouponValue, type CenterCoupon } from '@/lib/shop-data'
 
 const activeTab = ref('unused')
-const myList = ref([...myCoupons])
-const centerList = ref([...centerCoupons])
+const myList = ref<any[]>([])
+const centerList = ref<CenterCoupon[]>([])
+const couponTabs = ref<any[]>([])
 const claimingId = ref<string | null>(null)
+const loading = ref(true)
+const error = ref('')
+const submitting = ref(false)
+
+onMounted(async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    const [myRes, centerRes] = await Promise.all([
+      shopApi.getMyCoupons(),
+      shopApi.getCenterCoupons(),
+    ])
+    myList.value = myRes.coupons
+    couponTabs.value = myRes.tabs
+    centerList.value = centerRes
+  } catch (_e) {
+    error.value = '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+})
+
+function retry() {
+  loading.value = true
+  error.value = ''
+  Promise.all([
+    shopApi.getMyCoupons(),
+    shopApi.getCenterCoupons(),
+  ]).then(([myRes, centerRes]) => {
+    myList.value = myRes.coupons
+    couponTabs.value = myRes.tabs
+    centerList.value = centerRes
+  }).catch(() => {
+    error.value = '加载失败，请重试'
+  }).finally(() => {
+    loading.value = false
+  })
+}
 
 const unusedCount = computed(() => myList.value.filter((c) => c.status === 'unused').length)
 const filtered = computed(() => myList.value.filter((c) => c.status === activeTab.value))
@@ -132,12 +189,14 @@ const emptyText = computed(() =>
 )
 
 function claim(c: CenterCoupon) {
-  if (c.isClaimed || claimingId.value === c.id) return
+  if (c.isClaimed || claimingId.value === c.id || submitting.value) return
+  submitting.value = true
   claimingId.value = c.id
   setTimeout(() => {
     c.isClaimed = true
     c.claimed += 1
     claimingId.value = null
+    submitting.value = false
     uni.showToast({ title: '领取成功', icon: 'success' })
   }, 600)
 }
@@ -394,5 +453,17 @@ function goUse() {
 .empty-btn-text {
   font-size: 26rpx;
   color: #fff;
+}
+.retry-btn {
+  padding: 12rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.retry-btn-text {
+  font-size: 26rpx;
+  color: #fff;
+}
+.btn-hover {
+  opacity: 0.85;
 }
 </style>

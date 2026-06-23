@@ -1,11 +1,43 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { defaultTeenModeSettings, teenTimeLimitOptions, teenFilterLevels, type TeenModeSettings } from '@/lib/mine-data'
+import { mineApi, teenTimeLimitOptions, teenFilterLevels, type TeenModeSettings } from '@/lib/mine-data'
 
-const settings = reactive<TeenModeSettings>({ ...defaultTeenModeSettings })
+const loading = ref(true)
+const error = ref('')
+const settings = reactive<TeenModeSettings>({
+  enabled: false,
+  dailyLimit: 40,
+  restrictedStartHour: 22,
+  restrictedEndHour: 6,
+  autoNightMode: true,
+  filterLevel: 'moderate',
+  hasPassword: false,
+})
 const saving = ref(false)
+const submitting = ref(false)
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await mineApi.getTeenMode()
+    Object.assign(settings, data)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
 
 // 弹窗状态
 const pwdModal = ref(false)
@@ -104,12 +136,19 @@ function pickFilter(v: 'strict' | 'moderate') {
   settings.filterLevel = v
   filterSheet.value = false
 }
-function save() {
+async function save() {
+  if (submitting.value) return
   saving.value = true
-  setTimeout(() => {
-    saving.value = false
+  submitting.value = true
+  try {
+    await mineApi.updateTeenMode({ ...settings })
     goBack()
-  }, 800)
+  } catch {
+    // 保存失败静默处理
+  } finally {
+    saving.value = false
+    submitting.value = false
+  }
 }
 </script>
 
@@ -121,7 +160,12 @@ function save() {
       </template>
     </app-nav-bar>
 
-    <scroll-view scroll-y class="scroll">
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state">
+      <text>{{ error }}</text>
+      <view class="retry-btn" @tap="retry">重试</view>
+    </view>
+    <scroll-view v-else scroll-y class="scroll">
       <!-- Banner -->
       <view class="banner">
         <view class="banner-icon">
@@ -435,4 +479,8 @@ function save() {
 .range-sep { font-size: 26rpx; color: #8a8178; margin-top: 36rpx; }
 .btn-confirm { height: 92rpx; background: #C41E3A; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; margin-top: 32rpx; }
 .btn-confirm-text { font-size: 30rpx; font-weight: 600; color: #fff; }
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

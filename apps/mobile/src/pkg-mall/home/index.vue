@@ -1,16 +1,43 @@
 <script setup lang="ts">
 /** 商城首页 - 从原型 app/mall/page.tsx 1:1 迁移 */
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import ProductCard from '@/components/cards/product-card.vue'
 import LiveCard from '@/components/cards/live-card.vue'
 import MarketingZone from '@/components/mall/marketing-zone.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
-import {
-  mallQuickEntries, mallBanners, mallCommerceLives, mallCategories, mallProducts, cartCount,
-} from '@/lib/shop-data'
+import { shopApi } from '@/lib/shop-data'
+
+const loading = ref(true)
+const error = ref(false)
+const mallQuickEntries = ref<any[]>([])
+const mallBanners = ref<any[]>([])
+const mallCommerceLives = ref<any[]>([])
+const mallCategories = ref<any[]>([])
+const mallProducts = ref<any[]>([])
+const cartCount = ref(0)
 
 const bannerIndex = ref(0)
+
+async function fetchData() {
+  loading.value = true
+  error.value = false
+  try {
+    const data = await shopApi.getMallHome()
+    mallQuickEntries.value = data.quickEntries || []
+    mallBanners.value = data.banners || []
+    mallCommerceLives.value = data.lives || []
+    mallCategories.value = data.categories || []
+    mallProducts.value = data.products || []
+  } catch (e) {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { fetchData() })
+
 function onBannerChange(e: { detail: { current: number } }) { bannerIndex.value = e.detail.current }
 
 function goSearch() { toastComingSoon() }
@@ -37,6 +64,19 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
     </view>
 
     <view class="body">
+      <!-- 加载中 -->
+      <view v-if="loading" class="state-wrap">
+        <view class="state-spinner" />
+        <text class="state-text">加载中...</text>
+      </view>
+      <!-- 加载失败 -->
+      <view v-else-if="error" class="state-wrap">
+        <view class="state-icon"><AppIcon name="alert-circle" :size="56" color="#c41e3a" /></view>
+        <text class="state-text">加载失败，请重试</text>
+        <view class="state-retry" @tap="fetchData"><text class="state-retry-text">点击重试</text></view>
+      </view>
+      <!-- 内容 -->
+      <template v-else>
       <!-- 核心功能快捷入口 -->
       <view class="quick-grid">
         <view v-for="entry in mallQuickEntries" :key="entry.id" class="quick-item" @tap="navigateTo(entry.href)">
@@ -122,6 +162,7 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
           </view>
         </view>
       </view>
+      </template>
     </view>
   </view>
 </template>
@@ -187,4 +228,13 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
 .guess-line { width: 64rpx; height: 2rpx; background: var(--border); }
 .guess-title { font-size: 30rpx; font-weight: 600; color: var(--text-strong); }
 .prod-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
+
+/* 三态：加载/错误 */
+.state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 0; }
+.state-spinner { width: 64rpx; height: 64rpx; border: 4rpx solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.state-icon { width: 120rpx; height: 120rpx; border-radius: 50%; background: rgba(196,30,58,0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx; }
+.state-text { font-size: 26rpx; color: var(--text-soft); margin-top: 20rpx; }
+.state-retry { margin-top: 32rpx; padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
+.state-retry-text { font-size: 26rpx; color: #fff; font-weight: 500; }
 </style>

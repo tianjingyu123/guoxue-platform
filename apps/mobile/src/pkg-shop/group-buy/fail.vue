@@ -1,23 +1,39 @@
 <template>
   <view class="gf-page">
-    <!-- 头部 -->
-    <view class="header">
-      <view class="nav">
-        <view class="nav-back" hover-class="nav-hover" @tap="goBack">
-          <app-icon name="chevron-left" :size="40" color="#fff" />
-        </view>
-        <text class="nav-title">拼团结果</text>
+    <!-- 加载中 -->
+    <view v-if="loading" class="state-box">
+      <view class="state-spin" />
+      <text class="state-text">加载中...</text>
+    </view>
+    <!-- 加载失败 -->
+    <view v-else-if="error" class="state-box">
+      <view class="state-icon">
+        <app-icon name="alert-circle" :size="72" color="#b8ab94" />
       </view>
-      <view class="hero">
-        <view class="fail-icon">
-          <app-icon name="alert-circle" :size="64" color="#fff" />
-        </view>
-        <text class="hero-title">拼团未成功</text>
-        <text class="hero-sub">{{ reasonText }}</text>
+      <text class="state-text">{{ error }}</text>
+      <view class="state-retry" @tap="retryLoad">
+        <text class="state-retry-text">重试</text>
       </view>
     </view>
+    <template v-else-if="info">
+      <!-- 头部 -->
+      <view class="header">
+        <view class="nav">
+          <view class="nav-back" hover-class="nav-hover" @tap="goBack">
+            <app-icon name="chevron-left" :size="40" color="#fff" />
+          </view>
+          <text class="nav-title">拼团结果</text>
+        </view>
+        <view class="hero">
+          <view class="fail-icon">
+            <app-icon name="alert-circle" :size="64" color="#fff" />
+          </view>
+          <text class="hero-title">拼团未成功</text>
+          <text class="hero-sub">{{ reasonText }}</text>
+        </view>
+      </view>
 
-    <view class="content">
+      <view class="content">
       <!-- 商品卡 -->
       <view class="card">
         <view class="prod">
@@ -111,41 +127,78 @@
       </view>
     </view>
 
-    <!-- 底部操作 -->
-    <view class="footer">
-      <view class="footer-row">
-        <view class="btn-ghost" hover-class="btn-hover" @tap="viewRefund">
-          <text class="btn-ghost-text">查看退款</text>
+      <!-- 底部操作 -->
+      <view class="footer">
+        <view class="footer-row">
+          <view class="btn-ghost" hover-class="btn-hover" @tap="viewRefund">
+            <text class="btn-ghost-text">查看退款</text>
+          </view>
+          <view class="btn-primary" hover-class="btn-hover" @tap="recreate">
+            <app-icon name="refresh-cw" :size="26" color="#fff" />
+            <text class="btn-primary-text">重新开团</text>
+          </view>
         </view>
-        <view class="btn-primary" hover-class="btn-hover" @tap="recreate">
-          <app-icon name="refresh-cw" :size="26" color="#fff" />
-          <text class="btn-primary-text">重新开团</text>
+        <view class="btn-browse" hover-class="btn-hover" @tap="browse">
+          <app-icon name="shopping-bag" :size="26" color="#c41e3a" />
+          <text class="btn-browse-text">浏览其他拼团</text>
         </view>
       </view>
-      <view class="btn-browse" hover-class="btn-hover" @tap="browse">
-        <app-icon name="shopping-bag" :size="26" color="#c41e3a" />
-        <text class="btn-browse-text">浏览其他拼团</text>
-      </view>
-    </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { groupBuyFail as info } from '@/lib/shop-data'
+import { shopApi } from '@/lib/shop-data'
 
+interface GroupBuyFailData {
+  productCover: string
+  productName: string
+  price: number
+  minMembers: number
+  currentMembers: number
+  members: { avatar: string }[]
+  reason: string
+  failedAt: string
+  refundAmount: number
+  estimatedRefundTime: string
+  refundStatus: string
+  orderId: string
+  groupId: string
+}
+
+const info = ref<GroupBuyFailData | null>(null)
+const loading = ref(true)
+const error = ref('')
 const copied = ref(false)
 
 const reasonText = computed(() => {
-  if (info.reason === 'timeout') return '拼团超时，未能在规定时间内凑齐人数'
-  if (info.reason === 'stock') return '商品库存不足，无法完成拼团'
+  if (!info.value) return ''
+  if (info.value.reason === 'timeout') return '拼团超时，未能在规定时间内凑齐人数'
+  if (info.value.reason === 'stock') return '商品库存不足，无法完成拼团'
   return '拼团未能成功，我们正在处理退款'
 })
 const refundProgress = computed(() => {
-  if (info.refundStatus === 'pending') return 33
-  if (info.refundStatus === 'processing') return 66
+  if (!info.value) return 0
+  if (info.value.refundStatus === 'pending') return 33
+  if (info.value.refundStatus === 'processing') return 66
   return 100
+})
+
+let pageId = ''
+onLoad((q) => {
+  if (q && q.id) pageId = String(q.id)
+})
+onMounted(async () => {
+  try {
+    info.value = await shopApi.getGroupBuyFail(pageId || 'default')
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 })
 
 function copy(text: string) {
@@ -158,13 +211,26 @@ function copy(text: string) {
   })
 }
 function viewRefund() {
-  navigateTo(`/mine/refunds?orderId=${info.orderId}`)
+  if (!info.value) return
+  navigateTo(`/mine/refunds?orderId=${info.value.orderId}`)
 }
 function recreate() {
-  navigateTo(`/shop/group-buy/${info.groupId}?action=create`)
+  if (!info.value) return
+  navigateTo(`/shop/group-buy/${info.value.groupId}?action=create`)
 }
 function browse() {
   navigateTo('/shop/group-buy')
+}
+async function retryLoad() {
+  loading.value = true
+  error.value = ''
+  try {
+    info.value = await shopApi.getGroupBuyFail(pageId || 'default')
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -496,5 +562,47 @@ function browse() {
 }
 .btn-hover {
   opacity: 0.85;
+}
+
+/* 三态UI */
+.state-box {
+  padding: 96rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+}
+.state-spin {
+  width: 64rpx;
+  height: 64rpx;
+  border: 4rpx solid #e8e3db;
+  border-top-color: #c41e3a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.state-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: #f0ece2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.state-text {
+  font-size: 26rpx;
+  color: #b8ab94;
+}
+.state-retry {
+  padding: 12rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.state-retry-text {
+  font-size: 26rpx;
+  color: #fff;
 }
 </style>

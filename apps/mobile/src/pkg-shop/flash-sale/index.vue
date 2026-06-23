@@ -11,11 +11,27 @@
       </view>
     </view>
 
+    <!-- 加载态 -->
+    <view v-if="loading" class="loading-zone">
+      <view class="sk-slots" />
+      <view class="sk-cd" />
+      <view class="sk-grid-flash">
+        <view v-for="i in 4" :key="i" class="sk-card" />
+      </view>
+    </view>
+
+    <!-- 错误态 -->
+    <view v-else-if="error" class="error-zone">
+      <text class="error-text">{{ error }}</text>
+      <view class="error-retry" @tap="fetchFlashSaleData()"><text>重试</text></view>
+    </view>
+
+    <template v-else>
     <!-- 时段切换 -->
     <scroll-view scroll-x class="slots">
       <view class="slots-row">
         <view
-          v-for="slot in flashTimeSlots"
+          v-for="slot in data.timeSlots"
           :key="slot.id"
           class="slot"
           :class="{ 'slot--on': activeSlot === slot.id }"
@@ -55,7 +71,7 @@
     <view class="products">
       <view class="grid">
         <view
-          v-for="p in flashProducts"
+          v-for="p in data.products"
           :key="p.id"
           class="card"
           hover-class="card-hover"
@@ -90,26 +106,48 @@
         </view>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { flashTimeSlots, flashProducts, flashNotices, flashEndOffsetMs, formatCountdown, type FlashProduct } from '@/lib/shop-data'
+import { shopApi, formatCountdown, type FlashProduct } from '@/lib/shop-data'
 
+const loading = ref(true)
+const error = ref('')
+const data = ref<any>(null)
 const activeSlot = ref('14')
 const showNotice = ref(true)
 const rushingId = ref<string | null>(null)
-const noticeText = flashNotices.join('  |  ')
+const submitting = ref(false)
 
-const endTime = Date.now() + flashEndOffsetMs
-const cd = ref(formatCountdown(flashEndOffsetMs))
+const noticeText = computed(() => (data.value?.notices || []).join('  |  '))
+const endTime = ref(0)
+const cd = ref(formatCountdown(0))
 let timer: ReturnType<typeof setInterval> | null = null
 
-onMounted(() => {
+async function fetchFlashSaleData() {
+  error.value = ''
+  loading.value = true
+  try {
+    data.value = await shopApi.getFlashSaleFull()
+    if (data.value?.endOffsetMs) {
+      endTime.value = Date.now() + data.value.endOffsetMs
+    }
+    cd.value = formatCountdown(endTime.value - Date.now())
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(async () => {
+  await fetchFlashSaleData()
   timer = setInterval(() => {
-    cd.value = formatCountdown(endTime - Date.now())
+    cd.value = formatCountdown(endTime.value - Date.now())
   }, 1000)
 })
 onUnmounted(() => {
@@ -129,10 +167,14 @@ function progress(p: FlashProduct): number {
 }
 
 function rush(id: string) {
-  if (progress(flashProducts.find((x) => x.id === id)!) >= 100) return
+  if (submitting.value) return
+  const p = (data.value?.products || []).find((x: FlashProduct) => x.id === id)
+  if (!p || progress(p) >= 100) return
+  submitting.value = true
   rushingId.value = id
   setTimeout(() => {
     rushingId.value = null
+    submitting.value = false
     navigateTo(`/shop/checkout?productId=${id}&flashSale=true`)
   }, 1500)
 }
@@ -408,4 +450,17 @@ function goDetail(id: string) {
 .rush-btn--done .rush-text {
   color: #999;
 }
+
+/* 加载态 */
+.loading-zone { min-height: 100vh; background: linear-gradient(180deg, #c41e3a 0%, #8b0000 100%); padding: 24rpx; display: flex; flex-direction: column; gap: 24rpx; }
+.sk-slots { height: 80rpx; background: rgba(255,255,255,0.1); border-radius: 999rpx; }
+.sk-cd { height: 120rpx; background: rgba(0,0,0,0.2); border-radius: 24rpx; }
+.sk-grid-flash { display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx; margin-top: 32rpx; }
+.sk-card { height: 360rpx; background: rgba(255,255,255,0.1); border-radius: 24rpx; }
+
+/* 错误态 */
+.error-zone { min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; background: linear-gradient(180deg, #c41e3a 0%, #8b0000 100%); }
+.error-text { font-size: 28rpx; color: rgba(255,255,255,0.8); }
+.error-retry { padding: 16rpx 56rpx; background: #fff; border-radius: 40rpx; }
+.error-retry text { color: #c41e3a; font-size: 28rpx; }
 </style>

@@ -1,14 +1,18 @@
 <script setup lang="ts">
 /** 课程视频播放页 - 从原型 app/courses/[id]/player/page.tsx 迁移 */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-// @data-needs: 课时播放内容+目录, 参数 lessonId/courseId, 返回 { content:ChapterContent, chapters:PlayerChapter[] }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口(含视频流地址/播放进度)
-import {
-  playerContent as content, playerChapters as chapters,
-  type PlayerChapter, type PlayerChapterLesson,
-} from '@/lib/course-data'
+import { courseApi, type PlayerChapter, type PlayerChapterLesson } from '@/lib/course-data'
+
+const loading = ref(true)
+const error = ref('')
+const lessonId = ref('')
+const courseId = ref('')
+
+const content = ref<any>(null)
+const chapters = ref<any[]>([])
 
 // 纯 UI 播放状态
 const isPlaying = ref(false)
@@ -27,7 +31,7 @@ const isPipMode = ref(false)
 const noteContent = ref('')
 const questionContent = ref('')
 const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2]
-const currentLessonId = ref('1')
+const currentLessonId = ref('')
 
 const progressPercent = computed(() => duration.value ? (currentTime.value / duration.value) * 100 : 0)
 
@@ -41,7 +45,7 @@ function changeSpeed(rate: number) { playbackRate.value = rate; showSpeedMenu.va
 function switchLesson(id: string) {
   currentLessonId.value = id
   showChapterDrawer.value = false
-  navigateTo(`/courses/${content.courseId}/player?lesson=${id}`)
+  navigateTo(`/courses/${content.value?.courseId}/player?lesson=${id}`)
 }
 function submitNote() {
   if (!noteContent.value.trim()) return
@@ -52,10 +56,47 @@ function submitQuestion() {
   uni.showToast({ title: '问题已提交', icon: 'success' }); questionContent.value = ''; showQuestionPanel.value = false
 }
 function lessonLocked(chapter: PlayerChapter, lesson: PlayerChapterLesson) { return !lesson.isFree && !chapter.isFree }
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [playerContent, playerChapters] = await Promise.all([
+      courseApi.getPlayerContent(lessonId.value),
+      courseApi.getPlayerChapters(courseId.value),
+    ])
+    content.value = playerContent
+    chapters.value = playerChapters
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((options: any) => {
+  lessonId.value = options?.lesson || '1'
+  courseId.value = options?.id || '1'
+  currentLessonId.value = lessonId.value
+})
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <template>
-  <view class="page">
+  <!-- Loading -->
+  <view v-if="loading" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <!-- Error -->
+  <view v-else-if="error" class="error-wrap">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <!-- Content -->
+  <view v-else class="page">
     <!-- 视频播放器 -->
     <view class="player">
       <view class="video-placeholder" />
@@ -222,6 +263,7 @@ function lessonLocked(chapter: PlayerChapter, lesson: PlayerChapterLesson) { ret
       </view>
     </view>
   </view>
+  </view>
 </template>
 
 <style scoped>
@@ -306,4 +348,10 @@ function lessonLocked(chapter: PlayerChapter, lesson: PlayerChapterLesson) { ret
 .dark-submit { width: 100%; padding: 24rpx 0; background: #C41E3A; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
 .dark-submit.disabled { opacity: 0.5; }
 .dark-submit-txt { font-size: 28rpx; font-weight: 500; color: #fff; }
+
+/* 加载 / 错误 */
+.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

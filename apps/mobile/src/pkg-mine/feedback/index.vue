@@ -15,6 +15,10 @@
       </view>
     </view>
 
+    <!-- 加载/错误 -->
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+    <template v-else>
     <!-- 提交反馈 -->
     <view v-if="activeTab === 'submit'" class="tab-pane">
       <!-- 提交成功态 -->
@@ -143,14 +147,15 @@
         </view>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
-import { feedbackTypes, feedbackStatusConfig, historyFeedbacks } from '@/lib/mine-data'
+import { mineApi, feedbackStatusConfig, type FeedbackType, type FeedbackItem } from '@/lib/mine-data'
 
 // UI 临时状态
 const activeTab = ref<'submit' | 'history'>('submit')
@@ -160,11 +165,40 @@ const contact = ref('')
 const images = ref<string[]>([])
 const isSubmitting = ref(false)
 const submitted = ref(false)
+const feedbackTypes = ref<FeedbackType[]>([])
+const historyFeedbacks = ref<FeedbackItem[]>([])
+const loading = ref(true)
+const error = ref('')
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [types, history] = await Promise.all([
+      mineApi.getFeedbackTypes(),
+      mineApi.getFeedbackHistory(),
+    ])
+    feedbackTypes.value = types
+    historyFeedbacks.value = history
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
 
 const canSubmit = computed(() => !!selectedType.value && content.value.trim().length > 0)
 
 function typeOf(id: string) {
-  return feedbackTypes.find((t) => t.id === id)
+  return feedbackTypes.value.find((t) => t.id === id)
 }
 function statusOf(status: string) {
   return feedbackStatusConfig[status] || feedbackStatusConfig.pending
@@ -182,14 +216,22 @@ function addImage() {
   // 选图交互交给 @/lib 层(uni.chooseImage)
 }
 
-// @data-needs: 提交意见反馈, 参数 {type, content, contact, images}, 返回 {code, message}
-function handleSubmit() {
+async function handleSubmit() {
   if (!canSubmit.value || isSubmitting.value) return
   isSubmitting.value = true
-  setTimeout(() => {
-    isSubmitting.value = false
+  try {
+    await mineApi.submitFeedback({
+      type: selectedType.value!,
+      content: content.value,
+      contact: contact.value,
+      images: images.value,
+    })
     submitted.value = true
-  }, 1500)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 function resetForm() {
@@ -207,6 +249,12 @@ function resetForm() {
   background: #faf8f5;
   padding-bottom: 160rpx;
 }
+
+/* 三态 */
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 
 /* Tab */
 .tabs {

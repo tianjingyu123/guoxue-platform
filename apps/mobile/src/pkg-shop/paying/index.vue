@@ -92,6 +92,7 @@ const amount = ref('0')
 const status = ref<Status>('loading')
 const countdown = ref(30)
 const failReason = ref('')
+const submitting = ref(false)
 
 let cdTimer: ReturnType<typeof setInterval> | null = null
 let pollTimer: ReturnType<typeof setTimeout> | null = null
@@ -163,10 +164,14 @@ function clearTimers(which: 'cd' | 'poll' | 'all') {
 }
 
 function handleCancel() {
+  if (submitting.value) return
+  submitting.value = true
   clearTimers('all')
   navigateTo(`/shop/orders/${orderId.value}`)
+  setTimeout(() => { submitting.value = false }, 500)
 }
 function handleRetry() {
+  if (submitting.value) return
   failReason.value = ''
   startPaying()
 }

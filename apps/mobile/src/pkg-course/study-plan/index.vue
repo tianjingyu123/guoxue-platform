@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /** 学习计划页 - 从原型 app/courses/study-plan/page.tsx 迁移 */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-// @data-needs: 学习计划聚合, 参数 无, 返回 { goal, courses, streak, checkInLevels }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { studyGoal, plannedCourses, studyStreak, checkInLevels } from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
+
+const loading = ref(true)
+const error = ref('')
 
 const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六']
 const DAY_MS = 86400000
@@ -13,11 +14,13 @@ const today = new Date()
 const todayDay = today.getDay()
 const todayStr = today.toISOString().slice(0, 10)
 
-const goal = ref({ ...studyGoal })
-const courses = ref(plannedCourses.map((c) => ({ ...c })))
+const goal = ref<any>(null)
+const courses = ref<any[]>([])
+const studyStreak = ref(0)
+const checkInLevels = ref<number[]>([])
 
-// 今日任务：取计划日含今天的课程
-const tasks = ref(
+// 今日任务：取计划日含今天的课程（computed 响应 courses 变化）
+const tasks = computed(() =>
   courses.value
     .filter((c) => c.scheduledDays.includes(todayDay))
     .map((c) => ({
@@ -28,14 +31,15 @@ const tasks = ref(
       isDone: false,
     })),
 )
+const taskDoneStatus = ref<Record<string, boolean>>({})
 function toggleTask(id: string) {
-  const t = tasks.value.find((x) => x.id === id)
-  if (t) t.isDone = !t.isDone
+  taskDoneStatus.value[id] = !taskDoneStatus.value[id]
 }
+function isTaskDone(id: string) { return !!taskDoneStatus.value[id] }
 
-const doneCount = computed(() => tasks.value.filter((t) => t.isDone).length)
+const doneCount = computed(() => tasks.value.filter((t) => isTaskDone(t.id)).length)
 const totalMin = computed(() => tasks.value.reduce((s, t) => s + t.duration, 0))
-const doneMin = computed(() => tasks.value.filter((t) => t.isDone).reduce((s, t) => s + t.duration, 0))
+const doneMin = computed(() => tasks.value.filter((t) => isTaskDone(t.id)).reduce((s, t) => s + t.duration, 0))
 const donePct = computed(() => (tasks.value.length ? Math.round((doneCount.value / tasks.value.length) * 100) : 0))
 
 const todayLabel = computed(() =>
@@ -55,7 +59,7 @@ const weeks = computed(() => {
       date.setDate(date.getDate() + w * 7 + d)
       const dateStr = date.toISOString().slice(0, 10)
       const daysAgo = Math.round((today.getTime() - date.getTime()) / DAY_MS)
-      const level = daysAgo >= 0 && daysAgo < checkInLevels.length ? checkInLevels[daysAgo] : 0
+      const level = daysAgo >= 0 && daysAgo < checkInLevels.value.length ? checkInLevels.value[daysAgo] : 0
       row.push({ dateStr, month: date.getMonth() + 1, level, isToday: dateStr === todayStr, isFuture: date.getTime() > today.getTime() })
     }
     out.push(row)
@@ -77,10 +81,40 @@ function removeCourse(id: string) {
 function coursePct(c: { completedLessons: number; totalLessons: number }) {
   return Math.round((c.completedLessons / c.totalLessons) * 100)
 }
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await courseApi.getStudyPlan()
+    goal.value = res.goal
+    courses.value = res.courses
+    studyStreak.value = res.streak
+    checkInLevels.value = res.checkInLevels
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <template>
-  <view class="page">
+  <!-- Loading -->
+  <view v-if="loading" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <!-- Error -->
+  <view v-else-if="error" class="error-wrap">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <!-- Content -->
+  <view v-else class="page">
     <!-- 导航栏 -->
     <view class="nav">
       <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#ffffff" /></view>
@@ -188,9 +222,9 @@ function coursePct(c: { completedLessons: number; totalLessons: number }) {
         <view v-if="tasks.length === 0" class="task-empty">今日没有安排学习任务</view>
         <view v-else class="task-list">
           <view v-for="task in tasks" :key="task.id" class="task-item" @tap="toggleTask(task.id)">
-            <app-icon :name="task.isDone ? 'check-circle-2' : 'circle'" :size="40" :color="task.isDone ? '#52C41A' : '#DDDDDD'" />
+            <app-icon :name="isTaskDone(task.id) ? 'check-circle-2' : 'circle'" :size="40" :color="isTaskDone(task.id) ? '#52C41A' : '#DDDDDD'" />
             <view class="task-info">
-              <text class="task-name" :class="{ done: task.isDone }">{{ task.title }}</text>
+              <text class="task-name" :class="{ done: isTaskDone(task.id) }">{{ task.title }}</text>
               <text class="task-lesson">{{ task.lessonTitle }}</text>
             </view>
             <view class="task-dur"><app-icon name="clock" :size="22" color="#BBBBBB" /><text class="task-dur-txt">{{ task.duration }}分钟</text></view>
@@ -236,6 +270,7 @@ function coursePct(c: { completedLessons: number; totalLessons: number }) {
         <text class="foot-txt">添加更多课程到学习计划</text>
       </view>
     </view>
+  </view>
   </view>
 </template>
 
@@ -360,4 +395,10 @@ function coursePct(c: { completedLessons: number; totalLessons: number }) {
 .foot { margin-top: 16rpx; margin-bottom: 64rpx; text-align: center; }
 .foot-txt { font-size: 24rpx; color: #BBB; }
 .foot-link { font-size: 24rpx; color: #C41E3A; font-weight: 500; margin: 0 8rpx; }
+
+/* 加载 / 错误 */
+.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

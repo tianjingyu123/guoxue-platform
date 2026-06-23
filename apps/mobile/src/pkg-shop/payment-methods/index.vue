@@ -11,36 +11,64 @@
     </app-nav-bar>
 
     <scroll-view scroll-y class="content">
-      <view class="list">
-        <view v-for="m in methods" :key="m.id" class="method-card">
-          <view class="method-head">
-            <view class="method-icon" :class="m.type">
-              <app-icon :name="iconOf(m.type)" :size="40" color="#FFFFFF" />
-            </view>
-            <view class="method-info">
-              <view class="method-name-row">
-                <text class="method-name">{{ m.name }}</text>
-                <text v-if="m.cardType" class="card-tag">{{ m.cardType === 'debit' ? '储蓄卡' : '信用卡' }}</text>
-                <text v-if="m.isDefault" class="default-tag">默认</text>
+      <!-- 加载中 -->
+      <view v-if="loading" class="state-box">
+        <view class="state-spin" />
+        <text class="state-text">加载中...</text>
+      </view>
+      <!-- 加载失败 -->
+      <view v-else-if="error" class="state-box">
+        <view class="state-icon">
+          <app-icon name="alert-circle" :size="72" color="#b8ab94" />
+        </view>
+        <text class="state-text">{{ error }}</text>
+        <view class="state-retry" @tap="retryLoad">
+          <text class="state-retry-text">重试</text>
+        </view>
+      </view>
+      <!-- 空数据 -->
+      <view v-else-if="!methods.length" class="state-box">
+        <view class="state-icon">
+          <app-icon name="credit-card" :size="72" color="#b8ab94" />
+        </view>
+        <text class="state-text">暂无支付方式</text>
+        <view class="state-retry" @tap="showAdd = true">
+          <text class="state-retry-text">添加支付方式</text>
+        </view>
+      </view>
+      <!-- 支付方式列表 -->
+      <template v-else>
+        <view class="list">
+          <view v-for="m in methods" :key="m.id" class="method-card">
+            <view class="method-head">
+              <view class="method-icon" :class="m.type">
+                <app-icon :name="iconOf(m.type)" :size="40" color="#FFFFFF" />
               </view>
-              <text class="method-account">{{ m.account }}</text>
+              <view class="method-info">
+                <view class="method-name-row">
+                  <text class="method-name">{{ m.name }}</text>
+                  <text v-if="m.cardType" class="card-tag">{{ m.cardType === 'debit' ? '储蓄卡' : '信用卡' }}</text>
+                  <text v-if="m.isDefault" class="default-tag">默认</text>
+                </view>
+                <text class="method-account">{{ m.account }}</text>
+              </view>
+              <view class="method-more" @tap="openActions(m)">
+                <app-icon name="more-vertical" :size="36" color="#999999" />
+              </view>
             </view>
-            <view class="method-more" @tap="openActions(m)">
-              <app-icon name="more-vertical" :size="36" color="#999999" />
-            </view>
-          </view>
-          <view class="method-foot">
-            <text class="bind-time">绑定时间：{{ m.bindTime }}</text>
-            <view v-if="m.isDefault" class="prefer">
-              <app-icon name="check" :size="24" color="#07C160" />
-              <text class="prefer-text">支付时优先使用</text>
+            <view class="method-foot">
+              <text class="bind-time">绑定时间：{{ m.bindTime }}</text>
+              <view v-if="m.isDefault" class="prefer">
+                <app-icon name="check" :size="24" color="#07C160" />
+                <text class="prefer-text">支付时优先使用</text>
+              </view>
             </view>
           </view>
         </view>
-      </view>
+      </template>
 
       <!-- 安全提示 -->
-      <view class="safe-tip">
+      <view v-if="!loading && !error" class="safe-tip">
         <app-icon name="alert-circle" :size="30" color="#999999" />
         <text class="safe-text">您的支付信息已加密存储，我们不会保存您的支付密码。如有疑问请联系客服。</text>
       </view>
@@ -49,9 +77,9 @@
     <!-- 操作菜单 -->
     <view v-if="actionMethod" class="mask" @tap="actionMethod = null">
       <view class="action-sheet" @tap.stop>
-        <view v-if="!actionMethod.isDefault" class="action-item" @tap="setDefault">
+        <view v-if="!actionMethod.isDefault" class="action-item" :class="{ disabled: submitting }" @tap="setDefault">
           <app-icon name="star" :size="32" color="#C9A96E" />
-          <text>设为默认</text>
+          <text>{{ submitting ? '处理中...' : '设为默认' }}</text>
         </view>
         <view class="action-item danger" @tap="askDelete">
           <app-icon name="trash-2" :size="32" color="#C41E3A" />
@@ -88,7 +116,7 @@
         <text class="dialog-desc">解除绑定后，将无法使用该支付方式进行支付，确定解除吗？</text>
         <view class="dialog-actions">
           <view class="dialog-btn" @tap="showDelete = false"><text>取消</text></view>
-          <view class="dialog-btn confirm" @tap="confirmDelete"><text>确定</text></view>
+          <view class="dialog-btn confirm" :class="{ disabled: submitting }" @tap="confirmDelete"><text>{{ submitting ? '处理中...' : '确定' }}</text></view>
         </view>
       </view>
     </view>
@@ -96,15 +124,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { boundPaymentMethods, addPaymentOptions, type BoundPaymentMethod } from '@/lib/shop-data'
+import { ref, onMounted } from 'vue'
+import { shopApi, type BoundPaymentMethod } from '@/lib/shop-data'
 
-const methods = ref<BoundPaymentMethod[]>([...boundPaymentMethods])
-const addOptions = addPaymentOptions
+const methods = ref<BoundPaymentMethod[]>([])
+const addOptions = ref<{ type: string; name: string; desc: string }[]>([])
+const loading = ref(true)
+const error = ref('')
+const submitting = ref(false)
 const actionMethod = ref<BoundPaymentMethod | null>(null)
 const showAdd = ref(false)
 const showDelete = ref(false)
 const pendingDelete = ref<BoundPaymentMethod | null>(null)
+
+onMounted(async () => {
+  try {
+    const res = await shopApi.getPaymentMethods()
+    methods.value = res.boundMethods
+    addOptions.value = res.addOptions
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+})
 
 function iconOf(type: string) {
   if (type === 'wechat') return 'message-circle'
@@ -114,28 +157,52 @@ function iconOf(type: string) {
 function openActions(m: BoundPaymentMethod) {
   actionMethod.value = m
 }
-function setDefault() {
-  if (!actionMethod.value) return
-  methods.value = methods.value.map((m) => ({ ...m, isDefault: m.id === actionMethod.value!.id }))
-  actionMethod.value = null
-  uni.showToast({ title: '已设为默认', icon: 'success' })
+async function setDefault() {
+  if (!actionMethod.value || submitting.value) return
+  submitting.value = true
+  try {
+    methods.value = methods.value.map((m) => ({ ...m, isDefault: m.id === actionMethod.value!.id }))
+    actionMethod.value = null
+    uni.showToast({ title: '已设为默认', icon: 'success' })
+  } finally {
+    submitting.value = false
+  }
 }
 function askDelete() {
   pendingDelete.value = actionMethod.value
   actionMethod.value = null
   showDelete.value = true
 }
-function confirmDelete() {
-  if (pendingDelete.value) {
-    methods.value = methods.value.filter((m) => m.id !== pendingDelete.value!.id)
+async function confirmDelete() {
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    if (pendingDelete.value) {
+      methods.value = methods.value.filter((m) => m.id !== pendingDelete.value!.id)
+    }
+    showDelete.value = false
+    pendingDelete.value = null
+    uni.showToast({ title: '已解除绑定', icon: 'success' })
+  } finally {
+    submitting.value = false
   }
-  showDelete.value = false
-  pendingDelete.value = null
-  uni.showToast({ title: '已解除绑定', icon: 'success' })
 }
 function onAdd(opt: { type: string; name: string }) {
   showAdd.value = false
   uni.showToast({ title: `将跳转${opt.name}授权页面`, icon: 'none' })
+}
+async function retryLoad() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await shopApi.getPaymentMethods()
+    methods.value = res.boundMethods
+    addOptions.value = res.addOptions
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -299,5 +366,51 @@ function onAdd(opt: { type: string; name: string }) {
   background: #F5F5F5;
   color: #666666;
   &.confirm { background: #C41E3A; color: #FFFFFF; }
+}
+
+/* 三态UI */
+.state-box {
+  padding: 96rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+}
+.state-spin {
+  width: 64rpx;
+  height: 64rpx;
+  border: 4rpx solid #e8e3db;
+  border-top-color: #c41e3a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.state-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: #f0ece2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.state-text {
+  font-size: 26rpx;
+  color: #b8ab94;
+}
+.state-retry {
+  padding: 12rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.state-retry-text {
+  font-size: 26rpx;
+  color: #fff;
+}
+.disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 </style>

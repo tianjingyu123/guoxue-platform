@@ -4,7 +4,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppError from '@/components/common/app-error.vue'
 import {
-  receivedComments,
+  mineApi,
   commentTypeNames,
   type ReceivedCommentItem,
 } from '@/lib/mine-data'
@@ -16,18 +16,17 @@ const filter = ref<'all' | 'unreplied'>('all')
 const loading = ref(true)
 const loadError = ref(false)
 
-function loadData() {
+async function loadData() {
   loading.value = true
   loadError.value = false
-  setTimeout(() => {
-    try {
-      list.value = receivedComments.map((c) => ({ ...c }))
-      loading.value = false
-    } catch {
-      loadError.value = true
-      loading.value = false
-    }
-  }, 600)
+  try {
+    const data = await mineApi.getReceivedComments()
+    list.value = data.map((c) => ({ ...c }))
+  } catch {
+    loadError.value = true
+  } finally {
+    loading.value = false
+  }
 }
 
 onLoad(() => loadData())

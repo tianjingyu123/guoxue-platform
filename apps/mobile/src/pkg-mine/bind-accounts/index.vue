@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { boundAccounts, bindBenefits, type BoundAccount } from '@/lib/mine-data'
+import { bindBenefits, mineApi, type BoundAccount } from '@/lib/mine-data'
 
-const accounts = ref<BoundAccount[]>(boundAccounts.map((a) => ({ ...a })))
+const accounts = ref<BoundAccount[]>([])
+const loading = ref(true)
+const error = ref('')
 const unbindTarget = ref<BoundAccount | null>(null)
 const processing = ref(false)
 const toast = ref('')
@@ -16,25 +18,60 @@ const providerIcon: Record<string, string> = {
 
 const boundCount = computed(() => accounts.value.filter((a) => a.isBound).length)
 
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await mineApi.getBoundAccounts()
+    accounts.value = data.map((a: BoundAccount) => ({ ...a }))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
+
 function showToast(msg: string) {
   toast.value = msg
   setTimeout(() => (toast.value = ''), 2000)
 }
-function handleBind(acc: BoundAccount) {
-  showToast(`即将跳转到${acc.name}授权页面`)
+async function handleBind(acc: BoundAccount) {
+  if (processing.value) return
+  processing.value = true
+  try {
+    await mineApi.toggleBind(acc.provider, true)
+    showToast(`即将跳转到${acc.name}授权页面`)
+  } catch (e: any) {
+    showToast(e?.message || '操作失败')
+  } finally {
+    processing.value = false
+  }
 }
 async function handleUnbind() {
-  if (!unbindTarget.value) return
+  if (!unbindTarget.value || processing.value) return
   processing.value = true
-  await new Promise((r) => setTimeout(r, 1000))
   const target = unbindTarget.value
-  accounts.value = accounts.value.map((acc) =>
-    acc.provider === target.provider
-      ? { ...acc, isBound: false, accountInfo: undefined, boundAt: undefined }
-      : acc,
-  )
-  processing.value = false
-  unbindTarget.value = null
+  try {
+    await mineApi.toggleBind(target.provider, false)
+    accounts.value = accounts.value.map((acc) =>
+      acc.provider === target.provider
+        ? { ...acc, isBound: false, accountInfo: undefined, boundAt: undefined }
+        : acc,
+    )
+  } catch (e: any) {
+    showToast(e?.message || '解绑失败')
+  } finally {
+    processing.value = false
+    unbindTarget.value = null
+  }
 }
 </script>
 
@@ -43,7 +80,10 @@ async function handleUnbind() {
     <!-- 导航 -->
     <app-nav-bar title="第三方账号" :back-size="40" background="rgba(250, 248, 245, 0.95)" />
 
-    <scroll-view scroll-y class="scroll">
+    <!-- 加载/错误 -->
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+    <scroll-view v-else scroll-y class="scroll">
       <!-- 提示卡片 -->
       <view class="tip-wrap">
         <view class="tip-card">
@@ -140,6 +180,12 @@ async function handleUnbind() {
   min-height: 100vh;
   background: #faf8f5;
 }
+
+/* 三态 */
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 .scroll {
   height: calc(100vh - 112rpx - env(safe-area-inset-top));
 }

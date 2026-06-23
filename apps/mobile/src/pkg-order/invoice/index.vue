@@ -21,8 +21,10 @@
     </view>
 
     <scroll-view scroll-y class="scroll-area">
+      <view v-if="loading" class="loading"><text>加载中...</text></view>
+      <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
       <!-- 申请开票 -->
-      <block v-if="activeTab === 'apply'">
+      <block v-else-if="activeTab === 'apply'">
         <!-- 选择订单 -->
         <view class="card">
           <view class="card-title-row">
@@ -170,14 +172,34 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
-import { mockInvoiceOrders, mockInvoices, invoiceStatusConfig } from '@/lib/order-data'
+import { onLoad, onMounted } from '@dcloudio/uni-app'
+import { orderApi, invoiceStatusConfig } from '@/lib/order-data'
 
 const safeBottom = ref(0)
 const activeTab = ref<'apply' | 'list'>('apply')
 
-const applicableOrders = ref(mockInvoiceOrders)
-const records = ref(mockInvoices)
+const loading = ref(true)
+const error = ref('')
+const applicableOrders = ref<any[]>([])
+const records = ref<any[]>([])
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [orders, invoices] = await Promise.all([
+      orderApi.getInvoiceOrders(),
+      orderApi.getInvoices(),
+    ])
+    applicableOrders.value = orders
+    records.value = invoices
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+function retry() { loadData() }
 
 const tabList = computed(() => [
   { key: 'apply' as const, label: '申请开票', count: applicableOrders.value.length },
@@ -195,6 +217,7 @@ const title = ref('')
 const taxNumber = ref('')
 const email = ref('')
 const phone = ref('')
+const submitting = ref(false)
 
 const totalAmount = computed(() =>
   applicableOrders.value.filter((o) => selectedOrders.value.includes(o.orderId)).reduce((s, o) => s + o.amount, 0),
@@ -219,7 +242,10 @@ onLoad(() => {
   }
 })
 
-function submitApply() {
+onMounted(() => { loadData() })
+
+async function submitApply() {
+  if (submitting.value) return
   if (selectedOrders.value.length === 0) {
     uni.showToast({ title: '请选择要开票的订单', icon: 'none' })
     return
@@ -236,13 +262,22 @@ function submitApply() {
     uni.showToast({ title: '请输入接收邮箱', icon: 'none' })
     return
   }
-  selectedOrders.value = []
-  title.value = ''
-  taxNumber.value = ''
-  email.value = ''
-  phone.value = ''
-  activeTab.value = 'list'
-  uni.showToast({ title: '申请已提交', icon: 'success' })
+  submitting.value = true
+  try {
+    await orderApi.applyInvoice(selectedOrders.value, invoiceType.value, title.value, email.value, taxNumber.value || undefined)
+    selectedOrders.value = []
+    title.value = ''
+    taxNumber.value = ''
+    email.value = ''
+    phone.value = ''
+    activeTab.value = 'list'
+    uni.showToast({ title: '申请已提交', icon: 'success' })
+    loadData()
+  } catch {
+    uni.showToast({ title: '提交失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 
 function downloadInvoice(_rec: any) {
@@ -663,4 +698,8 @@ function downloadInvoice(_rec: any) {
   font-weight: 500;
   color: #FFFFFF;
 }
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #999999; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #999999; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

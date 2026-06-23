@@ -39,6 +39,29 @@
 
     <!-- 拼团商品 -->
     <view v-if="tab === 'all'" class="list">
+      <!-- 加载中 -->
+      <view v-if="loading" class="state-box">
+        <view class="state-spin" />
+        <text class="state-text">加载中...</text>
+      </view>
+      <!-- 加载失败 -->
+      <view v-else-if="error" class="state-box">
+        <view class="state-icon">
+          <app-icon name="alert-circle" :size="72" color="#b8ab94" />
+        </view>
+        <text class="state-text">{{ error }}</text>
+        <view class="state-retry" @tap="retry">
+          <text class="state-retry-text">重试</text>
+        </view>
+      </view>
+      <!-- 空数据 -->
+      <view v-else-if="!groupBuyList.length" class="state-box">
+        <view class="state-icon">
+          <app-icon name="users" :size="72" color="#b8ab94" />
+        </view>
+        <text class="state-text">暂无拼团商品</text>
+      </view>
+      <!-- 数据列表 -->
       <view v-for="item in groupBuyList" :key="item.id" class="card">
         <view class="card-main">
           <view class="card-img-wrap">
@@ -90,7 +113,13 @@
 
     <!-- 我的拼团 -->
     <view v-else class="list">
-      <view v-if="!myGroups.length" class="empty">
+      <!-- 加载中 -->
+      <view v-if="loading" class="state-box">
+        <view class="state-spin" />
+        <text class="state-text">加载中...</text>
+      </view>
+      <!-- 空数据 -->
+      <view v-else-if="!myGroups.length" class="empty">
         <view class="empty-icon">
           <app-icon name="users" :size="72" color="#b8ab94" />
         </view>
@@ -182,25 +211,49 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { groupBuyList, myGroupBuyList, formatCountdown, type MyGroupBuyItem } from '@/lib/shop-data'
+import { shopApi, formatCountdown, type MyGroupBuyItem } from '@/lib/shop-data'
+
+interface GroupBuyItem {
+  id: string
+  cover: string
+  minMembers: number
+  status: string
+  title: string
+  price: number
+  originalPrice: number
+  currentMembers: number
+  endOffsetMs: number
+}
 
 const tabList = [
   { key: 'all', label: '拼团商品' },
   { key: 'my', label: '我的拼团' },
 ]
 const tab = ref<'all' | 'my'>('all')
-const myGroups = myGroupBuyList
+const groupBuyList = ref<GroupBuyItem[]>([])
+const myGroups = ref<MyGroupBuyItem[]>([])
+const loading = ref(true)
+const error = ref('')
 const showShare = ref(false)
 const shareTarget = ref<MyGroupBuyItem | null>(null)
 
 // 倒计时基准（各项 endTime 固定）
 const endMap: Record<string, number> = {}
-;[...groupBuyList, ...myGroupBuyList].forEach((g: any) => {
-  endMap[g.id] = Date.now() + g.endOffsetMs
-})
 const tick = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
-onMounted(() => {
+onMounted(async () => {
+  try {
+    const res = await shopApi.getGroupBuyList()
+    groupBuyList.value = res.list
+    myGroups.value = res.myList
+    ;[...res.list, ...res.myList].forEach((g: any) => {
+      endMap[g.id] = Date.now() + g.endOffsetMs
+    })
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
   timer = setInterval(() => (tick.value += 1), 1000)
 })
 onUnmounted(() => {
@@ -231,6 +284,26 @@ function openShare(item: MyGroupBuyItem) {
 function copyLink() {
   uni.setClipboardData({ data: `https://rebu.app/shop/group-buy/${shareTarget.value?.id}` })
   showShare.value = false
+}
+async function retry() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await shopApi.getGroupBuyList()
+    groupBuyList.value = res.list
+    myGroups.value = res.myList
+    endMapCleanup()
+    ;[...res.list, ...res.myList].forEach((g: any) => {
+      endMap[g.id] = Date.now() + g.endOffsetMs
+    })
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+function endMapCleanup() {
+  Object.keys(endMap).forEach((k) => delete endMap[k])
 }
 </script>
 
@@ -756,5 +829,47 @@ function copyLink() {
   color: #8a7d65;
   text-align: center;
   display: block;
+}
+
+/* 三态UI */
+.state-box {
+  padding: 96rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+}
+.state-spin {
+  width: 64rpx;
+  height: 64rpx;
+  border: 4rpx solid #e8e3db;
+  border-top-color: #c41e3a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.state-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: #f0ece2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.state-text {
+  font-size: 26rpx;
+  color: #b8ab94;
+}
+.state-retry {
+  padding: 12rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.state-retry-text {
+  font-size: 26rpx;
+  color: #fff;
 }
 </style>

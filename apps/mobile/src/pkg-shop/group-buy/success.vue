@@ -1,15 +1,31 @@
 <template>
   <view class="gs-page">
-    <!-- 成功头部 -->
-    <view class="header">
-      <view class="success-icon">
-        <app-icon name="check-circle" :size="96" color="#22c55e" />
-      </view>
-      <text class="header-title">拼团成功</text>
-      <text class="header-sub">恭喜您，已成功拼团！</text>
+    <!-- 加载中 -->
+    <view v-if="loading" class="state-box">
+      <view class="state-spin" />
+      <text class="state-text">加载中...</text>
     </view>
+    <!-- 加载失败 -->
+    <view v-else-if="error" class="state-box">
+      <view class="state-icon">
+        <app-icon name="alert-circle" :size="72" color="#b8ab94" />
+      </view>
+      <text class="state-text">{{ error }}</text>
+      <view class="state-retry" @tap="retryLoad">
+        <text class="state-retry-text">重试</text>
+      </view>
+    </view>
+    <template v-else-if="data">
+      <!-- 成功头部 -->
+      <view class="header">
+        <view class="success-icon">
+          <app-icon name="check-circle" :size="96" color="#22c55e" />
+        </view>
+        <text class="header-title">拼团成功</text>
+        <text class="header-sub">恭喜您，已成功拼团！</text>
+      </view>
 
-    <view class="content">
+      <view class="content">
       <!-- 商品卡片 -->
       <view class="card">
         <view class="prod">
@@ -90,15 +106,45 @@
         </view>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
-import { groupBuySuccess as data } from '@/lib/shop-data'
+import { shopApi } from '@/lib/shop-data'
 
+interface GroupBuySuccessData {
+  productCover: string
+  productName: string
+  price: number
+  originalPrice: number
+  members: { avatar: string }[]
+  completedAt: string
+  orderId: string
+  estimatedShipDate: string
+}
+
+const data = ref<GroupBuySuccessData | null>(null)
+const loading = ref(true)
+const error = ref('')
 const copied = ref(false)
+
+let pageId = ''
+onLoad((q) => {
+  if (q && q.id) pageId = String(q.id)
+})
+onMounted(async () => {
+  try {
+    data.value = await shopApi.getGroupBuySuccess(pageId || 'default')
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+})
 
 function copy(text: string) {
   uni.setClipboardData({
@@ -113,10 +159,22 @@ function share() {
   uni.showToast({ title: '已唤起分享', icon: 'none' })
 }
 function viewOrder() {
-  navigateTo(`/orders/${data.orderId}`)
+  if (!data.value) return
+  navigateTo(`/orders/${data.value.orderId}`)
 }
 function goShop() {
   navigateTo('/shop')
+}
+async function retryLoad() {
+  loading.value = true
+  error.value = ''
+  try {
+    data.value = await shopApi.getGroupBuySuccess(pageId || 'default')
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -370,5 +428,47 @@ function goShop() {
 }
 .btn-hover {
   opacity: 0.85;
+}
+
+/* 三态UI */
+.state-box {
+  padding: 96rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+}
+.state-spin {
+  width: 64rpx;
+  height: 64rpx;
+  border: 4rpx solid #e8e3db;
+  border-top-color: #c41e3a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.state-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: #f0ece2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.state-text {
+  font-size: 26rpx;
+  color: #b8ab94;
+}
+.state-retry {
+  padding: 12rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.state-retry-text {
+  font-size: 26rpx;
+  color: #fff;
 }
 </style>

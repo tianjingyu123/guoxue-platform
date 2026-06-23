@@ -7,8 +7,19 @@
       </template>
     </app-nav-bar>
 
+    <!-- 加载态 -->
+    <view v-if="loading" class="loading-zone">
+      <view v-for="i in 3" :key="i" class="sk-cart-item" />
+    </view>
+
+    <!-- 错误态 -->
+    <view v-else-if="error" class="error-zone">
+      <text class="error-text">{{ error }}</text>
+      <view class="error-retry" @tap="fetchCartData()"><text>重试</text></view>
+    </view>
+
     <!-- 购物车列表 -->
-    <scroll-view scroll-y class="content" v-if="items.length">
+    <scroll-view v-else-if="items.length" scroll-y class="content">
       <view class="list">
         <!-- 有效商品 -->
         <view
@@ -150,15 +161,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { navigateTo, reLaunch } from '@/utils/router'
-import { cartFlatItems, type FlatCartItem } from '@/lib/shop-data'
+import { shopApi, type FlatCartItem } from '@/lib/shop-data'
 
-const items = ref<FlatCartItem[]>(JSON.parse(JSON.stringify(cartFlatItems)))
+const loading = ref(true)
+const error = ref('')
+const items = ref<FlatCartItem[]>([])
 const editMode = ref(false)
 const swipedId = ref<number | null>(null)
+const submitting = ref(false)
 
 let touchStartX = 0
+
+async function fetchCartData() {
+  error.value = ''
+  loading.value = true
+  try {
+    const result = await shopApi.getCart()
+    items.value = result.items || []
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { fetchCartData() })
 
 const validItems = computed(() => items.value.filter((i) => i.isValid))
 const invalidItems = computed(() => items.value.filter((i) => !i.isValid))
@@ -185,15 +214,23 @@ function changeQty(item: FlatCartItem, delta: number) {
   item.quantity = next
 }
 function removeItem(id: number) {
+  if (submitting.value) return
+  submitting.value = true
   items.value = items.value.filter((i) => i.id !== id)
   swipedId.value = null
+  submitting.value = false
 }
 function removeSelected() {
-  if (selectedCount.value === 0) return
+  if (selectedCount.value === 0 || submitting.value) return
+  submitting.value = true
   items.value = items.value.filter((i) => !(i.isValid && i.selected))
+  submitting.value = false
 }
 function clearInvalid() {
+  if (submitting.value) return
+  submitting.value = true
   items.value = items.value.filter((i) => i.isValid)
+  submitting.value = false
 }
 
 // 左滑手势
@@ -425,4 +462,14 @@ function goCheckout() {
 .footer-btn.danger { background: #E74C3C; }
 .footer-btn.disabled { opacity: 0.5; }
 .footer-btn-text { color: #FFFFFF; font-size: 28rpx; font-weight: 500; }
+
+/* 加载态 */
+.loading-zone { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.sk-cart-item { height: 200rpx; background: #ececec; border-radius: 24rpx; }
+
+/* 错误态 */
+.error-zone { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; }
+.error-text { font-size: 28rpx; color: #999999; }
+.error-retry { padding: 16rpx 56rpx; background: #C41E3A; border-radius: 40rpx; }
+.error-retry text { color: #FFFFFF; font-size: 28rpx; }
 </style>

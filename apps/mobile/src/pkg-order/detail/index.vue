@@ -7,6 +7,10 @@
       </template>
     </app-nav-bar>
 
+    <!-- 加载/错误 -->
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+    <template v-else-if="order">
     <!-- 状态卡 -->
     <view class="status-card" :style="{ background: status.bg }">
       <view class="status-row">
@@ -138,24 +142,40 @@
 
     <!-- 复制提示 -->
     <view v-if="copied" class="toast"><text>复制成功</text></view>
+  </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { mockOrderDetail, detailSteps, detailStatusConfig, type OrderDetail } from '@/lib/order-data'
+import { orderApi, detailSteps, detailStatusConfig, type OrderDetail } from '@/lib/order-data'
 
 const steps = detailSteps
-const order = ref<OrderDetail>({ ...mockOrderDetail })
+const loading = ref(false)
+const error = ref('')
+const order = ref<OrderDetail | null>(null)
 const copied = ref(false)
 const orderId = ref('1')
+const submitting = ref(false)
 
-const status = computed(() => detailStatusConfig[order.value.status] || detailStatusConfig.pending_pay)
+const status = computed(() => {
+  if (!order.value) return detailStatusConfig.pending_pay
+  return detailStatusConfig[order.value.status] || detailStatusConfig.pending_pay
+})
 
-onLoad((q) => { if (q?.id) orderId.value = q.id })
+const retry = () => { error.value = ''; loadData() }
+async function loadData() {
+  loading.value = true; error.value = ''
+  try { order.value = await orderApi.detail(orderId.value) }
+  catch (e: any) { error.value = e?.message || '加载失败' }
+  finally { loading.value = false }
+}
+
+onLoad((q) => { if (q?.id) { orderId.value = q.id } })
+onMounted(loadData)
 
 function copyNo() {
   uni.setClipboardData({ data: order.value.orderNo, success: () => { copied.value = true; setTimeout(() => (copied.value = false), 1500) } })
@@ -166,9 +186,16 @@ function goAfterSale() { navigateTo(`/shop/after-sale?orderId=${order.value.id}`
 function goPay() { navigateTo(`/shop/paying?orderId=${order.value.id}`) }
 function goShop() { navigateTo('/shop') }
 function toService() { navigateTo('/customer-service') }
-function confirmReceive() {
-  order.value = { ...order.value, status: 'completed', canConfirm: false, canReview: true }
-  uni.showToast({ title: '确认收货成功', icon: 'none' })
+async function confirmReceive() {
+  if (!order.value || submitting.value) return; submitting.value = true
+  try {
+    const ok = await orderApi.confirm(order.value.id)
+    if (ok && order.value) {
+      order.value = { ...order.value, status: 'completed' as const, canConfirm: false, canReview: true }
+      uni.showToast({ title: '确认收货成功', icon: 'none' })
+    }
+  } catch { uni.showToast({ title: '操作失败', icon: 'none' }) }
+  finally { submitting.value = false }
 }
 </script>
 
@@ -247,4 +274,9 @@ function confirmReceive() {
 .fbtn.primary { background: #C41E3A; color: #FFFFFF; }
 .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.7); padding: 16rpx 32rpx; border-radius: 12rpx; z-index: 100; }
 .toast text { font-size: 26rpx; color: #FFFFFF; }
+
+.loading { display: flex; align-items: center; justify-content: center; padding: 200rpx 0; font-size: 28rpx; color: #999999; }
+.error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #999999; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

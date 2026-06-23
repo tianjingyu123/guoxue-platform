@@ -1,15 +1,20 @@
 <script setup lang="ts">
 /** 课程学习中心页 - 从原型 app/courses/[id]/learn/page.tsx 迁移 */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-// @data-needs: 学习中心聚合, 参数 courseId, 返回 { course, progress, chapters, notes, questions }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import {
-  learnCourse as course, learnProgress as progress, learnChapters as chapters,
-  learnNotes as notes, learnQuestions as questions,
-  type LearnChapter, type LearnLesson,
-} from '@/lib/course-data'
+import { courseApi, type LearnChapter, type LearnLesson } from '@/lib/course-data'
+
+const loading = ref(true)
+const error = ref('')
+const courseId = ref('')
+
+const course = ref<any>(null)
+const progress = ref<any>(null)
+const chapters = ref<any[]>([])
+const notes = ref<any[]>([])
+const questions = ref<any[]>([])
 
 type TabKey = 'catalog' | 'notes' | 'questions'
 const activeTab = ref<TabKey>('catalog')
@@ -22,17 +27,17 @@ const ringSize = 80
 const ringStroke = 6
 const ringRadius = (ringSize - ringStroke) / 2
 const ringCircumference = ringRadius * 2 * Math.PI
-const ringOffset = computed(() => ringCircumference - (progress.progressPercent / 100) * ringCircumference)
+const ringOffset = computed(() => ringCircumference - ((progress.value?.progressPercent ?? 0) / 100) * ringCircumference)
 
 const tabs = computed(() => [
-  { id: 'catalog' as TabKey, label: '目录', icon: 'book-open', count: chapters.length },
-  { id: 'notes' as TabKey, label: '笔记', icon: 'file-text', count: notes.length },
-  { id: 'questions' as TabKey, label: '问答', icon: 'message-circle', count: questions.length },
+  { id: 'catalog' as TabKey, label: '目录', icon: 'book-open', count: chapters.value.length },
+  { id: 'notes' as TabKey, label: '笔记', icon: 'file-text', count: notes.value.length },
+  { id: 'questions' as TabKey, label: '问答', icon: 'message-circle', count: questions.value.length },
 ])
 
 function toggleChapter(id: string) { expanded.value[id] = !expanded.value[id] }
 function chapterDone(c: LearnChapter) { return c.lessons.filter((l) => l.isCompleted).length }
-function onLessonClick(lessonId: string) { navigateTo(`/courses/${course.id}/player?lesson=${lessonId}`) }
+function onLessonClick(lessonId: string) { navigateTo(`/courses/${course.value?.id}/player?lesson=${lessonId}`) }
 function fmtTimestamp(s: number) { return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}` }
 function fmtStudyTime(min: number) { return `${Math.floor(min / 60)}小时${min % 60}分钟` }
 function submitQuestion() {
@@ -46,10 +51,45 @@ function lessonIcon(chapter: LearnChapter, lesson: LearnLesson) {
   if (!chapter.isFree && !lesson.isFree) return { name: 'lock', color: '#999999' }
   return { name: 'play', color: '#666666' }
 }
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await courseApi.getLearnData(courseId.value)
+    course.value = res.course
+    progress.value = res.progress
+    chapters.value = res.chapters
+    notes.value = res.notes
+    questions.value = res.questions
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((options: any) => {
+  courseId.value = options?.id || '1'
+})
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <template>
-  <view class="page">
+  <!-- Loading -->
+  <view v-if="loading" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <!-- Error -->
+  <view v-else-if="error" class="error-wrap">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <!-- Content -->
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="topnav">
       <view class="topnav-btn" @tap="goBack">
@@ -213,6 +253,7 @@ function lessonIcon(chapter: LearnChapter, lesson: LearnLesson) {
       </view>
     </view>
   </view>
+  </view>
 </template>
 
 <style scoped>
@@ -321,4 +362,10 @@ function lessonIcon(chapter: LearnChapter, lesson: LearnLesson) {
 .submit-btn.disabled { background: #E8E3DB; }
 .submit-txt { font-size: 28rpx; font-weight: 700; color: #fff; }
 .submit-btn.disabled .submit-txt { color: #999; }
+
+/* 加载 / 错误 */
+.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

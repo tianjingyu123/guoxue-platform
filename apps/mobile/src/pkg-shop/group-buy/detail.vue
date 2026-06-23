@@ -11,34 +11,50 @@
       </view>
     </view>
 
-    <!-- 商品信息 -->
-    <view class="product-card">
-      <view class="pc-main">
-        <image class="pc-cover" :src="detail.cover" mode="aspectFill" />
-        <view class="pc-info">
-          <text class="pc-title">{{ detail.title }}</text>
-          <text class="pc-desc">{{ detail.description }}</text>
-          <view class="pc-price">
-            <text class="price-now">¥{{ detail.price }}</text>
-            <text class="price-old">¥{{ detail.originalPrice }}</text>
-            <text class="save-tag">省¥{{ detail.originalPrice - detail.price }}</text>
+    <!-- 加载中 -->
+    <view v-if="loading" class="state-box">
+      <view class="state-spin" />
+      <text class="state-text">加载中...</text>
+    </view>
+    <!-- 加载失败 -->
+    <view v-else-if="error" class="state-box">
+      <view class="state-icon">
+        <app-icon name="alert-circle" :size="72" color="#b8ab94" />
+      </view>
+      <text class="state-text">{{ error }}</text>
+      <view class="state-retry" @tap="retryLoad">
+        <text class="state-retry-text">重试</text>
+      </view>
+    </view>
+    <template v-else-if="detail">
+      <!-- 商品信息 -->
+      <view class="product-card">
+        <view class="pc-main">
+          <image class="pc-cover" :src="detail.cover" mode="aspectFill" />
+          <view class="pc-info">
+            <text class="pc-title">{{ detail.title }}</text>
+            <text class="pc-desc">{{ detail.description }}</text>
+            <view class="pc-price">
+              <text class="price-now">¥{{ detail.price }}</text>
+              <text class="price-old">¥{{ detail.originalPrice }}</text>
+              <text class="save-tag">省¥{{ detail.originalPrice - detail.price }}</text>
+            </view>
+          </view>
+        </view>
+        <view class="pc-meta">
+          <view class="meta-item">
+            <app-icon name="users" :size="28" color="#ff6b35" />
+            <text class="meta-text">{{ detail.minMembers }}人成团</text>
+          </view>
+          <view class="meta-item">
+            <app-icon name="clock" :size="28" color="#ff6b35" />
+            <text class="meta-text">24小时有效</text>
           </view>
         </view>
       </view>
-      <view class="pc-meta">
-        <view class="meta-item">
-          <app-icon name="users" :size="28" color="#ff6b35" />
-          <text class="meta-text">{{ detail.minMembers }}人成团</text>
-        </view>
-        <view class="meta-item">
-          <app-icon name="clock" :size="28" color="#ff6b35" />
-          <text class="meta-text">24小时有效</text>
-        </view>
-      </view>
-    </view>
 
-    <!-- 正在拼团 -->
-    <view class="section">
+      <!-- 正在拼团 -->
+      <view class="section">
       <view class="section-head">
         <text class="section-title">正在拼团</text>
         <text class="section-count">{{ groups.length }}个团进行中</text>
@@ -97,13 +113,14 @@
       </view>
     </view>
 
-    <!-- 底部开新团 -->
-    <view class="footer">
-      <view class="footer-btn" hover-class="btn-hover" @tap="create">
-        <app-icon name="plus" :size="28" color="#fff" />
-        <text class="footer-btn-text">¥{{ detail.price }} 开新团</text>
+      <!-- 底部开新团 -->
+      <view class="footer">
+        <view class="footer-btn" hover-class="btn-hover" @tap="create">
+          <app-icon name="plus" :size="28" color="#fff" />
+          <text class="footer-btn-text">¥{{ detail.price }} 开新团</text>
+        </view>
       </view>
-    </view>
+    </template>
   </view>
 </template>
 
@@ -111,23 +128,54 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { groupBuyDetail as detail, activeGroups, formatCountdown } from '@/lib/shop-data'
+import { shopApi, formatCountdown } from '@/lib/shop-data'
 
-const groups = activeGroups
+interface GroupBuyDetailData {
+  id: string
+  cover: string
+  minMembers: number
+  title: string
+  description: string
+  price: number
+  originalPrice: number
+  rules: string[]
+}
+interface ActiveGroup {
+  id: string
+  owner: { avatar: string }
+  members: { avatar: string }[]
+  minMembers: number
+  currentMembers: number
+  endOffsetMs: number
+}
+
+const detail = ref<GroupBuyDetailData | null>(null)
+const groups = ref<ActiveGroup[]>([])
+const loading = ref(true)
+const error = ref('')
 const joiningId = ref<string | null>(null)
 
 const endMap: Record<string, number> = {}
-groups.forEach((g) => {
-  endMap[g.id] = Date.now() + g.endOffsetMs
-})
 const tick = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
 
+let pageId = ''
 onLoad((q) => {
-  // q.id / q.action 预留：详情区分商品；当前用统一 mock
-  void q
+  if (q && q.id) pageId = String(q.id)
 })
-onMounted(() => {
+onMounted(async () => {
+  try {
+    const res = await shopApi.getGroupBuyDetail(pageId || 'default')
+    detail.value = res.detail
+    groups.value = res.activeGroups
+    groups.value.forEach((g) => {
+      endMap[g.id] = Date.now() + g.endOffsetMs
+    })
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
   timer = setInterval(() => (tick.value += 1), 1000)
 })
 onUnmounted(() => {
@@ -147,7 +195,25 @@ function join(id: string) {
   }, 800)
 }
 function create() {
-  navigateTo(`/shop/checkout?type=group&groupId=${detail.id}`)
+  if (!detail.value) return
+  navigateTo(`/shop/checkout?type=group&groupId=${detail.value.id}`)
+}
+async function retryLoad() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await shopApi.getGroupBuyDetail(pageId || 'default')
+    detail.value = res.detail
+    groups.value = res.activeGroups
+    Object.keys(endMap).forEach((k) => delete endMap[k])
+    groups.value.forEach((g) => {
+      endMap[g.id] = Date.now() + g.endOffsetMs
+    })
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -437,6 +503,48 @@ function create() {
 .footer-btn-text {
   font-size: 30rpx;
   font-weight: 500;
+  color: #fff;
+}
+
+/* 三态UI */
+.state-box {
+  padding: 96rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+}
+.state-spin {
+  width: 64rpx;
+  height: 64rpx;
+  border: 4rpx solid #e8e3db;
+  border-top-color: #c41e3a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.state-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: #f0ece2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.state-text {
+  font-size: 26rpx;
+  color: #b8ab94;
+}
+.state-retry {
+  padding: 12rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.state-retry-text {
+  font-size: 26rpx;
   color: #fff;
 }
 </style>

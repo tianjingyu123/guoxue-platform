@@ -15,6 +15,21 @@
       </view>
     </view>
 
+    <!-- 加载态 -->
+    <view v-if="loading" class="loading-zone">
+      <view class="sk-gallery" />
+      <view class="sk-block" />
+      <view class="sk-block" />
+      <view class="sk-block" />
+    </view>
+
+    <!-- 错误态 -->
+    <view v-else-if="error" class="error-zone">
+      <text class="error-text">{{ error }}</text>
+      <view class="error-retry" @tap="fetchProductData()"><text>重试</text></view>
+    </view>
+
+    <template v-else-if="product">
     <!-- 图片轮播 -->
     <view class="gallery" @tap="showImageViewer = true">
       <swiper class="gallery-swiper" :current="currentImage" @change="onSwiperChange" :circular="true">
@@ -228,6 +243,7 @@
         />
       </view>
     </view>
+    </template>
   </view>
 </template>
 
@@ -235,20 +251,22 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { getShopProductDetail, shopProductReviews, type ShopProductSku } from '@/lib/shop-data'
+import { shopApi, type ShopProductSku } from '@/lib/shop-data'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 
 const statusBarHeight = ref(0)
 const safeBottom = ref(0)
 
-const product = ref(getShopProductDetail())
-const reviews = ref(shopProductReviews)
+const loading = ref(true)
+const error = ref('')
+const product = ref<any>(null)
+const reviews = ref<any[]>([])
 const productId = ref('1')
 
 const currentImage = ref(0)
 const isFavorite = ref(false)
 const showSkuPanel = ref(false)
-const selectedSku = ref<ShopProductSku | null>(product.value.skus[0] || null)
+const selectedSku = ref<ShopProductSku | null>(null)
 const quantity = ref(1)
 const buyMode = ref<'cart' | 'buy'>('cart')
 const showImageViewer = ref(false)
@@ -256,29 +274,47 @@ const cartAdded = ref(false)
 const addedToast = ref(false)
 const flyBall = ref(false)
 
-const currentPrice = computed(() => selectedSku.value?.price ?? product.value.price)
-const currentOriginalPrice = computed(() => selectedSku.value?.originalPrice ?? product.value.originalPrice)
+const currentPrice = computed(() => selectedSku.value?.price ?? product.value?.price ?? 0)
+const currentOriginalPrice = computed(() => selectedSku.value?.originalPrice ?? product.value?.originalPrice ?? 0)
 
 // 养生保健类商品：需展示专业医疗免责声明
 const healthKeywords = ['养生', '保健', '中医', '理疗', '艾灸', '推拿', '经络', '食疗', '针灸', '健康', '调理']
 const isHealthProduct = computed(() => {
   const p = product.value
-  const text = `${p.name} ${p.category} ${p.description} ${p.tags.join(' ')}`
+  if (!p) return false
+  const text = `${p.name} ${p.category} ${p.description} ${(p.tags || []).join(' ')}`
   return healthKeywords.some((kw) => text.includes(kw))
 })
 
-onLoad((q) => {
-  if (q && q.id) {
-    productId.value = String(q.id)
-    product.value = getShopProductDetail(q.id)
-    selectedSku.value = product.value.skus[0] || null
+async function fetchProductData() {
+  if (!productId.value || productId.value === '1') return
+  error.value = ''
+  loading.value = true
+  try {
+    const result = await shopApi.getShopProductDetail(productId.value)
+    product.value = result.product
+    reviews.value = result.reviews || []
+    selectedSku.value = product.value?.skus?.[0] || null
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
   }
+}
+
+onLoad(async (q) => {
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 0
     safeBottom.value = info.safeAreaInsets ? info.safeAreaInsets.bottom : 0
   } catch (e) {
     statusBarHeight.value = 0
+  }
+  if (q && q.id) {
+    productId.value = String(q.id)
+    await fetchProductData()
+  } else {
+    loading.value = false
   }
 })
 
@@ -294,14 +330,16 @@ function openSku(mode: 'cart' | 'buy') {
 }
 function selectSku(sku: ShopProductSku) {
   selectedSku.value = sku
-  const idx = product.value.images.findIndex((img) => img === sku.image)
-  if (idx >= 0) currentImage.value = idx
+  if (product.value?.images) {
+    const idx = product.value.images.findIndex((img: string) => img === sku.image)
+    if (idx >= 0) currentImage.value = idx
+  }
 }
 function decQty() {
   if (quantity.value > 1) quantity.value--
 }
 function incQty() {
-  const max = selectedSku.value?.stock ?? product.value.stock
+  const max = selectedSku.value?.stock ?? product.value?.stock ?? 99
   if (quantity.value < max) quantity.value++
 }
 function confirmSku() {
@@ -910,4 +948,15 @@ function goCart() {
   border-radius: 6rpx;
   background: #fff;
 }
+
+/* 加载态 */
+.loading-zone { padding-top: 120rpx; display: flex; flex-direction: column; gap: 16rpx; }
+.sk-gallery { width: 100%; height: 750rpx; background: #ececec; }
+.sk-block { margin: 16rpx; height: 200rpx; background: #ececec; border-radius: 16rpx; }
+
+/* 错误态 */
+.error-zone { min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; }
+.error-text { font-size: 28rpx; color: #999999; }
+.error-retry { padding: 16rpx 56rpx; background: #C41E3A; border-radius: 40rpx; }
+.error-retry text { color: #FFFFFF; font-size: 28rpx; }
 </style>

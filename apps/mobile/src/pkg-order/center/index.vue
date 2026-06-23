@@ -42,7 +42,9 @@
 
     <!-- 列表 -->
     <view class="content">
-      <view v-if="filtered.length === 0" class="empty">
+      <view v-if="loading" class="loading"><text>加载中...</text></view>
+      <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+      <view v-else-if="filtered.length === 0" class="empty">
         <app-icon name="package" :size="96" color="#E8E3DB" />
         <text class="empty-text">暂无订单</text>
       </view>
@@ -110,10 +112,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import {
-  mockUnifiedOrders, orderCategories, unifiedStatusConfig, categoryColorMap,
-  type OrderCategory, type UnifiedOrderStatus,
+  orderApi, orderCategories, unifiedStatusConfig, categoryColorMap,
+  type OrderCategory, type UnifiedOrderStatus, type UnifiedOrder,
 } from '@/lib/order-data'
 
 const categories = orderCategories
@@ -121,8 +124,25 @@ const statusConfig = unifiedStatusConfig
 const activeCategory = ref<OrderCategory>('all')
 const activeStatus = ref<UnifiedOrderStatus | ''>('')
 
+const loading = ref(true)
+const error = ref('')
+const orders = ref<UnifiedOrder[]>([])
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    orders.value = await orderApi.center()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+function retry() { loadData() }
+
 const filtered = computed(() =>
-  mockUnifiedOrders.filter((o) => {
+  orders.value.filter((o) => {
     if (activeCategory.value !== 'all' && o.category !== activeCategory.value) return false
     if (activeStatus.value && o.status !== activeStatus.value) return false
     return true
@@ -131,7 +151,7 @@ const filtered = computed(() =>
 const counts = computed(() => {
   const acc: Record<string, number> = {}
   for (const cat of categories) {
-    acc[cat.key] = cat.key === 'all' ? mockUnifiedOrders.length : mockUnifiedOrders.filter((o) => o.category === cat.key).length
+    acc[cat.key] = cat.key === 'all' ? orders.value.length : orders.value.filter((o) => o.category === cat.key).length
   }
   return acc
 })
@@ -140,6 +160,8 @@ function catColor(c: OrderCategory) { return categoryColorMap[c] }
 function catIcon(c: OrderCategory) { return categories.find((x) => x.key === c)?.icon || 'package' }
 function catLabel(c: OrderCategory) { return categories.find((x) => x.key === c)?.label || '' }
 function isExpired(date: string) { return new Date(date).getTime() < Date.now() }
+
+onMounted(() => { loadData() })
 </script>
 
 <style lang="scss" scoped>
@@ -193,4 +215,8 @@ function isExpired(date: string) { return new Date(date).getTime() < Date.now() 
 .mini.primary { background: #C41E3A; color: #FFFFFF; }
 .mini.warn { background: #F59E0B; color: #FFFFFF; }
 .mini.text { color: #999999; }
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #999999; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #999999; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

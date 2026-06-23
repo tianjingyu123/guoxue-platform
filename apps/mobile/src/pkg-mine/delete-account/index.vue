@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, redirectTo } from '@/utils/router'
-import { mineProfile, deleteAccountReasons, deleteAccountDataItems, deleteAccountAssets } from '@/lib/mine-data'
+import { mineApi, deleteAccountReasons, deleteAccountDataItems, deleteAccountAssets } from '@/lib/mine-data'
 
 const step = ref(1)
 const agreed = ref(false)
@@ -16,9 +16,32 @@ const countdown = ref(0)
 const confirmText = ref('')
 const showConfirm = ref(false)
 const loading = ref(false)
+const phone = ref('')
+const profileLoading = ref(true)
+const profileError = ref('')
 
 const assets = deleteAccountAssets
-const phone = mineProfile.phone
+
+async function fetchProfile() {
+  profileLoading.value = true
+  profileError.value = ''
+  try {
+    const profile = await mineApi.getProfile()
+    phone.value = profile.phone
+  } catch (e: any) {
+    profileError.value = e?.message || '加载失败'
+  } finally {
+    profileLoading.value = false
+  }
+}
+
+function retryProfile() {
+  fetchProfile()
+}
+
+onMounted(() => {
+  fetchProfile()
+})
 
 let timer: ReturnType<typeof setInterval> | null = null
 function sendCode() {
@@ -52,13 +75,22 @@ function next() {
   }
   step.value++
 }
-function doDelete() {
-  if (confirmText.value !== '确认注销') return
+async function doDelete() {
+  if (confirmText.value !== '确认注销' || loading.value) return
   loading.value = true
-  setTimeout(() => {
-    const expire = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    redirectTo(`/mine/delete-account-result?status=pending&expire=${encodeURIComponent(expire)}`)
-  }, 1500)
+  try {
+    const result = await mineApi.deleteAccount({
+      reason: selectedReason.value,
+      otherReason: otherReason.value,
+      verifyMethod: verifyMethod.value,
+      password: verifyMethod.value === 'password' ? password.value : undefined,
+      code: verifyMethod.value === 'code' ? code.value : undefined,
+    })
+    redirectTo(`/mine/delete-account-result?status=pending&expire=${encodeURIComponent(result.expire || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())}`)
+  } catch (e: any) {
+    loading.value = false
+    uni.showToast({ title: e?.message || '注销失败', icon: 'none' })
+  }
 }
 function onCodeInput(e: any) {
   code.value = String(e.detail.value).replace(/\D/g, '').slice(0, 6)
@@ -81,7 +113,10 @@ function onCodeInput(e: any) {
       </view>
     </view>
 
-    <scroll-view scroll-y class="scroll">
+    <!-- 个人信息加载/错误 -->
+    <view v-if="profileLoading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="profileError" class="error-state"><text>{{ profileError }}</text><view class="retry-btn" @tap="retryProfile">重试</view></view>
+    <scroll-view v-else scroll-y class="scroll">
       <!-- Step 1: 须知 -->
       <template v-if="step === 1">
         <view class="warn-card">
@@ -224,6 +259,12 @@ function onCodeInput(e: any) {
 
 <style scoped>
 .page { min-height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
+
+/* 三态 */
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 .nav-wrap { background: #fff; border-bottom: 1rpx solid #EDE7DC; position: sticky; top: 0; z-index: 10; }
 .steps { display: flex; align-items: center; padding: 0 64rpx 28rpx; }
 .step-item { display: flex; align-items: center; flex: 1; }

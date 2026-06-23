@@ -6,46 +6,99 @@ import AppIcon from '@/components/common/app-icon.vue'
 import GroupBuyInfoCard from '@/components/marketing/group-buy-info-card.vue'
 import CouponClaimCard from '@/components/marketing/coupon-claim-card.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
-import { getProductDetail, cartCount as initialCart } from '@/lib/shop-data'
+import { shopApi } from '@/lib/shop-data'
 
-const product = getProductDetail()
+const loading = ref(true)
+const error = ref(false)
+const product = ref<any>(null)
 const swiperIndex = ref(0)
 const isFavorite = ref(false)
-const cartCount = ref(initialCart)
+const cartCount = ref(0)
 const showSpecPanel = ref(false)
 const specAction = ref<'cart' | 'buy'>('cart')
 const selectedSpecs = ref<Record<string, string>>({ 版本: 'standard', 数量: '1' })
+const submitting = ref(false)
 
-onLoad(() => {})
+async function fetchData(productId?: string) {
+  loading.value = true
+  error.value = false
+  try {
+    const data = await shopApi.getProduct(productId || '1')
+    product.value = data
+  } catch (e) {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
 
-const discount = computed(() => Math.round((1 - product.price / product.originalPrice) * 100))
+onLoad((query: any) => {
+  const id = query?.id as string || '1'
+  fetchData(id)
+})
+
+const discount = computed(() => {
+  if (!product.value) return 0
+  return Math.round((1 - product.value.price / product.value.originalPrice) * 100)
+})
 const currentPrice = computed(() => {
-  const v = product.specs.find((s) => s.name === '版本')?.options.find((o) => o.id === selectedSpecs.value['版本'])
-  return v?.price || product.price
+  if (!product.value) return 0
+  const v = product.value.specs.find((s: any) => s.name === '版本')?.options.find((o: any) => o.id === selectedSpecs.value['版本'])
+  return v?.price || product.value.price
 })
 const currentStock = computed(() => {
-  const v = product.specs.find((s) => s.name === '版本')?.options.find((o) => o.id === selectedSpecs.value['版本'])
-  return v?.stock || product.stock
+  if (!product.value) return 0
+  const v = product.value.specs.find((s: any) => s.name === '版本')?.options.find((o: any) => o.id === selectedSpecs.value['版本'])
+  return v?.stock || product.value.stock
 })
-const selectedSpecLabels = computed(() =>
-  Object.entries(selectedSpecs.value)
-    .map(([k, v]) => product.specs.find((s) => s.name === k)?.options.find((o) => o.id === v)?.label)
+const selectedSpecLabels = computed(() => {
+  if (!product.value) return '请选择规格'
+  return Object.entries(selectedSpecs.value)
+    .map(([k, v]) => product.value.specs.find((s: any) => s.name === k)?.options.find((o: any) => o.id === v)?.label)
     .filter(Boolean)
-    .join('、'),
-)
-const previewReviews = computed(() => product.reviews.slice(0, 2))
+    .join('、')
+})
+const previewReviews = computed(() => {
+  if (!product.value) return []
+  return product.value.reviews.slice(0, 2)
+})
 
 function onSwiperChange(e: any) { swiperIndex.value = e.detail.current }
 function selectSpec(name: string, id: string) { selectedSpecs.value = { ...selectedSpecs.value, [name]: id } }
 function openSpecPanel(action: 'cart' | 'buy') { specAction.value = action; showSpecPanel.value = true }
-function addToCart() { cartCount.value += 1; showSpecPanel.value = false }
-function buyNow() { showSpecPanel.value = false; navigateTo('/shop/checkout') }
+function addToCart() {
+  if (submitting.value) return
+  submitting.value = true
+  cartCount.value += 1
+  showSpecPanel.value = false
+  submitting.value = false
+}
+function buyNow() {
+  if (submitting.value) return
+  submitting.value = true
+  showSpecPanel.value = false
+  navigateTo('/shop/checkout')
+  submitting.value = false
+}
 function goReviews() { navigateTo('/mall/product/reviews') }
 function goCart() { navigateTo('/shop/cart') }
 </script>
 
 <template>
   <view class="page">
+    <!-- 加载中 -->
+    <view v-if="loading" class="state-wrap">
+      <view class="state-spinner" />
+      <text class="state-text">加载中...</text>
+    </view>
+    <!-- 加载失败 -->
+    <view v-else-if="error" class="state-wrap">
+      <view class="state-icon"><AppIcon name="alert-circle" :size="56" color="#c41e3a" /></view>
+      <text class="state-text">加载失败，请重试</text>
+      <view class="state-retry" @tap="fetchData()"><text class="state-retry-text">点击重试</text></view>
+    </view>
+    <!-- 内容 -->
+    <template v-else>
     <!-- 图片轮播 -->
     <view class="carousel">
       <view class="nav-btn nav-back" @tap="navigateBack()"><AppIcon name="chevron-left" :size="40" color="#1f1f1f" /></view>
@@ -187,6 +240,7 @@ function goCart() { navigateTo('/shop/cart') }
         <view class="sp-btn-buy" hover-class="card-press" @tap="buyNow"><text class="sp-btn-buy-text">立即购买</text></view>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
@@ -298,4 +352,13 @@ function goCart() { navigateTo('/shop/cart') }
 .sp-btn-cart-text { font-size: 28rpx; font-weight: 500; color: #fff; }
 .sp-btn-buy { flex: 1; height: 88rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .sp-btn-buy-text { font-size: 28rpx; font-weight: 500; color: #fff; }
+
+/* 三态：加载/错误 */
+.state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; min-height: 60vh; }
+.state-spinner { width: 64rpx; height: 64rpx; border: 4rpx solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.state-icon { width: 120rpx; height: 120rpx; border-radius: 50%; background: rgba(196,30,58,0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx; }
+.state-text { font-size: 26rpx; color: var(--text-soft); margin-top: 20rpx; }
+.state-retry { margin-top: 32rpx; padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
+.state-retry-text { font-size: 26rpx; color: #fff; font-weight: 500; }
 </style>

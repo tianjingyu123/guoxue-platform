@@ -1,25 +1,58 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import {
-  mineProfile, securityLoginItems, securityPaymentItems,
-  securityDeviceItems, securityScoreItems, securityDeactivateLossList,
+  mineApi, securityDeactivateLossList,
   type SecurityItem,
 } from '@/lib/mine-data'
 
+const loading = ref(true)
+const error = ref('')
+const securityScore = ref(0)
+const securityLoginItems = ref<SecurityItem[]>([])
+const securityPaymentItems = ref<SecurityItem[]>([])
+const securityDeviceItems = ref<SecurityItem[]>([])
+const securityScoreItems = ref<{ label: string; done: boolean }[]>([])
 const showDeactivate = ref(false)
 
 const ringStyle = computed(() => {
-  const pct = mineProfile.securityScore
+  const pct = securityScore.value
   return `background: conic-gradient(#C9A96E ${pct}%, rgba(255,255,255,0.12) ${pct}% 100%);`
 })
 
-const groups: { title: string; items: SecurityItem[] }[] = [
-  { title: '登录安全', items: securityLoginItems },
-  { title: '支付安全', items: securityPaymentItems },
-  { title: '设备管理', items: securityDeviceItems },
-]
+const groups = computed<{ title: string; items: SecurityItem[] }[]>(() => [
+  { title: '登录安全', items: securityLoginItems.value },
+  { title: '支付安全', items: securityPaymentItems.value },
+  { title: '设备管理', items: securityDeviceItems.value },
+])
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await mineApi.getSecurityItems()
+    securityLoginItems.value = data.login
+    securityPaymentItems.value = data.payment
+    securityDeviceItems.value = data.device
+    securityScoreItems.value = data.score
+    // 从score计算总分
+    const doneCount = data.score.filter((s) => s.done).length
+    securityScore.value = data.score.length > 0 ? Math.round((doneCount / data.score.length) * 100) : 0
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
 
 function isPositive(status?: SecurityItem['status']) {
   return status === 'set' || status === 'verified'
@@ -42,14 +75,19 @@ function confirmDeactivate() {
     <!-- 顶部导航 -->
     <app-nav-bar title="账号安全" />
 
-    <scroll-view scroll-y class="scroll">
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state">
+      <text>{{ error }}</text>
+      <view class="retry-btn" @tap="retry">重试</view>
+    </view>
+    <scroll-view v-else scroll-y class="scroll">
       <!-- 安全评分卡片 -->
       <view class="score-card">
         <view class="score-top">
           <view class="score-info">
             <text class="score-label">账号安全评分</text>
             <view class="score-num-wrap">
-              <text class="score-num">{{ mineProfile.securityScore }}</text>
+              <text class="score-num">{{ securityScore }}</text>
               <text class="score-total">/ 100</text>
             </view>
             <text class="score-tip">安全级别：良好，建议完善实名认证</text>
@@ -469,4 +507,8 @@ function confirmDeactivate() {
   color: #999;
   margin-top: 24rpx;
 }
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

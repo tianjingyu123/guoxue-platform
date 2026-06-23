@@ -1,11 +1,17 @@
 <script setup lang="ts">
 /** 课程购买确认页 - 从原型 app/courses/purchase-confirm/page.tsx 迁移 */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-// @data-needs: 购买确认聚合, 参数 courseId, 返回 { course:PurchaseCourse, coupons:PurchaseCoupon[] }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { purchaseCourse as course, purchaseCoupons as coupons } from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
+
+const loading = ref(true)
+const error = ref('')
+const courseId = ref('')
+
+const course = ref<any>(null)
+const coupons = ref<any[]>([])
 
 const selectedCoupon = ref<string | null>(null)
 const payMethod = ref('wechat')
@@ -19,27 +25,62 @@ const payMethods = [
   { id: 'huifu', name: '汇付天下', icon: 'building-2', color: '#f97316' },
 ]
 
-const availableCoupons = computed(() => coupons.filter((c) => c.isAvailable && c.minAmount <= course.price))
-const selectedCouponData = computed(() => (selectedCoupon.value ? coupons.find((c) => c.id === selectedCoupon.value) : null))
+const availableCoupons = computed(() => coupons.value.filter((c) => c.isAvailable && c.minAmount <= (course.value?.price ?? 0)))
+const selectedCouponData = computed(() => (selectedCoupon.value ? coupons.value.find((c) => c.id === selectedCoupon.value) : null))
 const discount = computed(() => {
   const c = selectedCouponData.value
   if (!c) return 0
   if (c.type === 'amount') return c.value
-  return Math.min(course.price * (c.value / 100), c.maxDiscount || Infinity)
+  return Math.min((course.value?.price ?? 0) * (c.value / 100), c.maxDiscount || Infinity)
 })
-const finalPrice = computed(() => course.price - discount.value)
+const finalPrice = computed(() => (course.value?.price ?? 0) - discount.value)
 
 function selectCoupon(id: string | null) {
   selectedCoupon.value = id
   showCouponList.value = false
 }
-function isCouponAvailable(c: typeof coupons[number]) {
-  return c.isAvailable && c.minAmount <= course.price
+function isCouponAvailable(c: any) {
+  return c.isAvailable && c.minAmount <= (course.value?.price ?? 0)
 }
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [purchaseCourse, purchaseCoupons] = await Promise.all([
+      courseApi.getPurchaseCourse(courseId.value),
+      courseApi.getPurchaseCoupons(),
+    ])
+    course.value = purchaseCourse
+    coupons.value = purchaseCoupons
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((options: any) => {
+  courseId.value = options?.id || '1'
+})
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <template>
-  <view class="page">
+  <!-- Loading -->
+  <view v-if="loading" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <!-- Error -->
+  <view v-else-if="error" class="error-wrap">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <!-- Content -->
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="nav">
       <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
@@ -174,6 +215,7 @@ function isCouponAvailable(c: typeof coupons[number]) {
       </view>
     </view>
   </view>
+  </view>
 </template>
 
 <style scoped>
@@ -254,4 +296,10 @@ function isCouponAvailable(c: typeof coupons[number]) {
 .footer-btn { display: flex; align-items: center; gap: 12rpx; padding: 24rpx 64rpx; border-radius: 999rpx; background: linear-gradient(to right, #C41E3A, #E74C3C); box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); }
 .footer-btn.disabled { background: #CCC; box-shadow: none; }
 .footer-btn-txt { font-size: 32rpx; font-weight: 700; color: #fff; }
+
+/* 加载 / 错误 */
+.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

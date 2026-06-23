@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
-  walletBalanceBrief,
-  walletTxRecords,
+  mineApi,
   type WalletTxRecord,
   type WalletTxCategory,
 } from '@/lib/mine-data'
 
-const balance = walletBalanceBrief
-const allRecords = walletTxRecords
+const loading = ref(true)
+const error = ref('')
+const balance = ref({ coin: 0, points: 0, frozen: 0 })
+const allRecords = ref<WalletTxRecord[]>([])
 
 // 筛选状态
 const filterType = ref<'' | 'income' | 'expense'>('')
@@ -61,9 +62,34 @@ const catClass: Record<WalletTxCategory, string> = {
   other: 'cat-gray',
 }
 
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [wallet, records] = await Promise.all([
+      mineApi.getWallet(),
+      mineApi.getTransactions(),
+    ])
+    balance.value = { coin: wallet.balance, points: wallet.points, frozen: 0 }
+    allRecords.value = records
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
+
 // 过滤
 const filtered = computed(() => {
-  let list = allRecords
+  let list = allRecords.value
   if (filterType.value) list = list.filter((t) => t.type === filterType.value)
   if (selectedMonth.value)
     list = list.filter((t) => t.createdAt.slice(0, 7) === selectedMonth.value)
@@ -183,8 +209,13 @@ function openDetail(id: string) {
       </view>
     </view>
 
-    <!-- 列表 -->
-    <view class="list-wrap">
+    <!-- 加载/错误/列表 -->
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state">
+      <text>{{ error }}</text>
+      <view class="retry-btn" @tap="retry">重试</view>
+    </view>
+    <view v-else class="list-wrap">
       <view v-if="grouped.length === 0" class="empty">
         <view class="empty-icon">
           <app-icon name="wallet" :size="56" color="#d1d1d1" />
@@ -500,4 +531,8 @@ function openDetail(id: string) {
   inset: 0;
   z-index: 10;
 }
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

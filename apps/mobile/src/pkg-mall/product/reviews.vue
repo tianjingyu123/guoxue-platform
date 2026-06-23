@@ -1,9 +1,17 @@
 <script setup lang="ts">
 /** 商品评价页 - 从原型 app/mall/product/[id]/reviews/page.tsx 1:1 迁移 */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { reviewTags, reviewSortOptions, fullReviews, reviewSummary } from '@/lib/shop-data'
+import { shopApi } from '@/lib/shop-data'
+
+const loading = ref(true)
+const error = ref(false)
+const reviewTags = ref<any[]>([])
+const reviewSortOptions = ref<any[]>([])
+const fullReviews = ref<any[]>([])
+const reviewSummary = ref<any>({ goodRatePercent: 0, rating: 0, total: 0 })
 
 const selectedTag = ref('all')
 const sortBy = ref('default')
@@ -11,10 +19,10 @@ const showSortMenu = ref(false)
 const likedReviews = ref<number[]>([])
 const previewImage = ref<{ reviewId: number; index: number } | null>(null)
 
-const sortLabel = computed(() => reviewSortOptions.find((o) => o.id === sortBy.value)?.label)
+const sortLabel = computed(() => reviewSortOptions.value.find((o: any) => o.id === sortBy.value)?.label)
 const sortedReviews = computed(() => {
-  const list = fullReviews.filter((r) => selectedTag.value === 'all' || r.tags.includes(selectedTag.value))
-  return [...list].sort((a, b) => {
+  const list = fullReviews.value.filter((r: any) => selectedTag.value === 'all' || r.tags.includes(selectedTag.value))
+  return [...list].sort((a: any, b: any) => {
     switch (sortBy.value) {
       case 'newest': return new Date(b.time).getTime() - new Date(a.time).getTime()
       case 'withImages': return b.images.length - a.images.length
@@ -23,7 +31,28 @@ const sortedReviews = computed(() => {
     }
   })
 })
-const previewReview = computed(() => fullReviews.find((r) => r.id === previewImage.value?.reviewId) || null)
+const previewReview = computed(() => fullReviews.value.find((r: any) => r.id === previewImage.value?.reviewId) || null)
+
+async function fetchData() {
+  loading.value = true
+  error.value = false
+  try {
+    const data = await shopApi.getMallReviews('1')
+    reviewTags.value = data.tags || []
+    reviewSortOptions.value = data.sortOptions || []
+    fullReviews.value = data.reviews || []
+    reviewSummary.value = data.summary || { goodRatePercent: 0, rating: 0, total: 0 }
+  } catch (e) {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((query: any) => {
+  // 可从query中取productId，暂时用'1'
+  fetchData()
+})
 
 function pickSort(id: string) { sortBy.value = id; showSortMenu.value = false }
 function toggleLike(id: number) {
@@ -46,6 +75,19 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
       </view>
     </view>
 
+    <!-- 加载中 -->
+    <view v-if="loading" class="state-wrap">
+      <view class="state-spinner" />
+      <text class="state-text">加载中...</text>
+    </view>
+    <!-- 加载失败 -->
+    <view v-else-if="error" class="state-wrap">
+      <view class="state-icon"><AppIcon name="alert-circle" :size="56" color="#c41e3a" /></view>
+      <text class="state-text">加载失败，请重试</text>
+      <view class="state-retry" @tap="fetchData"><text class="state-retry-text">点击重试</text></view>
+    </view>
+    <!-- 内容 -->
+    <template v-else>
     <!-- 评价总览 -->
     <view class="overview">
       <view class="ov-rate">
@@ -155,6 +197,7 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
         />
       </view>
     </view>
+    </template>
   </view>
 </template>
 
@@ -234,4 +277,13 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
 .preview-dots { position: absolute; bottom: 60rpx; left: 0; right: 0; display: flex; align-items: center; justify-content: center; gap: 16rpx; }
 .preview-dot { width: 16rpx; height: 16rpx; border-radius: 50%; background: rgba(255,255,255,0.3); }
 .preview-dot-on { background: #fff; }
+
+/* 三态：加载/错误 */
+.state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 0; }
+.state-spinner { width: 64rpx; height: 64rpx; border: 4rpx solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.state-icon { width: 120rpx; height: 120rpx; border-radius: 50%; background: rgba(196,30,58,0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx; }
+.state-text { font-size: 26rpx; color: var(--text-soft); margin-top: 20rpx; }
+.state-retry { margin-top: 32rpx; padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
+.state-retry-text { font-size: 26rpx; color: #fff; font-weight: 500; }
 </style>

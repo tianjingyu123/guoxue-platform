@@ -1,19 +1,44 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
 import {
-  settingNotifyItems, settingCollectOptions, settingFontOptions,
+  mineApi, settingCollectOptions, settingFontOptions,
   settingDarkOptions, settingCacheSize,
+  type SettingNotifyItem,
 } from '@/lib/mine-data'
 
+const loading = ref(true)
+const error = ref('')
+const notifyItems = ref<SettingNotifyItem[]>([])
+
 // 通知开关
-const notifications = ref<Record<string, boolean>>(
-  Object.fromEntries(settingNotifyItems.map((i) => [i.key, i.value])),
-)
+const notifications = ref<Record<string, boolean>>({})
 function toggleNotify(key: string) {
   notifications.value[key] = !notifications.value[key]
 }
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await mineApi.getNotifySettings()
+    notifyItems.value = data
+    notifications.value = Object.fromEntries(data.map((i) => [i.key, i.value]))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
 
 // 通用设置
 const fontSize = ref('medium')
@@ -66,7 +91,12 @@ function pickOption(v: string) {
     <!-- 顶部导航 -->
     <app-nav-bar title="设置" />
 
-    <scroll-view scroll-y class="scroll">
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state">
+      <text>{{ error }}</text>
+      <view class="retry-btn" @tap="retry">重试</view>
+    </view>
+    <scroll-view v-else scroll-y class="scroll">
       <!-- 账号安全 -->
       <view class="group">
         <text class="group-title">账号安全</text>
@@ -106,7 +136,7 @@ function pickOption(v: string) {
       <view class="group">
         <text class="group-title">通知设置</text>
         <view class="card">
-          <view v-for="item in settingNotifyItems" :key="item.key" class="row">
+          <view v-for="item in notifyItems" :key="item.key" class="row">
             <AppIcon :name="item.icon" :size="18" color="#999" />
             <text class="row-label">{{ item.label }}</text>
             <view class="switch" :class="{ on: notifications[item.key] }" @tap="toggleNotify(item.key)">
@@ -463,4 +493,8 @@ function pickOption(v: string) {
   font-size: 28rpx;
   color: #999;
 }
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

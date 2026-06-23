@@ -3,6 +3,20 @@
     <!-- 顶部导航 -->
     <app-nav-bar title="商品评价" :back-size="38" />
 
+    <!-- 加载中 -->
+    <view v-if="loading" class="state-wrap">
+      <text class="state-text">加载中...</text>
+    </view>
+    <!-- 错误 -->
+    <view v-else-if="error" class="state-wrap">
+      <app-icon name="alert-circle" :size="56" color="#E74C3C" />
+      <text class="state-text">{{ error }}</text>
+      <view class="retry-btn" hover-class="opt-hover" @tap="retry">
+        <text class="retry-btn-text">重试</text>
+      </view>
+    </view>
+    <!-- 内容 -->
+    <template v-else>
     <!-- 评分概览 -->
     <view class="summary-card">
       <view class="summary-left">
@@ -93,6 +107,7 @@
         </view>
       </view>
     </view>
+      </template>
 
     <!-- 图片预览 -->
     <view v-if="previewImage" class="viewer" @tap="previewImage = ''">
@@ -114,21 +129,56 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-
-import { shopReviewStats, shopReviewList, type ShopProductReview } from '@/lib/shop-data'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { shopApi, type ShopProductReview } from '@/lib/shop-data'
 
 type FilterType = 'all' | 'good' | 'medium' | 'bad' | 'images'
 
-const stats = ref(shopReviewStats)
-const reviews = ref<ShopProductReview[]>(shopReviewList)
+const productId = ref('1')
+const stats = ref<any>({ average: 0, total: 0, withImages: 0, distribution: [] })
+const reviews = ref<ShopProductReview[]>([])
 const filter = ref<FilterType>('all')
 const previewImage = ref('')
 const previewImages = ref<string[]>([])
 const previewIndex = ref(0)
+const loading = ref(true)
+const error = ref('')
+
+onLoad((q: any) => {
+  if (q?.id) productId.value = q.id
+})
+
+onMounted(async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await shopApi.getShopReviews(productId.value)
+    stats.value = res.stats
+    reviews.value = res.list
+  } catch (_e) {
+    error.value = '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+})
+
+function retry() {
+  loading.value = true
+  error.value = ''
+  shopApi.getShopReviews(productId.value).then((res) => {
+    stats.value = res.stats
+    reviews.value = res.list
+  }).catch(() => {
+    error.value = '加载失败，请重试'
+  }).finally(() => {
+    loading.value = false
+  })
+}
 
 const filterTabs = computed(() => {
   const d = stats.value.distribution
+  if (!d || !d.length) return []
   return [
     { key: 'all' as FilterType, label: '全部', count: stats.value.total },
     { key: 'good' as FilterType, label: '好评', count: d[0].count + d[1].count },
@@ -406,5 +456,28 @@ function setPreview(idx: number) {
   width: 28rpx;
   border-radius: 6rpx;
   background: #fff;
+}
+
+/* 加载/错误状态 */
+.state-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 0;
+  gap: 24rpx;
+}
+.state-text {
+  font-size: 28rpx;
+  color: #999;
+}
+.retry-btn {
+  padding: 16rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.retry-btn-text {
+  font-size: 26rpx;
+  color: #fff;
 }
 </style>

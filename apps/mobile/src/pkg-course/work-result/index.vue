@@ -1,18 +1,23 @@
 <script setup lang="ts">
 /** 作业批改结果页 - 从原型 app/courses/work-result/page.tsx 迁移(graded 状态) */
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-// @data-needs: 作业批改结果, 参数 workId, 返回 WorkResult
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { workResult as work } from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
 
-const statusMap = {
+const loading = ref(true)
+const error = ref('')
+const workId = ref('')
+
+const work = ref<any>(null)
+
+const statusMap: Record<string, any> = {
   pending: { text: '批改中', color: '#f97316', bg: '#FFF7ED', iconBg: '#FFEDD5', icon: 'clock' },
   graded: { text: '已批改', color: '#16a34a', bg: '#F0FDF4', iconBg: '#DCFCE7', icon: 'check-circle' },
   returned: { text: '已退回', color: '#ef4444', bg: '#FEF2F2', iconBg: '#FEE2E2', icon: 'alert-circle' },
-} as const
-const st = computed(() => statusMap[work.status])
+}
+const st = computed(() => work.value ? (statusMap[work.value.status] || statusMap.pending) : statusMap.pending)
 
 function scoreColor(score: number, max: number) {
   const p = score / max
@@ -28,10 +33,41 @@ function barColor(score: number, max: number) {
   if (p >= 0.6) return '#f97316'
   return '#ef4444'
 }
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await courseApi.getWorkResult(workId.value)
+    work.value = res
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((options: any) => {
+  workId.value = options?.workId || options?.id || '1'
+})
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <template>
-  <view class="page">
+  <!-- Loading -->
+  <view v-if="loading" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <!-- Error -->
+  <view v-else-if="error" class="error-wrap">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <!-- Content -->
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="nav">
       <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
@@ -140,6 +176,7 @@ function barColor(score: number, max: number) {
       </view>
     </view>
   </view>
+  </view>
 </template>
 
 <style scoped>
@@ -202,4 +239,10 @@ function barColor(score: number, max: number) {
 .footer { padding: 32rpx; padding-bottom: calc(32rpx + env(safe-area-inset-bottom)); background: #fff; border-top: 1rpx solid #E8E3DB; }
 .footer-btn { height: 88rpx; border-radius: 999rpx; background: linear-gradient(to right, #C41E3A, #E74C3C); display: flex; align-items: center; justify-content: center; gap: 12rpx; }
 .footer-btn-txt { font-size: 30rpx; font-weight: 600; color: #fff; }
+
+/* 加载 / 错误 */
+.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

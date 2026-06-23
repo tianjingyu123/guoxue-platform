@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { pwdRules, calcPwdStrength } from '@/lib/mine-data'
+import { mineApi, pwdRules, calcPwdStrength } from '@/lib/mine-data'
 
 const oldPwd = ref('')
 const newPwd = ref('')
@@ -40,12 +40,17 @@ function validate() {
 }
 
 async function handleSubmit() {
-  if (!validate()) return
+  if (!validate() || loading.value) return
   loading.value = true
-  await new Promise((r) => setTimeout(r, 1200))
-  loading.value = false
-  showToast('密码修改成功', 'success')
-  setTimeout(() => goBack(), 1000)
+  try {
+    await mineApi.changePassword({ oldPassword: oldPwd.value, newPassword: newPwd.value })
+    showToast('密码修改成功', 'success')
+    setTimeout(() => goBack(), 1000)
+  } catch (e: any) {
+    showToast(e?.message || '修改失败', 'error')
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 

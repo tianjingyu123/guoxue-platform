@@ -1,17 +1,22 @@
 <script setup lang="ts">
 /** 作业提交页 - 从原型 app/courses/work-submit/page.tsx 迁移 */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-// @data-needs: 作业要求, 参数 chapterId, 返回 WorkRequirement
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { workRequirement as requirement } from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
+
+const loading = ref(true)
+const error = ref('')
+const chapterId = ref('')
+
+const requirement = ref<any>(null)
 
 const content = ref('')
 const images = ref<string[]>([])
 
 const wordCount = computed(() => content.value.length)
-const canSubmit = computed(() => wordCount.value >= requirement.minWords)
+const canSubmit = computed(() => wordCount.value >= (requirement.value?.minWords ?? 0))
 
 function removeImage(index: number) {
   images.value = images.value.filter((_, i) => i !== index)
@@ -19,10 +24,41 @@ function removeImage(index: number) {
 // 选图/提交为交互行为，交付时接 uploadApi/submitWork
 function onAddImage() {}
 function onSubmit() {}
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await courseApi.getWorkRequirement(chapterId.value)
+    requirement.value = res
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((options: any) => {
+  chapterId.value = options?.chapterId || options?.id || '1'
+})
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <template>
-  <view class="page">
+  <!-- Loading -->
+  <view v-if="loading" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <!-- Error -->
+  <view v-else-if="error" class="error-wrap">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <!-- Content -->
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="nav">
       <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#2C2C2C" /></view>
@@ -99,6 +135,7 @@ function onSubmit() {}
       </view>
     </view>
   </view>
+  </view>
 </template>
 
 <style scoped>
@@ -144,4 +181,10 @@ function onSubmit() {}
 .submit-btn.disabled { background: #E8E3DB; box-shadow: none; }
 .submit-txt { font-size: 30rpx; font-weight: 600; color: #fff; }
 .submit-txt.disabled { color: #999; }
+
+/* 加载 / 错误 */
+.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

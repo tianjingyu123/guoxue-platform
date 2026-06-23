@@ -4,8 +4,31 @@
     <app-nav-bar title="申请换货" :back-size="38" />
 
     <view class="content">
-      <!-- 选择换货商品 -->
-      <view class="card">
+      <!-- 加载中 -->
+      <view v-if="loading" class="state-box">
+        <view class="state-spin" />
+        <text class="state-text">加载中...</text>
+      </view>
+      <!-- 加载失败 -->
+      <view v-else-if="error" class="state-box">
+        <view class="state-icon">
+          <app-icon name="alert-circle" :size="72" color="#b8ab94" />
+        </view>
+        <text class="state-text">{{ error }}</text>
+        <view class="state-retry" @tap="retryLoad">
+          <text class="state-retry-text">重试</text>
+        </view>
+      </view>
+      <!-- 空数据 -->
+      <view v-else-if="!products.length" class="state-box">
+        <view class="state-icon">
+          <app-icon name="package" :size="72" color="#b8ab94" />
+        </view>
+        <text class="state-text">暂无商品数据</text>
+      </view>
+      <template v-else>
+        <!-- 选择换货商品 -->
+        <view class="card">
         <view class="card-head">
           <app-icon name="package" :size="34" color="#C41E3A" />
           <text class="card-title">选择换货商品</text>
@@ -217,27 +240,28 @@
         </view>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
 import {
-  shopExchangeReasons,
-  shopExchangeProducts,
-  shopExchangeAddresses,
+  shopApi,
   type ShopExchangeProduct,
   type ShopExchangeAddress,
 } from '@/lib/shop-data'
 
 const safeBottom = ref(0)
 const orderId = ref('')
+const loading = ref(true)
+const error = ref('')
 
-const reasons = ref(shopExchangeReasons)
-const products = ref<ShopExchangeProduct[]>(shopExchangeProducts)
-const addresses = ref<ShopExchangeAddress[]>(shopExchangeAddresses)
+const reasons = ref<{ value: string; label: string }[]>([])
+const products = ref<ShopExchangeProduct[]>([])
+const addresses = ref<ShopExchangeAddress[]>([])
 
 const selectedProduct = ref<ShopExchangeProduct | null>(null)
 const reason = ref('')
@@ -261,13 +285,25 @@ const availableSkus = computed(() => selectedProduct.value?.skus.filter((s) => s
 
 onLoad((q) => {
   if (q && q.orderId) orderId.value = String(q.orderId)
-  const def = addresses.value.find((a) => a.isDefault)
-  if (def) selectedAddress.value = def
   try {
     const info = uni.getSystemInfoSync()
     safeBottom.value = info.safeAreaInsets ? info.safeAreaInsets.bottom : 0
   } catch (e) {
     safeBottom.value = 0
+  }
+})
+onMounted(async () => {
+  try {
+    const res = await shopApi.getExchange()
+    reasons.value = res.reasons
+    products.value = res.products
+    addresses.value = res.addresses
+    const def = addresses.value.find((a) => a.isDefault)
+    if (def) selectedAddress.value = def
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
+  } finally {
+    loading.value = false
   }
 })
 
@@ -314,6 +350,22 @@ function handleSubmit() {
     submitting.value = false
     navigateTo('/shop/my-after-sales')
   }, 800)
+}
+async function retryLoad() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await shopApi.getExchange()
+    reasons.value = res.reasons
+    products.value = res.products
+    addresses.value = res.addresses
+    const def = addresses.value.find((a) => a.isDefault)
+    if (def) selectedAddress.value = def
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -758,5 +810,47 @@ function handleSubmit() {
 .addr-pick-active {
   border-color: #c41e3a;
   background: #fdf2f3;
+}
+
+/* 三态UI */
+.state-box {
+  padding: 96rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+}
+.state-spin {
+  width: 64rpx;
+  height: 64rpx;
+  border: 4rpx solid #e8e3db;
+  border-top-color: #c41e3a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.state-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: #f0ece2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.state-text {
+  font-size: 26rpx;
+  color: #b8ab94;
+}
+.state-retry {
+  padding: 12rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.state-retry-text {
+  font-size: 26rpx;
+  color: #fff;
 }
 </style>

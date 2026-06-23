@@ -53,6 +53,15 @@
               <AppSkeleton width="40%" height="22rpx" />
             </view>
           </view>
+          <view v-else-if="error" class="empty">
+            <view class="empty-icon">
+              <app-icon name="alert-circle" :size="56" color="#E74C3C" />
+            </view>
+            <text class="empty-text">{{ error }}</text>
+            <view class="retry-btn" hover-class="opt-hover" @tap="retry">
+              <text class="retry-text">重试</text>
+            </view>
+          </view>
           <view v-else-if="products.length" class="goods-grid content-fade-in">
             <view
               v-for="p in products"
@@ -83,16 +92,54 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from '@/utils/router'
-import { shopCategoryTree, shopCategoryProducts, type ShopCategoryNode } from '@/lib/shop-data'
+import { shopApi, type ShopCategoryNode, type ShopCategoryProduct } from '@/lib/shop-data'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 
-const categories = ref<ShopCategoryNode[]>(shopCategoryTree)
-const products = ref(shopCategoryProducts)
-const selectedCategory = ref(shopCategoryTree[0]?.id || '')
-const selectedSubCategory = ref(shopCategoryTree[0]?.children[0]?.id || '')
-const loading = ref(false)
+const IMG = '/static/images/products'
+
+/** 本地产品后备数据（待后端 API 支持品类产品后移除） */
+const _localProducts: ShopCategoryProduct[] = [
+  { id: 'cp1', name: '易经全解', cover: `${IMG}/book1.jpg`, price: 128, originalPrice: 168, sales: 100 },
+  { id: 'cp2', name: '毛笔套装', cover: `${IMG}/item4.jpg`, price: 89, originalPrice: 128, sales: 237 },
+  { id: 'cp3', name: '沉香线香', cover: `${IMG}/item5.jpg`, price: 168, originalPrice: 218, sales: 374 },
+  { id: 'cp4', name: '紫砂茶壶', cover: `${IMG}/item3.jpg`, price: 299, originalPrice: 399, sales: 511 },
+  { id: 'cp5', name: '艾灸盒', cover: `${IMG}/item6.jpg`, price: 68, originalPrice: 98, sales: 648 },
+  { id: 'cp6', name: '招财貔貅', cover: `${IMG}/item2.jpg`, price: 388, originalPrice: 488, sales: 785 },
+  { id: 'cp7', name: '小叶紫檀念珠', cover: `${IMG}/item1.jpg`, price: 258, originalPrice: 328, sales: 922 },
+  { id: 'cp8', name: '古琴入门', cover: `${IMG}/item7.jpg`, price: 1999, originalPrice: 2599, sales: 1059 },
+]
+
+const categories = ref<ShopCategoryNode[]>([])
+const products = ref<ShopCategoryProduct[]>([])
+const selectedCategory = ref('')
+const selectedSubCategory = ref('')
+const loading = ref(true)
+const error = ref('')
+
+async function loadCategories() {
+  loading.value = true
+  error.value = ''
+  try {
+    categories.value = await shopApi.getCategories()
+    products.value = _localProducts
+    if (categories.value.length > 0 && !selectedCategory.value) {
+      selectedCategory.value = categories.value[0].id
+      if (categories.value[0].children.length > 0) {
+        selectedSubCategory.value = categories.value[0].children[0].id
+      }
+    }
+  } catch (_e) {
+    error.value = '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { loadCategories() })
+
+function retry() { loadCategories() }
 
 function triggerLoading() {
   loading.value = true
@@ -325,5 +372,15 @@ function goSearch() {
 .empty-text {
   font-size: 28rpx;
   color: #999;
+}
+.retry-btn {
+  margin-top: 24rpx;
+  padding: 16rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.retry-text {
+  font-size: 26rpx;
+  color: #fff;
 }
 </style>

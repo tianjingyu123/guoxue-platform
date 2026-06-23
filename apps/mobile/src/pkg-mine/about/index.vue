@@ -12,8 +12,10 @@
       <text class="hero-slogan">传承智慧 · 启迪人生</text>
     </view>
 
-    <!-- 内容 -->
-    <view class="content">
+    <!-- 加载/错误/内容 -->
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+    <view v-else class="content">
       <!-- 介绍 -->
       <text class="intro">
         热卜国学是一个专注于中华传统文化传承与学习的综合性平台。我们汇聚了易经、风水、命理、中医养生等领域的专家学者，致力于让国学智慧以现代化的方式传播，帮助更多人了解和受益于中华传统文化的精髓。
@@ -68,14 +70,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import { navigateTo } from '@/utils/router'
-import { aboutStats, aboutFeatures } from '@/lib/mine-data'
+import { mineApi, type AboutStat, type AboutFeature } from '@/lib/mine-data'
 
 // 热卜 logo（根 public 与 vue3 共享，:src 动态绑定避免 Vite 静态解析报错）
 const logoSrc = ref('/images/logo.jpg')
+
+const aboutStats = ref<AboutStat[]>([])
+const aboutFeatures = ref<AboutFeature[]>([])
+const loading = ref(true)
+const error = ref('')
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await mineApi.getAbout()
+    aboutStats.value = data.stats
+    aboutFeatures.value = data.features
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
 
 function goFeedback() {
   navigateTo('/feedback')
@@ -87,6 +116,12 @@ function goFeedback() {
   min-height: 100vh;
   background: #faf8f5;
 }
+
+/* 三态 */
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 
 /* Hero */
 .hero {

@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { mineProfile } from '@/lib/mine-data'
+import { mineApi } from '@/lib/mine-data'
 
 const step = ref(1)
-const currentPhone = mineProfile.phone
+const currentPhone = ref('')
+const profileLoading = ref(true)
+const profileError = ref('')
 const verifyCode = ref('')
 const newPhone = ref('')
 const newCode = ref('')
@@ -19,6 +21,27 @@ const steps = [
   { num: 2, label: '绑定新号' },
   { num: 3, label: '完成' },
 ]
+
+async function fetchProfile() {
+  profileLoading.value = true
+  profileError.value = ''
+  try {
+    const profile = await mineApi.getProfile()
+    currentPhone.value = profile.phone
+  } catch (e: any) {
+    profileError.value = e?.message || '加载失败'
+  } finally {
+    profileLoading.value = false
+  }
+}
+
+function retryProfile() {
+  fetchProfile()
+}
+
+onMounted(() => {
+  fetchProfile()
+})
 
 let timer1: ReturnType<typeof setInterval> | null = null
 let timer2: ReturnType<typeof setInterval> | null = null
@@ -57,11 +80,17 @@ async function verifyCurrentPhone() {
     error.value = '请输入6位验证码'
     return
   }
+  if (loading.value) return
   loading.value = true
   error.value = ''
-  await new Promise((r) => setTimeout(r, 1000))
-  loading.value = false
-  step.value = 2
+  try {
+    await mineApi.changePhone({ step: 'verify', code: verifyCode.value })
+    step.value = 2
+  } catch (e: any) {
+    error.value = e?.message || '验证失败'
+  } finally {
+    loading.value = false
+  }
 }
 async function submitNewPhone() {
   if (newPhone.value.length !== 11) {
@@ -72,12 +101,18 @@ async function submitNewPhone() {
     error.value = '请输入6位验证码'
     return
   }
+  if (loading.value) return
   loading.value = true
   error.value = ''
-  await new Promise((r) => setTimeout(r, 1500))
-  loading.value = false
-  step.value = 3
-  setTimeout(() => goBack(), 2000)
+  try {
+    await mineApi.changePhone({ step: 'bind', phone: newPhone.value, code: newCode.value })
+    step.value = 3
+    setTimeout(() => goBack(), 2000)
+  } catch (e: any) {
+    error.value = e?.message || '绑定失败'
+  } finally {
+    loading.value = false
+  }
 }
 function maskedNewPhone() {
   return newPhone.value.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
@@ -108,6 +143,10 @@ onUnmounted(() => {
       </view>
     </view>
 
+    <!-- 个人信息加载/错误 -->
+    <view v-if="profileLoading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="profileError" class="error-state"><text>{{ profileError }}</text><view class="retry-btn" @tap="retryProfile">重试</view></view>
+    <template v-else>
     <!-- 步骤1 -->
     <view v-if="step === 1" class="body">
       <view class="card">
@@ -180,6 +219,7 @@ onUnmounted(() => {
         <text class="done-tip">页面即将自动返回...</text>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
@@ -188,6 +228,12 @@ onUnmounted(() => {
   min-height: 100vh;
   background: #faf8f5;
 }
+
+/* 三态 */
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 .steps {
   display: flex;
   align-items: flex-start;

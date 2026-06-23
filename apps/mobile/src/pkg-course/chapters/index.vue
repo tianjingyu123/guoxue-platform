@@ -1,11 +1,17 @@
 <script setup lang="ts">
 /** 课程章节列表页(学习进度) - 从原型 app/courses/[id]/chapters/page.tsx 迁移 */
-import { ref, computed } from 'vue'
+import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-// @data-needs: 章节学习进度, 参数 courseId, 返回 { progress:CourseProgress, chapters:ProgressChapter[] }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { courseProgress as course, progressChapters as chapters, type LessonStatus, type ProgressLesson } from '@/lib/course-data'
+import { courseApi, type ProgressLesson } from '@/lib/course-data'
+
+const loading = ref(true)
+const error = ref('')
+const courseId = ref('')
+
+const course = ref<any>(null)
+const chapters = ref<any[]>([])
 
 const isRefreshing = ref(false)
 
@@ -17,17 +23,51 @@ function formatDuration(seconds: number) {
 function chapterDone(lessons: ProgressLesson[]) { return lessons.filter((l) => l.status === 'completed').length }
 function onLessonClick(lesson: ProgressLesson) {
   if (lesson.status === 'locked') { uni.showToast({ title: '请先完成前面的课程或购买完整课程以解锁', icon: 'none' }); return }
-  navigateTo(`/courses/${course.id}/player?lesson=${lesson.id}`)
+  navigateTo(`/courses/${course.value?.id}/player?lesson=${lesson.id}`)
+}
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [progress, progressChapters] = await Promise.all([
+      courseApi.getProgress(courseId.value),
+      courseApi.getProgressChapters(courseId.value),
+    ])
+    course.value = progress
+    chapters.value = progressChapters
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 function onRefresh() {
   if (isRefreshing.value) return
   isRefreshing.value = true
-  setTimeout(() => { isRefreshing.value = false }, 500)
+  loadData().finally(() => { isRefreshing.value = false })
 }
+
+onLoad((options: any) => {
+  courseId.value = options?.id || '1'
+})
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <template>
-  <view class="page">
+  <!-- Loading -->
+  <view v-if="loading" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <!-- Error -->
+  <view v-else-if="error" class="error-wrap">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <!-- Content -->
+  <view v-else class="page">
     <!-- 顶部导航 + 进度条 -->
     <view class="topbar">
       <view class="nav">
@@ -96,6 +136,7 @@ function onRefresh() {
     </view>
     <view class="safe-bottom" />
   </view>
+  </view>
 </template>
 
 <style scoped>
@@ -147,4 +188,10 @@ function onRefresh() {
 .lesson-learning { font-size: 22rpx; color: #C41E3A; margin-left: 8rpx; }
 
 .safe-bottom { height: 48rpx; }
+
+/* 加载 / 错误 */
+.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

@@ -1,17 +1,20 @@
 <script setup lang="ts">
 /** 讲师详情页 - 从原型 institute/instructors/[id]/page.tsx 迁移 */
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-import {
-  instructorDetail as detail,
-  getInstructorLevelLabel,
-  getInstructorLevelStyle,
-} from '@/lib/instructor-data'
+import { instructorApi, getInstructorLevelLabel, getInstructorLevelStyle } from '@/lib/instructor-data'
+
+const loading = ref(true)
+const error = ref('')
+const instructorId = ref('')
+
+const detail = ref<any>(null)
 
 const tab = ref<'intro' | 'courses' | 'reviews'>('intro')
-const following = ref(detail.isFollowing)
-const levelStyle = getInstructorLevelStyle(detail.level)
+const following = ref(false)
+const levelStyle = computed(() => detail.value ? getInstructorLevelStyle(detail.value.level) : { color: '#999', bg: '#f0f0f0' })
 
 const tabs = [
   { key: 'intro' as const, label: '简介' },
@@ -23,12 +26,44 @@ function toggleFollow() {
   following.value = !following.value
 }
 function onBooking() {
-  navigateTo(`/offline/teacher-booking?instructorId=${detail.id}`)
+  navigateTo(`/offline/teacher-booking?instructorId=${detail.value?.id}`)
 }
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await instructorApi.getDetail(instructorId.value)
+    detail.value = res
+    following.value = res.isFollowing
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((options: any) => {
+  instructorId.value = options?.id || '1'
+})
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <template>
-  <view class="page">
+  <!-- Loading -->
+  <view v-if="loading" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <!-- Error -->
+  <view v-else-if="error" class="error-wrap">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <!-- Content -->
+  <view v-else class="page">
     <!-- 顶栏 -->
     <view class="nav">
       <view class="nav-back" @tap="goBack">
@@ -205,6 +240,7 @@ function onBooking() {
       </view>
     </view>
   </view>
+  </view>
 </template>
 
 <style scoped>
@@ -334,4 +370,10 @@ function onBooking() {
   height: 88rpx; background: #C41E3A; border-radius: 16rpx;
   font-size: 30rpx; font-weight: 600; color: #ffffff;
 }
+
+/* 加载 / 错误 */
+.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

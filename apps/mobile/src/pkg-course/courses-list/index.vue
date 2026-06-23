@@ -6,10 +6,16 @@ import AppIcon from '@/components/common/app-icon.vue'
 import CourseCard from '@/components/cards/course-card.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-import {
-  courseListCategories, courseSortOptions, recommendedCourses,
-  flashSaleCourses, courseListMock,
-} from '@/lib/courses-list-data'
+import { coursesListApi, courseSortOptions } from '@/lib/courses-list-data'
+
+const loading = ref(true)
+const error = ref('')
+
+// 数据ref
+const courseListCategories = ref<any[]>([])
+const recommendedCourses = ref<any[]>([])
+const flashSaleCourses = ref<any[]>([])
+const allCourses = ref<any[]>([])
 
 // 路由参数初始化
 const searchQuery = ref('')
@@ -38,7 +44,7 @@ const flashEndTimes: Record<string, number> = {}
 function updateCountdowns() {
   const now = Date.now()
   const next: Record<string, Countdown> = {}
-  flashSaleCourses.forEach((c) => {
+  flashSaleCourses.value.forEach((c) => {
     const remaining = Math.max(0, flashEndTimes[c.id] - now)
     const h = Math.floor(remaining / (1000 * 60 * 60))
     const m = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
@@ -52,19 +58,53 @@ function updateCountdowns() {
   flashCountdowns.value = next
 }
 
-onMounted(() => {
+function startTimers() {
   // 初始化秒杀结束时间
   const base = Date.now()
-  flashSaleCourses.forEach((c) => { flashEndTimes[c.id] = base + c.offsetMs })
+  flashSaleCourses.value.forEach((c) => { flashEndTimes[c.id] = base + c.offsetMs })
   updateCountdowns()
   flashTimer = setInterval(updateCountdowns, 1000)
-  bannerTimer = setInterval(() => {
-    currentBanner.value = (currentBanner.value + 1) % recommendedCourses.length
-  }, 4000)
-})
-onUnmounted(() => {
+  if (recommendedCourses.value.length > 0) {
+    bannerTimer = setInterval(() => {
+      currentBanner.value = (currentBanner.value + 1) % recommendedCourses.value.length
+    }, 4000)
+  }
+}
+
+function stopTimers() {
   if (flashTimer) clearInterval(flashTimer)
   if (bannerTimer) clearInterval(bannerTimer)
+}
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [categories, recommended, flashSale, courses] = await Promise.all([
+      coursesListApi.getCategories(),
+      coursesListApi.getRecommended(),
+      coursesListApi.getFlashSale(),
+      coursesListApi.list(activeCategory.value, activeSort.value),
+    ])
+    courseListCategories.value = categories
+    recommendedCourses.value = recommended
+    flashSaleCourses.value = flashSale
+    allCourses.value = courses
+    // 数据加载完成后启动定时器
+    startTimers()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadData()
+})
+
+onUnmounted(() => {
+  stopTimers()
 })
 
 // 当前排序名
@@ -72,7 +112,7 @@ const activeSortName = computed(() => courseSortOptions.find((s) => s.id === act
 
 // 过滤后的课程
 const filteredCourses = computed(() =>
-  courseListMock.filter((course) => {
+  allCourses.value.filter((course) => {
     const matchCategory = activeCategory.value === 'all' || course.category === activeCategory.value
     const matchSearch = searchQuery.value === '' || course.title.includes(searchQuery.value) || (course.teacher ?? '').includes(searchQuery.value)
     const matchFree = !onlyFree.value || course.free
@@ -90,7 +130,17 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
 </script>
 
 <template>
-  <view class="page">
+  <!-- Loading -->
+  <view v-if="loading" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <!-- Error -->
+  <view v-else-if="error" class="error-wrap">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <!-- Content -->
+  <view v-else class="page">
     <!-- 顶部栏 -->
     <view class="hdr">
       <view class="hdr-bar">
@@ -277,6 +327,7 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
 
     <bottom-nav active="discover" />
   </view>
+  </view>
 </template>
 
 <style scoped lang="scss">
@@ -381,4 +432,10 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
 .filter-foot { position: absolute; left: 32rpx; right: 32rpx; bottom: 32rpx; display: flex; gap: 24rpx; }
 .filter-reset { flex: 1; height: 80rpx; display: flex; align-items: center; justify-content: center; border: 2rpx solid var(--line); border-radius: 999rpx; font-size: 26rpx; color: var(--text); }
 .filter-confirm { flex: 1; height: 80rpx; display: flex; align-items: center; justify-content: center; background: var(--brand); border-radius: 999rpx; font-size: 26rpx; font-weight: 500; color: #fff; }
+
+/* 加载 / 错误 */
+.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

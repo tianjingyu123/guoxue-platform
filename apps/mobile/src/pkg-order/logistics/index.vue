@@ -3,7 +3,10 @@
     <app-nav-bar title="物流详情" :back-size="40" :title-size="36" :bar-height="106" title-align="left" />
 
     <scroll-view scroll-y class="scroll-area">
+      <view v-if="loading" class="loading"><text>加载中...</text></view>
+      <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
       <!-- 物流状态卡 -->
+      <block v-else>
       <view class="status-card">
         <view class="status-head">
           <view class="status-icon">
@@ -79,20 +82,45 @@
       </view>
 
       <view class="bottom-gap" />
+      </block>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { mockLogistics as logisticsDetail, logisticsStatusMap } from '@/lib/order-data'
+import { onLoad, onMounted } from '@dcloudio/uni-app'
+import { orderApi, logisticsStatusMap } from '@/lib/order-data'
 
-const data = ref(logisticsDetail)
+const loading = ref(true)
+const error = ref('')
+const data = ref<any>(null)
+const orderId = ref('')
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    data.value = await orderApi.logistics(orderId.value)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+function retry() { loadData() }
+
 const statusMeta = computed(
-  () => logisticsStatusMap[data.value.status] || { label: '运输中', color: '#C41E3A' },
+  () => logisticsStatusMap[data.value?.status] || { label: '运输中', color: '#C41E3A' },
 )
 
+onLoad((q: any) => {
+  if (q?.id) orderId.value = q.id
+})
+onMounted(() => { loadData() })
+
 function copyNo() {
+  if (!data.value?.trackingNo) return
   uni.setClipboardData({
     data: data.value.trackingNo,
     success: () => uni.showToast({ title: '已复制单号', icon: 'none' }),
@@ -100,11 +128,11 @@ function copyNo() {
 }
 
 function callCompany() {
-  uni.makePhoneCall({ phoneNumber: data.value.companyPhone })
+  if (data.value?.companyPhone) uni.makePhoneCall({ phoneNumber: data.value.companyPhone })
 }
 
 function callCourier() {
-  if (data.value.courierPhone) uni.makePhoneCall({ phoneNumber: data.value.courierPhone })
+  if (data.value?.courierPhone) uni.makePhoneCall({ phoneNumber: data.value.courierPhone })
 }
 </script>
 
@@ -315,4 +343,8 @@ function callCourier() {
 .bottom-gap {
   height: 40rpx;
 }
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #999999; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #999999; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

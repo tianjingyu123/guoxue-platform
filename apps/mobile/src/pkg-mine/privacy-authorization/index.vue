@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { toastComingSoon } from '@/utils/router'
-import { appPermissions, type AppPermission, type PermissionStatus } from '@/lib/mine-data'
+import { mineApi, type AppPermission, type PermissionStatus } from '@/lib/mine-data'
 
-const permissions = ref<AppPermission[]>(appPermissions.map((p) => ({ ...p })))
-
+const permissions = ref<AppPermission[]>([])
+const loading = ref(true)
+const error = ref('')
 const selected = ref<AppPermission | null>(null)
 const showAuthSheet = ref(false)
 const showAuthorizedDialog = ref(false)
+const submitting = ref(false)
 
 const authorizedSet: PermissionStatus[] = ['authorized', 'always', 'while_using']
 
@@ -18,6 +20,27 @@ const authorizedCount = computed(
 const summaryAvatars = computed(() =>
   permissions.value.filter((p) => authorizedSet.includes(p.status)).slice(0, 4),
 )
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await mineApi.getPermissions()
+    permissions.value = data.map((p) => ({ ...p }))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
 
 function statusText(s: PermissionStatus) {
   return { authorized: '已授权', always: '始终允许', while_using: '使用时允许', denied: '已拒绝', not_determined: '未设置' }[s]
@@ -35,14 +58,23 @@ function onRowTap(p: AppPermission) {
   }
 }
 
-function authorize(type: 'always' | 'while_using' | 'authorized' | 'deny') {
-  if (!selected.value) return
+async function authorize(type: 'always' | 'while_using' | 'authorized' | 'deny') {
+  if (!selected.value || submitting.value) return
   const id = selected.value.id
-  permissions.value = permissions.value.map((p) =>
-    p.id === id ? { ...p, status: type === 'deny' ? 'denied' : type } : p,
-  )
-  showAuthSheet.value = false
-  selected.value = null
+  const status: PermissionStatus = type === 'deny' ? 'denied' : type
+  submitting.value = true
+  try {
+    await mineApi.updatePermission(id, status)
+    permissions.value = permissions.value.map((p) =>
+      p.id === id ? { ...p, status } : p,
+    )
+  } catch {
+    // 更新失败静默处理
+  } finally {
+    showAuthSheet.value = false
+    selected.value = null
+    submitting.value = false
+  }
 }
 </script>
 
@@ -50,7 +82,13 @@ function authorize(type: 'always' | 'while_using' | 'authorized' | 'deny') {
   <view class="page">
     <app-nav-bar title="隐私授权管理" :back-size="40" />
 
-    <scroll-view scroll-y class="scroll">
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state">
+      <text>{{ error }}</text>
+      <view class="retry-btn" @tap="retry">重试</view>
+    </view>
+    <view v-else-if="!permissions.length" class="empty-page"><text>暂无权限数据</text></view>
+    <scroll-view v-else scroll-y class="scroll">
       <!-- 隐私保护说明 -->
       <view class="banner">
         <view class="banner-icon">
@@ -249,4 +287,9 @@ function authorize(type: 'always' | 'while_using' | 'authorized' | 'deny') {
 .dialog-btn.solid { background: #C41E3A; }
 .dialog-btn-text { font-size: 28rpx; color: #2C2C2C; font-weight: 500; }
 .solid-text { color: #fff; }
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.empty-page { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 </style>

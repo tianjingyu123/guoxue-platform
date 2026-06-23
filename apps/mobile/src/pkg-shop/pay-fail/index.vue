@@ -80,7 +80,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, redirectTo } from '@/utils/router'
-import { payFailReasons } from '@/lib/shop-data'
+import { shopApi, payFailReasons } from '@/lib/shop-data'
 
 const orderId = ref('')
 const reason = ref('default')

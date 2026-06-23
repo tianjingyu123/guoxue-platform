@@ -3,7 +3,10 @@
     <app-nav-bar title="退款进度" :back-size="40" :title-size="36" :bar-height="106" serif-title title-align="left" />
 
     <scroll-view scroll-y class="scroll-area">
+      <view v-if="loading" class="loading"><text>加载中...</text></view>
+      <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
       <!-- 退款金额卡片 -->
+      <block v-else>
       <view class="amount-card">
         <view class="amount-head">
           <app-icon name="wallet" :size="40" color="#FFFFFF" />
@@ -106,6 +109,7 @@
       </view>
 
       <view class="bottom-gap" />
+      </block>
     </scroll-view>
 
     <!-- 底部操作 -->
@@ -124,35 +128,56 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onMounted } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
-import { mockRefund as refundProgress } from '@/lib/order-data'
+import { orderApi } from '@/lib/order-data'
 
 const safeBottom = ref(0)
-const data = ref(refundProgress)
+const loading = ref(true)
+const error = ref('')
+const data = ref<any>(null)
+const orderId = ref('')
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    data.value = await orderApi.refundProgress(orderId.value)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+function retry() { loadData() }
 
 const refundMethod = '微信支付'
 const estimatedDate = '2024年1月18日'
 
-const currentIndex = computed(() => data.value.timeline.findIndex((n) => n.isCurrent))
+const currentIndex = computed(() => data.value?.timeline?.findIndex((n: any) => n.isCurrent) ?? -1)
 
 function nodeStatus(idx: number): 'completed' | 'refunding' | 'pending' {
+  if (!data.value) return 'pending'
   if (currentIndex.value === -1) return data.value.status === 'completed' ? 'completed' : 'pending'
   if (idx < currentIndex.value) return 'completed'
   if (idx === currentIndex.value) return 'refunding'
   return 'pending'
 }
 
-onLoad(() => {
+onLoad((q: any) => {
   try {
     const info = uni.getSystemInfoSync()
     safeBottom.value = info.safeAreaInsets?.bottom || 0
   } catch (e) {
     safeBottom.value = 0
   }
+  if (q?.id) orderId.value = q.id
 })
 
+onMounted(() => { loadData() })
+
 function copyId() {
+  if (!data.value?.id) return
   uni.setClipboardData({
     data: data.value.id,
     success: () => uni.showToast({ title: '已复制', icon: 'none' }),
@@ -162,10 +187,10 @@ function contactService() {
   uni.showToast({ title: '正在接入客服', icon: 'none' })
 }
 function viewOrder() {
-  navigateTo(`/orders/${data.value.orderId}`)
+  if (data.value?.orderId) navigateTo(`/orders/${data.value.orderId}`)
 }
 function goDispute() {
-  navigateTo(`/orders/dispute?orderId=${data.value.orderId}`)
+  if (data.value?.orderId) navigateTo(`/orders/dispute?orderId=${data.value.orderId}`)
 }
 </script>
 
@@ -460,4 +485,8 @@ function goDispute() {
   font-size: 28rpx;
   color: #2C2C2C;
 }
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #999999; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #999999; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

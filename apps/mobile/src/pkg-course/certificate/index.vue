@@ -1,20 +1,59 @@
 <script setup lang="ts">
 /** 课程结业证书页 - 从原型 app/courses/certificate/page.tsx 迁移 */
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-// @data-needs: 结业证书, 参数 courseId, 返回 Certificate。证书图建议由后端或 canvas 生成 imageUrl 填充 .cert-img
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { courseCertificate as cert } from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
 
-const dateStr = cert.completedAt
+const loading = ref(true)
+const error = ref('')
+const courseId = ref('')
+
+const cert = ref<any>(null)
+
+const dateStr = computed(() => cert.value?.completedAt ?? '')
+
 function fmtDate(s: string) {
+  if (!s) return ''
   const d = new Date(s)
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
 }
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await courseApi.getCertificate(courseId.value)
+    cert.value = res
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((options: any) => {
+  courseId.value = options?.id || '1'
+})
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <template>
-  <view class="page">
+  <!-- Loading -->
+  <view v-if="loading" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+  <!-- Error -->
+  <view v-else-if="error" class="error-wrap">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <!-- Content -->
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="nav">
       <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
@@ -97,6 +136,7 @@ function fmtDate(s: string) {
       </view>
     </view>
   </view>
+  </view>
 </template>
 
 <style scoped>
@@ -145,4 +185,10 @@ function fmtDate(s: string) {
 .btn-primary-txt { font-size: 30rpx; font-weight: 500; color: #fff; }
 .btn-secondary { height: 96rpx; border-radius: 999rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; gap: 16rpx; }
 .btn-secondary-txt { font-size: 30rpx; font-weight: 500; color: #fff; }
+
+/* 加载 / 错误 */
+.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

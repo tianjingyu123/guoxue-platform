@@ -1,20 +1,34 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import {
-  walletInfo,
-  rechargeOptions,
-  walletTransactions,
-  type WalletTxType,
-} from '@/lib/mine-data'
+import { mineApi, type WalletInfo, type WalletTxType, type RechargeOption, type WalletTransaction } from '@/lib/mine-data'
 
-const info = walletInfo
-const options = rechargeOptions
-const transactions = walletTransactions
+const loading = ref(false)
+const error = ref('')
+const info = ref<WalletInfo>({ balance: 0, rmb: 0, level: 0, growthValue: 0, nextLevelGrowth: 1, points: 0, totalRecharge: 0, totalSpent: 0 })
+const options = ref<RechargeOption[]>([])
+const transactions = ref<WalletTransaction[]>([])
+
+const retry = () => { error.value = ''; loadData() }
+async function loadData() {
+  loading.value = true; error.value = ''
+  try {
+    const [w, o, t] = await Promise.all([
+      mineApi.getWallet(),
+      mineApi.getRechargeOptions(),
+      mineApi.getTransactions(),
+    ])
+    info.value = w
+    options.value = o
+    transactions.value = t
+  } catch (e: any) { error.value = e?.message || '加载失败' }
+  finally { loading.value = false }
+}
+onMounted(loadData)
 
 const levelProgress = computed(() =>
-  Math.round((info.growthValue / info.nextLevelGrowth) * 100),
+  Math.round((info.value.growthValue / info.value.nextLevelGrowth) * 100),
 )
 
 const txIcon: Record<WalletTxType, { icon: string; color: string }> = {
@@ -33,7 +47,9 @@ function notReady() {
   <view class="page">
     <app-nav-bar title="我的钱包" back-icon="arrow-left" :title-size="36" />
 
-    <scroll-view scroll-y class="scroll">
+    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+    <scroll-view v-else scroll-y class="scroll">
       <!-- 余额卡片 -->
       <view class="balance-card">
         <view class="balance-head">
@@ -200,4 +216,9 @@ function notReady() {
 .tx-time { font-size: 22rpx; color: #8a8178; }
 .tx-amount { font-size: 30rpx; font-weight: 600; color: #2C2C2C; flex-shrink: 0; }
 .tx-amount.income { color: #16a34a; }
+
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 28rpx; color: #8a8178; }
+.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; }
+.error-state text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>
