@@ -17,7 +17,7 @@
           :key="t.key"
           class="tab"
           :class="{ 'tab--on': tab === t.key }"
-          @tap="tab = t.key"
+          @tap="tab = t.key as 'all' | 'my'"
         >
           <text class="tab-text" :class="{ 'tab-text--on': tab === t.key }">{{ t.label }}</text>
           <text v-if="t.key === 'my' && myGroups.length" class="tab-badge">{{ myGroups.length }}</text>

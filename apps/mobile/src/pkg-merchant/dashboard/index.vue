@@ -89,8 +89,8 @@
               <text class="dash-sub-label">访客数</text>
               <text class="dash-sub-value">{{ d.todayStats.visitors.value }}</text>
             </view>
-            <view class="dash-sub-tag" :class="d.todayStats.visitors.trend === 'up' ? 'up' : 'down'">
-              <AppIcon :name="d.todayStats.visitors.trend === 'up' ? 'trending-up' : 'trending-down'" :size="12" :color="d.todayStats.visitors.trend === 'up' ? '#16a34a' : '#ef4444'" />
+            <view class="dash-sub-tag" :class="String(d.todayStats.visitors.trend) === 'up' ? 'up' : 'down'">
+              <AppIcon :name="String(d.todayStats.visitors.trend) === 'up' ? 'trending-up' : 'trending-down'" :size="12" :color="String(d.todayStats.visitors.trend) === 'up' ? '#16a34a' : '#ef4444'" />
               <text>{{ Math.abs(d.todayStats.visitors.change) }}%</text>
             </view>
           </view>

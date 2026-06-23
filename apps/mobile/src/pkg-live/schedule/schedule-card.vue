@@ -83,7 +83,7 @@ function formatDate(dateStr: string) {
 }
 function onItem(type: 'edit' | 'copy' | 'del') {
   showMenu.value = false
-  emit(type)
+  ;(emit as any)(type)
 }
 </script>
 

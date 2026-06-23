@@ -18,9 +18,8 @@ export interface CanvasHandle {
 export function getCanvas(selector: string, width: number, height: number, comp?: any): Promise<CanvasHandle> {
   return new Promise((resolve, reject) => {
     const query = comp ? uni.createSelectorQuery().in(comp) : uni.createSelectorQuery()
-    query
-      .select(selector)
-      .fields({ node: true, size: true })
+    ;(query.select(selector) as any)
+      .fields({ node: true, size: true } as any)
       .exec((res: any[]) => {
         const node = res?.[0]?.node
         if (!node) { reject(new Error(`canvas node 未找到: ${selector}`)); return }

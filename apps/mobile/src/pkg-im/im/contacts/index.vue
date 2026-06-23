@@ -102,7 +102,7 @@
             placeholder="搜索昵称、备注"
             placeholder-class="ph"
             :focus="showSearch"
-            @input="onSearchInput"
+            @input="(e: any) => onSearchInput(e)"
           />
           <view v-if="searchKeyword" class="search-clear" @tap="clearSearch">
             <AppIcon name="x" :size="28" color="#999999" />

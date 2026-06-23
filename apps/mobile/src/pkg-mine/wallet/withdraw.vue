@@ -339,7 +339,7 @@ function continueWithdraw() {
           :value="pwd.join('')"
           :focus="showPwd"
           :disabled="verifying"
-          @input="onPwdInput"
+          @input="(e: any) => onPwdInput(e)"
         />
         <view v-if="verifying" class="pwd-verifying">
           <text>验证中...</text>

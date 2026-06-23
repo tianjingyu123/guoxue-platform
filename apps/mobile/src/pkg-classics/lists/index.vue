@@ -82,7 +82,7 @@ function fmtLikes(n: number): string {
               name="heart"
               :size="32"
               :color="list.liked ? '#c41e3a' : '#999999'"
-              :fill="list.liked ? '#c41e3a' : 'none'"
+              :fill="list.liked"
             />
             <text class="lp-foot-txt">{{ fmtLikes(list.likes) }}</text>
           </view>

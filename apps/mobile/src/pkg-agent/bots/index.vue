@@ -166,7 +166,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateTo, navigateBack } from '@/utils/router'
+import { navigateTo, goBack } from '@/utils/router'
 
 const activeCat = ref('all')
 const searchOpen = ref(false)
@@ -241,10 +241,6 @@ function closeSearch() {
 
 function goRanking() {
   navigateTo('/pkg-agent/agents/ranking')
-}
-
-function goBack() {
-  navigateBack({ fallback: '/pages/index/index' })
 }
 </script>
 

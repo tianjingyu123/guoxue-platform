@@ -280,7 +280,7 @@ function goSearch() {
 function goHome() {
   uni.navigateTo({ url: '/pkg-classics/home/index' })
 }
-function goReader() {
+function goReader(_id?: string) {
   uni.showToast({ title: '阅读器即将上线', icon: 'none' })
 }
 function goDetail(id: string) {

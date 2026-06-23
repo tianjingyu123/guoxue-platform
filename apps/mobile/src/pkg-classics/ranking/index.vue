@@ -97,7 +97,7 @@ function goDetail(id: string) {
                   <text>{{ book.views }}</text>
                 </view>
                 <view class="rk-row-stat">
-                  <AppIcon name="star" :size="24" color="#fbbf24" fill="#fbbf24" />
+                  <AppIcon name="star" :size="24" color="#fbbf24" :fill="true" />
                   <text>{{ book.rating }}</text>
                 </view>
               </view>

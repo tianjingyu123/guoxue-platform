@@ -108,7 +108,7 @@ function handleSubmit() {
               :value="customAmount"
               placeholder="输入其他金额（整数）"
               placeholder-class="custom-ph"
-              @input="onCustomInput"
+              @input="(e: any) => onCustomInput(e)"
             />
             <text v-if="customAmount" class="custom-coins"
               >= {{ (parseInt(customAmount) || 0) * 10 }} 币</text

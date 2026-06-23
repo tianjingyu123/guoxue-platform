@@ -19,7 +19,7 @@
           :value="search"
           placeholder="搜索好友"
           placeholder-class="search-ph"
-          @input="search = $event.detail.value"
+          @input="(e: any) => search = e.detail.value"
         />
       </view>
 
@@ -72,7 +72,7 @@
             placeholder="设置群聊名称"
             placeholder-class="search-ph"
             maxlength="20"
-            @input="groupName = $event.detail.value"
+            @input="(e: any) => groupName = e.detail.value"
           />
         </view>
         <text class="name-counter">{{ groupName.length }}/20</text>

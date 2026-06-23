@@ -66,7 +66,7 @@
             <text class="es-feat-title">{{ featured.title }}</text>
             <text class="es-feat-author">{{ featured.author }}</text>
             <view class="es-feat-rate">
-              <app-icon name="star" :size="28" color="#fbbf24" fill="#fbbf24" />
+              <app-icon name="star" :size="28" color="#fbbf24" :fill="true" />
               <text class="es-feat-rating">{{ featured.rating }}</text>
               <text class="es-feat-readers">· {{ Math.round(featured.salesCount / 1000) }}k人在读</text>
             </view>

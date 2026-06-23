@@ -212,10 +212,10 @@ const mockQrcodes: Qr[] = [
 ]
 
 const tabs = [
-  { value: 'all', label: '全部', icon: '' },
-  { value: 'poster', label: '海报', icon: 'image' },
-  { value: 'copywriting', label: '文案', icon: 'file-text' },
-  { value: 'qrcode', label: '二维码', icon: 'qr-code' },
+  { value: 'all' as const, label: '全部', icon: '' },
+  { value: 'poster' as const, label: '海报', icon: 'image' },
+  { value: 'copywriting' as const, label: '文案', icon: 'file-text' },
+  { value: 'qrcode' as const, label: '二维码', icon: 'qr-code' },
 ]
 
 const activeTab = ref<'all' | 'poster' | 'copywriting' | 'qrcode'>('all')

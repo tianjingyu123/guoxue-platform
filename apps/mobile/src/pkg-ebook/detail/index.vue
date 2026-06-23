@@ -33,7 +33,7 @@
               <text class="ed-author-name">{{ book.author }}</text>
             </view>
             <view class="ed-hero-rate">
-              <app-icon name="star" :size="32" color="#fbbf24" fill="#fbbf24" />
+              <app-icon name="star" :size="32" color="#fbbf24" :fill="true" />
               <text class="ed-rate-num">{{ book.rating }}</text>
               <text class="ed-rate-cnt">{{ book.reviewCount }}条评价</text>
             </view>

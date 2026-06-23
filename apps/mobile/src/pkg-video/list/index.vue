@@ -154,9 +154,9 @@ const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 0 } })
 
 const tabs = [
-  { id: 'follow', label: '关注' },
-  { id: 'recommend', label: '推荐' },
-  { id: 'hot', label: '热门' },
+  { id: 'follow' as const, label: '关注' },
+  { id: 'recommend' as const, label: '推荐' },
+  { id: 'hot' as const, label: '热门' },
 ]
 const activeTab = ref<'recommend' | 'follow' | 'hot'>('recommend')
 const hotTopics = videoHotTopics

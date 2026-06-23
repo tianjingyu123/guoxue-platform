@@ -84,7 +84,7 @@
             </view>
           </view>
           <view class="smp-trend-tabs">
-            <view v-for="p in ['week', 'month']" :key="p" class="smp-trend-tab" :class="{ active: trendPeriod === p }" @tap="trendPeriod = p">
+            <view v-for="p in (['week', 'month'] as const)" :key="p" class="smp-trend-tab" :class="{ active: trendPeriod === p }" @tap="trendPeriod = p">
               <text class="smp-trend-tab-txt">{{ p === 'week' ? '本周' : '本月' }}</text>
             </view>
           </view>

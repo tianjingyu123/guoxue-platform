@@ -34,7 +34,7 @@
           <app-icon name="file-text" :size="32" color="#999999" />
         </view>
         <text class="empty-text">暂无投稿记录</text>
-        <view class="empty-btn" @click="goEditor"><text class="empty-btn-text">去投稿</text></view>
+        <view class="empty-btn" @click="() => goEditor()"><text class="empty-btn-text">去投稿</text></view>
       </view>
 
       <view v-for="item in filtered" :key="item.id" class="card">

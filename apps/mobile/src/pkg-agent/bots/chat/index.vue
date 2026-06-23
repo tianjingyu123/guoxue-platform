@@ -374,7 +374,7 @@ function formatTime(iso: string): string {
 }
 
 function goBack() {
-  navigateBack({ fallback: '/bots' })
+  navigateBack()
 }
 </script>
 

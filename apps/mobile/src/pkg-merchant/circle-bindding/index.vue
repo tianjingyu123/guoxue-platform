@@ -98,7 +98,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, go } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import { merchantCircles } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(20)
@@ -138,7 +138,7 @@ function submit() {
   setTimeout(() => {
     submitting.value = false
     uni.showToast({ title: '绑定成功', icon: 'success' })
-    setTimeout(() => go('/merchant/dashboard'), 800)
+    setTimeout(() => navigateTo('/merchant/dashboard'), 800)
   }, 1500)
 }
 </script>

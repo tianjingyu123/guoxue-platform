@@ -193,12 +193,12 @@ const withdrawRecords = [
 ]
 
 const filterTypes = [
-  { value: 'all', label: '全部' },
-  { value: 'course_commission', label: '课程佣金' },
-  { value: 'product_commission', label: '商品佣金' },
-  { value: 'member_commission', label: '会员佣金' },
-  { value: 'team_bonus', label: '团队奖励' },
-  { value: 'invite_reward', label: '邀请奖励' },
+  { value: 'all' as const, label: '全部' },
+  { value: 'course_commission' as const, label: '课程佣金' },
+  { value: 'product_commission' as const, label: '商品佣金' },
+  { value: 'member_commission' as const, label: '会员佣金' },
+  { value: 'team_bonus' as const, label: '团队奖励' },
+  { value: 'invite_reward' as const, label: '邀请奖励' },
 ]
 
 const activeTab = ref<'earnings' | 'withdraw'>('earnings')

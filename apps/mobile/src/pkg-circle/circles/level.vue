@@ -113,7 +113,7 @@
                 <text class="locked-desc">{{ b.desc }}</text>
                 <view v-if="b.progress !== undefined" class="prog">
                   <view class="prog-head"><text class="prog-l">进度</text><text class="prog-l">{{ b.progress }}/{{ b.total }}</text></view>
-                  <view class="prog-track"><view class="prog-fill" :style="{ width: (b.progress / b.total * 100) + '%', background: b.color }" /></view>
+                  <view class="prog-track"><view class="prog-fill" :style="{ width: (b.progress / (b.total ?? 0) * 100) + '%', background: b.color }" /></view>
                 </view>
               </view>
             </view>

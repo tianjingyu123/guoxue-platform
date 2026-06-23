@@ -89,7 +89,7 @@
           v-for="id in selected"
           :key="id"
           class="ig-preview-chip"
-        >{{ tagById(id) ? (tagById(id).icon + ' ' + tagById(id).name) : '' }}</text>
+        >{{ tagById(id) ? ((tagById(id)?.icon ?? '') + ' ' + (tagById(id)?.name ?? '')) : '' }}</text>
       </view>
 
       <!-- 开始探索按钮 -->

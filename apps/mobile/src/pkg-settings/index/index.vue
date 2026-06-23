@@ -33,7 +33,7 @@
                 <view class="row-ic"><app-icon name="shield" :size="16" color="#8a8278" /></view>
                 <text class="row-label">二次验证</text>
               </view>
-              <switch :checked="twoFactor" color="#c41e3a" style="transform:scale(0.8)" @change="twoFactor=$event.detail.value" />
+              <switch :checked="twoFactor" color="#c41e3a" style="transform:scale(0.8)" @change="(e: any) => twoFactor = e.detail.value" />
             </view>
           </view>
         </view>
@@ -47,14 +47,14 @@
                 <view class="row-ic"><app-icon name="eye" :size="16" color="#8a8278" /></view>
                 <text class="row-label">公开展示我的收藏</text>
               </view>
-              <switch :checked="showFavorites" color="#c41e3a" style="transform:scale(0.8)" @change="showFavorites=$event.detail.value" />
+              <switch :checked="showFavorites" color="#c41e3a" style="transform:scale(0.8)" @change="(e: any) => showFavorites = e.detail.value" />
             </view>
             <view class="row">
               <view class="row-l">
                 <view class="row-ic"><app-icon name="history" :size="16" color="#8a8278" /></view>
                 <text class="row-label">记录浏览历史</text>
               </view>
-              <switch :checked="recordHistory" color="#c41e3a" style="transform:scale(0.8)" @change="recordHistory=$event.detail.value" />
+              <switch :checked="recordHistory" color="#c41e3a" style="transform:scale(0.8)" @change="(e: any) => recordHistory = e.detail.value" />
             </view>
           </view>
         </view>
@@ -68,7 +68,7 @@
                 <view class="row-ic"><app-icon name="bell" :size="16" color="#8a8278" /></view>
                 <text class="row-label">推送通知</text>
               </view>
-              <switch :checked="pushEnabled" color="#c41e3a" style="transform:scale(0.8)" @change="pushEnabled=$event.detail.value" />
+              <switch :checked="pushEnabled" color="#c41e3a" style="transform:scale(0.8)" @change="(e: any) => pushEnabled = e.detail.value" />
             </view>
             <view class="row" @tap="openSelect('消息免打扰时段', ['关闭','22:00-08:00','23:00-07:00','00:00-08:00'], quietHours, v => quietHours = v)">
               <view class="row-l">

@@ -216,9 +216,6 @@ function toggleCategory(id: string) {
 function toggleExpand(id: number) {
   expandedId.value = expandedId.value === id ? null : id
 }
-function goBack() {
-  navigateBackSafe()
-}
 function navigateBackSafe() {
   const pages = getCurrentPages()
   if (pages.length > 1) uni.navigateBack({ delta: 1 })

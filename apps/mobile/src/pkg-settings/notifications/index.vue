@@ -15,7 +15,7 @@
               <text class="master-desc">{{ pushEnabled ? '已开启，将收到各类通知提醒' : '已关闭，将不会收到任何推送' }}</text>
             </view>
           </view>
-          <switch :checked="pushEnabled" color="#c41e3a" style="transform:scale(0.8)" @change="pushEnabled=$event.detail.value" />
+          <switch :checked="pushEnabled" color="#c41e3a" style="transform:scale(0.8)" @change="(e: any) => pushEnabled = e.detail.value" />
         </view>
 
         <!-- 总开关关闭时禁用 -->
@@ -64,7 +64,7 @@
                     <text class="row-desc">在指定时间段内不接收推送通知</text>
                   </view>
                 </view>
-                <switch :checked="quietMode" color="#c41e3a" style="transform:scale(0.8)" @change="quietMode=$event.detail.value" />
+                <switch :checked="quietMode" color="#c41e3a" style="transform:scale(0.8)" @change="(e: any) => quietMode = e.detail.value" />
               </view>
               <view v-if="quietMode" class="row quiet-time">
                 <text class="quiet-label">免打扰时段</text>

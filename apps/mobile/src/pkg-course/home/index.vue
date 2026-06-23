@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** 国学课程首页 - 从原型 app/courses/page.tsx 迁移 */
 import { ref, computed } from 'vue'
-import { navigateTo } from '@/utils/router'
+import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import HomeBanner from '@/components/home/home-banner.vue'
 import CourseCard from '@/components/cards/course-card.vue'
@@ -20,7 +20,7 @@ const selected = computed(() =>
 const colLeft = computed(() => selected.value.filter((_, i) => i % 2 === 0))
 const colRight = computed(() => selected.value.filter((_, i) => i % 2 === 1))
 
-function goBack() { navigateBack('/discover') }
+
 function openSearch() { navigateTo('/search?from=course') }
 function openCategory(id: string) { navigateTo(`/courses-list?category=${id}`) }
 </script>
