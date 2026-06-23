@@ -1,7 +1,5 @@
 // ============ 直播板块(live) mock 数据（从原型 app/live 迁移） ============
 // 说明：原型封面/头像为 mock 配图，dev 下回退占位；此处统一用 /marketing 占位路径，比对时会被中和
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { apiGet, apiPost, useMock } from '@/utils/request'
 
 export type LiveStatus = 'live' | 'upcoming' | 'replay'
 export type LiveType = 'knowledge' | 'commerce'
@@ -486,7 +484,7 @@ export const liveEndRecommendCourses = [
 // ============ 回放详情(live/replay/[id]) ============
 // @data-needs: 回放详情, 参数 id, 返回 ReplayDetail
 export interface ReplayChapter { id: number; title: string; startTime: number; timeDisplay: string; description: string }
-export interface ReplaySlide { id: number; time: number; timeDisplay: string; title: string; imageUrl?: string }
+export interface ReplaySlide { id: number; time: number; timeDisplay: string; title: string }
 export interface ReplayDiscussion { id: number; timeDisplay: string; userName: string; content: string; isHost: boolean }
 export interface ReplayProduct { id: number; name: string; price: number; originalPrice: number; sales: number; mentionTimeDisplay: string }
 export interface ReplayQA { id: number; timeDisplay: string; question: string; questionerName: string; answer: string; answererName: string }
@@ -512,6 +510,13 @@ export interface ReplayDetail {
   discussions: ReplayDiscussion[]
   qaList: ReplayQA[]
   products: ReplayProduct[]
+}
+export interface ReplaySlide {
+  id: number
+  time: number
+  timeDisplay: string
+  title?: string
+  imageUrl: string
 }
 export const replayDetail: ReplayDetail = {
   id: 1,
@@ -1130,53 +1135,4 @@ export const liveManageStatusConfig: Record<string, { label: string; color: stri
   live: { label: '直播中', color: '#ef4444' },
   ended: { label: '已结束', color: '#9ca3af' },
   draft: { label: '草稿', color: '#d99423' },
-}
-
-// ── API ──
-export const liveApi = {
-  /** 直播广场列表 GET /live/rooms */
-  async list(params?: Record<string, any>): Promise<{ items: any[]; total: number }> {
-    if (useMock()) return { items: liveList, total: liveList.length }
-    try { return await apiGet<any>(`/live/rooms${params ? '?' + new URLSearchParams(params).toString() : ''}`) } catch { return { items: liveList, total: liveList.length } }
-  },
-  /** 直播详情 GET /live/rooms/:id */
-  async detail(id: string): Promise<any> {
-    if (useMock()) return liveList.find(l => l.id === id) || liveList[0]
-    try { return await apiGet<any>(`/live/rooms/${id}`) } catch { return liveList[0] }
-  },
-  /** 直播排期 GET /live/scheduled */
-  async schedule(params?: Record<string, any>): Promise<any[]> {
-    if (useMock()) return scheduleList
-    try { return await apiGet<any[]>(`/live/scheduled?${new URLSearchParams(params || {}).toString()}`) } catch { return scheduleList }
-  },
-
-  /** 主播列表 GET /live/hosts */
-  async hosts(): Promise<any[]> {
-    if (useMock()) return liveHosts
-    try { return await apiGet<any>('/live/hosts') } catch { return liveHosts }
-  },
-
-  /** 直播预告详情 — 复用房间详情 GET /live/rooms/:id（预告即 status=scheduled 的房间） */
-  async preview(id: string): Promise<any> {
-    if (useMock()) return livePreviewRoom
-    try { return await apiGet<any>(`/live/rooms/${id}`) } catch { return livePreviewRoom }
-  },
-
-  /** 结束页 — 复用房间详情 GET /live/rooms/:id（结束页即 status=ended 的房间） */
-  async endRoom(id: string): Promise<any> {
-    if (useMock()) return { room: liveEndRoom }
-    try { const room = await apiGet<any>(`/live/rooms/${id}`); return { room } } catch { return { room: liveEndRoom } }
-  },
-
-  /** 回放列表 GET /live/replays */
-  async replays(): Promise<any[]> {
-    if (useMock()) return liveReplays
-    try { return await apiGet<any>('/live/replays') } catch { return liveReplays }
-  },
-
-  /** 回放详情 — 复用房间详情 GET /live/rooms/:id（含 replayUrl 字段） */
-  async replayDetail(id: string): Promise<any> {
-    if (useMock()) return replayDetail
-    try { return await apiGet<any>(`/live/rooms/${id}`) } catch { return replayDetail }
-  },
 }

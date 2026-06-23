@@ -76,460 +76,149 @@ function toggleEditPerm(p: string) { editPerms.value = editPerms.value.includes(
     <!-- Header -->
     <view class="gt-nav">
       <view class="gt-nav-bar">
-        <view
-          class="gt-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="40"
-            color="#2C2C2C"
-          />
-        </view>
-        <text class="gt-title">
-          嘉宾/老师管理
-        </text>
-        <view
-          class="gt-invite-btn"
-          @tap="showInviteModal = true"
-        >
-          <app-icon
-            name="user-plus"
-            :size="40"
-            color="#C41E3A"
-          />
-        </view>
+        <view class="gt-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+        <text class="gt-title">嘉宾/老师管理</text>
+        <view class="gt-invite-btn" @tap="showInviteModal = true"><app-icon name="user-plus" :size="40" color="#C41E3A" /></view>
       </view>
       <!-- 搜索 -->
       <view class="gt-search-wrap">
         <view class="gt-search">
-          <app-icon
-            name="search"
-            :size="28"
-            color="#999999"
-          />
-          <input
-            v-model="searchQuery"
-            class="gt-search-input"
-            placeholder="搜索嘉宾/老师"
-            placeholder-class="gt-ph"
-          >
+          <app-icon name="search" :size="28" color="#999999" />
+          <input v-model="searchQuery" class="gt-search-input" placeholder="搜索嘉宾/老师" placeholder-class="gt-ph" />
         </view>
       </view>
       <!-- Tabs -->
       <view class="gt-tabs">
-        <view
-          v-for="t in tabs"
-          :key="t.key"
-          class="gt-tab"
-          :class="{ 'gt-tab-on': activeTab === t.key }"
-          @tap="activeTab = t.key"
-        >
-          {{ t.label }}<text
-            v-if="t.key === 'pending' && pendingCount"
-            class="gt-tab-count"
-          >
-            ({{ pendingCount }})
-          </text>
+        <view v-for="t in tabs" :key="t.key" class="gt-tab" :class="{ 'gt-tab-on': activeTab === t.key }" @tap="activeTab = t.key">
+          {{ t.label }}<text v-if="t.key === 'pending' && pendingCount" class="gt-tab-count"> ({{ pendingCount }})</text>
         </view>
       </view>
     </view>
 
     <!-- 列表 -->
     <view class="gt-list">
-      <view
-        v-if="filteredGuests.length === 0"
-        class="gt-empty"
-      >
-        <app-icon
-          name="user-plus"
-          :size="56"
-          color="#D9D9D9"
-        />
-        <text class="gt-empty-text">
-          暂无嘉宾/老师
-        </text>
-        <view
-          class="gt-empty-btn"
-          @tap="showInviteModal = true"
-        >
-          邀请嘉宾
-        </view>
+      <view v-if="filteredGuests.length === 0" class="gt-empty">
+        <app-icon name="user-plus" :size="56" color="#D9D9D9" />
+        <text class="gt-empty-text">暂无嘉宾/老师</text>
+        <view class="gt-empty-btn" @tap="showInviteModal = true">邀请嘉宾</view>
       </view>
 
-      <view
-        v-for="g in filteredGuests"
-        :key="g.id"
-        class="gt-card"
-      >
+      <view v-for="g in filteredGuests" :key="g.id" class="gt-card">
         <view class="gt-card-head">
-          <image
-            class="gt-avatar"
-            :src="g.avatar"
-            mode="aspectFill"
-          />
+          <image class="gt-avatar" :src="g.avatar" mode="aspectFill" />
           <view class="gt-info">
             <view class="gt-name-row">
-              <text class="gt-name">
-                {{ g.name }}
-              </text>
-              <text
-                class="gt-role"
-                :class="g.role === 'teacher' ? 'gt-role-teacher' : 'gt-role-guest'"
-              >
-                {{ g.role === 'teacher' ? '老师' : '嘉宾' }}
-              </text>
-              <text
-                v-if="g.status === 'pending'"
-                class="gt-role gt-role-pending"
-              >
-                待审核
-              </text>
+              <text class="gt-name">{{ g.name }}</text>
+              <text class="gt-role" :class="g.role === 'teacher' ? 'gt-role-teacher' : 'gt-role-guest'">{{ g.role === 'teacher' ? '老师' : '嘉宾' }}</text>
+              <text v-if="g.status === 'pending'" class="gt-role gt-role-pending">待审核</text>
             </view>
-            <text class="gt-titletxt">
-              {{ g.title }}
-            </text>
-            <text class="gt-joined">
-              加入于 {{ g.joinedAt }}
-            </text>
+            <text class="gt-titletxt">{{ g.title }}</text>
+            <text class="gt-joined">加入于 {{ g.joinedAt }}</text>
           </view>
-          <view
-            class="gt-more"
-            @tap="showActionMenu = showActionMenu === g.id ? null : g.id"
-          >
-            <app-icon
-              name="more-vertical"
-              :size="36"
-              color="#999999"
-            />
-          </view>
+          <view class="gt-more" @tap="showActionMenu = showActionMenu === g.id ? null : g.id"><app-icon name="more-vertical" :size="36" color="#999999" /></view>
         </view>
 
         <!-- 操作菜单 -->
-        <view
-          v-if="showActionMenu === g.id"
-          class="gt-menu"
-        >
-          <view
-            class="gt-menu-item"
-            @tap="openEdit(g)"
-          >
-            <app-icon
-              name="edit"
-              :size="26"
-              color="#666666"
-            /><text>编辑</text>
-          </view>
-          <view
-            class="gt-menu-item"
-            @tap="navigateTo(`/pkg-circle/circles/earnings?id=${circleId}&guest=${g.id}`)"
-          >
-            <app-icon
-              name="trending-up"
-              :size="26"
-              color="#666666"
-            /><text>收益</text>
-          </view>
-          <view
-            class="gt-menu-item gt-menu-del"
-            @tap="toastComingSoon()"
-          >
-            <app-icon
-              name="trash-2"
-              :size="26"
-              color="#EF4444"
-            /><text>移除</text>
-          </view>
+        <view v-if="showActionMenu === g.id" class="gt-menu">
+          <view class="gt-menu-item" @tap="openEdit(g)"><app-icon name="edit" :size="26" color="#666666" /><text>编辑</text></view>
+          <view class="gt-menu-item" @tap="navigateTo(`/pkg-circle/circles/earnings?id=${circleId}&guest=${g.id}`)"><app-icon name="trending-up" :size="26" color="#666666" /><text>收益</text></view>
+          <view class="gt-menu-item gt-menu-del" @tap="toastComingSoon()"><app-icon name="trash-2" :size="26" color="#EF4444" /><text>移除</text></view>
         </view>
 
         <!-- 权限标签 -->
         <view class="gt-perms">
-          <text class="gt-perms-label">
-            可发布：
-          </text>
-          <text
-            v-for="p in g.permissions"
-            :key="p"
-            class="gt-perm"
-          >
-            {{ permissionLabels[p] }}
-          </text>
+          <text class="gt-perms-label">可发布：</text>
+          <text v-for="p in g.permissions" :key="p" class="gt-perm">{{ permissionLabels[p] }}</text>
         </view>
 
         <!-- 数据统计 -->
-        <view
-          v-if="g.status === 'active'"
-          class="gt-stats"
-        >
+        <view v-if="g.status === 'active'" class="gt-stats">
           <view class="gt-stat-grid">
             <view class="gt-stat">
-              <view class="gt-stat-top">
-                <app-icon
-                  name="file-text"
-                  :size="22"
-                  color="#999999"
-                /><text class="gt-stat-num">
-                  {{ g.stats.articles }}
-                </text>
-              </view>
-              <text class="gt-stat-label">
-                文章
-              </text>
+              <view class="gt-stat-top"><app-icon name="file-text" :size="22" color="#999999" /><text class="gt-stat-num">{{ g.stats.articles }}</text></view>
+              <text class="gt-stat-label">文章</text>
             </view>
             <view class="gt-stat">
-              <view class="gt-stat-top">
-                <app-icon
-                  name="book-open"
-                  :size="22"
-                  color="#999999"
-                /><text class="gt-stat-num">
-                  {{ g.stats.courses }}
-                </text>
-              </view>
-              <text class="gt-stat-label">
-                课程
-              </text>
+              <view class="gt-stat-top"><app-icon name="book-open" :size="22" color="#999999" /><text class="gt-stat-num">{{ g.stats.courses }}</text></view>
+              <text class="gt-stat-label">课程</text>
             </view>
             <view class="gt-stat">
-              <view class="gt-stat-top">
-                <app-icon
-                  name="radio"
-                  :size="22"
-                  color="#999999"
-                /><text class="gt-stat-num">
-                  {{ g.stats.lives }}
-                </text>
-              </view>
-              <text class="gt-stat-label">
-                直播
-              </text>
+              <view class="gt-stat-top"><app-icon name="radio" :size="22" color="#999999" /><text class="gt-stat-num">{{ g.stats.lives }}</text></view>
+              <text class="gt-stat-label">直播</text>
             </view>
             <view class="gt-stat">
-              <text class="gt-stat-num gt-gold">
-                ¥{{ g.stats.thisMonthRevenue.toFixed(0) }}
-              </text>
-              <text class="gt-stat-label">
-                本月收益
-              </text>
+              <text class="gt-stat-num gt-gold">¥{{ g.stats.thisMonthRevenue.toFixed(0) }}</text>
+              <text class="gt-stat-label">本月收益</text>
             </view>
           </view>
           <view class="gt-share-row">
-            <text class="gt-share-txt">
-              分成比例：{{ g.revenueShare }}%
-            </text>
-            <text class="gt-share-txt">
-              累计收益：¥{{ g.stats.totalRevenue.toFixed(2) }}
-            </text>
+            <text class="gt-share-txt">分成比例：{{ g.revenueShare }}%</text>
+            <text class="gt-share-txt">累计收益：¥{{ g.stats.totalRevenue.toFixed(2) }}</text>
           </view>
         </view>
 
         <!-- 待审核操作 -->
-        <view
-          v-if="g.status === 'pending'"
-          class="gt-pending-actions"
-        >
-          <view
-            class="gt-pa gt-pa-ok"
-            @tap="toastComingSoon()"
-          >
-            <app-icon
-              name="check"
-              :size="28"
-              color="#ffffff"
-            /><text>通过</text>
-          </view>
-          <view
-            class="gt-pa gt-pa-no"
-            @tap="toastComingSoon()"
-          >
-            <app-icon
-              name="x"
-              :size="28"
-              color="#666666"
-            /><text>拒绝</text>
-          </view>
+        <view v-if="g.status === 'pending'" class="gt-pending-actions">
+          <view class="gt-pa gt-pa-ok" @tap="toastComingSoon()"><app-icon name="check" :size="28" color="#ffffff" /><text>通过</text></view>
+          <view class="gt-pa gt-pa-no" @tap="toastComingSoon()"><app-icon name="x" :size="28" color="#666666" /><text>拒绝</text></view>
         </view>
       </view>
     </view>
 
     <!-- 邀请嘉宾底部弹窗 -->
-    <view
-      v-if="showInviteModal"
-      class="gt-modal-mask"
-      @tap="showInviteModal = false"
-    >
-      <view
-        class="gt-sheet"
-        @tap.stop
-      >
+    <view v-if="showInviteModal" class="gt-modal-mask" @tap="showInviteModal = false">
+      <view class="gt-sheet" @tap.stop>
         <view class="gt-sheet-head">
-          <text
-            class="gt-sheet-cancel"
-            @tap="showInviteModal = false"
-          >
-            取消
-          </text>
-          <text class="gt-sheet-title">
-            邀请嘉宾/老师
-          </text>
-          <text
-            class="gt-sheet-ok"
-            @tap="showInviteModal = false"
-          >
-            确定
-          </text>
+          <text class="gt-sheet-cancel" @tap="showInviteModal = false">取消</text>
+          <text class="gt-sheet-title">邀请嘉宾/老师</text>
+          <text class="gt-sheet-ok" @tap="showInviteModal = false">确定</text>
         </view>
-        <scroll-view
-          scroll-y
-          class="gt-sheet-body"
-        >
+        <scroll-view scroll-y class="gt-sheet-body">
           <!-- 邀请方式 -->
           <view class="gt-seg">
-            <view
-              class="gt-seg-btn"
-              :class="{ 'gt-seg-on': inviteType === 'link' }"
-              @tap="inviteType = 'link'"
-            >
-              链接邀请
-            </view>
-            <view
-              class="gt-seg-btn"
-              :class="{ 'gt-seg-on': inviteType === 'search' }"
-              @tap="inviteType = 'search'"
-            >
-              搜索用户
-            </view>
+            <view class="gt-seg-btn" :class="{ 'gt-seg-on': inviteType === 'link' }" @tap="inviteType = 'link'">链接邀请</view>
+            <view class="gt-seg-btn" :class="{ 'gt-seg-on': inviteType === 'search' }" @tap="inviteType = 'search'">搜索用户</view>
           </view>
           <!-- 角色选择 -->
-          <text class="gt-field-label">
-            角色类型
-          </text>
+          <text class="gt-field-label">角色类型</text>
           <view class="gt-roles">
-            <view
-              class="gt-role-card"
-              :class="{ 'gt-role-card-on': inviteRole === 'guest' }"
-              @tap="inviteRole = 'guest'"
-            >
-              <view class="gt-role-card-head">
-                <app-icon
-                  name="crown"
-                  :size="32"
-                  :color="inviteRole === 'guest' ? '#C9A96E' : '#999999'"
-                /><text class="gt-role-card-name">
-                  嘉宾
-                </text>
-              </view>
-              <text class="gt-role-card-desc">
-                受邀创作者，可发布内容
-              </text>
+            <view class="gt-role-card" :class="{ 'gt-role-card-on': inviteRole === 'guest' }" @tap="inviteRole = 'guest'">
+              <view class="gt-role-card-head"><app-icon name="crown" :size="32" :color="inviteRole === 'guest' ? '#C9A96E' : '#999999'" /><text class="gt-role-card-name">嘉宾</text></view>
+              <text class="gt-role-card-desc">受邀创作者，可发布内容</text>
             </view>
-            <view
-              class="gt-role-card"
-              :class="{ 'gt-role-card-on': inviteRole === 'teacher' }"
-              @tap="inviteRole = 'teacher'"
-            >
-              <view class="gt-role-card-head">
-                <app-icon
-                  name="shield"
-                  :size="32"
-                  :color="inviteRole === 'teacher' ? '#2563EB' : '#999999'"
-                /><text class="gt-role-card-name">
-                  老师
-                </text>
-              </view>
-              <text class="gt-role-card-desc">
-                签约讲师，可开设课程
-              </text>
+            <view class="gt-role-card" :class="{ 'gt-role-card-on': inviteRole === 'teacher' }" @tap="inviteRole = 'teacher'">
+              <view class="gt-role-card-head"><app-icon name="shield" :size="32" :color="inviteRole === 'teacher' ? '#2563EB' : '#999999'" /><text class="gt-role-card-name">老师</text></view>
+              <text class="gt-role-card-desc">签约讲师，可开设课程</text>
             </view>
           </view>
           <!-- 发布权限 -->
-          <text class="gt-field-label">
-            发布权限
-          </text>
+          <text class="gt-field-label">发布权限</text>
           <view class="gt-perm-pills">
-            <view
-              v-for="[key, label] in permEntries"
-              :key="key"
-              class="gt-perm-pill"
-              :class="{ 'gt-perm-pill-on': invitePerms.includes(key) }"
-              @tap="toggleInvitePerm(key)"
-            >
-              {{ label }}
-            </view>
+            <view v-for="[key, label] in permEntries" :key="key" class="gt-perm-pill" :class="{ 'gt-perm-pill-on': invitePerms.includes(key) }" @tap="toggleInvitePerm(key)">{{ label }}</view>
           </view>
           <!-- 分成比例 -->
-          <text class="gt-field-label">
-            收益分成比例（嘉宾/老师）
-          </text>
+          <text class="gt-field-label">收益分成比例（嘉宾/老师）</text>
           <view class="gt-slider-row">
-            <slider
-              class="gt-slider"
-              :value="inviteShare"
-              :min="10"
-              :max="90"
-              :step="5"
-              active-color="#C41E3A"
-              block-size="20"
-              @changing="inviteShare = $event.detail.value"
-              @change="inviteShare = $event.detail.value"
-            />
-            <text class="gt-slider-val">
-              {{ inviteShare }}%
-            </text>
+            <slider class="gt-slider" :value="inviteShare" :min="10" :max="90" :step="5" activeColor="#C41E3A" block-size="20" @changing="inviteShare = $event.detail.value" @change="inviteShare = $event.detail.value" />
+            <text class="gt-slider-val">{{ inviteShare }}%</text>
           </view>
-          <text class="gt-slider-hint">
-            嘉宾/老师获得 {{ inviteShare }}%，圈子获得 {{ 100 - inviteShare }}%
-          </text>
+          <text class="gt-slider-hint">嘉宾/老师获得 {{ inviteShare }}%，圈子获得 {{ 100 - inviteShare }}%</text>
           <!-- 邀请链接 -->
           <view v-if="inviteType === 'link'">
-            <text class="gt-field-label">
-              邀请链接
-            </text>
+            <text class="gt-field-label">邀请链接</text>
             <view class="gt-link-row">
-              <view class="gt-link">
-                {{ inviteLink }}
-              </view>
-              <view
-                class="gt-link-btn"
-                @tap="copyInviteLink"
-              >
-                <app-icon
-                  name="copy"
-                  :size="28"
-                  color="#ffffff"
-                />
-              </view>
-              <view
-                class="gt-link-btn gt-link-btn-ghost"
-                @tap="toastComingSoon()"
-              >
-                <app-icon
-                  name="qr-code"
-                  :size="28"
-                  color="#666666"
-                />
-              </view>
+              <view class="gt-link">{{ inviteLink }}</view>
+              <view class="gt-link-btn" @tap="copyInviteLink"><app-icon name="copy" :size="28" color="#ffffff" /></view>
+              <view class="gt-link-btn gt-link-btn-ghost" @tap="toastComingSoon()"><app-icon name="qr-code" :size="28" color="#666666" /></view>
             </view>
-            <text class="gt-slider-hint">
-              链接7天内有效，对方接受邀请后自动成为嘉宾/老师
-            </text>
+            <text class="gt-slider-hint">链接7天内有效，对方接受邀请后自动成为嘉宾/老师</text>
           </view>
           <!-- 搜索用户 -->
           <view v-else>
-            <text class="gt-field-label">
-              搜索用户
-            </text>
+            <text class="gt-field-label">搜索用户</text>
             <view class="gt-search gt-search-modal">
-              <app-icon
-                name="search"
-                :size="28"
-                color="#999999"
-              />
-              <input
-                class="gt-search-input"
-                placeholder="输入用户名或ID搜索"
-                placeholder-class="gt-ph"
-              >
+              <app-icon name="search" :size="28" color="#999999" />
+              <input class="gt-search-input" placeholder="输入用户名或ID搜索" placeholder-class="gt-ph" />
             </view>
           </view>
         </scroll-view>
@@ -537,87 +226,27 @@ function toggleEditPerm(p: string) { editPerms.value = editPerms.value.includes(
     </view>
 
     <!-- 编辑嘉宾底部弹窗 -->
-    <view
-      v-if="showEditModal && editingGuest"
-      class="gt-modal-mask"
-      @tap="showEditModal = null"
-    >
-      <view
-        class="gt-sheet"
-        @tap.stop
-      >
+    <view v-if="showEditModal && editingGuest" class="gt-modal-mask" @tap="showEditModal = null">
+      <view class="gt-sheet" @tap.stop>
         <view class="gt-sheet-head">
-          <text
-            class="gt-sheet-cancel"
-            @tap="showEditModal = null"
-          >
-            取消
-          </text>
-          <text class="gt-sheet-title">
-            编辑 {{ editingGuest.name }}
-          </text>
-          <text
-            class="gt-sheet-ok"
-            @tap="showEditModal = null"
-          >
-            保存
-          </text>
+          <text class="gt-sheet-cancel" @tap="showEditModal = null">取消</text>
+          <text class="gt-sheet-title">编辑 {{ editingGuest.name }}</text>
+          <text class="gt-sheet-ok" @tap="showEditModal = null">保存</text>
         </view>
-        <scroll-view
-          scroll-y
-          class="gt-sheet-body"
-        >
-          <text class="gt-field-label">
-            角色类型
-          </text>
+        <scroll-view scroll-y class="gt-sheet-body">
+          <text class="gt-field-label">角色类型</text>
           <view class="gt-seg">
-            <view
-              class="gt-seg-btn"
-              :class="{ 'gt-seg-on-gold': editRole === 'guest' }"
-              @tap="editRole = 'guest'"
-            >
-              嘉宾
-            </view>
-            <view
-              class="gt-seg-btn"
-              :class="{ 'gt-seg-on-info': editRole === 'teacher' }"
-              @tap="editRole = 'teacher'"
-            >
-              老师
-            </view>
+            <view class="gt-seg-btn" :class="{ 'gt-seg-on-gold': editRole === 'guest' }" @tap="editRole = 'guest'">嘉宾</view>
+            <view class="gt-seg-btn" :class="{ 'gt-seg-on-info': editRole === 'teacher' }" @tap="editRole = 'teacher'">老师</view>
           </view>
-          <text class="gt-field-label">
-            发布权限
-          </text>
+          <text class="gt-field-label">发布权限</text>
           <view class="gt-perm-pills">
-            <view
-              v-for="[key, label] in permEntries"
-              :key="key"
-              class="gt-perm-pill"
-              :class="{ 'gt-perm-pill-on': editPerms.includes(key) }"
-              @tap="toggleEditPerm(key)"
-            >
-              {{ label }}
-            </view>
+            <view v-for="[key, label] in permEntries" :key="key" class="gt-perm-pill" :class="{ 'gt-perm-pill-on': editPerms.includes(key) }" @tap="toggleEditPerm(key)">{{ label }}</view>
           </view>
-          <text class="gt-field-label">
-            收益分成比例
-          </text>
+          <text class="gt-field-label">收益分成比例</text>
           <view class="gt-slider-row">
-            <slider
-              class="gt-slider"
-              :value="editShare"
-              :min="10"
-              :max="90"
-              :step="5"
-              active-color="#C41E3A"
-              block-size="20"
-              @changing="editShare = $event.detail.value"
-              @change="editShare = $event.detail.value"
-            />
-            <text class="gt-slider-val">
-              {{ editShare }}%
-            </text>
+            <slider class="gt-slider" :value="editShare" :min="10" :max="90" :step="5" activeColor="#C41E3A" block-size="20" @changing="editShare = $event.detail.value" @change="editShare = $event.detail.value" />
+            <text class="gt-slider-val">{{ editShare }}%</text>
           </view>
         </scroll-view>
       </view>

@@ -1,34 +1,12 @@
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="120rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无常见问题" />
-  <view v-else class="page">
+  <view class="page">
     <!-- 顶栏 -->
-    <view
-      class="topbar"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="topbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="tb-inner">
-        <view
-          class="tb-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#2b2b2b"
-          />
+        <view class="tb-back" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#2b2b2b" />
         </view>
-        <text class="tb-title">
-          常见问题
-        </text>
+        <text class="tb-title">常见问题</text>
         <view class="tb-placeholder" />
       </view>
     </view>
@@ -36,26 +14,18 @@
     <view class="body">
       <!-- 搜索 -->
       <view class="search-box">
-        <app-icon
-          name="search"
-          :size="32"
-          color="#999999"
-        />
+        <app-icon name="search" :size="32" color="#999999" />
         <input
           v-model="search"
           class="search-input"
           type="text"
           placeholder="搜索问题"
           placeholder-class="search-ph"
-        >
+        />
       </view>
 
       <!-- 分类筛选 -->
-      <scroll-view
-        class="cat-scroll"
-        scroll-x
-        :show-scrollbar="false"
-      >
+      <scroll-view class="cat-scroll" scroll-x :show-scrollbar="false">
         <view class="cat-row">
           <view
             v-for="cat in allCategories"
@@ -63,64 +33,28 @@
             class="cat-chip"
             :class="{ 'cat-chip-on': activeCategory === cat }"
             @tap="activeCategory = cat"
-          >
-            {{ cat }}
-          </view>
+          >{{ cat }}</view>
         </view>
       </scroll-view>
 
       <!-- 空状态 -->
-      <view
-        v-if="filtered.length === 0"
-        class="empty"
-      >
-        <app-icon
-          name="help-circle"
-          :size="80"
-          color="#d8d8d8"
-        />
-        <text class="empty-txt">
-          未找到相关问题
-        </text>
+      <view v-if="filtered.length === 0" class="empty">
+        <app-icon name="help-circle" :size="80" color="#d8d8d8" />
+        <text class="empty-txt">未找到相关问题</text>
       </view>
 
       <!-- FAQ 列表 -->
-      <view
-        v-else
-        class="faq-list"
-      >
-        <view
-          v-for="faq in filtered"
-          :key="faq.id"
-          class="faq-card"
-        >
-          <view
-            class="faq-q"
-            @tap="toggle(faq.id)"
-          >
+      <view v-else class="faq-list">
+        <view v-for="faq in filtered" :key="faq.id" class="faq-card">
+          <view class="faq-q" @tap="toggle(faq.id)">
             <view class="faq-q-left">
-              <app-icon
-                name="help-circle"
-                :size="32"
-                color="#c41e3a"
-              />
-              <text class="faq-q-txt">
-                {{ faq.question }}
-              </text>
+              <app-icon name="help-circle" :size="32" color="#c41e3a" />
+              <text class="faq-q-txt">{{ faq.question }}</text>
             </view>
-            <app-icon
-              :name="openId === faq.id ? 'chevron-up' : 'chevron-down'"
-              :size="30"
-              color="#999999"
-            />
+            <app-icon :name="openId === faq.id ? 'chevron-up' : 'chevron-down'" :size="30" color="#999999" />
           </view>
-          <view
-            v-if="openId === faq.id"
-            class="faq-a"
-          >
-            <text class="faq-a-txt">
-              {{ faq.answer }}
-            </text>
+          <view v-if="openId === faq.id" class="faq-a">
+            <text class="faq-a-txt">{{ faq.answer }}</text>
           </view>
         </view>
       </view>
@@ -131,23 +65,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { agentsSquareApi } from '@/lib/agents-square-data'
-
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  const faqs = await agentsSquareApi.getFaqs()
-  return { faqs }
-})
-
-const isEmpty = computed(() => {
-  const f = pageData.value?.faqs
-  return f !== undefined && f.length === 0
-})
-
-const agentFaqs = computed(() => pageData.value?.faqs ?? [])
+import { agentFaqs } from '@/lib/agents-square-data'
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({
@@ -160,10 +78,10 @@ const search = ref('')
 const openId = ref<string | null>(null)
 const activeCategory = ref('全部')
 
-const allCategories = computed(() => ['全部', ...Array.from(new Set(agentFaqs.value.map((f) => f.category)))])
+const allCategories = computed(() => ['全部', ...Array.from(new Set(agentFaqs.map((f) => f.category)))])
 
 const filtered = computed(() =>
-  agentFaqs.value.filter((f) => {
+  agentFaqs.filter((f) => {
     const matchCategory = activeCategory.value === '全部' || f.category === activeCategory.value
     const matchSearch = !search.value || f.question.includes(search.value) || f.answer.includes(search.value)
     return matchCategory && matchSearch

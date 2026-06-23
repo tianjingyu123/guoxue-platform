@@ -112,18 +112,6 @@
           }
         },
         {
-          "path": "liuyao/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "liuyao/result",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "yangpan/index",
           "style": {
             "navigationStyle": "custom"
@@ -143,18 +131,6 @@
         },
         {
           "path": "yangpan/history/groups",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "ziwei/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "ziwei/result",
           "style": {
             "navigationStyle": "custom"
           }
@@ -334,7 +310,8 @@
         { "path": "after-sale-rejected/index", "style": { "navigationStyle": "custom" } },
         { "path": "my-after-sales/index", "style": { "navigationStyle": "custom" } },
         { "path": "addresses/index", "style": { "navigationStyle": "custom" } },
-        { "path": "address-edit/index", "style": { "navigationStyle": "custom" } }
+        { "path": "address-edit/index", "style": { "navigationStyle": "custom" } },
+        { "path": "address/index", "style": { "navigationStyle": "custom" } }
       ]
     },
     {
@@ -814,7 +791,46 @@
     },
     {
       "root": "pkg-video",
-      "pages": []
+      "pages": [
+        { "path": "detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "list/index", "style": { "navigationStyle": "custom" } },
+        { "path": "search/index", "style": { "navigationStyle": "custom" } },
+        { "path": "publish/index", "style": { "navigationStyle": "custom" } },
+        { "path": "creator/index", "style": { "navigationStyle": "custom" } },
+        { "path": "creator/analytics/index", "style": { "navigationStyle": "custom" } },
+        { "path": "creator/sales/index", "style": { "navigationStyle": "custom" } },
+        { "path": "creator/products-add/index", "style": { "navigationStyle": "custom" } },
+        { "path": "creator/withdraw/index", "style": { "navigationStyle": "custom" } },
+        { "path": "creator/earnings-history/index", "style": { "navigationStyle": "custom" } },
+        { "path": "creator/settings/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-merchant",
+      "pages": [
+        { "path": "join/index", "style": { "navigationStyle": "custom" } },
+        { "path": "apply/index", "style": { "navigationStyle": "custom" } },
+        { "path": "application-status/index", "style": { "navigationStyle": "custom" } },
+        { "path": "edit-application/index", "style": { "navigationStyle": "custom" } },
+        { "path": "sign-agreement/index", "style": { "navigationStyle": "custom" } },
+        { "path": "pay-deposit/index", "style": { "navigationStyle": "custom" } },
+        { "path": "terms/index", "style": { "navigationStyle": "custom" } },
+        { "path": "dashboard/index", "style": { "navigationStyle": "custom" } },
+        { "path": "products/index", "style": { "navigationStyle": "custom" } },
+        { "path": "product-edit/index", "style": { "navigationStyle": "custom" } },
+        { "path": "orders/index", "style": { "navigationStyle": "custom" } },
+        { "path": "order-detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "revenue/index", "style": { "navigationStyle": "custom" } },
+        { "path": "reviews/index", "style": { "navigationStyle": "custom" } },
+        { "path": "analytics/index", "style": { "navigationStyle": "custom" } },
+        { "path": "profile/index", "style": { "navigationStyle": "custom" } },
+        { "path": "shop-preview/index", "style": { "navigationStyle": "custom" } },
+        { "path": "notices/index", "style": { "navigationStyle": "custom" } },
+        { "path": "inquiries/index", "style": { "navigationStyle": "custom" } },
+        { "path": "content-stats/index", "style": { "navigationStyle": "custom" } },
+        { "path": "circle-bindding/index", "style": { "navigationStyle": "custom" } },
+        { "path": "violations/index", "style": { "navigationStyle": "custom" } }
+      ]
     },
     {
       "root": "pkg-operator",
@@ -848,8 +864,34 @@
       ]
     },
     {
-      "root": "pkg-institute",
-      "pages": []
+  "root": "pkg-institute",
+  "pages": [
+  { "path": "index/index", "style": { "navigationStyle": "custom" } },
+  { "path": "instructors/index", "style": { "navigationStyle": "custom" } },
+  { "path": "instructor-detail/index", "style": { "navigationStyle": "custom" } },
+  { "path": "events/index", "style": { "navigationStyle": "custom" } },
+  { "path": "event-detail/index", "style": { "navigationStyle": "custom" } },
+  { "path": "apply/index", "style": { "navigationStyle": "custom" } },
+  { "path": "my-tasks/index", "style": { "navigationStyle": "custom" } },
+  { "path": "teacher-pool/index", "style": { "navigationStyle": "custom" } },
+  { "path": "teacher-demand/index", "style": { "navigationStyle": "custom" } },
+  { "path": "demand-create/index", "style": { "navigationStyle": "custom" } },
+  { "path": "members/index", "style": { "navigationStyle": "custom" } },
+  { "path": "member-apply/index", "style": { "navigationStyle": "custom" } },
+  { "path": "demands-create/index", "style": { "navigationStyle": "custom" } }
+  ]
+  },
+    {
+      "root": "pkg-offline",
+      "pages": [
+        { "path": "stations/index", "style": { "navigationStyle": "custom" } },
+        { "path": "station-detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "courses/index", "style": { "navigationStyle": "custom" } },
+        { "path": "course-detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "teacher-booking/index", "style": { "navigationStyle": "custom" } },
+        { "path": "events/index", "style": { "navigationStyle": "custom" } },
+        { "path": "checkin/index", "style": { "navigationStyle": "custom" } }
+      ]
     },
     {
       "root": "pkg-mine",
@@ -888,6 +930,11 @@
         { "path": "follows/index", "style": { "navigationStyle": "custom" } },
         { "path": "downloads/index", "style": { "navigationStyle": "custom" } },
         { "path": "bookings/index", "style": { "navigationStyle": "custom" } },
+        { "path": "reservations/index", "style": { "navigationStyle": "custom" } },
+        { "path": "teen-mode-intro/index", "style": { "navigationStyle": "custom" } },
+        { "path": "notifications/index", "style": { "navigationStyle": "custom" } },
+        { "path": "browse-history/index", "style": { "navigationStyle": "custom" } },
+        { "path": "likes/index", "style": { "navigationStyle": "custom" } },
         { "path": "applications/index", "style": { "navigationStyle": "custom" } },
         { "path": "invite-records/index", "style": { "navigationStyle": "custom" } },
         { "path": "submissions/index", "style": { "navigationStyle": "custom" } },
@@ -920,7 +967,12 @@
         { "path": "blacklist/index", "style": { "navigationStyle": "custom" } },
         { "path": "bindaccount/index", "style": { "navigationStyle": "custom" } },
         { "path": "delete-account/index", "style": { "navigationStyle": "custom" } },
-        { "path": "verification/index", "style": { "navigationStyle": "custom" } }
+        { "path": "verification/index", "style": { "navigationStyle": "custom" } },
+        { "path": "third-party-sdk/index", "style": { "navigationStyle": "custom" } },
+        { "path": "data-collection-list/index", "style": { "navigationStyle": "custom" } },
+        { "path": "user-agreement/index", "style": { "navigationStyle": "custom" } },
+        { "path": "privacy-policy/index", "style": { "navigationStyle": "custom" } },
+        { "path": "child-privacy/index", "style": { "navigationStyle": "custom" } }
       ]
     },
     {
@@ -938,7 +990,8 @@
         { "path": "register/index", "style": { "navigationStyle": "custom" } },
         { "path": "forgot-password/index", "style": { "navigationStyle": "custom" } },
         { "path": "welcome/index", "style": { "navigationStyle": "custom" } },
-        { "path": "interests-guide/index", "style": { "navigationStyle": "custom" } }
+        { "path": "interests-guide/index", "style": { "navigationStyle": "custom" } },
+        { "path": "recover/index", "style": { "navigationStyle": "custom" } }
       ]
     },
     {
@@ -974,6 +1027,18 @@
       ]
     },
     {
+      "root": "pkg-fortune",
+      "pages": [
+        { "path": "index/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-discover",
+      "pages": [
+        { "path": "same-city/feed", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
       "root": "pkg-bounty",
       "pages": [
         { "path": "index/index", "style": { "navigationStyle": "custom" } },
@@ -1001,8 +1066,30 @@
     {
       "root": "pkg-expert",
       "pages": [
-        { "path": "index/index", "style": { "navigationStyle": "custom" } },
-        { "path": "detail/index", "style": { "navigationStyle": "custom" } }
+        {
+          "path": "index/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "detail/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "booking/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "call/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        }
       ]
     },
     {
@@ -1010,7 +1097,8 @@
       "pages": [
         { "path": "index/index", "style": { "navigationStyle": "custom" } },
         { "path": "result/index", "style": { "navigationStyle": "custom" } },
-        { "path": "detail/index", "style": { "navigationStyle": "custom" } }
+        { "path": "detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "community-rules/index", "style": { "navigationStyle": "custom" } }
       ]
     },
     {

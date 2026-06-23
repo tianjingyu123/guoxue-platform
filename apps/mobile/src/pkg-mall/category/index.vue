@@ -2,21 +2,8 @@
 /** 商品分类页 - 从原型 app/mall/category/page.tsx 1:1 迁移 */
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { categoryTabs as _categoryTabs, categorySortOptions as _categorySortOptions, categoryProducts as _categoryProducts } from '@/lib/shop-data'
-
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { tabs: _categoryTabs, sortOptions: _categorySortOptions, products: _categoryProducts }
-})
-
-const categoryTabs = computed(() => pageData.value?.tabs ?? [])
-const categorySortOptions = computed(() => pageData.value?.sortOptions ?? [])
-const categoryProducts = computed(() => pageData.value?.products ?? [])
-const isEmpty = computed(() => categoryProducts.value.length === 0)
+import { categoryTabs, categorySortOptions, categoryProducts } from '@/lib/shop-data'
 
 const activeCategory = ref('all')
 const sortBy = ref('default')
@@ -29,11 +16,11 @@ const onlyMemberFree = ref(false)
 
 const quickPrices: Array<[number, number]> = [[0, 50], [50, 100], [100, 300], [300, 500], [500, 1000]]
 
-const sortName = computed(() => categorySortOptions.value.find((s) => s.id === sortBy.value)?.name)
+const sortName = computed(() => categorySortOptions.find((s) => s.id === sortBy.value)?.name)
 const hasFilter = computed(() => priceMin.value > 0 || priceMax.value < 1000 || onlyMemberFree.value)
 
 const sortedProducts = computed(() => {
-  const list = categoryProducts.value.filter((p) => {
+  const list = categoryProducts.filter((p) => {
     if (activeCategory.value !== 'all' && p.category !== activeCategory.value) return false
     if (searchQuery.value && !p.name.includes(searchQuery.value)) return false
     if (p.price < priceMin.value || p.price > priceMax.value) return false
@@ -60,54 +47,21 @@ function openProduct(id: number) { navigateTo(`/mall/product/${id}`) }
 </script>
 
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="80rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="300rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无商品" />
-  <view v-else class="page">
+  <view class="page">
     <!-- 顶部搜索栏 -->
     <view class="header">
       <view class="header-inner">
-        <view
-          class="back-btn"
-          @tap="goBack"
-        >
-          <AppIcon
-            name="arrow-left"
-            :size="40"
-            color="var(--text-strong)"
-          />
-        </view>
+        <view class="back-btn" @tap="goBack"><AppIcon name="arrow-left" :size="40" color="var(--text-strong)" /></view>
         <view class="search-box">
-          <view class="search-icon">
-            <AppIcon
-              name="search"
-              :size="32"
-              color="var(--text-soft)"
-            />
-          </view>
-          <input
-            v-model="searchQuery"
-            class="search-input"
-            type="text"
-            placeholder="搜索商品"
-            placeholder-class="search-ph"
-          >
+          <view class="search-icon"><AppIcon name="search" :size="32" color="var(--text-soft)" /></view>
+          <input v-model="searchQuery" class="search-input" type="text" placeholder="搜索商品" placeholder-class="search-ph" />
         </view>
       </view>
     </view>
 
     <view class="body">
       <!-- 左侧分类栏 -->
-      <scroll-view
-        class="aside"
-        scroll-y
-      >
+      <scroll-view class="aside" scroll-y>
         <view
           v-for="cat in categoryTabs"
           :key="cat.id"
@@ -115,16 +69,9 @@ function openProduct(id: number) { navigateTo(`/mall/product/${id}`) }
           :class="{ 'cat-item-on': activeCategory === cat.id }"
           @tap="activeCategory = cat.id"
         >
-          <view
-            v-if="activeCategory === cat.id"
-            class="cat-bar"
-          />
-          <text class="cat-name">
-            {{ cat.name }}
-          </text>
-          <text class="cat-count">
-            {{ cat.count }}
-          </text>
+          <view v-if="activeCategory === cat.id" class="cat-bar" />
+          <text class="cat-name">{{ cat.name }}</text>
+          <text class="cat-count">{{ cat.count }}</text>
         </view>
       </scroll-view>
 
@@ -133,33 +80,12 @@ function openProduct(id: number) { navigateTo(`/mall/product/${id}`) }
         <!-- 排序栏 -->
         <view class="sort-bar">
           <view class="sort-dropdown">
-            <view
-              class="sort-trigger"
-              @tap="showSortMenu = !showSortMenu"
-            >
-              <text class="sort-text">
-                {{ sortName }}
-              </text>
-              <view
-                class="sort-arrow"
-                :class="{ 'sort-arrow-up': showSortMenu }"
-              >
-                <AppIcon
-                  name="chevron-down"
-                  :size="28"
-                  color="var(--text-strong)"
-                />
-              </view>
+            <view class="sort-trigger" @tap="showSortMenu = !showSortMenu">
+              <text class="sort-text">{{ sortName }}</text>
+              <view class="sort-arrow" :class="{ 'sort-arrow-up': showSortMenu }"><AppIcon name="chevron-down" :size="28" color="var(--text-strong)" /></view>
             </view>
-            <view
-              v-if="showSortMenu"
-              class="sort-mask"
-              @tap="showSortMenu = false"
-            />
-            <view
-              v-if="showSortMenu"
-              class="sort-menu"
-            >
+            <view v-if="showSortMenu" class="sort-mask" @tap="showSortMenu = false" />
+            <view v-if="showSortMenu" class="sort-menu">
               <view
                 v-for="opt in categorySortOptions"
                 :key="opt.id"
@@ -167,146 +93,55 @@ function openProduct(id: number) { navigateTo(`/mall/product/${id}`) }
                 :class="{ 'sort-opt-on': sortBy === opt.id }"
                 @tap="pickSort(opt.id)"
               >
-                <text
-                  class="sort-opt-text"
-                  :class="{ 'sort-opt-text-on': sortBy === opt.id }"
-                >
-                  {{ opt.name }}
-                </text>
+                <text class="sort-opt-text" :class="{ 'sort-opt-text-on': sortBy === opt.id }">{{ opt.name }}</text>
               </view>
             </view>
           </view>
-          <view
-            class="filter-btn"
-            :class="{ 'filter-btn-on': hasFilter }"
-            @tap="showFilter = true"
-          >
-            <AppIcon
-              name="filter"
-              :size="28"
-              :color="hasFilter ? 'var(--brand)' : 'var(--text-soft)'"
-            />
-            <text
-              class="filter-text"
-              :class="{ 'filter-text-on': hasFilter }"
-            >
-              筛选
-            </text>
+          <view class="filter-btn" :class="{ 'filter-btn-on': hasFilter }" @tap="showFilter = true">
+            <AppIcon name="filter" :size="28" :color="hasFilter ? 'var(--brand)' : 'var(--text-soft)'" />
+            <text class="filter-text" :class="{ 'filter-text-on': hasFilter }">筛选</text>
           </view>
         </view>
 
         <!-- 商品网格 -->
-        <view
-          v-if="sortedProducts.length"
-          class="grid"
-        >
-          <view
-            v-for="p in sortedProducts"
-            :key="p.id"
-            class="g-card"
-            hover-class="g-card-press"
-            @tap="openProduct(p.id)"
-          >
+        <view v-if="sortedProducts.length" class="grid">
+          <view v-for="p in sortedProducts" :key="p.id" class="g-card" hover-class="g-card-press" @tap="openProduct(p.id)">
             <view class="g-cover">
-              <image
-                class="g-img"
-                :src="p.cover"
-                mode="aspectFill"
-              />
-              <text
-                v-if="p.isMemberFree"
-                class="g-badge"
-              >
-                会员免费
-              </text>
+              <image class="g-img" :src="p.cover" mode="aspectFill" />
+              <text v-if="p.isMemberFree" class="g-badge">会员免费</text>
             </view>
             <view class="g-body">
-              <text class="g-name">
-                {{ p.name }}
-              </text>
+              <text class="g-name">{{ p.name }}</text>
               <view class="g-price-row">
-                <text class="g-price">
-                  ¥{{ p.price }}
-                </text>
-                <text class="g-orig">
-                  ¥{{ p.originalPrice }}
-                </text>
+                <text class="g-price">¥{{ p.price }}</text>
+                <text class="g-orig">¥{{ p.originalPrice }}</text>
               </view>
-              <text class="g-sales">
-                已售{{ formatSales(p.sales) }}
-              </text>
+              <text class="g-sales">已售{{ formatSales(p.sales) }}</text>
             </view>
           </view>
         </view>
-        <view
-          v-else
-          class="empty"
-        >
-          <view class="empty-icon">
-            <AppIcon
-              name="search"
-              :size="56"
-              color="var(--text-soft)"
-            />
-          </view>
-          <text class="empty-text">
-            暂无相关商品
-          </text>
-          <text
-            class="empty-reset"
-            @tap="resetAll"
-          >
-            重置筛选条件
-          </text>
+        <view v-else class="empty">
+          <view class="empty-icon"><AppIcon name="search" :size="56" color="var(--text-soft)" /></view>
+          <text class="empty-text">暂无相关商品</text>
+          <text class="empty-reset" @tap="resetAll">重置筛选条件</text>
         </view>
       </view>
     </view>
 
     <!-- 筛选面板 -->
-    <view
-      v-if="showFilter"
-      class="mask mask-fade-in"
-      @tap="showFilter = false"
-    />
-    <view
-      v-if="showFilter"
-      class="filter-panel"
-    >
+    <view v-if="showFilter" class="mask mask-fade-in" @tap="showFilter = false" />
+    <view v-if="showFilter" class="filter-panel">
       <view class="fp-head">
-        <text class="fp-title">
-          筛选
-        </text>
-        <view @tap="showFilter = false">
-          <AppIcon
-            name="x"
-            :size="36"
-            color="var(--text-soft)"
-          />
-        </view>
+        <text class="fp-title">筛选</text>
+        <view @tap="showFilter = false"><AppIcon name="x" :size="36" color="var(--text-soft)" /></view>
       </view>
       <view class="fp-body">
         <view class="fp-group">
-          <text class="fp-label">
-            价格区间
-          </text>
+          <text class="fp-label">价格区间</text>
           <view class="fp-price-row">
-            <input
-              v-model.number="priceMin"
-              class="fp-input"
-              type="number"
-              placeholder="最低价"
-              placeholder-class="search-ph"
-            >
-            <text class="fp-dash">
-              -
-            </text>
-            <input
-              v-model.number="priceMax"
-              class="fp-input"
-              type="number"
-              placeholder="最高价"
-              placeholder-class="search-ph"
-            >
+            <input v-model.number="priceMin" class="fp-input" type="number" placeholder="最低价" placeholder-class="search-ph" />
+            <text class="fp-dash">-</text>
+            <input v-model.number="priceMax" class="fp-input" type="number" placeholder="最高价" placeholder-class="search-ph" />
           </view>
           <view class="fp-quick">
             <view
@@ -316,59 +151,23 @@ function openProduct(id: number) { navigateTo(`/mall/product/${id}`) }
               :class="{ 'fp-quick-tag-on': priceMin === min && priceMax === max }"
               @tap="pickQuickPrice(min, max)"
             >
-              <text
-                class="fp-quick-text"
-                :class="{ 'fp-quick-text-on': priceMin === min && priceMax === max }"
-              >
-                ¥{{ min }}-{{ max }}
-              </text>
+              <text class="fp-quick-text" :class="{ 'fp-quick-text-on': priceMin === min && priceMax === max }">¥{{ min }}-{{ max }}</text>
             </view>
           </view>
         </view>
         <view class="fp-group">
-          <text class="fp-label">
-            其他
-          </text>
-          <view
-            class="fp-check-row"
-            @tap="onlyMemberFree = !onlyMemberFree"
-          >
-            <view
-              class="fp-check"
-              :class="{ 'fp-check-on': onlyMemberFree }"
-            >
-              <AppIcon
-                v-if="onlyMemberFree"
-                name="check"
-                :size="22"
-                color="#fff"
-              />
+          <text class="fp-label">其他</text>
+          <view class="fp-check-row" @tap="onlyMemberFree = !onlyMemberFree">
+            <view class="fp-check" :class="{ 'fp-check-on': onlyMemberFree }">
+              <AppIcon v-if="onlyMemberFree" name="check" :size="22" color="#fff" />
             </view>
-            <text class="fp-check-label">
-              仅看会员免费
-            </text>
+            <text class="fp-check-label">仅看会员免费</text>
           </view>
         </view>
       </view>
       <view class="fp-actions">
-        <view
-          class="fp-btn-reset"
-          hover-class="g-card-press"
-          @tap="resetFilter"
-        >
-          <text class="fp-btn-reset-text">
-            重置
-          </text>
-        </view>
-        <view
-          class="fp-btn-ok"
-          hover-class="g-card-press"
-          @tap="showFilter = false"
-        >
-          <text class="fp-btn-ok-text">
-            确定
-          </text>
-        </view>
+        <view class="fp-btn-reset" hover-class="g-card-press" @tap="resetFilter"><text class="fp-btn-reset-text">重置</text></view>
+        <view class="fp-btn-ok" hover-class="g-card-press" @tap="showFilter = false"><text class="fp-btn-ok-text">确定</text></view>
       </view>
     </view>
   </view>

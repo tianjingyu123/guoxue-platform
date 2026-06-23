@@ -1,16 +1,5 @@
 <template>
-  <view v-if="loading" class="cat-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <view style="display: flex; gap: 24rpx;">
-        <AppSkeleton width="180rpx" height="400rpx" radius="24rpx" />
-        <AppSkeleton width="100%" height="400rpx" radius="24rpx" />
-      </view>
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无分类" />
-  <view v-else class="cat-page">
+  <view class="cat-page">
     <!-- 顶部导航 -->
     <app-nav-bar title="商品分类" back-icon="arrow-left" :back-size="34">
       <template #right>
@@ -64,9 +53,9 @@
               <AppSkeleton width="40%" height="22rpx" />
             </view>
           </view>
-          <view v-else-if="currentProducts.length" class="goods-grid content-fade-in">
+          <view v-else-if="products.length" class="goods-grid content-fade-in">
             <view
-              v-for="p in currentProducts"
+              v-for="p in products"
               :key="p.id"
               class="goods-card"
               hover-class="card-hover"
@@ -94,86 +83,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { navigateTo } from '@/utils/router'
-import { shopApi, type ShopCategoryNode, type ShopCategoryProduct } from '@/lib/shop-data'
+import { shopCategoryTree, shopCategoryProducts, type ShopCategoryNode } from '@/lib/shop-data'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 
-const categories = ref<ShopCategoryNode[]>([])
-const products = ref<Record<string, ShopCategoryProduct[]>>({})
-const selectedCategory = ref('')
-const selectedSubCategory = ref('')
-const loading = ref(true)
-const loadError = ref<string | null>(null)
+const categories = ref<ShopCategoryNode[]>(shopCategoryTree)
+const products = ref(shopCategoryProducts)
+const selectedCategory = ref(shopCategoryTree[0]?.id || '')
+const selectedSubCategory = ref(shopCategoryTree[0]?.children[0]?.id || '')
+const loading = ref(false)
 
-const isEmpty = computed(() => categories.value.length === 0 && !loading.value)
-
-onMounted(async () => {
-  try {
-    loadError.value = null
-    const tree = await shopApi.getCategoryTree()
-    categories.value = tree
-    if (tree.length > 0) {
-      selectedCategory.value = tree[0].id
-      if (tree[0].children?.length) selectedSubCategory.value = tree[0].children[0].id
-      const prods = await shopApi.getCategoryProducts(tree[0].id)
-      products.value = { [tree[0].id]: prods }
-    }
-  } catch {
-    loadError.value = '加载失败，请稍后重试'
-  }
-  finally { loading.value = false }
-})
-async function reload() {
+function triggerLoading() {
   loading.value = true
-  loadError.value = null
-  categories.value = []
-  products.value = {}
-  try {
-    const tree = await shopApi.getCategoryTree()
-    categories.value = tree
-    if (tree.length > 0) {
-      selectedCategory.value = tree[0].id
-      selectedSubCategory.value = tree[0].children?.[0]?.id ?? ''
-      const prods = await shopApi.getCategoryProducts(tree[0].id)
-      products.value = { [tree[0].id]: prods }
-    }
-  } catch {
-    loadError.value = '加载失败，请稍后重试'
-  }
-  finally { loading.value = false }
-}
-
-const currentCategory = computed(() => categories.value.find((c) => c.id === selectedCategory.value))
-
-// 当前展示的商品列表：优先按选中的二级分类取桶，回退到一级分类
-const currentProducts = computed<ShopCategoryProduct[]>(
-  () => products.value[selectedSubCategory.value] ?? products.value[selectedCategory.value] ?? [],
-)
-
-async function loadProducts(categoryId: string) {
-  loading.value = true
-  try {
-    if (!products.value[categoryId]) {
-      const prods = await shopApi.getCategoryProducts(categoryId)
-      products.value[categoryId] = prods
-    }
-  } catch { /* useMock handles fallback */ }
-  finally { loading.value = false }
+  setTimeout(() => (loading.value = false), 450)
 }
 function selectSub(id: string) {
   if (selectedSubCategory.value === id) return
   selectedSubCategory.value = id
-  loadProducts(id)
+  triggerLoading()
 }
+
+const currentCategory = computed(() => categories.value.find((c) => c.id === selectedCategory.value))
+
 function handleCategoryClick(id: string) {
   if (selectedCategory.value === id) return
   selectedCategory.value = id
   const cat = categories.value.find((c) => c.id === id)
   if (cat?.children.length) selectedSubCategory.value = cat.children[0].id
-  loadProducts(cat?.children.length ? cat.children[0].id : id)
+  triggerLoading()
 }
 function goProduct(id: string) {
   navigateTo(`/shop/${id}`)

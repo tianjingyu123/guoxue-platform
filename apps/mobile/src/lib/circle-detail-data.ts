@@ -2,7 +2,7 @@
  * 圈子详情页数据 + 类型（从原型 app/circles/[id]/page.tsx 1:1 迁移）
  * 含 CircleDetail / CirclePost / CircleMember / 专栏 / 活动 / 会员权益。
  */
-import { apiGet, apiPost, apiPut, useMock } from '@/utils/request'
+import { apiGet, apiPost, useMock } from '@/utils/request'
 
 export interface CircleOwner { id: string; name: string; avatar: string }
 
@@ -135,66 +135,4 @@ export const circleDetailApi = {
   },
   join: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/join`),
   leave: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/leave`),
-
-  /** 发布帖子 — POST /circles/:id/posts */
-  publishPost: async (circleId: string, dto: { content: string; images?: string[]; type?: string }): Promise<{ success: boolean; message: string }> => {
-    if (useMock()) return { success: true, message: '发布成功' }
-    try {
-      await apiPost(`/circles/${circleId}/posts`, dto)
-      return { success: true, message: '发布成功' }
-    } catch (e: any) {
-      return { success: false, message: e?.message || '发布失败' }
-    }
-  },
-
-  /** 获取邀请码列表 — GET /circles/:id/invite-codes */
-  getInviteCodes: async (circleId: string): Promise<any[]> => {
-    if (useMock()) return [{ id: '1', code: 'ABC123', maxUses: 10, usedCount: 3, createdAt: new Date().toISOString() }]
-    return apiGet(`/circles/${circleId}/invite-codes`)
-  },
-
-  /** 生成邀请码 — POST /circles/:id/invite-code */
-  createInviteCode: async (circleId: string, maxUses?: number): Promise<{ success: boolean; code?: any; message: string }> => {
-    if (useMock()) return { success: true, code: { id: Date.now().toString(), code: 'NEW' + Math.random().toString(36).slice(2, 8).toUpperCase(), maxUses: maxUses || 0, usedCount: 0 }, message: '生成成功' }
-    try {
-      const data = await apiPost<any>(`/circles/${circleId}/invite-code`, { maxUses })
-      return { success: true, code: data, message: '生成成功' }
-    } catch (e: any) {
-      return { success: false, message: e?.message || '生成失败' }
-    }
-  },
-
-  /** 获取推荐的电子书 — GET /circles/:id/recommended-ebooks */
-  getRecommendedEbooks: async (circleId: string): Promise<string[]> => {
-    if (useMock()) return []
-    const data = await apiGet<{ ebookIds: string[] }>(`/circles/${circleId}/recommended-ebooks`)
-    return data?.ebookIds ?? []
-  },
-
-  /** 设置推荐的电子书 — PUT /circles/:id/recommended-ebooks */
-  setRecommendedEbooks: async (circleId: string, ebookIds: string[]): Promise<{ success: boolean; message: string }> => {
-    if (useMock()) return { success: true, message: '保存成功' }
-    try {
-      await apiPut(`/circles/${circleId}/recommended-ebooks`, { ebookIds })
-      return { success: true, message: '保存成功' }
-    } catch (e: any) {
-      return { success: false, message: e?.message || '保存失败' }
-    }
-  },
-
-  /** 获取圈子专栏 GET /circles/:id/columns */
-  getColumns: async (_circleId: string): Promise<CircleColumn[]> => {
-    if (useMock()) return mockColumns
-    try { return await apiGet<CircleColumn[]>(`/circles/${_circleId}/columns`) } catch { return mockColumns }
-  },
-  /** 获取圈子文章 GET /circles/:id/articles */
-  getArticles: async (_circleId: string): Promise<CircleArticle[]> => {
-    if (useMock()) return mockCircleArticles
-    try { return await apiGet<CircleArticle[]>(`/circles/${_circleId}/articles`) } catch { return mockCircleArticles }
-  },
-  /** 获取圈子活动 GET /circles/:id/activities */
-  getActivities: async (_circleId: string): Promise<CircleActivity[]> => {
-    if (useMock()) return mockActivities
-    try { return await apiGet<CircleActivity[]>(`/circles/${_circleId}/activities`) } catch { return mockActivities }
-  },
 }

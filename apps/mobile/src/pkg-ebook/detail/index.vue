@@ -1,48 +1,19 @@
 <template>
-  <view v-if="isLoading" class="ed-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="80rpx" radius="16rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="300rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="180rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无书籍信息" />
-  <view v-else class="ed-page">
+  <view class="ed-page">
     <!-- 顶部导航 毛玻璃 -->
     <view class="ed-header">
       <view class="ed-bar">
-        <view
-          class="ed-iconbtn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#1e293b"
-          />
+        <view class="ed-iconbtn" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#1e293b" />
         </view>
-        <text class="ed-header-title">
-          书籍详情
-        </text>
-        <view
-          class="ed-iconbtn"
-          @tap="onShare"
-        >
-          <app-icon
-            name="share-2"
-            :size="40"
-            color="#1e293b"
-          />
+        <text class="ed-header-title">书籍详情</text>
+        <view class="ed-iconbtn" @tap="onShare">
+          <app-icon name="share-2" :size="40" color="#1e293b" />
         </view>
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="ed-main"
-    >
+    <scroll-view scroll-y class="ed-main">
       <!-- Hero -->
       <view class="ed-hero">
         <view class="ed-hero-top">
@@ -55,55 +26,27 @@
             title-size="30rpx"
           />
           <view class="ed-hero-info">
-            <text class="ed-hero-title">
-              {{ book.title }}
-            </text>
-            <text class="ed-hero-sub">
-              {{ book.subtitle }}
-            </text>
+            <text class="ed-hero-title">{{ book.title }}</text>
+            <text class="ed-hero-sub">{{ book.subtitle }}</text>
             <view class="ed-hero-author">
-              <view class="ed-author-dot">
-                {{ book.author.charAt(0) }}
-              </view>
-              <text class="ed-author-name">
-                {{ book.author }}
-              </text>
+              <view class="ed-author-dot">{{ book.author.charAt(0) }}</view>
+              <text class="ed-author-name">{{ book.author }}</text>
             </view>
             <view class="ed-hero-rate">
-              <app-icon
-                name="star"
-                :size="32"
-                color="#fbbf24"
-                :fill="true"
-              />
-              <text class="ed-rate-num">
-                {{ book.rating }}
-              </text>
-              <text class="ed-rate-cnt">
-                {{ book.reviewCount }}条评价
-              </text>
+              <app-icon name="star" :size="32" color="#fbbf24" fill="#fbbf24" />
+              <text class="ed-rate-num">{{ book.rating }}</text>
+              <text class="ed-rate-cnt">{{ book.reviewCount }}条评价</text>
             </view>
           </view>
         </view>
 
         <!-- 数据条 -->
         <view class="ed-stats">
-          <view
-            v-for="(s, i) in stats"
-            :key="s.l"
-            class="ed-stat"
-          >
-            <view
-              v-if="i > 0"
-              class="ed-stat-div"
-            />
+          <view v-for="(s, i) in stats" :key="s.l" class="ed-stat">
+            <view v-if="i > 0" class="ed-stat-div" />
             <view class="ed-stat-box">
-              <text class="ed-stat-v">
-                {{ s.v }}
-              </text>
-              <text class="ed-stat-l">
-                {{ s.l }}
-              </text>
+              <text class="ed-stat-v">{{ s.v }}</text>
+              <text class="ed-stat-l">{{ s.l }}</text>
             </view>
           </view>
         </view>
@@ -111,29 +54,12 @@
 
       <!-- 简介 -->
       <view class="ed-section">
-        <text class="ed-sec-title">
-          书籍简介
-        </text>
+        <text class="ed-sec-title">书籍简介</text>
         <view class="ed-card ed-desc-card">
-          <text
-            class="ed-desc"
-            :class="{ 'ed-desc-clamp': !descExpanded }"
-          >
-            {{ book.description }}
-          </text>
-          <view
-            class="ed-desc-toggle"
-            @tap="descExpanded = !descExpanded"
-          >
-            <text class="ed-desc-toggle-txt">
-              {{ descExpanded ? '收起' : '展开全部' }}
-            </text>
-            <app-icon
-              name="chevron-right"
-              :size="28"
-              color="#2563eb"
-              :class="{ 'ed-rot': descExpanded }"
-            />
+          <text class="ed-desc" :class="{ 'ed-desc-clamp': !descExpanded }">{{ book.description }}</text>
+          <view class="ed-desc-toggle" @tap="descExpanded = !descExpanded">
+            <text class="ed-desc-toggle-txt">{{ descExpanded ? '收起' : '展开全部' }}</text>
+            <app-icon name="chevron-right" :size="28" color="#2563eb" :class="{ 'ed-rot': descExpanded }" />
           </view>
         </view>
       </view>
@@ -141,30 +67,20 @@
       <!-- 作者 -->
       <view class="ed-section">
         <view class="ed-card ed-author-card">
-          <view class="ed-author-avatar">
-            {{ book.author.charAt(0) }}
-          </view>
+          <view class="ed-author-avatar">{{ book.author.charAt(0) }}</view>
           <view class="ed-author-meta">
-            <text class="ed-author-meta-name">
-              {{ book.author }}
-            </text>
-            <text class="ed-author-meta-title">
-              {{ book.authorTitle }}
-            </text>
+            <text class="ed-author-meta-name">{{ book.author }}</text>
+            <text class="ed-author-meta-title">{{ book.authorTitle }}</text>
           </view>
           <view class="ed-author-follow">
-            <text class="ed-author-follow-txt">
-              关注
-            </text>
+            <text class="ed-author-follow-txt">关注</text>
           </view>
         </view>
       </view>
 
       <!-- 目录 -->
       <view class="ed-section">
-        <text class="ed-sec-title">
-          目录 · {{ book.chapters.length }}章
-        </text>
+        <text class="ed-sec-title">目录 · {{ book.chapters.length }}章</text>
         <view class="ed-card ed-toc">
           <view
             v-for="(ch, index) in book.chapters"
@@ -174,107 +90,50 @@
             @tap="goChapter(ch)"
           >
             <view class="ed-toc-left">
-              <text class="ed-toc-idx">
-                {{ index + 1 }}
-              </text>
-              <text class="ed-toc-title">
-                {{ ch.title }}
-              </text>
+              <text class="ed-toc-idx">{{ index + 1 }}</text>
+              <text class="ed-toc-title">{{ ch.title }}</text>
             </view>
             <view class="ed-toc-right">
-              <text
-                v-if="ch.isFree"
-                class="ed-toc-tag"
-              >
-                试读
-              </text>
-              <app-icon
-                v-else-if="!book.isPurchased"
-                name="lock"
-                :size="28"
-                color="#64748b"
-              />
-              <text class="ed-toc-pages">
-                {{ ch.pageCount }}页
-              </text>
+              <text v-if="ch.isFree" class="ed-toc-tag">试读</text>
+              <app-icon v-else-if="!book.isPurchased" name="lock" :size="28" color="#64748b" />
+              <text class="ed-toc-pages">{{ ch.pageCount }}页</text>
             </view>
           </view>
         </view>
-        <text
-          v-if="!book.isPurchased"
-          class="ed-toc-hint"
-        >
-          购买后可阅读全部 {{ book.chapters.length }} 章
-        </text>
+        <text v-if="!book.isPurchased" class="ed-toc-hint">购买后可阅读全部 {{ book.chapters.length }} 章</text>
       </view>
 
       <!-- 书友讨论 -->
       <view class="ed-section">
         <view class="ed-disc-head">
-          <text class="ed-sec-title ed-sec-title-inline">
-            书友讨论
-          </text>
-          <text class="ed-disc-cnt">
-            {{ commentCount }} 条
-          </text>
+          <text class="ed-sec-title ed-sec-title-inline">书友讨论</text>
+          <text class="ed-disc-cnt">{{ commentCount }} 条</text>
         </view>
-        <view
-          class="ed-card ed-disc"
-          @tap="showComments = true"
-        >
+        <view class="ed-card ed-disc" @tap="showComments = true">
           <view class="ed-disc-top">
-            <view class="ed-disc-avatar">
-              {{ firstDiscussion.author.name.charAt(0) }}
-            </view>
+            <view class="ed-disc-avatar">{{ firstDiscussion.author.name.charAt(0) }}</view>
             <view class="ed-disc-body">
-              <text class="ed-disc-name">
-                {{ firstDiscussion.author.name }}
-              </text>
-              <text class="ed-disc-content">
-                {{ firstDiscussion.content }}
-              </text>
+              <text class="ed-disc-name">{{ firstDiscussion.author.name }}</text>
+              <text class="ed-disc-content">{{ firstDiscussion.content }}</text>
               <view class="ed-disc-like">
-                <app-icon
-                  name="heart"
-                  :size="28"
-                  color="#64748b"
-                />
-                <text class="ed-disc-like-txt">
-                  {{ firstDiscussion.likeCount }}
-                </text>
+                <app-icon name="heart" :size="28" color="#64748b" />
+                <text class="ed-disc-like-txt">{{ firstDiscussion.likeCount }}</text>
               </view>
             </view>
           </view>
           <view class="ed-disc-all">
-            <app-icon
-              name="message-square"
-              :size="32"
-              color="#2563eb"
-            />
-            <text class="ed-disc-all-txt">
-              查看全部 {{ commentCount }} 条讨论
-            </text>
+            <app-icon name="message-square" :size="32" color="#2563eb" />
+            <text class="ed-disc-all-txt">查看全部 {{ commentCount }} 条讨论</text>
           </view>
         </view>
       </view>
 
       <!-- 相关推荐 -->
       <view class="ed-section">
-        <text class="ed-sec-title">
-          相关推荐
-        </text>
-        <scroll-view
-          scroll-x
-          class="ed-related"
-          :show-scrollbar="false"
-        >
+        <text class="ed-sec-title">相关推荐</text>
+        <scroll-view scroll-x class="ed-related" :show-scrollbar="false">
           <view class="ed-related-row">
-            <view
-              v-for="rb in book.relatedBooks"
-              :key="rb.id"
-              class="ed-related-item"
-              @tap="goDetail(rb.id)"
-            >
+            <view v-for="rb in book.relatedBooks" :key="rb.id" class="ed-related-item" @tap="goDetail(rb.id)">
               <flat-book-cover
                 class="ed-related-cover"
                 :color="hexFrom(rb.coverColor)"
@@ -283,12 +142,8 @@
                 :author="rb.author"
                 title-size="26rpx"
               />
-              <text class="ed-related-name">
-                {{ rb.title }}
-              </text>
-              <text class="ed-related-price">
-                ¥{{ rb.price }}
-              </text>
+              <text class="ed-related-name">{{ rb.title }}</text>
+              <text class="ed-related-price">¥{{ rb.price }}</text>
             </view>
           </view>
         </scroll-view>
@@ -296,114 +151,44 @@
 
       <!-- 平台标识 -->
       <view class="ed-platform">
-        <app-icon
-          name="file-text"
-          :size="32"
-          color="#2563eb"
-        />
-        <text class="ed-platform-txt">
-          本书由平台官方提供，内容经专业审核
-        </text>
+        <app-icon name="file-text" :size="32" color="#2563eb" />
+        <text class="ed-platform-txt">本书由平台官方提供，内容经专业审核</text>
       </view>
       <view class="ed-bottom-space" />
     </scroll-view>
 
     <!-- 底部操作栏 -->
     <view class="ed-actionbar">
-      <view
-        class="ed-act-icon"
-        @tap="isFavorite = !isFavorite"
-      >
-        <app-icon
-          name="heart"
-          :size="40"
-          :color="isFavorite ? '#ef4444' : '#64748b'"
-          :fill="isFavorite"
-        />
-        <text class="ed-act-icon-txt">
-          收藏
-        </text>
+      <view class="ed-act-icon" @tap="isFavorite = !isFavorite">
+        <app-icon name="heart" :size="40" :color="isFavorite ? '#ef4444' : '#64748b'" :fill="isFavorite" />
+        <text class="ed-act-icon-txt">收藏</text>
       </view>
-      <view
-        class="ed-act-icon"
-        @tap="showComments = true"
-      >
-        <app-icon
-          name="message-square"
-          :size="40"
-          color="#64748b"
-        />
-        <text class="ed-act-icon-txt">
-          评论
-        </text>
+      <view class="ed-act-icon" @tap="showComments = true">
+        <app-icon name="message-square" :size="40" color="#64748b" />
+        <text class="ed-act-icon-txt">评论</text>
       </view>
       <view class="ed-act-main">
         <template v-if="book.isPurchased">
-          <view
-            class="ed-btn ed-btn-primary"
-            @tap="goReader()"
-          >
-            <app-icon
-              name="book-open"
-              :size="32"
-              color="#ffffff"
-            />
-            <text class="ed-btn-txt-light">
-              继续阅读
-            </text>
+          <view class="ed-btn ed-btn-primary" @tap="goReader()">
+            <app-icon name="book-open" :size="32" color="#ffffff" />
+            <text class="ed-btn-txt-light">继续阅读</text>
           </view>
         </template>
         <template v-else>
-          <view
-            v-if="book.hasPreview"
-            class="ed-btn ed-btn-outline"
-            @tap="goReader(true)"
-          >
-            <app-icon
-              name="play"
-              :size="32"
-              color="#2563eb"
-            />
-            <text class="ed-btn-txt-primary">
-              试读
-            </text>
+          <view v-if="book.hasPreview" class="ed-btn ed-btn-outline" @tap="goReader(true)">
+            <app-icon name="play" :size="32" color="#2563eb" />
+            <text class="ed-btn-txt-primary">试读</text>
           </view>
-          <view
-            v-if="book.isMemberFree"
-            class="ed-btn ed-btn-member"
-            @tap="goCheckout('member')"
-          >
-            <app-icon
-              name="crown"
-              :size="32"
-              color="#ffffff"
-            />
-            <text class="ed-btn-txt-light">
-              会员免费领取
-            </text>
+          <view v-if="book.isMemberFree" class="ed-btn ed-btn-member" @tap="goCheckout('member')">
+            <app-icon name="crown" :size="32" color="#ffffff" />
+            <text class="ed-btn-txt-light">会员免费领取</text>
           </view>
-          <view
-            v-else-if="book.isFree"
-            class="ed-btn ed-btn-free"
-            @tap="goReader()"
-          >
-            <app-icon
-              name="book-open"
-              :size="32"
-              color="#ffffff"
-            />
-            <text class="ed-btn-txt-light">
-              免费阅读
-            </text>
+          <view v-else-if="book.isFree" class="ed-btn ed-btn-free" @tap="goReader()">
+            <app-icon name="book-open" :size="32" color="#ffffff" />
+            <text class="ed-btn-txt-light">免费阅读</text>
           </view>
-          <view
-            v-else
-            class="ed-btn ed-btn-primary"
-            @tap="goCheckout()"
-          >
-            <text class="ed-btn-txt-light">
-              ¥{{ book.price }} 立即购买
-            </text>
+          <view v-else class="ed-btn ed-btn-primary" @tap="goCheckout()">
+            <text class="ed-btn-txt-light">¥{{ book.price }} 立即购买</text>
           </view>
         </template>
       </view>
@@ -424,46 +209,27 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import FlatBookCover from '@/components/ebook/flat-book-cover.vue'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
 import type { DiscussionConfig } from '@/lib/discussion-types'
 import {
-  ebookApi,
+  ebookDetailData,
   ebookDiscussions,
   ebookColorFromHex,
   EBOOK_COVER,
   type EbookChapter,
-  type EbookDetail,
 } from '@/lib/ebook-data'
 
-const isLoading = ref(true)
-const loadError = ref<string | null>(null)
-const book = ref<EbookDetail | null>(null)
-const isEmpty = computed(() => !isLoading.value && !book.value)
-async function reload(id: string) {
-  isLoading.value = true
-  loadError.value = null
-  try {
-    book.value = await ebookApi.detail(id)
-  } catch (e: any) {
-    loadError.value = e?.message || '加载失败'
-  } finally {
-    isLoading.value = false
-  }
-}
-
+const book = ebookDetailData
 const isFavorite = ref(false)
 const showComments = ref(false)
 const descExpanded = ref(false)
 
-const firstDiscussion = computed(() => ebookDiscussions[0])
-const commentCount = computed(() => ebookDiscussions.reduce((n, c) => n + 1 + c.replies.length, 0))
+const firstDiscussion = ebookDiscussions[0]
+const commentCount = ebookDiscussions.reduce((n, c) => n + 1 + c.replies.length, 0)
 
-const coverFromHex = computed(() => book.value ? EBOOK_COVER[ebookColorFromHex(book.value.coverColor)].from : '#3b6fd4')
-const coverToHex = computed(() => book.value ? EBOOK_COVER[ebookColorFromHex(book.value.coverColor)].to : '#27488f')
+const coverFromHex = computed(() => EBOOK_COVER[ebookColorFromHex(book.coverColor)].from)
+const coverToHex = computed(() => EBOOK_COVER[ebookColorFromHex(book.coverColor)].to)
 function hexFrom(hex: string) {
   return EBOOK_COVER[ebookColorFromHex(hex)].from
 }
@@ -471,12 +237,12 @@ function hexTo(hex: string) {
   return EBOOK_COVER[ebookColorFromHex(hex)].to
 }
 
-const stats = computed(() => book.value ? [
-  { v: `${(book.value.wordCount / 10000).toFixed(1)}万`, l: '字数' },
-  { v: String(book.value.pageCount), l: '页数' },
-  { v: `${(book.value.salesCount / 1000).toFixed(1)}k`, l: '已购' },
-  { v: String(book.value.chapters.length), l: '章节' },
-] : [])
+const stats = [
+  { v: `${(book.wordCount / 10000).toFixed(1)}万`, l: '字数' },
+  { v: String(book.pageCount), l: '页数' },
+  { v: `${(book.salesCount / 1000).toFixed(1)}k`, l: '已购' },
+  { v: String(book.chapters.length), l: '章节' },
+]
 
 const discussionConfig: DiscussionConfig = {
   scene: 'classic',
@@ -486,9 +252,7 @@ const discussionConfig: DiscussionConfig = {
   placeholder: '分享你的读书心得…',
 }
 
-onLoad((query?: { id?: string }) => {
-  if (query?.id) reload(query.id)
-})
+onLoad(() => {})
 
 function goBack() {
   uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/index/index', fail: () => {} }) })
@@ -497,20 +261,20 @@ function onShare() {
   uni.showToast({ title: '分享功能即将上线', icon: 'none' })
 }
 function goChapter(ch: EbookChapter) {
-  const canRead = ch.isFree || book.value?.isPurchased
+  const canRead = ch.isFree || book.isPurchased
   if (canRead) {
-    uni.navigateTo({ url: `/pkg-ebook/reader/index?id=${book.value?.id}&chapter=${ch.id}` })
+    uni.navigateTo({ url: `/pkg-ebook/reader/index?id=${book.id}&chapter=${ch.id}` })
   } else {
     goCheckout()
   }
 }
 function goReader(preview = false) {
   const q = preview ? '&preview=true' : ''
-  uni.navigateTo({ url: `/pkg-ebook/reader/index?id=${book.value?.id}${q}` })
+  uni.navigateTo({ url: `/pkg-ebook/reader/index?id=${book.id}${q}` })
 }
 function goCheckout(type?: string) {
   const q = type ? `&type=${type}` : ''
-  uni.navigateTo({ url: `/pkg-ebook/checkout/index?id=${book.value?.id}${q}` })
+  uni.navigateTo({ url: `/pkg-ebook/checkout/index?id=${book.id}${q}` })
 }
 function goDetail(id: string) {
   uni.navigateTo({ url: `/pkg-ebook/detail/index?id=${id}` })

@@ -1,48 +1,26 @@
 <template>
   <view class="ba-page">
     <!-- Header -->
-    <view
-      class="ba-header"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="ba-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="ba-header-row">
         <view class="ba-header-left">
-          <view
-            class="ba-icon-btn"
-            @tap="goBack"
-          >
-            <app-icon
-              name="chevron-left"
-              :size="40"
-              color="#2c2c2c"
-            />
+          <view class="ba-icon-btn" @tap="goBack">
+            <app-icon name="chevron-left" :size="40" color="#2c2c2c" />
           </view>
-          <text class="ba-header-title">
-            回答悬赏
-          </text>
+          <text class="ba-header-title">回答悬赏</text>
         </view>
-        <text class="ba-header-count">
-          {{ content.length }}/2000
-        </text>
+        <text class="ba-header-count">{{ content.length }}/2000</text>
       </view>
     </view>
 
     <!-- Loading -->
-    <view
-      v-if="loading"
-      class="ba-loading"
-    >
+    <view v-if="loading" class="ba-loading">
       <view class="ba-sk-block ba-sk-h120" />
       <view class="ba-sk-block ba-sk-h240" />
     </view>
 
-    <view
-      v-else-if="!bounty"
-      class="ba-notfound"
-    >
-      <text class="ba-notfound-text">
-        悬赏不存在
-      </text>
+    <view v-else-if="!bounty" class="ba-notfound">
+      <text class="ba-notfound-text">悬赏不存在</text>
     </view>
 
     <template v-else>
@@ -52,62 +30,30 @@
           <view class="ba-ref-head">
             <view class="ba-ref-amount">
               <view class="ba-ref-gift">
-                <app-icon
-                  name="gift"
-                  :size="32"
-                  color="#ffffff"
-                />
+                <app-icon name="gift" :size="32" color="#ffffff" />
               </view>
-              <text class="ba-ref-amount-text">
-                ¥{{ bounty.amount }}
-              </text>
+              <text class="ba-ref-amount-text">¥{{ bounty.amount }}</text>
             </view>
             <view class="ba-ref-remain">
-              <app-icon
-                name="clock"
-                :size="24"
-                color="#d97706"
-              />
-              <text class="ba-ref-remain-text">
-                剩余 {{ getRemainingTime() }}
-              </text>
+              <app-icon name="clock" :size="24" color="#d97706" />
+              <text class="ba-ref-remain-text">剩余 {{ getRemainingTime() }}</text>
             </view>
           </view>
-          <text class="ba-ref-title">
-            {{ bounty.title }}
-          </text>
-          <text class="ba-ref-desc">
-            {{ bounty.description }}
-          </text>
+          <text class="ba-ref-title">{{ bounty.title }}</text>
+          <text class="ba-ref-desc">{{ bounty.description }}</text>
           <view class="ba-ref-foot">
-            <image
-              :src="bounty.poster.avatar"
-              class="ba-ref-avatar"
-              mode="aspectFill"
-            />
-            <text class="ba-ref-meta">
-              {{ bounty.poster.name }} 发布
-            </text>
-            <text class="ba-ref-dot">
-              ·
-            </text>
-            <text class="ba-ref-meta">
-              {{ bounty.answerCount }} 人已回答
-            </text>
+            <image :src="bounty.poster.avatar" class="ba-ref-avatar" mode="aspectFill" />
+            <text class="ba-ref-meta">{{ bounty.poster.name }} 发布</text>
+            <text class="ba-ref-dot">·</text>
+            <text class="ba-ref-meta">{{ bounty.answerCount }} 人已回答</text>
           </view>
         </view>
 
         <!-- Answer Input -->
         <view class="ba-input-card">
           <view class="ba-input-head">
-            <app-icon
-              name="send"
-              :size="32"
-              color="#c41e3a"
-            />
-            <text class="ba-input-title">
-              我的回答
-            </text>
+            <app-icon name="send" :size="32" color="#c41e3a" />
+            <text class="ba-input-title">我的回答</text>
           </view>
           <textarea
             v-model="content"
@@ -119,50 +65,19 @@
           <!-- Image Upload -->
           <view class="ba-upload">
             <view class="ba-upload-label">
-              <app-icon
-                name="image"
-                :size="28"
-                color="#999999"
-              />
-              <text class="ba-upload-label-text">
-                添加配图（选填，最多9张）
-              </text>
+              <app-icon name="image" :size="28" color="#999999" />
+              <text class="ba-upload-label-text">添加配图（选填，最多9张）</text>
             </view>
             <view class="ba-upload-grid">
-              <view
-                v-for="(img, index) in images"
-                :key="index"
-                class="ba-upload-item"
-              >
-                <image
-                  :src="img"
-                  class="ba-upload-img"
-                  mode="aspectFill"
-                />
-                <view
-                  class="ba-upload-remove"
-                  @tap="removeImage(index)"
-                >
-                  <app-icon
-                    name="x"
-                    :size="20"
-                    color="#ffffff"
-                  />
+              <view v-for="(img, index) in images" :key="index" class="ba-upload-item">
+                <image :src="img" class="ba-upload-img" mode="aspectFill" />
+                <view class="ba-upload-remove" @tap="removeImage(index)">
+                  <app-icon name="x" :size="20" color="#ffffff" />
                 </view>
               </view>
-              <view
-                v-if="images.length < 9"
-                class="ba-upload-add"
-                @tap="addImage"
-              >
-                <app-icon
-                  name="image"
-                  :size="36"
-                  color="#999999"
-                />
-                <text class="ba-upload-add-text">
-                  {{ images.length }}/9
-                </text>
+              <view v-if="images.length < 9" class="ba-upload-add" @tap="addImage">
+                <app-icon name="image" :size="36" color="#999999" />
+                <text class="ba-upload-add-text">{{ images.length }}/9</text>
               </view>
             </view>
           </view>
@@ -170,68 +85,35 @@
 
         <!-- Tips -->
         <view class="ba-tips">
-          <text class="ba-tips-title">
-            回答提示
-          </text>
+          <text class="ba-tips-title">回答提示</text>
           <view class="ba-tips-list">
-            <text class="ba-tips-item">
-              • 请认真回答问题，详细、专业的回答更容易被采纳
-            </text>
-            <text class="ba-tips-item">
-              • 回答被采纳后，您将获得全部悬赏金额
-            </text>
-            <text class="ba-tips-item">
-              • 如有多人回答，发布者将选择最佳答案采纳
-            </text>
-            <text class="ba-tips-item">
-              • 禁止发布违规内容，违者将被封禁
-            </text>
+            <text class="ba-tips-item">• 请认真回答问题，详细、专业的回答更容易被采纳</text>
+            <text class="ba-tips-item">• 回答被采纳后，您将获得全部悬赏金额</text>
+            <text class="ba-tips-item">• 如有多人回答，发布者将选择最佳答案采纳</text>
+            <text class="ba-tips-item">• 禁止发布违规内容，违者将被封禁</text>
           </view>
         </view>
 
         <!-- Error -->
-        <view
-          v-if="error"
-          class="ba-error"
-        >
-          <app-icon
-            name="alert-circle"
-            :size="28"
-            color="#ef4444"
-          />
-          <text class="ba-error-text">
-            {{ error }}
-          </text>
+        <view v-if="error" class="ba-error">
+          <app-icon name="alert-circle" :size="28" color="#ef4444" />
+          <text class="ba-error-text">{{ error }}</text>
         </view>
       </view>
 
       <!-- Bottom -->
       <view class="ba-bottom">
         <view class="ba-bottom-info">
-          <text class="ba-bottom-words">
-            回答字数：<text :class="content.length < 20 ? 'ba-words-red' : 'ba-words-green'">
-              {{ content.length }}
-            </text>/2000
-          </text>
-          <text class="ba-bottom-reward">
-            可获悬赏：<text class="ba-reward-num">
-              ¥{{ bounty.amount }}
-            </text>
-          </text>
+          <text class="ba-bottom-words">回答字数：<text :class="content.length < 20 ? 'ba-words-red' : 'ba-words-green'">{{ content.length }}</text>/2000</text>
+          <text class="ba-bottom-reward">可获悬赏：<text class="ba-reward-num">¥{{ bounty.amount }}</text></text>
         </view>
         <view
           class="ba-submit"
           :class="{ 'ba-submit-disabled': submitting || content.length < 20 }"
           @tap="submit"
         >
-          <app-icon
-            name="send"
-            :size="36"
-            color="#ffffff"
-          />
-          <text class="ba-submit-text">
-            {{ submitting ? '提交中...' : '提交回答' }}
-          </text>
+          <app-icon name="send" :size="36" color="#ffffff" />
+          <text class="ba-submit-text">{{ submitting ? '提交中...' : '提交回答' }}</text>
         </view>
       </view>
     </template>

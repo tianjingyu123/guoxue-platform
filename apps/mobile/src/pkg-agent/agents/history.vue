@@ -1,34 +1,12 @@
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="120rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无聊天记录" />
-  <view v-else class="page">
+  <view class="page">
     <!-- 顶栏 -->
-    <view
-      class="topbar"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="topbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="tb-inner">
-        <view
-          class="tb-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#2b2b2b"
-          />
+        <view class="tb-back" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#2b2b2b" />
         </view>
-        <text class="tb-title">
-          对话历史
-        </text>
+        <text class="tb-title">对话历史</text>
         <view class="tb-placeholder" />
       </view>
     </view>
@@ -36,40 +14,24 @@
     <view class="body">
       <!-- 搜索 -->
       <view class="search-box">
-        <app-icon
-          name="search"
-          :size="32"
-          color="#999999"
-        />
+        <app-icon name="search" :size="32" color="#999999" />
         <input
           v-model="search"
           class="search-input"
           type="text"
           placeholder="搜索对话"
           placeholder-class="search-ph"
-        >
+        />
       </view>
 
       <!-- 空状态 -->
-      <view
-        v-if="filtered.length === 0"
-        class="empty"
-      >
-        <app-icon
-          name="message-square"
-          :size="96"
-          color="#d8d8d8"
-        />
-        <text class="empty-txt">
-          {{ search ? '未找到相关对话' : '暂无对话记录' }}
-        </text>
+      <view v-if="filtered.length === 0" class="empty">
+        <app-icon name="message-square" :size="96" color="#d8d8d8" />
+        <text class="empty-txt">{{ search ? '未找到相关对话' : '暂无对话记录' }}</text>
       </view>
 
       <!-- 对话列表 -->
-      <view
-        v-else
-        class="conv-list"
-      >
+      <view v-else class="conv-list">
         <view
           v-for="conv in filtered"
           :key="conv.id"
@@ -77,49 +39,25 @@
           @tap="goChat(conv)"
         >
           <view class="conv-avatar">
-            <app-icon
-              name="bot"
-              :size="40"
-              color="#c41e3a"
-            />
+            <app-icon name="bot" :size="40" color="#c41e3a" />
           </view>
           <view class="conv-main">
             <view class="conv-row1">
               <view class="conv-name-wrap">
-                <text class="conv-name">
-                  {{ conv.agentName }}
-                </text>
+                <text class="conv-name">{{ conv.agentName }}</text>
                 <text
                   class="conv-cat"
                   :style="{ background: catColor(conv.agentCategory).bg, color: catColor(conv.agentCategory).fg }"
-                >
-                  {{ conv.agentCategory }}
-                </text>
+                >{{ conv.agentCategory }}</text>
               </view>
-              <text class="conv-time">
-                {{ conv.lastTime }}
-              </text>
+              <text class="conv-time">{{ conv.lastTime }}</text>
             </view>
             <view class="conv-row2">
-              <text class="conv-msg">
-                {{ conv.lastMessage }}
-              </text>
+              <text class="conv-msg">{{ conv.lastMessage }}</text>
               <view class="conv-tail">
-                <text
-                  v-if="conv.unread > 0"
-                  class="conv-unread"
-                >
-                  {{ conv.unread }}
-                </text>
-                <view
-                  class="conv-del"
-                  @tap.stop="remove(conv.id)"
-                >
-                  <app-icon
-                    name="trash-2"
-                    :size="28"
-                    color="#bbbbbb"
-                  />
+                <text v-if="conv.unread > 0" class="conv-unread">{{ conv.unread }}</text>
+                <view class="conv-del" @tap.stop="remove(conv.id)">
+                  <app-icon name="trash-2" :size="28" color="#bbbbbb" />
                 </view>
               </view>
             </view>
@@ -131,23 +69,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { agentConversations as _agentConversations, type AgentConversation } from '@/lib/agents-square-data'
-
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { convs: _agentConversations }
-})
-
-const isEmpty = computed(() => {
-  const c = pageData.value?.convs
-  return c !== undefined && c.length === 0
-})
+import { agentConversations, type AgentConversation } from '@/lib/agents-square-data'
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({
@@ -156,11 +81,7 @@ uni.getSystemInfo({
   },
 })
 
-const convs = ref<AgentConversation[]>([])
-
-watch(() => pageData.value?.convs, (val) => {
-  if (val) convs.value = val.map((c: any) => ({ ...c }))
-}, { immediate: true })
+const convs = ref<AgentConversation[]>([...agentConversations])
 const search = ref('')
 
 const filtered = computed(() =>

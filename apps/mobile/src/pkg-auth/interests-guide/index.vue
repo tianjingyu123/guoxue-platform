@@ -13,9 +13,7 @@
           top: (10 + (i % 2) * 20) + 'rpx',
           transform: 'rotate(' + (i * 15) + 'deg)',
         }"
-      >
-        {{ sym }}
-      </text>
+      >{{ sym }}</text>
     </view>
 
     <!-- 头部 -->
@@ -28,53 +26,30 @@
           class="ig-step-dot"
           :class="{ 'is-current': i === 1, 'is-done': i < 1 }"
         />
-        <text class="ig-step-text">
-          1/2
-        </text>
+        <text class="ig-step-text">1/2</text>
       </view>
 
       <!-- AI推荐角标 -->
       <view class="ig-ai-badge">
-        <AppIcon
-          name="sparkles"
-          :size="28"
-          color="#C41E3A"
-        />
-        <text class="ig-ai-text">
-          AI 个性化推荐
-        </text>
+        <AppIcon name="sparkles" :size="28" color="#C41E3A" />
+        <text class="ig-ai-text">AI 个性化推荐</text>
       </view>
 
       <view class="ig-title">
         <text>选择你感兴趣的</text>
-        <text class="ig-title-accent">
-          领域
-        </text>
+        <text class="ig-title-accent">领域</text>
       </view>
       <view class="ig-sub">
         <text>已选 </text>
-        <text class="ig-sub-num">
-          {{ selected.length }}
-        </text>
+        <text class="ig-sub-num">{{ selected.length }}</text>
         <text>/{{ MAX_SELECT }} 个</text>
-        <text
-          v-if="remaining > 0"
-          class="ig-sub-remain"
-        >
-          · 还需选择 {{ remaining }} 个
-        </text>
+        <text v-if="remaining > 0" class="ig-sub-remain">· 还需选择 {{ remaining }} 个</text>
       </view>
     </view>
 
     <!-- 标签网格 -->
-    <scroll-view
-      scroll-y
-      class="ig-grid-wrap"
-    >
-      <view
-        v-if="loading"
-        class="ig-grid"
-      >
+    <scroll-view scroll-y class="ig-grid-wrap">
+      <view v-if="loading" class="ig-grid">
         <view
           v-for="i in 16"
           :key="i"
@@ -82,10 +57,7 @@
           :style="{ width: (60 + (i % 4) * 16) + 'rpx' }"
         />
       </view>
-      <view
-        v-else
-        class="ig-grid"
-      >
+      <view v-else class="ig-grid">
         <view
           v-for="tag in tags"
           :key="tag.id"
@@ -96,32 +68,15 @@
           }"
           @tap="toggleTag(tag.id)"
         >
-          <text class="ig-chip-icon">
-            {{ tag.icon }}
-          </text>
-          <text
-            class="ig-chip-name"
-            :class="{ 'is-selected': isSelected(tag.id) }"
-          >
-            {{ tag.name }}
-          </text>
-          <view
-            v-if="isSelected(tag.id)"
-            class="ig-chip-check"
-          >
-            <AppIcon
-              name="check"
-              :size="20"
-              color="#FFFFFF"
-            />
+          <text class="ig-chip-icon">{{ tag.icon }}</text>
+          <text class="ig-chip-name" :class="{ 'is-selected': isSelected(tag.id) }">{{ tag.name }}</text>
+          <view v-if="isSelected(tag.id)" class="ig-chip-check">
+            <AppIcon name="check" :size="20" color="#FFFFFF" />
           </view>
         </view>
       </view>
 
-      <text
-        v-if="selected.length >= MAX_SELECT"
-        class="ig-max-tip"
-      >
+      <text v-if="selected.length >= MAX_SELECT" class="ig-max-tip">
         已达最多选择数量（{{ MAX_SELECT }}个），可取消已选标签来更换
       </text>
     </scroll-view>
@@ -129,17 +84,12 @@
     <!-- 底部操作区 -->
     <view class="ig-footer">
       <!-- 已选标签预览 -->
-      <view
-        v-if="selected.length > 0"
-        class="ig-preview"
-      >
+      <view v-if="selected.length > 0" class="ig-preview">
         <text
           v-for="id in selected"
           :key="id"
           class="ig-preview-chip"
-        >
-          {{ tagById(id) ? (tagById(id)?.icon + ' ' + tagById(id)?.name) : '' }}
-        </text>
+        >{{ tagById(id) ? (tagById(id).icon + ' ' + tagById(id).name) : '' }}</text>
       </view>
 
       <!-- 开始探索按钮 -->
@@ -148,26 +98,14 @@
         :class="{ 'is-active': selected.length >= MIN_SELECT, 'is-shake': shakeBtn }"
         @tap="handleSubmit"
       >
-        <view
-          v-if="submitting"
-          class="ig-spinner"
-        />
+        <view v-if="submitting" class="ig-spinner" />
         <template v-else>
-          <text class="ig-submit-text">
-            开始探索
-          </text>
-          <AppIcon
-            name="arrow-right"
-            :size="36"
-            :color="selected.length >= MIN_SELECT ? '#FFFFFF' : '#B0AAA0'"
-          />
+          <text class="ig-submit-text">开始探索</text>
+          <AppIcon name="arrow-right" :size="36" :color="selected.length >= MIN_SELECT ? '#FFFFFF' : '#B0AAA0'" />
         </template>
       </view>
 
-      <text
-        v-if="selected.length < MIN_SELECT"
-        class="ig-submit-tip"
-      >
+      <text v-if="selected.length < MIN_SELECT" class="ig-submit-tip">
         至少选择 {{ MIN_SELECT }} 个领域才能继续
       </text>
     </view>

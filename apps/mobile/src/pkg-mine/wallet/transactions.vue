@@ -1,26 +1,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  walletBalanceBrief as _walletBalanceBrief,
-  walletTxRecords as _walletTxRecords,
+  walletBalanceBrief,
+  walletTxRecords,
   type WalletTxRecord,
   type WalletTxCategory,
 } from '@/lib/mine-data'
 
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { balance: _walletBalanceBrief, records: _walletTxRecords }
-})
-
-const isEmpty = computed(() => !pageData.value?.balance)
-
-const balance = computed(() => pageData.value?.balance ?? { coin: 0, frozen: 0, points: 0 })
-const allRecords = computed(() => pageData.value?.records ?? [])
+const balance = walletBalanceBrief
+const allRecords = walletTxRecords
 
 // 筛选状态
 const filterType = ref<'' | 'income' | 'expense'>('')
@@ -73,7 +63,7 @@ const catClass: Record<WalletTxCategory, string> = {
 
 // 过滤
 const filtered = computed(() => {
-  let list = allRecords.value
+  let list = allRecords
   if (filterType.value) list = list.filter((t) => t.type === filterType.value)
   if (selectedMonth.value)
     list = list.filter((t) => t.createdAt.slice(0, 7) === selectedMonth.value)
@@ -122,57 +112,25 @@ function openDetail(id: string) {
 </script>
 
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="80rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
-  <view v-else class="page">
+  <view class="page">
     <!-- 顶部导航(红色渐变) -->
     <view class="topbar">
-      <view
-        class="back-btn"
-        @tap="goBack"
-      >
-        <app-icon
-          name="chevron-left"
-          :size="44"
-          color="#FFFFFF"
-        />
+      <view class="back-btn" @tap="goBack">
+        <app-icon name="chevron-left" :size="44" color="#FFFFFF" />
       </view>
-      <text class="topbar-title">
-        交易记录
-      </text>
+      <text class="topbar-title">交易记录</text>
     </view>
 
     <!-- 余额卡 -->
     <view class="balance-card">
       <view class="bal-left">
-        <text class="bal-label">
-          学习币余额
-        </text>
-        <text class="bal-coin">
-          {{ balance.coin.toLocaleString() }}
-        </text>
-        <text
-          v-if="balance.frozen > 0"
-          class="bal-frozen"
-        >
-          冻结: {{ balance.frozen }}
-        </text>
+        <text class="bal-label">学习币余额</text>
+        <text class="bal-coin">{{ balance.coin.toLocaleString() }}</text>
+        <text v-if="balance.frozen > 0" class="bal-frozen">冻结: {{ balance.frozen }}</text>
       </view>
       <view class="bal-right">
-        <text class="bal-label">
-          积分
-        </text>
-        <text class="bal-points">
-          {{ balance.points.toLocaleString() }}
-        </text>
+        <text class="bal-label">积分</text>
+        <text class="bal-points">{{ balance.points.toLocaleString() }}</text>
       </view>
     </view>
 
@@ -184,32 +142,23 @@ function openDetail(id: string) {
           @tap="((showMonthPicker = !showMonthPicker), (showTypePicker = false))"
         >
           <text>{{ monthLabel }}</text>
-          <app-icon
-            name="chevron-down"
-            :size="28"
-            color="#999999"
-          />
+          <app-icon name="chevron-down" :size="28" color="#999999" />
         </view>
-        <view
-          v-if="showMonthPicker"
-          class="dropdown month-dropdown"
-        >
+        <view v-if="showMonthPicker" class="dropdown month-dropdown">
           <view
             class="dropdown-item"
             :class="{ active: !selectedMonth }"
             @tap="selectMonth('')"
+            >全部月份</view
           >
-            全部月份
-          </view>
           <view
             v-for="m in months"
             :key="m.value"
             class="dropdown-item"
             :class="{ active: selectedMonth === m.value }"
             @tap="selectMonth(m.value)"
+            >{{ m.label }}</view
           >
-            {{ m.label }}
-          </view>
         </view>
       </view>
 
@@ -219,59 +168,33 @@ function openDetail(id: string) {
           @tap="((showTypePicker = !showTypePicker), (showMonthPicker = false))"
         >
           <text>{{ typeLabel }}</text>
-          <app-icon
-            name="chevron-down"
-            :size="28"
-            color="#999999"
-          />
+          <app-icon name="chevron-down" :size="28" color="#999999" />
         </view>
-        <view
-          v-if="showTypePicker"
-          class="dropdown"
-        >
+        <view v-if="showTypePicker" class="dropdown">
           <view
             v-for="opt in typeOptions"
             :key="opt.value"
             class="dropdown-item"
             :class="{ active: filterType === opt.value }"
             @tap="selectType(opt.value)"
+            >{{ opt.label }}</view
           >
-            {{ opt.label }}
-          </view>
         </view>
       </view>
     </view>
 
     <!-- 列表 -->
     <view class="list-wrap">
-      <view
-        v-if="grouped.length === 0"
-        class="empty"
-      >
+      <view v-if="grouped.length === 0" class="empty">
         <view class="empty-icon">
-          <app-icon
-            name="wallet"
-            :size="56"
-            color="#d1d1d1"
-          />
+          <app-icon name="wallet" :size="56" color="#d1d1d1" />
         </view>
-        <text class="empty-txt">
-          暂无交易记录
-        </text>
+        <text class="empty-txt">暂无交易记录</text>
       </view>
 
-      <view
-        v-else
-        class="groups"
-      >
-        <view
-          v-for="g in grouped"
-          :key="g.date"
-          class="group"
-        >
-          <text class="group-date">
-            {{ formatGroupDate(g.date) }}
-          </text>
+      <view v-else class="groups">
+        <view v-for="g in grouped" :key="g.date" class="group">
+          <text class="group-date">{{ formatGroupDate(g.date) }}</text>
           <view class="group-card">
             <view
               v-for="(t, idx) in g.items"
@@ -280,43 +203,26 @@ function openDetail(id: string) {
               :class="{ bordered: idx > 0 }"
               @tap="openDetail(t.id)"
             >
-              <view
-                class="tx-icon"
-                :class="catClass[t.category]"
-              >
-                <app-icon
-                  :name="catIcon[t.category]"
-                  :size="28"
-                />
+              <view class="tx-icon" :class="catClass[t.category]">
+                <app-icon :name="catIcon[t.category]" :size="28" />
               </view>
               <view class="tx-info">
                 <view class="tx-title-row">
-                  <text class="tx-title">
-                    {{ t.title }}
-                  </text>
+                  <text class="tx-title">{{ t.title }}</text>
                   <app-icon
                     :name="t.type === 'income' ? 'arrow-down-left' : 'arrow-up-right'"
                     :size="26"
                     :color="t.type === 'income' ? '#22c55e' : '#ef4444'"
                   />
                 </view>
-                <text class="tx-desc">
-                  {{ t.description }}
-                </text>
-                <text class="tx-time">
-                  {{ formatTime(t.createdAt) }}
-                </text>
+                <text class="tx-desc">{{ t.description }}</text>
+                <text class="tx-time">{{ formatTime(t.createdAt) }}</text>
               </view>
               <view class="tx-amount">
-                <text
-                  class="tx-num"
-                  :class="{ income: t.type === 'income' }"
+                <text class="tx-num" :class="{ income: t.type === 'income' }"
+                  >{{ t.type === 'income' ? '+' : '' }}{{ t.amount.toLocaleString() }}</text
                 >
-                  {{ t.type === 'income' ? '+' : '' }}{{ t.amount.toLocaleString() }}
-                </text>
-                <text class="tx-bal">
-                  余额 {{ t.balance.toLocaleString() }}
-                </text>
+                <text class="tx-bal">余额 {{ t.balance.toLocaleString() }}</text>
               </view>
             </view>
           </view>

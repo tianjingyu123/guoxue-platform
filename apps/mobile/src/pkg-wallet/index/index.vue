@@ -1,222 +1,102 @@
 <template>
   <view class="page">
-    <app-nav-bar
-      title="我的钱包"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="32"
-      :title-weight="600"
-      :bar-height="112"
-    />
+    <app-nav-bar title="我的钱包" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112" />
 
     <view class="body">
       <!-- 资产卡片 -->
       <view class="asset-card">
-        <view class="asset-deco deco1">
-          <app-icon
-            name="coins"
-            :size="160"
-            color="#C9A96E"
-          />
-        </view>
+        <view class="asset-deco deco1"><app-icon name="coins" :size="160" color="#C9A96E" /></view>
         <view class="balance-box">
-          <text class="balance-label">
-            国学币余额
-          </text>
+          <text class="balance-label">国学币余额</text>
           <view class="balance-row">
-            <app-icon
-              name="coins"
-              :size="32"
-              color="#C9A96E"
-            />
-            <text class="balance-num">
-              {{ wallet.balance.toLocaleString() }}
-            </text>
-            <text class="balance-unit">
-              币
-            </text>
+            <app-icon name="coins" :size="32" color="#C9A96E" />
+            <text class="balance-num">{{ wallet.balance.toLocaleString() }}</text>
+            <text class="balance-unit">币</text>
           </view>
-          <text class="balance-rmb">
-            ≈ ¥{{ wallet.rmb.toFixed(2) }}
-          </text>
+          <text class="balance-rmb">≈ ¥{{ wallet.rmb.toFixed(2) }}</text>
         </view>
 
         <view class="stat-line">
-          <view
-            class="stat-item"
-            @tap="go('/points')"
-          >
-            <app-icon
-              name="star"
-              :size="28"
-              color="#E0A106"
-            />
-            <text class="stat-k">
-              积分
-            </text>
-            <text class="stat-v">
-              {{ wallet.points.toLocaleString() }}
-            </text>
+          <view class="stat-item" @tap="go('/points')">
+            <app-icon name="star" :size="28" color="#E0A106" />
+            <text class="stat-k">积分</text>
+            <text class="stat-v">{{ wallet.points.toLocaleString() }}</text>
           </view>
           <view class="vline" />
           <view class="stat-item">
-            <app-icon
-              name="trending-up"
-              :size="28"
-              color="#16A34A"
-            />
-            <text class="stat-k">
-              成长值
-            </text>
-            <text class="stat-v">
-              {{ wallet.growthValue.toLocaleString() }}
-            </text>
+            <app-icon name="trending-up" :size="28" color="#16A34A" />
+            <text class="stat-k">成长值</text>
+            <text class="stat-v">{{ wallet.growthValue.toLocaleString() }}</text>
           </view>
         </view>
 
         <!-- 会员等级进度 -->
         <view class="level-box">
           <view class="level-row">
-            <text class="level-tag">
-              LV.{{ wallet.level }}
-            </text>
-            <text class="level-tag">
-              LV.{{ wallet.level + 1 }}
-            </text>
+            <text class="level-tag">LV.{{ wallet.level }}</text>
+            <text class="level-tag">LV.{{ wallet.level + 1 }}</text>
           </view>
           <view class="level-bar">
-            <view
-              class="level-fill"
-              :style="{ width: levelPercent + '%' }"
-            />
+            <view class="level-fill" :style="{ width: levelPercent + '%' }" />
           </view>
-          <text class="level-hint">
-            还需 {{ (wallet.nextLevelGrowth - wallet.growthValue).toLocaleString() }} 成长值升级
-          </text>
+          <text class="level-hint">还需 {{ (wallet.nextLevelGrowth - wallet.growthValue).toLocaleString() }} 成长值升级</text>
         </view>
 
         <view class="total-line">
           <view class="total-item">
-            <text class="total-k">
-              累计充值
-            </text>
-            <text class="total-v">
-              {{ wallet.totalRecharge }}币
-            </text>
+            <text class="total-k">累计充值</text>
+            <text class="total-v">{{ wallet.totalRecharge }}币</text>
           </view>
           <view class="vline tall" />
           <view class="total-item">
-            <text class="total-k">
-              累计消费
-            </text>
-            <text class="total-v">
-              {{ wallet.totalSpent }}币
-            </text>
+            <text class="total-k">累计消费</text>
+            <text class="total-v">{{ wallet.totalSpent }}币</text>
           </view>
         </view>
       </view>
 
       <!-- 快捷操作 -->
       <view class="quick-row">
-        <view
-          class="quick-btn primary"
-          @tap="go('/wallet/recharge')"
-        >
-          <app-icon
-            name="credit-card"
-            :size="36"
-            color="#FFFFFF"
-          />
-          <text class="quick-txt light">
-            充值
-          </text>
+        <view class="quick-btn primary" @tap="go('/wallet/recharge')">
+          <app-icon name="credit-card" :size="36" color="#FFFFFF" />
+          <text class="quick-txt light">充值</text>
         </view>
-        <view
-          class="quick-btn outline"
-          @tap="go('/wallet/withdraw')"
-        >
-          <app-icon
-            name="download"
-            :size="36"
-            color="#2C2C2C"
-          />
-          <text class="quick-txt">
-            提现
-          </text>
+        <view class="quick-btn outline" @tap="go('/wallet/withdraw')">
+          <app-icon name="download" :size="36" color="#2C2C2C" />
+          <text class="quick-txt">提现</text>
         </view>
       </view>
 
       <!-- 近期交易 -->
       <view class="card">
         <view class="card-head">
-          <text class="card-title">
-            近期交易
-          </text>
-          <view
-            class="more"
-            @tap="go('/wallet/transactions')"
-          >
-            <text class="more-txt">
-              全部记录
-            </text>
-            <app-icon
-              name="chevron-right"
-              :size="28"
-              color="#C41E3A"
-            />
+          <text class="card-title">近期交易</text>
+          <view class="more" @tap="go('/wallet/transactions')">
+            <text class="more-txt">全部记录</text>
+            <app-icon name="chevron-right" :size="28" color="#C41E3A" />
           </view>
         </view>
         <view class="trans-list">
-          <view
-            v-for="item in transactions"
-            :key="item.id"
-            class="trans-item"
-          >
-            <view
-              class="trans-icon"
-              :style="{ background: iconBg(item.type) }"
-            >
-              <app-icon
-                :name="iconName(item.icon)"
-                :size="36"
-                :color="iconColor(item.type)"
-              />
+          <view v-for="item in transactions" :key="item.id" class="trans-item">
+            <view class="trans-icon" :style="{ background: iconBg(item.type) }">
+              <app-icon :name="iconName(item.icon)" :size="36" :color="iconColor(item.type)" />
             </view>
             <view class="trans-mid">
-              <text class="trans-title">
-                {{ item.title }}
-              </text>
-              <text class="trans-time">
-                {{ item.time }}
-              </text>
+              <text class="trans-title">{{ item.title }}</text>
+              <text class="trans-time">{{ item.time }}</text>
             </view>
-            <text
-              class="trans-amt"
-              :class="{ pos: item.amount > 0 }"
-            >
-              {{ item.amount > 0 ? '+' : '' }}{{ item.amount }}币
-            </text>
+            <text class="trans-amt" :class="{ pos: item.amount > 0 }">{{ item.amount > 0 ? '+' : '' }}{{ item.amount }}币</text>
           </view>
         </view>
       </view>
 
       <!-- 充值说明 -->
       <view class="card">
-        <text class="card-title">
-          充值说明
-        </text>
+        <text class="card-title">充值说明</text>
         <view class="note-list">
-          <view
-            v-for="(n, i) in notes"
-            :key="i"
-            class="note-item"
-          >
-            <text class="note-dot">
-              •
-            </text>
-            <text class="note-txt">
-              {{ n }}
-            </text>
+          <view v-for="(n, i) in notes" :key="i" class="note-item">
+            <text class="note-dot">•</text>
+            <text class="note-txt">{{ n }}</text>
           </view>
         </view>
       </view>

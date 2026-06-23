@@ -1,4 +1,3 @@
-import { apiGet, useMock } from '@/utils/request'
 import type { CoverColor } from '@/lib/classics-cover'
 
 // ===================== 首页 classics/home =====================
@@ -593,56 +592,3 @@ export const notesData: NoteItem[] = [
   { id: '2', bookId: '2', bookTitle: '道德经', bookAuthor: '老子', dynasty: '春秋', chapter: '第一章', originalText: '道可道，非常道。名可名，非常名。', noteContent: "老子开篇即点明'道'的不可言说性。真正的大道是超越语言文字的，任何试图用语言定义的'道'都不是永恒的道。这与佛教'不可说'的理念相通。", tags: ['道家', '哲学'], page: 1, createdAt: '2024-01-14 10:15', updatedAt: '2024-01-14 10:15' },
   { id: '3', bookId: '3', bookTitle: '论语', bookAuthor: '孔子门人', dynasty: '春秋', chapter: '学而篇', originalText: '学而时习之，不亦说乎？', noteContent: "学习不仅是获取知识，更重要的是'时习'——在合适的时机反复实践。'说'通'悦'，是内心深处的喜悦。", tags: ['学习方法', '儒家'], page: 5, createdAt: '2024-01-13 09:00', updatedAt: '2024-01-13 11:30' },
 ]
-
-// ── API ──
-export const classicsApi = {
-  /** 古籍列表 GET /classic */
-  async list(params?: Record<string, any>): Promise<any[]> {
-    if (useMock()) return []
-    try { return await apiGet<any[]>(`/classic${params ? '?' + new URLSearchParams(params).toString() : ''}`) } catch { return [] }
-  },
-  /** 古籍详情 GET /classic/:id */
-  async detail(id: string): Promise<any> {
-    if (useMock()) return null
-    try { return await apiGet<any>(`/classic/${id}`) } catch { return null }
-  },
-
-  /** 首页聚合数据 GET /classic/home */
-  async getHomeData() {
-    if (useMock()) return {
-      categories: [...categories],
-      todayFeature: { ...todayFeature },
-      lastReading: { ...lastReading },
-      weeklyMinutes,
-      bookLists: [...bookLists],
-      rankingData: [...rankingData],
-      audioBooks: [...audioBooks],
-      featuredBooks: [...featuredBooks],
-    }
-    try { return await apiGet<any>('/classic/home') } catch { return null }
-  },
-
-  /** 有声书列表 GET /classic/audiobooks */
-  async getAudioBookList() {
-    if (useMock()) return [...mockAudioBooks]
-    try { return await apiGet<any[]>('/classic/audiobooks') } catch { return null }
-  },
-
-  /** 有声书播放详情 GET /classic/audiobooks/:id */
-  async getAudioBookPlayerData(id: string) {
-    if (useMock()) return audioBookPlayerData[id] || audioBookPlayerData.default
-    try { return await apiGet<any>(`/classic/audiobooks/${id}`) } catch { return null }
-  },
-
-  /** 合集详情 GET /classic/collections/:id */
-  async getCollectionDetail(id: string) {
-    if (useMock()) return collectionsDetailData[id] || collectionsDetailData['1']
-    try { return await apiGet<any>(`/classic/collections/${id}`) } catch { return null }
-  },
-
-  /** 推荐榜 GET /classic/ranking */
-  async getRankingBooks() {
-    if (useMock()) return [...rankingPageBooks]
-    try { return await apiGet<any[]>('/classic/ranking') } catch { return null }
-  },
-}

@@ -1,34 +1,14 @@
 <script setup lang="ts">
 /** 商城首页 - 从原型 app/mall/page.tsx 1:1 迁移 */
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import ProductCard from '@/components/cards/product-card.vue'
 import LiveCard from '@/components/cards/live-card.vue'
 import MarketingZone from '@/components/mall/marketing-zone.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  mallQuickEntries as _mallQuickEntries, mallBanners as _mallBanners, mallCommerceLives as _mallCommerceLives,
-  mallCategories as _mallCategories, mallProducts as _mallProducts, cartCount as _cartCount,
+  mallQuickEntries, mallBanners, mallCommerceLives, mallCategories, mallProducts, cartCount,
 } from '@/lib/shop-data'
-
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return {
-    entries: _mallQuickEntries, banners: _mallBanners, lives: _mallCommerceLives,
-    categories: _mallCategories, products: _mallProducts, cartCount: _cartCount,
-  }
-})
-
-const mallQuickEntries = computed(() => pageData.value?.entries ?? [])
-const mallBanners = computed(() => pageData.value?.banners ?? [])
-const mallCommerceLives = computed(() => pageData.value?.lives ?? [])
-const mallCategories = computed(() => pageData.value?.categories ?? [])
-const mallProducts = computed(() => pageData.value?.products ?? [])
-const cartCount = computed(() => pageData.value?.cartCount ?? 0)
-const isEmpty = computed(() => mallProducts.value.length === 0 && mallBanners.value.length === 0)
 
 const bannerIndex = ref(0)
 function onBannerChange(e: { detail: { current: number } }) { bannerIndex.value = e.detail.current }
@@ -39,91 +19,31 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
 </script>
 
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="240rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无商品" />
-  <view v-else class="page">
+  <view class="page">
     <!-- 顶部搜索栏 -->
     <view class="topbar">
-      <view
-        class="search-bar"
-        @tap="goSearch"
-      >
-        <AppIcon
-          name="search"
-          :size="28"
-          color="#999999"
-        />
+      <view class="search-bar" @tap="goSearch">
+        <AppIcon name="search" :size="28" color="#999999" />
         <view class="ai-badge">
-          <AppIcon
-            name="sparkles"
-            :size="18"
-            color="#c41e3a"
-          />
-          <text class="ai-txt">
-            AI
-          </text>
+          <AppIcon name="sparkles" :size="18" color="#c41e3a" />
+          <text class="ai-txt">AI</text>
         </view>
-        <text class="search-ph">
-          搜索商品...
-        </text>
+        <text class="search-ph">搜索商品...</text>
       </view>
-      <view
-        class="cart-btn"
-        @tap="goCart"
-      >
-        <AppIcon
-          name="shopping-cart"
-          :size="36"
-          color="#666666"
-        />
-        <text
-          v-if="cartCount > 0"
-          class="cart-badge"
-        >
-          {{ cartCount }}
-        </text>
+      <view class="cart-btn" @tap="goCart">
+        <AppIcon name="shopping-cart" :size="36" color="#666666" />
+        <text v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</text>
       </view>
     </view>
 
     <view class="body">
       <!-- 核心功能快捷入口 -->
       <view class="quick-grid">
-        <view
-          v-for="entry in mallQuickEntries"
-          :key="entry.id"
-          class="quick-item"
-          @tap="navigateTo(entry.href)"
-        >
-          <view class="quick-icon">
-            <AppIcon
-              :name="entry.icon"
-              :size="36"
-              color="#c41e3a"
-            />
-          </view>
-          <text class="quick-label">
-            {{ entry.label }}
-          </text>
-          <text
-            v-if="entry.state"
-            class="quick-state"
-          >
-            {{ entry.state }}
-          </text>
-          <text
-            v-if="entry.badge"
-            class="quick-bdg"
-          >
-            {{ entry.badge }}
-          </text>
+        <view v-for="entry in mallQuickEntries" :key="entry.id" class="quick-item" @tap="navigateTo(entry.href)">
+          <view class="quick-icon"><AppIcon :name="entry.icon" :size="36" color="#c41e3a" /></view>
+          <text class="quick-label">{{ entry.label }}</text>
+          <text v-if="entry.state" class="quick-state">{{ entry.state }}</text>
+          <text v-if="entry.badge" class="quick-bdg">{{ entry.badge }}</text>
         </view>
       </view>
 
@@ -131,48 +51,23 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
       <view class="section">
         <view class="sec-head">
           <view class="sec-head-l">
-            <AppIcon
-              name="radio"
-              :size="28"
-              color="#ef4444"
-            />
-            <text class="sec-title">
-              直播带货
-            </text>
+            <AppIcon name="radio" :size="28" color="#ef4444" />
+            <text class="sec-title">直播带货</text>
             <view class="live-dot" />
           </view>
-          <view
-            class="sec-more"
-            @tap="toastComingSoon"
-          >
-            <text class="sec-more-txt">
-              更多
-            </text>
-            <AppIcon
-              name="chevron-right"
-              :size="24"
-              color="#999999"
-            />
+          <view class="sec-more" @tap="toastComingSoon">
+            <text class="sec-more-txt">更多</text>
+            <AppIcon name="chevron-right" :size="24" color="#999999" />
           </view>
         </view>
-        <scroll-view
-          class="live-rail"
-          scroll-x
-          :show-scrollbar="false"
-        >
+        <scroll-view class="live-rail" scroll-x :show-scrollbar="false">
           <view class="live-rail-inner">
-            <view
-              v-for="live in mallCommerceLives"
-              :key="live.id"
-              class="live-cell"
-            >
-              <LiveCard
-                :data="{
-                  id: live.id, title: live.title, host: live.host, viewers: live.viewers,
-                  reservations: live.reservations, status: live.status,
-                  scheduledTime: live.scheduledTime, liveType: 'commerce',
-                }"
-              />
+            <view v-for="live in mallCommerceLives" :key="live.id" class="live-cell">
+              <LiveCard :data="{
+                id: live.id, title: live.title, host: live.host, viewers: live.viewers,
+                reservations: live.reservations, status: live.status,
+                scheduledTime: live.scheduledTime, liveType: 'commerce',
+              }" />
             </view>
           </view>
         </scroll-view>
@@ -180,39 +75,16 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
 
       <!-- Banner 轮播 -->
       <view class="banner">
-        <swiper
-          class="banner-swiper"
-          circular
-          autoplay
-          :interval="4000"
-          :duration="500"
-          @change="onBannerChange"
-        >
-          <swiper-item
-            v-for="b in mallBanners"
-            :key="b.id"
-          >
-            <view
-              class="banner-slide"
-              :style="{ background: `linear-gradient(90deg, ${b.from}, ${b.to})` }"
-              @tap="navigateTo(b.href)"
-            >
-              <text class="banner-title">
-                {{ b.title }}
-              </text>
-              <text class="banner-sub">
-                {{ b.subtitle }}
-              </text>
+        <swiper class="banner-swiper" circular autoplay :interval="4000" :duration="500" @change="onBannerChange">
+          <swiper-item v-for="b in mallBanners" :key="b.id">
+            <view class="banner-slide" :style="{ background: `linear-gradient(90deg, ${b.from}, ${b.to})` }" @tap="navigateTo(b.href)">
+              <text class="banner-title">{{ b.title }}</text>
+              <text class="banner-sub">{{ b.subtitle }}</text>
             </view>
           </swiper-item>
         </swiper>
         <view class="dots">
-          <view
-            v-for="(b, i) in mallBanners"
-            :key="b.id"
-            class="dot"
-            :class="i === bannerIndex ? 'dot-on' : ''"
-          />
+          <view v-for="(b, i) in mallBanners" :key="b.id" class="dot" :class="i === bannerIndex ? 'dot-on' : ''" />
         </view>
       </view>
 
@@ -222,40 +94,16 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
       <!-- 商品分类 -->
       <view class="section">
         <view class="sec-head">
-          <text class="sec-title">
-            商品分类
-          </text>
-          <view
-            class="sec-more"
-            @tap="navigateTo('/mall/category')"
-          >
-            <text class="sec-more-txt">
-              全部分类
-            </text>
-            <AppIcon
-              name="chevron-right"
-              :size="24"
-              color="#999999"
-            />
+          <text class="sec-title">商品分类</text>
+          <view class="sec-more" @tap="navigateTo('/mall/category')">
+            <text class="sec-more-txt">全部分类</text>
+            <AppIcon name="chevron-right" :size="24" color="#999999" />
           </view>
         </view>
         <view class="cat-grid">
-          <view
-            v-for="cat in mallCategories"
-            :key="cat.id"
-            class="cat-item"
-            @tap="goCategory(cat.id)"
-          >
-            <view class="cat-emoji">
-              <AppIcon
-                :name="cat.icon"
-                :size="40"
-                color="#c41e3a"
-              />
-            </view>
-            <text class="cat-name">
-              {{ cat.name }}
-            </text>
+          <view v-for="cat in mallCategories" :key="cat.id" class="cat-item" @tap="goCategory(cat.id)">
+            <view class="cat-emoji"><AppIcon :name="cat.icon" :size="40" color="#c41e3a" /></view>
+            <text class="cat-name">{{ cat.name }}</text>
           </view>
         </view>
       </view>
@@ -264,22 +112,12 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
       <view class="section">
         <view class="guess-head">
           <view class="guess-line" />
-          <AppIcon
-            name="sparkles"
-            :size="26"
-            color="#c41e3a"
-          />
-          <text class="guess-title">
-            猜你喜欢
-          </text>
+          <AppIcon name="sparkles" :size="26" color="#c41e3a" />
+          <text class="guess-title">猜你喜欢</text>
           <view class="guess-line" />
         </view>
         <view class="prod-grid">
-          <view
-            v-for="p in mallProducts"
-            :key="p.id"
-            class="prod-cell"
-          >
+          <view v-for="p in mallProducts" :key="p.id" class="prod-cell">
             <ProductCard :data="p" />
           </view>
         </view>

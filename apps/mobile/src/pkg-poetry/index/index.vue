@@ -1,44 +1,22 @@
 <template>
   <view class="pm-page">
     <!-- 顶部导航：返回 + 搜索框 + 随机 -->
-    <view
-      class="pm-header"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="pm-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="pm-header-row">
-        <view
-          class="pm-icon-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#f5ead8"
-          />
+        <view class="pm-icon-btn" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#f5ead8" />
         </view>
         <view class="pm-search">
-          <app-icon
-            name="search"
-            :size="32"
-            color="rgba(245,234,216,0.3)"
-            class="pm-search-icon"
-          />
+          <app-icon name="search" :size="32" color="rgba(245,234,216,0.3)" class="pm-search-icon" />
           <input
             v-model="searchQuery"
             class="pm-search-input"
             placeholder="搜索诗词、诗人…"
             placeholder-class="pm-search-ph"
-          >
-        </view>
-        <view
-          class="pm-icon-btn"
-          @tap="toCategories"
-        >
-          <app-icon
-            name="shuffle"
-            :size="40"
-            color="rgba(245,234,216,0.55)"
           />
+        </view>
+        <view class="pm-icon-btn" @tap="toCategories">
+          <app-icon name="shuffle" :size="40" color="rgba(245,234,216,0.55)" />
         </view>
       </view>
     </view>
@@ -46,101 +24,46 @@
     <view class="pm-main">
       <!-- 编辑式大标题 -->
       <view class="pm-hero">
-        <text class="pm-hero-title">
-          诗词雅集
-        </text>
-        <text class="pm-hero-sub">
-          品味千年风雅，与诗为友
-        </text>
+        <text class="pm-hero-title">诗词雅集</text>
+        <text class="pm-hero-sub">品味千年风雅，与诗为友</text>
       </view>
 
       <!-- 每日一首 -->
       <view class="pm-sec">
         <view class="pm-sec-label">
-          <app-icon
-            name="calendar"
-            :size="28"
-            color="#e8c07a"
-          />
-          <text class="pm-label-gold">
-            每日一首
-          </text>
-          <text class="pm-label-muted">
-            今日精选
-          </text>
+          <app-icon name="calendar" :size="28" color="#e8c07a" />
+          <text class="pm-label-gold">每日一首</text>
+          <text class="pm-label-muted">今日精选</text>
         </view>
 
-        <view
-          class="pm-today"
-          @tap="toDetail(todayPoem.id)"
-        >
+        <view class="pm-today" @tap="toDetail(todayPoem.id)">
           <view class="pm-today-glow" />
           <view class="pm-today-row">
             <!-- 竖排摘句 -->
-            <view class="poem-vertical pm-today-verse">
-              {{ todayPoem.lines[0] }}{{ todayPoem.lines[1] }}
-            </view>
+            <view class="poem-vertical pm-today-verse">{{ todayPoem.lines[0] }}{{ todayPoem.lines[1] }}</view>
             <view class="pm-today-divider" />
             <view class="pm-today-body">
               <view>
-                <text class="pm-today-title">
-                  {{ todayPoem.title }}
-                </text>
-                <text class="pm-today-author">
-                  〔{{ todayPoem.dynasty }}〕{{ todayPoem.author }}
-                </text>
+                <text class="pm-today-title">{{ todayPoem.title }}</text>
+                <text class="pm-today-author">〔{{ todayPoem.dynasty }}〕{{ todayPoem.author }}</text>
                 <view class="pm-today-tags">
-                  <text
-                    v-for="t in todayPoem.tags"
-                    :key="t"
-                    class="pm-tag-gold"
-                  >
-                    {{ t }}
-                  </text>
+                  <text v-for="t in todayPoem.tags" :key="t" class="pm-tag-gold">{{ t }}</text>
                 </view>
               </view>
               <view class="pm-today-foot">
                 <view class="pm-today-actions">
-                  <view
-                    class="pm-act"
-                    @tap.stop="isLiked = !isLiked"
-                  >
-                    <app-icon
-                      name="heart"
-                      :size="28"
-                      :color="isLiked ? '#c0433a' : 'rgba(245,234,216,0.3)'"
-                      :fill="isLiked"
-                    />
-                    <text class="pm-act-text">
-                      {{ (todayPoem.likes / 1000).toFixed(1) }}k
-                    </text>
+                  <view class="pm-act" @tap.stop="isLiked = !isLiked">
+                    <app-icon name="heart" :size="28" :color="isLiked ? '#c0433a' : 'rgba(245,234,216,0.3)'" :fill="isLiked" />
+                    <text class="pm-act-text">{{ (todayPoem.likes / 1000).toFixed(1) }}k</text>
                   </view>
-                  <view
-                    class="pm-act"
-                    @tap.stop="isBookmarked = !isBookmarked"
-                  >
-                    <app-icon
-                      name="bookmark"
-                      :size="28"
-                      :color="isBookmarked ? '#e8c07a' : 'rgba(245,234,216,0.3)'"
-                      :fill="isBookmarked"
-                    />
+                  <view class="pm-act" @tap.stop="isBookmarked = !isBookmarked">
+                    <app-icon name="bookmark" :size="28" :color="isBookmarked ? '#e8c07a' : 'rgba(245,234,216,0.3)'" :fill="isBookmarked" />
                   </view>
-                  <app-icon
-                    name="volume-2"
-                    :size="28"
-                    color="rgba(245,234,216,0.3)"
-                  />
+                  <app-icon name="volume-2" :size="28" color="rgba(245,234,216,0.3)" />
                 </view>
                 <view class="pm-today-more">
-                  <text class="pm-more-gold">
-                    阅读全文
-                  </text>
-                  <app-icon
-                    name="chevron-right"
-                    :size="26"
-                    color="#e8c07a"
-                  />
+                  <text class="pm-more-gold">阅读全文</text>
+                  <app-icon name="chevron-right" :size="26" color="#e8c07a" />
                 </view>
               </view>
             </view>
@@ -149,11 +72,7 @@
       </view>
 
       <!-- 朝代 Tab -->
-      <scroll-view
-        scroll-x
-        :show-scrollbar="false"
-        class="pm-tabs"
-      >
+      <scroll-view scroll-x :show-scrollbar="false" class="pm-tabs">
         <view class="pm-tabs-row">
           <view
             v-for="d in dynastyTabs"
@@ -162,12 +81,7 @@
             :class="{ 'pm-tab-active': activeDynasty === d }"
             @tap="activeDynasty = d"
           >
-            <text
-              class="pm-tab-text"
-              :class="{ 'pm-tab-text-active': activeDynasty === d }"
-            >
-              {{ d }}
-            </text>
+            <text class="pm-tab-text" :class="{ 'pm-tab-text-active': activeDynasty === d }">{{ d }}</text>
           </view>
         </view>
       </scroll-view>
@@ -176,52 +90,22 @@
       <view class="pm-sec">
         <view class="pm-sec-head">
           <view class="pm-sec-label">
-            <app-icon
-              name="user"
-              :size="28"
-              color="#e8c07a"
-            />
-            <text class="pm-label-text">
-              著名诗人
-            </text>
+            <app-icon name="user" :size="28" color="#e8c07a" />
+            <text class="pm-label-text">著名诗人</text>
           </view>
-          <view
-            class="pm-sec-more"
-            @tap="toCollections"
-          >
-            <text class="pm-more-muted">
-              更多
-            </text>
-            <app-icon
-              name="chevron-right"
-              :size="28"
-              color="rgba(245,234,216,0.3)"
-            />
+          <view class="pm-sec-more" @tap="toCollections">
+            <text class="pm-more-muted">更多</text>
+            <app-icon name="chevron-right" :size="28" color="rgba(245,234,216,0.3)" />
           </view>
         </view>
-        <scroll-view
-          scroll-x
-          :show-scrollbar="false"
-          class="pm-poets"
-        >
+        <scroll-view scroll-x :show-scrollbar="false" class="pm-poets">
           <view class="pm-poets-row">
-            <view
-              v-for="poet in poets"
-              :key="poet.id"
-              class="pm-poet"
-              @tap="toPoet(poet.id)"
-            >
+            <view v-for="poet in poets" :key="poet.id" class="pm-poet" @tap="toPoet(poet.id)">
               <view class="pm-poet-avatar">
-                <text class="pm-poet-avatar-text">
-                  {{ poet.avatar }}
-                </text>
+                <text class="pm-poet-avatar-text">{{ poet.avatar }}</text>
               </view>
-              <text class="pm-poet-name">
-                {{ poet.name }}
-              </text>
-              <text class="pm-poet-meta">
-                {{ poet.dynasty }} · {{ poet.poemCount }}首
-              </text>
+              <text class="pm-poet-name">{{ poet.name }}</text>
+              <text class="pm-poet-meta">{{ poet.dynasty }} · {{ poet.poemCount }}首</text>
             </view>
           </view>
         </scroll-view>
@@ -231,115 +115,50 @@
       <view class="pm-sec">
         <view class="pm-sec-head">
           <view class="pm-sec-label">
-            <app-icon
-              name="trending-up"
-              :size="28"
-              color="#e8c07a"
-            />
-            <text class="pm-label-text">
-              热门诗词
-            </text>
+            <app-icon name="trending-up" :size="28" color="#e8c07a" />
+            <text class="pm-label-text">热门诗词</text>
           </view>
-          <view
-            class="pm-sec-more"
-            @tap="toCategories"
-          >
-            <text class="pm-more-muted">
-              分类浏览
-            </text>
-            <app-icon
-              name="chevron-right"
-              :size="28"
-              color="rgba(245,234,216,0.3)"
-            />
+          <view class="pm-sec-more" @tap="toCategories">
+            <text class="pm-more-muted">分类浏览</text>
+            <app-icon name="chevron-right" :size="28" color="rgba(245,234,216,0.3)" />
           </view>
         </view>
 
-        <view
-          v-if="filtered.length"
-          class="pm-list"
-        >
-          <view
-            v-for="(poem, idx) in filtered"
-            :key="poem.id"
-            class="pm-item"
-            @tap="toDetail(poem.id)"
-          >
-            <view
-              class="pm-rank"
-              :class="{ 'pm-rank-top': idx < 3 }"
-            >
-              <text
-                class="pm-rank-text"
-                :class="{ 'pm-rank-text-top': idx < 3 }"
-              >
-                {{ idx + 1 }}
-              </text>
+        <view v-if="filtered.length" class="pm-list">
+          <view v-for="(poem, idx) in filtered" :key="poem.id" class="pm-item" @tap="toDetail(poem.id)">
+            <view class="pm-rank" :class="{ 'pm-rank-top': idx < 3 }">
+              <text class="pm-rank-text" :class="{ 'pm-rank-text-top': idx < 3 }">{{ idx + 1 }}</text>
             </view>
             <view class="pm-item-body">
               <view class="pm-item-head">
-                <text class="pm-item-title">
-                  {{ poem.title }}
-                </text>
-                <text class="pm-item-author">
-                  〔{{ poem.dynasty }}〕{{ poem.author }}
-                </text>
-                <text class="pm-item-form">
-                  {{ poem.form }}
-                </text>
+                <text class="pm-item-title">{{ poem.title }}</text>
+                <text class="pm-item-author">〔{{ poem.dynasty }}〕{{ poem.author }}</text>
+                <text class="pm-item-form">{{ poem.form }}</text>
               </view>
-              <text class="pm-item-preview">
-                {{ poem.preview }}…
-              </text>
+              <text class="pm-item-preview">{{ poem.preview }}…</text>
             </view>
             <view class="pm-item-like">
-              <app-icon
-                name="heart"
-                :size="26"
-                color="rgba(245,234,216,0.3)"
-              />
-              <text class="pm-item-like-text">
-                {{ (poem.likes / 1000).toFixed(1) }}k
-              </text>
+              <app-icon name="heart" :size="26" color="rgba(245,234,216,0.3)" />
+              <text class="pm-item-like-text">{{ (poem.likes / 1000).toFixed(1) }}k</text>
             </view>
           </view>
         </view>
-        <view
-          v-else
-          class="pm-empty"
-        >
-          <text class="pm-empty-text">
-            暂无相关诗词
-          </text>
+        <view v-else class="pm-empty">
+          <text class="pm-empty-text">暂无相关诗词</text>
         </view>
       </view>
 
       <!-- AI 诗词创作入口 -->
       <view class="pm-sec">
-        <view
-          class="pm-ai-entry"
-          @tap="toPublish"
-        >
+        <view class="pm-ai-entry" @tap="toPublish">
           <view class="pm-ai-icon">
-            <app-icon
-              name="sparkles"
-              :size="28"
-              color="#9b7ec8"
-            />
+            <app-icon name="sparkles" :size="28" color="#9b7ec8" />
           </view>
           <view class="pm-ai-body">
-            <text class="pm-ai-title">
-              AI 诗词创作辅助
-            </text>
-            <text class="pm-ai-sub">
-              输入主题，AI 生成草稿，你来润色
-            </text>
+            <text class="pm-ai-title">AI 诗词创作辅助</text>
+            <text class="pm-ai-sub">输入主题，AI 生成草稿，你来润色</text>
           </view>
-          <app-icon
-            name="chevron-right"
-            :size="28"
-            color="#9b7ec8"
-          />
+          <app-icon name="chevron-right" :size="28" color="#9b7ec8" />
         </view>
       </view>
     </view>

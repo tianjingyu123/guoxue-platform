@@ -1,14 +1,5 @@
 <template>
-  <view v-if="isLoading" class="gbd-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="400rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无拼团信息" />
-  <view v-else class="gbd-page">
+  <view class="gbd-page">
     <!-- 顶部导航 -->
     <view class="navbar">
       <view class="nav-btn" hover-class="nav-hover" @tap="goBack">
@@ -50,10 +41,10 @@
     <view class="section">
       <view class="section-head">
         <text class="section-title">正在拼团</text>
-        <text class="section-count">{{ activeGroups.length }}个团进行中</text>
+        <text class="section-count">{{ groups.length }}个团进行中</text>
       </view>
       <view class="groups">
-        <view v-for="g in activeGroups" :key="g.id" class="group">
+        <view v-for="g in groups" :key="g.id" class="group">
           <view class="g-owner">
             <image class="g-owner-avatar" :src="g.owner.avatar" mode="aspectFill" />
             <view class="g-crown">
@@ -83,12 +74,12 @@
               <text class="g-cd-text">{{ cdText(g.id) }}</text>
             </view>
           </view>
-          <view class="g-btn" :class="{ 'g-btn--disabled': submitting }" hover-class="btn-hover" @tap="join(g.id)">
-            <text class="g-btn-text">{{ submitting ? '加入中...' : '去参团' }}</text>
+          <view class="g-btn" hover-class="btn-hover" @tap="join(g.id)">
+            <text class="g-btn-text">{{ joiningId === g.id ? '加入中...' : '去参团' }}</text>
           </view>
         </view>
       </view>
-      <view v-if="!activeGroups.length" class="g-empty">
+      <view v-if="!groups.length" class="g-empty">
         <app-icon name="users" :size="64" color="#d4c5a9" />
         <text class="g-empty-text">暂无进行中的拼团</text>
         <text class="g-empty-sub">快来开启第一个拼团吧</text>
@@ -108,41 +99,27 @@
 
     <!-- 底部开新团 -->
     <view class="footer">
-      <view class="footer-btn" :class="{ 'footer-btn--disabled': submitting }" hover-class="btn-hover" @tap="create">
+      <view class="footer-btn" hover-class="btn-hover" @tap="create">
         <app-icon name="plus" :size="28" color="#fff" />
-        <text class="footer-btn-text">{{ submitting ? '处理中...' : `¥${detail.price} 开新团` }}</text>
+        <text class="footer-btn-text">¥{{ detail.price }} 开新团</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { useSubmitLock } from '@/composables/use-submit-lock'
-import { groupBuyDetail as _detail, activeGroups as _activeGroups, formatCountdown } from '@/lib/shop-data'
+import { groupBuyDetail as detail, activeGroups, formatCountdown } from '@/lib/shop-data'
 
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { detail: _detail, groups: _activeGroups }
-})
-
-const detail = computed(() => pageData.value?.detail ?? {} as any)
-const activeGroups = computed(() => pageData.value?.groups ?? [])
-const isEmpty = computed(() => !detail.value.id)
-
-const { submitting, withLock } = useSubmitLock()
+const groups = activeGroups
+const joiningId = ref<string | null>(null)
 
 const endMap: Record<string, number> = {}
-watch(() => activeGroups.value, (val) => {
-  if (val.length && Object.keys(endMap).length === 0) {
-    val.forEach((g: any) => { endMap[g.id] = Date.now() + g.endOffsetMs })
-  }
-}, { immediate: true })
+groups.forEach((g) => {
+  endMap[g.id] = Date.now() + g.endOffsetMs
+})
 const tick = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -162,20 +139,15 @@ function cdText(id: string): string {
   const c = formatCountdown((endMap[id] ?? Date.now()) - Date.now())
   return `${c.h}:${c.m}:${c.s}`
 }
-async function join(id: string) {
-  await withLock(async () => {
-    await new Promise<void>((resolve) => {
-      setTimeout(() => {
-        navigateTo(`/shop/checkout?type=group&groupId=${id}`)
-        resolve()
-      }, 800)
-    })
-  })
+function join(id: string) {
+  joiningId.value = id
+  setTimeout(() => {
+    joiningId.value = null
+    navigateTo(`/shop/checkout?type=group&groupId=${id}`)
+  }, 800)
 }
-async function create() {
-  await withLock(async () => {
-    navigateTo(`/shop/checkout?type=group&groupId=${detail.value.id}`)
-  })
+function create() {
+  navigateTo(`/shop/checkout?type=group&groupId=${detail.id}`)
 }
 </script>
 
@@ -402,7 +374,6 @@ async function create() {
   padding: 14rpx 28rpx;
   background: linear-gradient(90deg, #ff6b35, #c41e3a);
   border-radius: 999rpx;
-  &--disabled { opacity: 0.6; pointer-events: none; }
 }
 .g-btn-text {
   font-size: 26rpx;
@@ -462,7 +433,6 @@ async function create() {
   padding: 24rpx 0;
   background: linear-gradient(90deg, #ff6b35, #c41e3a);
   border-radius: 999rpx;
-  &--disabled { opacity: 0.6; pointer-events: none; }
 }
 .footer-btn-text {
   font-size: 30rpx;

@@ -192,7 +192,7 @@ const withdrawRecords = [
   { id: 2, amount: 500.0, fee: 3.0, actualAmount: 497.0, status: 'processing' as WdStatus, method: 'bank', account: '6222****1234', createdAt: '2026-06-02 14:00', completedAt: '', failReason: '' },
 ]
 
-const filterTypes: { value: EarnType | 'all'; label: string }[] = [
+const filterTypes = [
   { value: 'all', label: '全部' },
   { value: 'course_commission', label: '课程佣金' },
   { value: 'product_commission', label: '商品佣金' },

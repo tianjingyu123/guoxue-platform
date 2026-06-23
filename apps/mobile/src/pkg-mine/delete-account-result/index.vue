@@ -2,12 +2,11 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { useSubmitLock } from '@/composables/use-submit-lock'
 
 const status = ref<'pending' | 'completed'>('pending')
 const expireAt = ref('')
+const cancelling = ref(false)
 const showCancelDialog = ref(false)
-const { submitting, withLock } = useSubmitLock()
 const countdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -56,12 +55,12 @@ function goBack() {
   uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/index/index' }) })
 }
 function confirmCancel() {
-  if (submitting.value) return
-  withLock(async () => {
-    await new Promise((r) => setTimeout(r, 1500))
+  cancelling.value = true
+  setTimeout(() => {
+    cancelling.value = false
     showCancelDialog.value = false
     uni.reLaunch({ url: '/pkg-mine/settings/index' })
-  })
+  }, 1500)
 }
 function goHome() {
   uni.reLaunch({ url: '/pages/index/index' })
@@ -73,292 +72,114 @@ function goCustomerService() {
 
 <template>
   <!-- 冷静期 pending -->
-  <view
-    v-if="status === 'pending'"
-    class="page"
-  >
+  <view v-if="status === 'pending'" class="page">
     <view class="navbar">
-      <view
-        class="nav-back"
-        @tap="goBack"
-      >
-        <AppIcon
-          name="arrow-left"
-          :size="40"
-          color="#2c2c2c"
-        />
-      </view>
-      <text class="nav-title">
-        注销申请
-      </text>
+      <view class="nav-back" @tap="goBack"><AppIcon name="arrow-left" :size="40" color="#2c2c2c" /></view>
+      <text class="nav-title">注销申请</text>
       <view class="nav-right" />
     </view>
 
     <view class="body">
-      <view class="icon-clock">
-        <AppIcon
-          name="clock"
-          :size="96"
-          color="#3b82f6"
-        />
-      </view>
-      <text class="title">
-        注销申请已提交
-      </text>
-      <text class="subtitle">
-        您的账号将在7天冷静期后正式注销
-      </text>
+      <view class="icon-clock"><AppIcon name="clock" :size="96" color="#3b82f6" /></view>
+      <text class="title">注销申请已提交</text>
+      <text class="subtitle">您的账号将在7天冷静期后正式注销</text>
 
       <view class="countdown">
-        <text class="cd-label">
-          冷静期剩余时间
-        </text>
+        <text class="cd-label">冷静期剩余时间</text>
         <view class="cd-row">
           <view class="cd-cell">
-            <view class="cd-box">
-              <text class="cd-num">
-                {{ countdown.days }}
-              </text>
-            </view>
-            <text class="cd-unit">
-              天
-            </text>
+            <view class="cd-box"><text class="cd-num">{{ countdown.days }}</text></view>
+            <text class="cd-unit">天</text>
           </view>
           <view class="cd-cell">
-            <view class="cd-box">
-              <text class="cd-num">
-                {{ pad(countdown.hours) }}
-              </text>
-            </view>
-            <text class="cd-unit">
-              时
-            </text>
+            <view class="cd-box"><text class="cd-num">{{ pad(countdown.hours) }}</text></view>
+            <text class="cd-unit">时</text>
           </view>
           <view class="cd-cell">
-            <view class="cd-box">
-              <text class="cd-num">
-                {{ pad(countdown.minutes) }}
-              </text>
-            </view>
-            <text class="cd-unit">
-              分
-            </text>
+            <view class="cd-box"><text class="cd-num">{{ pad(countdown.minutes) }}</text></view>
+            <text class="cd-unit">分</text>
           </view>
           <view class="cd-cell">
-            <view class="cd-box">
-              <text class="cd-num">
-                {{ pad(countdown.seconds) }}
-              </text>
-            </view>
-            <text class="cd-unit">
-              秒
-            </text>
+            <view class="cd-box"><text class="cd-num">{{ pad(countdown.seconds) }}</text></view>
+            <text class="cd-unit">秒</text>
           </view>
         </view>
       </view>
 
       <view class="amber-box">
-        <AppIcon
-          name="alert-circle"
-          :size="40"
-          color="#f59e0b"
-          class="amber-icon"
-        />
+        <AppIcon name="alert-circle" :size="40" color="#f59e0b" class="amber-icon" />
         <view class="amber-body">
-          <text class="amber-title">
-            冷静期内您可以：
-          </text>
-          <text class="amber-li">
-            重新登录账号撤销注销申请
-          </text>
-          <text class="amber-li">
-            正常使用所有功能
-          </text>
-          <text class="amber-li">
-            冷静期结束后账号将被永久注销
-          </text>
+          <text class="amber-title">冷静期内您可以：</text>
+          <text class="amber-li">重新登录账号撤销注销申请</text>
+          <text class="amber-li">正常使用所有功能</text>
+          <text class="amber-li">冷静期结束后账号将被永久注销</text>
         </view>
       </view>
 
       <view class="card">
-        <text class="card-title">
-          注销后将发生
-        </text>
-        <view
-          v-for="(it, i) in afterList"
-          :key="i"
-          class="after-row"
-        >
-          <text class="after-emoji">
-            {{ it.icon }}
-          </text>
-          <text class="after-text">
-            {{ it.text }}
-          </text>
+        <text class="card-title">注销后将发生</text>
+        <view v-for="(it, i) in afterList" :key="i" class="after-row">
+          <text class="after-emoji">{{ it.icon }}</text>
+          <text class="after-text">{{ it.text }}</text>
         </view>
       </view>
 
       <view class="btns">
-        <view
-          class="btn-danger"
-          @tap="showCancelDialog = true"
-        >
-          <text class="btn-danger-text">
-            撤销注销申请
-          </text>
+        <view class="btn-danger" @tap="showCancelDialog = true"><text class="btn-danger-text">撤销注销申请</text></view>
+        <view class="btn-muted" @tap="goHome">
+          <AppIcon name="home" :size="32" color="#2c2c2c" />
+          <text class="btn-muted-text">返回首页</text>
         </view>
-        <view
-          class="btn-muted"
-          @tap="goHome"
-        >
-          <AppIcon
-            name="home"
-            :size="32"
-            color="#2c2c2c"
-          />
-          <text class="btn-muted-text">
-            返回首页
-          </text>
-        </view>
-        <view
-          class="btn-text"
-          @tap="goCustomerService"
-        >
-          <AppIcon
-            name="file-text"
-            :size="32"
-            color="#999999"
-          />
-          <text class="btn-text-label">
-            了解注销详情
-          </text>
+        <view class="btn-text" @tap="goCustomerService">
+          <AppIcon name="file-text" :size="32" color="#999999" />
+          <text class="btn-text-label">了解注销详情</text>
         </view>
       </view>
     </view>
 
-    <view
-      v-if="showCancelDialog"
-      class="mask"
-    >
+    <view v-if="showCancelDialog" class="mask">
       <view class="dialog">
-        <view class="dialog-icon">
-          <AppIcon
-            name="check-circle"
-            :size="64"
-            color="#22c55e"
-          />
-        </view>
-        <text class="dialog-title">
-          撤销注销申请
-        </text>
-        <text class="dialog-desc">
-          确定要撤销注销申请吗？撤销后账号将恢复正常状态。
-        </text>
+        <view class="dialog-icon"><AppIcon name="check-circle" :size="64" color="#22c55e" /></view>
+        <text class="dialog-title">撤销注销申请</text>
+        <text class="dialog-desc">确定要撤销注销申请吗？撤销后账号将恢复正常状态。</text>
         <view class="dialog-btns">
-          <view
-            class="dialog-cancel"
-            @tap="showCancelDialog = false"
-          >
-            <text class="dialog-cancel-text">
-              取消
-            </text>
-          </view>
-          <view
-            class="dialog-ok"
-            :class="{ disabled: submitting }"
-            @tap="confirmCancel"
-          >
-            <text class="dialog-ok-text">
-              {{ submitting ? '处理中...' : '确定撤销' }}
-            </text>
-          </view>
+          <view class="dialog-cancel" @tap="showCancelDialog = false"><text class="dialog-cancel-text">取消</text></view>
+          <view class="dialog-ok" @tap="confirmCancel"><text class="dialog-ok-text">{{ cancelling ? '处理中...' : '确定撤销' }}</text></view>
         </view>
       </view>
     </view>
   </view>
 
   <!-- 已完成 completed -->
-  <view
-    v-else
-    class="page"
-  >
+  <view v-else class="page">
     <view class="navbar center">
-      <text class="nav-title">
-        账号注销
-      </text>
+      <text class="nav-title">账号注销</text>
     </view>
     <view class="body body-center">
-      <view class="icon-gray">
-        <view class="icon-gray-inner">
-          <AppIcon
-            name="x"
-            :size="48"
-            color="#999999"
-          />
-        </view>
-      </view>
-      <text class="title">
-        账号已注销
-      </text>
-      <text class="subtitle narrow">
-        所有数据将按隐私政策处理，感谢您一直以来的使用与支持
-      </text>
+      <view class="icon-gray"><view class="icon-gray-inner"><AppIcon name="x" :size="48" color="#999999" /></view></view>
+      <text class="title">账号已注销</text>
+      <text class="subtitle narrow">所有数据将按隐私政策处理，感谢您一直以来的使用与支持</text>
 
       <view class="card">
-        <text class="card-title">
-          注销完成说明
-        </text>
-        <view
-          v-for="(t, i) in doneList"
-          :key="i"
-          class="done-row"
-        >
-          <AppIcon
-            name="check-circle"
-            :size="32"
-            color="#22c55e"
-            class="done-icon"
-          />
-          <text class="done-text">
-            {{ t }}
-          </text>
+        <text class="card-title">注销完成说明</text>
+        <view v-for="(t, i) in doneList" :key="i" class="done-row">
+          <AppIcon name="check-circle" :size="32" color="#22c55e" class="done-icon" />
+          <text class="done-text">{{ t }}</text>
         </view>
       </view>
 
       <view class="blue-box">
-        <text class="blue-text">
-          如果您愿意告诉我们离开的原因，可以<text class="blue-link">
-            填写反馈问卷
-          </text>帮助我们改进服务
-        </text>
+        <text class="blue-text">如果您愿意告诉我们离开的原因，可以<text class="blue-link">填写反馈问卷</text>帮助我们改进服务</text>
       </view>
 
       <view class="btns">
-        <view
-          class="btn-danger"
-          @tap="goHome"
-        >
-          <AppIcon
-            name="user-plus"
-            :size="32"
-            color="#fff"
-          />
-          <text class="btn-danger-text">
-            重新注册账号
-          </text>
+        <view class="btn-danger" @tap="goHome">
+          <AppIcon name="user-plus" :size="32" color="#fff" />
+          <text class="btn-danger-text">重新注册账号</text>
         </view>
-        <view
-          class="btn-muted"
-          @tap="goHome"
-        >
-          <text class="btn-muted-text">
-            关闭应用
-          </text>
-        </view>
+        <view class="btn-muted" @tap="goHome"><text class="btn-muted-text">关闭应用</text></view>
       </view>
-      <text class="footer-note">
-        如有问题请联系客服：400-xxx-xxxx
-      </text>
+      <text class="footer-note">如有问题请联系客服：400-xxx-xxxx</text>
     </view>
   </view>
 </template>
@@ -430,6 +251,5 @@ function goCustomerService() {
 .dialog-cancel { flex: 1; height: 88rpx; background: #f2ece1; border-radius: 24rpx; display: flex; align-items: center; justify-content: center; }
 .dialog-cancel-text { font-size: 30rpx; font-weight: 500; color: #2c2c2c; }
 .dialog-ok { flex: 1; height: 88rpx; background: #22c55e; border-radius: 24rpx; display: flex; align-items: center; justify-content: center; }
-.dialog-ok.disabled { opacity: 0.5; }
 .dialog-ok-text { font-size: 30rpx; font-weight: 500; color: #fff; }
 </style>

@@ -92,100 +92,32 @@ const zhiList = (p: Rec['pillars']) => [
     <!-- 顶部导航 -->
     <view class="hdr">
       <view class="hdr-bar">
-        <view
-          class="hdr-back"
-          @tap="navigateBack()"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="40"
-            color="#666666"
-          />
-        </view>
+        <view class="hdr-back" @tap="navigateBack()"><app-icon name="chevron-left" :size="40" color="#666666" /></view>
         <view class="seg">
-          <view class="seg-item seg-on">
-            <text class="seg-text seg-text-on">
-              用户列表
-            </text>
-          </view>
-          <view
-            class="seg-item"
-            @tap="navigateTo('/paipan/bazi/history/celebrities')"
-          >
-            <text class="seg-text">
-              案例库
-            </text>
-            <text class="vip-badge">
-              VIP
-            </text>
+          <view class="seg-item seg-on"><text class="seg-text seg-text-on">用户列表</text></view>
+          <view class="seg-item" @tap="navigateTo('/paipan/bazi/history/celebrities')">
+            <text class="seg-text">案例库</text>
+            <text class="vip-badge">VIP</text>
           </view>
         </view>
-        <view
-          class="hdr-more"
-          @tap="showMenu = !showMenu"
-        >
-          <app-icon
-            name="more-vertical"
-            :size="40"
-            color="#666666"
-          />
-        </view>
+        <view class="hdr-more" @tap="showMenu = !showMenu"><app-icon name="more-vertical" :size="40" color="#666666" /></view>
       </view>
 
       <!-- 下拉菜单 -->
       <template v-if="showMenu">
-        <view
-          class="menu-mask"
-          @tap="showMenu = false"
-        />
+        <view class="menu-mask" @tap="showMenu = false" />
         <view class="menu">
-          <view
-            class="menu-item"
-            @tap="showMenu = false; navigateTo('/paipan/bazi/history/groups')"
-          >
-            <app-icon
-              name="users"
-              :size="32"
-              color="#999999"
-            /><text class="menu-text">
-              分组编辑
-            </text>
+          <view class="menu-item" @tap="showMenu = false; navigateTo('/paipan/bazi/history/groups')">
+            <app-icon name="users" :size="32" color="#999999" /><text class="menu-text">分组编辑</text>
           </view>
-          <view
-            class="menu-item"
-            @tap="enterMode('group')"
-          >
-            <app-icon
-              name="folder-pen"
-              :size="32"
-              color="#999999"
-            /><text class="menu-text">
-              修改分组
-            </text>
+          <view class="menu-item" @tap="enterMode('group')">
+            <app-icon name="folder-pen" :size="32" color="#999999" /><text class="menu-text">修改分组</text>
           </view>
-          <view
-            class="menu-item"
-            @tap="enterMode('pin')"
-          >
-            <app-icon
-              name="star"
-              :size="32"
-              color="#999999"
-            /><text class="menu-text">
-              星标置顶
-            </text>
+          <view class="menu-item" @tap="enterMode('pin')">
+            <app-icon name="star" :size="32" color="#999999" /><text class="menu-text">星标置顶</text>
           </view>
-          <view
-            class="menu-item"
-            @tap="enterMode('delete')"
-          >
-            <app-icon
-              name="trash-2"
-              :size="32"
-              color="#999999"
-            /><text class="menu-text">
-              批量删除
-            </text>
+          <view class="menu-item" @tap="enterMode('delete')">
+            <app-icon name="trash-2" :size="32" color="#999999" /><text class="menu-text">批量删除</text>
           </view>
         </view>
       </template>
@@ -194,130 +126,51 @@ const zhiList = (p: Rec['pillars']) => [
     <!-- 搜索栏 -->
     <view class="search-wrap">
       <view class="search-box">
-        <app-icon
-          name="search"
-          :size="30"
-          color="#999999"
-        />
-        <input
-          v-model="searchQuery"
-          class="search-input"
-          placeholder="搜索客户名称"
-          placeholder-class="search-ph"
-        >
+        <app-icon name="search" :size="30" color="#999999" />
+        <input v-model="searchQuery" class="search-input" placeholder="搜索客户名称" placeholder-class="search-ph" />
       </view>
     </view>
 
     <!-- 分组标签 -->
-    <scroll-view
-      scroll-x
-      class="groups-wrap"
-    >
+    <scroll-view scroll-x class="groups-wrap">
       <view class="groups">
-        <view
-          v-for="g in groups"
-          :key="g"
-          class="group-chip"
-          :class="{ 'group-chip-on': activeGroup === g }"
-          @tap="activeGroup = g"
-        >
-          <text
-            class="group-text"
-            :class="{ 'group-text-on': activeGroup === g }"
-          >
-            {{ g }}
-          </text>
+        <view v-for="g in groups" :key="g" class="group-chip" :class="{ 'group-chip-on': activeGroup === g }" @tap="activeGroup = g">
+          <text class="group-text" :class="{ 'group-text-on': activeGroup === g }">{{ g }}</text>
         </view>
       </view>
     </scroll-view>
 
     <!-- 记录列表 -->
-    <scroll-view
-      scroll-y
-      class="list"
-    >
-      <view
-        v-if="filteredRecords.length === 0"
-        class="empty"
-      >
-        <app-icon
-          name="search"
-          :size="96"
-          color="#cccccc"
-        />
-        <text class="empty-text">
-          暂无记录
-        </text>
+    <scroll-view scroll-y class="list">
+      <view v-if="filteredRecords.length === 0" class="empty">
+        <app-icon name="search" :size="96" color="#cccccc" />
+        <text class="empty-text">暂无记录</text>
       </view>
       <view v-else>
-        <view
-          v-for="rec in filteredRecords"
-          :key="rec.id"
-          class="row"
-        >
+        <view v-for="rec in filteredRecords" :key="rec.id" class="row">
           <!-- 复选框 -->
-          <view
-            v-if="selectMode !== 'none'"
-            class="cbox"
-            :class="{ 'cbox-on': selectedIds.includes(rec.id) }"
-            @tap="toggleSelect(rec.id)"
-          >
-            <app-icon
-              v-if="selectedIds.includes(rec.id)"
-              name="check"
-              :size="20"
-              color="#ffffff"
-            />
+          <view v-if="selectMode !== 'none'" class="cbox" :class="{ 'cbox-on': selectedIds.includes(rec.id) }" @tap="toggleSelect(rec.id)">
+            <app-icon v-if="selectedIds.includes(rec.id)" name="check" :size="20" color="#ffffff" />
           </view>
           <!-- 性别头像 -->
-          <view
-            class="avatar"
-            :class="rec.gender === 'male' ? 'avatar-m' : 'avatar-f'"
-          >
-            <app-icon
-              name="user"
-              :size="36"
-              :color="rec.gender === 'male' ? '#60a5fa' : '#f472b6'"
-            />
+          <view class="avatar" :class="rec.gender === 'male' ? 'avatar-m' : 'avatar-f'">
+            <app-icon name="user" :size="36" :color="rec.gender === 'male' ? '#60a5fa' : '#f472b6'" />
           </view>
           <!-- 信息 -->
           <view class="info">
             <view class="info-top">
-              <text class="info-name">
-                {{ rec.name }}
-              </text>
-              <text
-                v-if="rec.analyzed"
-                class="tag-analyzed"
-              >
-                已解析
-              </text>
+              <text class="info-name">{{ rec.name }}</text>
+              <text v-if="rec.analyzed" class="tag-analyzed">已解析</text>
             </view>
-            <text class="info-date">
-              {{ rec.date }}
-            </text>
+            <text class="info-date">{{ rec.date }}</text>
           </view>
           <!-- 四柱八字 -->
           <view class="pillars">
             <view class="pillar-row">
-              <text
-                v-for="(g, i) in ganList(rec.pillars)"
-                :key="'g' + i"
-                class="gz"
-                :class="tianGanColors[g.c]"
-              >
-                {{ g.c }}
-              </text>
+              <text v-for="(g, i) in ganList(rec.pillars)" :key="'g' + i" class="gz" :class="tianGanColors[g.c]">{{ g.c }}</text>
             </view>
             <view class="pillar-row">
-              <text
-                v-for="(z, i) in zhiList(rec.pillars)"
-                :key="'z' + i"
-                class="gz"
-                :class="diZhiColors[z.c]"
-              >
-                {{ z.c }}
-              </text>
+              <text v-for="(z, i) in zhiList(rec.pillars)" :key="'z' + i" class="gz" :class="diZhiColors[z.c]">{{ z.c }}</text>
             </view>
           </view>
         </view>
@@ -325,158 +178,48 @@ const zhiList = (p: Rec['pillars']) => [
     </scroll-view>
 
     <!-- 批量操作栏 · 删除 -->
-    <view
-      v-if="selectMode === 'delete'"
-      class="opbar"
-    >
-      <view
-        class="op-all"
-        @tap="selectAll"
-      >
-        <view
-          class="cbox"
-          :class="{ 'cbox-on': allSelected }"
-        >
-          <app-icon
-            v-if="allSelected"
-            name="check"
-            :size="20"
-            color="#ffffff"
-          />
-        </view>
-        <text class="op-all-text">
-          全选
-        </text>
+    <view v-if="selectMode === 'delete'" class="opbar">
+      <view class="op-all" @tap="selectAll">
+        <view class="cbox" :class="{ 'cbox-on': allSelected }"><app-icon v-if="allSelected" name="check" :size="20" color="#ffffff" /></view>
+        <text class="op-all-text">全选</text>
       </view>
       <view class="op-btns">
-        <view
-          class="op-cancel"
-          @tap="exitMode"
-        >
-          <text class="op-cancel-text">
-            取消
-          </text>
-        </view>
-        <view
-          class="op-act op-del"
-          :class="{ 'op-disabled': selectedIds.length === 0 }"
-        >
-          <text class="op-act-text">
-            删除
-          </text>
-        </view>
+        <view class="op-cancel" @tap="exitMode"><text class="op-cancel-text">取消</text></view>
+        <view class="op-act op-del" :class="{ 'op-disabled': selectedIds.length === 0 }"><text class="op-act-text">删除</text></view>
       </view>
     </view>
 
     <!-- 批量操作栏 · 置顶 -->
-    <view
-      v-if="selectMode === 'pin'"
-      class="opbar"
-    >
+    <view v-if="selectMode === 'pin'" class="opbar">
       <view class="op-btns op-btns-full">
-        <view
-          class="op-cancel op-flex"
-          @tap="exitMode"
-        >
-          <text class="op-cancel-text">
-            取消
-          </text>
-        </view>
-        <view
-          class="op-act op-pin op-flex"
-          :class="{ 'op-disabled': selectedIds.length === 0 }"
-        >
-          <text class="op-act-text">
-            置顶
-          </text>
-        </view>
+        <view class="op-cancel op-flex" @tap="exitMode"><text class="op-cancel-text">取消</text></view>
+        <view class="op-act op-pin op-flex" :class="{ 'op-disabled': selectedIds.length === 0 }"><text class="op-act-text">置顶</text></view>
       </view>
     </view>
 
     <!-- 批量操作栏 · 修改分组 -->
-    <view
-      v-if="selectMode === 'group'"
-      class="opbar"
-    >
-      <view
-        class="op-all"
-        @tap="selectAll"
-      >
-        <view
-          class="cbox"
-          :class="{ 'cbox-on': allSelected }"
-        >
-          <app-icon
-            v-if="allSelected"
-            name="check"
-            :size="20"
-            color="#ffffff"
-          />
-        </view>
-        <text class="op-all-text">
-          全选
-        </text>
+    <view v-if="selectMode === 'group'" class="opbar">
+      <view class="op-all" @tap="selectAll">
+        <view class="cbox" :class="{ 'cbox-on': allSelected }"><app-icon v-if="allSelected" name="check" :size="20" color="#ffffff" /></view>
+        <text class="op-all-text">全选</text>
       </view>
       <view class="op-btns">
-        <view
-          class="op-cancel"
-          @tap="exitMode"
-        >
-          <text class="op-cancel-text">
-            取消
-          </text>
-        </view>
-        <view
-          class="op-act op-group"
-          :class="{ 'op-disabled': selectedIds.length === 0 }"
-          @tap="selectedIds.length && (showGroupPicker = true)"
-        >
-          <text class="op-act-text">
-            移动到分组
-          </text>
-        </view>
+        <view class="op-cancel" @tap="exitMode"><text class="op-cancel-text">取消</text></view>
+        <view class="op-act op-group" :class="{ 'op-disabled': selectedIds.length === 0 }" @tap="selectedIds.length && (showGroupPicker = true)"><text class="op-act-text">移动到分组</text></view>
       </view>
     </view>
 
     <!-- 分组选择弹窗 -->
-    <view
-      v-if="showGroupPicker"
-      class="mask"
-      @tap="showGroupPicker = false"
-    >
-      <view
-        class="sheet"
-        @tap.stop
-      >
-        <view class="sheet-head">
-          <text class="sheet-title">
-            选择分组
-          </text>
-        </view>
-        <scroll-view
-          scroll-y
-          class="sheet-list"
-        >
-          <view
-            v-for="g in groups.filter((x) => x !== '全部')"
-            :key="g"
-            class="sheet-item"
-            @tap="handleChangeGroup(g)"
-          >
-            <text class="sheet-item-text">
-              {{ g }}
-            </text>
+    <view v-if="showGroupPicker" class="mask" @tap="showGroupPicker = false">
+      <view class="sheet" @tap.stop>
+        <view class="sheet-head"><text class="sheet-title">选择分组</text></view>
+        <scroll-view scroll-y class="sheet-list">
+          <view v-for="g in groups.filter((x) => x !== '全部')" :key="g" class="sheet-item" @tap="handleChangeGroup(g)">
+            <text class="sheet-item-text">{{ g }}</text>
           </view>
         </scroll-view>
         <view class="sheet-foot">
-          <view
-            class="sheet-cancel"
-            @tap="showGroupPicker = false"
-          >
-            <text class="sheet-cancel-text">
-              取消
-            </text>
-          </view>
+          <view class="sheet-cancel" @tap="showGroupPicker = false"><text class="sheet-cancel-text">取消</text></view>
         </view>
       </view>
     </view>

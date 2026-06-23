@@ -1,15 +1,5 @@
 <template>
-  <view v-if="isLoading" class="flash-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无秒杀商品" />
-  <view v-else class="flash-page">
+  <view class="flash-page">
     <!-- 顶部导航 -->
     <view class="navbar">
       <view class="nav-back" hover-class="nav-hover" @tap="goBack">
@@ -105,19 +95,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { flashTimeSlots, flashProducts as _flashProducts, flashNotices, flashEndOffsetMs, formatCountdown, type FlashProduct } from '@/lib/shop-data'
-
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { products: _flashProducts }
-})
-
-const flashProducts = computed(() => pageData.value?.products ?? [])
-const isEmpty = computed(() => flashProducts.value.length === 0)
+import { flashTimeSlots, flashProducts, flashNotices, flashEndOffsetMs, formatCountdown, type FlashProduct } from '@/lib/shop-data'
 
 const activeSlot = ref('14')
 const showNotice = ref(true)
@@ -150,7 +129,7 @@ function progress(p: FlashProduct): number {
 }
 
 function rush(id: string) {
-  if (progress(flashProducts.value.find((x) => x.id === id)!) >= 100) return
+  if (progress(flashProducts.find((x) => x.id === id)!) >= 100) return
   rushingId.value = id
   setTimeout(() => {
     rushingId.value = null

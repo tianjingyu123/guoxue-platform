@@ -2,85 +2,34 @@
   <view class="cb-page">
     <!-- Header -->
     <view class="cb-header">
-      <view
-        class="cb-hd-btn"
-        @tap="goBack"
-      >
-        <app-icon
-          name="chevron-left"
-          :size="44"
-          color="#2C2C2C"
-        />
-      </view>
-      <text class="cb-hd-title">
-        圈子智能体
-      </text>
-      <view
-        v-if="isAdmin"
-        class="cb-hd-btn"
-        @tap="toComingSoon"
-      >
-        <app-icon
-          name="settings"
-          :size="36"
-          color="#666666"
-        />
-      </view>
-      <view
-        v-else
-        style="width: 44rpx"
-      />
+      <view class="cb-hd-btn" @tap="goBack"><app-icon name="chevron-left" :size="44" color="#2C2C2C" /></view>
+      <text class="cb-hd-title">圈子智能体</text>
+      <view v-if="isAdmin" class="cb-hd-btn" @tap="toComingSoon"><app-icon name="settings" :size="36" color="#666666" /></view>
+      <view v-else style="width: 44rpx" />
     </view>
 
     <!-- Circle Info -->
-    <view
-      v-if="circle"
-      class="cb-circle"
-    >
-      <image
-        class="cb-circle-cover"
-        :src="circle.cover"
-        mode="aspectFill"
-      />
+    <view v-if="circle" class="cb-circle">
+      <image class="cb-circle-cover" :src="circle.cover" mode="aspectFill" />
       <view class="cb-circle-info">
-        <text class="cb-circle-name">
-          {{ circle.name }}
-        </text>
-        <text class="cb-circle-meta">
-          {{ formatNumber(circle.members) }} 成员 · {{ bots.length }} 个智能体
-        </text>
+        <text class="cb-circle-name">{{ circle.name }}</text>
+        <text class="cb-circle-meta">{{ formatNumber(circle.members) }} 成员 · {{ bots.length }} 个智能体</text>
       </view>
     </view>
 
     <!-- Search -->
     <view class="cb-search-wrap">
       <view class="cb-search">
-        <app-icon
-          name="search"
-          :size="30"
-          color="#999999"
-        />
-        <input
-          v-model="searchQuery"
-          class="cb-search-input"
-          placeholder="搜索智能体..."
-          placeholder-class="cb-ph"
-        >
+        <app-icon name="search" :size="30" color="#999999" />
+        <input v-model="searchQuery" class="cb-search-input" placeholder="搜索智能体..." placeholder-class="cb-ph" />
       </view>
     </view>
 
     <!-- Bots -->
     <view class="cb-list-wrap">
       <!-- skeleton -->
-      <view
-        v-if="loading"
-        class="cb-list"
-      >
-        <view
-          v-for="i in 4"
-          :key="i"
-          class="cb-skel"
-        >
+      <view v-if="loading" class="cb-list">
+        <view v-for="i in 4" :key="i" class="cb-skel">
           <view class="cb-skel-row">
             <view class="cb-skel-avatar" />
             <view class="cb-skel-lines">
@@ -91,116 +40,41 @@
       </view>
 
       <!-- empty -->
-      <view
-        v-else-if="filteredBots.length === 0"
-        class="cb-empty"
-      >
-        <view class="cb-empty-icon">
-          <app-icon
-            name="bot"
-            :size="56"
-            color="#999999"
-          />
-        </view>
-        <text class="cb-empty-t">
-          {{ searchQuery ? '未找到相关智能体' : '暂无智能体' }}
-        </text>
-        <view
-          v-if="isAdmin && !searchQuery"
-          class="cb-empty-btn"
-          @tap="toComingSoon"
-        >
-          创建智能体
-        </view>
+      <view v-else-if="filteredBots.length === 0" class="cb-empty">
+        <view class="cb-empty-icon"><app-icon name="bot" :size="56" color="#999999" /></view>
+        <text class="cb-empty-t">{{ searchQuery ? '未找到相关智能体' : '暂无智能体' }}</text>
+        <view v-if="isAdmin && !searchQuery" class="cb-empty-btn" @tap="toComingSoon">创建智能体</view>
       </view>
 
       <!-- list -->
-      <view
-        v-else
-        class="cb-list"
-      >
-        <view
-          v-for="bot in filteredBots"
-          :key="bot.id"
-          class="cb-bot"
-          @tap="toComingSoon"
-        >
+      <view v-else class="cb-list">
+        <view v-for="bot in filteredBots" :key="bot.id" class="cb-bot" @tap="toComingSoon">
           <view class="cb-bot-top">
             <view class="cb-bot-avatar-wrap">
-              <image
-                class="cb-bot-avatar"
-                :src="bot.avatar"
-                mode="aspectFill"
-              />
-              <view
-                v-if="bot.isOfficial"
-                class="cb-bot-official"
-              >
-                <app-icon
-                  name="sparkles"
-                  :size="20"
-                  color="#ffffff"
-                />
-              </view>
+              <image class="cb-bot-avatar" :src="bot.avatar" mode="aspectFill" />
+              <view v-if="bot.isOfficial" class="cb-bot-official"><app-icon name="sparkles" :size="20" color="#ffffff" /></view>
             </view>
             <view class="cb-bot-main">
               <view class="cb-bot-name-row">
-                <text class="cb-bot-name">
-                  {{ bot.name }}
-                </text>
-                <text class="cb-bot-cat">
-                  {{ bot.category }}
-                </text>
+                <text class="cb-bot-name">{{ bot.name }}</text>
+                <text class="cb-bot-cat">{{ bot.category }}</text>
               </view>
-              <text class="cb-bot-desc">
-                {{ bot.description }}
-              </text>
+              <text class="cb-bot-desc">{{ bot.description }}</text>
             </view>
           </view>
           <view class="cb-bot-foot">
             <view class="cb-bot-stats">
-              <view class="cb-stat">
-                <app-icon
-                  name="message-circle"
-                  :size="26"
-                  color="#999999"
-                /><text class="cb-stat-t">
-                  {{ formatNumber(bot.chats) }}
-                </text>
-              </view>
-              <view class="cb-stat">
-                <app-icon
-                  name="heart"
-                  :size="26"
-                  color="#999999"
-                /><text class="cb-stat-t">
-                  {{ formatNumber(bot.likes) }}
-                </text>
-              </view>
+              <view class="cb-stat"><app-icon name="message-circle" :size="26" color="#999999" /><text class="cb-stat-t">{{ formatNumber(bot.chats) }}</text></view>
+              <view class="cb-stat"><app-icon name="heart" :size="26" color="#999999" /><text class="cb-stat-t">{{ formatNumber(bot.likes) }}</text></view>
             </view>
-            <view
-              class="cb-bot-chat"
-              @tap.stop="toComingSoon"
-            >
-              对话
-            </view>
+            <view class="cb-bot-chat" @tap.stop="toComingSoon">对话</view>
           </view>
         </view>
       </view>
     </view>
 
     <!-- FAB -->
-    <view
-      v-if="isAdmin && !loading && bots.length > 0"
-      class="cb-fab"
-      @tap="toComingSoon"
-    >
-      <app-icon
-        name="plus"
-        :size="40"
-        color="#ffffff"
-      />
-    </view>
+    <view v-if="isAdmin && !loading && bots.length > 0" class="cb-fab" @tap="toComingSoon"><app-icon name="plus" :size="40" color="#ffffff" /></view>
   </view>
 </template>
 

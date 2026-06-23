@@ -1,14 +1,5 @@
 <template>
-  <view v-if="isLoading" class="pd-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="750rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无商品" />
-  <view v-else class="pd-page">
+  <view class="pd-page">
     <!-- 顶部导航 -->
     <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-btn" hover-class="nav-hover" @tap="goBack">
@@ -205,8 +196,8 @@
           </view>
         </view>
         <view class="sku-foot" :style="{ paddingBottom: (safeBottom + 16) + 'px' }">
-          <view class="sku-submit" :class="[buyMode === 'cart' ? 'submit-cart' : 'submit-buy', submitting ? 'sku-submit--disabled' : '']" hover-class="btn-hover" @tap="confirmSku">
-            <text class="sku-submit-text">{{ submitting ? '处理中...' : (buyMode === 'cart' ? '加入购物车' : '立即购买') }}</text>
+          <view class="sku-submit" :class="buyMode === 'cart' ? 'submit-cart' : 'submit-buy'" hover-class="btn-hover" @tap="confirmSku">
+            <text class="sku-submit-text">{{ buyMode === 'cart' ? '加入购物车' : '立即购买' }}</text>
           </view>
         </view>
       </view>
@@ -241,30 +232,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { getShopProductDetail as _getShopProductDetail, shopProductReviews as _shopProductReviews, type ShopProductSku } from '@/lib/shop-data'
+import { getShopProductDetail, shopProductReviews, type ShopProductSku } from '@/lib/shop-data'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
-import { useSubmitLock } from '@/composables/use-submit-lock'
-
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { product: _getShopProductDetail(), reviews: _shopProductReviews }
-})
-
-const isEmpty = computed(() => !pageData.value?.product?.id)
 
 const statusBarHeight = ref(0)
 const safeBottom = ref(0)
 
-const product = ref(_getShopProductDetail())
-watch(() => pageData.value?.product, (val) => { if (val) product.value = val }, { immediate: true })
-const reviews = ref(_shopProductReviews)
-watch(() => pageData.value?.reviews, (val) => { if (val) reviews.value = val }, { immediate: true })
+const product = ref(getShopProductDetail())
+const reviews = ref(shopProductReviews)
 const productId = ref('1')
 
 const currentImage = ref(0)
@@ -277,7 +255,6 @@ const showImageViewer = ref(false)
 const cartAdded = ref(false)
 const addedToast = ref(false)
 const flyBall = ref(false)
-const { submitting, withLock } = useSubmitLock()
 
 const currentPrice = computed(() => selectedSku.value?.price ?? product.value.price)
 const currentOriginalPrice = computed(() => selectedSku.value?.originalPrice ?? product.value.originalPrice)
@@ -293,7 +270,7 @@ const isHealthProduct = computed(() => {
 onLoad((q) => {
   if (q && q.id) {
     productId.value = String(q.id)
-    product.value = _getShopProductDetail(q.id)
+    product.value = getShopProductDetail(q.id)
     selectedSku.value = product.value.skus[0] || null
   }
   try {
@@ -327,35 +304,33 @@ function incQty() {
   const max = selectedSku.value?.stock ?? product.value.stock
   if (quantity.value < max) quantity.value++
 }
-async function confirmSku() {
-  await withLock(async () => {
-    if (buyMode.value === 'cart') {
-      showSkuPanel.value = false
-      // 飞入购物车动画：小球从屏幕中下部飞向左下角购物车图标
-      try {
-        const info = uni.getSystemInfoSync()
-        const w = info.windowWidth || 375
-        const h = info.windowHeight || 667
-        flyBall.value = true
-        // 目标：左下角购物车（约 x=36px, 底部上方约 56px）相对小球初始中心位置的位移
-        const ball = document?.querySelector?.('.fly-ball') as HTMLElement | null
-        if (ball) {
-          ball.style.setProperty('--fly-x', `${36 - w / 2}px`)
-          ball.style.setProperty('--fly-y', `${h - 56 - (h - 120)}px`)
-        }
-      } catch (e) {
-        flyBall.value = true
+function confirmSku() {
+  if (buyMode.value === 'cart') {
+    showSkuPanel.value = false
+    // 飞入购物车动画：小球从屏幕中下部飞向左下角购物车图标
+    try {
+      const info = uni.getSystemInfoSync()
+      const w = info.windowWidth || 375
+      const h = info.windowHeight || 667
+      flyBall.value = true
+      // 目标：左下角购物车（约 x=36px, 底部上方约 56px）相对小球初始中心位置的位移
+      const ball = document?.querySelector?.('.fly-ball') as HTMLElement | null
+      if (ball) {
+        ball.style.setProperty('--fly-x', `${36 - w / 2}px`)
+        ball.style.setProperty('--fly-y', `${h - 56 - (h - 120)}px`)
       }
-      setTimeout(() => {
-        flyBall.value = false
-        cartAdded.value = true
-        addedToast.value = true
-        setTimeout(() => (addedToast.value = false), 1600)
-      }, 600)
-    } else {
-      navigateTo(`/shop/checkout?productId=${productId.value}&skuId=${selectedSku.value?.id}&quantity=${quantity.value}`)
+    } catch (e) {
+      flyBall.value = true
     }
-  })
+    setTimeout(() => {
+      flyBall.value = false
+      cartAdded.value = true
+      addedToast.value = true
+      setTimeout(() => (addedToast.value = false), 1600)
+    }, 600)
+  } else {
+    navigateTo(`/shop/checkout?productId=${productId.value}&skuId=${selectedSku.value?.id}&quantity=${quantity.value}`)
+  }
 }
 function goReviews() {
   navigateTo(`/shop/reviews?productId=${productId.value}`)
@@ -846,7 +821,6 @@ function goCart() {
 .submit-buy {
   background: linear-gradient(90deg, #c41e3a, #e85a71);
 }
-.sku-submit--disabled { opacity: 0.6; pointer-events: none; }
 .sku-submit-text {
   font-size: 30rpx;
   font-weight: 500;

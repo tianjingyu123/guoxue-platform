@@ -1,139 +1,62 @@
 <template>
-  <view v-if="!replay || !currentChapter" class="page" style="padding: 24rpx;">
-    <AppSkeleton width="100%" height="420rpx" radius="24rpx" mb="24rpx" />
-    <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
-    <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-  </view>
-  <view v-else class="page">
+  <view class="page">
     <!-- 播放器区域 -->
     <view class="player">
       <!-- 返回按钮 -->
-      <view
-        class="player-back"
-        :style="{ top: statusBarHeight + 16 + 'px' }"
-        @tap="goBack"
-      >
-        <AppIcon
-          name="arrow-left"
-          :size="40"
-          color="#fff"
-        />
+      <view class="player-back" :style="{ top: statusBarHeight + 16 + 'px' }" @tap="goBack">
+        <AppIcon name="arrow-left" :size="40" color="#fff" />
       </view>
 
       <!-- 中央播放按钮 -->
       <view class="player-center">
-        <view
-          class="play-circle"
-          @tap="isPlaying = true"
-        >
-          <AppIcon
-            name="play"
-            :size="64"
-            color="#fff"
-            :fill="true"
-          />
+        <view class="play-circle" @tap="isPlaying = true">
+          <AppIcon name="play" :size="64" color="#fff" :fill="true" />
         </view>
       </view>
 
       <!-- 回放标签 -->
-      <view
-        class="player-tag-tr"
-        :style="{ top: statusBarHeight + 16 + 'px' }"
-      >
+      <view class="player-tag-tr" :style="{ top: statusBarHeight + 16 + 'px' }">
         <view class="tag-replay">
-          <AppIcon
-            name="clock"
-            :size="24"
-            color="#fff"
-          />
-          <text class="tag-replay-txt">
-            回放
-          </text>
+          <AppIcon name="clock" :size="24" color="#fff" />
+          <text class="tag-replay-txt">回放</text>
         </view>
       </view>
 
       <!-- 当前章节 -->
-      <view
-        class="player-chapter"
-        :style="{ top: statusBarHeight + 16 + 'px' }"
-      >
-        <text class="player-chapter-txt">
-          {{ currentChapter.title }}
-        </text>
+      <view class="player-chapter" :style="{ top: statusBarHeight + 16 + 'px' }">
+        <text class="player-chapter-txt">{{ currentChapter.title }}</text>
       </view>
 
       <!-- 控制栏 -->
       <view class="player-controls">
         <!-- 进度条 -->
         <view class="progress-bar">
-          <view
-            class="progress-fill"
-            :style="{ width: '0%' }"
-          >
+          <view class="progress-fill" :style="{ width: '0%' }">
             <view class="progress-knob" />
           </view>
         </view>
         <!-- 控制按钮 -->
         <view class="controls-row">
           <view class="controls-left">
-            <AppIcon
-              name="play"
-              :size="48"
-              color="#fff"
-              :fill="true"
-            />
-            <AppIcon
-              name="skip-back"
-              :size="40"
-              color="#fff"
-            />
-            <AppIcon
-              name="skip-forward"
-              :size="40"
-              color="#fff"
-            />
-            <text class="time-txt">
-              00:00:00 / {{ replay.duration }}
-            </text>
+            <AppIcon name="play" :size="48" color="#fff" :fill="true" />
+            <AppIcon name="skip-back" :size="40" color="#fff" />
+            <AppIcon name="skip-forward" :size="40" color="#fff" />
+            <text class="time-txt">00:00:00 / {{ replay.duration }}</text>
           </view>
           <view class="controls-right">
             <view class="ctrl-chip">
-              <AppIcon
-                name="list"
-                :size="32"
-                color="#fff"
-              />
-              <text class="ctrl-chip-txt">
-                章节
-              </text>
+              <AppIcon name="list" :size="32" color="#fff" />
+              <text class="ctrl-chip-txt">章节</text>
             </view>
             <view class="ctrl-chip">
-              <text class="ctrl-chip-txt">
-                {{ speed }}x
-              </text>
-              <AppIcon
-                name="chevron-down"
-                :size="24"
-                color="#fff"
-              />
+              <text class="ctrl-chip-txt">{{ speed }}x</text>
+              <AppIcon name="chevron-down" :size="24" color="#fff" />
             </view>
             <view class="ctrl-icon-btn">
-              <AppIcon
-                name="image"
-                :size="32"
-                color="#fff"
-              />
+              <AppIcon name="image" :size="32" color="#fff" />
             </view>
-            <AppIcon
-              name="volume-2"
-              :size="40"
-              color="#fff"
-            />
-            <AppIcon
-              name="maximize"
-              :size="40"
-              color="#fff"
-            />
+            <AppIcon name="volume-2" :size="40" color="#fff" />
+            <AppIcon name="maximize" :size="40" color="#fff" />
           </view>
         </view>
       </view>
@@ -141,69 +64,34 @@
 
     <!-- 回放信息 -->
     <view class="info">
-      <text class="info-title">
-        {{ replay.title }}
-      </text>
+      <text class="info-title">{{ replay.title }}</text>
       <view class="info-host">
-        <image
-          class="host-avatar"
-          :src="replay.hostAvatar"
-          mode="aspectFill"
-        />
+        <image class="host-avatar" :src="replay.hostAvatar" mode="aspectFill" />
         <view class="host-meta">
           <view class="host-name-row">
-            <text class="host-name">
-              {{ replay.hostName }}
-            </text>
-            <view
-              v-if="replay.isVerified"
-              class="host-v"
-            >
-              <text class="host-v-txt">
-                V
-              </text>
+            <text class="host-name">{{ replay.hostName }}</text>
+            <view v-if="replay.isVerified" class="host-v">
+              <text class="host-v-txt">V</text>
             </view>
           </view>
-          <text class="host-fans">
-            {{ replay.hostFollowers.toLocaleString() }} 粉丝
-          </text>
+          <text class="host-fans">{{ replay.hostFollowers.toLocaleString() }} 粉丝</text>
         </view>
         <view class="follow-btn">
-          <text class="follow-txt">
-            + 关注
-          </text>
+          <text class="follow-txt">+ 关注</text>
         </view>
       </view>
       <view class="info-stats">
         <view class="stat">
-          <AppIcon
-            name="clock"
-            :size="28"
-            color="#999999"
-          />
-          <text class="stat-txt">
-            {{ replay.startTime }}
-          </text>
+          <AppIcon name="clock" :size="28" color="#999999" />
+          <text class="stat-txt">{{ replay.startTime }}</text>
         </view>
         <view class="stat">
-          <AppIcon
-            name="eye"
-            :size="28"
-            color="#999999"
-          />
-          <text class="stat-txt">
-            {{ replay.viewerCount.toLocaleString() }} 观看
-          </text>
+          <AppIcon name="eye" :size="28" color="#999999" />
+          <text class="stat-txt">{{ replay.viewerCount.toLocaleString() }} 观看</text>
         </view>
         <view class="stat">
-          <AppIcon
-            name="heart"
-            :size="28"
-            color="#999999"
-          />
-          <text class="stat-txt">
-            {{ replay.likeCount.toLocaleString() }} 点赞
-          </text>
+          <AppIcon name="heart" :size="28" color="#999999" />
+          <text class="stat-txt">{{ replay.likeCount.toLocaleString() }} 点赞</text>
         </view>
       </view>
     </view>
@@ -216,250 +104,117 @@
         class="tab"
         @tap="activeTab = tab.key"
       >
-        <AppIcon
-          :name="tab.icon"
-          :size="32"
-          :color="activeTab === tab.key ? '#C41E3A' : '#999999'"
-        />
-        <text
-          class="tab-label"
-          :class="{ 'tab-active': activeTab === tab.key }"
-        >
-          {{ tab.label }}
-        </text>
-        <text
-          class="tab-count"
-          :class="{ 'tab-active': activeTab === tab.key }"
-        >
-          ({{ tab.count }})
-        </text>
-        <view
-          v-if="activeTab === tab.key"
-          class="tab-underline"
-        />
+        <AppIcon :name="tab.icon" :size="32" :color="activeTab === tab.key ? '#C41E3A' : '#999999'" />
+        <text class="tab-label" :class="{ 'tab-active': activeTab === tab.key }">{{ tab.label }}</text>
+        <text class="tab-count" :class="{ 'tab-active': activeTab === tab.key }">({{ tab.count }})</text>
+        <view v-if="activeTab === tab.key" class="tab-underline" />
       </view>
     </view>
 
     <!-- Tab内容 -->
     <view class="tab-content">
       <!-- 章节 -->
-      <view
-        v-if="activeTab === 'chapters'"
-        class="chapter-list"
-      >
+      <view v-if="activeTab === 'chapters'" class="chapter-list">
         <view
           v-for="ch in replay.chapters"
           :key="ch.id"
           class="chapter-item"
           :class="{ active: ch.id === currentChapter.id }"
         >
-          <text class="chapter-time">
-            {{ ch.timeDisplay }}
-          </text>
+          <text class="chapter-time">{{ ch.timeDisplay }}</text>
           <view class="chapter-meta">
-            <text
-              class="chapter-title"
-              :class="{ 'chapter-title-active': ch.id === currentChapter.id }"
-            >
-              {{ ch.title }}
-            </text>
-            <text
-              v-if="ch.description"
-              class="chapter-desc"
-            >
-              {{ ch.description }}
-            </text>
+            <text class="chapter-title" :class="{ 'chapter-title-active': ch.id === currentChapter.id }">{{ ch.title }}</text>
+            <text v-if="ch.description" class="chapter-desc">{{ ch.description }}</text>
           </view>
-          <view
-            v-if="ch.id === currentChapter.id"
-            class="chapter-badge"
-          >
-            <text class="chapter-badge-txt">
-              当前
-            </text>
+          <view v-if="ch.id === currentChapter.id" class="chapter-badge">
+            <text class="chapter-badge-txt">当前</text>
           </view>
         </view>
       </view>
 
       <!-- 讨论 -->
-      <view
-        v-if="activeTab === 'discussion'"
-        class="disc-list"
-      >
-        <view
-          v-for="d in replay.discussions"
-          :key="d.id"
-          class="disc-item"
-        >
+      <view v-if="activeTab === 'discussion'" class="disc-list">
+        <view v-for="d in replay.discussions" :key="d.id" class="disc-item">
           <view class="disc-time">
-            <text class="disc-time-txt">
-              {{ d.timeDisplay }}
-            </text>
+            <text class="disc-time-txt">{{ d.timeDisplay }}</text>
           </view>
-          <view
-            class="disc-avatar"
-            :class="{ 'disc-avatar-host': d.isHost }"
-          >
-            <text
-              class="disc-avatar-txt"
-              :class="{ 'disc-avatar-txt-host': d.isHost }"
-            >
-              {{ d.userName.charAt(0) }}
-            </text>
+          <view class="disc-avatar" :class="{ 'disc-avatar-host': d.isHost }">
+            <text class="disc-avatar-txt" :class="{ 'disc-avatar-txt-host': d.isHost }">{{ d.userName.charAt(0) }}</text>
           </view>
           <view class="disc-body">
             <view class="disc-user-row">
-              <text
-                class="disc-user"
-                :class="{ 'disc-user-host': d.isHost }"
-              >
-                {{ d.userName }}
-              </text>
-              <view
-                v-if="d.isHost"
-                class="disc-host-badge"
-              >
-                <text class="disc-host-badge-txt">
-                  主播
-                </text>
+              <text class="disc-user" :class="{ 'disc-user-host': d.isHost }">{{ d.userName }}</text>
+              <view v-if="d.isHost" class="disc-host-badge">
+                <text class="disc-host-badge-txt">主播</text>
               </view>
             </view>
-            <text class="disc-content">
-              {{ d.content }}
-            </text>
+            <text class="disc-content">{{ d.content }}</text>
           </view>
         </view>
       </view>
 
       <!-- 问答 -->
-      <view
-        v-if="activeTab === 'qa'"
-        class="qa-list"
-      >
-        <view
-          v-for="q in replay.qaList"
-          :key="q.id"
-          class="qa-card"
-        >
+      <view v-if="activeTab === 'qa'" class="qa-list">
+        <view v-for="q in replay.qaList" :key="q.id" class="qa-card">
           <view class="qa-time">
-            <text class="qa-time-txt">
-              {{ q.timeDisplay }}
-            </text>
+            <text class="qa-time-txt">{{ q.timeDisplay }}</text>
           </view>
           <view class="qa-body">
             <view class="qa-q-row">
-              <AppIcon
-                name="help-circle"
-                :size="32"
-                color="#C41E3A"
-              />
-              <text class="qa-q-hint">
-                {{ q.questionerName }} 提问
-              </text>
+              <AppIcon name="help-circle" :size="32" color="#C41E3A" />
+              <text class="qa-q-hint">{{ q.questionerName }} 提问</text>
             </view>
-            <text class="qa-question">
-              {{ q.question }}
-            </text>
+            <text class="qa-question">{{ q.question }}</text>
             <view class="qa-answer">
               <view class="qa-a-row">
                 <view class="qa-a-avatar">
-                  <text class="qa-a-avatar-txt">
-                    {{ q.answererName.charAt(0) }}
-                  </text>
+                  <text class="qa-a-avatar-txt">{{ q.answererName.charAt(0) }}</text>
                 </view>
-                <text class="qa-a-hint">
-                  {{ q.answererName }} 回答
-                </text>
+                <text class="qa-a-hint">{{ q.answererName }} 回答</text>
               </view>
-              <text class="qa-answer-txt">
-                {{ q.answer }}
-              </text>
+              <text class="qa-answer-txt">{{ q.answer }}</text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 商品 -->
-      <view
-        v-if="activeTab === 'products'"
-        class="prod-list"
-      >
-        <view
-          v-for="p in replay.products"
-          :key="p.id"
-          class="prod-card"
-        >
+      <view v-if="activeTab === 'products'" class="prod-list">
+        <view v-for="p in replay.products" :key="p.id" class="prod-card">
           <view class="prod-img">
-            <AppIcon
-              name="shopping-bag"
-              :size="64"
-              color="rgba(153,153,153,0.4)"
-            />
+            <AppIcon name="shopping-bag" :size="64" color="rgba(153,153,153,0.4)" />
           </view>
           <view class="prod-body">
-            <text class="prod-name">
-              {{ p.name }}
-            </text>
-            <text class="prod-jump">
-              跳转到 {{ p.mentionTimeDisplay }}
-            </text>
+            <text class="prod-name">{{ p.name }}</text>
+            <text class="prod-jump">跳转到 {{ p.mentionTimeDisplay }}</text>
             <view class="prod-foot">
               <view class="prod-price-row">
-                <text class="prod-price">
-                  {{ p.price }}
-                </text>
-                <text class="prod-original">
-                  {{ p.originalPrice }}
-                </text>
+                <text class="prod-price">{{ p.price }}</text>
+                <text class="prod-original">{{ p.originalPrice }}</text>
               </view>
-              <text class="prod-sales">
-                {{ p.sales }}人购买
-              </text>
+              <text class="prod-sales">{{ p.sales }}人购买</text>
             </view>
           </view>
           <view class="prod-buy">
-            <text class="prod-buy-txt">
-              购买
-            </text>
+            <text class="prod-buy-txt">购买</text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 底部操作栏 -->
-    <view
-      class="bottom-bar"
-      :style="{ paddingBottom: 'env(safe-area-inset-bottom)' }"
-    >
-      <view
-        class="bottom-act"
-        @tap="isCollected = !isCollected"
-      >
-        <AppIcon
-          name="heart"
-          :size="40"
-          :color="isCollected ? '#C41E3A' : '#999999'"
-          :fill="isCollected"
-        />
-        <text class="bottom-act-txt">
-          收藏
-        </text>
+    <view class="bottom-bar" :style="{ paddingBottom: 'env(safe-area-inset-bottom)' }">
+      <view class="bottom-act" @tap="isCollected = !isCollected">
+        <AppIcon name="heart" :size="40" :color="isCollected ? '#C41E3A' : '#999999'" :fill="isCollected" />
+        <text class="bottom-act-txt">收藏</text>
       </view>
       <view class="bottom-act">
-        <AppIcon
-          name="share-2"
-          :size="40"
-          color="#999999"
-        />
-        <text class="bottom-act-txt">
-          分享
-        </text>
+        <AppIcon name="share-2" :size="40" color="#999999" />
+        <text class="bottom-act-txt">分享</text>
       </view>
       <view class="bottom-main">
         <view class="bottom-cta">
-          <text class="bottom-cta-txt">
-            加入「{{ replay.circleName }}」
-          </text>
+          <text class="bottom-cta-txt">加入「{{ replay.circleName }}」</text>
         </view>
       </view>
     </view>
@@ -467,37 +222,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
 import { goBack } from '@/utils/router'
-import { liveApi } from '@/lib/live-data'
-import type { ReplayDetail, ReplayChapter } from '@/lib/live-data'
-
-const replay = ref<ReplayDetail | null>(null)
+import { replayDetail } from '@/lib/live-data'
 
 const statusBarHeight = ref(0)
 
 // UI 临时状态
+const replay = ref(replayDetail)
 const isPlaying = ref(false)
 const speed = ref(1)
 const activeTab = ref<'chapters' | 'discussion' | 'qa' | 'products'>('chapters')
 const isCollected = ref(false)
-const currentChapter = ref<ReplayChapter | null>(null)
+const currentChapter = ref(replayDetail.chapters[0])
 
-const tabs = computed(() => [
-  { key: 'chapters' as const, label: '章节', icon: 'list', count: replay.value?.chapters.length ?? 0 },
-  { key: 'discussion' as const, label: '讨论', icon: 'message-circle', count: replay.value?.discussions.length ?? 0 },
-  { key: 'qa' as const, label: '问答', icon: 'help-circle', count: replay.value?.qaList.length ?? 0 },
-  { key: 'products' as const, label: '商品', icon: 'shopping-bag', count: replay.value?.products.length ?? 0 },
+const tabs = ref([
+  { key: 'chapters' as const, label: '章节', icon: 'list', count: replayDetail.chapters.length },
+  { key: 'discussion' as const, label: '讨论', icon: 'message-circle', count: replayDetail.discussions.length },
+  { key: 'qa' as const, label: '问答', icon: 'help-circle', count: replayDetail.qaList.length },
+  { key: 'products' as const, label: '商品', icon: 'shopping-bag', count: replayDetail.products.length },
 ])
-
-onMounted(async () => {
-  try {
-    replay.value = await liveApi.replayDetail('1')
-    currentChapter.value = replay.value?.chapters[0] ?? null
-  } catch { /* 由页面空态兜底 */ }
-})
 </script>
 
 <style scoped>

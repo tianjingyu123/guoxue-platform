@@ -1,7 +1,6 @@
 /**
  * 帖子详情页数据（从原型 app/circles/[id]/posts/[postId]/page.tsx 1:1 迁移）
  */
-import { apiGet, apiPost, useMock } from '@/utils/request'
 
 export interface PostAuthor {
   id: string
@@ -226,33 +225,3 @@ export function parseMarkdown(content: string): MdBlock[] {
 
 export const REWARD_QUICK = [5, 10, 20, 50]
 export const REWARD_ALL = [5, 10, 20, 50, 100, 200, 500, 1000]
-
-// ── API ──
-export const postDetailApi = {
-  /** 获取帖子详情 GET /posts/:id */
-  async getDetail(id: string): Promise<PostDetail> {
-    if (useMock()) return postDetail
-    try { return await apiGet<PostDetail>(`/posts/${id}`) } catch { return postDetail }
-  },
-  /** 获取帖子评论 GET /posts/:id/comments */
-  async getComments(postId: string): Promise<Comment[]> {
-    if (useMock()) return comments
-    try { return await apiGet<Comment[]>(`/posts/${postId}/comments`) } catch { return comments }
-  },
-  /** 创建评论 POST /posts/:id/comments */
-  async createComment(postId: string, data: { content: string }): Promise<Comment> {
-    if (useMock()) {
-      const newComment: Comment = {
-        id: `c-new-${Date.now()}`,
-        content: data.content,
-        author: { id: 'u-me', name: '我', avatar: '' },
-        createdAt: '刚刚',
-        likes: 0,
-        isLiked: false,
-        replies: [],
-      }
-      return newComment
-    }
-    try { return await apiPost<Comment>(`/posts/${postId}/comments`, data) } catch { throw new Error('评论失败') }
-  },
-}

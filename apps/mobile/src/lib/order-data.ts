@@ -1,10 +1,6 @@
 /**
  * 订单中心数据层 - 从原型 app/orders/* 1:1 迁移
  * 含：商品订单列表 / 统一订单中心 / 订单详情 / 物流 / 评价 / 发票 / 退款进度 / 纠纷申诉
- */
-import { apiGet, apiPost, useMock } from '@/utils/request'
-
-/**
  * 图片走 /static（跨端约定）。
  */
 
@@ -397,27 +393,4 @@ export const mockDisputeDetail: DisputeDetail = {
 
 export function getDisputeTypeLabel(type: string) {
   return disputeTypes.find((t) => t.value === type)?.label || type
-}
-
-// ── API ──
-export const orderApi = {
-  /** 订单列表 GET /orders/my（统一订单中心，返回 { orders, total }，此处映射为 { items, total }） */
-  async list(params?: Record<string, any>): Promise<{ items: any[]; total: number }> {
-    if (useMock()) return { items: [], total: 0 }
-    try {
-      const res = await apiGet<any>(`/orders/my${params ? '?' + new URLSearchParams(params).toString() : ''}`)
-      return { items: res?.orders ?? res?.items ?? [], total: res?.total ?? 0 }
-    } catch { return { items: [], total: 0 } }
-  },
-  /** 订单详情 GET /shop/orders/:id（商品订单） */
-  async detail(id: string): Promise<any> {
-    if (useMock()) return null
-    try { return await apiGet<any>(`/shop/orders/${id}`) } catch { return null }
-  },
-  /** 提交售后/申诉 POST /shop/orders/:orderId/after-sale */
-  async submitDispute(data: Record<string, any>): Promise<any> {
-    if (useMock()) return { success: true }
-    const orderId = data.orderId ?? data.orderNo
-    return await apiPost<any>(`/shop/orders/${orderId}/after-sale`, data)
-  },
 }

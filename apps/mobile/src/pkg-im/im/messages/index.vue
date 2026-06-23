@@ -1,39 +1,17 @@
 <template>
   <view class="msg-page">
     <!-- 顶部导航 -->
-    <view
-      class="navbar"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="navbar__inner">
         <view class="navbar__left">
-          <view
-            class="navbar__back"
-            @tap="goBack"
-          >
-            <AppIcon
-              name="arrow-left"
-              :size="40"
-              color="#2c2c2c"
-            />
+          <view class="navbar__back" @tap="goBack">
+            <AppIcon name="arrow-left" :size="40" color="#2c2c2c" />
           </view>
-          <text class="navbar__title">
-            消息中心
-          </text>
+          <text class="navbar__title">消息中心</text>
         </view>
-        <view
-          v-if="currentUnread > 0"
-          class="navbar__action"
-          @tap="markAllRead"
-        >
-          <AppIcon
-            name="check-check"
-            :size="32"
-            color="#c41e3a"
-          />
-          <text class="navbar__action-txt">
-            全部已读
-          </text>
+        <view v-if="currentUnread > 0" class="navbar__action" @tap="markAllRead">
+          <AppIcon name="check-check" :size="32" color="#c41e3a" />
+          <text class="navbar__action-txt">全部已读</text>
         </view>
       </view>
 
@@ -52,29 +30,18 @@
               :size="32"
               :color="activeTab === tab.key ? '#c41e3a' : '#9c9388'"
             />
-            <text
-              v-if="counts[tab.key] > 0"
-              class="tab__badge"
-            >
+            <text v-if="counts[tab.key] > 0" class="tab__badge">
               {{ counts[tab.key] > 99 ? '99+' : counts[tab.key] }}
             </text>
           </view>
-          <text class="tab__label">
-            {{ tab.label }}
-          </text>
-          <view
-            v-if="activeTab === tab.key"
-            class="tab__indicator"
-          />
+          <text class="tab__label">{{ tab.label }}</text>
+          <view v-if="activeTab === tab.key" class="tab__indicator" />
         </view>
       </view>
     </view>
 
     <!-- 消息列表 -->
-    <view
-      v-if="filteredMessages.length > 0"
-      class="msg-list"
-    >
+    <view v-if="filteredMessages.length > 0" class="msg-list">
       <view
         v-for="msg in filteredMessages"
         :key="msg.id"
@@ -84,79 +51,36 @@
       >
         <!-- 图标/头像 -->
         <view class="msg-item__lead">
-          <image
-            v-if="msg.avatar"
-            :src="msg.avatar"
-            class="msg-item__avatar"
-            mode="aspectFill"
-          />
-          <view
-            v-else
-            class="msg-item__icon"
-            :style="{ background: iconBg(msg) }"
-          >
-            <AppIcon
-              :name="categoryIcon(msg).name"
-              :size="40"
-              :color="categoryIcon(msg).color"
-            />
+          <image v-if="msg.avatar" :src="msg.avatar" class="msg-item__avatar" mode="aspectFill" />
+          <view v-else class="msg-item__icon" :style="{ background: iconBg(msg) }">
+            <AppIcon :name="categoryIcon(msg).name" :size="40" :color="categoryIcon(msg).color" />
           </view>
-          <view
-            v-if="!msg.isRead"
-            class="msg-item__dot"
-          />
+          <view v-if="!msg.isRead" class="msg-item__dot" />
         </view>
 
         <!-- 内容 -->
         <view class="msg-item__body">
           <view class="msg-item__head">
             <view class="msg-item__title-wrap">
-              <text
-                class="msg-item__title"
-                :class="{ 'msg-item__title--read': msg.isRead }"
-              >
-                {{ msg.title }}
-              </text>
-              <text class="msg-item__cate">
-                {{ msg.category }}
-              </text>
+              <text class="msg-item__title" :class="{ 'msg-item__title--read': msg.isRead }">{{ msg.title }}</text>
+              <text class="msg-item__cate">{{ msg.category }}</text>
             </view>
-            <text class="msg-item__time">
-              {{ msg.time }}
-            </text>
+            <text class="msg-item__time">{{ msg.time }}</text>
           </view>
-          <text
-            class="msg-item__content"
-            :class="{ 'msg-item__content--read': msg.isRead }"
-          >
-            {{ msg.content }}
-          </text>
+          <text class="msg-item__content" :class="{ 'msg-item__content--read': msg.isRead }">{{ msg.content }}</text>
         </view>
       </view>
 
-      <view class="msg-list__end">
-        — 已显示全部消息 —
-      </view>
+      <view class="msg-list__end">— 已显示全部消息 —</view>
     </view>
 
     <!-- 空态 -->
-    <view
-      v-else
-      class="msg-empty"
-    >
+    <view v-else class="msg-empty">
       <view class="msg-empty__icon">
-        <AppIcon
-          name="bell"
-          :size="80"
-          color="#d6cdbf"
-        />
+        <AppIcon name="bell" :size="80" color="#d6cdbf" />
       </view>
-      <text class="msg-empty__title">
-        暂无消息
-      </text>
-      <text class="msg-empty__desc">
-        当前分类下没有消息
-      </text>
+      <text class="msg-empty__title">暂无消息</text>
+      <text class="msg-empty__desc">当前分类下没有消息</text>
     </view>
   </view>
 </template>

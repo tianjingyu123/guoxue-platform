@@ -2,125 +2,46 @@
   <view class="chat-page">
     <!-- 顶部导航 -->
     <view class="nav-bar">
-      <view
-        class="nav-btn"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="40"
-          color="#fff"
-        />
+      <view class="nav-btn" @tap="goBack">
+        <app-icon name="arrow-left" :size="40" color="#fff" />
       </view>
       <view class="nav-bot">
-        <image
-          v-if="botDetail.avatar"
-          class="nav-avatar"
-          :src="botDetail.avatar"
-          mode="aspectFill"
-        />
-        <view
-          v-else
-          class="nav-avatar nav-avatar-fb"
-        >
-          {{ botDetail.name.slice(0, 1) }}
-        </view>
+        <image v-if="botDetail.avatar" class="nav-avatar" :src="botDetail.avatar" mode="aspectFill" />
+        <view v-else class="nav-avatar nav-avatar-fb">{{ botDetail.name.slice(0, 1) }}</view>
         <view class="nav-info">
-          <text class="nav-name">
-            {{ botDetail.name }}
-          </text>
-          <text class="nav-status">
-            {{ botDetail.isOfficial ? '官方认证' : '在线' }}
-          </text>
+          <text class="nav-name">{{ botDetail.name }}</text>
+          <text class="nav-status">{{ botDetail.isOfficial ? '官方认证' : '在线' }}</text>
         </view>
       </view>
       <view class="nav-actions">
-        <view
-          v-if="botDetail.voiceEnabled"
-          class="nav-btn"
-          @tap="handleVoiceCall"
-        >
-          <app-icon
-            name="phone"
-            :size="38"
-            color="#fff"
-          />
+        <view v-if="botDetail.voiceEnabled" class="nav-btn" @tap="handleVoiceCall">
+          <app-icon name="phone" :size="38" color="#fff" />
         </view>
-        <view
-          class="nav-btn"
-          @tap="toggleMenu"
-        >
-          <app-icon
-            name="more-vertical"
-            :size="38"
-            color="#fff"
-          />
+        <view class="nav-btn" @tap="toggleMenu">
+          <app-icon name="more-vertical" :size="38" color="#fff" />
         </view>
       </view>
     </view>
 
     <!-- 下拉菜单 -->
-    <view
-      v-if="menuOpen"
-      class="menu-mask"
-      @tap="menuOpen = false"
-    >
-      <view
-        class="menu-pop"
-        @tap.stop
-      >
-        <view
-          class="menu-item"
-          @tap="onMenu('history')"
-        >
-          <app-icon
-            name="history"
-            :size="32"
-            color="#444"
-          />
-          <text class="menu-text">
-            历史记录
-          </text>
+    <view v-if="menuOpen" class="menu-mask" @tap="menuOpen = false">
+      <view class="menu-pop" @tap.stop>
+        <view class="menu-item" @tap="onMenu('history')">
+          <app-icon name="history" :size="32" color="#444" />
+          <text class="menu-text">历史记录</text>
         </view>
-        <view
-          class="menu-item"
-          @tap="onMenu('share')"
-        >
-          <app-icon
-            name="share-2"
-            :size="32"
-            color="#444"
-          />
-          <text class="menu-text">
-            分享
-          </text>
+        <view class="menu-item" @tap="onMenu('share')">
+          <app-icon name="share-2" :size="32" color="#444" />
+          <text class="menu-text">分享</text>
         </view>
-        <view
-          class="menu-item"
-          @tap="onMenu('settings')"
-        >
-          <app-icon
-            name="settings"
-            :size="32"
-            color="#444"
-          />
-          <text class="menu-text">
-            设置
-          </text>
+        <view class="menu-item" @tap="onMenu('settings')">
+          <app-icon name="settings" :size="32" color="#444" />
+          <text class="menu-text">设置</text>
         </view>
         <view class="menu-divider" />
-        <view
-          class="menu-item"
-          @tap="onMenu('clear')"
-        >
-          <app-icon
-            name="trash-2"
-            :size="32"
-            color="#C41E3A"
-          />
-          <text class="menu-text menu-text-danger">
-            清空对话
-          </text>
+        <view class="menu-item" @tap="onMenu('clear')">
+          <app-icon name="trash-2" :size="32" color="#C41E3A" />
+          <text class="menu-text menu-text-danger">清空对话</text>
         </view>
       </view>
     </view>
@@ -134,66 +55,33 @@
     >
       <view class="chat-content">
         <!-- 欢迎消息 -->
-        <view
-          v-if="messages.length === 0"
-          class="welcome-block"
-        >
+        <view v-if="messages.length === 0" class="welcome-block">
           <view class="msg-row">
-            <image
-              v-if="botDetail.avatar"
-              class="msg-avatar"
-              :src="botDetail.avatar"
-              mode="aspectFill"
-            />
-            <view
-              v-else
-              class="msg-avatar msg-avatar-bot"
-            >
-              {{ botDetail.name.slice(0, 1) }}
-            </view>
+            <image v-if="botDetail.avatar" class="msg-avatar" :src="botDetail.avatar" mode="aspectFill" />
+            <view v-else class="msg-avatar msg-avatar-bot">{{ botDetail.name.slice(0, 1) }}</view>
             <view class="bubble bubble-bot">
-              <text class="bubble-text">
-                {{ botDetail.welcomeMessage }}
-              </text>
+              <text class="bubble-text">{{ botDetail.welcomeMessage }}</text>
             </view>
           </view>
 
           <!-- 推荐问题 -->
-          <view
-            v-if="botDetail.suggestions.length"
-            class="sugg-block"
-          >
-            <text class="sugg-tip">
-              您可以这样问我：
-            </text>
+          <view v-if="botDetail.suggestions.length" class="sugg-block">
+            <text class="sugg-tip">您可以这样问我：</text>
             <view class="sugg-list">
               <view
                 v-for="(s, i) in botDetail.suggestions"
                 :key="i"
                 class="sugg-chip"
                 @tap="onSuggestion(s)"
-              >
-                {{ s }}
-              </view>
+              >{{ s }}</view>
             </view>
           </view>
 
           <!-- 能力说明 -->
-          <view
-            v-if="botDetail.capabilities.length"
-            class="cap-block"
-          >
-            <text class="cap-tip">
-              我的能力：
-            </text>
+          <view v-if="botDetail.capabilities.length" class="cap-block">
+            <text class="cap-tip">我的能力：</text>
             <view class="cap-list">
-              <text
-                v-for="(c, i) in botDetail.capabilities"
-                :key="i"
-                class="cap-tag"
-              >
-                {{ c }}
-              </text>
+              <text v-for="(c, i) in botDetail.capabilities" :key="i" class="cap-tag">{{ c }}</text>
             </view>
           </view>
         </view>
@@ -206,48 +94,22 @@
           :class="{ 'msg-row-user': msg.role === 'user' }"
         >
           <!-- 头像 -->
-          <view
-            v-if="msg.role === 'user'"
-            class="msg-avatar msg-avatar-user"
-          >
-            我
-          </view>
+          <view v-if="msg.role === 'user'" class="msg-avatar msg-avatar-user">我</view>
           <template v-else>
-            <image
-              v-if="botDetail.avatar"
-              class="msg-avatar"
-              :src="botDetail.avatar"
-              mode="aspectFill"
-            />
-            <view
-              v-else
-              class="msg-avatar msg-avatar-bot"
-            >
-              {{ botDetail.name.slice(0, 1) }}
-            </view>
+            <image v-if="botDetail.avatar" class="msg-avatar" :src="botDetail.avatar" mode="aspectFill" />
+            <view v-else class="msg-avatar msg-avatar-bot">{{ botDetail.name.slice(0, 1) }}</view>
           </template>
 
           <!-- 内容 -->
-          <view
-            class="msg-body"
-            :class="{ 'msg-body-user': msg.role === 'user' }"
-          >
+          <view class="msg-body" :class="{ 'msg-body-user': msg.role === 'user' }">
             <!-- 文本 -->
             <view
               v-if="msg.type === 'text'"
               class="bubble"
               :class="msg.role === 'user' ? 'bubble-user' : 'bubble-bot'"
             >
-              <rich-text
-                class="bubble-rich"
-                :nodes="renderMarkdown(msg.isStreaming ? streamingText : msg.content)"
-              />
-              <text
-                v-if="msg.isStreaming"
-                class="cursor"
-              >
-                |
-              </text>
+              <rich-text class="bubble-rich" :nodes="renderMarkdown(msg.isStreaming ? streamingText : msg.content)" />
+              <text v-if="msg.isStreaming" class="cursor">|</text>
             </view>
 
             <!-- 图片 -->
@@ -264,19 +126,11 @@
               class="bubble file-bubble"
               :class="msg.role === 'user' ? 'bubble-user' : 'bubble-bot'"
             >
-              <app-icon
-                name="paperclip"
-                :size="28"
-                :color="msg.role === 'user' ? '#fff' : '#666'"
-              />
-              <text class="file-name">
-                {{ msg.attachment.name }}
-              </text>
+              <app-icon name="paperclip" :size="28" :color="msg.role === 'user' ? '#fff' : '#666'" />
+              <text class="file-name">{{ msg.attachment.name }}</text>
             </view>
 
-            <text class="msg-time">
-              {{ formatTime(msg.createdAt) }}
-            </text>
+            <text class="msg-time">{{ formatTime(msg.createdAt) }}</text>
           </view>
         </view>
 
@@ -285,10 +139,7 @@
     </scroll-view>
 
     <!-- 使用限制提示 -->
-    <view
-      v-if="botDetail.limits && !botDetail.isFree"
-      class="limit-bar"
-    >
+    <view v-if="botDetail.limits && !botDetail.isFree" class="limit-bar">
       <text class="limit-text">
         今日免费次数：{{ botDetail.limits.usedCount }}/{{ botDetail.limits.dailyFreeCount }}
       </text>
@@ -296,9 +147,7 @@
         v-if="botDetail.limits.usedCount >= botDetail.limits.dailyFreeCount"
         class="limit-upgrade"
         @tap="onUpgrade"
-      >
-        升级会员
-      </text>
+      >升级会员</text>
     </view>
 
     <!-- 底部输入区 -->
@@ -309,32 +158,20 @@
         :class="{ 'recording': isRecording }"
         @tap="toggleVoice"
       >
-        <app-icon
-          :name="isRecording ? 'mic-off' : 'mic'"
-          :size="38"
-          :color="isRecording ? '#C41E3A' : '#666'"
-        />
+        <app-icon :name="isRecording ? 'mic-off' : 'mic'" :size="38" :color="isRecording ? '#C41E3A' : '#666'" />
       </view>
 
       <view class="input-wrap">
         <input
-          v-model="inputValue"
           class="chat-input"
+          v-model="inputValue"
           :placeholder="isRecording ? '正在录音...' : '输入您的问题...'"
           :disabled="isRecording || isSending"
           confirm-type="send"
           @confirm="handleSend"
-        >
-        <view
-          v-if="botDetail.fileEnabled"
-          class="input-file-btn"
-          @tap="handleFileUpload"
-        >
-          <app-icon
-            name="image-plus"
-            :size="32"
-            color="#999"
-          />
+        />
+        <view v-if="botDetail.fileEnabled" class="input-file-btn" @tap="handleFileUpload">
+          <app-icon name="image-plus" :size="32" color="#999" />
         </view>
       </view>
 
@@ -343,12 +180,7 @@
         :class="{ 'send-btn-disabled': !inputValue.trim() || isSending }"
         @tap="handleSend"
       >
-        <app-icon
-          :name="isSending ? 'loader-2' : 'send'"
-          :size="36"
-          color="#fff"
-          :class="{ spin: isSending }"
-        />
+        <app-icon :name="isSending ? 'loader-2' : 'send'" :size="36" color="#fff" :class="{ spin: isSending }" />
       </view>
     </view>
   </view>
@@ -523,7 +355,7 @@ function renderMarkdown(content: string): string {
   return content
     .split('\n')
     .map((line) => {
-      const l = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      let l = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       if (l.startsWith('# ')) return `<div style="font-size:30rpx;font-weight:bold;margin:8rpx 0;">${l.slice(2)}</div>`
       if (l.startsWith('## ')) return `<div style="font-size:28rpx;font-weight:bold;margin:8rpx 0;">${l.slice(3)}</div>`
       if (/^\d+\.\s/.test(l)) return `<div style="margin-left:24rpx;">${l}</div>`
@@ -542,7 +374,7 @@ function formatTime(iso: string): string {
 }
 
 function goBack() {
-  navigateBack(1)
+  navigateBack({ fallback: '/bots' })
 }
 </script>
 

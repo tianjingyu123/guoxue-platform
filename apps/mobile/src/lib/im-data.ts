@@ -2,7 +2,6 @@
  * IM 消息板块数据层（mock + 类型 + 工具）
  * v0 迁移：会话列表/聊天/通知三页公用
  */
-import { apiGet, apiPost, useMock } from '@/utils/request'
 
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
 
@@ -723,82 +722,4 @@ export function getRequestStatusText(status: FriendRequestStatus): string {
     default:
       return '待处理'
   }
-}
-
-// ── API ──
-export const imApi = {
-  /** 获取会话列表 GET /im/conversations */
-  async getConversations(): Promise<{ list: ConversationItem[]; totalUnread: number }> {
-    const totalUnread = mockConversations.reduce((s, c) => s + c.unreadCount, 0)
-    if (useMock()) return { list: mockConversations, totalUnread }
-    try { return await apiGet<{ list: ConversationItem[]; totalUnread: number }>('/im/conversations') } catch { return { list: mockConversations, totalUnread } }
-  },
-  /** 获取聊天对象信息 GET /im/targets/:id */
-  async getChatTarget(targetId: number): Promise<ChatTarget> {
-    if (useMock()) return mockChatTarget
-    try { return await apiGet<ChatTarget>(`/im/targets/${targetId}`) } catch { return mockChatTarget }
-  },
-  /** 获取聊天历史 GET /im/conversations/:targetId/messages */
-  async getChatHistory(targetId: number, _beforeMsgId?: string, _limit?: number): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
-    if (useMock()) return { messages: mockChatHistory, hasMore: false }
-    try { return await apiGet<{ messages: ChatMessage[]; hasMore: boolean }>(`/im/conversations/${targetId}/messages`) } catch { return { messages: mockChatHistory, hasMore: false } }
-  },
-  /** 发送消息 POST /im/conversations/:targetId/messages */
-  async sendMessage(targetId: number, _data: { type: string; content: string }): Promise<ChatMessage> {
-    if (useMock()) {
-      return {
-        id: `msg_${Date.now()}`,
-        senderId: CURRENT_USER_ID,
-        senderName: '我',
-        senderAvatar: AVATAR('me'),
-        type: 'text',
-        content: _data.content,
-        status: 'sending',
-        isWithdrawn: false,
-        createdAt: new Date().toISOString(),
-        timestamp: Date.now(),
-      }
-    }
-    try { return await apiPost<ChatMessage>(`/im/conversations/${targetId}/messages`, _data) } catch { throw new Error('发送失败') }
-  },
-  /** 获取群聊列表 GET /im/groups */
-  async getGroupList(): Promise<GroupListItem[]> {
-    if (useMock()) return getSortedGroupList()
-    try { return await apiGet<GroupListItem[]>('/im/groups') } catch { return getSortedGroupList() }
-  },
-  /** 获取群详情 GET /im/groups/:id */
-  async getGroupDetail(groupId: number): Promise<GroupDetail> {
-    if (useMock()) return mockGroupDetail
-    try { return await apiGet<GroupDetail>(`/im/groups/${groupId}`) } catch { return mockGroupDetail }
-  },
-  /** 获取群成员 GET /im/groups/:id/members */
-  async getGroupMembers(groupId: number): Promise<GroupMember[]> {
-    if (useMock()) return mockGroupDetailMembers
-    try { return await apiGet<GroupMember[]>(`/im/groups/${groupId}/members`) } catch { return mockGroupDetailMembers }
-  },
-  /** 获取群聊历史 GET /im/groups/:id/messages */
-  async getGroupChatHistory(groupId: number, _page?: number): Promise<GroupChatMessage[]> {
-    if (useMock()) return mockGroupChatHistory
-    try { return await apiGet<GroupChatMessage[]>(`/im/groups/${groupId}/messages`) } catch { return mockGroupChatHistory }
-  },
-  /** 获取消息中心通知列表 GET /im/notifications */
-  async getNotifyMessages(_type?: string): Promise<NotifyMessage[]> {
-    if (useMock()) return mockNotifyMessages
-    try { return await apiGet<NotifyMessage[]>('/im/notifications') } catch { return mockNotifyMessages }
-  },
-  /** 获取未读数 GET /im/unread-counts */
-  async getUnreadCounts(): Promise<MessageUnreadCounts> {
-    if (useMock()) return mockUnreadCounts
-    try { return await apiGet<MessageUnreadCounts>('/im/unread-counts') } catch { return mockUnreadCounts }
-  },
-  /** 获取好友请求列表 GET /im/friend-requests */
-  async getFriendRequests(): Promise<FriendRequestsResponse> {
-    if (useMock()) return getFriendRequestsData()
-    try { return await apiGet<FriendRequestsResponse>('/im/friend-requests') } catch { return getFriendRequestsData() }
-  },
-  /** 获取通讯录好友 GET /im/friends */
-  async getFriends(): Promise<FriendItem[]> {
-    if (useMock()) return mockFriendsWithPinyin
-    try { return await apiGet<FriendItem[]>('/im/friends') } catch { return mockFriendsWithPinyin }
-  },
 }

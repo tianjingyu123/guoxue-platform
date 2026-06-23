@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  myLikes as _myLikes,
+  myLikes,
   likeTypeNames,
   likeTypeStyles,
   likeFilterOptions,
@@ -15,19 +11,7 @@ import {
   type LikeTargetType,
 } from '@/lib/mine-data'
 
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { likes: _myLikes }
-})
-
-const dataIsEmpty = computed(() => {
-  const l = pageData.value?.likes
-  return l !== undefined && l.length === 0
-})
-
-const list = ref<LikeItem[]>([])
-watch(() => pageData.value?.likes, (val) => {
-  if (val) list.value = val.map((i: any) => ({ ...i }))
-}, { immediate: true })
+const list = ref<LikeItem[]>(myLikes.map((i) => ({ ...i })))
 const filter = ref<LikeTargetType | 'all'>('all')
 const unliking = ref<number | null>(null)
 
@@ -52,27 +36,11 @@ function openTarget() {
 </script>
 
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="dataIsEmpty" title="暂无收藏" />
-  <view v-else class="page">
-    <app-nav-bar
-      title="我的点赞"
-      :title-size="36"
-    />
+  <view class="page">
+    <app-nav-bar title="我的点赞" :title-size="36" />
 
     <!-- 筛选栏 -->
-    <scroll-view
-      scroll-x
-      class="filter-scroll"
-    >
+    <scroll-view scroll-x class="filter-scroll">
       <view class="filter-row">
         <text
           v-for="opt in likeFilterOptions"
@@ -80,59 +48,23 @@ function openTarget() {
           class="filter-chip"
           :class="{ active: filter === opt.value }"
           @tap="filter = opt.value"
-        >
-          {{ opt.label }}
-        </text>
+        >{{ opt.label }}</text>
       </view>
     </scroll-view>
 
-    <view
-      v-if="!isEmpty"
-      class="count-bar"
-    >
-      共 {{ filtered.length }} 条点赞记录
-    </view>
+    <view v-if="!isEmpty" class="count-bar">共 {{ filtered.length }} 条点赞记录</view>
 
     <!-- 空态 -->
-    <view
-      v-if="isEmpty"
-      class="empty"
-    >
-      <view class="empty-icon">
-        <AppIcon
-          name="heart"
-          :size="44"
-          color="#C9C2B6"
-        />
-      </view>
-      <text class="empty-title">
-        暂无点赞记录
-      </text>
-      <text class="empty-desc">
-        去发现更多精彩内容吧
-      </text>
-      <view
-        class="empty-btn"
-        @tap="goBack"
-      >
-        <text class="empty-btn-text">
-          去逛逛
-        </text>
-      </view>
+    <view v-if="isEmpty" class="empty">
+      <view class="empty-icon"><AppIcon name="heart" :size="44" color="#C9C2B6" /></view>
+      <text class="empty-title">暂无点赞记录</text>
+      <text class="empty-desc">去发现更多精彩内容吧</text>
+      <view class="empty-btn" @tap="goBack"><text class="empty-btn-text">去逛逛</text></view>
     </view>
 
-    <scroll-view
-      v-else
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view v-else scroll-y class="scroll">
       <view class="like-list">
-        <view
-          v-for="item in filtered"
-          :key="item.id"
-          class="like-item"
-          @tap="openTarget"
-        >
+        <view v-for="item in filtered" :key="item.id" class="like-item" @tap="openTarget">
           <view
             class="type-icon"
             :style="{ background: likeTypeStyles[item.target.type].bg }"
@@ -144,42 +76,19 @@ function openTarget() {
             />
           </view>
           <view class="like-body">
-            <text class="like-title">
-              {{ item.target.title }}
-            </text>
+            <text class="like-title">{{ item.target.title }}</text>
             <view class="like-meta">
-              <view
-                v-if="item.target.author"
-                class="like-author"
-              >
-                <image
-                  class="author-avatar"
-                  :src="item.target.author.avatar"
-                  mode="aspectFill"
-                />
-                <text class="author-name">
-                  {{ item.target.author.nickname }}
-                </text>
+              <view class="like-author" v-if="item.target.author">
+                <image class="author-avatar" :src="item.target.author.avatar" mode="aspectFill" />
+                <text class="author-name">{{ item.target.author.nickname }}</text>
               </view>
-              <text class="like-type">
-                {{ likeTypeNames[item.target.type] }}
-              </text>
+              <text class="like-type">{{ likeTypeNames[item.target.type] }}</text>
             </view>
           </view>
           <view class="like-right">
-            <text class="like-time">
-              {{ item.createdAt }}
-            </text>
-            <view
-              class="heart-btn"
-              :class="{ disabled: unliking === item.id }"
-              @tap.stop="unlike(item)"
-            >
-              <AppIcon
-                name="heart"
-                :size="18"
-                color="#C41E3A"
-              />
+            <text class="like-time">{{ item.createdAt }}</text>
+            <view class="heart-btn" :class="{ disabled: unliking === item.id }" @tap.stop="unlike(item)">
+              <AppIcon name="heart" :size="18" color="#C41E3A" />
             </view>
           </view>
         </view>

@@ -35,198 +35,63 @@ const filtered = computed(() => experts.filter(e => {
 <template>
   <view class="ce-page">
     <view class="ce-nav">
-      <view
-        class="ce-nav-btn"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="34"
-          color="#2C2C2C"
-        />
-      </view>
-      <text class="ce-nav-title">
-        专家列表
-      </text>
+      <view class="ce-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
+      <text class="ce-nav-title">专家列表</text>
     </view>
 
     <view class="ce-body">
       <view class="ce-search">
-        <app-icon
-          name="search"
-          :size="28"
-          color="#999999"
-        />
-        <input
-          v-model="search"
-          class="ce-search-input"
-          placeholder="搜索专家或专长"
-          placeholder-class="ce-ph"
-        >
+        <app-icon name="search" :size="28" color="#999999" />
+        <input v-model="search" class="ce-search-input" placeholder="搜索专家或专长" placeholder-class="ce-ph" />
       </view>
 
       <view class="ce-filters">
-        <view
-          v-for="f in (['all','online'] as const)"
-          :key="f"
-          class="ce-filter"
-          :class="{ 'is-active': filter === f }"
-          @tap="filter = f"
-        >
-          <text
-            class="ce-filter-t"
-            :class="{ 'is-active': filter === f }"
-          >
-            {{ f === 'all' ? '全部' : '在线' }}
-          </text>
+        <view v-for="f in (['all','online'] as const)" :key="f" class="ce-filter" :class="{ 'is-active': filter === f }" @tap="filter = f">
+          <text class="ce-filter-t" :class="{ 'is-active': filter === f }">{{ f === 'all' ? '全部' : '在线' }}</text>
         </view>
       </view>
 
       <view class="ce-list">
-        <view
-          v-for="e in filtered"
-          :key="e.id"
-          class="ce-card"
-        >
+        <view v-for="e in filtered" :key="e.id" class="ce-card">
           <view class="ce-card-top">
             <view class="ce-avatar-wrap">
-              <image
-                class="ce-avatar"
-                :src="e.avatar"
-                mode="aspectFill"
-              />
-              <view
-                v-if="e.online"
-                class="ce-online-dot"
-              />
+              <image class="ce-avatar" :src="e.avatar" mode="aspectFill" />
+              <view v-if="e.online" class="ce-online-dot" />
             </view>
             <view class="ce-card-info">
               <view class="ce-name-row">
-                <text class="ce-name">
-                  {{ e.name }}
-                </text>
-                <app-icon
-                  v-if="e.verified"
-                  name="award"
-                  :size="26"
-                  color="#F59E0B"
-                />
-                <view
-                  class="ce-status"
-                  :class="e.online ? 'is-online' : 'is-offline'"
-                >
-                  <text
-                    class="ce-status-t"
-                    :class="e.online ? 'is-online' : 'is-offline'"
-                  >
-                    {{ e.online ? '在线' : '离线' }}
-                  </text>
-                </view>
+                <text class="ce-name">{{ e.name }}</text>
+                <app-icon v-if="e.verified" name="award" :size="26" color="#F59E0B" />
+                <view class="ce-status" :class="e.online ? 'is-online' : 'is-offline'"><text class="ce-status-t" :class="e.online ? 'is-online' : 'is-offline'">{{ e.online ? '在线' : '离线' }}</text></view>
               </view>
-              <text class="ce-specialty">
-                {{ e.specialty }}
-              </text>
+              <text class="ce-specialty">{{ e.specialty }}</text>
               <view class="ce-rate-row">
-                <view class="ce-rate">
-                  <app-icon
-                    name="star"
-                    :size="22"
-                    color="#FBBF24"
-                    :fill="true"
-                  /><text class="ce-rate-t">
-                    {{ e.rating }}
-                  </text>
-                </view>
-                <text class="ce-rate-sub">
-                  {{ e.reviewCount }} 评价
-                </text>
-                <text class="ce-rate-sub">
-                  {{ e.answerCount }} 次咨询
-                </text>
+                <view class="ce-rate"><app-icon name="star" :size="22" color="#FBBF24" :fill="true" /><text class="ce-rate-t">{{ e.rating }}</text></view>
+                <text class="ce-rate-sub">{{ e.reviewCount }} 评价</text>
+                <text class="ce-rate-sub">{{ e.answerCount }} 次咨询</text>
               </view>
             </view>
           </view>
 
           <view class="ce-tags">
-            <view
-              v-for="t in e.tags"
-              :key="t"
-              class="ce-tag"
-            >
-              <text class="ce-tag-t">
-                {{ t }}
-              </text>
-            </view>
+            <view v-for="t in e.tags" :key="t" class="ce-tag"><text class="ce-tag-t">{{ t }}</text></view>
           </view>
 
           <view class="ce-price-row">
             <view class="ce-prices">
-              <view class="ce-price">
-                <app-icon
-                  name="phone"
-                  :size="22"
-                  color="#999999"
-                /><text class="ce-price-t">
-                  电话 ¥{{ e.callPrice }}/分钟
-                </text>
-              </view>
-              <view class="ce-price">
-                <app-icon
-                  name="message-square"
-                  :size="22"
-                  color="#999999"
-                /><text class="ce-price-t">
-                  图文 ¥{{ e.textPrice }}/次
-                </text>
-              </view>
+              <view class="ce-price"><app-icon name="phone" :size="22" color="#999999" /><text class="ce-price-t">电话 ¥{{ e.callPrice }}/分钟</text></view>
+              <view class="ce-price"><app-icon name="message-square" :size="22" color="#999999" /><text class="ce-price-t">图文 ¥{{ e.textPrice }}/次</text></view>
             </view>
-            <view class="ce-resp">
-              <app-icon
-                name="clock"
-                :size="22"
-                color="#16A34A"
-              /><text class="ce-resp-t">
-                {{ e.responseTime }}响应
-              </text>
-            </view>
+            <view class="ce-resp"><app-icon name="clock" :size="22" color="#16A34A" /><text class="ce-resp-t">{{ e.responseTime }}响应</text></view>
           </view>
 
           <view class="ce-actions">
-            <view
-              class="ce-btn-outline"
-              @tap="toastComingSoon"
-            >
-              <app-icon
-                name="phone"
-                :size="26"
-                color="#2C2C2C"
-              /><text class="ce-btn-outline-t">
-                电话咨询
-              </text>
-            </view>
-            <view
-              class="ce-btn-primary"
-              @tap="toastComingSoon"
-            >
-              <app-icon
-                name="message-square"
-                :size="26"
-                color="#ffffff"
-              /><text class="ce-btn-primary-t">
-                图文咨询
-              </text>
-            </view>
+            <view class="ce-btn-outline" @tap="toastComingSoon"><app-icon name="phone" :size="26" color="#2C2C2C" /><text class="ce-btn-outline-t">电话咨询</text></view>
+            <view class="ce-btn-primary" @tap="toastComingSoon"><app-icon name="message-square" :size="26" color="#ffffff" /><text class="ce-btn-primary-t">图文咨询</text></view>
           </view>
         </view>
 
-        <view
-          v-if="filtered.length === 0"
-          class="ce-empty"
-        >
-          <text class="ce-empty-t">
-            暂无符合条件的专家
-          </text>
-        </view>
+        <view v-if="filtered.length === 0" class="ce-empty"><text class="ce-empty-t">暂无符合条件的专家</text></view>
       </view>
     </view>
   </view>

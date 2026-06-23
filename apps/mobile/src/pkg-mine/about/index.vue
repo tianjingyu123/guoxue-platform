@@ -1,39 +1,15 @@
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="300rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
-  <view v-else class="page">
+  <view class="page">
     <!-- 顶部导航 -->
-    <app-nav-bar
-      title="关于我们"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="36"
-      :bar-height="112"
-      title-align="left"
-    />
+    <app-nav-bar title="关于我们" :back-icon="'arrow-left'" :back-size="40" :title-size="36" :bar-height="112" title-align="left" />
 
     <!-- Hero -->
     <view class="hero">
       <view class="logo-box">
-        <image
-          class="logo-img"
-          :src="logoSrc"
-          mode="aspectFill"
-        />
+        <image class="logo-img" :src="logoSrc" mode="aspectFill" />
       </view>
-      <text class="hero-title">
-        热卜国学
-      </text>
-      <text class="hero-slogan">
-        传承智慧 · 启迪人生
-      </text>
+      <text class="hero-title">热卜国学</text>
+      <text class="hero-slogan">传承智慧 · 启迪人生</text>
     </view>
 
     <!-- 内容 -->
@@ -45,129 +21,58 @@
 
       <!-- 数据展示 -->
       <view class="stats">
-        <view
-          v-for="s in aboutStats"
-          :key="s.label"
-          class="stat-card"
-        >
-          <text
-            class="stat-value"
-            :style="{ color: s.color }"
-          >
-            {{ s.value }}
-          </text>
-          <text class="stat-label">
-            {{ s.label }}
-          </text>
+        <view v-for="s in aboutStats" :key="s.label" class="stat-card">
+          <text class="stat-value" :style="{ color: s.color }">{{ s.value }}</text>
+          <text class="stat-label">{{ s.label }}</text>
         </view>
       </view>
 
       <!-- 特色 -->
-      <text class="section-title">
-        我们的特色
-      </text>
+      <text class="section-title">我们的特色</text>
       <view class="feature-list">
-        <view
-          v-for="f in aboutFeatures"
-          :key="f.title"
-          class="feature-card"
-        >
+        <view v-for="f in aboutFeatures" :key="f.title" class="feature-card">
           <view class="feature-icon">
-            <AppIcon
-              :name="f.icon"
-              :size="20"
-              color="#c41e3a"
-            />
+            <AppIcon :name="f.icon" :size="20" color="#c41e3a" />
           </view>
           <view class="feature-body">
-            <text class="feature-title">
-              {{ f.title }}
-            </text>
-            <text class="feature-desc">
-              {{ f.desc }}
-            </text>
+            <text class="feature-title">{{ f.title }}</text>
+            <text class="feature-desc">{{ f.desc }}</text>
           </view>
         </view>
       </view>
 
       <!-- 联系方式 -->
-      <text class="section-title">
-        联系我们
-      </text>
+      <text class="section-title">联系我们</text>
       <view class="contact-card">
-        <view
-          class="contact-row"
-          @tap="goFeedback"
-        >
-          <text class="contact-label">
-            意见反馈
-          </text>
-          <AppIcon
-            name="chevron-right"
-            :size="20"
-            color="#999999"
-          />
+        <view class="contact-row" @tap="goFeedback">
+          <text class="contact-label">意见反馈</text>
+          <AppIcon name="chevron-right" :size="20" color="#999999" />
         </view>
         <view class="contact-row">
-          <text class="contact-label">
-            客服邮箱
-          </text>
-          <text class="contact-value">
-            support@rebu.com
-          </text>
+          <text class="contact-label">客服邮箱</text>
+          <text class="contact-value">support@rebu.com</text>
         </view>
         <view class="contact-row">
-          <text class="contact-label">
-            官方微信
-          </text>
-          <text class="contact-value">
-            rebu_guoxue
-          </text>
+          <text class="contact-label">官方微信</text>
+          <text class="contact-value">rebu_guoxue</text>
         </view>
       </view>
 
       <!-- 版本信息 -->
       <view class="version">
-        <text class="version-text">
-          版本 1.0.0
-        </text>
-        <text class="version-text">
-          Copyright © 2024 热卜国学
-        </text>
+        <text class="version-text">版本 1.0.0</text>
+        <text class="version-text">Copyright © 2024 热卜国学</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import { navigateTo } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
-// 公司静态信息（内联，非mock数据）
-const aboutData = {
-  stats: [
-    { value: '100+', label: '专家讲师', color: '#c41e3a' },
-    { value: '500+', label: '精品课程', color: '#d4b87d' },
-    { value: '50万+', label: '学习用户', color: '#6ed24a' },
-  ],
-  features: [
-    { icon: 'book-open', title: '专业内容', desc: '严选优质国学课程与古籍资源' },
-    { icon: 'users', title: '圈子交流', desc: '加入志同道合的学习社区' },
-    { icon: 'award', title: '名师指导', desc: '一对一咨询，答疑解惑' },
-    { icon: 'building-2', title: '线下活动', desc: '定期举办国学文化体验活动' },
-  ],
-}
-
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => aboutData)
-
-const aboutStats = computed(() => pageData.value?.stats ?? [])
-const aboutFeatures = computed(() => pageData.value?.features ?? [])
-const isEmpty = computed(() => aboutStats.value.length === 0 && aboutFeatures.value.length === 0)
+import { aboutStats, aboutFeatures } from '@/lib/mine-data'
 
 // 热卜 logo（根 public 与 vue3 共享，:src 动态绑定避免 Vite 静态解析报错）
 const logoSrc = ref('/images/logo.jpg')

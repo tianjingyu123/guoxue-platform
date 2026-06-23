@@ -101,23 +101,3 @@ export const overseasData: Record<string, Record<string, string[]>> = {
 // 滚轮选择器
 
 export const beijingTimezone = '北京时间'
-
-// ─── 地区数据 API ───
-import { apiGet, useMock } from '@/utils/request'
-
-export interface RegionDataRes {
-  chinaData: Record<string, Record<string, string[]>>
-  overseasData: Record<string, Record<string, string[]>>
-}
-
-export const regionApi = {
-  /** 获取全部地区数据 — GET /common/regions */
-  async getRegions(): Promise<RegionDataRes> {
-    if (useMock()) return { chinaData, overseasData }
-    try {
-      return await apiGet<RegionDataRes>('/common/regions')
-    } catch {
-      return { chinaData, overseasData }
-    }
-  },
-}

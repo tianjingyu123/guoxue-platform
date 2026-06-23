@@ -1,26 +1,30 @@
 {
   "name": "热卜国学",
-  "appid": "__UNI__GUOXUE",
-  "description": "国学传统文化综合平台",
-  "versionName": "1.0.0",
+  "appid": "",
+  "description": "国学知识平台 · 探寻东方智慧",
+  "versionName": "0.1.0",
   "versionCode": "100",
-  "uni-app": {
-    "compilerVersion": "4.0"
+  "transformPx": false,
+  "app-plus": {
+    "usingComponents": true,
+    "splashscreen": { "alwaysShowBeforeRender": true, "waiting": true },
+    "modules": {},
+    "distribute": {
+      "android": { "permissions": [] },
+      "ios": {},
+      "sdkConfigs": {}
+    }
+  },
+  "quickapp": {},
+  "mp-weixin": {
+    "appid": "",
+    "setting": { "urlCheck": false, "es6": true, "minified": true },
+    "usingComponents": true,
+    "lazyCodeLoading": "requiredComponents"
   },
   "h5": {
     "title": "热卜国学",
-    "router": {
-      "mode": "hash"
-    },
-    "rpxCalcBaseWidth": 375
+    "router": { "mode": "history" }
   },
-  "mp-harmony": {
-    "appid": "",
-    "setting": {
-      "urlCheck": true,
-      "es6": true,
-      "postcss": true,
-      "minified": true
-    }
-  }
+  "vueVersion": "3"
 }

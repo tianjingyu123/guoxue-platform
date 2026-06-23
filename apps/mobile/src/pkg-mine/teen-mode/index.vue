@@ -2,11 +2,10 @@
 import { ref, reactive, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { useSubmitLock } from '@/composables/use-submit-lock'
 import { defaultTeenModeSettings, teenTimeLimitOptions, teenFilterLevels, type TeenModeSettings } from '@/lib/mine-data'
 
 const settings = reactive<TeenModeSettings>({ ...defaultTeenModeSettings })
-const { submitting, withLock } = useSubmitLock()
+const saving = ref(false)
 
 // 弹窗状态
 const pwdModal = ref(false)
@@ -87,16 +86,14 @@ function openModifyPwd() {
 }
 
 function doReset() {
-  if (idCard.value.length !== 18 || submitting.value) return
-  withLock(async () => {
-    settings.hasPassword = false
-    resetModal.value = false
-    idCard.value = ''
-    pwdStep.value = 'set'
-    pwdSet.value = ''
-    pwdConfirm.value = ''
-    pwdModal.value = true
-  })
+  if (idCard.value.length !== 18) return
+  settings.hasPassword = false
+  resetModal.value = false
+  idCard.value = ''
+  pwdStep.value = 'set'
+  pwdSet.value = ''
+  pwdConfirm.value = ''
+  pwdModal.value = true
 }
 
 function pickTimeLimit(v: number) {
@@ -108,170 +105,81 @@ function pickFilter(v: 'strict' | 'moderate') {
   filterSheet.value = false
 }
 function save() {
-  if (submitting.value) return
-  withLock(async () => {
-    await new Promise((r) => setTimeout(r, 800))
+  saving.value = true
+  setTimeout(() => {
+    saving.value = false
     goBack()
-  })
+  }, 800)
 }
 </script>
 
 <template>
   <view class="page">
-    <app-nav-bar
-      title="青少年模式"
-      :back-size="40"
-    >
+    <app-nav-bar title="青少年模式" :back-size="40">
       <template #right>
-        <text
-          class="nav-link"
-          @tap="resetModal = true"
-        >
-          忘记密码
-        </text>
+        <text class="nav-link" @tap="resetModal = true">忘记密码</text>
       </template>
     </app-nav-bar>
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <!-- Banner -->
       <view class="banner">
         <view class="banner-icon">
-          <AppIcon
-            name="shield"
-            :size="24"
-            color="#fff"
-          />
+          <AppIcon name="shield" :size="24" color="#fff" />
         </view>
         <view class="banner-body">
-          <text class="banner-title">
-            守护青少年健康成长
-          </text>
-          <text class="banner-desc">
-            开启后将限制使用时长、屏蔽不适内容，为青少年营造绿色健康的学习环境
-          </text>
+          <text class="banner-title">守护青少年健康成长</text>
+          <text class="banner-desc">开启后将限制使用时长、屏蔽不适内容，为青少年营造绿色健康的学习环境</text>
         </view>
       </view>
 
       <!-- 主开关 -->
       <view class="card">
         <view class="row">
-          <view
-            class="row-icon"
-            :class="settings.enabled ? 'icon-on' : 'icon-off'"
-          >
-            <AppIcon
-              name="shield"
-              :size="20"
-              :color="settings.enabled ? '#2563EB' : '#9b948a'"
-            />
+          <view class="row-icon" :class="settings.enabled ? 'icon-on' : 'icon-off'">
+            <AppIcon name="shield" :size="20" :color="settings.enabled ? '#2563EB' : '#9b948a'" />
           </view>
           <view class="row-body">
-            <text class="row-name">
-              青少年模式
-            </text>
-            <text class="row-sub">
-              {{ settings.enabled ? '已开启保护' : '点击开启' }}
-            </text>
+            <text class="row-name">青少年模式</text>
+            <text class="row-sub">{{ settings.enabled ? '已开启保护' : '点击开启' }}</text>
           </view>
-          <view
-            class="switch"
-            :class="{ on: settings.enabled }"
-            @tap="toggleMode"
-          >
+          <view class="switch" :class="{ on: settings.enabled }" @tap="toggleMode">
             <view class="switch-dot" />
           </view>
         </view>
       </view>
 
       <!-- 设置区 -->
-      <view
-        class="settings"
-        :class="{ disabled: !settings.enabled }"
-      >
+      <view class="settings" :class="{ disabled: !settings.enabled }">
         <!-- 时长限制 -->
         <view class="card">
-          <view class="card-head">
-            <text class="card-head-title">
-              使用时长限制
-            </text>
-          </view>
-          <view
-            class="row"
-            @tap="timeLimitSheet = true"
-          >
-            <view class="row-icon icon-orange">
-              <AppIcon
-                name="clock"
-                :size="20"
-                color="#d97706"
-              />
-            </view>
+          <view class="card-head"><text class="card-head-title">使用时长限制</text></view>
+          <view class="row" @tap="timeLimitSheet = true">
+            <view class="row-icon icon-orange"><AppIcon name="clock" :size="20" color="#d97706" /></view>
             <view class="row-body">
-              <text class="row-name">
-                每日使用时长
-              </text>
-              <text class="row-sub">
-                超时后需输入密码继续
-              </text>
+              <text class="row-name">每日使用时长</text>
+              <text class="row-sub">超时后需输入密码继续</text>
             </view>
-            <text class="row-value">
-              {{ settings.dailyLimit }}分钟
-            </text>
-            <AppIcon
-              name="chevron-right"
-              :size="16"
-              color="#C9A96E"
-            />
+            <text class="row-value">{{ settings.dailyLimit }}分钟</text>
+            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
         </view>
 
         <!-- 时段限制 -->
         <view class="card">
-          <view class="card-head">
-            <text class="card-head-title">
-              使用时段限制
-            </text>
-          </view>
-          <view
-            class="row"
-            @tap="timeRangeSheet = true"
-          >
-            <view class="row-icon icon-purple">
-              <AppIcon
-                name="moon"
-                :size="20"
-                color="#7c3aed"
-              />
-            </view>
+          <view class="card-head"><text class="card-head-title">使用时段限制</text></view>
+          <view class="row" @tap="timeRangeSheet = true">
+            <view class="row-icon icon-purple"><AppIcon name="moon" :size="20" color="#7c3aed" /></view>
             <view class="row-body">
-              <text class="row-name">
-                禁止使用时段
-              </text>
-              <text class="row-sub">
-                该时段内无法使用App
-              </text>
+              <text class="row-name">禁止使用时段</text>
+              <text class="row-sub">该时段内无法使用App</text>
             </view>
-            <text class="row-value">
-              {{ settings.restrictedStartHour }}:00 - {{ settings.restrictedEndHour }}:00
-            </text>
-            <AppIcon
-              name="chevron-right"
-              :size="16"
-              color="#C9A96E"
-            />
+            <text class="row-value">{{ settings.restrictedStartHour }}:00 - {{ settings.restrictedEndHour }}:00</text>
+            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
           <view class="row">
-            <text class="row-name flex1">
-              夜间自动开启深色模式
-            </text>
-            <view
-              class="switch"
-              :class="{ on: settings.autoNightMode }"
-              @tap="settings.autoNightMode = !settings.autoNightMode"
-            >
+            <text class="row-name flex1">夜间自动开启深色模式</text>
+            <view class="switch" :class="{ on: settings.autoNightMode }" @tap="settings.autoNightMode = !settings.autoNightMode">
               <view class="switch-dot" />
             </view>
           </view>
@@ -279,104 +187,41 @@ function save() {
 
         <!-- 内容过滤 -->
         <view class="card">
-          <view class="card-head">
-            <text class="card-head-title">
-              内容过滤
-            </text>
-          </view>
-          <view
-            class="row"
-            @tap="filterSheet = true"
-          >
-            <view class="row-icon icon-green">
-              <AppIcon
-                name="filter"
-                :size="20"
-                color="#16a34a"
-              />
-            </view>
+          <view class="card-head"><text class="card-head-title">内容过滤</text></view>
+          <view class="row" @tap="filterSheet = true">
+            <view class="row-icon icon-green"><AppIcon name="filter" :size="20" color="#16a34a" /></view>
             <view class="row-body">
-              <text class="row-name">
-                内容过滤级别
-              </text>
-              <text class="row-sub">
-                控制可见内容范围
-              </text>
+              <text class="row-name">内容过滤级别</text>
+              <text class="row-sub">控制可见内容范围</text>
             </view>
-            <text class="row-value">
-              {{ settings.filterLevel === 'strict' ? '严格' : '适中' }}
-            </text>
-            <AppIcon
-              name="chevron-right"
-              :size="16"
-              color="#C9A96E"
-            />
+            <text class="row-value">{{ settings.filterLevel === 'strict' ? '严格' : '适中' }}</text>
+            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
         </view>
 
         <!-- 监护密码 -->
         <view class="card">
-          <view class="card-head">
-            <text class="card-head-title">
-              监护密码
-            </text>
-          </view>
-          <view
-            class="row"
-            @tap="openModifyPwd"
-          >
-            <view class="row-icon icon-red">
-              <AppIcon
-                name="lock"
-                :size="20"
-                color="#C41E3A"
-              />
-            </view>
+          <view class="card-head"><text class="card-head-title">监护密码</text></view>
+          <view class="row" @tap="openModifyPwd">
+            <view class="row-icon icon-red"><AppIcon name="lock" :size="20" color="#C41E3A" /></view>
             <view class="row-body">
-              <text class="row-name">
-                修改监护密码
-              </text>
-              <text class="row-sub">
-                用于关闭模式或延长时间
-              </text>
+              <text class="row-name">修改监护密码</text>
+              <text class="row-sub">用于关闭模式或延长时间</text>
             </view>
-            <text
-              class="status-tag"
-              :class="settings.hasPassword ? 'tag-ok' : 'tag-warn'"
-            >
-              {{ settings.hasPassword ? '已设置' : '未设置' }}
-            </text>
-            <AppIcon
-              name="chevron-right"
-              :size="16"
-              color="#C9A96E"
-            />
+            <text class="status-tag" :class="settings.hasPassword ? 'tag-ok' : 'tag-warn'">{{ settings.hasPassword ? '已设置' : '未设置' }}</text>
+            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
         </view>
 
         <!-- 提示 -->
         <view class="tips">
-          <AppIcon
-            name="alert-circle"
-            :size="18"
-            color="#3B82F6"
-          />
+          <AppIcon name="alert-circle" :size="18" color="#3B82F6" />
           <view class="tips-body">
-            <text class="tips-title">
-              温馨提示
-            </text>
-            <text class="tips-item">
-              · 开启后部分功能将受限，如直播打赏、商城购物等
-            </text>
-            <text class="tips-item">
-              · 内容将过滤为适合青少年观看的教育类内容
-            </text>
-            <text class="tips-item">
-              · 使用时长达到限制后需输入监护密码解锁
-            </text>
-            <text class="tips-item">
-              · 忘记密码可通过监护人身份证验证重置
-            </text>
+            <text class="tips-title">温馨提示</text>
+            <text class="tips-item">· 开启后部分功能将受限，如直播打赏、商城购物等</text>
+            <text class="tips-item">· 内容将过滤为适合青少年观看的教育类内容</text>
+            <text class="tips-item">· 使用时长达到限制后需输入监护密码解锁</text>
+            <text class="tips-item">· 忘记密码可通过监护人身份证验证重置</text>
           </view>
         </view>
       </view>
@@ -386,300 +231,108 @@ function save() {
 
     <!-- 底部保存 -->
     <view class="footer-bar">
-      <view
-        class="btn-save"
-        :class="{ disabled: submitting }"
-        @tap="save"
-      >
-        <text class="btn-save-text">
-          {{ submitting ? '保存中...' : '保存设置' }}
-        </text>
+      <view class="btn-save" :class="{ disabled: saving }" @tap="save">
+        <text class="btn-save-text">{{ saving ? '保存中...' : '保存设置' }}</text>
       </view>
     </view>
 
     <!-- 密码设置弹窗 -->
-    <view
-      v-if="pwdModal"
-      class="mask center mask-fade-in"
-    >
+    <view v-if="pwdModal" class="mask center mask-fade-in">
       <view class="modal">
-        <text class="modal-title">
-          {{ pwdStep === 'set' ? '设置监护密码' : '确认监护密码' }}
-        </text>
-        <text class="modal-sub">
-          {{ pwdStep === 'set' ? '请设置4位数字密码' : '请再次输入密码确认' }}
-        </text>
+        <text class="modal-title">{{ pwdStep === 'set' ? '设置监护密码' : '确认监护密码' }}</text>
+        <text class="modal-sub">{{ pwdStep === 'set' ? '请设置4位数字密码' : '请再次输入密码确认' }}</text>
         <view class="pin-wrap">
-          <view
-            v-for="i in 4"
-            :key="i"
-            class="pin-box"
-            :class="{ filled: pwdActiveVal.length >= i }"
-          >
-            <text
-              v-if="pwdActiveVal.length >= i"
-              class="pin-dot"
-            >
-              ●
-            </text>
+          <view v-for="i in 4" :key="i" class="pin-box" :class="{ filled: pwdActiveVal.length >= i }">
+            <text v-if="pwdActiveVal.length >= i" class="pin-dot">●</text>
           </view>
-          <input
-            class="pin-input"
-            type="number"
-            :value="pwdActiveVal"
-            :focus="pwdModal"
-            :maxlength="4"
-            @input="onPwdInput"
-          >
+          <input class="pin-input" type="number" :value="pwdActiveVal" :focus="pwdModal" :maxlength="4" @input="onPwdInput" />
         </view>
-        <view
-          class="modal-cancel"
-          @tap="pwdModal = false"
-        >
-          <text class="modal-cancel-text">
-            取消
-          </text>
-        </view>
+        <view class="modal-cancel" @tap="pwdModal = false"><text class="modal-cancel-text">取消</text></view>
       </view>
     </view>
 
     <!-- 验证密码弹窗 -->
-    <view
-      v-if="verifyModal"
-      class="mask center mask-fade-in"
-    >
+    <view v-if="verifyModal" class="mask center mask-fade-in">
       <view class="modal">
-        <text class="modal-title">
-          验证监护密码
-        </text>
-        <text class="modal-sub">
-          关闭青少年模式需要验证监护密码
-        </text>
+        <text class="modal-title">验证监护密码</text>
+        <text class="modal-sub">关闭青少年模式需要验证监护密码</text>
         <view class="pin-wrap">
-          <view
-            v-for="i in 4"
-            :key="i"
-            class="pin-box"
-            :class="{ filled: pwdVerify.length >= i }"
-          >
-            <text
-              v-if="pwdVerify.length >= i"
-              class="pin-dot"
-            >
-              ●
-            </text>
+          <view v-for="i in 4" :key="i" class="pin-box" :class="{ filled: pwdVerify.length >= i }">
+            <text v-if="pwdVerify.length >= i" class="pin-dot">●</text>
           </view>
-          <input
-            class="pin-input"
-            type="number"
-            :value="pwdVerify"
-            :focus="verifyModal"
-            :maxlength="4"
-            @input="onVerifyInput"
-          >
+          <input class="pin-input" type="number" :value="pwdVerify" :focus="verifyModal" :maxlength="4" @input="onVerifyInput" />
         </view>
-        <view
-          class="modal-link"
-          @tap="verifyModal = false; resetModal = true"
-        >
-          <text class="modal-link-text">
-            忘记密码？
-          </text>
-        </view>
-        <view
-          class="modal-cancel"
-          @tap="verifyModal = false"
-        >
-          <text class="modal-cancel-text">
-            取消
-          </text>
-        </view>
+        <view class="modal-link" @tap="verifyModal = false; resetModal = true"><text class="modal-link-text">忘记密码？</text></view>
+        <view class="modal-cancel" @tap="verifyModal = false"><text class="modal-cancel-text">取消</text></view>
       </view>
     </view>
 
     <!-- 重置密码弹窗 -->
-    <view
-      v-if="resetModal"
-      class="mask center mask-fade-in"
-    >
+    <view v-if="resetModal" class="mask center mask-fade-in">
       <view class="modal">
         <view class="modal-head-row">
-          <AppIcon
-            name="help-circle"
-            :size="20"
-            color="#d97706"
-          />
-          <text class="modal-title inline">
-            身份验证
-          </text>
+          <AppIcon name="help-circle" :size="20" color="#d97706" />
+          <text class="modal-title inline">身份验证</text>
         </view>
-        <text class="modal-sub">
-          请输入监护人身份证号码重置密码
-        </text>
-        <input
-          v-model="idCard"
-          class="id-input"
-          type="idcard"
-          :maxlength="18"
-          placeholder="请输入18位身份证号"
-          placeholder-class="ph"
-        >
+        <text class="modal-sub">请输入监护人身份证号码重置密码</text>
+        <input v-model="idCard" class="id-input" type="idcard" :maxlength="18" placeholder="请输入18位身份证号" placeholder-class="ph" />
         <view class="modal-actions">
-          <view
-            class="modal-btn ghost"
-            @tap="resetModal = false; idCard = ''"
-          >
-            <text class="modal-btn-text">
-              取消
-            </text>
-          </view>
-          <view
-            class="modal-btn solid"
-            :class="{ disabled: idCard.length !== 18 || submitting }"
-            @tap="doReset"
-          >
-            <text class="modal-btn-text solid-text">
-              {{ submitting ? '验证中...' : '验证并重置' }}
-            </text>
-          </view>
+          <view class="modal-btn ghost" @tap="resetModal = false; idCard = ''"><text class="modal-btn-text">取消</text></view>
+          <view class="modal-btn solid" :class="{ disabled: idCard.length !== 18 }" @tap="doReset"><text class="modal-btn-text solid-text">验证并重置</text></view>
         </view>
       </view>
     </view>
 
     <!-- 时长选择 -->
-    <view
-      v-if="timeLimitSheet"
-      class="mask mask-fade-in"
-      @tap="timeLimitSheet = false"
-    >
-      <view
-        class="sheet sheet-slide-up"
-        @tap.stop
-      >
+    <view v-if="timeLimitSheet" class="mask mask-fade-in" @tap="timeLimitSheet = false">
+      <view class="sheet sheet-slide-up" @tap.stop>
         <view class="sheet-bar" />
-        <text class="sheet-title">
-          选择每日使用时长
-        </text>
+        <text class="sheet-title">选择每日使用时长</text>
         <view class="opt-list">
-          <view
-            v-for="opt in teenTimeLimitOptions"
-            :key="opt.value"
-            class="opt"
-            :class="{ active: settings.dailyLimit === opt.value }"
-            @tap="pickTimeLimit(opt.value)"
-          >
-            <text class="opt-label">
-              {{ opt.label }}
-            </text>
-            <AppIcon
-              v-if="settings.dailyLimit === opt.value"
-              name="check"
-              :size="20"
-              color="#C41E3A"
-            />
+          <view v-for="opt in teenTimeLimitOptions" :key="opt.value" class="opt" :class="{ active: settings.dailyLimit === opt.value }" @tap="pickTimeLimit(opt.value)">
+            <text class="opt-label">{{ opt.label }}</text>
+            <AppIcon v-if="settings.dailyLimit === opt.value" name="check" :size="20" color="#C41E3A" />
           </view>
         </view>
       </view>
     </view>
 
     <!-- 时段选择 -->
-    <view
-      v-if="timeRangeSheet"
-      class="mask mask-fade-in"
-      @tap="timeRangeSheet = false"
-    >
-      <view
-        class="sheet sheet-slide-up"
-        @tap.stop
-      >
+    <view v-if="timeRangeSheet" class="mask mask-fade-in" @tap="timeRangeSheet = false">
+      <view class="sheet sheet-slide-up" @tap.stop>
         <view class="sheet-bar" />
-        <text class="sheet-title">
-          设置禁止使用时段
-        </text>
+        <text class="sheet-title">设置禁止使用时段</text>
         <view class="range-row">
           <view class="range-col">
-            <text class="range-label">
-              开始时间
-            </text>
-            <picker
-              mode="selector"
-              :range="hourOptions"
-              range-key="label"
-              :value="settings.restrictedStartHour"
-              @change="settings.restrictedStartHour = hourOptions[$event.detail.value].value"
-            >
-              <view class="range-picker">
-                <text>{{ String(settings.restrictedStartHour).padStart(2, '0') }}:00</text>
-              </view>
+            <text class="range-label">开始时间</text>
+            <picker mode="selector" :range="hourOptions" range-key="label" :value="settings.restrictedStartHour" @change="settings.restrictedStartHour = hourOptions[$event.detail.value].value">
+              <view class="range-picker"><text>{{ String(settings.restrictedStartHour).padStart(2, '0') }}:00</text></view>
             </picker>
           </view>
-          <text class="range-sep">
-            至
-          </text>
+          <text class="range-sep">至</text>
           <view class="range-col">
-            <text class="range-label">
-              结束时间
-            </text>
-            <picker
-              mode="selector"
-              :range="hourOptions"
-              range-key="label"
-              :value="settings.restrictedEndHour"
-              @change="settings.restrictedEndHour = hourOptions[$event.detail.value].value"
-            >
-              <view class="range-picker">
-                <text>{{ String(settings.restrictedEndHour).padStart(2, '0') }}:00</text>
-              </view>
+            <text class="range-label">结束时间</text>
+            <picker mode="selector" :range="hourOptions" range-key="label" :value="settings.restrictedEndHour" @change="settings.restrictedEndHour = hourOptions[$event.detail.value].value">
+              <view class="range-picker"><text>{{ String(settings.restrictedEndHour).padStart(2, '0') }}:00</text></view>
             </picker>
           </view>
         </view>
-        <view
-          class="btn-confirm"
-          @tap="timeRangeSheet = false"
-        >
-          <text class="btn-confirm-text">
-            确定
-          </text>
-        </view>
+        <view class="btn-confirm" @tap="timeRangeSheet = false"><text class="btn-confirm-text">确定</text></view>
       </view>
     </view>
 
     <!-- 过滤级别选择 -->
-    <view
-      v-if="filterSheet"
-      class="mask mask-fade-in"
-      @tap="filterSheet = false"
-    >
-      <view
-        class="sheet sheet-slide-up"
-        @tap.stop
-      >
+    <view v-if="filterSheet" class="mask mask-fade-in" @tap="filterSheet = false">
+      <view class="sheet sheet-slide-up" @tap.stop>
         <view class="sheet-bar" />
-        <text class="sheet-title">
-          内容过滤级别
-        </text>
+        <text class="sheet-title">内容过滤级别</text>
         <view class="opt-list">
-          <view
-            v-for="lv in teenFilterLevels"
-            :key="lv.value"
-            class="opt opt-block"
-            :class="{ active: settings.filterLevel === lv.value }"
-            @tap="pickFilter(lv.value as 'strict' | 'moderate')"
-          >
+          <view v-for="lv in teenFilterLevels" :key="lv.value" class="opt opt-block" :class="{ active: settings.filterLevel === lv.value }" @tap="pickFilter(lv.value as 'strict' | 'moderate')">
             <view class="opt-block-body">
-              <text class="opt-label">
-                {{ lv.label }}
-              </text>
-              <text class="opt-desc">
-                {{ lv.desc }}
-              </text>
+              <text class="opt-label">{{ lv.label }}</text>
+              <text class="opt-desc">{{ lv.desc }}</text>
             </view>
-            <AppIcon
-              v-if="settings.filterLevel === lv.value"
-              name="check"
-              :size="20"
-              color="#C41E3A"
-            />
+            <AppIcon v-if="settings.filterLevel === lv.value" name="check" :size="20" color="#C41E3A" />
           </view>
         </view>
       </view>

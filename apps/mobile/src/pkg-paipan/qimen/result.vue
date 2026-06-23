@@ -162,174 +162,72 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
     <!-- 顶部导航 -->
     <view class="hdr">
       <view class="hdr-inner">
-        <view
-          class="hdr-back"
-          @tap="navigateTo('/paipan/qimen')"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="40"
-            color="var(--text-ink)"
-          />
-        </view>
-        <text class="hdr-title">
-          热卜奇门遁甲
-        </text>
-        <view class="hdr-share">
-          <app-icon
-            name="share-2"
-            :size="32"
-            color="var(--text-soft)"
-          />
-        </view>
+        <view class="hdr-back" @tap="navigateTo('/paipan/qimen')"><app-icon name="chevron-left" :size="40" color="var(--text-ink)" /></view>
+        <text class="hdr-title">热卜奇门遁甲</text>
+        <view class="hdr-share"><app-icon name="share-2" :size="32" color="var(--text-soft)" /></view>
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="body"
-    >
+    <scroll-view scroll-y class="body">
       <!-- 信息表格 -->
       <view class="info-wrap">
         <view class="info-card">
           <view class="info-row">
-            <text class="info-key">
-              事项
-            </text>
+            <text class="info-key">事项</text>
             <view class="info-val-edit">
-              <text class="info-val">
-                {{ editedMatter || '-' }}
-              </text>
-              <view
-                class="info-pencil"
-                @tap="showEditMatter = true"
-              >
-                <app-icon
-                  name="pencil"
-                  :size="24"
-                  color="var(--text-soft)"
-                />
-              </view>
+              <text class="info-val">{{ editedMatter || '-' }}</text>
+              <view class="info-pencil" @tap="showEditMatter = true"><app-icon name="pencil" :size="24" color="var(--text-soft)" /></view>
             </view>
           </view>
           <view class="info-row">
-            <text class="info-key">
-              盘式
-            </text><text class="info-val sm">
-              {{ panshi }}
-            </text>
+            <text class="info-key">盘式</text><text class="info-val sm">{{ panshi }}</text>
           </view>
           <view class="info-row">
-            <text class="info-key">
-              日期
-            </text>
-            <text class="info-val">
-              {{ q.year }}年{{ pad(q.month) }}月{{ pad(q.day) }}日 {{ q.hour }}时{{ q.minute }}分<text class="info-muted">
-                (四月初一)
-              </text>
-            </text>
+            <text class="info-key">日期</text>
+            <text class="info-val">{{ q.year }}年{{ pad(q.month) }}月{{ pad(q.day) }}日 {{ q.hour }}时{{ q.minute }}分<text class="info-muted">(四月初一)</text></text>
           </view>
           <view class="info-row">
-            <text class="info-key">
-              真太阳时
-            </text>
-            <text class="info-val">
-              {{ q.year }}年{{ pad(q.month) }}月{{ pad(q.day) }}日 {{ q.hour }}时{{ Math.max(0, q.minute - 15) }}分
-            </text>
+            <text class="info-key">真太阳时</text>
+            <text class="info-val">{{ q.year }}年{{ pad(q.month) }}月{{ pad(q.day) }}日 {{ q.hour }}时{{ Math.max(0, q.minute - 15) }}分</text>
           </view>
           <!-- 四柱 -->
           <view class="info-row col">
-            <text class="info-key">
-              四柱
-            </text>
+            <text class="info-key">四柱</text>
             <view class="grid4">
-              <view
-                v-for="z in sizhu"
-                :key="z.label"
-                class="sz-cell"
-              >
-                <text class="sz-label">
-                  {{ z.label }}
-                </text>
-                <text class="sz-gz">
-                  {{ z.g }}
-                </text>
-                <text class="sz-gz">
-                  {{ z.z }}
-                </text>
+              <view v-for="z in sizhu" :key="z.label" class="sz-cell">
+                <text class="sz-label">{{ z.label }}</text>
+                <text class="sz-gz">{{ z.g }}</text>
+                <text class="sz-gz">{{ z.z }}</text>
               </view>
             </view>
           </view>
           <!-- 空亡 -->
           <view class="info-row col">
-            <text class="info-key">
-              空亡
-            </text>
+            <text class="info-key">空亡</text>
             <view class="grid4">
-              <view
-                v-for="(k, i) in kongwangData"
-                :key="i"
-                class="kw-cell"
-                :class="{ on: selectedKongwang === i }"
-                @tap="selectedKongwang = i"
-              >
-                <text
-                  class="kw-text"
-                  :class="{ on: selectedKongwang === i }"
-                >
-                  {{ k.zhi }}
-                </text>
+              <view v-for="(k, i) in kongwangData" :key="i" class="kw-cell" :class="{ on: selectedKongwang === i }" @tap="selectedKongwang = i">
+                <text class="kw-text" :class="{ on: selectedKongwang === i }">{{ k.zhi }}</text>
               </view>
             </view>
           </view>
           <view class="info-row">
-            <text class="info-key">
-              节气
-            </text>
-            <text class="info-val sm">
-              <text class="hl">
-                立夏
-              </text> {{ q.year }}.05.05 19:48 ~ <text class="hl">
-                小满
-              </text> {{ q.year }}.05.21 08:36
-            </text>
+            <text class="info-key">节气</text>
+            <text class="info-val sm"><text class="hl">立夏</text> {{ q.year }}.05.05 19:48 ~ <text class="hl">小满</text> {{ q.year }}.05.21 08:36</text>
           </view>
           <!-- 旬首表头 -->
           <view class="info-row shade">
-            <text class="info-key">
-              旬首
-            </text>
+            <text class="info-key">旬首</text>
             <view class="grid4 center">
-              <text class="xh-h">
-                局数
-              </text><text class="xh-h">
-                值符
-              </text><text class="xh-h">
-                值使
-              </text><text class="xh-h">
-                马星
-              </text>
+              <text class="xh-h">局数</text><text class="xh-h">值符</text><text class="xh-h">值使</text><text class="xh-h">马星</text>
             </view>
           </view>
           <view class="info-row noborder">
-            <text class="info-key dark">
-              甲午辛
-            </text>
+            <text class="info-key dark">甲午辛</text>
             <view class="grid4 center mid">
-              <text class="xh-v">
-                {{ startLabel }} {{ currentJu.isYang ? '阳' : '阴' }}{{ currentJu.num }}
-              </text>
-              <text class="xh-v green">
-                天蓬
-              </text>
-              <text class="xh-v green">
-                休门
-              </text>
-              <view class="ma-badge">
-                <text class="ma-badge-t">
-                  {{ maXing }}
-                </text>
-              </view>
+              <text class="xh-v">{{ startLabel }} {{ currentJu.isYang ? '阳' : '阴' }}{{ currentJu.num }}</text>
+              <text class="xh-v green">天蓬</text>
+              <text class="xh-v green">休门</text>
+              <view class="ma-badge"><text class="ma-badge-t">{{ maXing }}</text></view>
             </view>
           </view>
         </view>
@@ -339,85 +237,37 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
       <view class="grid-wrap">
         <view class="grid9">
           <view
-            v-for="palace in PALACE_ORDER"
-            :key="palace"
+            v-for="palace in PALACE_ORDER" :key="palace"
             class="cell"
             :class="{ sel: selectedPalace === palace, center: palace === 5 }"
             @tap="selectedPalace = selectedPalace === palace ? null : palace"
           >
-            <view
-              v-if="hasMaXing(palace)"
-              class="cell-ma"
-            >
-              <text class="cell-ma-t">
-                马
-              </text>
-            </view>
+            <view v-if="hasMaXing(palace)" class="cell-ma"><text class="cell-ma-t">马</text></view>
             <view class="cell-grid">
               <!-- 列1 -->
               <view class="cell-c1">
                 <view class="cell-slot">
-                  <view
-                    v-if="hasKongwang(palace)"
-                    class="kw-circle"
-                  />
+                  <view v-if="hasKongwang(palace)" class="kw-circle" />
                 </view>
-                <view class="cell-slot">
-                  <text class="cell-tg">
-                    {{ palaceData[palace].tianGan }}
-                  </text>
-                </view>
-                <view class="cell-slot">
-                  <text
-                    v-if="showDipanShen"
-                    class="cell-dps"
-                  >
-                    {{ palaceData[palace].dipanShen }}
-                  </text>
-                </view>
+                <view class="cell-slot"><text class="cell-tg">{{ palaceData[palace].tianGan }}</text></view>
+                <view class="cell-slot"><text v-if="showDipanShen" class="cell-dps">{{ palaceData[palace].dipanShen }}</text></view>
               </view>
               <!-- 列2 -->
               <view class="cell-c2">
-                <view class="cell-slot left">
-                  <text class="cell-main">
-                    {{ palaceData[palace].bashen }}
-                  </text>
-                </view>
-                <view class="cell-slot left">
-                  <text class="cell-main">
-                    {{ palaceData[palace].jiuxing }}
-                  </text>
-                </view>
-                <view class="cell-slot left">
-                  <text class="cell-main">
-                    {{ palaceData[palace].bamen }}
-                  </text>
-                </view>
+                <view class="cell-slot left"><text class="cell-main">{{ palaceData[palace].bashen }}</text></view>
+                <view class="cell-slot left"><text class="cell-main">{{ palaceData[palace].jiuxing }}</text></view>
+                <view class="cell-slot left"><text class="cell-main">{{ palaceData[palace].bamen }}</text></view>
               </view>
               <!-- 列3 -->
               <view class="cell-c3">
                 <view class="cell-slot end" />
                 <view class="cell-slot end">
-                  <text
-                    v-if="showChangsheng"
-                    class="cell-cs"
-                  >
-                    {{ palaceData[palace].changsheng.di.slice(0,2) }}
-                  </text>
-                  <text class="cell-gan">
-                    {{ palaceData[palace].diGan }}
-                  </text>
+                  <text v-if="showChangsheng" class="cell-cs">{{ palaceData[palace].changsheng.di.slice(0,2) }}</text>
+                  <text class="cell-gan">{{ palaceData[palace].diGan }}</text>
                 </view>
                 <view class="cell-slot end">
-                  <text
-                    v-if="showChangsheng"
-                    class="cell-cs"
-                  >
-                    {{ palaceData[palace].changsheng.an.slice(0,2) }}
-                  </text>
-                  <text class="cell-gan">
-                    {{ palaceData[palace].anGan }}
-                  </text>
+                  <text v-if="showChangsheng" class="cell-cs">{{ palaceData[palace].changsheng.an.slice(0,2) }}</text>
+                  <text class="cell-gan">{{ palaceData[palace].anGan }}</text>
                 </view>
               </view>
             </view>
@@ -426,196 +276,62 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
 
         <!-- 颜色说明 -->
         <view class="legend">
-          <text class="legend-t">
-            颜色说明：<text class="lg-green">
-              符使
-            </text>、<text class="lg-orange">
-              入墓
-            </text>、<text class="lg-blue">
-              击刑
-            </text>、<text class="lg-pink">
-              门迫
-            </text>、<text class="lg-purple">
-              刑+墓
-            </text>
-          </text>
+          <text class="legend-t">颜色说明：<text class="lg-green">符使</text>、<text class="lg-orange">入墓</text>、<text class="lg-blue">击刑</text>、<text class="lg-pink">门迫</text>、<text class="lg-purple">刑+墓</text></text>
         </view>
 
         <!-- 操作按钮 -->
         <view class="ops">
-          <view
-            class="op"
-            :class="{ on: showChangsheng }"
-            @tap="showChangsheng = !showChangsheng"
-          >
-            <text
-              class="op-t"
-              :class="{ on: showChangsheng }"
-            >
-              长生状态
-            </text>
-          </view>
-          <view
-            class="op"
-            @tap="prevJu"
-          >
-            <text class="op-t">
-              上一局
-            </text>
-          </view>
-          <view
-            class="op"
-            @tap="nextJu"
-          >
-            <text class="op-t">
-              下一局
-            </text>
-          </view>
-          <view
-            class="op"
-            :class="{ on: showDipanShen }"
-            @tap="showDipanShen = !showDipanShen"
-          >
-            <text
-              class="op-t"
-              :class="{ on: showDipanShen }"
-            >
-              地盘九神
-            </text>
-          </view>
+          <view class="op" :class="{ on: showChangsheng }" @tap="showChangsheng = !showChangsheng"><text class="op-t" :class="{ on: showChangsheng }">长生状态</text></view>
+          <view class="op" @tap="prevJu"><text class="op-t">上一局</text></view>
+          <view class="op" @tap="nextJu"><text class="op-t">下一局</text></view>
+          <view class="op" :class="{ on: showDipanShen }" @tap="showDipanShen = !showDipanShen"><text class="op-t" :class="{ on: showDipanShen }">地盘九神</text></view>
         </view>
-        <text class="hint">
-          点击宫位查看详细信息
-        </text>
+        <text class="hint">点击宫位查看详细信息</text>
       </view>
 
       <!-- 宫位详情 -->
-      <view
-        v-if="detail"
-        class="detail"
-      >
+      <view v-if="detail" class="detail">
         <view class="detail-head">
-          <text class="detail-title">
-            {{ detail.name }}
-          </text>
-          <view
-            class="detail-close"
-            @tap="selectedPalace = null"
-          >
-            <app-icon
-              name="x"
-              :size="34"
-              color="var(--text-soft)"
-            />
-          </view>
+          <text class="detail-title">{{ detail.name }}</text>
+          <view class="detail-close" @tap="selectedPalace = null"><app-icon name="x" :size="34" color="var(--text-soft)" /></view>
         </view>
         <view class="detail-base">
-          <text>
-            <text class="hl bold">
-              {{ detail.name }}
-            </text>：先天宫为{{ detail.xiantian }}宫。取数：{{ detail.nums }}。地支：{{ detail.dizhi }}。
-          </text>
+          <text><text class="hl bold">{{ detail.name }}</text>：先天宫为{{ detail.xiantian }}宫。取数：{{ detail.nums }}。地支：{{ detail.dizhi }}。</text>
         </view>
-        <view
-          v-for="(c, i) in detail.combos"
-          :key="i"
-          class="detail-combo"
-        >
-          <text>
-            <text class="hl bold">
-              {{ c.l }}
-            </text>：{{ c.text }}
-          </text>
+        <view v-for="(c, i) in detail.combos" :key="i" class="detail-combo">
+          <text><text class="hl bold">{{ c.l }}</text>：{{ c.text }}</text>
         </view>
       </view>
 
       <!-- AI解析/保存 -->
       <view class="cta">
-        <view class="cta-ai">
-          <app-icon
-            name="sparkles"
-            :size="32"
-            color="#ffffff"
-          /><text class="cta-ai-t">
-            AI智能解析
-          </text>
-        </view>
-        <view class="cta-save">
-          <app-icon
-            name="save"
-            :size="30"
-            color="var(--text-ink)"
-          /><text class="cta-save-t">
-            保存
-          </text>
-        </view>
+        <view class="cta-ai"><app-icon name="sparkles" :size="32" color="#ffffff" /><text class="cta-ai-t">AI智能解析</text></view>
+        <view class="cta-save"><app-icon name="save" :size="30" color="var(--text-ink)" /><text class="cta-save-t">保存</text></view>
       </view>
 
       <!-- 免责声明 -->
       <view class="dc-wrap">
-        <disclaimer
-          variant="fortune"
-          tone="card"
-        />
+        <disclaimer variant="fortune" tone="card" />
       </view>
     </scroll-view>
 
     <!-- 悬浮笔记按钮 -->
-    <view
-      class="fab"
-      @tap="showNotes = true"
-    >
-      <app-icon
-        name="book-open"
-        :size="32"
-        color="var(--brand)"
-      />
-      <text class="fab-t">
-        笔记
-      </text>
+    <view class="fab" @tap="showNotes = true">
+      <app-icon name="book-open" :size="32" color="var(--brand)" />
+      <text class="fab-t">笔记</text>
     </view>
 
     <!-- 笔记面板 -->
-    <qimen-notes-panel
-      :open="showNotes"
-      @close="showNotes = false"
-    />
+    <qimen-notes-panel :open="showNotes" @close="showNotes = false" />
 
     <!-- 修改事项弹窗 -->
-    <view
-      v-if="showEditMatter"
-      class="em-mask"
-      @tap="showEditMatter = false"
-    >
-      <view
-        class="em-card"
-        @tap.stop
-      >
-        <text class="em-title">
-          修改事项
-        </text>
-        <input
-          v-model="editedMatter"
-          class="em-input"
-          placeholder="请输入事项"
-        >
+    <view v-if="showEditMatter" class="em-mask" @tap="showEditMatter = false">
+      <view class="em-card" @tap.stop>
+        <text class="em-title">修改事项</text>
+        <input v-model="editedMatter" class="em-input" placeholder="请输入事项" />
         <view class="em-actions">
-          <view
-            class="em-btn cancel"
-            @tap="showEditMatter = false"
-          >
-            <text class="em-btn-t soft">
-              取消
-            </text>
-          </view>
-          <view
-            class="em-btn ok"
-            @tap="saveMatter"
-          >
-            <text class="em-btn-t light">
-              确定
-            </text>
-          </view>
+          <view class="em-btn cancel" @tap="showEditMatter = false"><text class="em-btn-t soft">取消</text></view>
+          <view class="em-btn ok" @tap="saveMatter"><text class="em-btn-t light">确定</text></view>
         </view>
       </view>
     </view>

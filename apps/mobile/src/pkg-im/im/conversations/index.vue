@@ -1,42 +1,18 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view
-      class="navbar"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-left">
-        <view
-          class="back-btn"
-          @tap="goBack"
-        >
-          <AppIcon
-            name="arrow-left"
-            :size="24"
-            color="#2c2c2c"
-          />
+        <view class="back-btn" @tap="goBack">
+          <AppIcon name="arrow-left" :size="24" color="#2c2c2c" />
         </view>
-        <text class="nav-title">
-          消息
-        </text>
-        <view
-          v-if="totalUnread > 0"
-          class="nav-badge"
-        >
-          <text class="nav-badge-text">
-            {{ totalUnread > 99 ? '99+' : totalUnread }}
-          </text>
+        <text class="nav-title">消息</text>
+        <view v-if="totalUnread > 0" class="nav-badge">
+          <text class="nav-badge-text">{{ totalUnread > 99 ? '99+' : totalUnread }}</text>
         </view>
       </view>
-      <view
-        class="search-btn"
-        @tap="showSearch = true"
-      >
-        <AppIcon
-          name="search"
-          :size="20"
-          color="#8a8178"
-        />
+      <view class="search-btn" @tap="showSearch = true">
+        <AppIcon name="search" :size="20" color="#8a8178" />
       </view>
     </view>
 
@@ -51,35 +27,16 @@
       >
         <!-- 头像 -->
         <view class="avatar-wrap">
-          <image
-            class="avatar"
-            :src="conv.targetAvatar"
-            mode="aspectFill"
-          />
+          <image class="avatar" :src="conv.targetAvatar" mode="aspectFill" />
           <!-- 未读角标 -->
-          <view
-            v-if="conv.unreadCount > 0 && !conv.isMuted"
-            class="unread-badge"
-          >
-            <text class="unread-text">
-              {{ conv.unreadCount > 99 ? '99+' : conv.unreadCount }}
-            </text>
+          <view v-if="conv.unreadCount > 0 && !conv.isMuted" class="unread-badge">
+            <text class="unread-text">{{ conv.unreadCount > 99 ? '99+' : conv.unreadCount }}</text>
           </view>
           <!-- 免打扰红点 -->
-          <view
-            v-if="conv.unreadCount > 0 && conv.isMuted"
-            class="mute-dot"
-          />
+          <view v-if="conv.unreadCount > 0 && conv.isMuted" class="mute-dot" />
           <!-- 类型标识 -->
-          <view
-            v-if="conv.type !== 'private'"
-            class="type-flag"
-          >
-            <AppIcon
-              :name="typeIcon(conv.type)"
-              :size="12"
-              color="#ffffff"
-            />
+          <view v-if="conv.type !== 'private'" class="type-flag">
+            <AppIcon :name="typeIcon(conv.type)" :size="12" color="#ffffff" />
           </view>
         </view>
 
@@ -87,76 +44,30 @@
         <view class="conv-body">
           <view class="conv-row1">
             <view class="conv-name-wrap">
-              <text
-                class="conv-name"
-                :class="{ 'conv-name-dim': conv.unreadCount === 0 }"
-              >
-                {{ conv.targetName }}
-              </text>
-              <AppIcon
-                v-if="conv.isPinned"
-                name="pin"
-                :size="12"
-                color="#c41e3a"
-                class="row-icon"
-              />
-              <AppIcon
-                v-if="conv.isMuted"
-                name="bell-off"
-                :size="12"
-                color="#8a8178"
-                class="row-icon"
-              />
+              <text class="conv-name" :class="{ 'conv-name-dim': conv.unreadCount === 0 }">{{ conv.targetName }}</text>
+              <AppIcon v-if="conv.isPinned" name="pin" :size="12" color="#c41e3a" class="row-icon" />
+              <AppIcon v-if="conv.isMuted" name="bell-off" :size="12" color="#8a8178" class="row-icon" />
             </view>
-            <text class="conv-time">
-              {{ conv.lastMessage.time }}
-            </text>
+            <text class="conv-time">{{ conv.lastMessage.time }}</text>
           </view>
           <view class="conv-row2">
-            <text
-              v-if="conv.draft"
-              class="conv-summary conv-draft"
-            >
-              [草稿] {{ conv.draft }}
-            </text>
-            <text
-              v-else
-              class="conv-summary"
-              :class="{ 'conv-summary-unread': conv.unreadCount > 0 }"
-            >
-              {{ summary(conv.lastMessage) }}
-            </text>
+            <text v-if="conv.draft" class="conv-summary conv-draft">[草稿] {{ conv.draft }}</text>
+            <text v-else class="conv-summary" :class="{ 'conv-summary-unread': conv.unreadCount > 0 }">{{ summary(conv.lastMessage) }}</text>
           </view>
         </view>
 
         <!-- 更多按钮 -->
-        <view
-          class="more-btn"
-          @tap.stop="openActions(conv)"
-        >
-          <AppIcon
-            name="more-vertical"
-            :size="20"
-            color="#8a8178"
-          />
+        <view class="more-btn" @tap.stop="openActions(conv)">
+          <AppIcon name="more-vertical" :size="20" color="#8a8178" />
         </view>
       </view>
     </view>
 
     <!-- 搜索弹层 -->
-    <view
-      v-if="showSearch"
-      class="search-overlay"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view v-if="showSearch" class="search-overlay" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="search-head">
         <view class="search-input-wrap">
-          <AppIcon
-            name="search"
-            :size="16"
-            color="#8a8178"
-            class="search-input-icon"
-          />
+          <AppIcon name="search" :size="16" color="#8a8178" class="search-input-icon" />
           <input
             class="search-input"
             :value="searchKeyword"
@@ -164,69 +75,33 @@
             placeholder-class="search-ph"
             focus
             @input="onSearchInput"
-          >
-          <view
-            v-if="searchKeyword"
-            class="search-clear"
-            @tap="searchKeyword = ''"
-          >
-            <AppIcon
-              name="x"
-              :size="16"
-              color="#8a8178"
-            />
+          />
+          <view v-if="searchKeyword" class="search-clear" @tap="searchKeyword = ''">
+            <AppIcon name="x" :size="16" color="#8a8178" />
           </view>
         </view>
-        <text
-          class="search-cancel"
-          @tap="closeSearch"
-        >
-          取消
-        </text>
+        <text class="search-cancel" @tap="closeSearch">取消</text>
       </view>
 
       <view class="search-body">
-        <view
-          v-if="!searchKeyword.trim()"
-          class="search-tip"
-        >
-          <text class="search-tip-text">
-            输入关键词搜索好友或聊天记录
-          </text>
+        <view v-if="!searchKeyword.trim()" class="search-tip">
+          <text class="search-tip-text">输入关键词搜索好友或聊天记录</text>
         </view>
-        <view
-          v-else-if="searchMatches.length === 0"
-          class="search-tip"
-        >
-          <text class="search-tip-text">
-            未找到相关结果
-          </text>
+        <view v-else-if="searchMatches.length === 0" class="search-tip">
+          <text class="search-tip-text">未找到相关结果</text>
         </view>
-        <view
-          v-else
-          class="search-results"
-        >
-          <text class="search-section-title">
-            聊天记录
-          </text>
+        <view v-else class="search-results">
+          <text class="search-section-title">聊天记录</text>
           <view
             v-for="conv in searchMatches"
             :key="conv.id"
             class="search-result-item"
             @tap="handleEnterChat(conv); closeSearch()"
           >
-            <image
-              class="search-result-avatar"
-              :src="conv.targetAvatar"
-              mode="aspectFill"
-            />
+            <image class="search-result-avatar" :src="conv.targetAvatar" mode="aspectFill" />
             <view class="search-result-body">
-              <text class="search-result-name">
-                {{ conv.targetName }}
-              </text>
-              <text class="search-result-summary">
-                {{ summary(conv.lastMessage) }}
-              </text>
+              <text class="search-result-name">{{ conv.targetName }}</text>
+              <text class="search-result-summary">{{ summary(conv.lastMessage) }}</text>
             </view>
           </view>
         </view>
@@ -234,89 +109,34 @@
     </view>
 
     <!-- 操作菜单 -->
-    <view
-      v-if="showActions"
-      class="mask"
-      @tap="showActions = false"
-    >
-      <view
-        class="action-sheet"
-        @tap.stop
-      >
-        <view
-          class="action-item"
-          @tap="handleTogglePin"
-        >
-          <AppIcon
-            name="pin"
-            :size="20"
-            color="#2c2c2c"
-          />
-          <text class="action-text">
-            {{ activeConv?.isPinned ? '取消置顶' : '置顶聊天' }}
-          </text>
+    <view v-if="showActions" class="mask" @tap="showActions = false">
+      <view class="action-sheet" @tap.stop>
+        <view class="action-item" @tap="handleTogglePin">
+          <AppIcon name="pin" :size="20" color="#2c2c2c" />
+          <text class="action-text">{{ activeConv?.isPinned ? '取消置顶' : '置顶聊天' }}</text>
         </view>
-        <view
-          class="action-item"
-          @tap="handleToggleMute"
-        >
-          <AppIcon
-            name="bell-off"
-            :size="20"
-            color="#2c2c2c"
-          />
-          <text class="action-text">
-            {{ activeConv?.isMuted ? '取消免打扰' : '消息免打扰' }}
-          </text>
+        <view class="action-item" @tap="handleToggleMute">
+          <AppIcon name="bell-off" :size="20" color="#2c2c2c" />
+          <text class="action-text">{{ activeConv?.isMuted ? '取消免打扰' : '消息免打扰' }}</text>
         </view>
-        <view
-          class="action-item"
-          @tap="openDeleteConfirm"
-        >
-          <AppIcon
-            name="trash-2"
-            :size="20"
-            color="#dc2626"
-          />
-          <text class="action-text action-danger">
-            删除会话
-          </text>
+        <view class="action-item" @tap="openDeleteConfirm">
+          <AppIcon name="trash-2" :size="20" color="#dc2626" />
+          <text class="action-text action-danger">删除会话</text>
         </view>
       </view>
     </view>
 
     <!-- 删除确认 -->
-    <view
-      v-if="showDeleteConfirm"
-      class="mask mask-center"
-      @tap="showDeleteConfirm = false"
-    >
-      <view
-        class="dialog"
-        @tap.stop
-      >
-        <text class="dialog-title">
-          删除会话
-        </text>
-        <text class="dialog-desc">
-          确定要删除与"{{ activeConv?.targetName }}"的会话吗？聊天记录将被清空且无法恢复。
-        </text>
+    <view v-if="showDeleteConfirm" class="mask mask-center" @tap="showDeleteConfirm = false">
+      <view class="dialog" @tap.stop>
+        <text class="dialog-title">删除会话</text>
+        <text class="dialog-desc">确定要删除与"{{ activeConv?.targetName }}"的会话吗？聊天记录将被清空且无法恢复。</text>
         <view class="dialog-footer">
-          <view
-            class="dialog-btn dialog-cancel"
-            @tap="showDeleteConfirm = false"
-          >
-            <text class="dialog-cancel-text">
-              取消
-            </text>
+          <view class="dialog-btn dialog-cancel" @tap="showDeleteConfirm = false">
+            <text class="dialog-cancel-text">取消</text>
           </view>
-          <view
-            class="dialog-btn dialog-confirm"
-            @tap="handleDelete"
-          >
-            <text class="dialog-confirm-text">
-              删除
-            </text>
+          <view class="dialog-btn dialog-confirm" @tap="handleDelete">
+            <text class="dialog-confirm-text">删除</text>
           </view>
         </view>
       </view>

@@ -1,15 +1,5 @@
 <template>
-  <view v-if="isLoading" class="seckill-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="() => {}" />
-  <AppEmpty v-else-if="isEmpty" title="暂无秒杀商品" />
-  <view v-else class="seckill-page">
+  <view class="seckill-page">
     <!-- 顶部导航 + 倒计时 -->
     <view class="navbar">
       <view class="nav-row">
@@ -139,12 +129,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
-
-const isLoading = ref(false)
-const loadError = ref<string | null>(null)
 
 interface SeckillProduct {
   id: number
@@ -172,7 +157,6 @@ const products: SeckillProduct[] = [
   { id: 6, name: '转运葫芦挂件套装', seckillPrice: 58, originalPrice: 128, soldPercent: 65, stock: 35, image: '/static/marketing/hulu.png' },
 ]
 
-const isEmpty = computed(() => products.length === 0)
 const activeSession = ref(2)
 const hero = computed(() => products[0])
 const rest = computed(() => products.slice(1))

@@ -1,6 +1,5 @@
 // 分站版首页配置（对齐原型 components/station/station-context defaultStationConfig）
 // 主题色忠实保留原型演示分站的紫色 #8B5CF6；图片复用项目既有素材
-import { apiGet, useMock } from '@/utils/request'
 
 export interface StationFeaturedItem {
   id: string
@@ -52,12 +51,4 @@ export const featuredTypeConfig: Record<StationFeaturedItem['type'], { icon: str
   article: { icon: 'file-text', label: '文章' },
   course: { icon: 'book-open', label: '课程' },
   circle: { icon: 'users', label: '圈子' },
-}
-
-export const stationDetailApi = {
-  /** 获取分站详情配置 GET /station?id=xxx */
-  async getConfig(id?: string): Promise<StationConfig> {
-    if (useMock()) return defaultStationConfig
-    try { return await apiGet<StationConfig>(`/station?id=${id || 'demo'}`) } catch { return defaultStationConfig }
-  },
 }

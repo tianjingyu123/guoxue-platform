@@ -2,119 +2,51 @@
   <view class="page">
     <!-- 顶部导航 + Tab + 搜索 -->
     <view class="header">
-      <app-nav-bar
-        title="社交关系"
-        :back-icon="'arrow-left'"
-        :back-size="40"
-        :title-size="32"
-        :title-weight="600"
-        :bar-height="112"
-      />
+      <app-nav-bar title="社交关系" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112" />
       <view class="tabs">
-        <view
-          class="tab"
-          :class="{ on: tab === 'following' }"
-          @tap="tab = 'following'"
-        >
+        <view class="tab" :class="{ on: tab === 'following' }" @tap="tab = 'following'">
           关注 {{ followingUsers.length }}
-          <view
-            v-if="tab === 'following'"
-            class="tab-bar"
-          />
+          <view v-if="tab === 'following'" class="tab-bar" />
         </view>
-        <view
-          class="tab"
-          :class="{ on: tab === 'followers' }"
-          @tap="tab = 'followers'"
-        >
+        <view class="tab" :class="{ on: tab === 'followers' }" @tap="tab = 'followers'">
           粉丝 {{ followerUsers.length }}
-          <view
-            v-if="tab === 'followers'"
-            class="tab-bar"
-          />
+          <view v-if="tab === 'followers'" class="tab-bar" />
         </view>
       </view>
       <view class="search-wrap">
         <view class="search">
-          <app-icon
-            name="search"
-            :size="32"
-            color="#b5ad9f"
-          />
-          <input
-            v-model="keyword"
-            class="search-input"
-            placeholder="搜索用户"
-            placeholder-class="ph"
-          >
+          <app-icon name="search" :size="32" color="#b5ad9f" />
+          <input class="search-input" v-model="keyword" placeholder="搜索用户" placeholder-class="ph" />
         </view>
       </view>
     </view>
 
     <!-- 用户列表 -->
-    <view
-      v-if="filtered.length"
-      class="list"
-    >
-      <view
-        v-for="u in filtered"
-        :key="u.id"
-        class="row"
-      >
-        <view
-          class="row-main"
-          @tap="goUser(u.id)"
-        >
-          <view class="avatar">
-            {{ u.name[0] }}
-          </view>
+    <view class="list" v-if="filtered.length">
+      <view class="row" v-for="u in filtered" :key="u.id">
+        <view class="row-main" @tap="goUser(u.id)">
+          <view class="avatar">{{ u.name[0] }}</view>
           <view class="info">
             <view class="name-line">
-              <text class="name">
-                {{ u.name }}
-              </text>
-              <app-icon
-                v-if="u.isVerified"
-                name="badge-check"
-                :size="28"
-                color="#C9A96E"
-              />
+              <text class="name">{{ u.name }}</text>
+              <app-icon v-if="u.isVerified" name="badge-check" :size="28" color="#C9A96E" />
             </view>
-            <text class="bio">
-              {{ u.bio }}
-            </text>
+            <text class="bio">{{ u.bio }}</text>
           </view>
         </view>
-        <view
-          class="follow-btn"
-          :class="{ following: state[u.id] }"
-          @tap="toggle(u.id)"
-        >
-          <app-icon
-            :name="state[u.id] ? 'user-minus' : 'user-plus'"
-            :size="26"
-            :color="state[u.id] ? '#8a8276' : '#fff'"
-          />
+        <view class="follow-btn" :class="{ following: state[u.id] }" @tap="toggle(u.id)">
+          <app-icon :name="state[u.id] ? 'user-minus' : 'user-plus'" :size="26" :color="state[u.id] ? '#8a8276' : '#fff'" />
           <text>{{ state[u.id] ? '已关注' : (tab === 'followers' ? '回关' : '关注') }}</text>
         </view>
       </view>
     </view>
 
     <!-- 空态 -->
-    <view
-      v-else
-      class="empty"
-    >
+    <view class="empty" v-else>
       <view class="empty-icon">
-        <app-icon
-          name="users"
-          :size="80"
-          color="#d8d2c6"
-        />
+        <app-icon name="users" :size="80" color="#d8d2c6" />
       </view>
-      <text class="empty-text">
-        {{ keyword ? '没有找到相关用户' : (tab === 'following' ? '还没有关注任何人' : '还没有粉丝') }}
-      </text>
+      <text class="empty-text">{{ keyword ? '没有找到相关用户' : (tab === 'following' ? '还没有关注任何人' : '还没有粉丝') }}</text>
     </view>
   </view>
 </template>

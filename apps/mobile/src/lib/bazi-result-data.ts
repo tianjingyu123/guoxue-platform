@@ -1,6 +1,5 @@
 /** 八字结果页示例数据（从原型 result/page.tsx 1:1 迁移） */
 import { GAN_SHI_SHEN } from './bazi-constants'
-import { apiGet, apiPost, useMock } from '@/utils/request'
 
 export const baziData = {
   name: '未知', gender: '男', zodiac: '猪', qianKun: '乾造', birthYear: 1983,
@@ -82,40 +81,5 @@ export const classicsContent: Record<string, { title: string; original: string; 
     title: '五月提要（午月）',
     original: '午月丁火建禄，火势炎上。宜壬水高透以制火，庚金佐之发水源。甲木不可少，引丁成文明之象。午月火旺土燥，金水为调候急需。若壬甲两透，定主科甲。壬透甲藏，亦可功名。无壬用癸，格局稍次。',
     translation: '午月丁火正当建禄之时，火势极为旺盛向上。适宜壬水在天干高透来制约火势，庚金辅助壬水以发其源头。甲木不可缺少，引导丁火成为文明之象。午月火旺土燥，金水是调候的急切需要。如果壬水和甲木都透出天干，必定主科举功名。壬水透出而甲木暗藏在地支，也可以取得功名。没有壬水而用癸水代替，格局稍差一些。',
-  },
-}
-
-// ── API ──
-
-export const baziApi = {
-  /** 八字排盘计算 POST /paipan/bazi */
-  async calculate(input: Record<string, unknown>): Promise<any> {
-    if (useMock()) return baziData
-    try { return await apiPost<any>('/paipan/bazi', input) } catch { return baziData }
-  },
-  /** 八字排盘预览 POST /paipan/bazi/preview */
-  async preview(input: Record<string, unknown>): Promise<any> {
-    if (useMock()) return baziData
-    try { return await apiPost<any>('/paipan/bazi/preview', input) } catch { return baziData }
-  },
-  /** 保存排盘记录 */
-  async save(input: Record<string, unknown>): Promise<{ id: string }> {
-    if (useMock()) return { id: 'mock-bazi-id' }
-    return await apiPost<{ id: string }>('/paipan/bazi', input)
-  },
-  /** 获取单条记录 GET /paipan/bazi/:id */
-  async detail(id: string): Promise<any> {
-    if (useMock()) return { ...baziData, id }
-    try { return await apiGet<any>(`/paipan/bazi/${id}`) } catch { return { ...baziData, id } }
-  },
-  /** 排盘历史 GET /paipan/bazi */
-  async history(page = 1, pageSize = 20): Promise<{ records: any[]; total: number }> {
-    if (useMock()) return { records: [{ id: 'mock-1', createdAt: new Date().toISOString() }], total: 1 }
-    try { return await apiGet<any>(`/paipan/bazi?page=${page}&pageSize=${pageSize}`) } catch { return { records: [], total: 0 } }
-  },
-  /** 八字分析 POST /paipan/bazi/analyze */
-  async analyze(id: string): Promise<any> {
-    if (useMock()) return { analysis: '命局分析mock结果' }
-    try { return await apiPost<any>('/paipan/bazi/analyze', { id }) } catch { return { analysis: '加载失败' } }
   },
 }

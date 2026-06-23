@@ -1,6 +1,5 @@
 // 课程列表页数据（从原型 app/courses-list/page.tsx 迁移，mock 照抄原型）
 import type { CourseCardData } from '@/lib/card-utils'
-import { apiGet, useMock } from '@/utils/request'
 
 // 分类 - 纯文字，不带图标
 export interface CourseListCategory { id: string; name: string }
@@ -67,33 +66,3 @@ export const courseListMock: (CourseCardData & { category: string; free: boolean
   { id: '7', title: '奇门遁甲入门班', teacher: '玄学居士', teacherAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80', price: 299, originalPrice: 499, students: 980, rating: 4.8, lessons: 24, category: 'qimen', tag: '高阶', free: false, cover: 'https://images.unsplash.com/photo-1471107340929-a87cd0f5b5f3?w=400&q=80', coverRatio: '3:4' },
   { id: '8', title: '六爻预测实战技法', teacher: '张玄风', teacherAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80', price: 199, originalPrice: 299, students: 1520, rating: 4.7, lessons: 20, category: 'liuyao', free: false, cover: 'https://images.unsplash.com/photo-1519791883288-dc8bd696e667?w=400&q=80', coverRatio: '3:4' },
 ]
-
-export interface CoursesListResponse {
-  categories: CourseListCategory[]
-  sortOptions: CourseSortOption[]
-  recommended: RecommendedCourse[]
-  flashSale: FlashSaleCourse[]
-  courses: (CourseCardData & { category: string; free: boolean })[]
-}
-
-export const coursesListApi = {
-  /** 获取课程列表页数据 GET /courses */
-  async getList(params?: { category?: string; sort?: string }): Promise<CoursesListResponse> {
-    if (useMock()) return {
-      categories: courseListCategories,
-      sortOptions: courseSortOptions,
-      recommended: recommendedCourses,
-      flashSale: flashSaleCourses,
-      courses: courseListMock,
-    }
-    try { return await apiGet<CoursesListResponse>('/courses', params) } catch {
-      return {
-        categories: courseListCategories,
-        sortOptions: courseSortOptions,
-        recommended: recommendedCourses,
-        flashSale: flashSaleCourses,
-        courses: courseListMock,
-      }
-    }
-  },
-}

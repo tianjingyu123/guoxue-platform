@@ -1,35 +1,19 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { useSubmitLock } from '@/composables/use-submit-lock'
 import {
-  myComments as _myComments,
+  myComments,
   commentTypeNames,
   commentTypeStyles,
   type MyCommentItem,
 } from '@/lib/mine-data'
 
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { comments: _myComments }
-})
-
-const isEmpty = computed(() => {
-  const c = pageData.value?.comments
-  return c !== undefined && c.length === 0
-})
-
-const list = ref<MyCommentItem[]>([])
-watch(() => pageData.value?.comments, (val) => {
-  if (val) list.value = val.map((c: any) => ({ ...c }))
-}, { immediate: true })
+const list = ref<MyCommentItem[]>(myComments.map((c) => ({ ...c })))
 const isEditMode = ref(false)
 const selectedIds = ref<number[]>([])
 const activeId = ref<number | null>(null)
-const { submitting, withLock } = useSubmitLock()
+
+const isEmpty = computed(() => list.value.length === 0)
 
 function toggleEdit() {
   isEditMode.value = !isEditMode.value
@@ -49,21 +33,16 @@ function toggleActive(id: number) {
   activeId.value = activeId.value === id ? null : id
 }
 function deleteOne(id: number) {
-  if (submitting.value) return
-  withLock(async () => {
-    list.value = list.value.filter((c) => c.id !== id)
-    activeId.value = null
-    uni.showToast({ title: '已删除', icon: 'none' })
-  })
+  list.value = list.value.filter((c) => c.id !== id)
+  activeId.value = null
+  uni.showToast({ title: '已删除', icon: 'none' })
 }
 function batchDelete() {
-  if (selectedIds.value.length === 0 || submitting.value) return
-  withLock(async () => {
-    list.value = list.value.filter((c) => !selectedIds.value.includes(c.id))
-    selectedIds.value = []
-    isEditMode.value = false
-    uni.showToast({ title: '已删除', icon: 'none' })
-  })
+  if (selectedIds.value.length === 0) return
+  list.value = list.value.filter((c) => !selectedIds.value.includes(c.id))
+  selectedIds.value = []
+  isEditMode.value = false
+  uni.showToast({ title: '已删除', icon: 'none' })
 }
 function openTarget() {
   uni.showToast({ title: '内容详情开发中', icon: 'none' })
@@ -71,183 +50,72 @@ function openTarget() {
 </script>
 
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无评论" />
-  <view v-else class="page">
-    <app-nav-bar
-      title="我的评论"
-      back-icon="arrow-left"
-    >
+  <view class="page">
+    <app-nav-bar title="我的评论" back-icon="arrow-left">
       <template #right>
-        <text
-          v-if="!isEmpty"
-          class="nav-action"
-          @tap="toggleEdit"
-        >
-          {{ isEditMode ? '完成' : '管理' }}
-        </text>
+        <text v-if="!isEmpty" class="nav-action" @tap="toggleEdit">{{ isEditMode ? '完成' : '管理' }}</text>
       </template>
     </app-nav-bar>
 
     <!-- 空态 -->
-    <view
-      v-if="isEmpty"
-      class="empty"
-    >
-      <view class="empty-icon">
-        <AppIcon
-          name="message-square"
-          :size="44"
-          color="#C9C2B6"
-        />
-      </view>
-      <text class="empty-title">
-        暂无评论记录
-      </text>
-      <text class="empty-desc">
-        去参与更多互动吧
-      </text>
+    <view v-if="isEmpty" class="empty">
+      <view class="empty-icon"><AppIcon name="message-square" :size="44" color="#C9C2B6" /></view>
+      <text class="empty-title">暂无评论记录</text>
+      <text class="empty-desc">去参与更多互动吧</text>
     </view>
 
-    <scroll-view
-      v-else
-      scroll-y
-      class="scroll"
-      :style="{ paddingBottom: isEditMode ? '160rpx' : '24rpx' }"
-    >
+    <scroll-view v-else scroll-y class="scroll" :style="{ paddingBottom: isEditMode ? '160rpx' : '24rpx' }">
       <view class="comment-list">
-        <view
-          v-for="c in list"
-          :key="c.id"
-          class="comment-row"
-        >
+        <view v-for="c in list" :key="c.id" class="comment-row">
           <view
             v-if="isEditMode"
             class="checkbox"
             :class="{ checked: selectedIds.includes(c.id) }"
             @tap="toggleSelect(c.id)"
           >
-            <AppIcon
-              v-if="selectedIds.includes(c.id)"
-              name="check"
-              :size="16"
-              color="#fff"
-            />
+            <AppIcon v-if="selectedIds.includes(c.id)" name="check" :size="16" color="#fff" />
           </view>
 
-          <view
-            class="card"
-            @tap="toggleActive(c.id)"
-          >
-            <text class="comment-content">
-              {{ c.content }}
-            </text>
+          <view class="card" @tap="toggleActive(c.id)">
+            <text class="comment-content">{{ c.content }}</text>
 
             <!-- 目标内容 -->
-            <view
-              class="target"
-              @tap.stop="openTarget"
-            >
-              <view
-                v-if="c.target.cover"
-                class="target-cover"
-              >
-                <image
-                  class="target-img"
-                  :src="c.target.cover"
-                  mode="aspectFill"
-                />
+            <view class="target" @tap.stop="openTarget">
+              <view v-if="c.target.cover" class="target-cover">
+                <image class="target-img" :src="c.target.cover" mode="aspectFill" />
               </view>
-              <view
-                v-else
-                class="target-icon"
-                :style="{ background: commentTypeStyles[c.target.type].bg }"
-              >
-                <AppIcon
-                  :name="commentTypeStyles[c.target.type].icon"
-                  :size="22"
-                  :color="commentTypeStyles[c.target.type].color"
-                />
+              <view v-else class="target-icon" :style="{ background: commentTypeStyles[c.target.type].bg }">
+                <AppIcon :name="commentTypeStyles[c.target.type].icon" :size="22" :color="commentTypeStyles[c.target.type].color" />
               </view>
               <view class="target-body">
-                <text
-                  class="target-tag"
-                  :style="{ color: commentTypeStyles[c.target.type].color, background: commentTypeStyles[c.target.type].bg }"
-                >
+                <text class="target-tag" :style="{ color: commentTypeStyles[c.target.type].color, background: commentTypeStyles[c.target.type].bg }">
                   {{ commentTypeNames[c.target.type] }}
                 </text>
-                <text class="target-title">
-                  {{ c.target.title }}
-                </text>
+                <text class="target-title">{{ c.target.title }}</text>
               </view>
-              <AppIcon
-                name="chevron-right"
-                :size="18"
-                color="#c9c2b6"
-              />
+              <AppIcon name="chevron-right" :size="18" color="#c9c2b6" />
             </view>
 
             <!-- 底部 -->
             <view class="comment-foot">
-              <text class="comment-time">
-                {{ c.createdAt }}
-              </text>
+              <text class="comment-time">{{ c.createdAt }}</text>
               <view class="foot-stats">
                 <view class="fs-item">
-                  <AppIcon
-                    name="heart"
-                    :size="14"
-                    color="#8a8178"
-                  />
-                  <text class="fs-num">
-                    {{ c.likeCount }}
-                  </text>
+                  <AppIcon name="heart" :size="14" color="#8a8178" />
+                  <text class="fs-num">{{ c.likeCount }}</text>
                 </view>
                 <view class="fs-item">
-                  <AppIcon
-                    name="message-circle"
-                    :size="14"
-                    color="#8a8178"
-                  />
-                  <text class="fs-num">
-                    {{ c.replyCount }}
-                  </text>
+                  <AppIcon name="message-circle" :size="14" color="#8a8178" />
+                  <text class="fs-num">{{ c.replyCount }}</text>
                 </view>
-                <text
-                  v-if="c.hasReply"
-                  class="reply-tag"
-                >
-                  有回复
-                </text>
+                <text v-if="c.hasReply" class="reply-tag">有回复</text>
               </view>
             </view>
 
             <!-- 删除确认 -->
-            <view
-              v-if="!isEditMode && activeId === c.id"
-              class="del-row"
-              @tap.stop
-            >
-              <text
-                class="del-cancel"
-                @tap="activeId = null"
-              >
-                取消
-              </text>
-              <text
-                class="del-confirm"
-                @tap="deleteOne(c.id)"
-              >
-                删除评论
-              </text>
+            <view v-if="!isEditMode && activeId === c.id" class="del-row" @tap.stop>
+              <text class="del-cancel" @tap="activeId = null">取消</text>
+              <text class="del-confirm" @tap="deleteOne(c.id)">删除评论</text>
             </view>
           </view>
         </view>
@@ -255,29 +123,11 @@ function openTarget() {
     </scroll-view>
 
     <!-- 批量操作栏 -->
-    <view
-      v-if="isEditMode"
-      class="batch-bar"
-    >
-      <text
-        class="batch-all"
-        @tap="selectAll"
-      >
-        全选
-      </text>
-      <view
-        class="batch-del"
-        :class="{ disabled: selectedIds.length === 0 || submitting }"
-        @tap="batchDelete"
-      >
-        <AppIcon
-          name="trash-2"
-          :size="16"
-          color="#fff"
-        />
-        <text class="batch-del-text">
-          {{ submitting ? '删除中...' : `删除 (${selectedIds.length})` }}
-        </text>
+    <view v-if="isEditMode" class="batch-bar">
+      <text class="batch-all" @tap="selectAll">全选</text>
+      <view class="batch-del" :class="{ disabled: selectedIds.length === 0 }" @tap="batchDelete">
+        <AppIcon name="trash-2" :size="16" color="#fff" />
+        <text class="batch-del-text">删除 ({{ selectedIds.length }})</text>
       </view>
     </view>
   </view>

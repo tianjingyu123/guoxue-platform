@@ -1,88 +1,39 @@
 <template>
-  <view v-if="isLoading" class="cd-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="300rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无书单数据" />
-  <view v-else class="cd-page">
+  <view class="cd-page">
     <!-- 顶部导航 -->
     <view class="cd-header">
       <view class="cd-nav">
-        <view
-          class="cd-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#2c2c2c"
-          />
+        <view class="cd-btn" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#2c2c2c" />
         </view>
         <view class="cd-nav-right">
           <view class="cd-btn">
-            <app-icon
-              name="share-2"
-              :size="32"
-              color="#2c2c2c"
-            />
+            <app-icon name="share-2" :size="32" color="#2c2c2c" />
           </view>
           <view class="cd-btn">
-            <app-icon
-              name="more-vertical"
-              :size="32"
-              color="#2c2c2c"
-            />
+            <app-icon name="more-vertical" :size="32" color="#2c2c2c" />
           </view>
         </view>
       </view>
     </view>
 
     <!-- 封面区域 -->
-    <view
-      class="cd-cover"
-      :class="`cd-cover--${collection.cover}`"
-    >
+    <view class="cd-cover" :class="`cd-cover--${collection.cover}`">
       <view class="cd-cover-badge">
-        <text class="cd-cover-badge-text">
-          精选书单
-        </text>
+        <text class="cd-cover-badge-text">精选书单</text>
       </view>
-      <text class="cd-cover-title">
-        {{ collection.title }}
-      </text>
-      <text class="cd-cover-desc">
-        {{ collection.description }}
-      </text>
+      <text class="cd-cover-title">{{ collection.title }}</text>
+      <text class="cd-cover-desc">{{ collection.description }}</text>
       <view class="cd-stats">
-        <text class="cd-stat">
-          {{ collection.curator }}
-        </text>
-        <text class="cd-stat">
-          ·
-        </text>
-        <text class="cd-stat">
-          {{ collection.bookCount }}本
-        </text>
-        <text class="cd-stat">
-          ·
-        </text>
-        <text class="cd-stat">
-          {{ (collection.viewCount / 10000).toFixed(1) }}万人看过
-        </text>
+        <text class="cd-stat">{{ collection.curator }}</text>
+        <text class="cd-stat">·</text>
+        <text class="cd-stat">{{ collection.bookCount }}本</text>
+        <text class="cd-stat">·</text>
+        <text class="cd-stat">{{ (collection.viewCount / 10000).toFixed(1) }}万人看过</text>
       </view>
       <view class="cd-tags">
-        <view
-          v-for="(tag, i) in collection.tags"
-          :key="i"
-          class="cd-tag"
-        >
-          <text class="cd-tag-text">
-            {{ tag }}
-          </text>
+        <view v-for="(tag, i) in collection.tags" :key="i" class="cd-tag">
+          <text class="cd-tag-text">{{ tag }}</text>
         </view>
       </view>
     </view>
@@ -96,45 +47,20 @@
           class="cd-stack-cover"
           :style="{ zIndex: 5 - i }"
         >
-          <text class="cd-stack-text">
-            {{ book.title.slice(0, 2) }}
-          </text>
+          <text class="cd-stack-text">{{ book.title.slice(0, 2) }}</text>
         </view>
-        <view
-          v-if="collection.books.length > 5"
-          class="cd-stack-more"
-        >
-          <text class="cd-stack-more-text">
-            +{{ collection.books.length - 5 }}
-          </text>
+        <view v-if="collection.books.length > 5" class="cd-stack-more">
+          <text class="cd-stack-more-text">+{{ collection.books.length - 5 }}</text>
         </view>
       </view>
 
       <view class="cd-actions">
-        <view
-          class="cd-act-primary"
-          :class="{ 'cd-act-primary--added': isAddedToShelf }"
-          @tap="isAddedToShelf = !isAddedToShelf"
-        >
-          <text
-            class="cd-act-primary-text"
-            :class="{ 'cd-act-primary-text--added': isAddedToShelf }"
-          >
-            {{ isAddedToShelf ? '已加入书架' : '加入书架' }}
-          </text>
+        <view class="cd-act-primary" :class="{ 'cd-act-primary--added': isAddedToShelf }" @tap="isAddedToShelf = !isAddedToShelf">
+          <text class="cd-act-primary-text" :class="{ 'cd-act-primary-text--added': isAddedToShelf }">{{ isAddedToShelf ? '已加入书架' : '加入书架' }}</text>
         </view>
-        <view
-          class="cd-act-outline"
-          @tap="startReading"
-        >
-          <app-icon
-            name="book-open"
-            :size="32"
-            color="#2c2c2c"
-          />
-          <text class="cd-act-outline-text">
-            开始阅读
-          </text>
+        <view class="cd-act-outline" @tap="startReading">
+          <app-icon name="book-open" :size="32" color="#2c2c2c" />
+          <text class="cd-act-outline-text">开始阅读</text>
         </view>
       </view>
     </view>
@@ -142,87 +68,40 @@
     <!-- 书籍列表 -->
     <view class="cd-section">
       <view class="cd-section-head">
-        <text class="cd-section-title">
-          书单内容
-        </text>
-        <text class="cd-section-count">
-          {{ collection.books.length }}本
-        </text>
+        <text class="cd-section-title">书单内容</text>
+        <text class="cd-section-count">{{ collection.books.length }}本</text>
       </view>
       <view class="cd-books">
-        <view
-          v-for="(book, i) in collection.books"
-          :key="book.id"
-          class="cd-book"
-          @tap="goDetail(book.id)"
-        >
-          <view
-            class="cd-book-num"
-            :class="{ 'cd-book-num--top': i < 3 }"
-          >
-            <text
-              class="cd-book-num-text"
-              :class="{ 'cd-book-num-text--top': i < 3 }"
-            >
-              {{ i + 1 }}
-            </text>
+        <view v-for="(book, i) in collection.books" :key="book.id" class="cd-book" @tap="goDetail(book.id)">
+          <view class="cd-book-num" :class="{ 'cd-book-num--top': i < 3 }">
+            <text class="cd-book-num-text" :class="{ 'cd-book-num-text--top': i < 3 }">{{ i + 1 }}</text>
           </view>
           <view class="cd-book-cover">
             <view class="cd-book-spine" />
-            <text class="cd-book-cover-text">
-              {{ book.title.slice(0, 2) }}
-            </text>
-            <view
-              v-if="book.hasAI"
-              class="cd-book-ai"
-            >
-              <app-icon
-                name="sparkles"
-                :size="16"
-                color="#ffffff"
-              />
+            <text class="cd-book-cover-text">{{ book.title.slice(0, 2) }}</text>
+            <view v-if="book.hasAI" class="cd-book-ai">
+              <app-icon name="sparkles" :size="16" color="#ffffff" />
             </view>
           </view>
           <view class="cd-book-info">
             <view class="cd-book-titlerow">
-              <text class="cd-book-title">
-                {{ book.title }}
-              </text>
-              <view
-                v-if="book.hasTranslation"
-                class="cd-book-trans"
-              >
-                <text class="cd-book-trans-text">
-                  译文
-                </text>
+              <text class="cd-book-title">{{ book.title }}</text>
+              <view v-if="book.hasTranslation" class="cd-book-trans">
+                <text class="cd-book-trans-text">译文</text>
               </view>
             </view>
-            <text class="cd-book-author">
-              [{{ book.dynasty }}] {{ book.author }}
-            </text>
-            <text class="cd-book-desc">
-              {{ book.description }}
-            </text>
+            <text class="cd-book-author">[{{ book.dynasty }}] {{ book.author }}</text>
+            <text class="cd-book-desc">{{ book.description }}</text>
           </view>
-          <app-icon
-            name="chevron-right"
-            :size="32"
-            color="#999999"
-          />
+          <app-icon name="chevron-right" :size="32" color="#999999" />
         </view>
       </view>
     </view>
 
     <!-- 相关推荐 -->
     <view class="cd-section cd-section--related">
-      <text class="cd-section-title">
-        相关书单
-      </text>
-      <scroll-view
-        scroll-x
-        class="cd-related"
-        :show-scrollbar="false"
-      >
+      <text class="cd-section-title">相关书单</text>
+      <scroll-view scroll-x class="cd-related" :show-scrollbar="false">
         <view class="cd-related-row">
           <view
             v-for="col in relatedCollections"
@@ -230,26 +109,13 @@
             class="cd-related-card"
             @tap="goCollection(col.id)"
           >
-            <view
-              class="cd-related-head"
-              :class="`cd-cover--${col.cover}`"
-            >
-              <text class="cd-related-title">
-                {{ col.title }}
-              </text>
-              <text class="cd-related-desc">
-                {{ col.description }}
-              </text>
+            <view class="cd-related-head" :class="`cd-cover--${col.cover}`">
+              <text class="cd-related-title">{{ col.title }}</text>
+              <text class="cd-related-desc">{{ col.description }}</text>
             </view>
             <view class="cd-related-foot">
-              <text class="cd-related-count">
-                {{ col.bookCount }}本
-              </text>
-              <app-icon
-                name="chevron-right"
-                :size="24"
-                color="#999999"
-              />
+              <text class="cd-related-count">{{ col.bookCount }}本</text>
+              <app-icon name="chevron-right" :size="24" color="#999999" />
             </view>
           </view>
         </view>
@@ -259,78 +125,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-import { classicsApi } from '@/lib/classics-data'
-import type { CollectionDetail } from '@/lib/classics-data'
-
-const isLoading = ref(true)
-const loadError = ref<string | null>(null)
+import { collectionsDetailData } from '@/lib/classics-data'
 
 const collectionId = ref('1')
 const isAddedToShelf = ref(false)
-const collection = ref<CollectionDetail>({
-  id: '1',
-  title: '',
-  description: '',
-  cover: 'amber',
-  curator: '',
-  bookCount: 0,
-  viewCount: 0,
-  tags: [],
-  books: [],
-})
-const relatedCollections = ref<CollectionDetail[]>([])
-
-const isEmpty = computed(() => !collection.value || !collection.value.books || collection.value.books.length === 0)
 
 onLoad((options) => {
-  if (options?.id) {
+  if (options?.id && collectionsDetailData[options.id]) {
     collectionId.value = options.id
   }
 })
 
-onMounted(async () => {
-  isLoading.value = true
-  try {
-    const data = await classicsApi.getCollectionDetail(collectionId.value)
-    if (data) {
-      collection.value = data
-    }
-    // 加载相关合集
-    const allData = [data]
-    // 尝试加载其他合集作为推荐
-    for (const id of ['1', '2']) {
-      if (id !== collectionId.value) {
-        try {
-          const related = await classicsApi.getCollectionDetail(id)
-          if (related) allData.push(related)
-        } catch { /* skip */ }
-      }
-    }
-    relatedCollections.value = allData.filter((c): c is CollectionDetail => !!c && c.id !== collectionId.value)
-  } catch {
-    loadError.value = '加载失败'
-  } finally {
-    isLoading.value = false
-  }
-})
-
-function reload() {
-  loadError.value = null
-  isLoading.value = true
-  classicsApi.getCollectionDetail(collectionId.value).then((data) => {
-    if (data) collection.value = data
-  }).catch(() => {
-    loadError.value = '加载失败'
-  }).finally(() => {
-    isLoading.value = false
-  })
-}
+const collection = computed(() => collectionsDetailData[collectionId.value] || collectionsDetailData['1'])
+const relatedCollections = computed(() =>
+  Object.values(collectionsDetailData).filter((c) => c.id !== collectionId.value),
+)
 
 function goBack() {
   uni.navigateBack({ delta: 1, fail: () => uni.navigateTo({ url: '/pkg-classics/home/index' }) })

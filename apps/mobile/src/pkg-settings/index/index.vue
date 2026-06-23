@@ -1,208 +1,83 @@
 <template>
   <view class="page">
-    <app-nav-bar
-      title="设置"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="32"
-      :title-weight="600"
-      :bar-height="112"
-    />
+    <app-nav-bar title="设置" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112" />
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <view class="content">
         <!-- 账号与安全 -->
         <view class="card">
-          <view class="card-hd">
-            <text class="card-hd-text">
-              账号与安全
-            </text>
-          </view>
+          <view class="card-hd"><text class="card-hd-text">账号与安全</text></view>
           <view class="rows">
-            <view
-              class="row"
-              @tap="go('/settings/phone')"
-            >
+            <view class="row" @tap="go('/settings/phone')">
               <view class="row-l">
-                <view class="row-ic">
-                  <app-icon
-                    name="smartphone"
-                    :size="16"
-                    color="#8a8278"
-                  />
-                </view>
-                <text class="row-label">
-                  手机号
-                </text>
+                <view class="row-ic"><app-icon name="smartphone" :size="16" color="#8a8278" /></view>
+                <text class="row-label">手机号</text>
               </view>
               <view class="row-r">
-                <text class="row-val">
-                  138****8888
-                </text>
-                <app-icon
-                  name="chevron-right"
-                  :size="16"
-                  color="#c9c2b8"
-                />
+                <text class="row-val">138****8888</text>
+                <app-icon name="chevron-right" :size="16" color="#c9c2b8" />
               </view>
             </view>
-            <view
-              class="row"
-              @tap="go('/settings/password')"
-            >
+            <view class="row" @tap="go('/settings/password')">
               <view class="row-l">
-                <view class="row-ic">
-                  <app-icon
-                    name="lock"
-                    :size="16"
-                    color="#8a8278"
-                  />
-                </view>
-                <text class="row-label">
-                  登录密码
-                </text>
+                <view class="row-ic"><app-icon name="lock" :size="16" color="#8a8278" /></view>
+                <text class="row-label">登录密码</text>
               </view>
               <view class="row-r">
-                <text class="row-val">
-                  修改
-                </text>
-                <app-icon
-                  name="chevron-right"
-                  :size="16"
-                  color="#c9c2b8"
-                />
+                <text class="row-val">修改</text>
+                <app-icon name="chevron-right" :size="16" color="#c9c2b8" />
               </view>
             </view>
             <view class="row">
               <view class="row-l">
-                <view class="row-ic">
-                  <app-icon
-                    name="shield"
-                    :size="16"
-                    color="#8a8278"
-                  />
-                </view>
-                <text class="row-label">
-                  二次验证
-                </text>
+                <view class="row-ic"><app-icon name="shield" :size="16" color="#8a8278" /></view>
+                <text class="row-label">二次验证</text>
               </view>
-              <switch
-                :checked="twoFactor"
-                color="#c41e3a"
-                style="transform:scale(0.8)"
-                @change="twoFactor=switchValue($event)"
-              />
+              <switch :checked="twoFactor" color="#c41e3a" style="transform:scale(0.8)" @change="twoFactor=$event.detail.value" />
             </view>
           </view>
         </view>
 
         <!-- 隐私设置 -->
         <view class="card">
-          <view class="card-hd">
-            <text class="card-hd-text">
-              隐私设置
-            </text>
-          </view>
+          <view class="card-hd"><text class="card-hd-text">隐私设置</text></view>
           <view class="rows">
             <view class="row">
               <view class="row-l">
-                <view class="row-ic">
-                  <app-icon
-                    name="eye"
-                    :size="16"
-                    color="#8a8278"
-                  />
-                </view>
-                <text class="row-label">
-                  公开展示我的收藏
-                </text>
+                <view class="row-ic"><app-icon name="eye" :size="16" color="#8a8278" /></view>
+                <text class="row-label">公开展示我的收藏</text>
               </view>
-              <switch
-                :checked="showFavorites"
-                color="#c41e3a"
-                style="transform:scale(0.8)"
-                @change="showFavorites=switchValue($event)"
-              />
+              <switch :checked="showFavorites" color="#c41e3a" style="transform:scale(0.8)" @change="showFavorites=$event.detail.value" />
             </view>
             <view class="row">
               <view class="row-l">
-                <view class="row-ic">
-                  <app-icon
-                    name="history"
-                    :size="16"
-                    color="#8a8278"
-                  />
-                </view>
-                <text class="row-label">
-                  记录浏览历史
-                </text>
+                <view class="row-ic"><app-icon name="history" :size="16" color="#8a8278" /></view>
+                <text class="row-label">记录浏览历史</text>
               </view>
-              <switch
-                :checked="recordHistory"
-                color="#c41e3a"
-                style="transform:scale(0.8)"
-                @change="recordHistory=switchValue($event)"
-              />
+              <switch :checked="recordHistory" color="#c41e3a" style="transform:scale(0.8)" @change="recordHistory=$event.detail.value" />
             </view>
           </view>
         </view>
 
         <!-- 通知设置 -->
         <view class="card">
-          <view class="card-hd">
-            <text class="card-hd-text">
-              通知设置
-            </text>
-          </view>
+          <view class="card-hd"><text class="card-hd-text">通知设置</text></view>
           <view class="rows">
             <view class="row">
               <view class="row-l">
-                <view class="row-ic">
-                  <app-icon
-                    name="bell"
-                    :size="16"
-                    color="#8a8278"
-                  />
-                </view>
-                <text class="row-label">
-                  推送通知
-                </text>
+                <view class="row-ic"><app-icon name="bell" :size="16" color="#8a8278" /></view>
+                <text class="row-label">推送通知</text>
               </view>
-              <switch
-                :checked="pushEnabled"
-                color="#c41e3a"
-                style="transform:scale(0.8)"
-                @change="pushEnabled=switchValue($event)"
-              />
+              <switch :checked="pushEnabled" color="#c41e3a" style="transform:scale(0.8)" @change="pushEnabled=$event.detail.value" />
             </view>
-            <view
-              class="row"
-              @tap="openSelect('消息免打扰时段', ['关闭','22:00-08:00','23:00-07:00','00:00-08:00'], quietHours, v => quietHours = v)"
-            >
+            <view class="row" @tap="openSelect('消息免打扰时段', ['关闭','22:00-08:00','23:00-07:00','00:00-08:00'], quietHours, v => quietHours = v)">
               <view class="row-l">
-                <view class="row-ic">
-                  <app-icon
-                    name="moon"
-                    :size="16"
-                    color="#8a8278"
-                  />
-                </view>
-                <text class="row-label">
-                  消息免打扰时段
-                </text>
+                <view class="row-ic"><app-icon name="moon" :size="16" color="#8a8278" /></view>
+                <text class="row-label">消息免打扰时段</text>
               </view>
               <view class="row-r">
-                <text class="row-val">
-                  {{ quietHours }}
-                </text>
-                <app-icon
-                  name="chevron-right"
-                  :size="16"
-                  color="#c9c2b8"
-                />
+                <text class="row-val">{{ quietHours }}</text>
+                <app-icon name="chevron-right" :size="16" color="#c9c2b8" />
               </view>
             </view>
           </view>
@@ -210,11 +85,7 @@
 
         <!-- 外观主题 -->
         <view class="card">
-          <view class="card-hd">
-            <text class="card-hd-text">
-              外观主题
-            </text>
-          </view>
+          <view class="card-hd"><text class="card-hd-text">外观主题</text></view>
           <view class="theme-wrap">
             <view class="theme-seg">
               <view
@@ -224,17 +95,8 @@
                 :class="{ active: theme === opt.value }"
                 @tap="setTheme(opt.value)"
               >
-                <app-icon
-                  :name="opt.icon"
-                  :size="16"
-                  :color="theme === opt.value ? '#c41e3a' : '#8a8278'"
-                />
-                <text
-                  class="theme-label"
-                  :class="{ active: theme === opt.value }"
-                >
-                  {{ opt.label }}
-                </text>
+                <app-icon :name="opt.icon" :size="16" :color="theme === opt.value ? '#c41e3a' : '#8a8278'" />
+                <text class="theme-label" :class="{ active: theme === opt.value }">{{ opt.label }}</text>
               </view>
             </view>
           </view>
@@ -242,91 +104,36 @@
 
         <!-- 通用设置 -->
         <view class="card">
-          <view class="card-hd">
-            <text class="card-hd-text">
-              通用设置
-            </text>
-          </view>
+          <view class="card-hd"><text class="card-hd-text">通用设置</text></view>
           <view class="rows">
-            <view
-              class="row"
-              @tap="openSelect('默认阅读背景', ['宣纸色','护眼黄','夜间黑','纯白'], readingBg, v => readingBg = v)"
-            >
+            <view class="row" @tap="openSelect('默认阅读背景', ['宣纸色','护眼黄','夜间黑','纯白'], readingBg, v => readingBg = v)">
               <view class="row-l">
-                <view class="row-ic">
-                  <app-icon
-                    name="eye"
-                    :size="16"
-                    color="#8a8278"
-                  />
-                </view>
-                <text class="row-label">
-                  默认阅读背景
-                </text>
+                <view class="row-ic"><app-icon name="eye" :size="16" color="#8a8278" /></view>
+                <text class="row-label">默认阅读背景</text>
               </view>
               <view class="row-r">
-                <text class="row-val">
-                  {{ readingBg }}
-                </text>
-                <app-icon
-                  name="chevron-right"
-                  :size="16"
-                  color="#c9c2b8"
-                />
+                <text class="row-val">{{ readingBg }}</text>
+                <app-icon name="chevron-right" :size="16" color="#c9c2b8" />
               </view>
             </view>
-            <view
-              class="row"
-              @tap="openSelect('字体大小', ['小','中','大'], fontSize, v => fontSize = v)"
-            >
+            <view class="row" @tap="openSelect('字体大小', ['小','中','大'], fontSize, v => fontSize = v)">
               <view class="row-l">
-                <view class="row-ic">
-                  <app-icon
-                    name="type"
-                    :size="16"
-                    color="#8a8278"
-                  />
-                </view>
-                <text class="row-label">
-                  字体大小
-                </text>
+                <view class="row-ic"><app-icon name="type" :size="16" color="#8a8278" /></view>
+                <text class="row-label">字体大小</text>
               </view>
               <view class="row-r">
-                <text class="row-val">
-                  {{ fontSize }}
-                </text>
-                <app-icon
-                  name="chevron-right"
-                  :size="16"
-                  color="#c9c2b8"
-                />
+                <text class="row-val">{{ fontSize }}</text>
+                <app-icon name="chevron-right" :size="16" color="#c9c2b8" />
               </view>
             </view>
-            <view
-              class="row"
-              @tap="openSelect('视频自动播放', ['仅Wi-Fi','始终','关闭'], autoPlay, v => autoPlay = v)"
-            >
+            <view class="row" @tap="openSelect('视频自动播放', ['仅Wi-Fi','始终','关闭'], autoPlay, v => autoPlay = v)">
               <view class="row-l">
-                <view class="row-ic">
-                  <app-icon
-                    name="wifi"
-                    :size="16"
-                    color="#8a8278"
-                  />
-                </view>
-                <text class="row-label">
-                  视频自动播放
-                </text>
+                <view class="row-ic"><app-icon name="wifi" :size="16" color="#8a8278" /></view>
+                <text class="row-label">视频自动播放</text>
               </view>
               <view class="row-r">
-                <text class="row-val">
-                  {{ autoPlay }}
-                </text>
-                <app-icon
-                  name="chevron-right"
-                  :size="16"
-                  color="#c9c2b8"
-                />
+                <text class="row-val">{{ autoPlay }}</text>
+                <app-icon name="chevron-right" :size="16" color="#c9c2b8" />
               </view>
             </view>
           </view>
@@ -334,140 +141,60 @@
 
         <!-- 缓存管理 -->
         <view class="card">
-          <view class="card-hd">
-            <text class="card-hd-text">
-              缓存管理
-            </text>
-          </view>
+          <view class="card-hd"><text class="card-hd-text">缓存管理</text></view>
           <view class="cache-row">
             <view class="row-l">
-              <view class="row-ic">
-                <app-icon
-                  name="trash-2"
-                  :size="16"
-                  color="#8a8278"
-                />
-              </view>
+              <view class="row-ic"><app-icon name="trash-2" :size="16" color="#8a8278" /></view>
               <view>
-                <text class="row-label">
-                  缓存数据
-                </text>
-                <text class="cache-size">
-                  {{ isClearing ? '清理中...' : cacheSize }}
-                </text>
+                <text class="row-label">缓存数据</text>
+                <text class="cache-size">{{ isClearing ? '清理中...' : cacheSize }}</text>
               </view>
             </view>
-            <view
-              class="cache-btn"
-              :class="{ disabled: isClearing }"
-              @tap="clearCache"
-            >
-              <text class="cache-btn-text">
-                {{ isClearing ? '清理中' : '清理缓存' }}
-              </text>
+            <view class="cache-btn" :class="{ disabled: isClearing }" @tap="clearCache">
+              <text class="cache-btn-text">{{ isClearing ? '清理中' : '清理缓存' }}</text>
             </view>
           </view>
         </view>
 
         <!-- 关于我们 -->
         <view class="card">
-          <view class="card-hd">
-            <text class="card-hd-text">
-              关于我们
-            </text>
-          </view>
+          <view class="card-hd"><text class="card-hd-text">关于我们</text></view>
           <view class="rows">
-            <view
-              class="row"
-              @tap="go('/terms/service')"
-            >
+            <view class="row" @tap="go('/terms/service')">
               <view class="row-l">
-                <view class="row-ic">
-                  <app-icon
-                    name="file-text"
-                    :size="16"
-                    color="#8a8278"
-                  />
-                </view>
-                <text class="row-label">
-                  用户协议
-                </text>
+                <view class="row-ic"><app-icon name="file-text" :size="16" color="#8a8278" /></view>
+                <text class="row-label">用户协议</text>
               </view>
-              <app-icon
-                name="chevron-right"
-                :size="16"
-                color="#c9c2b8"
-              />
+              <app-icon name="chevron-right" :size="16" color="#c9c2b8" />
             </view>
-            <view
-              class="row"
-              @tap="go('/policy/privacy')"
-            >
+            <view class="row" @tap="go('/policy/privacy')">
               <view class="row-l">
-                <view class="row-ic">
-                  <app-icon
-                    name="shield"
-                    :size="16"
-                    color="#8a8278"
-                  />
-                </view>
-                <text class="row-label">
-                  隐私政策
-                </text>
+                <view class="row-ic"><app-icon name="shield" :size="16" color="#8a8278" /></view>
+                <text class="row-label">隐私政策</text>
               </view>
-              <app-icon
-                name="chevron-right"
-                :size="16"
-                color="#c9c2b8"
-              />
+              <app-icon name="chevron-right" :size="16" color="#c9c2b8" />
             </view>
             <view class="row">
               <view class="row-l">
-                <view class="row-ic">
-                  <app-icon
-                    name="info"
-                    :size="16"
-                    color="#8a8278"
-                  />
-                </view>
-                <text class="row-label">
-                  版本号
-                </text>
+                <view class="row-ic"><app-icon name="info" :size="16" color="#8a8278" /></view>
+                <text class="row-label">版本号</text>
               </view>
-              <text class="row-val">
-                v1.0.0
-              </text>
+              <text class="row-val">v1.0.0</text>
             </view>
           </view>
         </view>
 
         <!-- 退出登录 -->
-        <view
-          class="logout-btn"
-          @tap="showLogout = true"
-        >
-          <text class="logout-text">
-            退出登录
-          </text>
+        <view class="logout-btn" @tap="showLogout = true">
+          <text class="logout-text">退出登录</text>
         </view>
       </view>
     </scroll-view>
 
     <!-- 选择弹窗 -->
-    <view
-      v-if="selectModal"
-      class="mask mask-bottom"
-      @tap="selectModal = null"
-    >
-      <view
-        class="sheet"
-        @tap.stop
-      >
-        <view class="sheet-hd">
-          <text class="sheet-title">
-            {{ selectModal.title }}
-          </text>
-        </view>
+    <view v-if="selectModal" class="mask mask-bottom" @tap="selectModal = null">
+      <view class="sheet" @tap.stop>
+        <view class="sheet-hd"><text class="sheet-title">{{ selectModal.title }}</text></view>
         <view class="sheet-body">
           <view
             v-for="opt in selectModal.options"
@@ -476,68 +203,26 @@
             :class="{ active: opt === selectModal.current }"
             @tap="chooseOption(opt)"
           >
-            <text
-              class="sheet-opt-text"
-              :class="{ active: opt === selectModal.current }"
-            >
-              {{ opt }}
-            </text>
-            <app-icon
-              v-if="opt === selectModal.current"
-              name="check"
-              :size="16"
-              color="#c41e3a"
-            />
+            <text class="sheet-opt-text" :class="{ active: opt === selectModal.current }">{{ opt }}</text>
+            <app-icon v-if="opt === selectModal.current" name="check" :size="16" color="#c41e3a" />
           </view>
         </view>
         <view class="sheet-ft">
-          <view
-            class="sheet-cancel"
-            @tap="selectModal = null"
-          >
-            <text class="sheet-cancel-text">
-              取消
-            </text>
-          </view>
+          <view class="sheet-cancel" @tap="selectModal = null"><text class="sheet-cancel-text">取消</text></view>
         </view>
       </view>
     </view>
 
     <!-- 退出确认 -->
-    <view
-      v-if="showLogout"
-      class="mask mask-center"
-      @tap="showLogout = false"
-    >
-      <view
-        class="dialog"
-        @tap.stop
-      >
+    <view v-if="showLogout" class="mask mask-center" @tap="showLogout = false">
+      <view class="dialog" @tap.stop>
         <view class="dialog-body">
-          <text class="dialog-title">
-            确认退出登录？
-          </text>
-          <text class="dialog-desc">
-            退出后将需要重新登录才能使用完整功能
-          </text>
+          <text class="dialog-title">确认退出登录？</text>
+          <text class="dialog-desc">退出后将需要重新登录才能使用完整功能</text>
         </view>
         <view class="dialog-actions">
-          <view
-            class="dialog-btn"
-            @tap="showLogout = false"
-          >
-            <text class="dialog-btn-text">
-              取消
-            </text>
-          </view>
-          <view
-            class="dialog-btn"
-            @tap="handleLogout"
-          >
-            <text class="dialog-btn-text primary">
-              确认退出
-            </text>
-          </view>
+          <view class="dialog-btn" @tap="showLogout = false"><text class="dialog-btn-text">取消</text></view>
+          <view class="dialog-btn" @tap="handleLogout"><text class="dialog-btn-text primary">确认退出</text></view>
         </view>
       </view>
     </view>
@@ -570,10 +255,6 @@ const themeOptions = [
 type SelectModal = { title: string; options: string[]; current: string; onSelect: (v: string) => void }
 const selectModal = ref<SelectModal | null>(null)
 
-// uni switch @change 事件边界：H5 Event 无 detail，统一在此提取布尔值
-function switchValue(e: Event): boolean {
-  return (e as unknown as { detail: { value: boolean } }).detail.value
-}
 function go(path: string) {
   navigateTo(path)
 }

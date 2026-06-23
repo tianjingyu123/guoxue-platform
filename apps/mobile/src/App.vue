@@ -37,18 +37,4 @@ page {
   font-size: 28rpx;
   line-height: 1.6;
 }
-
-/* V0响应式：大屏展开布局，不限制宽度 */
-@media screen and (min-width: 768px) {
-  html {
-    background: var(--bg-paper, #faf8f5);
-  }
-}
-@media screen and (min-width: 1024px) {
-  /* PC端：侧边栏占位 + 顶部栏占位 + 内容区居中 */
-  body, uni-app, #app {
-    /* 左侧预留给侧边导航的空间 */
-    padding-left: 56px;
-  }
-}
 </style>

@@ -1,137 +1,60 @@
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="400rpx" radius="24rpx" mb="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无物流信息" desc="未找到相关物流记录" actionText="查看订单" @action="goOrders" />
-  <view v-else class="page">
-    <app-nav-bar
-      title="物流详情"
-      :back-size="40"
-      :title-size="36"
-      :bar-height="106"
-      title-align="left"
-    />
+  <view class="page">
+    <app-nav-bar title="物流详情" :back-size="40" :title-size="36" :bar-height="106" title-align="left" />
 
-    <scroll-view
-      scroll-y
-      class="scroll-area"
-    >
+    <scroll-view scroll-y class="scroll-area">
       <!-- 物流状态卡 -->
       <view class="status-card">
         <view class="status-head">
           <view class="status-icon">
-            <app-icon
-              name="truck"
-              :size="48"
-              color="#FFFFFF"
-            />
+            <app-icon name="truck" :size="48" color="#FFFFFF" />
           </view>
           <view class="status-info">
-            <text
-              class="status-name"
-              :style="{ color: statusMeta.color }"
-            >
-              {{ statusMeta.label }}
-            </text>
-            <text class="status-est">
-              预计 {{ data.estimatedDelivery }} 送达
-            </text>
+            <text class="status-name" :style="{ color: statusMeta.color }">{{ statusMeta.label }}</text>
+            <text class="status-est">预计 {{ data.estimatedDelivery }} 送达</text>
           </view>
         </view>
         <view class="company-row">
           <view class="company-item">
-            <text class="company-label">
-              承运
-            </text>
-            <text class="company-value">
-              {{ data.company }}
-            </text>
+            <text class="company-label">承运</text>
+            <text class="company-value">{{ data.company }}</text>
           </view>
           <view class="company-item">
-            <text class="company-label">
-              单号
-            </text>
-            <text class="company-value">
-              {{ data.trackingNo }}
-            </text>
+            <text class="company-label">单号</text>
+            <text class="company-value">{{ data.trackingNo }}</text>
           </view>
-          <view
-            class="copy-btn"
-            @tap="copyNo"
-          >
-            <app-icon
-              name="copy"
-              :size="28"
-              color="#C41E3A"
-            />
-            <text class="copy-text">
-              复制
-            </text>
+          <view class="copy-btn" @tap="copyNo">
+            <app-icon name="copy" :size="28" color="#C41E3A" />
+            <text class="copy-text">复制</text>
           </view>
         </view>
         <view class="action-row">
-          <view
-            class="action-btn"
-            @tap="callCompany"
-          >
-            <app-icon
-              name="phone"
-              :size="28"
-              color="#666666"
-            />
-            <text class="action-text">
-              联系快递公司
-            </text>
+          <view class="action-btn" @tap="callCompany">
+            <app-icon name="phone" :size="28" color="#666666" />
+            <text class="action-text">联系快递公司</text>
           </view>
-          <view
-            v-if="data.courierPhone"
-            class="action-btn"
-            @tap="callCourier"
-          >
-            <app-icon
-              name="user"
-              :size="28"
-              color="#666666"
-            />
-            <text class="action-text">
-              联系快递员 {{ data.courierName }}
-            </text>
+          <view v-if="data.courierPhone" class="action-btn" @tap="callCourier">
+            <app-icon name="user" :size="28" color="#666666" />
+            <text class="action-text">联系快递员 {{ data.courierName }}</text>
           </view>
         </view>
       </view>
 
       <!-- 收货信息 -->
       <view class="receiver-card">
-        <app-icon
-          name="map-pin"
-          :size="36"
-          color="#C41E3A"
-        />
+        <app-icon name="map-pin" :size="36" color="#C41E3A" />
         <view class="receiver-info">
           <view class="receiver-head">
-            <text class="receiver-name">
-              {{ data.receiver.name }}
-            </text>
-            <text class="receiver-phone">
-              {{ data.receiver.phone }}
-            </text>
+            <text class="receiver-name">{{ data.receiver.name }}</text>
+            <text class="receiver-phone">{{ data.receiver.phone }}</text>
           </view>
-          <text class="receiver-addr">
-            {{ data.receiver.address }}
-          </text>
+          <text class="receiver-addr">{{ data.receiver.address }}</text>
         </view>
       </view>
 
       <!-- 物流轨迹时间轴 -->
       <view class="track-card">
-        <text class="track-title">
-          物流轨迹
-        </text>
+        <text class="track-title">物流轨迹</text>
         <view class="timeline">
           <view
             v-for="(t, idx) in data.tracks"
@@ -139,36 +62,16 @@
             class="track-node"
           >
             <view class="track-line-col">
-              <view
-                class="track-dot"
-                :class="{ current: t.isCurrent }"
-              >
-                <app-icon
-                  v-if="t.isCurrent"
-                  name="truck"
-                  :size="24"
-                  color="#FFFFFF"
-                />
+              <view class="track-dot" :class="{ current: t.isCurrent }">
+                <app-icon v-if="t.isCurrent" name="truck" :size="24" color="#FFFFFF" />
               </view>
-              <view
-                v-if="idx < data.tracks.length - 1"
-                class="track-line"
-              />
+              <view v-if="idx < data.tracks.length - 1" class="track-line" />
             </view>
             <view class="track-body">
-              <text
-                class="track-desc"
-                :class="{ current: t.isCurrent }"
-              >
-                {{ t.description }}
-              </text>
+              <text class="track-desc" :class="{ current: t.isCurrent }">{{ t.description }}</text>
               <view class="track-meta">
-                <text class="track-loc">
-                  {{ t.location }}
-                </text>
-                <text class="track-time">
-                  {{ t.time }}
-                </text>
+                <text class="track-loc">{{ t.location }}</text>
+                <text class="track-time">{{ t.time }}</text>
               </view>
             </view>
           </view>
@@ -182,25 +85,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-import { navigateTo } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { mockLogistics as _mockLogistics, logisticsStatusMap as _logisticsStatusMap, type LogisticsDetail } from '@/lib/order-data'
+import { mockLogistics as logisticsDetail, logisticsStatusMap } from '@/lib/order-data'
 
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { logistics: _mockLogistics }
-})
-
-const logisticsStatusMap = _logisticsStatusMap
-const isEmpty = computed(() => !pageData.value?.logistics?.trackingNo)
-const emptyLogistics: LogisticsDetail = {
-  orderId: '', orderNo: '', company: '', companyPhone: '', trackingNo: '',
-  status: '', estimatedDelivery: '', courierName: '', courierPhone: '',
-  receiver: { name: '', phone: '', address: '' }, tracks: [],
-}
-const data = computed<LogisticsDetail>(() => pageData.value?.logistics ?? emptyLogistics)
+const data = ref(logisticsDetail)
 const statusMeta = computed(
   () => logisticsStatusMap[data.value.status] || { label: '运输中', color: '#C41E3A' },
 )
@@ -219,7 +106,6 @@ function callCompany() {
 function callCourier() {
   if (data.value.courierPhone) uni.makePhoneCall({ phoneNumber: data.value.courierPhone })
 }
-function goOrders() { navigateTo('/orders') }
 </script>
 
 <style lang="scss" scoped>

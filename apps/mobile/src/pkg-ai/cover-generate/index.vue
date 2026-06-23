@@ -1,89 +1,45 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view
-      class="nav"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-inner">
         <view class="nav-left">
-          <view
-            class="nav-back"
-            @tap="goBack"
-          >
-            <app-icon
-              name="arrow-left"
-              :size="40"
-              color="#fff"
-            />
+          <view class="nav-back" @tap="goBack">
+            <app-icon name="arrow-left" :size="40" color="#fff" />
           </view>
-          <text class="nav-title">
-            AI 封面生成
-          </text>
+          <text class="nav-title">AI 封面生成</text>
         </view>
-        <view
-          class="nav-history"
-          @tap="openHistory"
-        >
-          <app-icon
-            name="history"
-            :size="40"
-            color="#fff"
-          />
+        <view class="nav-history" @tap="openHistory">
+          <app-icon name="history" :size="40" color="#fff" />
         </view>
       </view>
     </view>
 
     <!-- 加载骨架 -->
-    <view
-      v-if="loading"
-      class="skeleton"
-    >
-      <view
-        v-for="i in 5"
-        :key="i"
-        class="sk-block"
-      />
+    <view v-if="loading" class="skeleton">
+      <view class="sk-block" v-for="i in 5" :key="i" />
     </view>
 
-    <scroll-view
-      v-else
-      scroll-y
-      class="body"
-    >
+    <scroll-view v-else scroll-y class="body">
       <view class="content">
         <!-- 内容标题 -->
         <view class="field">
-          <text class="field-label">
-            内容标题
-          </text>
+          <text class="field-label">内容标题</text>
           <input
             v-model="title"
             class="field-input"
             placeholder="输入文章/帖子标题"
             placeholder-class="ph"
-          >
+          />
         </view>
 
         <!-- Prompt -->
         <view class="field">
           <view class="field-head">
-            <text class="field-label">
-              生成描述 (Prompt)
-            </text>
-            <view
-              class="smart-btn"
-              :class="{ disabled: !title.trim() }"
-              @tap="handleSmartPrompt"
-            >
-              <app-icon
-                name="wand-2"
-                :size="24"
-                :color="title.trim() ? '#C41E3A' : '#C41E3A80'"
-              />
-              <text class="smart-txt">
-                智能生成
-              </text>
+            <text class="field-label">生成描述 (Prompt)</text>
+            <view class="smart-btn" :class="{ disabled: !title.trim() }" @tap="handleSmartPrompt">
+              <app-icon name="wand-2" :size="24" :color="title.trim() ? '#C41E3A' : '#C41E3A80'" />
+              <text class="smart-txt">智能生成</text>
             </view>
           </view>
           <textarea
@@ -97,9 +53,7 @@
 
         <!-- 封面风格 -->
         <view class="field">
-          <text class="field-label">
-            封面风格
-          </text>
+          <text class="field-label">封面风格</text>
           <view class="style-grid">
             <view
               v-for="s in styles"
@@ -108,31 +62,12 @@
               :class="{ active: selectedStyle === s.value }"
               @tap="selectedStyle = s.value"
             >
-              <view
-                class="style-thumb"
-                :style="{ background: s.preview }"
-              >
-                <app-icon
-                  name="image"
-                  :size="44"
-                  color="#ffffffcc"
-                />
+              <view class="style-thumb" :style="{ background: s.preview }">
+                <app-icon name="image" :size="44" color="#ffffffcc" />
               </view>
-              <text
-                class="style-name"
-                :class="{ active: selectedStyle === s.value }"
-              >
-                {{ s.label }}
-              </text>
-              <view
-                v-if="selectedStyle === s.value"
-                class="style-check"
-              >
-                <app-icon
-                  name="check"
-                  :size="22"
-                  color="#fff"
-                />
+              <text class="style-name" :class="{ active: selectedStyle === s.value }">{{ s.label }}</text>
+              <view v-if="selectedStyle === s.value" class="style-check">
+                <app-icon name="check" :size="22" color="#fff" />
               </view>
             </view>
           </view>
@@ -140,9 +75,7 @@
 
         <!-- 封面尺寸 -->
         <view class="field">
-          <text class="field-label">
-            封面尺寸
-          </text>
+          <text class="field-label">封面尺寸</text>
           <view class="size-row">
             <view
               v-for="sz in sizeOptions"
@@ -151,24 +84,15 @@
               :class="{ active: selectedSize === sz.value }"
               @tap="selectedSize = sz.value"
             >
-              <text
-                class="size-label"
-                :class="{ active: selectedSize === sz.value }"
-              >
-                {{ sz.label }}
-              </text>
-              <text class="size-ratio">
-                {{ sz.ratio }}
-              </text>
+              <text class="size-label" :class="{ active: selectedSize === sz.value }">{{ sz.label }}</text>
+              <text class="size-ratio">{{ sz.ratio }}</text>
             </view>
           </view>
         </view>
 
         <!-- 生成数量 -->
         <view class="field">
-          <text class="field-label">
-            生成数量
-          </text>
+          <text class="field-label">生成数量</text>
           <view class="count-row">
             <view
               v-for="c in [2, 4, 6]"
@@ -177,12 +101,7 @@
               :class="{ active: generateCount === c }"
               @tap="generateCount = c"
             >
-              <text
-                class="count-txt"
-                :class="{ active: generateCount === c }"
-              >
-                {{ c }} 张
-              </text>
+              <text class="count-txt" :class="{ active: generateCount === c }">{{ c }} 张</text>
             </view>
           </view>
         </view>
@@ -193,45 +112,18 @@
           :class="{ disabled: !title.trim() || generating }"
           @tap="handleGenerate"
         >
-          <app-icon
-            v-if="generating"
-            name="refresh-cw"
-            :size="36"
-            color="#fff"
-            class="spin"
-          />
-          <app-icon
-            v-else
-            name="sparkles"
-            :size="36"
-            color="#fff"
-          />
-          <text class="gen-txt">
-            {{ generating ? 'AI 生成中...' : '生成封面' }}
-          </text>
+          <app-icon v-if="generating" name="refresh-cw" :size="36" color="#fff" class="spin" />
+          <app-icon v-else name="sparkles" :size="36" color="#fff" />
+          <text class="gen-txt">{{ generating ? 'AI 生成中...' : '生成封面' }}</text>
         </view>
 
         <!-- 生成结果 -->
-        <view
-          v-if="results.length"
-          class="results"
-        >
+        <view v-if="results.length" class="results">
           <view class="results-head">
-            <text class="results-title">
-              生成结果
-            </text>
-            <view
-              class="regen"
-              @tap="handleGenerate"
-            >
-              <app-icon
-                name="refresh-cw"
-                :size="28"
-                color="#C41E3A"
-              />
-              <text class="regen-txt">
-                重新生成
-              </text>
+            <text class="results-title">生成结果</text>
+            <view class="regen" @tap="handleGenerate">
+              <app-icon name="refresh-cw" :size="28" color="#C41E3A" />
+              <text class="regen-txt">重新生成</text>
             </view>
           </view>
 
@@ -243,81 +135,35 @@
               :class="{ active: selectedResultId === r.id }"
               @tap="selectedResultId = r.id"
             >
-              <view
-                class="result-img"
-                :style="{ background: r.bg }"
-              />
-              <view
-                v-if="selectedResultId === r.id"
-                class="result-check"
-              >
-                <app-icon
-                  name="check"
-                  :size="26"
-                  color="#fff"
-                />
+              <view class="result-img" :style="{ background: r.bg }" />
+              <view v-if="selectedResultId === r.id" class="result-check">
+                <app-icon name="check" :size="26" color="#fff" />
               </view>
             </view>
           </view>
 
           <!-- 选中预览 -->
-          <view
-            v-if="selectedResult"
-            class="preview"
-          >
-            <view
-              class="preview-img"
-              :style="{ background: selectedResult.bg }"
-            />
+          <view v-if="selectedResult" class="preview">
+            <view class="preview-img" :style="{ background: selectedResult.bg }" />
             <view class="preview-meta">
               <view class="meta-tags">
-                <text class="meta-tag">
-                  {{ getStyleName(selectedResult.style) }}
-                </text>
-                <text class="meta-tag">
-                  {{ selectedResult.size }}
-                </text>
+                <text class="meta-tag">{{ getStyleName(selectedResult.style) }}</text>
+                <text class="meta-tag">{{ selectedResult.size }}</text>
               </view>
-              <text class="meta-prompt">
-                {{ selectedResult.prompt }}
-              </text>
+              <text class="meta-prompt">{{ selectedResult.prompt }}</text>
             </view>
             <view class="preview-actions">
-              <view
-                class="act-btn outline"
-                @tap="handleSave"
-              >
-                <app-icon
-                  name="save"
-                  :size="28"
-                  color="#444"
-                />
-                <text class="act-txt">
-                  保存
-                </text>
+              <view class="act-btn outline" @tap="handleSave">
+                <app-icon name="save" :size="28" color="#444" />
+                <text class="act-txt">保存</text>
               </view>
-              <view
-                class="act-btn outline"
-                @tap="handleDownload"
-              >
-                <app-icon
-                  name="download"
-                  :size="28"
-                  color="#444"
-                />
-                <text class="act-txt">
-                  下载
-                </text>
+              <view class="act-btn outline" @tap="handleDownload">
+                <app-icon name="download" :size="28" color="#444" />
+                <text class="act-txt">下载</text>
               </view>
             </view>
-            <view
-              v-if="contentId"
-              class="apply-btn"
-              @tap="handleApply"
-            >
-              <text class="apply-txt">
-                应用此封面
-              </text>
+            <view v-if="contentId" class="apply-btn" @tap="handleApply">
+              <text class="apply-txt">应用此封面</text>
             </view>
           </view>
         </view>
@@ -325,60 +171,25 @@
     </scroll-view>
 
     <!-- 历史记录弹层 -->
-    <view
-      v-if="showHistory"
-      class="sheet-mask"
-      @tap="showHistory = false"
-    >
-      <view
-        class="sheet"
-        @tap.stop
-      >
+    <view v-if="showHistory" class="sheet-mask" @tap="showHistory = false">
+      <view class="sheet" @tap.stop>
         <view class="sheet-head">
-          <text class="sheet-title">
-            生成历史
-          </text>
+          <text class="sheet-title">生成历史</text>
         </view>
-        <scroll-view
-          scroll-y
-          class="sheet-body"
-        >
-          <view
-            v-if="historyLoading"
-            class="hist-loading"
-          >
-            <view
-              v-for="i in 3"
-              :key="i"
-              class="hist-sk"
-            />
+        <scroll-view scroll-y class="sheet-body">
+          <view v-if="historyLoading" class="hist-loading">
+            <view class="hist-sk" v-for="i in 3" :key="i" />
           </view>
-          <view
-            v-else-if="!history.length"
-            class="hist-empty"
-          >
-            <text class="hist-empty-txt">
-              暂无生成历史
-            </text>
+          <view v-else-if="!history.length" class="hist-empty">
+            <text class="hist-empty-txt">暂无生成历史</text>
           </view>
           <view v-else>
-            <view
-              v-for="item in history"
-              :key="item.id"
-              class="hist-item"
-            >
+            <view v-for="item in history" :key="item.id" class="hist-item">
               <view class="hist-item-head">
-                <text class="hist-item-title">
-                  {{ item.title }}
-                </text>
-                <text class="hist-item-time">
-                  {{ item.createdAt }}
-                </text>
+                <text class="hist-item-title">{{ item.title }}</text>
+                <text class="hist-item-time">{{ item.createdAt }}</text>
               </view>
-              <scroll-view
-                scroll-x
-                class="hist-thumbs"
-              >
+              <scroll-view scroll-x class="hist-thumbs">
                 <view
                   v-for="r in item.results"
                   :key="r.id"
@@ -388,14 +199,8 @@
                 />
               </scroll-view>
               <view class="hist-detail">
-                <text class="hist-detail-txt">
-                  查看详情
-                </text>
-                <app-icon
-                  name="chevron-right"
-                  :size="22"
-                  color="#C41E3A"
-                />
+                <text class="hist-detail-txt">查看详情</text>
+                <app-icon name="chevron-right" :size="22" color="#C41E3A" />
               </view>
             </view>
           </view>

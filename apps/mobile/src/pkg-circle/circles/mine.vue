@@ -36,182 +36,55 @@ function goDiscover() { navigateTo('/pages/circles/index') }
   <view class="mc">
     <!-- 顶栏 -->
     <view class="mc-hdr">
-      <view
-        class="mc-hdr-btn"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="40"
-          color="#1a1a1a"
-        />
-      </view>
-      <text class="mc-hdr-title">
-        我的圈子
-      </text>
-      <view
-        class="mc-hdr-btn"
-        @tap="goCreate"
-      >
-        <app-icon
-          name="plus"
-          :size="40"
-          color="#1a1a1a"
-        />
-      </view>
+      <view class="mc-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#1a1a1a" /></view>
+      <text class="mc-hdr-title">我的圈子</text>
+      <view class="mc-hdr-btn" @tap="goCreate"><app-icon name="plus" :size="40" color="#1a1a1a" /></view>
     </view>
 
     <!-- Tab -->
     <view class="mc-tabs">
-      <view
-        class="mc-tab"
-        :class="{ on: activeTab === 'joined' }"
-        @tap="activeTab = 'joined'"
-      >
-        <text
-          class="mc-tab-t"
-          :class="{ on: activeTab === 'joined' }"
-        >
-          已加入
-        </text>
+      <view class="mc-tab" :class="{ on: activeTab === 'joined' }" @tap="activeTab = 'joined'">
+        <text class="mc-tab-t" :class="{ on: activeTab === 'joined' }">已加入</text>
       </view>
-      <view
-        class="mc-tab"
-        :class="{ on: activeTab === 'created' }"
-        @tap="activeTab = 'created'"
-      >
-        <text
-          class="mc-tab-t"
-          :class="{ on: activeTab === 'created' }"
-        >
-          我创建
-        </text>
+      <view class="mc-tab" :class="{ on: activeTab === 'created' }" @tap="activeTab = 'created'">
+        <text class="mc-tab-t" :class="{ on: activeTab === 'created' }">我创建</text>
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="mc-body"
-    >
+    <scroll-view scroll-y class="mc-body">
       <!-- 空态 -->
-      <view
-        v-if="!loading && displayCircles.length === 0"
-        class="mc-empty"
-      >
-        <view class="mc-empty-icon">
-          <app-icon
-            name="inbox"
-            :size="64"
-            color="#c9b8a0"
-          />
-        </view>
-        <text class="mc-empty-title">
-          {{ activeTab === 'joined' ? '还没有加入任何圈子' : '还没有创建圈子' }}
-        </text>
-        <text class="mc-empty-sub">
-          这里还没有内容
-        </text>
-        <view
-          class="mc-empty-btn"
-          @tap="goDiscover"
-        >
-          <text class="mc-empty-btn-t">
-            {{ activeTab === 'joined' ? '去发现圈子' : '立即创建' }}
-          </text>
+      <view v-if="!loading && displayCircles.length === 0" class="mc-empty">
+        <view class="mc-empty-icon"><app-icon name="inbox" :size="64" color="#c9b8a0" /></view>
+        <text class="mc-empty-title">{{ activeTab === 'joined' ? '还没有加入任何圈子' : '还没有创建圈子' }}</text>
+        <text class="mc-empty-sub">这里还没有内容</text>
+        <view class="mc-empty-btn" @tap="goDiscover">
+          <text class="mc-empty-btn-t">{{ activeTab === 'joined' ? '去发现圈子' : '立即创建' }}</text>
         </view>
       </view>
 
       <!-- 列表 -->
-      <view
-        v-else
-        class="mc-list"
-      >
-        <view
-          v-for="(c, i) in displayCircles"
-          :key="c.id"
-          class="mc-card"
-          @tap="openCircle(c.id)"
-        >
-          <image
-            :src="c.cover"
-            class="mc-card-cover"
-            mode="aspectFill"
-          />
+      <view v-else class="mc-list">
+        <view v-for="(c, i) in displayCircles" :key="c.id" class="mc-card" @tap="openCircle(c.id)">
+          <image :src="c.cover" class="mc-card-cover" mode="aspectFill" />
           <view class="mc-card-main">
             <view class="mc-card-name-row">
-              <text class="mc-card-name">
-                {{ c.name }}
-              </text>
-              <view
-                v-if="roleOf(c, i) === 'owner'"
-                class="mc-badge owner"
-              >
-                <app-icon
-                  name="crown"
-                  :size="20"
-                  color="#b8860b"
-                /><text class="mc-badge-t owner">
-                  圈主
-                </text>
-              </view>
-              <view
-                v-else-if="roleOf(c, i) === 'admin'"
-                class="mc-badge admin"
-              >
-                <text class="mc-badge-t admin">
-                  管理员
-                </text>
-              </view>
+              <text class="mc-card-name">{{ c.name }}</text>
+              <view v-if="roleOf(c, i) === 'owner'" class="mc-badge owner"><app-icon name="crown" :size="20" color="#b8860b" /><text class="mc-badge-t owner">圈主</text></view>
+              <view v-else-if="roleOf(c, i) === 'admin'" class="mc-badge admin"><text class="mc-badge-t admin">管理员</text></view>
             </view>
-            <text class="mc-card-desc">
-              {{ c.description || '国学文化交流圈子' }}
-            </text>
+            <text class="mc-card-desc">{{ c.description || '国学文化交流圈子' }}</text>
             <view class="mc-card-meta">
-              <view class="mc-card-stat">
-                <app-icon
-                  name="users"
-                  :size="22"
-                  color="#999999"
-                /><text class="mc-card-stat-t">
-                  {{ fmt(c.members) }} 成员
-                </text>
-              </view>
-              <view
-                v-if="i === 0"
-                class="mc-card-stat new"
-              >
-                <app-icon
-                  name="bell"
-                  :size="22"
-                  color="#c41e3a"
-                /><text class="mc-card-stat-t new">
-                  有新内容
-                </text>
-              </view>
+              <view class="mc-card-stat"><app-icon name="users" :size="22" color="#999999" /><text class="mc-card-stat-t">{{ fmt(c.members) }} 成员</text></view>
+              <view v-if="i === 0" class="mc-card-stat new"><app-icon name="bell" :size="22" color="#c41e3a" /><text class="mc-card-stat-t new">有新内容</text></view>
             </view>
           </view>
-          <app-icon
-            name="chevron-right"
-            :size="32"
-            color="#cccccc"
-          />
+          <app-icon name="chevron-right" :size="32" color="#cccccc" />
         </view>
 
         <!-- 创建新圈子入口 -->
-        <view
-          class="mc-create"
-          @tap="goCreate"
-        >
-          <view class="mc-create-icon">
-            <app-icon
-              name="plus"
-              :size="40"
-              color="#8a8378"
-            />
-          </view>
-          <text class="mc-create-t">
-            创建一个新圈子
-          </text>
+        <view class="mc-create" @tap="goCreate">
+          <view class="mc-create-icon"><app-icon name="plus" :size="40" color="#8a8378" /></view>
+          <text class="mc-create-t">创建一个新圈子</text>
         </view>
       </view>
     </scroll-view>

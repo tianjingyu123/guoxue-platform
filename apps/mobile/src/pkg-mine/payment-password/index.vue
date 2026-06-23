@@ -2,7 +2,6 @@
 import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { mineApi } from '@/lib/mine-data'
 
 type Step = 'enter_old' | 'enter_new' | 'confirm_new' | 'verify_phone' | 'done'
 
@@ -66,18 +65,13 @@ function startCountdown() {
     if (countdown.value <= 0 && timer) clearInterval(timer)
   }, 1000)
 }
-async function handleSendCode() {
+function handleSendCode() {
   if (!/^1[3-9]\d{9}$/.test(phone.value)) {
     error.value = '请输入正确的手机号'
     return
   }
-  const res = await mineApi.sendSmsCode(phone.value, 'payment_password')
-  if (res.success) {
-    startCountdown()
-    error.value = ''
-  } else {
-    error.value = res.message || '发送失败'
-  }
+  startCountdown()
+  error.value = ''
 }
 function handleForget() {
   step.value = 'verify_phone'
@@ -88,36 +82,22 @@ function handleForget() {
 async function advance() {
   error.value = ''
   loading.value = true
+  await new Promise((r) => setTimeout(r, 600))
+  loading.value = false
 
   if (step.value === 'enter_old') {
-    if (oldPin.value.length < 6) { error.value = '请输入完整的6位密码'; loading.value = false; return }
-    const res = await mineApi.verifyPayPassword(oldPin.value)
-    loading.value = false
-    if (res.success) {
-      step.value = 'enter_new'
-    } else {
-      oldPin.value = ''
-      error.value = res.message || '密码错误，请重试'
-    }
+    if (oldPin.value.length < 6) { error.value = '请输入完整的6位密码'; return }
+    if (oldPin.value !== '123456') { oldPin.value = ''; error.value = '密码错误，请重试'; return }
+    step.value = 'enter_new'
   } else if (step.value === 'enter_new') {
-    if (newPin.value.length < 6) { error.value = '请输入完整的6位新密码'; loading.value = false; return }
-    loading.value = false
+    if (newPin.value.length < 6) { error.value = '请输入完整的6位新密码'; return }
     step.value = 'confirm_new'
   } else if (step.value === 'confirm_new') {
-    if (confirmPin.value.length < 6) { error.value = '请输入完整的确认密码'; loading.value = false; return }
-    if (confirmPin.value !== newPin.value) { confirmPin.value = ''; error.value = '两次密码不一致，请重新输入'; loading.value = false; return }
-    const res = mode === 'set'
-      ? await mineApi.setPayPassword(newPin.value, smsCode.value)
-      : await mineApi.updatePayPassword(oldPin.value, newPin.value)
-    loading.value = false
-    if (res.success) {
-      step.value = 'done'
-    } else {
-      error.value = res.message || '操作失败'
-    }
+    if (confirmPin.value.length < 6) { error.value = '请输入完整的确认密码'; return }
+    if (confirmPin.value !== newPin.value) { confirmPin.value = ''; error.value = '两次密码不一致，请重新输入'; return }
+    step.value = 'done'
   } else if (step.value === 'verify_phone') {
-    if (smsCode.value.length < 6) { error.value = '请输入6位验证码'; loading.value = false; return }
-    loading.value = false
+    if (smsCode.value.length < 6) { error.value = '请输入6位验证码'; return }
     step.value = 'enter_new'
   }
 }
@@ -145,115 +125,43 @@ function onSmsInput(e: any) {
     <view class="body">
       <template v-if="step !== 'done'">
         <!-- 进度 -->
-        <view
-          v-if="mode === 'change'"
-          class="progress"
-        >
-          <view
-            v-for="(s, idx) in progressSteps"
-            :key="s"
-            class="progress-cell"
-          >
-            <view
-              class="progress-dot"
-              :class="{ active: step === s, passed: currentProgressIdx > idx }"
-            >
-              <text
-                class="progress-num"
-                :class="{ active: step === s || currentProgressIdx > idx }"
-              >
-                {{ idx + 1 }}
-              </text>
+        <view v-if="mode === 'change'" class="progress">
+          <view v-for="(s, idx) in progressSteps" :key="s" class="progress-cell">
+            <view class="progress-dot" :class="{ active: step === s, passed: currentProgressIdx > idx }">
+              <text class="progress-num" :class="{ active: step === s || currentProgressIdx > idx }">{{ idx + 1 }}</text>
             </view>
-            <view
-              v-if="idx < 2"
-              class="progress-line"
-              :class="{ active: currentProgressIdx > idx }"
-            />
+            <view v-if="idx < 2" class="progress-line" :class="{ active: currentProgressIdx > idx }" />
           </view>
         </view>
 
         <!-- 标题 -->
         <view class="title-block">
-          <view class="title-icon">
-            <AppIcon
-              name="shield"
-              :size="32"
-              color="#C41E3A"
-            />
-          </view>
-          <text class="title">
-            {{ stepTitles[step] }}
-          </text>
-          <text class="subtitle">
-            {{ stepSubtitles[step] }}
-          </text>
+          <view class="title-icon"><AppIcon name="shield" :size="32" color="#C41E3A" /></view>
+          <text class="title">{{ stepTitles[step] }}</text>
+          <text class="subtitle">{{ stepSubtitles[step] }}</text>
         </view>
 
         <!-- 验证手机号 -->
-        <view
-          v-if="step === 'verify_phone'"
-          class="phone-form"
-        >
+        <view v-if="step === 'verify_phone'" class="phone-form">
           <view class="field">
-            <text class="field-label">
-              手机号
-            </text>
+            <text class="field-label">手机号</text>
             <view class="code-row">
-              <input
-                class="full-input"
-                type="number"
-                :value="phone"
-                placeholder="请输入手机号"
-                placeholder-class="ph"
-                @input="onPhoneInput"
-              >
-              <view
-                class="code-btn"
-                :class="{ disabled: countdown > 0 }"
-                @tap="handleSendCode"
-              >
-                <text class="code-btn-text">
-                  {{ countdown > 0 ? `${countdown}s` : '发送验证码' }}
-                </text>
+              <input class="full-input" type="number" :value="phone" @input="onPhoneInput" placeholder="请输入手机号" placeholder-class="ph" />
+              <view class="code-btn" :class="{ disabled: countdown > 0 }" @tap="handleSendCode">
+                <text class="code-btn-text">{{ countdown > 0 ? `${countdown}s` : '发送验证码' }}</text>
               </view>
             </view>
           </view>
           <view class="field">
-            <text class="field-label">
-              验证码
-            </text>
-            <input
-              class="full-input"
-              type="number"
-              :maxlength="6"
-              :value="smsCode"
-              placeholder="请输入6位验证码"
-              placeholder-class="ph"
-              @input="onSmsInput"
-            >
+            <text class="field-label">验证码</text>
+            <input class="full-input" type="number" :maxlength="6" :value="smsCode" @input="onSmsInput" placeholder="请输入6位验证码" placeholder-class="ph" />
           </view>
-          <text
-            v-if="error"
-            class="err center"
-          >
-            {{ error }}
-          </text>
-          <view
-            class="primary-btn"
-            @tap="advance"
-          >
-            <text class="primary-btn-text">
-              {{ loading ? '验证中...' : '下一步' }}
-            </text>
-          </view>
+          <text v-if="error" class="err center">{{ error }}</text>
+          <view class="primary-btn" @tap="advance"><text class="primary-btn-text">{{ loading ? '验证中...' : '下一步' }}</text></view>
         </view>
 
         <!-- PIN 格子 -->
-        <view
-          v-else
-          class="pin-block"
-        >
+        <view v-else class="pin-block">
           <view class="pin-wrap">
             <input
               class="pin-hidden"
@@ -262,83 +170,34 @@ function onSmsInput(e: any) {
               :value="activePin"
               :focus="true"
               @input="onPinInput"
-            >
+            />
             <view class="pin-grid">
-              <view
-                v-for="i in 6"
-                :key="i"
-                class="pin-cell"
-                :class="{ err: !!error }"
-              >
-                <view
-                  v-if="activePin.length >= i"
-                  class="pin-dot"
-                />
-                <view
-                  v-else-if="activePin.length === i - 1"
-                  class="pin-caret"
-                />
+              <view v-for="i in 6" :key="i" class="pin-cell" :class="{ err: !!error }">
+                <view v-if="activePin.length >= i" class="pin-dot" />
+                <view v-else-if="activePin.length === i - 1" class="pin-caret" />
               </view>
             </view>
           </view>
-          <text
-            v-if="error"
-            class="err center"
-          >
-            {{ error }}
-          </text>
-          <text
-            v-else-if="loading"
-            class="loading-text"
-          >
-            验证中...
-          </text>
+          <text v-if="error" class="err center">{{ error }}</text>
+          <text v-else-if="loading" class="loading-text">验证中...</text>
 
-          <view
-            v-if="step === 'enter_old'"
-            class="forget"
-            @tap="handleForget"
-          >
-            <text class="forget-text">
-              忘记支付密码？
-            </text>
+          <view v-if="step === 'enter_old'" class="forget" @tap="handleForget">
+            <text class="forget-text">忘记支付密码？</text>
           </view>
         </view>
 
         <!-- 提示 -->
         <view class="tip">
-          <text class="tip-text">
-            支付密码为6位数字，用于支付订单、转账等敏感操作。请勿设置与登录密码相同的数字组合，避免使用生日、连续数字等。
-          </text>
+          <text class="tip-text">支付密码为6位数字，用于支付订单、转账等敏感操作。请勿设置与登录密码相同的数字组合，避免使用生日、连续数字等。</text>
         </view>
       </template>
 
       <!-- 成功态 -->
-      <view
-        v-else
-        class="done-block"
-      >
-        <view class="done-icon">
-          <AppIcon
-            name="check-circle"
-            :size="48"
-            color="#22c55e"
-          />
-        </view>
-        <text class="done-title">
-          {{ mode === 'set' ? '支付密码设置成功' : '支付密码修改成功' }}
-        </text>
-        <text class="done-sub">
-          您的支付密码已{{ mode === 'set' ? '设置' : '更新' }}，下次支付时将使用新密码验证
-        </text>
-        <view
-          class="done-btn"
-          @tap="goBack"
-        >
-          <text class="done-btn-text">
-            完成
-          </text>
-        </view>
+      <view v-else class="done-block">
+        <view class="done-icon"><AppIcon name="check-circle" :size="48" color="#22c55e" /></view>
+        <text class="done-title">{{ mode === 'set' ? '支付密码设置成功' : '支付密码修改成功' }}</text>
+        <text class="done-sub">您的支付密码已{{ mode === 'set' ? '设置' : '更新' }}，下次支付时将使用新密码验证</text>
+        <view class="done-btn" @tap="goBack"><text class="done-btn-text">完成</text></view>
       </view>
     </view>
   </view>

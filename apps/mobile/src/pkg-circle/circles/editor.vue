@@ -22,7 +22,7 @@
     <!-- 类型选择 -->
     <view class="type-bar">
       <view
-        v-for="t in (['post', 'article'] as const)"
+        v-for="t in (['post', 'article'])"
         :key="t"
         class="type-item"
         :class="{ active: type === t }"

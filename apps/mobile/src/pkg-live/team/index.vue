@@ -1,44 +1,16 @@
 <template>
-  <view v-if="isLoading" class="team-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="80rpx" radius="16rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无团队成员" />
-  <view v-else class="team-page">
+  <view class="team-page">
     <!-- 顶部导航 -->
     <view class="nav-bar">
       <view class="nav-left">
-        <view
-          class="nav-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="40"
-            color="#1a1a1a"
-          />
+        <view class="nav-back" @tap="goBack">
+          <app-icon name="chevron-left" :size="40" color="#1a1a1a" />
         </view>
-        <text class="nav-title">
-          主播团队管理
-        </text>
+        <text class="nav-title">主播团队管理</text>
       </view>
-      <view
-        class="nav-add"
-        @tap="showAddDialog = true"
-      >
-        <app-icon
-          name="plus"
-          :size="32"
-          color="#fff"
-        />
-        <text class="nav-add-text">
-          添加成员
-        </text>
+      <view class="nav-add" @tap="showAddDialog = true">
+        <app-icon name="plus" :size="32" color="#fff" />
+        <text class="nav-add-text">添加成员</text>
       </view>
     </view>
 
@@ -46,87 +18,37 @@
       <!-- 统计卡片 -->
       <view class="stat-grid">
         <view class="stat-card">
-          <text class="stat-num stat-red">
-            {{ countRole('host') }}
-          </text>
-          <text class="stat-label">
-            主播
-          </text>
+          <text class="stat-num stat-red">{{ countRole('host') }}</text>
+          <text class="stat-label">主播</text>
         </view>
         <view class="stat-card">
-          <text class="stat-num stat-orange">
-            {{ countRole('cohost') }}
-          </text>
-          <text class="stat-label">
-            副播
-          </text>
+          <text class="stat-num stat-orange">{{ countRole('cohost') }}</text>
+          <text class="stat-label">副播</text>
         </view>
         <view class="stat-card">
-          <text class="stat-num stat-blue">
-            {{ countRole('operator') }}
-          </text>
-          <text class="stat-label">
-            运营
-          </text>
+          <text class="stat-num stat-blue">{{ countRole('operator') }}</text>
+          <text class="stat-label">运营</text>
         </view>
       </view>
 
       <!-- 权限说明卡片 -->
-      <view
-        class="perm-card"
-        @tap="showPermissions = !showPermissions"
-      >
+      <view class="perm-card" @tap="showPermissions = !showPermissions">
         <view class="perm-head">
           <view class="perm-head-left">
-            <app-icon
-              name="shield"
-              :size="32"
-              color="#d97706"
-            />
-            <text class="perm-title">
-              角色权限说明
-            </text>
+            <app-icon name="shield" :size="32" color="#d97706" />
+            <text class="perm-title">角色权限说明</text>
           </view>
-          <view
-            class="perm-arrow"
-            :class="{ 'perm-arrow-open': showPermissions }"
-          >
-            <app-icon
-              name="chevron-left"
-              :size="32"
-              color="#999"
-            />
+          <view class="perm-arrow" :class="{ 'perm-arrow-open': showPermissions }">
+            <app-icon name="chevron-left" :size="32" color="#999" />
           </view>
         </view>
-        <view
-          v-if="showPermissions"
-          class="perm-body"
-        >
-          <view
-            v-for="(perms, role) in permissions"
-            :key="role"
-            class="perm-group"
-          >
-            <view
-              class="perm-badge"
-              :style="{ background: roleConfig[role].color }"
-            >
-              {{ roleConfig[role].label }}
-            </view>
+        <view v-if="showPermissions" class="perm-body">
+          <view v-for="(perms, role) in permissions" :key="role" class="perm-group">
+            <view class="perm-badge" :style="{ background: roleConfig[role].color }">{{ roleConfig[role].label }}</view>
             <view class="perm-list">
-              <view
-                v-for="(perm, idx) in perms"
-                :key="idx"
-                class="perm-item"
-              >
-                <app-icon
-                  :name="perm.icon"
-                  :size="24"
-                  color="#999"
-                />
-                <text class="perm-item-text">
-                  {{ perm.label }}
-                </text>
+              <view v-for="(perm, idx) in perms" :key="idx" class="perm-item">
+                <app-icon :name="perm.icon" :size="24" color="#999" />
+                <text class="perm-item-text">{{ perm.label }}</text>
               </view>
             </view>
           </view>
@@ -135,18 +57,8 @@
 
       <!-- 搜索 -->
       <view class="search-box">
-        <app-icon
-          name="search"
-          :size="32"
-          color="#999"
-          class="search-icon"
-        />
-        <input
-          v-model="searchQuery"
-          class="search-input"
-          placeholder="搜索成员姓名或擅长领域"
-          placeholder-class="search-ph"
-        >
+        <app-icon name="search" :size="32" color="#999" class="search-icon" />
+        <input v-model="searchQuery" class="search-input" placeholder="搜索成员姓名或擅长领域" placeholder-class="search-ph" />
       </view>
 
       <!-- Tab -->
@@ -164,134 +76,51 @@
 
       <!-- 成员列表 -->
       <view class="member-list">
-        <view
-          v-if="filteredMembers.length === 0"
-          class="empty-card"
-        >
-          <app-icon
-            name="users"
-            :size="96"
-            color="#e0e0e0"
-          />
-          <text class="empty-text">
-            暂无成员
-          </text>
-          <view
-            class="empty-btn"
-            @tap="showAddDialog = true"
-          >
-            添加成员
-          </view>
+        <view v-if="filteredMembers.length === 0" class="empty-card">
+          <app-icon name="users" :size="96" color="#e0e0e0" />
+          <text class="empty-text">暂无成员</text>
+          <view class="empty-btn" @tap="showAddDialog = true">添加成员</view>
         </view>
-        <view
-          v-for="member in filteredMembers"
-          :key="member.id"
-          class="member-card"
-        >
+        <view v-for="member in filteredMembers" :key="member.id" class="member-card">
           <view class="member-avatar-wrap">
-            <image
-              class="member-avatar"
-              :src="member.avatar"
-              mode="aspectFill"
-            />
-            <view
-              class="member-status"
-              :class="member.status === 'online' ? 'status-online' : 'status-offline'"
-            />
+            <image class="member-avatar" :src="member.avatar" mode="aspectFill" />
+            <view class="member-status" :class="member.status === 'online' ? 'status-online' : 'status-offline'" />
           </view>
           <view class="member-info">
             <view class="member-name-row">
-              <text class="member-name">
-                {{ member.name }}
-              </text>
-              <view
-                class="role-badge"
-                :style="{ background: roleConfig[member.role].color }"
-              >
-                <app-icon
-                  :name="roleConfig[member.role].icon"
-                  :size="24"
-                  color="#fff"
-                />
-                <text class="role-badge-text">
-                  {{ roleConfig[member.role].label }}
-                </text>
+              <text class="member-name">{{ member.name }}</text>
+              <view class="role-badge" :style="{ background: roleConfig[member.role].color }">
+                <app-icon :name="roleConfig[member.role].icon" :size="24" color="#fff" />
+                <text class="role-badge-text">{{ roleConfig[member.role].label }}</text>
               </view>
-              <view
-                v-if="member.hasActiveLive"
-                class="live-badge"
-              >
-                直播中
-              </view>
+              <view v-if="member.hasActiveLive" class="live-badge">直播中</view>
             </view>
             <view class="exp-row">
-              <text
-                v-for="(exp, idx) in member.expertise"
-                :key="idx"
-                class="exp-tag"
-              >
-                {{ exp }}
-              </text>
+              <text v-for="(exp, idx) in member.expertise" :key="idx" class="exp-tag">{{ exp }}</text>
             </view>
             <view class="member-meta">
               <view class="meta-item">
-                <app-icon
-                  name="phone"
-                  :size="24"
-                  color="#999"
-                />
-                <text class="meta-text">
-                  {{ member.phone }}
-                </text>
+                <app-icon name="phone" :size="24" color="#999" />
+                <text class="meta-text">{{ member.phone }}</text>
               </view>
-              <text class="meta-text">
-                已直播 {{ member.liveCount }} 场
-              </text>
+              <text class="meta-text">已直播 {{ member.liveCount }} 场</text>
             </view>
           </view>
           <view class="member-menu-wrap">
-            <view
-              class="member-menu-btn"
-              @tap.stop="toggleMenu(member.id)"
-            >
-              <app-icon
-                name="more-horizontal"
-                :size="32"
-                color="#1a1a1a"
-              />
+            <view class="member-menu-btn" @tap.stop="toggleMenu(member.id)">
+              <app-icon name="more-horizontal" :size="32" color="#1a1a1a" />
             </view>
             <template v-if="openMenuId === member.id">
-              <view
-                class="menu-mask"
-                @tap.stop="openMenuId = null"
-              />
+              <view class="menu-mask" @tap.stop="openMenuId = null" />
               <view class="menu-pop">
-                <view
-                  class="menu-item"
-                  @tap.stop="openEdit(member)"
-                >
-                  <app-icon
-                    name="edit-2"
-                    :size="32"
-                    color="#1a1a1a"
-                  />
-                  <text class="menu-item-text">
-                    编辑信息
-                  </text>
+                <view class="menu-item" @tap.stop="openEdit(member)">
+                  <app-icon name="edit-2" :size="32" color="#1a1a1a" />
+                  <text class="menu-item-text">编辑信息</text>
                 </view>
                 <view class="menu-divider" />
-                <view
-                  class="menu-item"
-                  @tap.stop="openRemove(member)"
-                >
-                  <app-icon
-                    name="trash-2"
-                    :size="32"
-                    color="#ef4444"
-                  />
-                  <text class="menu-item-text menu-item-danger">
-                    移除成员
-                  </text>
+                <view class="menu-item" @tap.stop="openRemove(member)">
+                  <app-icon name="trash-2" :size="32" color="#ef4444" />
+                  <text class="menu-item-text menu-item-danger">移除成员</text>
                 </view>
               </view>
             </template>
@@ -301,39 +130,16 @@
     </view>
 
     <!-- 添加成员对话框 -->
-    <view
-      v-if="showAddDialog"
-      class="dialog-mask"
-      @tap="showAddDialog = false"
-    >
-      <view
-        class="dialog"
-        @tap.stop
-      >
-        <text class="dialog-title">
-          添加团队成员
-        </text>
-        <text class="dialog-desc">
-          从签约讲师或圈内成员中搜索添加
-        </text>
+    <view v-if="showAddDialog" class="dialog-mask" @tap="showAddDialog = false">
+      <view class="dialog" @tap.stop>
+        <text class="dialog-title">添加团队成员</text>
+        <text class="dialog-desc">从签约讲师或圈内成员中搜索添加</text>
         <view class="search-box dialog-search">
-          <app-icon
-            name="search"
-            :size="32"
-            color="#999"
-            class="search-icon"
-          />
-          <input
-            v-model="addSearchQuery"
-            class="search-input"
-            placeholder="搜索姓名或擅长领域"
-            placeholder-class="search-ph"
-          >
+          <app-icon name="search" :size="32" color="#999" class="search-icon" />
+          <input v-model="addSearchQuery" class="search-input" placeholder="搜索姓名或擅长领域" placeholder-class="search-ph" />
         </view>
         <view class="form-group">
-          <text class="form-label">
-            分配角色
-          </text>
+          <text class="form-label">分配角色</text>
           <view class="role-select">
             <view
               v-for="r in ['host', 'cohost', 'operator']"
@@ -346,93 +152,43 @@
             </view>
           </view>
         </view>
-        <text class="result-label">
-          搜索结果
-        </text>
-        <scroll-view
-          scroll-y
-          class="add-result"
-        >
-          <view
-            v-for="m in filteredAvailable"
-            :key="m.id"
-            class="add-card"
-          >
-            <view class="add-avatar">
-              {{ m.name[0] }}
-            </view>
+        <text class="result-label">搜索结果</text>
+        <scroll-view scroll-y class="add-result">
+          <view v-for="m in filteredAvailable" :key="m.id" class="add-card">
+            <view class="add-avatar">{{ m.name[0] }}</view>
             <view class="add-info">
               <view class="add-name-row">
-                <text class="add-name">
-                  {{ m.name }}
-                </text>
-                <view class="add-type">
-                  {{ m.type === 'lecturer' ? '签约讲师' : '圈内成员' }}
-                </view>
+                <text class="add-name">{{ m.name }}</text>
+                <view class="add-type">{{ m.type === 'lecturer' ? '签约讲师' : '圈内成员' }}</view>
               </view>
-              <text class="add-exp">
-                {{ m.expertise.join('、') }}
-              </text>
+              <text class="add-exp">{{ m.expertise.join('、') }}</text>
             </view>
             <view class="add-btn">
-              <app-icon
-                name="plus"
-                :size="24"
-                color="#1a1a1a"
-              />
-              <text class="add-btn-text">
-                添加
-              </text>
+              <app-icon name="plus" :size="24" color="#1a1a1a" />
+              <text class="add-btn-text">添加</text>
             </view>
           </view>
         </scroll-view>
         <view class="dialog-footer">
-          <view
-            class="dlg-btn dlg-btn-outline"
-            @tap="showAddDialog = false"
-          >
-            取消
-          </view>
+          <view class="dlg-btn dlg-btn-outline" @tap="showAddDialog = false">取消</view>
         </view>
       </view>
     </view>
 
     <!-- 编辑成员对话框 -->
-    <view
-      v-if="showEditDialog"
-      class="dialog-mask"
-      @tap="showEditDialog = false"
-    >
-      <view
-        class="dialog"
-        @tap.stop
-      >
-        <text class="dialog-title">
-          编辑成员信息
-        </text>
-        <view
-          v-if="selectedMember"
-          class="edit-body"
-        >
+    <view v-if="showEditDialog" class="dialog-mask" @tap="showEditDialog = false">
+      <view class="dialog" @tap.stop>
+        <text class="dialog-title">编辑成员信息</text>
+        <view v-if="selectedMember" class="edit-body">
           <view class="edit-head">
-            <image
-              class="edit-avatar"
-              :src="selectedMember.avatar"
-              mode="aspectFill"
-            />
+            <image class="edit-avatar" :src="selectedMember.avatar" mode="aspectFill" />
             <view>
-              <text class="edit-name">
-                {{ selectedMember.name }}
-              </text>
-              <text class="edit-join">
-                加入时间：{{ selectedMember.joinDate }}
-              </text>
+              <text class="edit-name">{{ selectedMember.name }}</text>
+              <text class="edit-join">加入时间：{{ selectedMember.joinDate }}</text>
             </view>
           </view>
           <view class="form-group">
-            <text class="form-label">
-              角色
-            </text>
+            <text class="form-label">角色</text>
             <view class="role-select">
               <view
                 v-for="r in ['host', 'cohost', 'operator']"
@@ -446,113 +202,43 @@
             </view>
           </view>
           <view class="cur-perm">
-            <text class="cur-perm-label">
-              当前角色权限
-            </text>
+            <text class="cur-perm-label">当前角色权限</text>
             <view class="cur-perm-list">
-              <view
-                v-for="(perm, idx) in (permissions[selectedRole] || [])"
-                :key="idx"
-                class="cur-perm-item"
-              >
-                <app-icon
-                  name="check"
-                  :size="24"
-                  color="#22c55e"
-                />
-                <text class="cur-perm-text">
-                  {{ perm.label }}
-                </text>
+              <view v-for="(perm, idx) in (permissions[selectedRole] || [])" :key="idx" class="cur-perm-item">
+                <app-icon name="check" :size="24" color="#22c55e" />
+                <text class="cur-perm-text">{{ perm.label }}</text>
               </view>
             </view>
           </view>
         </view>
         <view class="dialog-footer">
-          <view
-            class="dlg-btn dlg-btn-outline"
-            @tap="showEditDialog = false"
-          >
-            取消
-          </view>
-          <view
-            class="dlg-btn dlg-btn-primary"
-            @tap="showEditDialog = false"
-          >
-            保存
-          </view>
+          <view class="dlg-btn dlg-btn-outline" @tap="showEditDialog = false">取消</view>
+          <view class="dlg-btn dlg-btn-primary" @tap="showEditDialog = false">保存</view>
         </view>
       </view>
     </view>
 
     <!-- 移除确认对话框 -->
-    <view
-      v-if="showRemoveDialog"
-      class="dialog-mask"
-      @tap="showRemoveDialog = false"
-    >
-      <view
-        class="dialog dialog-sm"
-        @tap.stop
-      >
-        <text class="dialog-title">
-          移除成员
-        </text>
-        <view
-          v-if="selectedMember"
-          class="remove-body"
-        >
-          <view
-            v-if="selectedMember.hasActiveLive"
-            class="warn-box"
-          >
-            <app-icon
-              name="alert-triangle"
-              :size="40"
-              color="#ef4444"
-            />
+    <view v-if="showRemoveDialog" class="dialog-mask" @tap="showRemoveDialog = false">
+      <view class="dialog dialog-sm" @tap.stop>
+        <text class="dialog-title">移除成员</text>
+        <view v-if="selectedMember" class="remove-body">
+          <view v-if="selectedMember.hasActiveLive" class="warn-box">
+            <app-icon name="alert-triangle" :size="40" color="#ef4444" />
             <view class="warn-text">
-              <text class="warn-title">
-                无法移除
-              </text>
-              <text class="warn-desc">
-                该成员当前有进行中的直播，请在直播结束后再进行移除操作。
-              </text>
+              <text class="warn-title">无法移除</text>
+              <text class="warn-desc">该成员当前有进行中的直播，请在直播结束后再进行移除操作。</text>
             </view>
           </view>
-          <view
-            v-else
-            class="remove-confirm"
-          >
-            <image
-              class="remove-avatar"
-              :src="selectedMember.avatar"
-              mode="aspectFill"
-            />
-            <text class="remove-q">
-              确定要移除 <text class="remove-name">
-                {{ selectedMember.name }}
-              </text> 吗？
-            </text>
-            <text class="remove-sub">
-              移除后该成员将无法参与直播管理
-            </text>
+          <view v-else class="remove-confirm">
+            <image class="remove-avatar" :src="selectedMember.avatar" mode="aspectFill" />
+            <text class="remove-q">确定要移除 <text class="remove-name">{{ selectedMember.name }}</text> 吗？</text>
+            <text class="remove-sub">移除后该成员将无法参与直播管理</text>
           </view>
         </view>
         <view class="dialog-footer">
-          <view
-            class="dlg-btn dlg-btn-outline"
-            @tap="showRemoveDialog = false"
-          >
-            取消
-          </view>
-          <view
-            v-if="selectedMember && !selectedMember.hasActiveLive"
-            class="dlg-btn dlg-btn-danger"
-            :class="{ disabled: submitting }"
-            @tap="confirmRemove"
-          >
-            {{ submitting ? '移除中...' : '确认移除' }}
-          </view>
+          <view class="dlg-btn dlg-btn-outline" @tap="showRemoveDialog = false">取消</view>
+          <view v-if="selectedMember && !selectedMember.hasActiveLive" class="dlg-btn dlg-btn-danger" @tap="confirmRemove">确认移除</view>
         </view>
       </view>
     </view>
@@ -561,21 +247,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-import { useSubmitLock } from '@/composables/use-submit-lock'
 import {
   teamMembers, teamAvailableMembers, teamRoleConfig, teamPermissions,
   type TeamMember, type TeamRole,
 } from '@/lib/live-data'
-
-const isLoading = ref(false)
-const loadError = ref<string | null>(null)
-const isEmpty = computed(() => filteredMembers.value.length === 0)
-function reload() {
-  loadError.value = null
-}
 
 const roleConfig = teamRoleConfig as Record<string, typeof teamRoleConfig[TeamRole]>
 const permissions = teamPermissions as Record<string, typeof teamPermissions[TeamRole]>
@@ -590,7 +265,6 @@ const selectedMember = ref<TeamMember | null>(null)
 const addSearchQuery = ref('')
 const selectedRole = ref('cohost')
 const openMenuId = ref<number | null>(null)
-const { submitting, withLock } = useSubmitLock()
 
 const tabs = [
   { key: 'all', label: '全部' },
@@ -633,12 +307,10 @@ function openRemove(member: TeamMember) {
   openMenuId.value = null
 }
 function confirmRemove() {
-  if (selectedMember.value?.hasActiveLive || submitting.value) return
-  withLock(async () => {
-    console.log('[v0] 移除成员', selectedMember.value?.id)
-    showRemoveDialog.value = false
-    selectedMember.value = null
-  })
+  if (selectedMember.value?.hasActiveLive) return
+  console.log('[v0] 移除成员', selectedMember.value?.id)
+  showRemoveDialog.value = false
+  selectedMember.value = null
 }
 function goBack() {
   uni.navigateBack()
@@ -1180,9 +852,6 @@ function goBack() {
 .dlg-btn-danger {
   background: #ef4444;
   color: #fff;
-}
-.dlg-btn-danger.disabled {
-  opacity: 0.5;
 }
 
 /* 编辑 */

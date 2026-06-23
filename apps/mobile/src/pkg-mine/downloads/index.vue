@@ -149,7 +149,7 @@
         <text class="dialog-desc">确定要删除「{{ deleteTarget.fileName }}」吗？{{ deleteTarget.status === 'completed' ? '本地文件也将被删除。' : '' }}</text>
         <view class="dialog-actions">
           <view class="dialog-btn cancel" @tap="deleteTarget = null"><text class="dialog-btn-text">取消</text></view>
-          <view class="dialog-btn confirm" :class="{ disabled: submitting }" @tap="doDelete"><text class="dialog-btn-text confirm-text">{{ submitting ? '删除中...' : '删除' }}</text></view>
+          <view class="dialog-btn confirm" @tap="doDelete"><text class="dialog-btn-text confirm-text">删除</text></view>
         </view>
       </view>
     </view>
@@ -161,7 +161,7 @@
         <text class="dialog-desc">确定要清除所有已完成的下载记录吗？本地文件也将被删除。</text>
         <view class="dialog-actions">
           <view class="dialog-btn cancel" @tap="showClearDialog = false"><text class="dialog-btn-text">取消</text></view>
-          <view class="dialog-btn confirm" :class="{ disabled: submitting }" @tap="doClear"><text class="dialog-btn-text confirm-text">{{ submitting ? '清除中...' : '确定清除' }}</text></view>
+          <view class="dialog-btn confirm" @tap="doClear"><text class="dialog-btn-text confirm-text">确定清除</text></view>
         </view>
       </view>
     </view>
@@ -171,7 +171,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { useSubmitLock } from '@/composables/use-submit-lock'
 
 type FileType = 'video' | 'ebook' | 'classic' | 'audio' | 'document'
 type Status = 'downloading' | 'paused' | 'completed' | 'failed' | 'pending'
@@ -192,7 +191,6 @@ type TabKey = (typeof TABS)[number]['key']
 const activeTab = ref<TabKey>('all')
 const deleteTarget = ref<DownloadItem | null>(null)
 const showClearDialog = ref(false)
-const { submitting, withLock } = useSubmitLock()
 
 const downloads = ref<DownloadItem[]>([
   { id: 1, fileName: '周易入门精讲.mp4', fileType: 'video', fileSize: 524288000, sourceId: 101, sourceTitle: '周易六十四卦详解课程', sourceType: 'course', status: 'downloading', progress: 65, downloadedSize: 340787200, speed: 2097152 },
@@ -258,18 +256,12 @@ function pause(item: DownloadItem) { item.status = 'paused'; item.speed = undefi
 function resume(item: DownloadItem) { item.status = 'downloading' }
 function retry(item: DownloadItem) { item.status = 'downloading'; item.errorMsg = undefined }
 function doDelete() {
-  if (!deleteTarget.value || submitting.value) return
-  withLock(async () => {
-    downloads.value = downloads.value.filter((d) => d.id !== deleteTarget.value!.id)
-    deleteTarget.value = null
-  })
+  if (deleteTarget.value) downloads.value = downloads.value.filter((d) => d.id !== deleteTarget.value!.id)
+  deleteTarget.value = null
 }
 function doClear() {
-  if (submitting.value) return
-  withLock(async () => {
-    downloads.value = downloads.value.filter((d) => d.status !== 'completed')
-    showClearDialog.value = false
-  })
+  downloads.value = downloads.value.filter((d) => d.status !== 'completed')
+  showClearDialog.value = false
 }
 function openMenu(item: DownloadItem) {
   const items = item.status === 'completed' ? ['打开', '删除'] : ['删除']
@@ -429,7 +421,6 @@ function openContent(item: DownloadItem) {
 .dialog-btn { flex: 1; height: 80rpx; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
 .dialog-btn.cancel { background: #f4f4f5; }
 .dialog-btn.confirm { background: #c41e3a; }
-.dialog-btn.confirm.disabled { opacity: 0.5; }
 .dialog-btn-text { font-size: 28rpx; color: #666; }
 .dialog-btn-text.confirm-text { color: #fff; }
 </style>

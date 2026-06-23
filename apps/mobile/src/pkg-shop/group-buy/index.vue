@@ -1,15 +1,5 @@
 <template>
-  <view v-if="isLoading" class="gb-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无拼团" />
-  <view v-else class="gb-page">
+  <view class="gb-page">
     <!-- 顶部导航 -->
     <view class="navbar">
       <view class="nav-top">
@@ -190,41 +180,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { groupBuyList as _groupBuyList, myGroupBuyList as _myGroupBuyList, formatCountdown, type MyGroupBuyItem } from '@/lib/shop-data'
+import { groupBuyList, myGroupBuyList, formatCountdown, type MyGroupBuyItem } from '@/lib/shop-data'
 
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { groupBuyList: _groupBuyList, myGroupBuyList: _myGroupBuyList }
-})
-
-const groupBuyList = computed(() => pageData.value?.groupBuyList ?? [])
-const myGroupBuyList = computed(() => pageData.value?.myGroupBuyList ?? [])
-const isEmpty = computed(() => groupBuyList.value.length === 0 && myGroupBuyList.value.length === 0)
-
-type GroupBuyTab = 'all' | 'my'
-const tabList: { key: GroupBuyTab; label: string }[] = [
+const tabList = [
   { key: 'all', label: '拼团商品' },
   { key: 'my', label: '我的拼团' },
 ]
-const tab = ref<GroupBuyTab>('all')
+const tab = ref<'all' | 'my'>('all')
 const myGroups = myGroupBuyList
 const showShare = ref(false)
 const shareTarget = ref<MyGroupBuyItem | null>(null)
 
 // 倒计时基准（各项 endTime 固定）
 const endMap: Record<string, number> = {}
-watch([groupBuyList, myGroupBuyList], ([g, mg]) => {
-  if ((g.length || mg.length) && Object.keys(endMap).length === 0) {
-    ;[...g, ...mg].forEach((item: any) => {
-      endMap[item.id] = Date.now() + item.endOffsetMs
-    })
-  }
-}, { immediate: true })
+;[...groupBuyList, ...myGroupBuyList].forEach((g: any) => {
+  endMap[g.id] = Date.now() + g.endOffsetMs
+})
 const tick = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
 onMounted(() => {

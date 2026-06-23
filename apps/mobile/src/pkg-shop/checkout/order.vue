@@ -85,7 +85,7 @@
 
     <view class="footer">
       <view class="footer-total"><text class="ft-label">实付</text><text class="ft-amount">¥{{ payTotal }}</text></view>
-      <view class="pay-btn" :class="{ 'pay-btn--disabled': submitting }" @tap="submitOrder"><text>{{ submitting ? '处理中...' : '提交订单' }}</text></view>
+      <view class="pay-btn" @tap="submitOrder"><text>提交订单</text></view>
     </view>
 
     <!-- 地址选择 -->
@@ -120,16 +120,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { redirectTo } from '@/utils/router'
-import { shopApi, payMethods, invoiceOptions, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
-import { useSubmitLock } from '@/composables/use-submit-lock'
+import { checkoutItems, checkoutAddresses, checkoutCoupons, payMethods, invoiceOptions, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
 
-const items = ref<any[]>([])
-const addresses = ref<any[]>([])
-const coupons = ref<any[]>([])
-const loading = ref(true)
-const currentAddress = ref<ShippingAddress | null>(null)
+const items = checkoutItems
+const addresses = checkoutAddresses
+const coupons = checkoutCoupons
+const currentAddress = ref<ShippingAddress | null>(addresses.find((a) => a.isDefault) || addresses[0])
 const selectedCoupon = ref<CheckoutCoupon | null>(null)
 const payMethod = ref('wechat')
 const invoice = ref('none')
@@ -137,26 +135,15 @@ const note = ref('')
 const showAddress = ref(false)
 const showCoupon = ref(false)
 const showInvoice = ref(false)
-const { submitting, withLock } = useSubmitLock()
 
 const currentInvoice = computed(() => invoiceOptions.find((o) => o.value === invoice.value) || invoiceOptions[0])
-const goodsTotal = computed(() => items.value.reduce((s, i) => s + i.price * i.quantity, 0))
+const goodsTotal = computed(() => items.reduce((s, i) => s + i.price * i.quantity, 0))
 const payTotal = computed(() => Math.max(0, goodsTotal.value - (selectedCoupon.value?.value || 0)))
 
-onMounted(async () => {
-  try {
-    const data = await shopApi.getCheckoutData()
-    items.value = data.items
-    addresses.value = data.addresses
-    coupons.value = data.coupons
-    currentAddress.value = data.addresses.find((a: any) => a.isDefault) || data.addresses[0] || null
-  } catch { /* useMock handles fallback */ }
-  finally { loading.value = false }
-})
 function selectAddress(a: ShippingAddress) { currentAddress.value = a; showAddress.value = false }
 function selectCoupon(c: CheckoutCoupon | null) { selectedCoupon.value = c; showCoupon.value = false }
 function selectInvoice(opt: { value: string }) { invoice.value = opt.value; showInvoice.value = false }
-async function submitOrder() { await withLock(async () => { redirectTo('/payment/result') }) }
+function submitOrder() { redirectTo('/payment/result') }
 </script>
 
 <style lang="scss" scoped>
@@ -214,7 +201,6 @@ async function submitOrder() { await withLock(async () => { redirectTo('/payment
 .ft-amount { font-size: 38rpx; color: #C41E3A; font-weight: 700; }
 .pay-btn { margin-left: auto; padding: 20rpx 60rpx; border-radius: 40rpx; background: linear-gradient(90deg, #C41E3A, #C8453E); }
 .pay-btn text { color: #FFFFFF; font-size: 30rpx; font-weight: 600; }
-.pay-btn--disabled { opacity: 0.6; pointer-events: none; }
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: flex-end; }
 .sheet { width: 100%; background: #FFFFFF; border-radius: 24rpx 24rpx 0 0; padding: 32rpx; max-height: 70vh; }
 .sheet-title { font-size: 32rpx; font-weight: 600; color: #1A1A1A; display: block; margin-bottom: 24rpx; }

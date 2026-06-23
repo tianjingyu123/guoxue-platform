@@ -61,9 +61,6 @@ const ROUTE_MAP: Record<string, string> = {
   '/paipan/bazi/history/celebrities': '/pkg-paipan/bazi/history/celebrities',
   '/paipan/bazi/history/groups': '/pkg-paipan/bazi/history/groups',
   '/paipan/bazi/history': '/pkg-paipan/bazi/history/index',
-  // 六爻排盘簇（入口/结果）
-  '/paipan/liuyao': '/pkg-paipan/liuyao/index',
-  '/paipan/liuyao/result': '/pkg-paipan/liuyao/result',
   // 奇门遁甲簇（入口/结果/历史/分组）
   '/paipan/qimen': '/pkg-paipan/qimen/index',
   '/paipan/qimen/result': '/pkg-paipan/qimen/result',
@@ -129,6 +126,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/shop/my-after-sales': '/pkg-account/my-after-sales/index',
   '/shop/addresses': '/pkg-account/addresses/index',
   '/shop/addresses/edit': '/pkg-account/address-edit/index',
+  '/address': '/pkg-account/address/index',
   // 设置中心（第①套，/profile 主页链接的活套）
   '/settings': '/pkg-settings/index/index',
   '/settings/notifications': '/pkg-settings/notifications/index',
@@ -151,6 +149,13 @@ const ROUTE_MAP: Record<string, string> = {
   '/mine/privacy-authorization': '/pkg-mine/privacy-authorization/index',
   '/mine/blacklist': '/pkg-mine/blacklist/index',
   '/mine/teen-mode': '/pkg-mine/teen-mode/index',
+  '/notifications': '/pkg-mine/notifications/index',
+  '/legal/teen-mode-intro': '/pkg-mine/teen-mode-intro/index',
+  '/legal/third-party-sdk': '/pkg-settings/third-party-sdk/index',
+  '/legal/data-collection-list': '/pkg-settings/data-collection-list/index',
+  '/legal/user-agreement': '/pkg-settings/user-agreement/index',
+  '/legal/privacy-policy': '/pkg-settings/privacy-policy/index',
+  '/legal/child-privacy': '/pkg-settings/child-privacy/index',
   '/mine/data-export': '/pkg-mine/data-export/index',
   '/mine/delete-account': '/pkg-mine/delete-account/index',
   '/mine/delete-account-result': '/pkg-mine/delete-account-result/index',
@@ -165,6 +170,8 @@ const ROUTE_MAP: Record<string, string> = {
   '/wallet/transactions': '/pkg-mine/wallet/transactions',
   '/mine/points': '/pkg-mine/points/index',
   '/mine/history': '/pkg-mine/history/index',
+  '/history': '/pkg-mine/browse-history/index',
+  '/likes': '/pkg-mine/likes/index', // 我的点赞(顶级活页,profile顶部"获赞"指向;/mine/my-likes为孤岛旧版)
   '/mine/my-likes': '/pkg-mine/my-likes/index',
   '/mine/my-comments': '/pkg-mine/my-comments/index',
   '/mine/received-comments': '/pkg-mine/received-comments/index',
@@ -176,6 +183,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/mine/follows': '/pkg-mine/follows/index',
   '/mine/downloads': '/pkg-mine/downloads/index',
   '/mine/bookings': '/pkg-mine/bookings/index',
+  '/reservations': '/pkg-mine/reservations/index',
   '/mine/applications': '/pkg-mine/applications/index',
   '/mine/invite-records': '/pkg-mine/invite-records/index',
   '/mine/submissions': '/pkg-mine/submissions/index',
@@ -196,7 +204,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/bounty/create': '/pkg-bounty/create/index',
   '/bounty/answer': '/pkg-bounty/answer/index',
   '/bounty/my': '/pkg-bounty/my/index',
-  // 付费问答（列表/提问/待回答；静态须优先于动态 /qa/:id 详情）
+  // 付费问��（列表/提问/待回答；静态须优先于动态 /qa/:id 详情）
   '/qa': '/pkg-qa/index/index',
   '/qa/ask': '/pkg-qa/ask/index',
   '/qa/pending': '/pkg-qa/pending/index',
@@ -243,14 +251,124 @@ const ROUTE_MAP: Record<string, string> = {
   '/bots': '/pkg-agent/bots/index',
   // Bot 对话页（接 ?id= query，流式回复，circles/bots 和 bots 广场都跳此）
   '/bots/chat': '/pkg-agent/bots/chat/index',
+
+  /* ───────── 断链修复（2026-06-22 排查）─────────
+   * 以下 proto 路径在代码中被 navigateTo 调用，但此前缺映射，跳转会落到
+   * toastComingSoon() 兜底（用户点击只看到"敬请期待"）。目标 vue 页均已存在且在
+   * pages.json 注册，仅补别名即可恢复可达。详见 vue3/MIGRATION_NOTES.md。 */
+  '/discover': '/pages/discover/index', // tab 页：收藏/下载空态"去发现内容"，需走 reLaunch
+  '/profile': '/pages/profile/index', // tab 页：扫码结果/帮助页跳个人中心
+  '/courses/study-plan': '/pkg-course/study-plan/index', // 我的课程→学习计划
+  '/seckill/rules': '/pkg-shop/seckill/rules/index', // 秒杀页→活动规则
+  '/station/earnings': '/pkg-operator/station-earnings/index', // 站长面板→收益（运营端）
+  '/publish': '/pkg-circle/circles/publish', // 草稿箱→发布
+  '/content/community-rules': '/pkg-report/community-rules/index', // 举报详情→社区规范（本轮新迁页）
+  // 积分中心（顶级活页，profile/wallet 顶部"积分"指向；页早已迁好仅缺映射）。/mine/points 为孤岛旧版
+  '/points': '/pkg-mine/points/index',
+  '/points/exchange': '/pkg-mine/points/exchange/index',
+  '/points/history': '/pkg-mine/points/history/index',
+  '/points/tasks': '/pkg-mine/points/tasks/index',
+  // 找回账号（设置-手机页「找回原账号」指向；本轮新迁 pkg-auth/recover）
+  '/auth/recover': '/pkg-auth/recover/index',
+  // 智能客服（页早已迁好在 pkg-agent/agent/customer-service，但 app-header/售后详情用无前缀的 /customer-service 调用导致断链）
+  '/customer-service': '/pkg-agent/agent/customer-service',
+  // 智能客服带 /agent 前缀的调用方（帮助中心 pkg-help 用 /agent/customer-service）
+  '/agent/customer-service': '/pkg-agent/agent/customer-service',
+  // 秒杀首页（活动详情页"秒杀"入口；页已迁好仅缺映射。注：/seckill/rules 上面已有）
+  '/seckill': '/pkg-shop/seckill/index',
+  // 隐私政策（设置页"隐私政策"指向；页已迁好仅缺映射）
+  '/policy/privacy': '/pkg-settings/privacy-policy/index',
+  // 用户服务协议（设置页"服务协议"指向；页已迁好仅缺映射）
+  '/terms/service': '/pkg-settings/user-agreement/index',
+  // 驿站公告（站长面板"公告"指向；页已迁好仅缺映射）
+  '/station/notices': '/pkg-notices/index/index',
+  // 命理 AI 解盘 / 历史记录（原型自身即死链——proto 无 paipan/ai 与 paipan/history 页，仅 tools/coming-soon）。指向已迁占位页优雅提示"功能开发中"
+  '/paipan/ai': '/pkg-paipan/tools/coming-soon',
+  '/paipan/history': '/pkg-paipan/tools/coming-soon',
+  // offline 线下板块整体暂缓未迁，但已上线页（讲师中心/我的预约）有调用 → 指向通用 coming-soon 占位避免断链。
+  // 线下板块 C 端：讲师预约/线下活动/课程签到（接 ?stationId=/teacherId=/courseId= query）
+  '/offline/teacher-booking': '/pkg-offline/teacher-booking/index',
+  '/offline/events': '/pkg-offline/events/index',
+  '/offline/checkin': '/pkg-offline/checkin/index',
+  // 线下驿站 C 端（驿站列表 + 详情，详情 /offline/stations/:id 见动态表）
+  '/offline/stations': '/pkg-offline/stations/index',
+  // 线下课程 C 端（课程列表 + 详情，详情 /offline/courses/:id 见动态表）
+  '/offline/courses': '/pkg-offline/courses/index',
+  // 短视频列表 / 搜索（v0新迁，video-card 浮窗发布按钮、同城feed视频卡等入口）
+  '/videos': '/pkg-video/list/index',
+  '/videos/search': '/pkg-video/search/index',
+  // 视频���布(列表页/creator页发布入口)：三步select->edit->publish+商品带货佣金。/publish/video孤儿页(仅drafts链接,未迁)跳过
+  '/videos/publish': '/pkg-video/publish/index',
+  // 视频创作者中心(发布页"商品管理"入口、首页内6页跳转)。原型嵌套路径->扁平vue路径
+  '/videos/creator': '/pkg-video/creator/index',
+  '/videos/creator/analytics': '/pkg-video/creator/analytics/index',
+  '/videos/creator/sales': '/pkg-video/creator/sales/index',
+  '/videos/creator/products/add': '/pkg-video/creator/products-add/index',
+  '/videos/creator/withdraw': '/pkg-video/creator/withdraw/index',
+  '/videos/creator/earnings/history': '/pkg-video/creator/earnings-history/index',
+  '/videos/creator/settings': '/pkg-video/creator/settings/index',
+  // 商家入驻链路（引导→申请→状态中枢→编辑/签约/保证金/协议）。原型嵌套路径->扁平vue路径
+  '/merchant/join': '/pkg-merchant/join/index',
+  '/merchant/apply': '/pkg-merchant/apply/index',
+  '/merchant/application-status': '/pkg-merchant/application-status/index',
+  '/merchant/edit-application': '/pkg-merchant/edit-application/index',
+  '/merchant/sign-agreement': '/pkg-merchant/sign-agreement/index',
+  '/merchant/pay-deposit': '/pkg-merchant/pay-deposit/index',
+  '/terms/merchant': '/pkg-merchant/terms/index',
+  // 商家经营管理（核心交易闭环）
+  '/merchant/dashboard': '/pkg-merchant/dashboard/index',
+  '/merchant/products': '/pkg-merchant/products/index',
+  '/merchant/product-edit': '/pkg-merchant/product-edit/index',
+  '/merchant/orders': '/pkg-merchant/orders/index',
+  '/merchant/order-detail': '/pkg-merchant/order-detail/index',
+  '/merchant/revenue': '/pkg-merchant/revenue/index',
+  // 商家经营管理（评价/分析/设置/预览/公告/咨询）
+  '/merchant/reviews': '/pkg-merchant/reviews/index',
+  '/merchant/analytics': '/pkg-merchant/analytics/index',
+  '/merchant/profile': '/pkg-merchant/profile/index',
+  '/merchant/shop-preview': '/pkg-merchant/shop-preview/index',
+  '/merchant/notices': '/pkg-merchant/notices/index',
+  '/merchant/inquiries': '/pkg-merchant/inquiries/index',
+  '/merchant/content-stats': '/pkg-merchant/content-stats/index',
+  '/merchant/circle-bindding': '/pkg-merchant/circle-bindding/index',
+  '/merchant/violations': '/pkg-merchant/violations/index',
+  // 研究院（书院）：首页 + 讲师广场 + 活动列表 + 讲师申请（详情页为动态 /institute/instructors|events/:id）
+  '/institute': '/pkg-institute/index/index',
+  '/institute/instructors': '/pkg-institute/instructors/index',
+  '/institute/events': '/pkg-institute/events/index',
+  '/institute/apply': '/pkg-institute/apply/index',
+  // 讲师工作台第二批：我的任务 / 线下老师人才库 / 课程需求大厅 / 发布师资需求
+  // 注：/institute/teacher-demand/create（发布师资需求表单）须先于动态 /institute/teacher-demand 段匹配，置于静态表优先命中
+  '/institute/my-tasks': '/pkg-institute/my-tasks/index',
+  '/institute/teacher-pool': '/pkg-institute/teacher-pool/index',
+  '/institute/teacher-demand': '/pkg-institute/teacher-demand/index',
+  '/institute/teacher-demand/create': '/pkg-institute/demand-create/index',
+  // 成员管理第三批：成员列表 / 成员申请四步向导 / 发布通用需求（成员详情 /institute/members/:id 复用讲师详情页，见动态表）
+  '/institute/members': '/pkg-institute/members/index',
+  '/institute/member-apply': '/pkg-institute/member-apply/index',
+  '/institute/demands/create': '/pkg-institute/demands-create/index',
 }
 
 /**
  * 动态路由映射：原型 /mall/product/123 → uni /pkg-mall/product/detail?id=123
- * 每条 [正则, 目标页, 参数名]，命中后把捕获组拼为 query。迁移含 :id 的页登记于此。
+ * 每条 [正则, 目标页, 参数名]，命中��把捕获组拼为 query。迁移含 :id 的页登记于此。
  * 注意顺序：更具体的 /reviews 必须在通用 detail 之前匹配。
  */
 const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
+  // 短视频全屏播放详情（/video/:id；video-card 等多处已上线页跳此，原为断链）
+  [/^\/video\/([^/?]+)$/, '/pkg-video/detail/index', 'id'],
+  // 研究院讲师详情 /institute/instructors/:id（静态 /institute/instructors 已在 ROUTE_MAP 优先命中）
+  [/^\/institute\/instructors\/([^/?]+)$/, '/pkg-institute/instructor-detail/index', 'id'],
+  // 研究院活动详情 /institute/events/:id（静态 /institute/events 已在 ROUTE_MAP 优先命中）
+  [/^\/institute\/events\/([^/?]+)$/, '/pkg-institute/event-detail/index', 'id'],
+  // 研究院成员详情 /institute/members/:id（原型该页直接复用讲师详情组件，故复用 instructor-detail；静态 /institute/members 已优先命中）
+  [/^\/institute\/members\/([^/?]+)$/, '/pkg-institute/instructor-detail/index', 'id'],
+  // 课程需求详情 /institute/demands/:id 暂未迁（demands/create 已迁）→ coming-soon 占位避免断链（静态 /institute/demands/create 已优先命中）
+  [/^\/institute\/demands\/([^/?]+)$/, '/pkg-paipan/tools/coming-soon', 'id'],
+  // 线下课程详情 /offline/courses/:id（静态 /offline/courses 已在 ROUTE_MAP 优先命中）
+  [/^\/offline\/courses\/([^/?]+)$/, '/pkg-offline/course-detail/index', 'id'],
+  // 线下驿站详情 /offline/stations/:id（静态 /offline/stations 已在 ROUTE_MAP 优先命中）
+  [/^\/offline\/stations\/([^/?]+)$/, '/pkg-offline/station-detail/index', 'id'],
   [/^\/mall\/product\/([^/?]+)\/reviews$/, '/pkg-mall/product/reviews', 'id'],
   [/^\/mall\/product\/([^/?]+)$/, '/pkg-mall/product/detail', 'id'],
   [/^\/shop\/group-buy\/([^/?]+)$/, '/pkg-shop/group-buy/detail', 'id'],
@@ -259,9 +377,9 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/orders\/([^/?]+)$/, '/pkg-order/detail/index', 'id'],
   // 售后详情（/shop/after-sale/:id；静态 /shop/after-sale 已在 ROUTE_MAP 优先命中）
   [/^\/shop\/after-sale\/([^/?]+)$/, '/pkg-account/after-sale-detail/index', 'id'],
-  // shop 商品评价（/shop/:id/reviews 更具体，须在通用商品详情之前）
+  // shop 商品评价（/shop/:id/reviews 更具体，须在通用商品详情之前��
   [/^\/shop\/([^/?]+)\/reviews$/, '/pkg-shop/reviews/index', 'id'],
-  // shop 商品详情（/shop/:id，兜底；所有 /shop/xxx 静态页已在 ROUTE_MAP 优先命中）
+  // shop 商品详情（/shop/:id，兜�����；所有 /shop/xxx ���态页已在 ROUTE_MAP 优先命中）
   [/^\/shop\/([^/?]+)$/, '/pkg-shop/product/index', 'id'],
   // 课程详情系列（/courses/:id/xxx 更具体须在通用详情之前；静态 /courses/xxx 已在 ROUTE_MAP 优先命中）
   [/^\/courses\/([^/?]+)\/chapters$/, '/pkg-course/chapters/index', 'id'],
@@ -282,7 +400,7 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/im\/group-detail\/([^/?]+)$/, '/pkg-im/im/group-detail/index', 'id'],
   // ���师详情 /instructor/:id（课程详情页讲师卡入口）
   [/^\/instructor\/([^/?]+)$/, '/pkg-course/instructor/index', 'id'],
-  // 圈子详情 /circles/:id（原型风格路径，搜索结果等入口使用��
+  // 圈子详情 /circles/:id（原型��格路径，搜索结果等入口使用��
   [/^\/circles\/([^/?]+)$/, '/pkg-circle/circles/detail', 'id'],
   // 直播间观看页 /live/:id（直播卡片入口；静态 /live/xxx 均用内部完整路径，不冲突）
   [/^\/live\/([^/?]+)$/, '/pkg-live/watch/index', 'id'],
@@ -294,6 +412,10 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/qa\/([^/?]+)$/, '/pkg-qa/detail/index', 'id'],
   // 专家详情 /expert/:id（单数；列表页为复数 /experts 已在 ROUTE_MAP 命中）
   [/^\/expert\/([^/?]+)$/, '/pkg-expert/detail/index', 'id'],
+  // 预约连麦 /booking/:expertId（专家详情页连麦弹窗「预约连麦时间」入口）
+  [/^\/booking\/([^/?]+)$/, '/pkg-expert/booking/index', 'expertId'],
+  // 连麦通话 /call/:id（预约/reservations 页 href=`/call/${id}` 入口）
+  [/^\/call\/([^/?]+)$/, '/pkg-expert/call/index', 'id'],
   // 举报结果详情 /report/result/:id（静态 /report、/report/result 已在 ROUTE_MAP 优先命中）
   [/^\/report\/result\/([^/?]+)$/, '/pkg-report/detail/index', 'id'],
   // 活动详情 /activity/:id（静态 /activity/calendar、/activity/landing 已在 ROUTE_MAP 优先命中）

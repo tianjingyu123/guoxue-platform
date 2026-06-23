@@ -1,6 +1,4 @@
 // 我的主页数据层（1:1 迁移自原型 app/profile/page.tsx）
-import { apiGet, apiPut, useMock } from '@/utils/request'
-
 export type UserRole = 'user' | 'circle_owner' | 'teacher' | 'station_owner' | 'streamer' | 'creator'
 
 export interface RoleEntry {
@@ -100,41 +98,3 @@ export function roleHref(type: UserRole, id: number): string {
 
 export const totalMessages =
   userData.messages.system + userData.messages.interaction + userData.messages.transaction
-
-// ── 用户资料类型 ──
-export interface UserProfile {
-  name: string
-  avatar: string
-  bio: string
-  isVip: boolean
-  vipLevel: string
-  vipExpiry: string
-  vipDaysLeft: number
-  isVerified: boolean
-  roles: RoleEntry[]
-  messages: { system: number; interaction: number; transaction: number }
-  checkIn: { todayChecked: boolean; continuousDays: number; totalPoints: number }
-  stats: { following: number; followers: number; likes: number }
-  coins: number
-  coupons: number
-  points: number
-  orders: { pending: number; shipped: number; received: number; refund: number }
-  continueLearning: { id: number; title: string; progress: number; lastLesson: string }
-}
-
-// ── API ──
-export const profileApi = {
-  /** 获取用户资料 GET /user/profile */
-  async getProfile(): Promise<UserProfile> {
-    if (useMock()) return userData as UserProfile
-    try { return await apiGet<UserProfile>('/user/profile') }
-    catch { return userData as UserProfile }
-  },
-
-  /** 更新用户资料 PUT /user/profile */
-  async updateProfile(data: Partial<UserProfile>): Promise<UserProfile> {
-    if (useMock()) return { ...userData, ...data } as UserProfile
-    try { return await apiPut<UserProfile>('/user/profile', data) }
-    catch { return { ...userData, ...data } as UserProfile }
-  },
-}

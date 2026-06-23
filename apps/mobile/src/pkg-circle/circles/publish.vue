@@ -9,8 +9,6 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import VisibilitySettings, { type Visibility, type PaymentType } from '@/components/circle/visibility-settings.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
-import { useSubmitLock } from '@/composables/use-submit-lock'
-import { circleDetailApi } from '@/lib/circle-detail-data'
 
 const circleId = ref('1')
 const circle = reactive({ id: '1', name: '八字命理研习社', members: 12580, role: 'owner' as 'owner' | 'admin' })
@@ -38,7 +36,7 @@ const a = reactive({
   price: 0,
 })
 const aErr = reactive<{ title?: string; content?: string; price?: string }>({})
-const { submitting, withLock } = useSubmitLock()
+const aSubmitting = ref(false)
 
 function uploadCover(target: 'a' | 'c') {
   uni.chooseImage({
@@ -51,20 +49,15 @@ function uploadCover(target: 'a' | 'c') {
   })
 }
 
-function submitArticle() {
+async function submitArticle() {
   aErr.title = a.title.trim() ? '' : '请输入文章标题'
   aErr.content = a.content.trim() ? '' : '请输入文章内容'
   aErr.price = (a.paymentType !== 'free' && a.price <= 0) ? '请设置价格' : ''
-  if (aErr.title || aErr.content || aErr.price || submitting.value) return
-  withLock(async () => {
-    const res = await circleDetailApi.publishPost(circleId.value, { content: a.content, images: a.cover ? [a.cover] : [], type: 'TEXT' })
-    if (res.success) {
-      uni.showToast({ title: '发布成功', icon: 'success' })
-      setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
-    } else {
-      uni.showToast({ title: res.message || '发布失败', icon: 'none' })
-    }
-  })
+  if (aErr.title || aErr.content || aErr.price) return
+  aSubmitting.value = true
+  await new Promise((r) => setTimeout(r, 800))
+  uni.showToast({ title: '发布成功', icon: 'success' })
+  setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
 }
 
 // ─── 课程表单 ───
@@ -76,6 +69,7 @@ const c = reactive({
   price: 99,
 })
 const cErr = reactive<{ title?: string; description?: string; price?: string }>({})
+const cSubmitting = ref(false)
 const avUnlocked = ref(false) // 音视频课程高级功能未开通
 
 function selectAV() {
@@ -88,20 +82,15 @@ function selectAV() {
   })
 }
 
-function submitCourse() {
+async function submitCourse() {
   cErr.title = c.title.trim() ? '' : '请输入课程名称'
   cErr.description = c.description.trim() ? '' : '请输入课程简介'
   cErr.price = (c.paymentType !== 'free' && c.price <= 0) ? '请设置价格' : ''
-  if (cErr.title || cErr.description || cErr.price || submitting.value) return
-  withLock(async () => {
-    const res = await circleDetailApi.publishPost(circleId.value, { content: c.description, images: c.cover ? [c.cover] : [], type: 'TEXT' })
-    if (res.success) {
-      uni.showToast({ title: '创建成功', icon: 'success' })
-      setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
-    } else {
-      uni.showToast({ title: res.message || '创建失败', icon: 'none' })
-    }
-  })
+  if (cErr.title || cErr.description || cErr.price) return
+  cSubmitting.value = true
+  await new Promise((r) => setTimeout(r, 800))
+  uni.showToast({ title: '创建成功', icon: 'success' })
+  setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
 }
 </script>
 
@@ -109,195 +98,64 @@ function submitCourse() {
   <view class="cr">
     <!-- 顶栏 -->
     <view class="cr-hdr">
-      <view
-        class="cr-hdr-btn"
-        @tap="goBack"
-      >
-        <app-icon
-          name="chevron-left"
-          :size="40"
-          color="#ffffff"
-        />
-      </view>
-      <text class="cr-hdr-title">
-        发布内容
-      </text>
+      <view class="cr-hdr-btn" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#ffffff" /></view>
+      <text class="cr-hdr-title">发布内容</text>
       <view class="cr-hdr-btn" />
     </view>
 
-    <scroll-view
-      scroll-y
-      class="cr-body"
-    >
+    <scroll-view scroll-y class="cr-body">
       <!-- 圈子信息 -->
       <view class="cr-circle">
-        <image
-          :src="`https://api.dicebear.com/7.x/shapes/svg?seed=${circle.id}`"
-          class="cr-circle-avatar"
-          mode="aspectFill"
-        />
+        <image :src="`https://api.dicebear.com/7.x/shapes/svg?seed=${circle.id}`" class="cr-circle-avatar" mode="aspectFill" />
         <view class="cr-circle-info">
-          <text class="cr-circle-name">
-            {{ circle.name }}
-          </text>
-          <text class="cr-circle-members">
-            {{ circle.members.toLocaleString() }} 成员
-          </text>
+          <text class="cr-circle-name">{{ circle.name }}</text>
+          <text class="cr-circle-members">{{ circle.members.toLocaleString() }} 成员</text>
         </view>
-        <text
-          class="cr-circle-role"
-          :class="circle.role"
-        >
-          {{ circle.role === 'owner' ? '圈主' : '管理员' }}
-        </text>
+        <text class="cr-circle-role" :class="circle.role">{{ circle.role === 'owner' ? '圈主' : '管理员' }}</text>
       </view>
 
       <!-- 选择内容类型 -->
-      <view
-        v-if="!selectedType"
-        class="cr-panel"
-      >
-        <text class="cr-panel-title">
-          选择内容类型
-        </text>
+      <view v-if="!selectedType" class="cr-panel">
+        <text class="cr-panel-title">选择内容类型</text>
         <view class="cr-type-list">
-          <view
-            v-for="t in contentTypes"
-            :key="t.id"
-            class="cr-type"
-            @tap="selectType(t)"
-          >
-            <view class="cr-type-icon">
-              <app-icon
-                :name="t.icon"
-                :size="32"
-                color="#C41E3A"
-              />
-            </view>
+          <view v-for="t in contentTypes" :key="t.id" class="cr-type" @tap="selectType(t)">
+            <view class="cr-type-icon"><app-icon :name="t.icon" :size="32" color="#C41E3A" /></view>
             <view class="cr-type-main">
-              <text class="cr-type-name">
-                {{ t.name }}
-              </text>
-              <text class="cr-type-desc">
-                {{ t.desc }}
-              </text>
+              <text class="cr-type-name">{{ t.name }}</text>
+              <text class="cr-type-desc">{{ t.desc }}</text>
             </view>
-            <app-icon
-              name="chevron-right"
-              :size="32"
-              color="rgba(255,255,255,0.3)"
-            />
+            <app-icon name="chevron-right" :size="32" color="rgba(255,255,255,0.3)" />
           </view>
         </view>
       </view>
 
       <!-- 文章表单 -->
-      <view
-        v-else-if="selectedType === 'article'"
-        class="cr-form"
-      >
+      <view v-else-if="selectedType === 'article'" class="cr-form">
         <view class="cr-form-head">
-          <view
-            class="cr-back"
-            @tap="selectedType = null"
-          >
-            <app-icon
-              name="chevron-left"
-              :size="28"
-              color="rgba(255,255,255,0.6)"
-            /><text class="cr-back-t">
-              返回
-            </text>
-          </view>
-          <text class="cr-form-title">
-            发布文章
-          </text>
+          <view class="cr-back" @tap="selectedType = null"><app-icon name="chevron-left" :size="28" color="rgba(255,255,255,0.6)" /><text class="cr-back-t">返回</text></view>
+          <text class="cr-form-title">发布文章</text>
           <view class="cr-back-pad" />
         </view>
 
         <view class="cr-panel">
-          <text class="cr-field-label">
-            文章封面
-          </text>
-          <view
-            class="cr-cover"
-            @tap="uploadCover('a')"
-          >
-            <image
-              v-if="a.cover"
-              :src="a.cover"
-              class="cr-cover-img"
-              mode="aspectFill"
-            />
-            <view
-              v-else
-              class="cr-cover-empty"
-            >
-              <app-icon
-                name="camera"
-                :size="48"
-                color="rgba(255,255,255,0.4)"
-              /><text class="cr-cover-tip">
-                点击上传封面
-              </text>
-            </view>
-            <view
-              v-if="a.cover"
-              class="cr-cover-del"
-              @tap.stop="a.cover = ''"
-            >
-              <app-icon
-                name="x"
-                :size="28"
-                color="#ffffff"
-              />
-            </view>
+          <text class="cr-field-label">文章封面</text>
+          <view class="cr-cover" @tap="uploadCover('a')">
+            <image v-if="a.cover" :src="a.cover" class="cr-cover-img" mode="aspectFill" />
+            <view v-else class="cr-cover-empty"><app-icon name="camera" :size="48" color="rgba(255,255,255,0.4)" /><text class="cr-cover-tip">点击上传封面</text></view>
+            <view v-if="a.cover" class="cr-cover-del" @tap.stop="a.cover = ''"><app-icon name="x" :size="28" color="#ffffff" /></view>
           </view>
         </view>
 
         <view class="cr-panel">
-          <text class="cr-field-label">
-            文章标题 <text class="cr-req">
-              *
-            </text>
-          </text>
-          <input
-            v-model="a.title"
-            class="cr-input"
-            :class="{ err: aErr.title }"
-            placeholder="请输入文章标题"
-            placeholder-class="cr-ph"
-            @input="aErr.title = ''"
-          >
-          <text
-            v-if="aErr.title"
-            class="cr-err"
-          >
-            {{ aErr.title }}
-          </text>
+          <text class="cr-field-label">文章标题 <text class="cr-req">*</text></text>
+          <input v-model="a.title" class="cr-input" :class="{ err: aErr.title }" placeholder="请输入文章标题" placeholder-class="cr-ph" @input="aErr.title = ''" />
+          <text v-if="aErr.title" class="cr-err">{{ aErr.title }}</text>
         </view>
 
         <view class="cr-panel">
-          <text class="cr-field-label">
-            文章内容 <text class="cr-req">
-              *
-            </text>
-          </text>
-          <textarea
-            v-model="a.content"
-            class="cr-textarea"
-            :class="{ err: aErr.content }"
-            placeholder="请输入文章内容..."
-            placeholder-class="cr-ph"
-            :maxlength="-1"
-            @input="aErr.content = ''"
-          />
-          <text
-            v-if="aErr.content"
-            class="cr-err"
-          >
-            {{ aErr.content }}
-          </text>
+          <text class="cr-field-label">文章内容 <text class="cr-req">*</text></text>
+          <textarea v-model="a.content" class="cr-textarea" :class="{ err: aErr.content }" placeholder="请输入文章内容..." placeholder-class="cr-ph" :maxlength="-1" @input="aErr.content = ''" />
+          <text v-if="aErr.content" class="cr-err">{{ aErr.content }}</text>
         </view>
 
         <view class="cr-panel">
@@ -310,194 +168,59 @@ function submitCourse() {
           />
         </view>
 
-        <view
-          class="cr-submit"
-          :class="{ disabled: submitting }"
-          @tap="submitArticle"
-        >
-          <text class="cr-submit-t">
-            {{ submitting ? '发布中...' : '发布文章' }}
-          </text>
+        <view class="cr-submit" :class="{ disabled: aSubmitting }" @tap="submitArticle">
+          <text class="cr-submit-t">{{ aSubmitting ? '发布中...' : '发布文章' }}</text>
         </view>
       </view>
 
       <!-- 课程表单 -->
-      <view
-        v-else-if="selectedType === 'course'"
-        class="cr-form"
-      >
+      <view v-else-if="selectedType === 'course'" class="cr-form">
         <view class="cr-form-head">
-          <view
-            class="cr-back"
-            @tap="selectedType = null"
-          >
-            <app-icon
-              name="chevron-left"
-              :size="28"
-              color="rgba(255,255,255,0.6)"
-            /><text class="cr-back-t">
-              返回
-            </text>
-          </view>
-          <text class="cr-form-title">
-            发布课程
-          </text>
+          <view class="cr-back" @tap="selectedType = null"><app-icon name="chevron-left" :size="28" color="rgba(255,255,255,0.6)" /><text class="cr-back-t">返回</text></view>
+          <text class="cr-form-title">发布课程</text>
           <view class="cr-back-pad" />
         </view>
 
         <view class="cr-panel">
-          <text class="cr-field-label">
-            课程类型
-          </text>
+          <text class="cr-field-label">课程类型</text>
           <view class="cr-grid2">
-            <view
-              class="cr-course-type"
-              :class="{ on: c.format === 'text' }"
-              @tap="c.format = 'text'"
-            >
-              <app-icon
-                name="file-text"
-                :size="28"
-                color="#C41E3A"
-              />
-              <text class="cr-course-type-name">
-                图文课程
-              </text>
-              <text class="cr-course-type-desc">
-                图文 + 资料形式
-              </text>
+            <view class="cr-course-type" :class="{ on: c.format === 'text' }" @tap="c.format = 'text'">
+              <app-icon name="file-text" :size="28" color="#C41E3A" />
+              <text class="cr-course-type-name">图文课程</text>
+              <text class="cr-course-type-desc">图文 + 资料形式</text>
             </view>
-            <view
-              class="cr-course-type"
-              :class="{ on: c.format === 'av' && avUnlocked }"
-              @tap="selectAV"
-            >
+            <view class="cr-course-type" :class="{ on: c.format === 'av' && avUnlocked }" @tap="selectAV">
               <view class="cr-course-type-top">
-                <app-icon
-                  name="audio-lines"
-                  :size="28"
-                  :color="avUnlocked ? '#C9A96E' : 'rgba(255,255,255,0.4)'"
-                />
-                <app-icon
-                  v-if="!avUnlocked"
-                  name="lock"
-                  :size="22"
-                  color="rgba(255,255,255,0.4)"
-                />
+                <app-icon name="audio-lines" :size="28" :color="avUnlocked ? '#C9A96E' : 'rgba(255,255,255,0.4)'" />
+                <app-icon v-if="!avUnlocked" name="lock" :size="22" color="rgba(255,255,255,0.4)" />
               </view>
-              <text
-                class="cr-course-type-name"
-                :class="{ off: !avUnlocked }"
-              >
-                音视频课程
-              </text>
-              <text
-                v-if="avUnlocked"
-                class="cr-course-type-desc"
-              >
-                音频 / 视频章节
-              </text>
-              <text
-                v-else
-                class="cr-course-type-badge"
-              >
-                未开通
-              </text>
+              <text class="cr-course-type-name" :class="{ off: !avUnlocked }">音视频课程</text>
+              <text v-if="avUnlocked" class="cr-course-type-desc">音频 / 视频章节</text>
+              <text v-else class="cr-course-type-badge">未开通</text>
             </view>
           </view>
-          <text
-            v-if="!avUnlocked"
-            class="cr-course-hint"
-          >
-            音视频课程为高级功能，需申请开通后使用
-          </text>
+          <text v-if="!avUnlocked" class="cr-course-hint">音视频课程为高级功能，需申请开通后使用</text>
         </view>
 
         <view class="cr-panel">
-          <text class="cr-field-label">
-            课程封面 <text class="cr-req">
-              *
-            </text>
-          </text>
-          <view
-            class="cr-cover"
-            @tap="uploadCover('c')"
-          >
-            <image
-              v-if="c.cover"
-              :src="c.cover"
-              class="cr-cover-img"
-              mode="aspectFill"
-            />
-            <view
-              v-else
-              class="cr-cover-empty"
-            >
-              <app-icon
-                name="video"
-                :size="48"
-                color="rgba(255,255,255,0.4)"
-              /><text class="cr-cover-tip">
-                点击上传封面
-              </text>
-            </view>
-            <view
-              v-if="c.cover"
-              class="cr-cover-del"
-              @tap.stop="c.cover = ''"
-            >
-              <app-icon
-                name="x"
-                :size="28"
-                color="#ffffff"
-              />
-            </view>
+          <text class="cr-field-label">课程封面 <text class="cr-req">*</text></text>
+          <view class="cr-cover" @tap="uploadCover('c')">
+            <image v-if="c.cover" :src="c.cover" class="cr-cover-img" mode="aspectFill" />
+            <view v-else class="cr-cover-empty"><app-icon name="video" :size="48" color="rgba(255,255,255,0.4)" /><text class="cr-cover-tip">点击上传封面</text></view>
+            <view v-if="c.cover" class="cr-cover-del" @tap.stop="c.cover = ''"><app-icon name="x" :size="28" color="#ffffff" /></view>
           </view>
         </view>
 
         <view class="cr-panel">
-          <text class="cr-field-label">
-            课程名称 <text class="cr-req">
-              *
-            </text>
-          </text>
-          <input
-            v-model="c.title"
-            class="cr-input"
-            :class="{ err: cErr.title }"
-            placeholder="请输入课程名称"
-            placeholder-class="cr-ph"
-            @input="cErr.title = ''"
-          >
-          <text
-            v-if="cErr.title"
-            class="cr-err"
-          >
-            {{ cErr.title }}
-          </text>
+          <text class="cr-field-label">课程名称 <text class="cr-req">*</text></text>
+          <input v-model="c.title" class="cr-input" :class="{ err: cErr.title }" placeholder="请输入课程名称" placeholder-class="cr-ph" @input="cErr.title = ''" />
+          <text v-if="cErr.title" class="cr-err">{{ cErr.title }}</text>
         </view>
 
         <view class="cr-panel">
-          <text class="cr-field-label">
-            课程简介 <text class="cr-req">
-              *
-            </text>
-          </text>
-          <textarea
-            v-model="c.description"
-            class="cr-textarea sm"
-            :class="{ err: cErr.description }"
-            placeholder="请输入课程简介..."
-            placeholder-class="cr-ph"
-            :maxlength="-1"
-            @input="cErr.description = ''"
-          />
-          <text
-            v-if="cErr.description"
-            class="cr-err"
-          >
-            {{ cErr.description }}
-          </text>
+          <text class="cr-field-label">课程简介 <text class="cr-req">*</text></text>
+          <textarea v-model="c.description" class="cr-textarea sm" :class="{ err: cErr.description }" placeholder="请输入课程简介..." placeholder-class="cr-ph" :maxlength="-1" @input="cErr.description = ''" />
+          <text v-if="cErr.description" class="cr-err">{{ cErr.description }}</text>
         </view>
 
         <view class="cr-panel">
@@ -511,19 +234,11 @@ function submitCourse() {
         </view>
 
         <view class="cr-tip-gold">
-          <text class="cr-tip-gold-t">
-            {{ c.format === 'av' ? '课程创建后，可在"课程管理"中上传音视频章节、设置目录结构' : '课程创建后，可在"课程管理"中上传图文内容与学习资料' }}
-          </text>
+          <text class="cr-tip-gold-t">{{ c.format === 'av' ? '课程创建后，可在"课程管理"中上传音视频章节、设置目录结构' : '课程创建后，可在"课程管理"中上传图文内容与学习资料' }}</text>
         </view>
 
-        <view
-          class="cr-submit"
-          :class="{ disabled: submitting }"
-          @tap="submitCourse"
-        >
-          <text class="cr-submit-t">
-            {{ submitting ? '创建中...' : '创建课程' }}
-          </text>
+        <view class="cr-submit" :class="{ disabled: cSubmitting }" @tap="submitCourse">
+          <text class="cr-submit-t">{{ cSubmitting ? '创建中...' : '创建课程' }}</text>
         </view>
       </view>
     </scroll-view>

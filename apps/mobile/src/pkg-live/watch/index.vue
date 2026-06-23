@@ -1,250 +1,117 @@
 <template>
-  <view
-    class="watch"
-    :class="{ 'watch--commerce': room.type === 'commerce' }"
-  >
+  <view class="watch" :class="{ 'watch--commerce': room.type === 'commerce' }">
     <!-- 直播画面背景（占位渐变，接入推流后替换） -->
     <view class="watch__stage">
       <view class="watch__stage-mask" />
       <!-- 画面占位（接入推流后移除） -->
       <view class="watch__stage-ph">
         <view class="watch__stage-ph-icon">
-          <AppIcon
-            :name="room.type === 'commerce' ? 'shopping-bag' : 'book-open'"
-            :size="88"
-            color="rgba(255,255,255,0.5)"
-          />
+          <AppIcon :name="room.type === 'commerce' ? 'shopping-bag' : 'book-open'" :size="88" color="rgba(255,255,255,0.5)" />
         </view>
-        <text class="watch__stage-ph-txt">
-          直播画面
-        </text>
+        <text class="watch__stage-ph-txt">直播画面</text>
       </view>
     </view>
 
     <!-- 顶部信息栏 -->
-    <view
-      class="watch__top"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="watch__top" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="watch__top-inner">
         <view class="watch__top-row">
           <!-- 主播信息胶囊 -->
           <view class="host-card">
             <view class="host-card__avatar-wrap">
-              <image
-                class="host-card__avatar"
-                :src="room.hostAvatar"
-                mode="aspectFill"
-              />
+              <image class="host-card__avatar" :src="room.hostAvatar" mode="aspectFill" />
               <view class="host-card__live-dot" />
             </view>
             <view class="host-card__info">
-              <text class="host-card__name">
-                {{ room.hostName }}
-              </text>
-              <text class="host-card__fans">
-                {{ formatCount(room.followers) }} 粉丝
-              </text>
+              <text class="host-card__name">{{ room.hostName }}</text>
+              <text class="host-card__fans">{{ formatCount(room.followers) }} 粉丝</text>
             </view>
-            <view
-              class="host-card__follow"
-              :class="{ 'host-card__follow--on': isFollowing }"
-              @tap="onFollow"
-            >
-              <text class="host-card__follow-txt">
-                {{ isFollowing ? '已关注' : '关注' }}
-              </text>
+            <view class="host-card__follow" :class="{ 'host-card__follow--on': isFollowing }" @tap="onFollow">
+              <text class="host-card__follow-txt">{{ isFollowing ? '已关注' : '关注' }}</text>
             </view>
           </view>
           <!-- 右侧：在线人数 + 关闭 -->
           <view class="watch__top-right">
             <view class="online-box">
-              <AppIcon
-                name="users"
-                :size="28"
-                color="rgba(255,255,255,0.8)"
-              />
-              <text class="online-box__count">
-                {{ formatCount(room.viewerCount) }}
-              </text>
+              <AppIcon name="users" :size="28" color="rgba(255,255,255,0.8)" />
+              <text class="online-box__count">{{ formatCount(room.viewerCount) }}</text>
             </view>
-            <view
-              class="watch__close"
-              @tap="onClose"
-            >
-              <AppIcon
-                name="x"
-                :size="40"
-                color="#fff"
-              />
+            <view class="watch__close" @tap="onClose">
+              <AppIcon name="x" :size="40" color="#fff" />
             </view>
           </view>
         </view>
 
         <!-- 直播间标题 -->
         <view class="watch__title-row">
-          <text class="watch__title">
-            {{ room.title }}
-          </text>
+          <text class="watch__title">{{ room.title }}</text>
         </view>
 
         <!-- 合规提示 -->
         <view class="watch__disclaimer">
-          <Disclaimer
-            variant="entertainment"
-            tone="inline"
-          />
+          <Disclaimer variant="entertainment" tone="inline" />
         </view>
       </view>
     </view>
 
     <!-- 右上角榜单入口 -->
     <view class="rank-entry-wrap">
-      <view
-        class="rank-entry"
-        @tap="showRank = true"
-      >
-        <AppIcon
-          name="crown"
-          :size="28"
-          color="#fff"
-        />
-        <text class="rank-entry__txt">
-          榜单
-        </text>
-        <AppIcon
-          name="chevron-down"
-          :size="24"
-          color="#fff"
-        />
+      <view class="rank-entry" @tap="showRank = true">
+        <AppIcon name="crown" :size="28" color="#fff" />
+        <text class="rank-entry__txt">榜单</text>
+        <AppIcon name="chevron-down" :size="24" color="#fff" />
       </view>
     </view>
 
     <!-- 商品讲解卡（电商直播） -->
-    <view
-      v-if="room.type === 'commerce' && explainingProduct"
-      class="explain-card"
-      @tap="openQuickBuy(explainingProduct)"
-    >
-      <image
-        class="explain-card__img"
-        :src="explainingProduct.cover"
-        mode="aspectFill"
-      />
+    <view v-if="room.type === 'commerce' && explainingProduct" class="explain-card" @tap="openQuickBuy(explainingProduct)">
+      <image class="explain-card__img" :src="explainingProduct.cover" mode="aspectFill" />
       <view class="explain-card__info">
-        <view class="explain-card__tag">
-          <text class="explain-card__tag-txt">
-            讲解中
-          </text>
-        </view>
-        <text class="explain-card__name">
-          {{ explainingProduct.name }}
-        </text>
+        <view class="explain-card__tag"><text class="explain-card__tag-txt">讲解中</text></view>
+        <text class="explain-card__name">{{ explainingProduct.name }}</text>
         <view class="explain-card__price-row">
-          <text class="explain-card__price">
-            ¥{{ explainingProduct.price }}
-          </text>
-          <text class="explain-card__origin">
-            ¥{{ explainingProduct.originalPrice }}
-          </text>
+          <text class="explain-card__price">¥{{ explainingProduct.price }}</text>
+          <text class="explain-card__origin">¥{{ explainingProduct.originalPrice }}</text>
         </view>
       </view>
-      <view class="explain-card__buy">
-        <text class="explain-card__buy-txt">
-          抢购
-        </text>
-      </view>
+      <view class="explain-card__buy"><text class="explain-card__buy-txt">抢购</text></view>
     </view>
 
     <!-- 系统消息横幅（进入/送礼/购买） -->
     <view class="sys-banners">
-      <view
-        v-for="m in systemBanners"
-        :key="m.id"
-        class="sys-banner"
-        :class="`sys-banner--${m.type}`"
-      >
-        <text class="sys-banner__user">
-          {{ m.user }}
-        </text>
-        <text class="sys-banner__content">
-          {{ m.content }}
-        </text>
-        <text
-          v-if="m.giftIcon"
-          class="sys-banner__icon"
-        >
-          {{ m.giftIcon }}
-        </text>
+      <view v-for="m in systemBanners" :key="m.id" class="sys-banner" :class="`sys-banner--${m.type}`">
+        <text class="sys-banner__user">{{ m.user }}</text>
+        <text class="sys-banner__content">{{ m.content }}</text>
+        <text v-if="m.giftIcon" class="sys-banner__icon">{{ m.giftIcon }}</text>
       </view>
     </view>
 
     <!-- 飘屏礼物（大礼物横幅滑入） -->
     <view class="gift-flyers">
-      <view
-        v-for="g in giftFlyers"
-        :key="g.id"
-        class="gift-flyer"
-      >
-        <image
-          class="gift-flyer__avatar"
-          :src="g.avatar"
-          mode="aspectFill"
-        />
+      <view v-for="g in giftFlyers" :key="g.id" class="gift-flyer">
+        <image class="gift-flyer__avatar" :src="g.avatar" mode="aspectFill" />
         <view class="gift-flyer__info">
-          <text class="gift-flyer__user">
-            {{ g.user }}
-          </text>
-          <text class="gift-flyer__desc">
-            送出 {{ g.giftName }}
-          </text>
+          <text class="gift-flyer__user">{{ g.user }}</text>
+          <text class="gift-flyer__desc">送出 {{ g.giftName }}</text>
         </view>
-        <text class="gift-flyer__icon">
-          {{ g.giftIcon }}
-        </text>
-        <text class="gift-flyer__count">
-          x{{ g.count }}
-        </text>
+        <text class="gift-flyer__icon">{{ g.giftIcon }}</text>
+        <text class="gift-flyer__count">x{{ g.count }}</text>
       </view>
     </view>
 
     <!-- 电商实时已售通知 -->
-    <view
-      v-if="room.type === 'commerce' && saleNotif"
-      class="sale-notif"
-    >
-      <AppIcon
-        name="shopping-cart"
-        :size="26"
-        color="#C41E3A"
-      />
-      <text class="sale-notif__txt">
-        {{ saleNotif }}
-      </text>
+    <view v-if="room.type === 'commerce' && saleNotif" class="sale-notif">
+      <AppIcon name="shopping-cart" :size="26" color="#C41E3A" />
+      <text class="sale-notif__txt">{{ saleNotif }}</text>
     </view>
 
     <!-- 左侧弹幕区 -->
-    <scroll-view
-      scroll-y
-      class="danmaku"
-      :scroll-top="danmakuScrollTop"
-      :scroll-with-animation="true"
-    >
+    <scroll-view scroll-y class="danmaku" :scroll-top="danmakuScrollTop" :scroll-with-animation="true">
       <view class="danmaku__inner">
-        <view
-          v-for="c in comments"
-          :key="c.id"
-          class="danmaku__item"
-        >
+        <view v-for="c in comments" :key="c.id" class="danmaku__item">
           <view class="danmaku__row">
-            <view class="danmaku__tag">
-              <text class="danmaku__tag-txt">
-                {{ c.userName }}
-              </text>
-            </view>
-            <text class="danmaku__content">
-              {{ c.content }}
-            </text>
+            <view class="danmaku__tag"><text class="danmaku__tag-txt">{{ c.userName }}</text></view>
+            <text class="danmaku__content">{{ c.content }}</text>
           </view>
         </view>
       </view>
@@ -258,112 +125,42 @@
         class="heart"
         :style="{ left: h.left + 'rpx', animationDuration: h.duration + 's' }"
       >
-        <AppIcon
-          name="heart"
-          :size="48"
-          color="#ef4444"
-          :fill="true"
-        />
+        <AppIcon name="heart" :size="48" color="#ef4444" :fill="true" />
       </view>
     </view>
 
     <!-- 底部互动栏 -->
-    <view
-      class="watch__bottom"
-      :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12rpx)' }"
-    >
+    <view class="watch__bottom" :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12rpx)' }">
       <view class="watch__bottom-row">
         <!-- 输入框 -->
-        <view
-          class="input-box"
-          @tap="showCommentInput = true"
-        >
-          <text class="input-box__ph">
-            说点什么...
-          </text>
-          <view class="input-box__send">
-            <AppIcon
-              name="send"
-              :size="24"
-              color="#fff"
-            />
-          </view>
+        <view class="input-box" @tap="showCommentInput = true">
+          <text class="input-box__ph">说点什么...</text>
+          <view class="input-box__send"><AppIcon name="send" :size="24" color="#fff" /></view>
         </view>
         <!-- 电商：购物车 -->
-        <view
-          v-if="room.type === 'commerce'"
-          class="act-btn act-btn--cart"
-          @tap="showProductList = true"
-        >
-          <AppIcon
-            name="shopping-cart"
-            :size="40"
-            color="#f87171"
-          />
-          <view
-            v-if="products.length"
-            class="act-btn__badge"
-          >
-            <text class="act-btn__badge-txt">
-              {{ products.length }}
-            </text>
-          </view>
+        <view v-if="room.type === 'commerce'" class="act-btn act-btn--cart" @tap="showProductList = true">
+          <AppIcon name="shopping-cart" :size="40" color="#f87171" />
+          <view v-if="products.length" class="act-btn__badge"><text class="act-btn__badge-txt">{{ products.length }}</text></view>
         </view>
         <!-- 点赞 -->
-        <view
-          class="act-btn"
-          @tap="onTapLike"
-        >
-          <AppIcon
-            name="heart"
-            :size="40"
-            color="#ef4444"
-            :fill="true"
-          />
+        <view class="act-btn" @tap="onTapLike">
+          <AppIcon name="heart" :size="40" color="#ef4444" :fill="true" />
         </view>
         <!-- 礼物 -->
-        <view
-          class="act-btn act-btn--gift"
-          @tap="showGiftPanel = true"
-        >
-          <AppIcon
-            name="gift"
-            :size="40"
-            color="#fbbf24"
-          />
+        <view class="act-btn act-btn--gift" @tap="showGiftPanel = true">
+          <AppIcon name="gift" :size="40" color="#fbbf24" />
         </view>
         <!-- 连麦 -->
-        <view
-          class="act-btn act-btn--mic"
-          @tap="showMicSheet = true"
-        >
-          <AppIcon
-            name="phone"
-            :size="40"
-            color="#60a5fa"
-          />
+        <view class="act-btn act-btn--mic" @tap="showMicSheet = true">
+          <AppIcon name="phone" :size="40" color="#60a5fa" />
         </view>
         <!-- 分享 -->
-        <view
-          class="act-btn"
-          @tap="showShare = true"
-        >
-          <AppIcon
-            name="share-2"
-            :size="40"
-            color="rgba(255,255,255,0.8)"
-          />
+        <view class="act-btn" @tap="showShare = true">
+          <AppIcon name="share-2" :size="40" color="rgba(255,255,255,0.8)" />
         </view>
         <!-- 举报 -->
-        <view
-          class="act-btn"
-          @tap="onReport"
-        >
-          <AppIcon
-            name="flag"
-            :size="40"
-            color="rgba(255,255,255,0.8)"
-          />
+        <view class="act-btn" @tap="onReport">
+          <AppIcon name="flag" :size="40" color="rgba(255,255,255,0.8)" />
         </view>
       </view>
     </view>
@@ -371,82 +168,37 @@
     <!-- ===== 弹窗层 ===== -->
 
     <!-- 弹幕输入 -->
-    <view
-      v-if="showCommentInput"
-      class="modal-mask modal-mask--bottom"
-      @tap="showCommentInput = false"
-    >
-      <view
-        class="comment-input"
-        @tap.stop
-      >
+    <view v-if="showCommentInput" class="modal-mask modal-mask--bottom" @tap="showCommentInput = false">
+      <view class="comment-input" @tap.stop>
         <input
-          v-model="commentText"
           class="comment-input__field"
+          v-model="commentText"
           placeholder="说点什么..."
           placeholder-class="comment-input__ph"
           :focus="showCommentInput"
           confirm-type="send"
           @confirm="onSendComment"
-        >
-        <view
-          class="comment-input__send"
-          :class="{ 'comment-input__send--on': commentText.trim() }"
-          @tap="onSendComment"
-        >
-          <text class="comment-input__send-txt">
-            发送
-          </text>
+        />
+        <view class="comment-input__send" :class="{ 'comment-input__send--on': commentText.trim() }" @tap="onSendComment">
+          <text class="comment-input__send-txt">发送</text>
         </view>
       </view>
     </view>
 
     <!-- 榜单 -->
-    <view
-      v-if="showRank"
-      class="modal-mask modal-mask--bottom"
-      @tap="showRank = false"
-    >
-      <view
-        class="rank-sheet"
-        @tap.stop
-      >
+    <view v-if="showRank" class="modal-mask modal-mask--bottom" @tap="showRank = false">
+      <view class="rank-sheet" @tap.stop>
         <view class="rank-sheet__head">
-          <text class="rank-sheet__title">
-            打赏榜
-          </text>
-          <view @tap="showRank = false">
-            <AppIcon
-              name="x"
-              :size="40"
-              color="#999"
-            />
-          </view>
+          <text class="rank-sheet__title">打赏榜</text>
+          <view @tap="showRank = false"><AppIcon name="x" :size="40" color="#999" /></view>
         </view>
         <view class="rank-sheet__list">
-          <view
-            v-for="item in rankList"
-            :key="item.rank"
-            class="rank-row"
-          >
-            <text
-              class="rank-row__no"
-              :class="`rank-row__no--${item.rank}`"
-            >
-              {{ item.rank }}
-            </text>
-            <text class="rank-row__user">
-              {{ item.user }}
-            </text>
+          <view v-for="item in rankList" :key="item.rank" class="rank-row">
+            <text class="rank-row__no" :class="`rank-row__no--${item.rank}`">{{ item.rank }}</text>
+            <text class="rank-row__user">{{ item.user }}</text>
             <view class="rank-row__amount">
-              <AppIcon
-                name="coins"
-                :size="26"
-                color="#C9A96E"
-              />
-              <text class="rank-row__amount-txt">
-                {{ formatCount(item.amount) }}
-              </text>
+              <AppIcon name="coins" :size="26" color="#C9A96E" />
+              <text class="rank-row__amount-txt">{{ formatCount(item.amount) }}</text>
             </view>
           </view>
         </view>
@@ -454,143 +206,51 @@
     </view>
 
     <!-- 商品列表 -->
-    <view
-      v-if="showProductList"
-      class="modal-mask modal-mask--bottom"
-      @tap="showProductList = false"
-    >
-      <view
-        class="product-sheet"
-        @tap.stop
-      >
+    <view v-if="showProductList" class="modal-mask modal-mask--bottom" @tap="showProductList = false">
+      <view class="product-sheet" @tap.stop>
         <view class="product-sheet__head">
-          <text class="product-sheet__title">
-            全部商品（{{ products.length }}）
-          </text>
-          <view @tap="showProductList = false">
-            <AppIcon
-              name="x"
-              :size="40"
-              color="#999"
-            />
-          </view>
+          <text class="product-sheet__title">全部商品（{{ products.length }}）</text>
+          <view @tap="showProductList = false"><AppIcon name="x" :size="40" color="#999" /></view>
         </view>
-        <scroll-view
-          scroll-y
-          class="product-sheet__list"
-        >
-          <view
-            v-for="(p, idx) in products"
-            :key="p.id"
-            class="product-row"
-          >
-            <text class="product-row__no">
-              {{ idx + 1 }}
-            </text>
-            <image
-              class="product-row__img"
-              :src="p.cover"
-              mode="aspectFill"
-            />
+        <scroll-view scroll-y class="product-sheet__list">
+          <view v-for="(p, idx) in products" :key="p.id" class="product-row">
+            <text class="product-row__no">{{ idx + 1 }}</text>
+            <image class="product-row__img" :src="p.cover" mode="aspectFill" />
             <view class="product-row__info">
-              <text class="product-row__name">
-                {{ p.name }}
-              </text>
-              <view
-                v-if="p.isExplaining"
-                class="product-row__tag"
-              >
-                <text class="product-row__tag-txt">
-                  讲解中
-                </text>
-              </view>
+              <text class="product-row__name">{{ p.name }}</text>
+              <view v-if="p.isExplaining" class="product-row__tag"><text class="product-row__tag-txt">讲解中</text></view>
               <view class="product-row__price-row">
-                <text class="product-row__price">
-                  ¥{{ p.price }}
-                </text>
-                <text class="product-row__origin">
-                  ¥{{ p.originalPrice }}
-                </text>
-                <text class="product-row__sold">
-                  已售{{ p.sold }}
-                </text>
+                <text class="product-row__price">¥{{ p.price }}</text>
+                <text class="product-row__origin">¥{{ p.originalPrice }}</text>
+                <text class="product-row__sold">已售{{ p.sold }}</text>
               </view>
             </view>
-            <view
-              class="product-row__buy"
-              @tap="openQuickBuy(p)"
-            >
-              <text class="product-row__buy-txt">
-                购买
-              </text>
-            </view>
+            <view class="product-row__buy" @tap="openQuickBuy(p)"><text class="product-row__buy-txt">购买</text></view>
           </view>
         </scroll-view>
       </view>
     </view>
 
     <!-- 礼物面板 -->
-    <GiftPanel
-      :open="showGiftPanel"
-      :balance="coinBalance"
-      @close="showGiftPanel = false"
-      @send="onSendGift"
-    />
+    <GiftPanel :open="showGiftPanel" :balance="coinBalance" @close="showGiftPanel = false" @send="onSendGift" />
 
     <!-- 连麦 -->
-    <MicConnectSheet
-      :open="showMicSheet"
-      :host-name="room.hostName"
-      @close="showMicSheet = false"
-    />
+    <MicConnectSheet :open="showMicSheet" :host-name="room.hostName" @close="showMicSheet = false" />
 
     <!-- 快速购买 -->
-    <QuickBuySheet
-      :open="showQuickBuy"
-      :product="quickBuyProduct"
-      @close="showQuickBuy = false"
-    />
+    <QuickBuySheet :open="showQuickBuy" :product="quickBuyProduct" @close="showQuickBuy = false" />
 
     <!-- 分享 -->
-    <view
-      v-if="showShare"
-      class="modal-mask modal-mask--bottom"
-      @tap="showShare = false"
-    >
-      <view
-        class="share-sheet"
-        @tap.stop
-      >
-        <text class="share-sheet__title">
-          分享直播间
-        </text>
+    <view v-if="showShare" class="modal-mask modal-mask--bottom" @tap="showShare = false">
+      <view class="share-sheet" @tap.stop>
+        <text class="share-sheet__title">分享直播间</text>
         <view class="share-sheet__grid">
-          <view
-            v-for="s in shareChannels"
-            :key="s.key"
-            class="share-item"
-            @tap="onShare(s.key)"
-          >
-            <view class="share-item__icon">
-              <AppIcon
-                :name="s.icon"
-                :size="52"
-                color="#666"
-              />
-            </view>
-            <text class="share-item__label">
-              {{ s.label }}
-            </text>
+          <view v-for="s in shareChannels" :key="s.key" class="share-item" @tap="onShare(s.key)">
+            <view class="share-item__icon"><AppIcon :name="s.icon" :size="52" color="#666" /></view>
+            <text class="share-item__label">{{ s.label }}</text>
           </view>
         </view>
-        <view
-          class="share-sheet__cancel"
-          @tap="showShare = false"
-        >
-          <text class="share-sheet__cancel-txt">
-            取消
-          </text>
-        </view>
+        <view class="share-sheet__cancel" @tap="showShare = false"><text class="share-sheet__cancel-txt">取消</text></view>
       </view>
     </view>
   </view>

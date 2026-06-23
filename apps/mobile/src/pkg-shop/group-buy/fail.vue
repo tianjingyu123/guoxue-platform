@@ -133,43 +133,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
-
-interface GroupBuyMember {
-  name: string
-  avatar: string
-}
-
-interface GroupBuyFailInfo {
-  groupId: string
-  orderId: string
-  productName: string
-  productCover: string
-  price: number
-  reason: 'timeout' | 'stock' | 'other'
-  members: GroupBuyMember[]
-  minMembers: number
-  currentMembers: number
-  failedAt: string
-  refundStatus: 'pending' | 'processing' | 'completed'
-  refundAmount: number
-  estimatedRefundTime: string
-}
-
-const info: GroupBuyFailInfo = {
-  groupId: '',
-  orderId: '',
-  productName: '',
-  productCover: '',
-  price: 0,
-  reason: 'other',
-  members: [],
-  minMembers: 0,
-  currentMembers: 0,
-  failedAt: '',
-  refundStatus: 'pending',
-  refundAmount: 0,
-  estimatedRefundTime: '',
-}
+import { groupBuyFail as info } from '@/lib/shop-data'
 
 const copied = ref(false)
 

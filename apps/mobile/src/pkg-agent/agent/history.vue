@@ -1,28 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { initialHistory as _initialHistory, historyGroups as _historyGroups, type HistoryItem } from '@/lib/agent-data'
+import { initialHistory, historyGroups, type HistoryItem } from '@/lib/agent-data'
 
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { history: _initialHistory, groups: _historyGroups }
-})
-
-const isEmpty = computed(() => {
-  const h = pageData.value?.history
-  return h !== undefined && h.length === 0
-})
-
-const history = ref<HistoryItem[]>([])
-const historyGroups = computed(() => pageData.value?.groups ?? [])
-
-watch(() => pageData.value?.history, (val) => {
-  if (val) history.value = val.map((h: any) => ({ ...h }))
-}, { immediate: true })
+const history = ref<HistoryItem[]>([...initialHistory])
 const searchQuery = ref('')
 const showClearConfirm = ref(false)
 const swipedId = ref<number | null>(null)
@@ -63,65 +45,19 @@ function openChat(item: HistoryItem) {
 </script>
 
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="120rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无历史记录" />
-  <view v-else class="page">
+  <view class="page">
     <!-- 顶部导航 -->
     <view class="header safe-pt">
       <view class="head-bar">
-        <view
-          class="back"
-          @tap="goBack()"
-        >
-          <AppIcon
-            name="arrow-left"
-            :size="40"
-            color="#1a1a1a"
-          />
-        </view>
-        <text class="title">
-          对话历史
-        </text>
+        <view class="back" @tap="goBack()"><AppIcon name="arrow-left" :size="40" color="#1a1a1a" /></view>
+        <text class="title">对话历史</text>
         <view class="menu-wrap">
-          <view
-            class="more"
-            @tap="showMenu = !showMenu"
-          >
-            <AppIcon
-              name="more-horizontal"
-              :size="40"
-              color="#1a1a1a"
-            />
-          </view>
-          <view
-            v-if="showMenu"
-            class="menu-mask"
-            @tap="showMenu = false"
-          />
-          <view
-            v-if="showMenu"
-            class="menu"
-          >
-            <view
-              class="menu-item"
-              @tap="showClearConfirm = true; showMenu = false"
-            >
-              <AppIcon
-                name="trash-2"
-                :size="28"
-                color="#c41e3a"
-              />
-              <text class="menu-txt">
-                清空全部
-              </text>
+          <view class="more" @tap="showMenu = !showMenu"><AppIcon name="more-horizontal" :size="40" color="#1a1a1a" /></view>
+          <view v-if="showMenu" class="menu-mask" @tap="showMenu = false" />
+          <view v-if="showMenu" class="menu">
+            <view class="menu-item" @tap="showClearConfirm = true; showMenu = false">
+              <AppIcon name="trash-2" :size="28" color="#c41e3a" />
+              <text class="menu-txt">清空全部</text>
             </view>
           </view>
         </view>
@@ -129,108 +65,43 @@ function openChat(item: HistoryItem) {
       <!-- 搜索栏 -->
       <view class="search-wrap">
         <view class="search-box">
-          <AppIcon
-            name="search"
-            :size="28"
-            color="#999"
-          />
-          <input
-            v-model="searchQuery"
-            class="search-input"
-            placeholder="搜索对话内容..."
-          >
-          <view
-            v-if="searchQuery"
-            class="clear-search"
-            @tap="searchQuery = ''"
-          >
-            <AppIcon
-              name="x"
-              :size="24"
-              color="#999"
-            />
-          </view>
+          <AppIcon name="search" :size="28" color="#999" />
+          <input v-model="searchQuery" class="search-input" placeholder="搜索对话内容..." />
+          <view v-if="searchQuery" class="clear-search" @tap="searchQuery = ''"><AppIcon name="x" :size="24" color="#999" /></view>
         </view>
       </view>
     </view>
 
     <!-- 对话列表 -->
-    <scroll-view
-      scroll-y
-      class="list-area"
-    >
+    <scroll-view scroll-y class="list-area">
       <template v-if="filteredHistory.length > 0">
-        <view
-          v-for="group in historyGroups"
-          :key="group"
-        >
+        <view v-for="group in historyGroups" :key="group">
           <template v-if="groupItems(group).length > 0">
-            <view class="group-title">
-              <text class="group-label">
-                {{ group }}
-              </text>
-            </view>
+            <view class="group-title"><text class="group-label">{{ group }}</text></view>
             <view
               v-for="item in groupItems(group)"
               :key="item.id"
               class="swipe-wrap"
             >
               <!-- 删除按钮 -->
-              <view
-                class="del-btn"
-                :class="{ open: swipedId === item.id }"
-                @tap="handleDelete(item.id)"
-              >
-                <AppIcon
-                  name="trash-2"
-                  :size="36"
-                  color="#ffffff"
-                />
-                <text class="del-txt">
-                  删除
-                </text>
+              <view class="del-btn" :class="{ open: swipedId === item.id }" @tap="handleDelete(item.id)">
+                <AppIcon name="trash-2" :size="36" color="#ffffff" />
+                <text class="del-txt">删除</text>
               </view>
               <!-- 卡片 -->
-              <view
-                class="row"
-                :class="{ slid: swipedId === item.id }"
-                @tap="openChat(item)"
-                @longpress="toggleSwipe(item.id)"
-              >
+              <view class="row" :class="{ slid: swipedId === item.id }" @tap="openChat(item)" @longpress="toggleSwipe(item.id)">
                 <view class="avatar-wrap">
-                  <image
-                    class="avatar"
-                    :src="item.agentAvatar"
-                    mode="aspectFill"
-                  />
-                  <view
-                    v-if="item.unread > 0"
-                    class="unread"
-                  >
-                    <text class="unread-txt">
-                      {{ item.unread }}
-                    </text>
-                  </view>
+                  <image class="avatar" :src="item.agentAvatar" mode="aspectFill" />
+                  <view v-if="item.unread > 0" class="unread"><text class="unread-txt">{{ item.unread }}</text></view>
                 </view>
                 <view class="row-info">
                   <view class="row-top">
-                    <text class="agent-name">
-                      {{ item.agentName }}
-                    </text>
-                    <text
-                      class="type-badge"
-                      :class="item.isFree ? 'badge-free' : 'badge-paid'"
-                    >
-                      {{ item.agentType }}
-                    </text>
+                    <text class="agent-name">{{ item.agentName }}</text>
+                    <text class="type-badge" :class="item.isFree ? 'badge-free' : 'badge-paid'">{{ item.agentType }}</text>
                   </view>
-                  <text class="last-msg">
-                    {{ item.lastMessage }}
-                  </text>
+                  <text class="last-msg">{{ item.lastMessage }}</text>
                 </view>
-                <text class="row-time">
-                  {{ item.time }}
-                </text>
+                <text class="row-time">{{ item.time }}</text>
               </view>
             </view>
           </template>
@@ -238,92 +109,30 @@ function openChat(item: HistoryItem) {
       </template>
 
       <!-- 空状态 -->
-      <view
-        v-else-if="history.length === 0"
-        class="empty"
-      >
-        <view class="empty-icon">
-          <AppIcon
-            name="sparkles"
-            :size="56"
-            color="#c9a96e"
-          />
-        </view>
-        <text class="empty-title">
-          暂无对话记录
-        </text>
-        <text class="empty-desc">
-          去智能体广场探索各类AI助手，开启你的国学之旅
-        </text>
-        <view
-          class="empty-btn"
-          @tap="navigateTo('/pkg-circle/circles/bots')"
-        >
-          <text class="empty-btn-txt">
-            探索智能体广场
-          </text>
-        </view>
+      <view v-else-if="history.length === 0" class="empty">
+        <view class="empty-icon"><AppIcon name="sparkles" :size="56" color="#c9a96e" /></view>
+        <text class="empty-title">暂无对话记录</text>
+        <text class="empty-desc">去智能体广场探索各类AI助手，开启你的国学之旅</text>
+        <view class="empty-btn" @tap="navigateTo('/pkg-circle/circles/bots')"><text class="empty-btn-txt">探索智能体广场</text></view>
       </view>
 
       <!-- 搜索无结果 -->
-      <view
-        v-else
-        class="empty"
-      >
-        <view class="empty-icon search-empty">
-          <AppIcon
-            name="search"
-            :size="44"
-            color="#999"
-          />
-        </view>
-        <text class="empty-sub">
-          未找到相关对话
-        </text>
-        <text class="empty-hint">
-          试试其他关键词
-        </text>
+      <view v-else class="empty">
+        <view class="empty-icon search-empty"><AppIcon name="search" :size="44" color="#999" /></view>
+        <text class="empty-sub">未找到相关对话</text>
+        <text class="empty-hint">试试其他关键词</text>
       </view>
     </scroll-view>
 
     <!-- 清空确认弹窗 -->
-    <view
-      v-if="showClearConfirm"
-      class="modal-mask"
-      @tap="showClearConfirm = false"
-    >
-      <view
-        class="modal"
-        @tap.stop
-      >
-        <view class="modal-icon">
-          <AppIcon
-            name="trash-2"
-            :size="40"
-            color="#c41e3a"
-          />
-        </view>
-        <text class="modal-title">
-          清空全部对话
-        </text>
-        <text class="modal-desc">
-          确定要清空所有对话历史吗？此操作无法撤销。
-        </text>
+    <view v-if="showClearConfirm" class="modal-mask" @tap="showClearConfirm = false">
+      <view class="modal" @tap.stop>
+        <view class="modal-icon"><AppIcon name="trash-2" :size="40" color="#c41e3a" /></view>
+        <text class="modal-title">清空全部对话</text>
+        <text class="modal-desc">确定要清空所有对话历史吗？此操作无法撤销。</text>
         <view class="modal-btns">
-          <view
-            class="modal-btn cancel"
-            @tap="showClearConfirm = false"
-          >
-            <text>取消</text>
-          </view>
-          <view
-            class="modal-btn confirm"
-            @tap="handleClearAll"
-          >
-            <text class="confirm-txt">
-              确认清空
-            </text>
-          </view>
+          <view class="modal-btn cancel" @tap="showClearConfirm = false"><text>取消</text></view>
+          <view class="modal-btn confirm" @tap="handleClearAll"><text class="confirm-txt">确认清空</text></view>
         </view>
       </view>
     </view>

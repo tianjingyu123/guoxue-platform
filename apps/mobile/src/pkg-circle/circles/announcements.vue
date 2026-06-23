@@ -120,193 +120,71 @@ function share() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
   <view class="an">
     <!-- 顶栏 -->
     <view class="an-hdr">
-      <view
-        class="an-hdr-btn"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="36"
-          color="#ffffff"
-        />
-      </view>
-      <text class="an-hdr-title">
-        圈子公告
-      </text>
-      <view
-        class="an-hdr-btn"
-        @tap="share"
-      >
-        <app-icon
-          name="share-2"
-          :size="36"
-          color="#ffffff"
-        />
-      </view>
+      <view class="an-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#ffffff" /></view>
+      <text class="an-hdr-title">圈子公告</text>
+      <view class="an-hdr-btn" @tap="share"><app-icon name="share-2" :size="36" color="#ffffff" /></view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="an-body"
-    >
+    <scroll-view scroll-y class="an-body">
       <!-- 圈子来源 -->
-      <view
-        class="an-source"
-        @tap="openCircle"
-      >
-        <app-icon
-          name="bell"
-          :size="28"
-          color="#C41E3A"
-        />
-        <text class="an-source-t">
-          来自圈子：<text class="an-source-name">
-            {{ announcement.circleName }}
-          </text>
-        </text>
-        <app-icon
-          name="chevron-right"
-          :size="28"
-          color="#999999"
-        />
+      <view class="an-source" @tap="openCircle">
+        <app-icon name="bell" :size="28" color="#C41E3A" />
+        <text class="an-source-t">来自圈子：<text class="an-source-name">{{ announcement.circleName }}</text></text>
+        <app-icon name="chevron-right" :size="28" color="#999999" />
       </view>
 
       <!-- 主内容卡片 -->
       <view class="an-card">
-        <view
-          v-if="announcement.isPinned"
-          class="an-pin"
-        >
-          <app-icon
-            name="pin"
-            :size="24"
-            color="#C9A96E"
-          />
-          <text class="an-pin-t">
-            置顶公告
-          </text>
+        <view v-if="announcement.isPinned" class="an-pin">
+          <app-icon name="pin" :size="24" color="#C9A96E" />
+          <text class="an-pin-t">置顶公告</text>
         </view>
         <view class="an-card-body">
-          <text class="an-title">
-            {{ announcement.title }}
-          </text>
+          <text class="an-title">{{ announcement.title }}</text>
           <!-- 元信息 -->
           <view class="an-meta">
             <view class="an-meta-author">
-              <view class="an-avatar">
-                <text class="an-avatar-t">
-                  管
-                </text>
-              </view>
-              <text class="an-meta-t">
-                {{ announcement.author.name }}
-              </text>
+              <view class="an-avatar"><text class="an-avatar-t">管</text></view>
+              <text class="an-meta-t">{{ announcement.author.name }}</text>
             </view>
             <view class="an-meta-item">
-              <app-icon
-                name="clock"
-                :size="26"
-                color="#999999"
-              />
-              <text class="an-meta-t">
-                {{ fmtDate(announcement.publishedAt) }}
-              </text>
+              <app-icon name="clock" :size="26" color="#999999" />
+              <text class="an-meta-t">{{ fmtDate(announcement.publishedAt) }}</text>
             </view>
             <view class="an-meta-item right">
-              <app-icon
-                name="eye"
-                :size="26"
-                color="#999999"
-              />
-              <text class="an-meta-t">
-                {{ announcement.readCount }} 已读
-              </text>
+              <app-icon name="eye" :size="26" color="#999999" />
+              <text class="an-meta-t">{{ announcement.readCount }} 已读</text>
             </view>
           </view>
           <!-- 富文本正文 -->
           <view class="an-content">
-            <template
-              v-for="(b, i) in blocks"
-              :key="i"
-            >
-              <view
-                v-if="b.type === 'space'"
-                class="an-c-space"
-              />
-              <text
-                v-else-if="b.type === 'bold'"
-                class="an-c-bold"
-              >
-                {{ b.text }}
-              </text>
-              <text
-                v-else-if="b.type === 'ordered'"
-                class="an-c-ordered"
-              >
-                {{ b.text }}
-              </text>
-              <view
-                v-else-if="b.type === 'bullet'"
-                class="an-c-bullet"
-              >
-                <text class="an-c-bullet-dot">
-                  •
-                </text><text class="an-c-bullet-t">
-                  {{ b.text }}
-                </text>
+            <template v-for="(b, i) in blocks" :key="i">
+              <view v-if="b.type === 'space'" class="an-c-space" />
+              <text v-else-if="b.type === 'bold'" class="an-c-bold">{{ b.text }}</text>
+              <text v-else-if="b.type === 'ordered'" class="an-c-ordered">{{ b.text }}</text>
+              <view v-else-if="b.type === 'bullet'" class="an-c-bullet">
+                <text class="an-c-bullet-dot">•</text><text class="an-c-bullet-t">{{ b.text }}</text>
               </view>
-              <view
-                v-else-if="b.type === 'divider'"
-                class="an-c-divider"
-              />
-              <text
-                v-else
-                class="an-c-text"
-              >
-                {{ b.text }}
-              </text>
+              <view v-else-if="b.type === 'divider'" class="an-c-divider" />
+              <text v-else class="an-c-text">{{ b.text }}</text>
             </template>
           </view>
         </view>
       </view>
 
       <!-- 其他公告 -->
-      <view
-        v-if="related.length"
-        class="an-related"
-      >
-        <text class="an-related-title">
-          其他公告
-        </text>
+      <view v-if="related.length" class="an-related">
+        <text class="an-related-title">其他公告</text>
         <view class="an-related-list">
-          <view
-            v-for="item in related"
-            :key="item.id"
-            class="an-related-item"
-            @tap="openRelated(item.id)"
-          >
+          <view v-for="item in related" :key="item.id" class="an-related-item" @tap="openRelated(item.id)">
             <view class="an-related-icon">
-              <app-icon
-                :name="item.isPinned ? 'pin' : 'bell'"
-                :size="26"
-                :color="item.isPinned ? '#C9A96E' : '#C41E3A'"
-              />
+              <app-icon :name="item.isPinned ? 'pin' : 'bell'" :size="26" :color="item.isPinned ? '#C9A96E' : '#C41E3A'" />
             </view>
             <view class="an-related-info">
-              <text
-                class="an-related-t"
-                :class="{ read: item.isRead }"
-              >
-                {{ item.title }}
-              </text>
-              <text class="an-related-date">
-                {{ fmtDate(item.publishedAt) }}
-              </text>
+              <text class="an-related-t" :class="{ read: item.isRead }">{{ item.title }}</text>
+              <text class="an-related-date">{{ fmtDate(item.publishedAt) }}</text>
             </view>
-            <view
-              v-if="!item.isRead"
-              class="an-related-dot"
-            />
+            <view v-if="!item.isRead" class="an-related-dot" />
           </view>
         </view>
       </view>
@@ -315,30 +193,10 @@ function share() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
 
     <!-- 底部确认已读栏 -->
     <view class="an-foot">
-      <view
-        class="an-foot-back"
-        @tap="openCircle"
-      >
-        <text class="an-foot-back-t">
-          返回圈子
-        </text>
-      </view>
-      <view
-        class="an-foot-read"
-        :class="{ done: isRead }"
-        @tap="markRead"
-      >
-        <app-icon
-          name="check"
-          :size="28"
-          :color="isRead ? '#999999' : '#ffffff'"
-        />
-        <text
-          class="an-foot-read-t"
-          :class="{ done: isRead }"
-        >
-          {{ isRead ? '已确认阅读' : '确认已读' }}
-        </text>
+      <view class="an-foot-back" @tap="openCircle"><text class="an-foot-back-t">返回圈子</text></view>
+      <view class="an-foot-read" :class="{ done: isRead }" @tap="markRead">
+        <app-icon name="check" :size="28" :color="isRead ? '#999999' : '#ffffff'" />
+        <text class="an-foot-read-t" :class="{ done: isRead }">{{ isRead ? '已确认阅读' : '确认已读' }}</text>
       </view>
     </view>
   </view>

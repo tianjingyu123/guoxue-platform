@@ -1,24 +1,12 @@
 <template>
   <view class="bc-page">
     <!-- Header -->
-    <view
-      class="bc-header"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="bc-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="bc-header-row">
-        <view
-          class="bc-icon-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="48"
-            color="#2c2c2c"
-          />
+        <view class="bc-icon-btn" @tap="goBack">
+          <app-icon name="chevron-left" :size="48" color="#2c2c2c" />
         </view>
-        <text class="bc-header-title">
-          发布悬赏
-        </text>
+        <text class="bc-header-title">发布悬赏</text>
         <view class="bc-header-spacer" />
       </view>
     </view>
@@ -26,29 +14,17 @@
     <view class="bc-body">
       <!-- Tips -->
       <view class="bc-tips">
-        <app-icon
-          name="flame"
-          :size="40"
-          color="#f59e0b"
-        />
+        <app-icon name="flame" :size="40" color="#f59e0b" />
         <view class="bc-tips-body">
-          <text class="bc-tips-title">
-            发布须知
-          </text>
-          <text class="bc-tips-text">
-            悬赏发布后将冻结对应国学币，采纳满意答案后自动结算。若无满意回答，到期后退回钱包。
-          </text>
+          <text class="bc-tips-title">发布须知</text>
+          <text class="bc-tips-text">悬赏发布后将冻结对应国学币，采纳满意答案后自动结算。若无满意回答，到期后退回钱包。</text>
         </view>
       </view>
 
       <!-- Title -->
       <view class="bc-card">
         <view class="bc-label-row">
-          <text class="bc-label">
-            悬赏标题 <text class="bc-required">
-              *
-            </text>
-          </text>
+          <text class="bc-label">悬赏标题 <text class="bc-required">*</text></text>
         </view>
         <input
           v-model="title"
@@ -57,36 +33,21 @@
           placeholder="请用一句话概括你的问题（10-50字）"
           :maxlength="50"
           @input="errors.title = ''"
-        >
+        />
         <view class="bc-input-foot">
-          <view
-            v-if="errors.title"
-            class="bc-err"
-          >
-            <app-icon
-              name="alert-circle"
-              :size="24"
-              color="#ef4444"
-            />
-            <text class="bc-err-text">
-              {{ errors.title }}
-            </text>
+          <view v-if="errors.title" class="bc-err">
+            <app-icon name="alert-circle" :size="24" color="#ef4444" />
+            <text class="bc-err-text">{{ errors.title }}</text>
           </view>
           <view v-else />
-          <text class="bc-count">
-            {{ title.length }}/50
-          </text>
+          <text class="bc-count">{{ title.length }}/50</text>
         </view>
       </view>
 
       <!-- Description -->
       <view class="bc-card">
         <view class="bc-label-row">
-          <text class="bc-label">
-            问题描述 <text class="bc-required">
-              *
-            </text>
-          </text>
+          <text class="bc-label">问题描述 <text class="bc-required">*</text></text>
         </view>
         <textarea
           v-model="description"
@@ -97,34 +58,19 @@
           @input="errors.description = ''"
         />
         <view class="bc-input-foot">
-          <view
-            v-if="errors.description"
-            class="bc-err"
-          >
-            <app-icon
-              name="alert-circle"
-              :size="24"
-              color="#ef4444"
-            />
-            <text class="bc-err-text">
-              {{ errors.description }}
-            </text>
+          <view v-if="errors.description" class="bc-err">
+            <app-icon name="alert-circle" :size="24" color="#ef4444" />
+            <text class="bc-err-text">{{ errors.description }}</text>
           </view>
           <view v-else />
-          <text class="bc-count">
-            {{ description.length }}/500
-          </text>
+          <text class="bc-count">{{ description.length }}/500</text>
         </view>
       </view>
 
       <!-- Supplementary -->
       <view class="bc-card">
-        <text class="bc-label">
-          补充说明
-        </text>
-        <text class="bc-sublabel">
-          可提供出生日期、地点等具体信息（选填）
-        </text>
+        <text class="bc-label">补充说明</text>
+        <text class="bc-sublabel">可提供出生日期、地点等具体信息（选填）</text>
         <textarea
           v-model="content"
           class="bc-textarea"
@@ -136,11 +82,7 @@
       <!-- Amount -->
       <view class="bc-card">
         <view class="bc-label-row">
-          <text class="bc-label">
-            悬赏金额 <text class="bc-required">
-              *
-            </text>
-          </text>
+          <text class="bc-label">悬赏金额 <text class="bc-required">*</text></text>
         </view>
         <view class="bc-amount-grid">
           <view
@@ -150,12 +92,7 @@
             :class="{ 'bc-amount-item-active': !isCustom && selectedAmount === amount }"
             @tap="selectAmount(amount)"
           >
-            <text
-              class="bc-amount-item-text"
-              :class="{ 'bc-amount-item-text-active': !isCustom && selectedAmount === amount }"
-            >
-              {{ amount }} 币
-            </text>
+            <text class="bc-amount-item-text" :class="{ 'bc-amount-item-text-active': !isCustom && selectedAmount === amount }">{{ amount }} 币</text>
           </view>
         </view>
         <view
@@ -163,54 +100,28 @@
           :class="{ 'bc-custom-btn-active': isCustom }"
           @tap="enableCustom"
         >
-          <text
-            class="bc-custom-btn-text"
-            :class="{ 'bc-custom-btn-text-active': isCustom }"
-          >
-            自定义金额
-          </text>
+          <text class="bc-custom-btn-text" :class="{ 'bc-custom-btn-text-active': isCustom }">自定义金额</text>
         </view>
-        <view
-          v-if="isCustom"
-          class="bc-custom-input"
-          :class="{ 'bc-input-error': errors.amount }"
-        >
+        <view v-if="isCustom" class="bc-custom-input" :class="{ 'bc-input-error': errors.amount }">
           <input
             v-model="customAmount"
             type="number"
             class="bc-custom-input-field"
             placeholder="请输入国学币数量（10-10000）"
-          >
-          <text class="bc-custom-input-unit">
-            国学币
-          </text>
-        </view>
-        <view
-          v-if="errors.amount"
-          class="bc-err bc-err-mt"
-        >
-          <app-icon
-            name="alert-circle"
-            :size="24"
-            color="#ef4444"
           />
-          <text class="bc-err-text">
-            {{ errors.amount }}
-          </text>
+          <text class="bc-custom-input-unit">国学币</text>
+        </view>
+        <view v-if="errors.amount" class="bc-err bc-err-mt">
+          <app-icon name="alert-circle" :size="24" color="#ef4444" />
+          <text class="bc-err-text">{{ errors.amount }}</text>
         </view>
       </view>
 
       <!-- Expire -->
       <view class="bc-card">
         <view class="bc-label-row bc-label-icon">
-          <app-icon
-            name="clock"
-            :size="32"
-            color="#c9a96e"
-          />
-          <text class="bc-label">
-            有效期
-          </text>
+          <app-icon name="clock" :size="32" color="#c9a96e" />
+          <text class="bc-label">有效期</text>
         </view>
         <view class="bc-expire-grid">
           <view
@@ -220,15 +131,8 @@
             :class="{ 'bc-expire-item-active': expireDays === opt.value }"
             @tap="expireDays = opt.value"
           >
-            <text
-              class="bc-expire-label"
-              :class="{ 'bc-expire-label-active': expireDays === opt.value }"
-            >
-              {{ opt.label }}
-            </text>
-            <text class="bc-expire-desc">
-              {{ opt.desc }}
-            </text>
+            <text class="bc-expire-label" :class="{ 'bc-expire-label-active': expireDays === opt.value }">{{ opt.label }}</text>
+            <text class="bc-expire-desc">{{ opt.desc }}</text>
           </view>
         </view>
       </view>
@@ -236,14 +140,8 @@
       <!-- Category & Tags -->
       <view class="bc-card">
         <view class="bc-label-row bc-label-icon">
-          <app-icon
-            name="tag"
-            :size="32"
-            color="#c9a96e"
-          />
-          <text class="bc-label">
-            分类标签（选填）
-          </text>
+          <app-icon name="tag" :size="32" color="#c9a96e" />
+          <text class="bc-label">分类标签（选填）</text>
         </view>
         <view class="bc-cat-wrap">
           <view
@@ -253,27 +151,12 @@
             :class="{ 'bc-cat-active': category === cat }"
             @tap="toggleCategory(cat)"
           >
-            <text
-              class="bc-cat-text"
-              :class="{ 'bc-cat-text-active': category === cat }"
-            >
-              {{ cat }}
-            </text>
+            <text class="bc-cat-text" :class="{ 'bc-cat-text-active': category === cat }">{{ cat }}</text>
           </view>
         </view>
-        <view
-          v-if="tags.length"
-          class="bc-tag-wrap"
-        >
-          <view
-            v-for="tag in tags"
-            :key="tag"
-            class="bc-tag"
-            @tap="removeTag(tag)"
-          >
-            <text class="bc-tag-text">
-              #{{ tag }} ×
-            </text>
+        <view v-if="tags.length" class="bc-tag-wrap">
+          <view v-for="tag in tags" :key="tag" class="bc-tag" @tap="removeTag(tag)">
+            <text class="bc-tag-text">#{{ tag }} ×</text>
           </view>
         </view>
         <view class="bc-tag-input-row">
@@ -283,15 +166,9 @@
             placeholder="添加标签（最多5个，回车确认）"
             :disabled="tags.length >= 5"
             @confirm="addTag"
-          >
-          <view
-            class="bc-tag-add"
-            :class="{ 'bc-tag-add-disabled': !tagInput.trim() || tags.length >= 5 }"
-            @tap="addTag"
-          >
-            <text class="bc-tag-add-text">
-              添加
-            </text>
+          />
+          <view class="bc-tag-add" :class="{ 'bc-tag-add-disabled': !tagInput.trim() || tags.length >= 5 }" @tap="addTag">
+            <text class="bc-tag-add-text">添加</text>
           </view>
         </view>
       </view>
@@ -300,34 +177,16 @@
       <view class="bc-card">
         <view class="bc-vis-row">
           <view class="bc-vis-left">
-            <view
-              class="bc-vis-icon"
-              :class="isPublic ? 'bc-vis-icon-public' : 'bc-vis-icon-private'"
-            >
-              <app-icon
-                :name="isPublic ? 'globe' : 'lock'"
-                :size="36"
-                :color="isPublic ? '#16a34a' : '#999999'"
-              />
+            <view class="bc-vis-icon" :class="isPublic ? 'bc-vis-icon-public' : 'bc-vis-icon-private'">
+              <app-icon :name="isPublic ? 'globe' : 'lock'" :size="36" :color="isPublic ? '#16a34a' : '#999999'" />
             </view>
             <view>
-              <text class="bc-vis-title">
-                {{ isPublic ? '公开悬赏' : '定向悬赏' }}
-              </text>
-              <text class="bc-vis-desc">
-                {{ isPublic ? '所有人均可查看并回答' : '仅特定答主可查看' }}
-              </text>
+              <text class="bc-vis-title">{{ isPublic ? '公开悬赏' : '定向悬赏' }}</text>
+              <text class="bc-vis-desc">{{ isPublic ? '所有人均可查看并回答' : '仅特定答主可查看' }}</text>
             </view>
           </view>
-          <view
-            class="bc-switch"
-            :class="{ 'bc-switch-on': isPublic }"
-            @tap="isPublic = !isPublic"
-          >
-            <view
-              class="bc-switch-knob"
-              :class="{ 'bc-switch-knob-on': isPublic }"
-            />
+          <view class="bc-switch" :class="{ 'bc-switch-on': isPublic }" @tap="isPublic = !isPublic">
+            <view class="bc-switch-knob" :class="{ 'bc-switch-knob-on': isPublic }" />
           </view>
         </view>
       </view>
@@ -336,104 +195,47 @@
     <!-- Bottom Bar -->
     <view class="bc-bottom">
       <view class="bc-bottom-summary">
-        <text class="bc-bottom-tip">
-          悬赏金额将被冻结，采纳后结算
-        </text>
+        <text class="bc-bottom-tip">悬赏金额将被冻结，采纳后结算</text>
         <view class="bc-bottom-amount">
-          <app-icon
-            name="coins"
-            :size="32"
-            color="#c9a96e"
-          />
-          <text class="bc-bottom-amount-text">
-            {{ finalAmount }} 国学币
-          </text>
+          <app-icon name="coins" :size="32" color="#c9a96e" />
+          <text class="bc-bottom-amount-text">{{ finalAmount }} 国学币</text>
         </view>
       </view>
-      <view
-        class="bc-submit"
-        :class="{ 'bc-submit-loading': submitting }"
-        @tap="handleSubmit"
-      >
-        <text class="bc-submit-text">
-          {{ submitting ? '处理中...' : '发布悬赏' }}
-        </text>
+      <view class="bc-submit" @tap="handleSubmit">
+        <text class="bc-submit-text">发布悬赏</text>
       </view>
     </view>
 
     <!-- Pay Confirm Modal -->
-    <view
-      v-if="showPayConfirm"
-      class="bc-modal-mask"
-      @tap="showPayConfirm = false"
-    >
-      <view
-        class="bc-modal"
-        @tap.stop
-      >
+    <view v-if="showPayConfirm" class="bc-modal-mask" @tap="showPayConfirm = false">
+      <view class="bc-modal" @tap.stop>
         <view class="bc-modal-handle" />
-        <text class="bc-modal-title">
-          确认支付
-        </text>
-        <text class="bc-modal-sub">
-          支付成功后将发布悬赏，悬赏金额将被冻结
-        </text>
+        <text class="bc-modal-title">确认支付</text>
+        <text class="bc-modal-sub">支付成功后将发布悬赏，悬赏金额将被冻结</text>
         <view class="bc-modal-summary">
           <view class="bc-modal-line">
-            <text class="bc-modal-line-label">
-              悬赏标题
-            </text>
-            <text class="bc-modal-line-value">
-              {{ title }}
-            </text>
+            <text class="bc-modal-line-label">悬赏标题</text>
+            <text class="bc-modal-line-value">{{ title }}</text>
           </view>
           <view class="bc-modal-line">
-            <text class="bc-modal-line-label">
-              有效期
-            </text>
-            <text class="bc-modal-line-value">
-              {{ expireDays }}天
-            </text>
+            <text class="bc-modal-line-label">有效期</text>
+            <text class="bc-modal-line-value">{{ expireDays }}天</text>
           </view>
           <view class="bc-modal-line">
-            <text class="bc-modal-line-label">
-              可见范围
-            </text>
-            <text class="bc-modal-line-value">
-              {{ isPublic ? '公开' : '定向' }}
-            </text>
+            <text class="bc-modal-line-label">可见范围</text>
+            <text class="bc-modal-line-value">{{ isPublic ? '公开' : '定向' }}</text>
           </view>
           <view class="bc-modal-line bc-modal-line-total">
-            <text class="bc-modal-total-label">
-              悬赏金额
-            </text>
-            <text class="bc-modal-total-value">
-              {{ finalAmount }} 国学币
-            </text>
+            <text class="bc-modal-total-label">悬赏金额</text>
+            <text class="bc-modal-total-value">{{ finalAmount }} 国学币</text>
           </view>
         </view>
-        <view
-          class="bc-modal-pay"
-          :class="{ 'bc-modal-pay-loading': submitting }"
-          @tap="confirmPay"
-        >
-          <app-icon
-            v-if="!submitting"
-            name="check-circle"
-            :size="32"
-            color="#ffffff"
-          />
-          <text class="bc-modal-pay-text">
-            {{ submitting ? '处理中...' : '确认支付 ' + finalAmount + ' 国学币' }}
-          </text>
+        <view class="bc-modal-pay" :class="{ 'bc-modal-pay-loading': loading }" @tap="confirmPay">
+          <app-icon v-if="!loading" name="check-circle" :size="32" color="#ffffff" />
+          <text class="bc-modal-pay-text">{{ loading ? '处理中...' : '确认支付 ' + finalAmount + ' 国学币' }}</text>
         </view>
-        <view
-          class="bc-modal-cancel"
-          @tap="showPayConfirm = false"
-        >
-          <text class="bc-modal-cancel-text">
-            取消
-          </text>
+        <view class="bc-modal-cancel" @tap="showPayConfirm = false">
+          <text class="bc-modal-cancel-text">取消</text>
         </view>
       </view>
     </view>
@@ -443,7 +245,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-import { useSubmitLock } from '@/composables/use-submit-lock'
 
 const amountPresets = [10, 20, 50, 100, 200, 500]
 const expireOptions = [
@@ -463,8 +264,6 @@ try {
   statusBarHeight.value = info.statusBarHeight || 0
 } catch (e) {}
 
-const { submitting, withLock } = useSubmitLock()
-
 const balance = ref(200)
 
 const title = ref('')
@@ -479,6 +278,7 @@ const tags = ref<string[]>([])
 const tagInput = ref('')
 const isPublic = ref(true)
 const showPayConfirm = ref(false)
+const loading = ref(false)
 const errors = ref<Record<string, string>>({})
 
 const finalAmount = computed(() => (isCustom.value ? parseInt(customAmount.value) || 0 : selectedAmount.value))
@@ -524,25 +324,25 @@ function handleSubmit() {
 }
 
 function confirmPay() {
-  withLock(async () => {
-    if (finalAmount.value > balance.value) {
-      showPayConfirm.value = false
-      uni.showModal({
-        title: '国学币余额不足',
-        content: `本次需 ${finalAmount.value} 国学币，当前余额 ${balance.value}，是否前往充值？`,
-        confirmText: '去充值',
-        success: (res) => {
-          if (res.confirm) navigateTo('/wallet/recharge')
-        },
-      })
-      return
-    }
-    setTimeout(() => {
-      showPayConfirm.value = false
-      uni.showToast({ title: '发布成功', icon: 'success' })
-      setTimeout(() => navigateTo('/bounty'), 800)
-    }, 800)
-  })
+  if (finalAmount.value > balance.value) {
+    showPayConfirm.value = false
+    uni.showModal({
+      title: '国学币余额不足',
+      content: `本次需 ${finalAmount.value} 国学币，当前余额 ${balance.value}，是否前往充值？`,
+      confirmText: '去充值',
+      success: (res) => {
+        if (res.confirm) navigateTo('/wallet/recharge')
+      },
+    })
+    return
+  }
+  loading.value = true
+  setTimeout(() => {
+    loading.value = false
+    showPayConfirm.value = false
+    uni.showToast({ title: '发布成功', icon: 'success' })
+    setTimeout(() => navigateTo('/bounty'), 800)
+  }, 800)
 }
 
 function goBack() {
@@ -961,10 +761,6 @@ function goBack() {
   justify-content: center;
   background: #c41e3a;
   border-radius: 32rpx;
-}
-.bc-submit-loading {
-  opacity: 0.6;
-  pointer-events: none;
 }
 .bc-submit-text {
   font-size: 30rpx;

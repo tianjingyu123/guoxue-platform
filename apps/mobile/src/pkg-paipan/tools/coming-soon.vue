@@ -27,58 +27,26 @@ function goBack() {
   <view class="page">
     <!-- 顶部导航 -->
     <view class="topbar">
-      <view
-        class="topbar-back"
-        @tap="goBack"
-      >
-        <app-icon
-          name="chevron-left"
-          :size="44"
-          color="var(--text-ink)"
-        />
-      </view>
-      <text class="topbar-title">
-        {{ toolName }}
-      </text>
+      <view class="topbar-back" @tap="goBack"><app-icon name="chevron-left" :size="44" color="var(--text-ink)" /></view>
+      <text class="topbar-title">{{ toolName }}</text>
       <view class="topbar-spacer" />
     </view>
 
     <!-- 主内容 -->
     <view class="main">
       <view class="icon-circle">
-        <app-icon
-          name="clock"
-          :size="60"
-          color="#c41e3a"
-        />
+        <app-icon name="clock" :size="60" color="#c41e3a" />
       </view>
 
-      <text class="title">
-        开发中
-      </text>
-      <text class="subtitle">
-        {{ toolName }}正在紧锣密鼓地开发中{{ '\n' }}敬请期待
-      </text>
+      <text class="title">开发中</text>
+      <text class="subtitle">{{ toolName }}正在紧锣密鼓地开发中{{ '\n' }}敬请期待</text>
 
       <view class="pill">
-        <app-icon
-          name="sparkles"
-          :size="26"
-          color="#c41e3a"
-        />
-        <text class="pill-t">
-          即将上线
-        </text>
+        <app-icon name="sparkles" :size="26" color="#c41e3a" />
+        <text class="pill-t">即将上线</text>
       </view>
 
-      <view
-        class="home-btn"
-        @tap="goBack"
-      >
-        <text class="home-btn-t">
-          返回首页
-        </text>
-      </view>
+      <view class="home-btn" @tap="goBack"><text class="home-btn-t">返回首页</text></view>
     </view>
   </view>
 </template>

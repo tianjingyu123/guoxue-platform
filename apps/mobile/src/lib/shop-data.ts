@@ -3,7 +3,6 @@
  * mock 数据 + 类型 + 装配函数。图片走 /static（跨端约定）。
  */
 import type { ProductCardData } from '@/lib/card-utils'
-import { apiGet, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
 
 const P = '/static/images/products'
 
@@ -1385,53 +1384,3 @@ export interface ShopExchangeAddress {
 export const shopExchangeAddresses: ShopExchangeAddress[] = [
   { id: '1', name: '张三', phone: '138****8888', province: '北京市', city: '北京市', district: '朝阳区', address: '建国路88号SOHO现代城A座1201', isDefault: true },
 ]
-
-// ── API ──
-export const shopApi = {
-  /** 获取购物车 GET /shop/cart */
-  async getCart(): Promise<any[]> {
-    if (useMock()) return cartFlatItems
-    try { return await apiGet<any[]>('/shop/cart') } catch { return cartFlatItems }
-  },
-  /** 加入购物车 POST /shop/cart */
-  async addToCart(productId: string, skuId: string, quantity = 1): Promise<any> {
-    if (useMock()) return { success: true }
-    try { return await apiPost<any>('/shop/cart', { productId, skuId, quantity }) } catch { return { success: true } }
-  },
-  /** 更新购物车 PUT /shop/cart/:itemId */
-  async updateCartItem(itemId: string, quantity: number): Promise<any> {
-    if (useMock()) return { success: true }
-    try { return await apiPut<any>(`/shop/cart/${itemId}`, { quantity }) } catch { return { success: true } }
-  },
-  /** 移除购物车 DELETE /shop/cart/:itemId */
-  async removeCartItem(itemId: string): Promise<any> {
-    if (useMock()) return { success: true }
-    try { return await apiDelete(`/shop/cart/${itemId}`) } catch { return { success: true } }
-  },
-  /** 清空购物车 DELETE /shop/cart */
-  async clearCart(): Promise<any> {
-    if (useMock()) return { success: true }
-    try { return await apiDelete('/shop/cart') } catch { return { success: true } }
-  },
-  /** 获取分类树 GET /shop/categories/tree */
-  async getCategoryTree(): Promise<any[]> {
-    if (useMock()) return shopCategoryTree
-    try { return await apiGet<any[]>('/shop/categories/tree') } catch { return shopCategoryTree }
-  },
-  /** 获取分类商品 GET /shop/categories/:id/products */
-  async getCategoryProducts(categoryId: string): Promise<any[]> {
-    if (useMock()) return shopCategoryProducts
-    try { return await apiGet<any[]>(`/shop/categories/${categoryId}/products`) } catch { return [] }
-  },
-  /** 获取结算数据（mock组合） */
-  async getCheckoutData(): Promise<{ items: any[]; addresses: any[]; coupons: any[] }> {
-    if (useMock()) return { items: checkoutItems, addresses: checkoutAddresses, coupons: checkoutCoupons }
-    try {
-      const [items, addresses] = await Promise.all([
-        apiGet<any[]>('/shop/cart'),
-        apiGet<any[]>('/shop/addresses'),
-      ])
-      return { items: items || checkoutItems, addresses: addresses || checkoutAddresses, coupons: checkoutCoupons }
-    } catch { return { items: checkoutItems, addresses: checkoutAddresses, coupons: checkoutCoupons } }
-  },
-}

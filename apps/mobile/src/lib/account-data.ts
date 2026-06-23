@@ -3,8 +3,6 @@
    主题色统一为商城 #9A2D2D。
    ============================================================ */
 
-import { apiGet, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
-
 const P = '/static/images/products'
 
 /* —— 售后申请 —— */
@@ -213,74 +211,4 @@ export const PROVINCES = Object.keys(REGIONS)
 export const addressEditSample: ShippingAddressItem = {
   id: '1', name: '张三', phone: '13812345678', province: '北京市', city: '北京市', district: '朝阳区',
   address: '建国路88号SOHO现代城A座1201室', isDefault: true,
-}
-
-// ── API ──
-export const accountApi = {
-  /** 获取售后列表 GET /account/after-sales */
-  async getAfterSaleList(): Promise<AfterSaleListItem[]> {
-    if (useMock()) return afterSaleList
-    try { return await apiGet<AfterSaleListItem[]>('/account/after-sales') }
-    catch { return afterSaleList }
-  },
-
-  /** 获取售后详情 GET /account/after-sales/:id */
-  async getAfterSaleDetail(id: string): Promise<AfterSaleDetailData> {
-    if (useMock()) return afterSaleDetail
-    try { return await apiGet<AfterSaleDetailData>(`/account/after-sales/${id}`) }
-    catch { return afterSaleDetail }
-  },
-
-  /** 获取售后驳回详情 GET /account/after-sales/:id/reject */
-  async getAfterSaleRejectedDetail(id: string): Promise<AfterSaleDetailData> {
-    if (useMock()) return afterSaleRejectedDetail
-    try { return await apiGet<AfterSaleDetailData>(`/account/after-sales/${id}/reject`) }
-    catch { return afterSaleRejectedDetail }
-  },
-
-  /** 创建售后申请 POST /account/after-sales */
-  async createAfterSale(data: Record<string, unknown>): Promise<Record<string, unknown>> {
-    if (useMock()) return { id: 'new', ...data, createdAt: new Date().toISOString() }
-    try { return await apiPost<Record<string, unknown>>('/account/after-sales', data) }
-    catch { return { id: 'new', ...data, createdAt: new Date().toISOString() } }
-  },
-
-  /** 取消售后申请 POST /account/after-sales/:id/cancel */
-  async cancelAfterSale(id: string): Promise<void> {
-    if (useMock()) return
-    try { await apiPost<void>(`/account/after-sales/${id}/cancel`) }
-    catch { /* mock 降级 */ }
-  },
-
-  /** 获取收货地址列表 GET /account/addresses */
-  async getAddressList(): Promise<ShippingAddressItem[]> {
-    if (useMock()) return shippingAddressList
-    try { return await apiGet<ShippingAddressItem[]>('/account/addresses') }
-    catch { return shippingAddressList }
-  },
-
-  /** 获取收货地址详情 GET /account/addresses/:id */
-  async getAddress(id: string): Promise<ShippingAddressItem> {
-    if (useMock()) return addressEditSample
-    try { return await apiGet<ShippingAddressItem>(`/account/addresses/${id}`) }
-    catch { return addressEditSample }
-  },
-
-  /** 新增/更新收货地址 POST或PUT /account/addresses */
-  async saveAddress(data: Partial<ShippingAddressItem> & { id?: string }): Promise<ShippingAddressItem> {
-    if (useMock()) return { ...addressEditSample, ...data }
-    if (data.id) {
-      try { return await apiPut<ShippingAddressItem>(`/account/addresses/${data.id}`, data) }
-      catch { return { ...addressEditSample, ...data } }
-    }
-    try { return await apiPost<ShippingAddressItem>('/account/addresses', data) }
-    catch { return { ...addressEditSample, ...data } }
-  },
-
-  /** 删除收货地址 DELETE /account/addresses/:id */
-  async deleteAddress(id: string): Promise<void> {
-    if (useMock()) return
-    try { await apiDelete<void>(`/account/addresses/${id}`) }
-    catch { /* mock 降级 */ }
-  },
 }

@@ -150,7 +150,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { navigateTo } from '@/utils/router'
+import { navigateTo, goBack } from '@/utils/router'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(0)

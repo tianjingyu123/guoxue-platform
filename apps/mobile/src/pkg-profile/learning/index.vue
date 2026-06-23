@@ -1,57 +1,26 @@
 <template>
   <view class="page">
-    <app-nav-bar
-      title="学习进度"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="32"
-      :title-weight="600"
-      :bar-height="112"
-    />
+    <app-nav-bar title="学习进度" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112" />
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <!-- 学习统计卡片 -->
       <view class="stat-card">
         <view class="streak-row">
           <view class="streak-left">
-            <app-icon
-              name="flame"
-              :size="36"
-              color="#F97316"
-            />
-            <text class="streak-txt">
-              连续学习 {{ stats.streak }} 天
-            </text>
+            <app-icon name="flame" :size="36" color="#F97316" />
+            <text class="streak-txt">连续学习 {{ stats.streak }} 天</text>
           </view>
-          <text class="streak-badge">
-            坚持就是胜利
-          </text>
+          <text class="streak-badge">坚持就是胜利</text>
         </view>
 
         <!-- 学习日历 -->
         <view class="calendar">
-          <view
-            v-for="(d, i) in calendar"
-            :key="i"
-            class="cal-col"
-          >
-            <text class="cal-day">
-              {{ d.day }}
-            </text>
+          <view v-for="(d, i) in calendar" :key="i" class="cal-col">
+            <text class="cal-day">{{ d.day }}</text>
             <view :class="['cal-dot', d.completed ? 'cal-on' : 'cal-off', d.isToday && 'cal-today']">
-              <text :class="['cal-date', d.completed ? 'cal-date-on' : 'cal-date-off']">
-                {{ d.date }}
-              </text>
+              <text :class="['cal-date', d.completed ? 'cal-date-on' : 'cal-date-off']">{{ d.date }}</text>
             </view>
-            <text
-              v-if="d.minutes > 0"
-              class="cal-min"
-            >
-              {{ d.minutes }}分
-            </text>
+            <text class="cal-min" v-if="d.minutes > 0">{{ d.minutes }}分</text>
           </view>
         </view>
 
@@ -59,267 +28,113 @@
         <view class="goal">
           <view class="goal-head">
             <view class="goal-label">
-              <app-icon
-                name="target"
-                :size="22"
-                color="#9A8F80"
-              />
-              <text class="goal-label-txt">
-                本周目标
-              </text>
+              <app-icon name="target" :size="22" color="#9A8F80" />
+              <text class="goal-label-txt">本周目标</text>
             </view>
-            <text class="goal-val">
-              {{ fmt(stats.weeklyProgress) }} / {{ fmt(stats.weeklyTarget) }}
-            </text>
+            <text class="goal-val">{{ fmt(stats.weeklyProgress) }} / {{ fmt(stats.weeklyTarget) }}</text>
           </view>
-          <view class="bar">
-            <view
-              class="bar-fill"
-              :style="{ width: (stats.weeklyProgress / stats.weeklyTarget * 100) + '%' }"
-            />
-          </view>
+          <view class="bar"><view class="bar-fill" :style="{ width: (stats.weeklyProgress / stats.weeklyTarget * 100) + '%' }" /></view>
         </view>
       </view>
 
       <!-- 统计网格 -->
       <view class="grid3">
         <view class="gcell">
-          <app-icon
-            name="clock"
-            :size="36"
-            color="#C41E2D"
-          />
-          <text class="gnum">
-            {{ fmt(stats.totalMinutes) }}
-          </text>
-          <text class="glabel">
-            累计学习
-          </text>
+          <app-icon name="clock" :size="36" color="#C41E2D" />
+          <text class="gnum">{{ fmt(stats.totalMinutes) }}</text>
+          <text class="glabel">累计学习</text>
         </view>
         <view class="gcell">
-          <app-icon
-            name="book-open"
-            :size="36"
-            color="#C9A96E"
-          />
-          <text class="gnum">
-            {{ stats.totalCourses }}
-          </text>
-          <text class="glabel">
-            学习课程
-          </text>
+          <app-icon name="book-open" :size="36" color="#C9A96E" />
+          <text class="gnum">{{ stats.totalCourses }}</text>
+          <text class="glabel">学习课程</text>
         </view>
         <view class="gcell">
-          <app-icon
-            name="trophy"
-            :size="36"
-            color="#F59E0B"
-          />
-          <text class="gnum">
-            {{ stats.completedCourses }}
-          </text>
-          <text class="glabel">
-            已完成
-          </text>
+          <app-icon name="trophy" :size="36" color="#F59E0B" />
+          <text class="gnum">{{ stats.completedCourses }}</text>
+          <text class="glabel">已完成</text>
         </view>
       </view>
 
       <!-- Tab -->
       <view class="tabs">
-        <text
-          :class="['tab', activeTab === 'learning' && 'tab-on']"
-          @tap="activeTab = 'learning'"
-        >
-          正在学习 ({{ learningCourses.length }})
-        </text>
-        <text
-          :class="['tab', activeTab === 'completed' && 'tab-on']"
-          @tap="activeTab = 'completed'"
-        >
-          已完成 ({{ completedCourses.length }})
-        </text>
+        <text :class="['tab', activeTab === 'learning' && 'tab-on']" @tap="activeTab = 'learning'">正在学习 ({{ learningCourses.length }})</text>
+        <text :class="['tab', activeTab === 'completed' && 'tab-on']" @tap="activeTab = 'completed'">已完成 ({{ completedCourses.length }})</text>
       </view>
 
       <!-- 正在学习 -->
-      <view
-        v-if="activeTab === 'learning'"
-        class="list"
-      >
-        <view
-          v-for="c in learningCourses"
-          :key="c.id"
-          class="course"
-          @tap="go('/learn/' + c.id)"
-        >
+      <view class="list" v-if="activeTab === 'learning'">
+        <view v-for="c in learningCourses" :key="c.id" class="course" @tap="go('/learn/' + c.id)">
           <view class="course-top">
-            <view class="cover">
-              <app-icon
-                name="play"
-                :size="48"
-                color="rgba(196,30,45,0.6)"
-              />
-            </view>
+            <view class="cover"><app-icon name="play" :size="48" color="rgba(196,30,45,0.6)" /></view>
             <view class="course-info">
-              <text class="course-title">
-                {{ c.title }}
-              </text>
-              <text class="course-tutor">
-                {{ c.instructor }}
-              </text>
+              <text class="course-title">{{ c.title }}</text>
+              <text class="course-tutor">{{ c.instructor }}</text>
               <view class="cp-head">
-                <text class="cp-txt">
-                  已学 {{ c.completedChapters }}/{{ c.totalChapters }} 章
-                </text>
-                <text class="cp-txt">
-                  {{ c.progress }}%
-                </text>
+                <text class="cp-txt">已学 {{ c.completedChapters }}/{{ c.totalChapters }} 章</text>
+                <text class="cp-txt">{{ c.progress }}%</text>
               </view>
-              <view class="bar sm">
-                <view
-                  class="bar-fill red"
-                  :style="{ width: c.progress + '%' }"
-                />
-              </view>
+              <view class="bar sm"><view class="bar-fill red" :style="{ width: c.progress + '%' }" /></view>
               <view class="course-last">
-                <text class="last-txt">
-                  上次学到：{{ c.lastChapter }}
-                </text>
-                <text class="last-time">
-                  {{ c.lastTime }}
-                </text>
+                <text class="last-txt">上次学到：{{ c.lastChapter }}</text>
+                <text class="last-time">{{ c.lastTime }}</text>
               </view>
             </view>
           </view>
-          <view class="course-btn">
-            <text class="course-btn-txt">
-              继续学习
-            </text>
-          </view>
+          <view class="course-btn"><text class="course-btn-txt">继续学习</text></view>
         </view>
       </view>
 
       <!-- 已完成 -->
-      <view
-        v-else
-        class="list"
-      >
-        <view
-          v-for="c in completedCourses"
-          :key="c.id"
-          class="course"
-          @tap="go('/course/' + c.id)"
-        >
+      <view class="list" v-else>
+        <view v-for="c in completedCourses" :key="c.id" class="course" @tap="go('/course/' + c.id)">
           <view class="course-top">
             <view class="cover done">
-              <app-icon
-                name="trophy"
-                :size="36"
-                color="#16A34A"
-              />
+              <app-icon name="trophy" :size="36" color="#16A34A" />
             </view>
             <view class="course-info">
               <view class="done-title-row">
-                <text class="course-title">
-                  {{ c.title }}
-                </text>
-                <text class="done-badge">
-                  已完成
-                </text>
+                <text class="course-title">{{ c.title }}</text>
+                <text class="done-badge">已完成</text>
               </view>
-              <text class="course-tutor">
-                {{ c.instructor }}
-              </text>
+              <text class="course-tutor">{{ c.instructor }}</text>
               <view class="course-last">
                 <view class="stars">
-                  <text
-                    v-for="n in 5"
-                    :key="n"
-                    :class="['star', n <= c.rating ? 'star-on' : 'star-off']"
-                  >
-                    ★
-                  </text>
-                  <text class="star-label">
-                    我的评分
-                  </text>
+                  <text v-for="n in 5" :key="n" :class="['star', n <= c.rating ? 'star-on' : 'star-off']">★</text>
+                  <text class="star-label">我的评分</text>
                 </view>
-                <text class="last-time">
-                  完成于 {{ c.completedDate }}
-                </text>
+                <text class="last-time">完成于 {{ c.completedDate }}</text>
               </view>
             </view>
           </view>
-          <view
-            v-if="c.certificate"
-            class="cert-btn"
-          >
-            <app-icon
-              name="award"
-              :size="28"
-              color="#D97706"
-            />
-            <text class="cert-btn-txt">
-              查看结业证书
-            </text>
+          <view class="cert-btn" v-if="c.certificate">
+            <app-icon name="award" :size="28" color="#D97706" />
+            <text class="cert-btn-txt">查看结业证书</text>
           </view>
         </view>
       </view>
 
       <!-- 学习路径 -->
       <view class="sect-head">
-        <app-icon
-          name="sparkles"
-          :size="36"
-          color="#C41E2D"
-        />
-        <text class="sect-title">
-          我的学习路径
-        </text>
+        <app-icon name="sparkles" :size="36" color="#C41E2D" />
+        <text class="sect-title">我的学习路径</text>
       </view>
       <view class="path-card">
         <view class="path-top">
-          <text class="path-name">
-            八字命理学习路径
-          </text>
-          <text class="path-prog">
-            35%
-          </text>
+          <text class="path-name">八字命理学习路径</text>
+          <text class="path-prog">35%</text>
         </view>
-        <text class="path-desc">
-          从入门到精通的系统学习计划
-        </text>
-        <view class="bar">
-          <view
-            class="bar-fill red"
-            style="width:35%"
-          />
-        </view>
+        <text class="path-desc">从入门到精通的系统学习计划</text>
+        <view class="bar"><view class="bar-fill red" style="width:35%" /></view>
         <view class="nodes">
-          <view
-            v-for="(n, i) in pathNodes"
-            :key="i"
-            class="node"
-          >
+          <view v-for="(n, i) in pathNodes" :key="i" class="node">
             <view :class="['node-dot', 'nd-' + n.status]">
-              <app-icon
-                v-if="n.status === 'completed'"
-                name="check"
-                :size="20"
-                color="#FFFFFF"
-              />
-              <text
-                v-else
-                class="node-idx"
-              >
-                {{ i + 1 }}
-              </text>
+              <app-icon v-if="n.status === 'completed'" name="check" :size="20" color="#FFFFFF" />
+              <text v-else class="node-idx">{{ i + 1 }}</text>
             </view>
             <view class="node-info">
-              <text class="node-title">
-                {{ n.title }}
-              </text>
-              <text class="node-desc">
-                {{ n.description }}
-              </text>
+              <text class="node-title">{{ n.title }}</text>
+              <text class="node-desc">{{ n.description }}</text>
             </view>
           </view>
         </view>
@@ -327,43 +142,17 @@
 
       <!-- 成就徽章 -->
       <view class="sect-head">
-        <app-icon
-          name="award"
-          :size="36"
-          color="#C9A96E"
-        />
-        <text class="sect-title">
-          成就徽章
-        </text>
+        <app-icon name="award" :size="36" color="#C9A96E" />
+        <text class="sect-title">成就徽章</text>
       </view>
       <view class="badges">
-        <view
-          v-for="b in badges"
-          :key="b.id"
-          :class="['badge-item', !b.unlocked && 'badge-lock']"
-        >
+        <view v-for="b in badges" :key="b.id" :class="['badge-item', !b.unlocked && 'badge-lock']">
           <view :class="['badge-icon', 'br-' + b.rarity]">
-            <app-icon
-              :name="b.icon"
-              :size="40"
-              :color="b.unlocked ? '#FFFFFF' : '#BBB2A6'"
-            />
+            <app-icon :name="b.icon" :size="40" :color="b.unlocked ? '#FFFFFF' : '#BBB2A6'" />
           </view>
-          <text class="badge-name">
-            {{ b.name }}
-          </text>
-          <text
-            v-if="!b.unlocked && b.total"
-            class="badge-sub"
-          >
-            {{ b.progress }}/{{ b.total }}
-          </text>
-          <text
-            v-else-if="b.unlocked"
-            class="badge-sub"
-          >
-            已获得
-          </text>
+          <text class="badge-name">{{ b.name }}</text>
+          <text class="badge-sub" v-if="!b.unlocked && b.total">{{ b.progress }}/{{ b.total }}</text>
+          <text class="badge-sub" v-else-if="b.unlocked">已获得</text>
         </view>
       </view>
 

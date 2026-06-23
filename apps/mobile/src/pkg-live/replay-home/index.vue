@@ -1,54 +1,21 @@
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="80rpx" radius="16rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无回放" />
-  <view v-else class="page">
+  <view class="page">
     <!-- 顶部导航(红色渐变) -->
-    <view
-      class="nav"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
-        <view
-          class="nav-btn"
-          @tap="goBack"
-        >
-          <AppIcon
-            name="chevron-left"
-            :size="48"
-            color="#fff"
-          />
+        <view class="nav-btn" @tap="goBack">
+          <AppIcon name="chevron-left" :size="48" color="#fff" />
         </view>
-        <text class="nav-title">
-          直播回放
-        </text>
-        <view
-          class="nav-btn"
-          @tap="showSearch = true"
-        >
-          <AppIcon
-            name="search"
-            :size="40"
-            color="#fff"
-          />
+        <text class="nav-title">直播回放</text>
+        <view class="nav-btn" @tap="showSearch = true">
+          <AppIcon name="search" :size="40" color="#fff" />
         </view>
       </view>
     </view>
 
     <view class="body">
       <!-- 分类横滚 -->
-      <scroll-view
-        class="cat-scroll"
-        scroll-x
-        :show-scrollbar="false"
-      >
+      <scroll-view class="cat-scroll" scroll-x :show-scrollbar="false">
         <view class="cat-row">
           <view
             v-for="cat in categories"
@@ -57,111 +24,50 @@
             :class="{ 'cat-chip-active': selectedCategory === cat.id }"
             @tap="toggleCategory(cat.id)"
           >
-            <text class="cat-icon">
-              {{ cat.icon }}
-            </text>
-            <text class="cat-name">
-              {{ cat.name }}
-            </text>
-            <text class="cat-count">
-              ({{ cat.count }})
-            </text>
+            <text class="cat-icon">{{ cat.icon }}</text>
+            <text class="cat-name">{{ cat.name }}</text>
+            <text class="cat-count">({{ cat.count }})</text>
           </view>
         </view>
       </scroll-view>
 
       <!-- 热门回放 -->
-      <view
-        v-if="!selectedCategory"
-        class="section"
-      >
+      <view v-if="!selectedCategory" class="section">
         <view class="section-head">
-          <text class="section-title">
-            热门回放
-          </text>
-          <view
-            class="more-btn"
-            @tap="goReplays"
-          >
-            <text class="more-txt">
-              更多
-            </text>
-            <AppIcon
-              name="chevron-right"
-              :size="32"
-              color="#C41E3A"
-            />
+          <text class="section-title">热门回放</text>
+          <view class="more-btn" @tap="goReplays">
+            <text class="more-txt">更多</text>
+            <AppIcon name="chevron-right" :size="32" color="#C41E3A" />
           </view>
         </view>
         <view class="hot-list">
-          <view
-            v-for="(item, idx) in hotReplays"
-            :key="item.id"
-            class="hot-card"
-            @tap="openReplay(item)"
-          >
+          <view v-for="(item, idx) in hotReplays" :key="item.id" class="hot-card" @tap="openReplay(item)">
             <view class="hot-cover">
-              <image
-                class="hot-img"
-                :src="item.cover"
-                mode="aspectFill"
-              />
+              <image class="hot-img" :src="item.cover" mode="aspectFill" />
               <view class="hot-mask" />
               <view class="hot-tag">
-                <text class="hot-tag-emoji">
-                  🔥
-                </text>
-                <text class="hot-tag-txt">
-                  热门
-                </text>
+                <text class="hot-tag-emoji">🔥</text>
+                <text class="hot-tag-txt">热门</text>
               </view>
-              <view class="hot-rank">
-                {{ idx + 1 }}
-              </view>
+              <view class="hot-rank">{{ idx + 1 }}</view>
               <view class="hot-play">
-                <AppIcon
-                  name="play"
-                  :size="56"
-                  color="#fff"
-                />
+                <AppIcon name="play" :size="56" color="#fff" />
               </view>
               <view class="hot-dur">
-                <AppIcon
-                  name="clock"
-                  :size="24"
-                  color="#fff"
-                />
-                <text class="hot-dur-txt">
-                  {{ formatLiveDuration(item.duration) }}
-                </text>
+                <AppIcon name="clock" :size="24" color="#fff" />
+                <text class="hot-dur-txt">{{ formatLiveDuration(item.duration) }}</text>
               </view>
-              <text class="hot-title">
-                {{ item.title }}
-              </text>
+              <text class="hot-title">{{ item.title }}</text>
             </view>
             <view class="hot-foot">
               <view class="hot-host">
-                <image
-                  class="hot-avatar"
-                  :src="item.hostAvatar"
-                  mode="aspectFill"
-                />
-                <text class="hot-host-name">
-                  {{ item.hostName }}
-                </text>
-                <text class="hot-cat">
-                  {{ item.category }}
-                </text>
+                <image class="hot-avatar" :src="item.hostAvatar" mode="aspectFill" />
+                <text class="hot-host-name">{{ item.hostName }}</text>
+                <text class="hot-cat">{{ item.category }}</text>
               </view>
               <view class="hot-views">
-                <AppIcon
-                  name="eye"
-                  :size="32"
-                  color="#999"
-                />
-                <text class="hot-views-txt">
-                  {{ formatLiveViews(item.views) }}
-                </text>
+                <AppIcon name="eye" :size="32" color="#999" />
+                <text class="hot-views-txt">{{ formatLiveViews(item.views) }}</text>
               </view>
             </view>
           </view>
@@ -171,72 +77,33 @@
       <!-- 回放列表 -->
       <view class="section">
         <view class="section-head">
-          <text class="section-title">
-            {{ listTitle }}
-          </text>
+          <text class="section-title">{{ listTitle }}</text>
           <view class="filter-btn">
-            <AppIcon
-              name="filter"
-              :size="32"
-              color="#999"
-            />
-            <text class="filter-txt">
-              筛选
-            </text>
+            <AppIcon name="filter" :size="32" color="#999" />
+            <text class="filter-txt">筛选</text>
           </view>
         </view>
         <view class="grid">
-          <view
-            v-for="item in filteredReplays"
-            :key="item.id"
-            class="grid-card"
-            @tap="openReplay(item)"
-          >
+          <view v-for="item in filteredReplays" :key="item.id" class="grid-card" @tap="openReplay(item)">
             <view class="grid-cover">
-              <image
-                class="grid-img"
-                :src="item.cover"
-                mode="aspectFill"
-              />
+              <image class="grid-img" :src="item.cover" mode="aspectFill" />
               <view class="grid-mask" />
               <view class="grid-replay-tag">
-                <AppIcon
-                  name="play"
-                  :size="24"
-                  color="#fff"
-                />
-                <text class="grid-replay-txt">
-                  回放
-                </text>
+                <AppIcon name="play" :size="24" color="#fff" />
+                <text class="grid-replay-txt">回放</text>
               </view>
-              <view class="grid-dur">
-                {{ formatLiveDuration(item.duration) }}
-              </view>
+              <view class="grid-dur">{{ formatLiveDuration(item.duration) }}</view>
             </view>
             <view class="grid-info">
-              <text class="grid-title">
-                {{ item.title }}
-              </text>
+              <text class="grid-title">{{ item.title }}</text>
               <view class="grid-meta">
                 <view class="grid-host">
-                  <image
-                    class="grid-avatar"
-                    :src="item.hostAvatar"
-                    mode="aspectFill"
-                  />
-                  <text class="grid-host-name">
-                    {{ item.hostName }}
-                  </text>
+                  <image class="grid-avatar" :src="item.hostAvatar" mode="aspectFill" />
+                  <text class="grid-host-name">{{ item.hostName }}</text>
                 </view>
                 <view class="grid-views">
-                  <AppIcon
-                    name="eye"
-                    :size="24"
-                    color="#bbb"
-                  />
-                  <text class="grid-views-txt">
-                    {{ formatLiveViews(item.views) }}
-                  </text>
+                  <AppIcon name="eye" :size="24" color="#bbb" />
+                  <text class="grid-views-txt">{{ formatLiveViews(item.views) }}</text>
                 </view>
               </view>
             </view>
@@ -245,63 +112,32 @@
       </view>
 
       <view class="load-more">
-        <text class="load-more-txt">
-          上拉加载更多
-        </text>
+        <text class="load-more-txt">上拉加载更多</text>
       </view>
     </view>
 
     <!-- 搜索覆盖层 -->
-    <view
-      v-if="showSearch"
-      class="search-overlay"
-    >
+    <view v-if="showSearch" class="search-overlay">
       <view class="search-head">
         <view class="search-input-wrap">
-          <AppIcon
-            name="search"
-            :size="32"
-            color="#999"
-          />
+          <AppIcon name="search" :size="32" color="#999" />
           <input
             v-model="searchQuery"
             class="search-input"
             placeholder="搜索回放..."
             placeholder-class="search-ph"
             :focus="true"
-          >
-          <view
-            v-if="searchQuery"
-            class="search-clear"
-            @tap="searchQuery = ''"
-          >
-            <AppIcon
-              name="x"
-              :size="32"
-              color="#999"
-            />
+          />
+          <view v-if="searchQuery" class="search-clear" @tap="searchQuery = ''">
+            <AppIcon name="x" :size="32" color="#999" />
           </view>
         </view>
-        <text
-          class="search-cancel"
-          @tap="closeSearch"
-        >
-          取消
-        </text>
+        <text class="search-cancel" @tap="closeSearch">取消</text>
       </view>
       <view class="search-body">
-        <text class="search-section-title">
-          热门搜索
-        </text>
+        <text class="search-section-title">热门搜索</text>
         <view class="hot-search-row">
-          <text
-            v-for="tag in hotSearches"
-            :key="tag"
-            class="hot-search-tag"
-            @tap="searchQuery = tag"
-          >
-            {{ tag }}
-          </text>
+          <text v-for="tag in hotSearches" :key="tag" class="hot-search-tag" @tap="searchQuery = tag">{{ tag }}</text>
         </view>
       </view>
     </view>
@@ -311,9 +147,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
 import {
   replayCategories,
@@ -324,13 +157,6 @@ import {
   formatLiveViews,
   type ReplayHomeItem,
 } from '@/lib/live-data'
-
-const isLoading = ref(false)
-const loadError = ref<string | null>(null)
-const isEmpty = computed(() => hotReplays.value.length === 0 && filteredReplays.value.length === 0)
-function reload() {
-  loadError.value = null
-}
 
 const statusBarHeight = ref(20)
 

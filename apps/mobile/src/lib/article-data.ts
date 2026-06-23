@@ -2,7 +2,6 @@
  * 文章详情页数据（从原型 app/articles/[id]/page.tsx 1:1 迁移）
  * 内容块模型支持正文内联嵌入推荐卡（圈子/课程/商品/排盘/智能体）
  */
-import { apiGet, useMock } from '@/utils/request'
 
 export type EmbedType = 'circle' | 'course' | 'product' | 'paipan' | 'agent'
 
@@ -127,22 +126,3 @@ export const mockComments: ArticleComment[] = [
     createdAt: '5小时前', likes: 34, isLiked: true,
   },
 ]
-
-// ── API ──
-export const articleApi = {
-  /** 获取文章列表 GET /articles */
-  async getList(params?: Record<string, any>): Promise<ArticleData[]> {
-    if (useMock()) return [mockArticle]
-    try { return await apiGet<ArticleData[]>('/articles', params) } catch { return [mockArticle] }
-  },
-  /** 获取文章详情 GET /articles/:id */
-  async getDetail(id: string): Promise<ArticleData> {
-    if (useMock()) return mockArticle
-    try { return await apiGet<ArticleData>(`/articles/${id}`) } catch { return mockArticle }
-  },
-  /** 获取文章评论 GET /articles/:id/comments */
-  async getComments(_id: string): Promise<ArticleComment[]> {
-    if (useMock()) return mockComments
-    try { return await apiGet<ArticleComment[]>(`/articles/${_id}/comments`) } catch { return mockComments }
-  },
-}

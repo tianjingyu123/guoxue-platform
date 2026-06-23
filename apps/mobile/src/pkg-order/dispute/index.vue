@@ -1,57 +1,24 @@
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无申诉信息" />
-  <view v-else class="page">
-    <app-nav-bar
-      :title="navTitle"
-      :back-size="40"
-      :title-size="36"
-      serif-title
-      title-align="left"
-      custom-back
-      @back="onBack"
-    />
+  <view class="page">
+    <app-nav-bar :title="navTitle" :back-size="40" :title-size="36" serif-title title-align="left" custom-back @back="onBack">
+    </app-nav-bar>
 
-    <scroll-view
-      scroll-y
-      class="scroll-area"
-    >
+    <scroll-view scroll-y class="scroll-area">
       <!-- ============ 创建申诉 ============ -->
       <block v-if="view === 'create'">
         <!-- 订单信息 -->
         <view class="card order-card">
-          <image
-            class="order-cover"
-            :src="order.productCover"
-            mode="aspectFill"
-          />
+          <image class="order-cover" :src="order.productCover" mode="aspectFill" />
           <view class="order-info">
-            <text class="order-name">
-              {{ order.productName }}
-            </text>
-            <text class="order-no">
-              订单号：{{ order.orderNo }}
-            </text>
-            <text class="order-amount">
-              ¥{{ order.amount }}
-            </text>
+            <text class="order-name">{{ order.productName }}</text>
+            <text class="order-no">订单号：{{ order.orderNo }}</text>
+            <text class="order-amount">¥{{ order.amount }}</text>
           </view>
         </view>
 
         <!-- 申诉类型 -->
         <view class="card">
-          <text class="section-title">
-            纠纷类型 <text class="req">
-              *
-            </text>
-          </text>
+          <text class="section-title">纠纷类型 <text class="req">*</text></text>
           <view class="type-grid">
             <view
               v-for="t in disputeTypes"
@@ -60,101 +27,49 @@
               :class="{ active: form.type === t.value }"
               @tap="form.type = t.value"
             >
-              <app-icon
-                :name="t.icon"
-                :size="44"
-                :color="form.type === t.value ? '#C41E3A' : '#999999'"
-              />
-              <text
-                class="type-label"
-                :class="{ active: form.type === t.value }"
-              >
-                {{ t.label }}
-              </text>
-              <text class="type-desc">
-                {{ t.desc }}
-              </text>
+              <app-icon :name="t.icon" :size="44" :color="form.type === t.value ? '#C41E3A' : '#999999'" />
+              <text class="type-label" :class="{ active: form.type === t.value }">{{ t.label }}</text>
+              <text class="type-desc">{{ t.desc }}</text>
             </view>
           </view>
         </view>
 
         <!-- 问题描述 -->
         <view class="card">
-          <text class="section-title">
-            问题描述 <text class="req">
-              *
-            </text>
-          </text>
+          <text class="section-title">问题描述 <text class="req">*</text></text>
           <textarea
-            v-model="form.description"
             class="desc-input"
+            v-model="form.description"
             placeholder="请详细描述您遇到的问题，以便我们更快为您处理"
             :maxlength="500"
             placeholder-class="ph"
           />
-          <text class="word-count">
-            {{ form.description.length }}/500
-          </text>
+          <text class="word-count">{{ form.description.length }}/500</text>
         </view>
 
         <!-- 证据图片 -->
         <view class="card">
-          <text class="section-title">
-            证据图片 <text class="req">
-              *
-            </text><text class="section-sub">
-              （聊天记录、商品照片等）
-            </text>
-          </text>
+          <text class="section-title">证据图片 <text class="req">*</text><text class="section-sub">（聊天记录、商品照片等）</text></text>
           <view class="upload-wrap">
-            <view
-              v-for="(img, i) in form.images"
-              :key="i"
-              class="upload-item"
-            >
-              <image
-                class="upload-img"
-                :src="img"
-                mode="aspectFill"
-              />
-              <view
-                class="upload-del"
-                @tap="removeImage(i)"
-              >
-                <app-icon
-                  name="x"
-                  :size="24"
-                  color="#FFFFFF"
-                />
+            <view v-for="(img, i) in form.images" :key="i" class="upload-item">
+              <image class="upload-img" :src="img" mode="aspectFill" />
+              <view class="upload-del" @tap="removeImage(i)">
+                <app-icon name="x" :size="24" color="#FFFFFF" />
               </view>
             </view>
-            <view
-              v-if="form.images.length < 5"
-              class="upload-add"
-              @tap="addImage"
-            >
-              <app-icon
-                name="camera"
-                :size="48"
-                color="#999999"
-              />
-              <text class="upload-hint">
-                {{ form.images.length }}/5
-              </text>
+            <view v-if="form.images.length < 5" class="upload-add" @tap="addImage">
+              <app-icon name="camera" :size="48" color="#999999" />
+              <text class="upload-hint">{{ form.images.length }}/5</text>
             </view>
           </view>
         </view>
 
         <!-- 期望解决方案 -->
         <view class="card">
-          <text class="section-title">
-            期望解决方案 <text class="req">
-              *
-            </text>
-          </text>
+          <text class="section-title">期望解决方案 <text class="req">*</text></text>
           <textarea
-            v-model="form.expectation"
             class="expect-area"
+            v-model="form.expectation"
             placeholder="请告诉我们您希望如何解决这个问题..."
             placeholder-class="ph"
           />
@@ -162,25 +77,12 @@
 
         <!-- 温馨提示 -->
         <view class="tips-card">
-          <app-icon
-            name="alert-triangle"
-            :size="32"
-            color="#F97316"
-            class="tips-icon"
-          />
+          <app-icon name="alert-triangle" :size="32" color="#F97316" class="tips-icon" />
           <view class="tips-body">
-            <text class="tips-title">
-              温馨提示
-            </text>
-            <text class="tips-li">
-              1. 请如实填写申诉信息，提供有效证据
-            </text>
-            <text class="tips-li">
-              2. 我们将在1-3个工作日内处理您的申诉
-            </text>
-            <text class="tips-li">
-              3. 处理结果将通过站内消息通知您
-            </text>
+            <text class="tips-title">温馨提示</text>
+            <text class="tips-li">1. 请如实填写申诉信息，提供有效证据</text>
+            <text class="tips-li">2. 我们将在1-3个工作日内处理您的申诉</text>
+            <text class="tips-li">3. 处理结果将通过站内消息通知您</text>
           </view>
         </view>
 
@@ -189,18 +91,9 @@
 
       <!-- ============ 我的申诉列表 ============ -->
       <block v-else-if="view === 'list'">
-        <view
-          v-if="disputes.length === 0"
-          class="empty"
-        >
-          <app-icon
-            name="file-text"
-            :size="120"
-            color="#DDDDDD"
-          />
-          <text class="empty-text">
-            暂无申诉记录
-          </text>
+        <view v-if="disputes.length === 0" class="empty">
+          <app-icon name="file-text" :size="120" color="#DDDDDD" />
+          <text class="empty-text">暂无申诉记录</text>
         </view>
         <view
           v-for="d in disputes"
@@ -209,48 +102,20 @@
           @tap="openDetail(d.id)"
         >
           <view class="dispute-head">
-            <text class="dispute-no">
-              申诉单号：{{ d.orderNo }}
-            </text>
-            <view
-              class="dispute-status"
-              :style="{ color: sCfg(d.status).color, background: sCfg(d.status).bg }"
-            >
-              <app-icon
-                :name="sCfg(d.status).icon"
-                :size="24"
-                :color="sCfg(d.status).color"
-              />
-              <text
-                class="dispute-status-text"
-                :style="{ color: sCfg(d.status).color }"
-              >
-                {{ sCfg(d.status).label }}
-              </text>
+            <text class="dispute-no">申诉单号：{{ d.orderNo }}</text>
+            <view class="dispute-status" :style="{ color: sCfg(d.status).color, background: sCfg(d.status).bg }">
+              <app-icon :name="sCfg(d.status).icon" :size="24" :color="sCfg(d.status).color" />
+              <text class="dispute-status-text" :style="{ color: sCfg(d.status).color }">{{ sCfg(d.status).label }}</text>
             </view>
           </view>
           <view class="dispute-body">
-            <image
-              class="dispute-cover"
-              :src="d.productCover"
-              mode="aspectFill"
-            />
+            <image class="dispute-cover" :src="d.productCover" mode="aspectFill" />
             <view class="dispute-info">
-              <text class="dispute-name">
-                {{ d.productName }}
-              </text>
-              <text class="dispute-type">
-                {{ typeLabel(d.type) }}
-              </text>
-              <text class="dispute-time">
-                {{ d.createdAt }}
-              </text>
+              <text class="dispute-name">{{ d.productName }}</text>
+              <text class="dispute-type">{{ typeLabel(d.type) }}</text>
+              <text class="dispute-time">{{ d.createdAt }}</text>
             </view>
-            <app-icon
-              name="chevron-right"
-              :size="32"
-              color="#CCCCCC"
-            />
+            <app-icon name="chevron-right" :size="32" color="#CCCCCC" />
           </view>
         </view>
       </block>
@@ -258,74 +123,33 @@
       <!-- ============ 申诉详情 ============ -->
       <block v-else>
         <view class="card detail-status-card">
-          <view
-            class="detail-status"
-            :style="{ color: sCfg(detail.status).color }"
-          >
-            <app-icon
-              :name="sCfg(detail.status).icon"
-              :size="48"
-              :color="sCfg(detail.status).color"
-            />
-            <text
-              class="detail-status-text"
-              :style="{ color: sCfg(detail.status).color }"
-            >
-              {{ sCfg(detail.status).label }}
-            </text>
+          <view class="detail-status" :style="{ color: sCfg(detail.status).color }">
+            <app-icon :name="sCfg(detail.status).icon" :size="48" :color="sCfg(detail.status).color" />
+            <text class="detail-status-text" :style="{ color: sCfg(detail.status).color }">{{ sCfg(detail.status).label }}</text>
           </view>
-          <text class="detail-no">
-            申诉单号：{{ detail.orderNo }}
-          </text>
+          <text class="detail-no">申诉单号：{{ detail.orderNo }}</text>
         </view>
 
         <view class="card">
-          <text class="section-title">
-            申诉商品
-          </text>
+          <text class="section-title">申诉商品</text>
           <view class="order-card-inner">
-            <image
-              class="order-cover"
-              :src="detail.order.productCover"
-              mode="aspectFill"
-            />
+            <image class="order-cover" :src="detail.order.productCover" mode="aspectFill" />
             <view class="order-info">
-              <text class="order-name">
-                {{ detail.order.productName }}
-              </text>
-              <text class="order-amount">
-                ¥{{ detail.order.amount }}
-              </text>
+              <text class="order-name">{{ detail.order.productName }}</text>
+              <text class="order-amount">¥{{ detail.order.amount }}</text>
             </view>
           </view>
         </view>
 
         <view class="card">
-          <text class="section-title">
-            申诉信息
-          </text>
-          <view class="info-row">
-            <text class="info-label">
-              申诉类型
-            </text><text class="info-val">
-              {{ typeLabel(detail.type) }}
-            </text>
-          </view>
+          <text class="section-title">申诉信息</text>
+          <view class="info-row"><text class="info-label">申诉类型</text><text class="info-val">{{ typeLabel(detail.type) }}</text></view>
           <view class="info-block">
-            <text class="info-label">
-              问题描述
-            </text>
-            <text class="info-desc">
-              {{ detail.description }}
-            </text>
+            <text class="info-label">问题描述</text>
+            <text class="info-desc">{{ detail.description }}</text>
           </view>
-          <view
-            v-if="detail.images.length"
-            class="info-block"
-          >
-            <text class="info-label">
-              凭证图片
-            </text>
+          <view v-if="detail.images.length" class="info-block">
+            <text class="info-label">凭证图片</text>
             <view class="detail-imgs">
               <image
                 v-for="(img, i) in detail.images"
@@ -338,51 +162,23 @@
             </view>
           </view>
           <view class="info-block">
-            <text class="info-label">
-              期望解决
-            </text>
-            <text class="info-desc">
-              {{ detail.expectation }}
-            </text>
+            <text class="info-label">期望解决</text>
+            <text class="info-desc">{{ detail.expectation }}</text>
           </view>
         </view>
 
         <view class="card">
-          <text class="section-title">
-            处理进度
-          </text>
+          <text class="section-title">处理进度</text>
           <view class="timeline">
-            <view
-              v-for="(node, idx) in detail.timeline"
-              :key="idx"
-              class="tl-node"
-            >
+            <view v-for="(node, idx) in detail.timeline" :key="idx" class="tl-node">
               <view class="tl-col">
-                <view
-                  class="tl-dot"
-                  :class="{ current: node.isCurrent, done: idx <= currentIdx }"
-                />
-                <view
-                  v-if="idx < detail.timeline.length - 1"
-                  class="tl-line"
-                />
+                <view class="tl-dot" :class="{ current: node.isCurrent, done: idx <= currentIdx }" />
+                <view v-if="idx < detail.timeline.length - 1" class="tl-line" />
               </view>
               <view class="tl-body">
-                <text
-                  class="tl-title"
-                  :class="{ active: idx <= currentIdx }"
-                >
-                  {{ node.title }}
-                </text>
-                <text class="tl-desc">
-                  {{ node.description }}
-                </text>
-                <text
-                  v-if="node.time"
-                  class="tl-time"
-                >
-                  {{ node.time }}
-                </text>
+                <text class="tl-title" :class="{ active: idx <= currentIdx }">{{ node.title }}</text>
+                <text class="tl-desc">{{ node.description }}</text>
+                <text v-if="node.time" class="tl-time">{{ node.time }}</text>
               </view>
             </view>
           </view>
@@ -392,74 +188,39 @@
     </scroll-view>
 
     <!-- 底部操作 -->
-    <view
-      v-if="view === 'create'"
-      class="action-bar"
-      :style="{ paddingBottom: safeBottom + 'px' }"
-    >
-      <view
-        class="submit-btn"
-        :class="{ disabled: submitting }"
-        @tap="submit"
-      >
-        <text class="submit-text">
-          {{ submitting ? '提交中...' : '提交申诉' }}
-        </text>
+    <view v-if="view === 'create'" class="action-bar" :style="{ paddingBottom: safeBottom + 'px' }">
+      <view class="submit-btn" @tap="submit">
+        <text class="submit-text">提交申诉</text>
       </view>
     </view>
-    <view
-      v-else-if="view === 'detail' && detail.canCancel"
-      class="action-bar"
-      :style="{ paddingBottom: safeBottom + 'px' }"
-    >
-      <view
-        class="cancel-btn"
-        :class="{ disabled: submitting }"
-        @tap="cancelDispute"
-      >
-        <text class="cancel-text">
-          {{ submitting ? '处理中...' : '撤销申诉' }}
-        </text>
+    <view v-else-if="view === 'detail' && detail.canCancel" class="action-bar" :style="{ paddingBottom: safeBottom + 'px' }">
+      <view class="cancel-btn" @tap="cancelDispute">
+        <text class="cancel-text">撤销申诉</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
-import { useSubmitLock } from '@/composables/use-submit-lock'
-import { useAsyncData } from '@/composables/useAsyncData'
 import {
   disputeTypes,
   disputeStatusConfig,
-  mockDisputeOrder as _disputeOrder,
-  mockMyDisputes as _myDisputes,
-  mockDisputeDetail as _disputeDetail,
+  mockDisputeOrder as disputeOrder,
+  mockMyDisputes as myDisputes,
+  mockDisputeDetail as disputeDetail,
 } from '@/lib/order-data'
 
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { order: _disputeOrder, disputes: _myDisputes, detail: _disputeDetail }
-})
-
-const isEmpty = computed(() => !pageData.value?.order?.orderId && (pageData.value?.detail !== undefined && !pageData.value?.detail?.id))
-
 const safeBottom = ref(0)
-const { submitting, withLock } = useSubmitLock()
 
 // view: create | list | detail
 const view = ref<'create' | 'list' | 'detail'>('create')
 
-const order = ref(_disputeOrder)
-watch(() => pageData.value?.order, (val) => { if (val) order.value = val }, { immediate: true })
-const disputes = ref(_myDisputes)
-watch(() => pageData.value?.disputes, (val) => { if (val) disputes.value = val }, { immediate: true })
-const detail = ref(_disputeDetail)
-watch(() => pageData.value?.detail, (val) => { if (val) detail.value = val }, { immediate: true })
+const order = ref(disputeOrder)
+const disputes = ref(myDisputes)
+const detail = ref(disputeDetail)
 
 const form = reactive({
   type: disputeTypes[0].value,
@@ -517,37 +278,33 @@ function previewImage(urls: string[], current: number) {
 }
 
 function submit() {
-  withLock(async () => {
-    if (!form.description.trim()) {
-      uni.showToast({ title: '请填写问题描述', icon: 'none' })
-      return
-    }
-    if (!form.expectation.trim()) {
-      uni.showToast({ title: '请填写期望解决方式', icon: 'none' })
-      return
-    }
-    uni.showLoading({ title: '提交中...' })
-    setTimeout(() => {
-      uni.hideLoading()
-      uni.showToast({ title: '申诉已提交', icon: 'success' })
-      setTimeout(() => (view.value = 'list'), 1200)
-    }, 1000)
-  })
+  if (!form.description.trim()) {
+    uni.showToast({ title: '请填写问题描述', icon: 'none' })
+    return
+  }
+  if (!form.expectation.trim()) {
+    uni.showToast({ title: '请填写期望解决方式', icon: 'none' })
+    return
+  }
+  uni.showLoading({ title: '提交中...' })
+  setTimeout(() => {
+    uni.hideLoading()
+    uni.showToast({ title: '申诉已提交', icon: 'success' })
+    setTimeout(() => (view.value = 'list'), 1200)
+  }, 1000)
 }
 
 function cancelDispute() {
-  withLock(async () => {
-    uni.showModal({
-      title: '撤销申诉',
-      content: '确定要撤销这次申诉吗？',
-      confirmColor: '#C41E3A',
-      success: (res) => {
-        if (res.confirm) {
-          uni.showToast({ title: '已撤销', icon: 'none' })
-          view.value = 'list'
-        }
-      },
-    })
+  uni.showModal({
+    title: '撤销申诉',
+    content: '确定要撤销这次申诉吗？',
+    confirmColor: '#C41E3A',
+    success: (res) => {
+      if (res.confirm) {
+        uni.showToast({ title: '已撤销', icon: 'none' })
+        view.value = 'list'
+      }
+    },
   })
 }
 </script>
@@ -981,10 +738,6 @@ function cancelDispute() {
   align-items: center;
   justify-content: center;
 }
-.submit-btn.disabled {
-  opacity: 0.5;
-  pointer-events: none;
-}
 .submit-text {
   font-size: 30rpx;
   font-weight: 600;
@@ -997,10 +750,6 @@ function cancelDispute() {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.cancel-btn.disabled {
-  opacity: 0.5;
-  pointer-events: none;
 }
 .cancel-text {
   font-size: 30rpx;

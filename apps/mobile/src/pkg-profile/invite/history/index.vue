@@ -1,76 +1,36 @@
 <template>
   <view class="page">
-    <app-nav-bar
-      title="邀请记录"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="32"
-      :title-weight="600"
-      :bar-height="112"
-    />
+    <app-nav-bar title="邀请记录" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112" />
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <!-- 汇总 -->
       <view class="summary">
         <view class="sum-item">
-          <text class="sum-num">
-            {{ records.length }}
-          </text>
-          <text class="sum-label">
-            已邀请
-          </text>
+          <text class="sum-num">{{ records.length }}</text>
+          <text class="sum-label">已邀请</text>
         </view>
         <view class="sum-item">
-          <text class="sum-num">
-            {{ subscribedCount }}
-          </text>
-          <text class="sum-label">
-            已订阅
-          </text>
+          <text class="sum-num">{{ subscribedCount }}</text>
+          <text class="sum-label">已订阅</text>
         </view>
         <view class="sum-item">
-          <text class="sum-num">
-            ¥{{ totalReward.toFixed(2) }}
-          </text>
-          <text class="sum-label">
-            累计奖励
-          </text>
+          <text class="sum-num">¥{{ totalReward.toFixed(2) }}</text>
+          <text class="sum-label">累计奖励</text>
         </view>
       </view>
 
       <!-- 记录列表 -->
       <view class="list">
-        <view
-          v-for="rec in records"
-          :key="rec.id"
-          class="rec"
-        >
-          <view class="avatar">
-            <text class="avatar-txt">
-              {{ rec.name[0] }}
-            </text>
-          </view>
+        <view v-for="rec in records" :key="rec.id" class="rec">
+          <view class="avatar"><text class="avatar-txt">{{ rec.name[0] }}</text></view>
           <view class="rec-info">
-            <text class="rec-name">
-              {{ rec.name }}
-            </text>
-            <text class="rec-time">
-              {{ rec.registeredAt }}
-            </text>
+            <text class="rec-name">{{ rec.name }}</text>
+            <text class="rec-time">{{ rec.registeredAt }}</text>
           </view>
           <view class="rec-right">
             <view :class="['tag', statusCfg[rec.status].cls]">
-              <app-icon
-                :name="statusCfg[rec.status].icon"
-                :size="22"
-                :color="statusCfg[rec.status].color"
-              />
-              <text class="tag-txt">
-                {{ statusCfg[rec.status].label }}
-              </text>
+              <app-icon :name="statusCfg[rec.status].icon" :size="22" :color="statusCfg[rec.status].color" />
+              <text class="tag-txt">{{ statusCfg[rec.status].label }}</text>
             </view>
             <text :class="['reward', rec.reward !== '--' ? 'rw-on' : 'rw-off']">
               {{ rec.reward !== '--' ? '+' + rec.reward : rec.reward }}

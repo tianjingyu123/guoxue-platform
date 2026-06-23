@@ -1,69 +1,28 @@
 <template>
-  <view v-if="isLoading" class="square">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="180rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="60rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无智能体" />
-  <view v-else class="square">
+  <view class="square">
     <!-- 顶部搜索区（红色，sticky） -->
-    <view
-      class="topbar"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="topbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="topbar-inner">
         <view class="tb-row">
           <view class="tb-left">
-            <view
-              class="tb-back"
-              @tap="goBack"
-            >
-              <app-icon
-                name="arrow-left"
-                :size="40"
-                color="#ffffff"
-              />
+            <view class="tb-back" @tap="goBack">
+              <app-icon name="arrow-left" :size="40" color="#ffffff" />
             </view>
-            <text class="tb-title">
-              智能体广场
-            </text>
+            <text class="tb-title">智能体广场</text>
             <view class="tb-badge">
-              <app-icon
-                name="zap"
-                :size="22"
-                color="rgba(255,255,255,0.9)"
-              />
-              <text class="tb-badge-txt">
-                {{ hotBots.length }}个在线
-              </text>
+              <app-icon name="zap" :size="22" color="rgba(255,255,255,0.9)" />
+              <text class="tb-badge-txt">{{ hotBots.length }}个在线</text>
             </view>
           </view>
-          <view
-            class="tb-history"
-            @tap="navigateTo('/agents/history')"
-          >
-            <app-icon
-              name="clock"
-              :size="28"
-              color="rgba(255,255,255,0.8)"
-            />
-            <text class="tb-history-txt">
-              对话记录
-            </text>
+          <view class="tb-history" @tap="navigateTo('/agents/history')">
+            <app-icon name="clock" :size="28" color="rgba(255,255,255,0.8)" />
+            <text class="tb-history-txt">对话记录</text>
           </view>
         </view>
 
         <!-- 搜索框 -->
         <view class="search-box">
-          <app-icon
-            name="search"
-            :size="36"
-            color="#999999"
-          />
+          <app-icon name="search" :size="36" color="#999999" />
           <input
             v-model="searchQuery"
             class="search-input"
@@ -71,41 +30,20 @@
             placeholder="搜索智能体或直接提问..."
             placeholder-class="search-ph"
             :disabled="isListening"
-          >
-          <view
-            v-if="searchQuery"
-            class="search-clear"
-            @tap="searchQuery = ''"
-          >
-            <app-icon
-              name="x"
-              :size="28"
-              color="#999999"
-            />
+          />
+          <view v-if="searchQuery" class="search-clear" @tap="searchQuery = ''">
+            <app-icon name="x" :size="28" color="#999999" />
           </view>
           <view class="search-divider" />
-          <view
-            class="voice-btn"
-            :class="{ listening: isListening }"
-            @tap="handleVoiceSearch"
-          >
-            <app-icon
-              name="mic"
-              :size="30"
-              :color="isListening ? '#ffffff' : '#666666'"
-            />
+          <view class="voice-btn" :class="{ listening: isListening }" @tap="handleVoiceSearch">
+            <app-icon name="mic" :size="30" :color="isListening ? '#ffffff' : '#666666'" />
           </view>
           <!-- 聆听遮罩 -->
-          <view
-            v-if="isListening"
-            class="listening-mask"
-          >
+          <view v-if="isListening" class="listening-mask">
             <view class="dot" />
             <view class="dot dot-2" />
             <view class="dot dot-3" />
-            <text class="listening-txt">
-              正在聆听...
-            </text>
+            <text class="listening-txt">正在聆听...</text>
           </view>
         </view>
       </view>
@@ -113,36 +51,19 @@
 
     <!-- 主智能客服入口 -->
     <view class="section-px main-entry-wrap">
-      <view
-        class="main-entry"
-        @tap="navigateTo('/agent/main')"
-      >
+      <view class="main-entry" @tap="navigateTo('/agent/main')">
         <view class="me-icon">
-          <app-icon
-            name="bot"
-            :size="56"
-            color="#ffffff"
-          />
+          <app-icon name="bot" :size="56" color="#ffffff" />
         </view>
         <view class="me-info">
           <view class="me-title-row">
-            <text class="me-title">
-              热卜智能助手
-            </text>
-            <text class="me-online">
-              在线
-            </text>
+            <text class="me-title">热卜智能助手</text>
+            <text class="me-online">在线</text>
           </view>
-          <text class="me-desc">
-            有任何问题都可以问我，我来帮您解答
-          </text>
+          <text class="me-desc">有任何问题都可以问我，我来帮您解答</text>
         </view>
         <view class="me-arrow">
-          <app-icon
-            name="message-circle"
-            :size="36"
-            color="#ffffff"
-          />
+          <app-icon name="message-circle" :size="36" color="#ffffff" />
         </view>
       </view>
     </view>
@@ -151,27 +72,12 @@
     <view class="section-px section-mt">
       <view class="sec-head">
         <view class="sec-head-left">
-          <app-icon
-            name="flame"
-            :size="36"
-            color="#ff6b35"
-          />
-          <text class="sec-title">
-            大家都在问
-          </text>
+          <app-icon name="flame" :size="36" color="#ff6b35" />
+          <text class="sec-title">大家都在问</text>
         </view>
-        <view
-          class="sec-link"
-          @tap="navigateTo('/agents/questions')"
-        >
-          <text class="sec-link-txt">
-            更多
-          </text>
-          <app-icon
-            name="chevron-right"
-            :size="28"
-            color="#999999"
-          />
+        <view class="sec-link" @tap="navigateTo('/agents/questions')">
+          <text class="sec-link-txt">更多</text>
+          <app-icon name="chevron-right" :size="28" color="#999999" />
         </view>
       </view>
       <view class="q-list">
@@ -181,38 +87,17 @@
           class="q-item"
           @tap="goAsk(q)"
         >
-          <view
-            class="q-rank"
-            :class="'q-rank-' + index"
-          >
-            {{ index + 1 }}
-          </view>
+          <view class="q-rank" :class="'q-rank-' + index">{{ index + 1 }}</view>
           <view class="q-body">
-            <text class="q-text">
-              {{ q.question }}
-            </text>
+            <text class="q-text">{{ q.question }}</text>
             <view class="q-meta">
-              <image
-                class="q-bot-avatar"
-                :src="q.botAvatar"
-                mode="aspectFill"
-              />
-              <text class="q-bot-name">
-                {{ q.botName }}
-              </text>
-              <text class="q-dot">
-                ·
-              </text>
-              <text class="q-views">
-                {{ formatCount(q.views) }}浏览
-              </text>
+              <image class="q-bot-avatar" :src="q.botAvatar" mode="aspectFill" />
+              <text class="q-bot-name">{{ q.botName }}</text>
+              <text class="q-dot">·</text>
+              <text class="q-views">{{ formatCount(q.views) }}浏览</text>
             </view>
           </view>
-          <app-icon
-            name="chevron-right"
-            :size="28"
-            color="#cccccc"
-          />
+          <app-icon name="chevron-right" :size="28" color="#cccccc" />
         </view>
       </view>
     </view>
@@ -221,27 +106,12 @@
     <view class="section-px section-mt">
       <view class="sec-head">
         <view class="sec-head-left">
-          <app-icon
-            name="trending-up"
-            :size="36"
-            color="#c41e3a"
-          />
-          <text class="sec-title">
-            智能体
-          </text>
+          <app-icon name="trending-up" :size="36" color="#c41e3a" />
+          <text class="sec-title">智能体</text>
         </view>
-        <view
-          class="sec-link rank-link"
-          @tap="navigateTo('/agents/ranking')"
-        >
-          <app-icon
-            name="crown"
-            :size="26"
-            color="#c9a96e"
-          />
-          <text class="rank-txt">
-            热度榜
-          </text>
+        <view class="sec-link rank-link" @tap="navigateTo('/agents/ranking')">
+          <app-icon name="crown" :size="26" color="#c9a96e" />
+          <text class="rank-txt">热度榜</text>
         </view>
       </view>
 
@@ -253,114 +123,46 @@
           @tap="navigateTo('/agent/' + bot.id)"
         >
           <view class="bot-avatar-wrap">
-            <view
-              class="bot-avatar"
-              :style="{ background: bot.bgColor }"
-            >
-              <image
-                class="bot-avatar-img"
-                :src="bot.avatar"
-                mode="aspectFit"
-              />
+            <view class="bot-avatar" :style="{ background: bot.bgColor }">
+              <image class="bot-avatar-img" :src="bot.avatar" mode="aspectFit" />
             </view>
-            <view
-              v-if="index < 3"
-              class="bot-rank"
-              :class="'bot-rank-' + index"
-            >
-              {{ index + 1 }}
-            </view>
+            <view v-if="index < 3" class="bot-rank" :class="'bot-rank-' + index">{{ index + 1 }}</view>
           </view>
 
           <view class="bot-info">
             <view class="bot-name-row">
-              <text class="bot-name">
-                {{ bot.name }}
-              </text>
-              <app-icon
-                v-if="bot.isOfficial"
-                name="crown"
-                :size="28"
-                color="#c9a96e"
-              />
-              <text
-                v-if="bot.isNew"
-                class="bot-new"
-              >
-                NEW
-              </text>
+              <text class="bot-name">{{ bot.name }}</text>
+              <app-icon v-if="bot.isOfficial" name="crown" :size="28" color="#c9a96e" />
+              <text v-if="bot.isNew" class="bot-new">NEW</text>
             </view>
-            <text class="bot-desc">
-              {{ bot.description }}
-            </text>
+            <text class="bot-desc">{{ bot.description }}</text>
 
-            <view
-              v-if="bot.capabilities.length"
-              class="bot-caps"
-            >
-              <text
-                v-for="(cap, i) in bot.capabilities.slice(0, 3)"
-                :key="i"
-                class="bot-cap"
-              >
-                {{ cap }}
-              </text>
+            <view v-if="bot.capabilities.length" class="bot-caps">
+              <text v-for="(cap, i) in bot.capabilities.slice(0, 3)" :key="i" class="bot-cap">{{ cap }}</text>
             </view>
 
             <view class="bot-stats">
               <view class="bot-stat">
-                <app-icon
-                  name="star"
-                  :size="26"
-                  color="#ffb800"
-                />
-                <text class="bot-stat-txt">
-                  {{ bot.rating }}
-                </text>
+                <app-icon name="star" :size="26" color="#ffb800" />
+                <text class="bot-stat-txt">{{ bot.rating }}</text>
               </view>
-              <text class="bot-stat-txt muted">
-                {{ formatCount(bot.useCount) }}次对话
-              </text>
-              <view
-                v-if="bot.capabilities.includes('语音对话')"
-                class="bot-voice"
-              >
-                <app-icon
-                  name="volume-2"
-                  :size="26"
-                  color="#7c3aed"
-                />
-                <text class="bot-voice-txt">
-                  语音
-                </text>
+              <text class="bot-stat-txt muted">{{ formatCount(bot.useCount) }}次对话</text>
+              <view v-if="bot.capabilities.includes('语音对话')" class="bot-voice">
+                <app-icon name="volume-2" :size="26" color="#7c3aed" />
+                <text class="bot-voice-txt">语音</text>
               </view>
             </view>
           </view>
 
-          <view
-            class="bot-chat-btn"
-            @tap.stop="navigateTo('/agent/' + bot.id)"
-          >
-            <text class="bot-chat-txt">
-              对话
-            </text>
+          <view class="bot-chat-btn" @tap.stop="navigateTo('/agent/' + bot.id)">
+            <text class="bot-chat-txt">对话</text>
           </view>
         </view>
       </view>
 
-      <view
-        v-if="hotBots.length > 4"
-        class="expand-btn"
-        @tap="showAllBots = !showAllBots"
-      >
-        <text class="expand-txt">
-          {{ showAllBots ? '收起' : `查看全部${hotBots.length}个智能体` }}
-        </text>
-        <app-icon
-          :name="showAllBots ? 'chevron-up' : 'chevron-down'"
-          :size="30"
-          color="#666666"
-        />
+      <view v-if="hotBots.length > 4" class="expand-btn" @tap="showAllBots = !showAllBots">
+        <text class="expand-txt">{{ showAllBots ? '收起' : `查看全部${hotBots.length}个智能体` }}</text>
+        <app-icon :name="showAllBots ? 'chevron-up' : 'chevron-down'" :size="30" color="#666666" />
       </view>
     </view>
 
@@ -371,33 +173,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  agentsSquareApi,
+  hotBots,
+  hotQuestions,
   formatCount,
-  type SquareBot,
   type SquareQuestion,
 } from '@/lib/agents-square-data'
-
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  const [bots, questions] = await Promise.all([
-    agentsSquareApi.getList(),
-    agentsSquareApi.getQuestions(),
-  ])
-  return { bots, questions }
-})
-
-const isEmpty = computed(() => {
-  const b = pageData.value?.bots
-  return b !== undefined && b.length === 0
-})
-
-const hotBots = computed(() => pageData.value?.bots ?? [])
-const hotQuestions = computed(() => pageData.value?.questions ?? [])
 
 const statusBarHeight = ref(0)
 const searchQuery = ref('')
@@ -410,7 +192,7 @@ uni.getSystemInfo({
   },
 })
 
-const displayBots = computed(() => (showAllBots.value ? hotBots.value : hotBots.value.slice(0, 4)))
+const displayBots = computed(() => (showAllBots.value ? hotBots : hotBots.slice(0, 4)))
 
 function handleVoiceSearch() {
   if (isListening.value) return

@@ -1,305 +1,119 @@
 <template>
   <view class="page">
-    <app-nav-bar
-      title="修改手机号"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="32"
-      :title-weight="600"
-      :bar-height="112"
-    />
+    <app-nav-bar title="修改手机号" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112" />
 
     <!-- 成功页 -->
-    <view
-      v-if="step === 3"
-      class="success"
-    >
-      <view class="success-ic">
-        <app-icon
-          name="check"
-          :size="56"
-          color="#2ecc71"
-        />
-      </view>
-      <text class="success-title">
-        手机号修改成功
-      </text>
-      <text class="success-sub">
-        新手机号：{{ maskPhone(newPhone) }}
-      </text>
-      <text class="success-tip">
-        3秒后自动返回设置页...
-      </text>
+    <view v-if="step === 3" class="success">
+      <view class="success-ic"><app-icon name="check" :size="56" color="#2ecc71" /></view>
+      <text class="success-title">手机号修改成功</text>
+      <text class="success-sub">新手机号：{{ maskPhone(newPhone) }}</text>
+      <text class="success-tip">3秒后自动返回设置页...</text>
     </view>
 
     <view v-else>
       <!-- 步骤指示器 -->
       <view class="steps">
         <view class="step-item">
-          <view
-            class="step-dot"
-            :class="{ 'dot-on': step >= 1 }"
-          >
-            <app-icon
-              v-if="step > 1"
-              name="check"
-              :size="22"
-              color="#fff"
-            />
-            <text
-              v-else
-              class="dot-num"
-              :class="{ 'num-on': step >= 1 }"
-            >
-              1
-            </text>
+          <view class="step-dot" :class="{ 'dot-on': step >= 1 }">
+            <app-icon v-if="step > 1" name="check" :size="22" color="#fff" />
+            <text v-else class="dot-num" :class="{ 'num-on': step >= 1 }">1</text>
           </view>
-          <text
-            class="step-label"
-            :class="{ 'label-on': step >= 1 }"
-          >
-            验证身份
-          </text>
+          <text class="step-label" :class="{ 'label-on': step >= 1 }">验证身份</text>
         </view>
-        <view
-          class="step-line"
-          :class="{ 'line-on': step >= 2 }"
-        />
+        <view class="step-line" :class="{ 'line-on': step >= 2 }" />
         <view class="step-item">
-          <view
-            class="step-dot"
-            :class="{ 'dot-on': step >= 2 }"
-          >
-            <text
-              class="dot-num"
-              :class="{ 'num-on': step >= 2 }"
-            >
-              2
-            </text>
+          <view class="step-dot" :class="{ 'dot-on': step >= 2 }">
+            <text class="dot-num" :class="{ 'num-on': step >= 2 }">2</text>
           </view>
-          <text
-            class="step-label"
-            :class="{ 'label-on': step >= 2 }"
-          >
-            绑定新号
-          </text>
+          <text class="step-label" :class="{ 'label-on': step >= 2 }">绑定新号</text>
         </view>
       </view>
 
       <view class="main">
         <!-- 第一步 -->
-        <view
-          v-if="step === 1"
-          class="card"
-        >
-          <text class="card-title">
-            验证当前手机号
-          </text>
-          <text class="card-sub">
-            为保障账号安全，请先验证当前绑定的手机号
-          </text>
+        <view v-if="step === 1" class="card">
+          <text class="card-title">验证当前手机号</text>
+          <text class="card-sub">为保障账号安全，请先验证当前绑定的手机号</text>
 
           <view class="field">
-            <text class="field-label">
-              当前手机号
-            </text>
-            <view class="readonly">
-              <text class="readonly-txt">
-                {{ currentPhone }}
-              </text>
-            </view>
+            <text class="field-label">当前手机号</text>
+            <view class="readonly"><text class="readonly-txt">{{ currentPhone }}</text></view>
           </view>
 
           <view class="field">
-            <text class="field-label">
-              验证码
-            </text>
+            <text class="field-label">验证码</text>
             <view class="code-row">
               <input
-                v-model="currentCode"
-                class="code-input"
-                :class="{ 'input-err': currentCodeError }"
-                type="number"
-                maxlength="6"
-                placeholder="请输入6位验证码"
-                placeholder-class="ph"
+                class="code-input" :class="{ 'input-err': currentCodeError }"
+                type="number" maxlength="6" v-model="currentCode"
+                placeholder="请输入6位验证码" placeholder-class="ph"
                 @input="currentCodeError = ''"
-              >
-              <view
-                class="code-btn"
-                :class="{ 'btn-dis': currentCountdown > 0 || currentSending }"
-                @click="sendCurrentCode"
-              >
-                <text
-                  class="code-btn-txt"
-                  :class="{ 'txt-dis': currentCountdown > 0 || currentSending }"
-                >
+              />
+              <view class="code-btn" :class="{ 'btn-dis': currentCountdown > 0 || currentSending }" @click="sendCurrentCode">
+                <text class="code-btn-txt" :class="{ 'txt-dis': currentCountdown > 0 || currentSending }">
                   {{ currentSending ? '发送中' : currentCountdown > 0 ? `${currentCountdown}s` : '获取验证码' }}
                 </text>
               </view>
             </view>
-            <view
-              v-if="currentCodeError"
-              class="err"
-            >
-              <app-icon
-                name="alert-circle"
-                :size="22"
-                color="#e74c3c"
-              />
-              <text class="err-txt">
-                {{ currentCodeError }}
-              </text>
+            <view v-if="currentCodeError" class="err">
+              <app-icon name="alert-circle" :size="22" color="#e74c3c" />
+              <text class="err-txt">{{ currentCodeError }}</text>
             </view>
           </view>
 
-          <view
-            class="submit"
-            :class="{ 'submit-on': currentCode.length === 6 && !currentVerifying }"
-            @click="verifyCurrentPhone"
-          >
-            <text
-              class="submit-txt"
-              :class="{ 'submit-txt-on': currentCode.length === 6 && !currentVerifying }"
-            >
-              下一步
-            </text>
+          <view class="submit" :class="{ 'submit-on': currentCode.length === 6 && !currentVerifying }" @click="verifyCurrentPhone">
+            <text class="submit-txt" :class="{ 'submit-txt-on': currentCode.length === 6 && !currentVerifying }">下一步</text>
           </view>
         </view>
 
         <!-- 第二步 -->
-        <view
-          v-if="step === 2"
-          class="card"
-        >
-          <text class="card-title">
-            绑定新手机号
-          </text>
-          <text class="card-sub">
-            请输入您要绑定的新手机号
-          </text>
+        <view v-if="step === 2" class="card">
+          <text class="card-title">绑定新手机号</text>
+          <text class="card-sub">请输入您要绑定的新手机号</text>
 
           <view class="field">
-            <text class="field-label">
-              新手机号
-            </text>
-            <input
-              v-model="newPhone"
-              class="text-input"
-              type="number"
-              maxlength="11"
-              placeholder="请输入新手机号"
-              placeholder-class="ph"
-            >
+            <text class="field-label">新手机号</text>
+            <input class="text-input" type="number" maxlength="11" v-model="newPhone" placeholder="请输入新手机号" placeholder-class="ph" />
           </view>
 
           <view class="field">
-            <text class="field-label">
-              验证码
-            </text>
+            <text class="field-label">验证码</text>
             <view class="code-row">
               <input
-                v-model="newCode"
-                class="code-input"
-                :class="{ 'input-err': newCodeError }"
-                type="number"
-                maxlength="6"
-                placeholder="请输入6位验证码"
-                placeholder-class="ph"
+                class="code-input" :class="{ 'input-err': newCodeError }"
+                type="number" maxlength="6" v-model="newCode"
+                placeholder="请输入6位验证码" placeholder-class="ph"
                 @input="newCodeError = ''"
-              >
-              <view
-                class="code-btn"
-                :class="{ 'btn-dis': newCountdown > 0 || newSending || !validPhone(newPhone) }"
-                @click="sendNewCode"
-              >
-                <text
-                  class="code-btn-txt"
-                  :class="{ 'txt-dis': newCountdown > 0 || newSending || !validPhone(newPhone) }"
-                >
+              />
+              <view class="code-btn" :class="{ 'btn-dis': newCountdown > 0 || newSending || !validPhone(newPhone) }" @click="sendNewCode">
+                <text class="code-btn-txt" :class="{ 'txt-dis': newCountdown > 0 || newSending || !validPhone(newPhone) }">
                   {{ newSending ? '发送中' : newCountdown > 0 ? `${newCountdown}s` : '获取验证码' }}
                 </text>
               </view>
             </view>
-            <view
-              v-if="newCodeError"
-              class="err"
-            >
-              <app-icon
-                name="alert-circle"
-                :size="22"
-                color="#e74c3c"
-              />
-              <text class="err-txt">
-                {{ newCodeError }}
-              </text>
+            <view v-if="newCodeError" class="err">
+              <app-icon name="alert-circle" :size="22" color="#e74c3c" />
+              <text class="err-txt">{{ newCodeError }}</text>
             </view>
           </view>
 
-          <view
-            class="submit"
-            :class="{ 'submit-on': newCode.length === 6 && validPhone(newPhone) && !newVerifying }"
-            @click="bindNewPhone"
-          >
-            <text
-              class="submit-txt"
-              :class="{ 'submit-txt-on': newCode.length === 6 && validPhone(newPhone) && !newVerifying }"
-            >
-              确认绑定
-            </text>
+          <view class="submit" :class="{ 'submit-on': newCode.length === 6 && validPhone(newPhone) && !newVerifying }" @click="bindNewPhone">
+            <text class="submit-txt" :class="{ 'submit-txt-on': newCode.length === 6 && validPhone(newPhone) && !newVerifying }">确认绑定</text>
           </view>
-          <view
-            class="back-step"
-            @click="backToStep1"
-          >
-            <text class="back-step-txt">
-              返回上一步
-            </text>
-          </view>
+          <view class="back-step" @click="backToStep1"><text class="back-step-txt">返回上一步</text></view>
         </view>
       </view>
     </view>
 
     <!-- 手机号已被绑定弹窗 -->
-    <view
-      v-if="phoneExistsModal"
-      class="mask"
-      @click="phoneExistsModal = false"
-    >
-      <view
-        class="modal"
-        @click.stop
-      >
-        <view class="modal-ic">
-          <app-icon
-            name="alert-circle"
-            :size="36"
-            color="#e74c3c"
-          />
-        </view>
-        <text class="modal-title">
-          手机号已被绑定
-        </text>
-        <text class="modal-sub">
-          该手机号已被其他账号绑定，请更换其他手机号或找回原账号。
-        </text>
+    <view v-if="phoneExistsModal" class="mask" @click="phoneExistsModal = false">
+      <view class="modal" @click.stop>
+        <view class="modal-ic"><app-icon name="alert-circle" :size="36" color="#e74c3c" /></view>
+        <text class="modal-title">手机号已被绑定</text>
+        <text class="modal-sub">该手机号已被其他账号绑定，请更换其他手机号或找回原账号。</text>
         <view class="modal-btns">
-          <view
-            class="modal-btn modal-btn-ghost"
-            @click="resetNewPhone"
-          >
-            <text class="modal-btn-ghost-txt">
-              更换手机号
-            </text>
-          </view>
-          <view
-            class="modal-btn modal-btn-primary"
-            @click="go('/auth/recover')"
-          >
-            <text class="modal-btn-primary-txt">
-              找回原账号
-            </text>
-          </view>
+          <view class="modal-btn modal-btn-ghost" @click="resetNewPhone"><text class="modal-btn-ghost-txt">更换手机号</text></view>
+          <view class="modal-btn modal-btn-primary" @click="go('/auth/recover')"><text class="modal-btn-primary-txt">找回原账号</text></view>
         </view>
       </view>
     </view>
@@ -311,7 +125,6 @@ import { ref, watch } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { mineApi } from '@/lib/mine-data'
 
 const step = ref<1 | 2 | 3>(1)
 const currentPhone = '138****8888'
@@ -353,21 +166,24 @@ async function sendCurrentCode() {
   if (currentCountdown.value > 0 || currentSending.value) return
   currentSending.value = true
   currentCodeError.value = ''
-  const res = await mineApi.sendSmsCode(currentPhone, 'change_phone')
+  await new Promise((r) => setTimeout(r, 800))
   currentSending.value = false
-  if (res.success) {
-    currentCountdown.value = 60
-    tick(currentCountdown, 'cur')
-  } else {
-    currentCodeError.value = res.message || '发送失败'
-  }
+  currentCountdown.value = 60
+  tick(currentCountdown, 'cur')
 }
 
-function verifyCurrentPhone() {
+async function verifyCurrentPhone() {
   if (currentCode.value.length !== 6 || currentVerifying.value) return
   currentVerifying.value = true
   currentCodeError.value = ''
-  step.value = 2
+  await new Promise((r) => setTimeout(r, 1000))
+  if (currentCode.value === '123456') {
+    step.value = 2
+  } else if (currentCode.value === '000000') {
+    currentCodeError.value = '验证码已过期，请重新获取'
+  } else {
+    currentCodeError.value = '验证码错误，请重新输入'
+  }
   currentVerifying.value = false
 }
 
@@ -375,34 +191,30 @@ async function sendNewCode() {
   if (newCountdown.value > 0 || newSending.value || !validPhone(newPhone.value)) return
   newSending.value = true
   newCodeError.value = ''
-  const res = await mineApi.sendSmsCode(newPhone.value, 'change_phone')
+  await new Promise((r) => setTimeout(r, 800))
   newSending.value = false
-  if (res.success) {
-    newCountdown.value = 60
-    tick(newCountdown, 'new')
-  } else {
-    newCodeError.value = res.message || '发送失败'
-  }
+  newCountdown.value = 60
+  tick(newCountdown, 'new')
 }
 
 async function bindNewPhone() {
   if (newCode.value.length !== 6 || !validPhone(newPhone.value) || newVerifying.value) return
   newVerifying.value = true
   newCodeError.value = ''
-  try {
-    const res = await mineApi.changePhone(currentPhone, currentCode.value, newPhone.value, newCode.value)
-    if (res.success) {
-      step.value = 3
-    } else {
-      if (res.message && res.message.includes('已被绑定')) {
-        phoneExistsModal.value = true
-      } else {
-        newCodeError.value = res.message || '绑定失败'
-      }
-    }
-  } finally {
+  await new Promise((r) => setTimeout(r, 1000))
+  if (newPhone.value === '13900001111') {
+    phoneExistsModal.value = true
     newVerifying.value = false
+    return
   }
+  if (newCode.value === '123456') {
+    step.value = 3
+  } else if (newCode.value === '000000') {
+    newCodeError.value = '验证码已过期，请重新获取'
+  } else {
+    newCodeError.value = '验证码错误，请重新输入'
+  }
+  newVerifying.value = false
 }
 
 function backToStep1() {

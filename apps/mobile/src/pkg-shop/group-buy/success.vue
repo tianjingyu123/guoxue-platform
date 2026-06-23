@@ -96,39 +96,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { navigateTo } from '@/utils/router'
-
-interface GroupBuyMember {
-  name: string
-  avatar: string
-}
-
-interface GroupBuySuccessInfo {
-  orderId: string
-  groupId: string
-  memberCount: number
-  discount: number
-  productCover: string
-  productName: string
-  price: number
-  originalPrice: number
-  members: GroupBuyMember[]
-  completedAt: string
-  estimatedShipDate: string
-}
-
-const data: GroupBuySuccessInfo = {
-  orderId: '',
-  groupId: '',
-  memberCount: 0,
-  discount: 0,
-  productCover: '',
-  productName: '',
-  price: 0,
-  originalPrice: 0,
-  members: [],
-  completedAt: '',
-  estimatedShipDate: '',
-}
+import { groupBuySuccess as data } from '@/lib/shop-data'
 
 const copied = ref(false)
 

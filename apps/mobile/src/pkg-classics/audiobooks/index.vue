@@ -1,50 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import { fmtPlays, classicsApi } from '@/lib/classics-data'
-import type { AudioBookFull } from '@/lib/classics-data'
-
-const isLoading = ref(true)
-const loadError = ref<string | null>(null)
-const audioBookList = ref<AudioBookFull[]>([])
-
-const isEmpty = computed(() => !audioBookList.value || audioBookList.value.length === 0)
+import { mockAudioBooks, fmtPlays } from '@/lib/classics-data'
 
 const favorites = ref<string[]>([])
 
-const feature = computed(() => audioBookList.value[0])
-const rest = computed(() => audioBookList.value.slice(1))
-
-onMounted(async () => {
-  isLoading.value = true
-  try {
-    const data = await classicsApi.getAudioBookList()
-    if (data && data.length > 0) {
-      audioBookList.value = data
-    }
-  } catch {
-    loadError.value = '加载失败'
-  } finally {
-    isLoading.value = false
-  }
-})
-
-function reload() {
-  loadError.value = null
-  isLoading.value = true
-  classicsApi.getAudioBookList().then((data) => {
-    if (data && data.length > 0) audioBookList.value = data
-  }).catch(() => {
-    loadError.value = '加载失败'
-  }).finally(() => {
-    isLoading.value = false
-  })
-}
+const feature = computed(() => mockAudioBooks[0])
+const rest = computed(() => mockAudioBooks.slice(1))
 
 function toggleFavorite(id: string) {
   favorites.value = favorites.value.includes(id)
@@ -58,40 +22,20 @@ function goPlayer(id: string) {
 </script>
 
 <template>
-  <view v-if="isLoading" class="ab-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="50%" height="40rpx" radius="12rpx" mb="24rpx" />
-      <AppSkeleton width="60%" height="60rpx" radius="16rpx" mb="48rpx" />
-      <AppSkeleton width="100%" height="240rpx" radius="32rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无有声书" />
-  <view v-else class="ab-page">
+  <view class="ab-page">
     <classics-header title="听书" />
 
     <view class="ab-main">
       <!-- Hero -->
       <view class="ab-hero">
-        <text class="ab-hero-kicker">
-          名家播讲
-        </text>
-        <text class="ab-hero-title">
-          轻松听典籍
-        </text>
+        <text class="ab-hero-kicker">名家播讲</text>
+        <text class="ab-hero-title">轻松听典籍</text>
       </view>
 
       <!-- 今日主打 - 大卡 -->
       <view class="ab-feature-sec">
-        <view
-          class="ab-feature"
-          @tap="goPlayer(feature.id)"
-        >
-          <text class="ab-feature-tag">
-            编辑主打
-          </text>
+        <view class="ab-feature" @tap="goPlayer(feature.id)">
+          <text class="ab-feature-tag">编辑主打</text>
           <view class="ab-feature-body">
             <FlatCover
               :title="feature.shortTitle"
@@ -100,40 +44,21 @@ function goPlayer(id: string) {
               class="ab-feature-cover"
             />
             <view class="ab-feature-info">
-              <text class="ab-feature-name">
-                {{ feature.title }}
-              </text>
-              <text class="ab-feature-desc">
-                {{ feature.desc }}
-              </text>
+              <text class="ab-feature-name">{{ feature.title }}</text>
+              <text class="ab-feature-desc">{{ feature.desc }}</text>
               <view class="ab-feature-meta">
                 <view class="ab-meta-item">
-                  <app-icon
-                    name="clock"
-                    :size="28"
-                    color="rgba(255,255,255,0.7)"
-                  />
+                  <app-icon name="clock" :size="28" color="rgba(255,255,255,0.7)" />
                   <text>{{ feature.duration }}</text>
                 </view>
                 <view class="ab-meta-item">
-                  <app-icon
-                    name="headphones"
-                    :size="28"
-                    color="rgba(255,255,255,0.7)"
-                  />
+                  <app-icon name="headphones" :size="28" color="rgba(255,255,255,0.7)" />
                   <text>{{ fmtPlays(feature.plays) }}</text>
                 </view>
               </view>
               <view class="ab-feature-btn">
-                <app-icon
-                  name="play"
-                  :size="32"
-                  color="#6f4521"
-                  :fill="true"
-                />
-                <text class="ab-feature-btn-txt">
-                  立即收听
-                </text>
+                <app-icon name="play" :size="32" color="#6f4521" :fill="true" />
+                <text class="ab-feature-btn-txt">立即收听</text>
               </view>
             </view>
           </view>
@@ -142,19 +67,10 @@ function goPlayer(id: string) {
 
       <!-- 全部有声书 -->
       <view class="ab-list-sec">
-        <text class="ab-list-title">
-          全部有声书
-        </text>
+        <text class="ab-list-title">全部有声书</text>
         <view class="ab-list">
-          <view
-            v-for="book in rest"
-            :key="book.id"
-            class="ab-row"
-          >
-            <view
-              class="ab-row-main"
-              @tap="goPlayer(book.id)"
-            >
+          <view v-for="book in rest" :key="book.id" class="ab-row">
+            <view class="ab-row-main" @tap="goPlayer(book.id)">
               <FlatCover
                 :title="book.shortTitle"
                 :cover-color="coverColorForBook(book.shortTitle)"
@@ -162,40 +78,23 @@ function goPlayer(id: string) {
                 class="ab-row-cover"
               />
               <view class="ab-row-info">
-                <text class="ab-row-title">
-                  {{ book.title }}
-                </text>
-                <text class="ab-row-desc">
-                  {{ book.desc }}
-                </text>
+                <text class="ab-row-title">{{ book.title }}</text>
+                <text class="ab-row-desc">{{ book.desc }}</text>
                 <view class="ab-row-meta">
-                  <text class="ab-row-quality">
-                    {{ book.quality }}
-                  </text>
+                  <text class="ab-row-quality">{{ book.quality }}</text>
                   <view class="ab-meta-item">
-                    <app-icon
-                      name="clock"
-                      :size="24"
-                      color="#999999"
-                    />
+                    <app-icon name="clock" :size="24" color="#999999" />
                     <text>{{ book.duration }}</text>
                   </view>
                   <view class="ab-meta-item">
-                    <app-icon
-                      name="headphones"
-                      :size="24"
-                      color="#999999"
-                    />
+                    <app-icon name="headphones" :size="24" color="#999999" />
                     <text>{{ fmtPlays(book.plays) }}</text>
                   </view>
                 </view>
               </view>
             </view>
             <view class="ab-row-actions">
-              <view
-                class="ab-fav-btn"
-                @tap="toggleFavorite(book.id)"
-              >
+              <view class="ab-fav-btn" @tap="toggleFavorite(book.id)">
                 <app-icon
                   name="heart"
                   :size="40"
@@ -203,16 +102,8 @@ function goPlayer(id: string) {
                   :fill="favorites.includes(book.id)"
                 />
               </view>
-              <view
-                class="ab-play-btn"
-                @tap="goPlayer(book.id)"
-              >
-                <app-icon
-                  name="play"
-                  :size="32"
-                  color="#ffffff"
-                  :fill="true"
-                />
+              <view class="ab-play-btn" @tap="goPlayer(book.id)">
+                <app-icon name="play" :size="32" color="#ffffff" :fill="true" />
               </view>
             </view>
           </view>

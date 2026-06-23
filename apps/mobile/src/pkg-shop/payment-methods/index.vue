@@ -49,9 +49,9 @@
     <!-- 操作菜单 -->
     <view v-if="actionMethod" class="mask" @tap="actionMethod = null">
       <view class="action-sheet" @tap.stop>
-        <view v-if="!actionMethod.isDefault" class="action-item" :class="{ 'action-item--disabled': submitting }" @tap="setDefault">
+        <view v-if="!actionMethod.isDefault" class="action-item" @tap="setDefault">
           <app-icon name="star" :size="32" color="#C9A96E" />
-          <text>{{ submitting ? '处理中...' : '设为默认' }}</text>
+          <text>设为默认</text>
         </view>
         <view class="action-item danger" @tap="askDelete">
           <app-icon name="trash-2" :size="32" color="#C41E3A" />
@@ -88,7 +88,7 @@
         <text class="dialog-desc">解除绑定后，将无法使用该支付方式进行支付，确定解除吗？</text>
         <view class="dialog-actions">
           <view class="dialog-btn" @tap="showDelete = false"><text>取消</text></view>
-          <view class="dialog-btn confirm" :class="{ 'dialog-btn--disabled': submitting }" @tap="confirmDelete"><text>{{ submitting ? '处理中...' : '确定' }}</text></view>
+          <view class="dialog-btn confirm" @tap="confirmDelete"><text>确定</text></view>
         </view>
       </view>
     </view>
@@ -98,7 +98,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { boundPaymentMethods, addPaymentOptions, type BoundPaymentMethod } from '@/lib/shop-data'
-import { useSubmitLock } from '@/composables/use-submit-lock'
 
 const methods = ref<BoundPaymentMethod[]>([...boundPaymentMethods])
 const addOptions = addPaymentOptions
@@ -106,7 +105,6 @@ const actionMethod = ref<BoundPaymentMethod | null>(null)
 const showAdd = ref(false)
 const showDelete = ref(false)
 const pendingDelete = ref<BoundPaymentMethod | null>(null)
-const { submitting, withLock } = useSubmitLock()
 
 function iconOf(type: string) {
   if (type === 'wechat') return 'message-circle'
@@ -116,34 +114,28 @@ function iconOf(type: string) {
 function openActions(m: BoundPaymentMethod) {
   actionMethod.value = m
 }
-async function setDefault() {
-  await withLock(async () => {
-    if (!actionMethod.value) return
-    methods.value = methods.value.map((m) => ({ ...m, isDefault: m.id === actionMethod.value!.id }))
-    actionMethod.value = null
-    uni.showToast({ title: '已设为默认', icon: 'success' })
-  })
+function setDefault() {
+  if (!actionMethod.value) return
+  methods.value = methods.value.map((m) => ({ ...m, isDefault: m.id === actionMethod.value!.id }))
+  actionMethod.value = null
+  uni.showToast({ title: '已设为默认', icon: 'success' })
 }
 function askDelete() {
   pendingDelete.value = actionMethod.value
   actionMethod.value = null
   showDelete.value = true
 }
-async function confirmDelete() {
-  await withLock(async () => {
-    if (pendingDelete.value) {
-      methods.value = methods.value.filter((m) => m.id !== pendingDelete.value!.id)
-    }
-    showDelete.value = false
-    pendingDelete.value = null
-    uni.showToast({ title: '已解除绑定', icon: 'success' })
-  })
+function confirmDelete() {
+  if (pendingDelete.value) {
+    methods.value = methods.value.filter((m) => m.id !== pendingDelete.value!.id)
+  }
+  showDelete.value = false
+  pendingDelete.value = null
+  uni.showToast({ title: '已解除绑定', icon: 'success' })
 }
-async function onAdd(opt: { type: string; name: string }) {
-  await withLock(async () => {
-    showAdd.value = false
-    uni.showToast({ title: `将跳转${opt.name}授权页面`, icon: 'none' })
-  })
+function onAdd(opt: { type: string; name: string }) {
+  showAdd.value = false
+  uni.showToast({ title: `将跳转${opt.name}授权页面`, icon: 'none' })
 }
 </script>
 
@@ -243,7 +235,6 @@ async function onAdd(opt: { type: string; name: string }) {
   margin-bottom: 12rpx;
   &.danger text { color: #C41E3A; }
   &.cancel { margin-top: 12rpx; font-weight: 600; }
-  &--disabled { opacity: 0.6; pointer-events: none; }
 }
 .add-sheet {
   width: 100%;
@@ -308,6 +299,5 @@ async function onAdd(opt: { type: string; name: string }) {
   background: #F5F5F5;
   color: #666666;
   &.confirm { background: #C41E3A; color: #FFFFFF; }
-  &--disabled { opacity: 0.6; pointer-events: none; }
 }
 </style>

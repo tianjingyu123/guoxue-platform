@@ -4,133 +4,44 @@
 -->
 <template>
   <view class="page">
-    <view
-      class="hdr"
-      :style="{ paddingTop: statusBarH + 'px' }"
-    >
+    <view class="hdr" :style="{ paddingTop: statusBarH + 'px' }">
       <view class="hdr-bar">
-        <view
-          class="hdr-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="36"
-            color="#2C2C2C"
-          />
-        </view>
-        <text class="hdr-title">
-          知识库
-        </text>
-        <view
-          class="add-btn"
-          @tap="toastComingSoon"
-        >
-          <app-icon
-            name="plus"
-            :size="26"
-            color="#ffffff"
-          /><text class="add-btn-t">
-            添加
-          </text>
-        </view>
+        <view class="hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#2C2C2C" /></view>
+        <text class="hdr-title">知识库</text>
+        <view class="add-btn" @tap="toastComingSoon"><app-icon name="plus" :size="26" color="#ffffff" /><text class="add-btn-t">添加</text></view>
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <view class="body">
         <!-- 统计 -->
         <view class="stats">
-          <view
-            v-for="s in stats"
-            :key="s.label"
-            class="stat"
-          >
-            <text class="stat-num">
-              {{ s.count }}
-            </text>
-            <text class="stat-label">
-              {{ s.label }}
-            </text>
+          <view v-for="s in stats" :key="s.label" class="stat">
+            <text class="stat-num">{{ s.count }}</text>
+            <text class="stat-label">{{ s.label }}</text>
           </view>
         </view>
 
         <view class="list">
-          <view
-            v-for="item in items"
-            :key="item.id"
-            class="item"
-            :class="{ off: !item.enabled }"
-          >
-            <view
-              class="item-icon"
-              :style="{ background: cfg(item.type).bg }"
-            >
-              <app-icon
-                :name="cfg(item.type).icon"
-                :size="26"
-                :color="cfg(item.type).text"
-              />
-            </view>
+          <view v-for="item in items" :key="item.id" class="item" :class="{ off: !item.enabled }">
+            <view class="item-icon" :style="{ background: cfg(item.type).bg }"><app-icon :name="cfg(item.type).icon" :size="26" :color="cfg(item.type).text" /></view>
             <view class="item-info">
-              <text class="item-title">
-                {{ item.title }}
-              </text>
-              <text class="item-desc">
-                {{ item.desc }}
-              </text>
-              <text class="item-time">
-                更新于 {{ item.updatedAt }}
-              </text>
+              <text class="item-title">{{ item.title }}</text>
+              <text class="item-desc">{{ item.desc }}</text>
+              <text class="item-time">更新于 {{ item.updatedAt }}</text>
             </view>
             <view class="item-ops">
-              <view
-                class="op"
-                @tap="toggle(item.id)"
-              >
-                <app-icon
-                  :name="item.enabled ? 'toggle-right' : 'toggle-left'"
-                  :size="36"
-                  :color="item.enabled ? '#C41E3A' : '#999999'"
-                />
-              </view>
-              <view
-                class="op"
-                @tap="remove(item.id)"
-              >
-                <app-icon
-                  name="trash-2"
-                  :size="28"
-                  color="#999999"
-                />
-              </view>
-              <app-icon
-                name="chevron-right"
-                :size="28"
-                color="#cccccc"
-              />
+              <view class="op" @tap="toggle(item.id)"><app-icon :name="item.enabled ? 'toggle-right' : 'toggle-left'" :size="36" :color="item.enabled ? '#C41E3A' : '#999999'" /></view>
+              <view class="op" @tap="remove(item.id)"><app-icon name="trash-2" :size="28" color="#999999" /></view>
+              <app-icon name="chevron-right" :size="28" color="#cccccc" />
             </view>
           </view>
         </view>
 
-        <view
-          v-if="items.length === 0"
-          class="empty"
-        >
-          <app-icon
-            name="file-text"
-            :size="60"
-            color="#D9D4C8"
-          />
-          <text class="empty-t">
-            暂无知识库内容
-          </text>
-          <text class="empty-sub">
-            添加文档、链接或问答，让 AI 助手更了解您的圈子
-          </text>
+        <view v-if="items.length === 0" class="empty">
+          <app-icon name="file-text" :size="60" color="#D9D4C8" />
+          <text class="empty-t">暂无知识库内容</text>
+          <text class="empty-sub">添加文档、链接或问答，让 AI 助手更了解您的圈子</text>
         </view>
       </view>
     </scroll-view>

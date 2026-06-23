@@ -100,27 +100,6 @@ export const circleApi = {
   },
   join: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/join`),
   leave: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/leave`),
-
-  /** 获取单个圈子 GET /circles/:id */
-  get: async (id: string): Promise<Circle | null> => {
-    if (useMock()) return mockCircles.find(c => c.id === id) ?? null
-    try {
-      return await apiGet<Circle>(`/circles/${id}`)
-    } catch {
-      return mockCircles.find(c => c.id === id) ?? null
-    }
-  },
-
-  /** 创建圈子 — POST /circles */
-  create: async (dto: { name: string; intro: string; cover?: string; tags?: string[]; type?: string; price?: number }): Promise<{ success: boolean; circleId?: string; message: string }> => {
-    if (useMock()) return { success: true, circleId: Date.now().toString(), message: '创建成功' }
-    try {
-      const data = await apiPost<any>('/circles', dto)
-      return { success: true, circleId: data?.id, message: '创建成功' }
-    } catch (e: any) {
-      return { success: false, message: e?.message || '创建失败' }
-    }
-  },
 }
 
 /** 成员数格式化：>=1万显示「x.x万」（原型口径） */

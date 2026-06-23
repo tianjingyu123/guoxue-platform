@@ -11,7 +11,7 @@ const tabs = [
   { name: '关注', href: '/' },
   { name: '热门', href: '/' },
   { name: '直播', href: '/live' },
-  { name: '同城', href: '/' },
+  { name: '同城', href: '/pkg-discover/same-city/feed' },
 ]
 const activeTab = ref('推荐')
 const hasUnread = ref(true)

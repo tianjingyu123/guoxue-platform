@@ -3,21 +3,12 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import GroupBuyInfoCard from '@/components/marketing/group-buy-info-card.vue'
 import CouponClaimCard from '@/components/marketing/coupon-claim-card.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { getProductDetail as _getProductDetail, cartCount as initialCart } from '@/lib/shop-data'
+import { getProductDetail, cartCount as initialCart } from '@/lib/shop-data'
 
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { detail: _getProductDetail() }
-})
-
-const product = computed(() => pageData.value?.detail ?? {} as any)
-const isEmpty = computed(() => !pageData.value?.detail?.id)
+const product = getProductDetail()
 const swiperIndex = ref(0)
 const isFavorite = ref(false)
 const cartCount = ref(initialCart)
@@ -27,22 +18,22 @@ const selectedSpecs = ref<Record<string, string>>({ 版本: 'standard', 数量: 
 
 onLoad(() => {})
 
-const discount = computed(() => Math.round((1 - product.value.price / product.value.originalPrice) * 100))
+const discount = computed(() => Math.round((1 - product.price / product.originalPrice) * 100))
 const currentPrice = computed(() => {
-  const v = product.value.specs?.find((s: any) => s.name === '版本')?.options.find((o: any) => o.id === selectedSpecs.value['版本'])
-  return v?.price || product.value.price
+  const v = product.specs.find((s) => s.name === '版本')?.options.find((o) => o.id === selectedSpecs.value['版本'])
+  return v?.price || product.price
 })
 const currentStock = computed(() => {
-  const v = product.value.specs?.find((s: any) => s.name === '版本')?.options.find((o: any) => o.id === selectedSpecs.value['版本'])
-  return v?.stock || product.value.stock
+  const v = product.specs.find((s) => s.name === '版本')?.options.find((o) => o.id === selectedSpecs.value['版本'])
+  return v?.stock || product.stock
 })
 const selectedSpecLabels = computed(() =>
   Object.entries(selectedSpecs.value)
-    .map(([k, v]) => product.value.specs?.find((s: any) => s.name === k)?.options.find((o: any) => o.id === v)?.label)
+    .map(([k, v]) => product.specs.find((s) => s.name === k)?.options.find((o) => o.id === v)?.label)
     .filter(Boolean)
     .join('、'),
 )
-const previewReviews = computed(() => product.value.reviews?.slice(0, 2) ?? [])
+const previewReviews = computed(() => product.reviews.slice(0, 2))
 
 function onSwiperChange(e: any) { swiperIndex.value = e.detail.current }
 function selectSpec(name: string, id: string) { selectedSpecs.value = { ...selectedSpecs.value, [name]: id } }
@@ -54,486 +45,146 @@ function goCart() { navigateTo('/shop/cart') }
 </script>
 
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="750rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无商品" />
-  <view v-else class="page">
+  <view class="page">
     <!-- 图片轮播 -->
     <view class="carousel">
-      <view
-        class="nav-btn nav-back"
-        @tap="navigateBack()"
-      >
-        <AppIcon
-          name="chevron-left"
-          :size="40"
-          color="#1f1f1f"
-        />
-      </view>
-      <view class="nav-btn nav-share">
-        <AppIcon
-          name="share-2"
-          :size="32"
-          color="#1f1f1f"
-        />
-      </view>
-      <swiper
-        class="swiper"
-        circular
-        @change="onSwiperChange"
-      >
-        <swiper-item
-          v-for="(src, i) in product.images"
-          :key="i"
-        >
+      <view class="nav-btn nav-back" @tap="navigateBack()"><AppIcon name="chevron-left" :size="40" color="#1f1f1f" /></view>
+      <view class="nav-btn nav-share"><AppIcon name="share-2" :size="32" color="#1f1f1f" /></view>
+      <swiper class="swiper" circular @change="onSwiperChange">
+        <swiper-item v-for="(src, i) in product.images" :key="i">
           <view class="slide">
-            <image
-              class="slide-img"
-              :src="src"
-              mode="aspectFill"
-            />
-            <view
-              v-if="i === 0 && product.hasVideo"
-              class="play-wrap"
-            >
-              <view class="play-btn">
-                <AppIcon
-                  name="play"
-                  :size="48"
-                  color="#1f1f1f"
-                />
-              </view>
+            <image class="slide-img" :src="src" mode="aspectFill" />
+            <view v-if="i === 0 && product.hasVideo" class="play-wrap">
+              <view class="play-btn"><AppIcon name="play" :size="48" color="#1f1f1f" /></view>
             </view>
           </view>
         </swiper-item>
       </swiper>
-      <view class="indicator">
-        {{ swiperIndex + 1 }} / {{ product.images.length }}
-      </view>
+      <view class="indicator">{{ swiperIndex + 1 }} / {{ product.images.length }}</view>
     </view>
 
     <!-- 营销位 -->
     <view class="mkt">
-      <GroupBuyInfoCard
-        :group-price="48"
-        :original-price="product.price"
-        :people-needed="3"
-        :current-people="1"
-      />
-      <CouponClaimCard
-        :amount="10"
-        :threshold="99"
-      />
+      <GroupBuyInfoCard :group-price="48" :original-price="product.price" :people-needed="3" :current-people="1" />
+      <CouponClaimCard :amount="10" :threshold="99" />
     </view>
 
     <!-- 价格区 -->
     <view class="card price-card">
       <view class="price-row">
-        <text class="price-now">
-          ¥{{ product.price }}
-        </text>
-        <text class="price-orig">
-          ¥{{ product.originalPrice }}
-        </text>
-        <text class="price-off">
-          {{ discount }}% OFF
-        </text>
+        <text class="price-now">¥{{ product.price }}</text>
+        <text class="price-orig">¥{{ product.originalPrice }}</text>
+        <text class="price-off">{{ discount }}% OFF</text>
       </view>
-      <text class="p-title">
-        {{ product.title }}
-      </text>
-      <text class="p-sub">
-        {{ product.subtitle }}
-      </text>
+      <text class="p-title">{{ product.title }}</text>
+      <text class="p-sub">{{ product.subtitle }}</text>
       <view class="p-meta">
         <text>销量 {{ product.sales }}</text>
         <text>库存 {{ product.stock }}</text>
       </view>
       <view class="coupon-entry">
         <view class="coupon-left">
-          <text class="coupon-badge">
-            券
-          </text>
-          <text class="coupon-text">
-            满{{ product.coupon.threshold }}减{{ product.coupon.value }}
-          </text>
+          <text class="coupon-badge">券</text>
+          <text class="coupon-text">满{{ product.coupon.threshold }}减{{ product.coupon.value }}</text>
         </view>
-        <view class="coupon-claim">
-          <text class="coupon-claim-text">
-            领取
-          </text><AppIcon
-            name="chevron-right"
-            :size="26"
-            color="var(--brand)"
-          />
-        </view>
+        <view class="coupon-claim"><text class="coupon-claim-text">领取</text><AppIcon name="chevron-right" :size="26" color="var(--brand)" /></view>
       </view>
     </view>
 
     <!-- 规格入口 -->
-    <view
-      class="card spec-entry"
-      hover-class="card-press"
-      @tap="openSpecPanel('cart')"
-    >
-      <view class="spec-entry-l">
-        <text class="spec-label">
-          规格
-        </text><text class="spec-val">
-          {{ selectedSpecLabels }}
-        </text>
-      </view>
-      <AppIcon
-        name="chevron-right"
-        :size="32"
-        color="var(--text-soft)"
-      />
+    <view class="card spec-entry" hover-class="card-press" @tap="openSpecPanel('cart')">
+      <view class="spec-entry-l"><text class="spec-label">规格</text><text class="spec-val">{{ selectedSpecLabels }}</text></view>
+      <AppIcon name="chevron-right" :size="32" color="var(--text-soft)" />
     </view>
 
     <!-- 服务保障 -->
     <view class="card">
-      <text class="card-title">
-        服务保障
-      </text>
+      <text class="card-title">服务保障</text>
       <view class="guard-grid">
-        <view class="guard-item">
-          <view class="guard-icon">
-            <AppIcon
-              name="shield"
-              :size="32"
-              color="var(--brand)"
-            />
-          </view><view>
-            <text class="guard-name">
-              正品保障
-            </text><text class="guard-desc">
-              假一赔十
-            </text>
-          </view>
-        </view>
-        <view class="guard-item">
-          <view class="guard-icon">
-            <AppIcon
-              name="truck"
-              :size="32"
-              color="var(--brand)"
-            />
-          </view><view>
-            <text class="guard-name">
-              急速发货
-            </text><text class="guard-desc">
-              48小时内
-            </text>
-          </view>
-        </view>
-        <view class="guard-item">
-          <view class="guard-icon">
-            <AppIcon
-              name="refresh-cw"
-              :size="32"
-              color="var(--brand)"
-            />
-          </view><view>
-            <text class="guard-name">
-              7天退换
-            </text><text class="guard-desc">
-              无理由退换
-            </text>
-          </view>
-        </view>
-        <view class="guard-item">
-          <view class="guard-icon">
-            <AppIcon
-              name="award"
-              :size="32"
-              color="var(--brand)"
-            />
-          </view><view>
-            <text class="guard-name">
-              品质认证
-            </text><text class="guard-desc">
-              平台严选
-            </text>
-          </view>
-        </view>
+        <view class="guard-item"><view class="guard-icon"><AppIcon name="shield" :size="32" color="var(--brand)" /></view><view><text class="guard-name">正品保障</text><text class="guard-desc">假一赔十</text></view></view>
+        <view class="guard-item"><view class="guard-icon"><AppIcon name="truck" :size="32" color="var(--brand)" /></view><view><text class="guard-name">急速发货</text><text class="guard-desc">48小时内</text></view></view>
+        <view class="guard-item"><view class="guard-icon"><AppIcon name="refresh-cw" :size="32" color="var(--brand)" /></view><view><text class="guard-name">7天退换</text><text class="guard-desc">无理由退换</text></view></view>
+        <view class="guard-item"><view class="guard-icon"><AppIcon name="award" :size="32" color="var(--brand)" /></view><view><text class="guard-name">品质认证</text><text class="guard-desc">平台严选</text></view></view>
       </view>
     </view>
 
     <!-- 商品评价 -->
     <view class="card">
       <view class="review-head">
-        <view class="review-head-l">
-          <text class="card-title">
-            商品评价
-          </text><text class="review-count">
-            ({{ product.reviewCount }})
-          </text>
-        </view>
-        <view class="review-rating">
-          <text class="rating-num">
-            {{ product.rating }}
-          </text><AppIcon
-            name="star"
-            :size="26"
-            color="var(--gold, #c9a96e)"
-            fill
-          />
-        </view>
+        <view class="review-head-l"><text class="card-title">商品评价</text><text class="review-count">({{ product.reviewCount }})</text></view>
+        <view class="review-rating"><text class="rating-num">{{ product.rating }}</text><AppIcon name="star" :size="26" color="var(--gold, #c9a96e)" fill /></view>
       </view>
       <view class="tag-row">
-        <text
-          v-for="t in product.tags"
-          :key="t"
-          class="rv-tag"
-        >
-          {{ t }}
-        </text>
+        <text v-for="t in product.tags" :key="t" class="rv-tag">{{ t }}</text>
       </view>
       <view class="review-list">
-        <view
-          v-for="r in previewReviews"
-          :key="r.id"
-          class="review-item"
-        >
+        <view v-for="r in previewReviews" :key="r.id" class="review-item">
           <view class="rv-top">
-            <image
-              class="rv-avatar"
-              :src="r.user.avatar"
-              mode="aspectFill"
-            />
+            <image class="rv-avatar" :src="r.user.avatar" mode="aspectFill" />
             <view class="rv-user">
-              <text class="rv-name">
-                {{ r.user.name }}
-              </text>
+              <text class="rv-name">{{ r.user.name }}</text>
               <view class="rv-stars">
-                <AppIcon
-                  v-for="i in 5"
-                  :key="i"
-                  name="star"
-                  :size="24"
-                  :color="i <= r.rating ? 'var(--gold, #c9a96e)' : '#d4d4d4'"
-                  :fill="i <= r.rating"
-                />
+                <AppIcon v-for="i in 5" :key="i" name="star" :size="24" :color="i <= r.rating ? 'var(--gold, #c9a96e)' : '#d4d4d4'" :fill="i <= r.rating" />
               </view>
             </view>
-            <text class="rv-date">
-              {{ r.date }}
-            </text>
+            <text class="rv-date">{{ r.date }}</text>
           </view>
-          <text class="rv-content">
-            {{ r.content }}
-          </text>
-          <view
-            v-if="r.images.length"
-            class="rv-imgs"
-          >
-            <image
-              v-for="(img, ii) in r.images"
-              :key="ii"
-              class="rv-img"
-              :src="img"
-              mode="aspectFill"
-            />
+          <text class="rv-content">{{ r.content }}</text>
+          <view v-if="r.images.length" class="rv-imgs">
+            <image v-for="(img, ii) in r.images" :key="ii" class="rv-img" :src="img" mode="aspectFill" />
           </view>
-          <view class="rv-foot">
-            <text class="rv-spec">
-              {{ r.spec }}
-            </text><view class="rv-like">
-              <AppIcon
-                name="thumbs-up"
-                :size="24"
-                color="var(--text-soft)"
-              /><text class="rv-like-num">
-                {{ r.likes }}
-              </text>
-            </view>
-          </view>
+          <view class="rv-foot"><text class="rv-spec">{{ r.spec }}</text><view class="rv-like"><AppIcon name="thumbs-up" :size="24" color="var(--text-soft)" /><text class="rv-like-num">{{ r.likes }}</text></view></view>
         </view>
       </view>
-      <view
-        class="view-all"
-        hover-class="card-press"
-        @tap="goReviews"
-      >
-        <text class="view-all-text">
-          查看全部评价
-        </text><AppIcon
-          name="chevron-right"
-          :size="26"
-          color="var(--text-soft)"
-        />
-      </view>
+      <view class="view-all" hover-class="card-press" @tap="goReviews"><text class="view-all-text">查看全部评价</text><AppIcon name="chevron-right" :size="26" color="var(--text-soft)" /></view>
     </view>
 
     <!-- 商品详情 -->
     <view class="card">
-      <text class="card-title">
-        商品详情
-      </text>
-      <text class="desc">
-        {{ product.description }}
-      </text>
+      <text class="card-title">商品详情</text>
+      <text class="desc">{{ product.description }}</text>
       <view class="desc-imgs">
-        <view
-          v-for="i in 3"
-          :key="i"
-          class="desc-img-ph"
-        >
-          <text class="desc-img-text">
-            商品详情图 {{ i }}
-          </text>
-        </view>
+        <view v-for="i in 3" :key="i" class="desc-img-ph"><text class="desc-img-text">商品详情图 {{ i }}</text></view>
       </view>
     </view>
 
     <!-- 底部操作栏 -->
     <view class="action-bar">
       <view class="action-icons">
-        <view class="action-ico">
-          <AppIcon
-            name="message-circle"
-            :size="40"
-            color="var(--text-soft)"
-          /><text class="action-ico-text">
-            客服
-          </text>
-        </view>
-        <view
-          class="action-ico"
-          @tap="goCart"
-        >
-          <AppIcon
-            name="shopping-cart"
-            :size="40"
-            color="var(--text-soft)"
-          /><text class="action-ico-text">
-            购物车
-          </text><text
-            v-if="cartCount > 0"
-            class="cart-badge"
-          >
-            {{ cartCount }}
-          </text>
-        </view>
-        <view
-          class="action-ico"
-          @tap="isFavorite = !isFavorite"
-        >
-          <AppIcon
-            name="heart"
-            :size="40"
-            :color="isFavorite ? 'var(--brand)' : 'var(--text-soft)'"
-            :fill="isFavorite"
-          /><text class="action-ico-text">
-            收藏
-          </text>
-        </view>
+        <view class="action-ico"><AppIcon name="message-circle" :size="40" color="var(--text-soft)" /><text class="action-ico-text">客服</text></view>
+        <view class="action-ico" @tap="goCart"><AppIcon name="shopping-cart" :size="40" color="var(--text-soft)" /><text class="action-ico-text">购物车</text><text v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</text></view>
+        <view class="action-ico" @tap="isFavorite = !isFavorite"><AppIcon name="heart" :size="40" :color="isFavorite ? 'var(--brand)' : 'var(--text-soft)'" :fill="isFavorite" /><text class="action-ico-text">收藏</text></view>
       </view>
       <view class="action-btns">
-        <view
-          class="btn-cart"
-          hover-class="card-press"
-          @tap="openSpecPanel('cart')"
-        >
-          <text class="btn-cart-text">
-            加入购物车
-          </text>
-        </view>
-        <view
-          class="btn-buy"
-          hover-class="card-press"
-          @tap="openSpecPanel('buy')"
-        >
-          <text class="btn-buy-text">
-            立即购买
-          </text>
-        </view>
+        <view class="btn-cart" hover-class="card-press" @tap="openSpecPanel('cart')"><text class="btn-cart-text">加入购物车</text></view>
+        <view class="btn-buy" hover-class="card-press" @tap="openSpecPanel('buy')"><text class="btn-buy-text">立即购买</text></view>
       </view>
     </view>
 
     <!-- 规格面板 -->
-    <view
-      v-if="showSpecPanel"
-      class="mask"
-      @tap="showSpecPanel = false"
-    />
-    <view
-      v-if="showSpecPanel"
-      class="spec-panel"
-    >
+    <view v-if="showSpecPanel" class="mask" @tap="showSpecPanel = false" />
+    <view v-if="showSpecPanel" class="spec-panel">
       <view class="sp-head">
-        <view class="sp-thumb">
-          <image
-            class="sp-thumb-img"
-            :src="product.images[0]"
-            mode="aspectFill"
-          />
-        </view>
+        <view class="sp-thumb"><image class="sp-thumb-img" :src="product.images[0]" mode="aspectFill" /></view>
         <view class="sp-info">
-          <text class="sp-price">
-            ¥{{ currentPrice }}
-          </text>
-          <text class="sp-stock">
-            库存 {{ currentStock }} 件
-          </text>
-          <text class="sp-selected">
-            已选：{{ selectedSpecLabels || '请选择规格' }}
-          </text>
+          <text class="sp-price">¥{{ currentPrice }}</text>
+          <text class="sp-stock">库存 {{ currentStock }} 件</text>
+          <text class="sp-selected">已选：{{ selectedSpecLabels || '请选择规格' }}</text>
         </view>
       </view>
       <view class="sp-body">
-        <view
-          v-for="grp in product.specs"
-          :key="grp.name"
-          class="sp-group"
-        >
-          <text class="sp-group-name">
-            {{ grp.name }}
-          </text>
+        <view v-for="grp in product.specs" :key="grp.name" class="sp-group">
+          <text class="sp-group-name">{{ grp.name }}</text>
           <view class="sp-opts">
-            <view
-              v-for="opt in grp.options"
-              :key="opt.id"
-              class="sp-opt"
-              :class="{ 'sp-opt-on': selectedSpecs[grp.name] === opt.id }"
-              @tap="selectSpec(grp.name, opt.id)"
-            >
-              <text
-                class="sp-opt-text"
-                :class="{ 'sp-opt-text-on': selectedSpecs[grp.name] === opt.id }"
-              >
-                {{ opt.label }}{{ opt.price > 0 && grp.name === '版本' ? ` ¥${opt.price}` : '' }}
-              </text>
+            <view v-for="opt in grp.options" :key="opt.id" class="sp-opt" :class="{ 'sp-opt-on': selectedSpecs[grp.name] === opt.id }" @tap="selectSpec(grp.name, opt.id)">
+              <text class="sp-opt-text" :class="{ 'sp-opt-text-on': selectedSpecs[grp.name] === opt.id }">{{ opt.label }}{{ opt.price > 0 && grp.name === '版本' ? ` ¥${opt.price}` : '' }}</text>
             </view>
           </view>
         </view>
       </view>
       <view class="sp-actions">
-        <view
-          class="sp-btn-cart"
-          hover-class="card-press"
-          @tap="addToCart"
-        >
-          <text class="sp-btn-cart-text">
-            加入购物车
-          </text>
-        </view>
-        <view
-          class="sp-btn-buy"
-          hover-class="card-press"
-          @tap="buyNow"
-        >
-          <text class="sp-btn-buy-text">
-            立即购买
-          </text>
-        </view>
+        <view class="sp-btn-cart" hover-class="card-press" @tap="addToCart"><text class="sp-btn-cart-text">加入购物车</text></view>
+        <view class="sp-btn-buy" hover-class="card-press" @tap="buyNow"><text class="sp-btn-buy-text">立即购买</text></view>
       </view>
     </view>
   </view>

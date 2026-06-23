@@ -1,4 +1,3 @@
-import { apiGet, useMock } from '@/utils/request'
 import type { DiscussionItem as DiscussionItemType } from './discussion-types'
 
 export interface EbookShelfBook {
@@ -424,50 +423,4 @@ export const ebookReaderThemes = {
   light: { bg: '#ffffff', text: '#1f2937', secondary: '#6b7280', surface: '#ffffff', border: '#e5e7eb' },
   sepia: { bg: '#f5f0e5', text: '#5c4a3a', secondary: '#8b7355', surface: '#f5f0e5', border: '#d4c4a8' },
   dark: { bg: '#1a1815', text: '#c5c0b8', secondary: '#7a756d', surface: '#242220', border: '#3d3a37' },
-}
-
-// ── API ──
-export const ebookApi = {
-  /** 电子书列表 GET /ebook */
-  async list(params?: Record<string, any>): Promise<EbookStoreBook[]> {
-    if (useMock()) return ebookStoreBooks
-    try { return await apiGet<EbookStoreBook[]>(`/ebook${params ? '?' + new URLSearchParams(params).toString() : ''}`) }
-    catch { return ebookStoreBooks }
-  },
-  /** 电子书详情 GET /ebook/:id */
-  async detail(id: string): Promise<EbookDetail> {
-    if (useMock()) return ebookDetailData
-    try { return await apiGet<EbookDetail>(`/ebook/${id}`) }
-    catch { return ebookDetailData }
-  },
-  /** 书架列表 GET /ebook/bookshelf */
-  async getBookshelf(): Promise<EbookShelfBook[]> {
-    if (useMock()) return ebookShelfBooks
-    try { return await apiGet<EbookShelfBook[]>('/ebook/bookshelf') }
-    catch { return ebookShelfBooks }
-  },
-  /** 阅读器章节 GET /ebook/:bookId/chapter/:chapterId */
-  async getReaderChapter(bookId: string, chapterId?: string): Promise<typeof ebookReaderChapter> {
-    if (useMock()) return ebookReaderChapter
-    try { return await apiGet<typeof ebookReaderChapter>(`/ebook/${bookId}/chapter/${chapterId || '1'}`) }
-    catch { return ebookReaderChapter }
-  },
-  /** 章节列表 GET /ebook/:bookId/chapters */
-  async getReaderChapters(bookId: string): Promise<EbookReaderChapter[]> {
-    if (useMock()) return ebookReaderChapters
-    try { return await apiGet<EbookReaderChapter[]>(`/ebook/${bookId}/chapters`) }
-    catch { return ebookReaderChapters }
-  },
-  /** 讨论列表 GET /ebook/:bookId/discussions */
-  async getDiscussions(bookId: string): Promise<DiscussionItemType[]> {
-    if (useMock()) return ebookDiscussions
-    try { return await apiGet<DiscussionItemType[]>(`/ebook/${bookId}/discussions`) }
-    catch { return ebookDiscussions }
-  },
-  /** 下单商品 GET /ebook/:id/checkout */
-  async getCheckoutBook(id: string): Promise<EbookCheckoutBook> {
-    if (useMock()) return ebookCheckoutBook
-    try { return await apiGet<EbookCheckoutBook>(`/ebook/${id}/checkout`) }
-    catch { return ebookCheckoutBook }
-  },
 }

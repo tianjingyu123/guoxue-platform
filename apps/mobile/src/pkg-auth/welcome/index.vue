@@ -5,36 +5,19 @@
 
     <view class="center">
       <!-- 热卜 LOGO -->
-      <view
-        class="logo-wrap"
-        :class="{ 'logo-in': true }"
-      >
+      <view class="logo-wrap" :class="{ 'logo-in': true }">
         <view class="logo-box">
-          <image
-            class="logo-img"
-            :src="logoSrc"
-            mode="aspectFill"
-          />
+          <image class="logo-img" :src="logoSrc" mode="aspectFill" />
         </view>
       </view>
 
       <!-- 欢迎标题 -->
-      <view
-        class="title-wrap"
-        :class="{ 'fade-in': showTitle }"
-      >
-        <text class="title">
-          {{ userName ? userName + '，' : '' }}欢迎来到国学世界
-        </text>
+      <view class="title-wrap" :class="{ 'fade-in': showTitle }">
+        <text class="title">{{ userName ? userName + '，' : '' }}欢迎来到国学世界</text>
       </view>
 
       <!-- Slogan -->
-      <text
-        class="slogan"
-        :class="{ 'fade-in': showSlogan }"
-      >
-        {{ slogan }}
-      </text>
+      <text class="slogan" :class="{ 'fade-in': showSlogan }">{{ slogan }}</text>
 
       <!-- 开始探索按钮 -->
       <view
@@ -44,30 +27,17 @@
         @tap="handleNavigate"
       >
         <template v-if="loading">
-          <text class="btn-text">
-            加载中…
-          </text>
+          <text class="btn-text">加载中…</text>
         </template>
         <template v-else>
-          <text class="btn-text">
-            开始探索
-          </text>
-          <AppIcon
-            name="arrow-right"
-            :size="16"
-            color="#ffffff"
-          />
-          <text class="btn-count">
-            ({{ countdown }}s)
-          </text>
+          <text class="btn-text">开始探索</text>
+          <AppIcon name="arrow-right" :size="16" color="#ffffff" />
+          <text class="btn-count">({{ countdown }}s)</text>
         </template>
       </view>
 
       <!-- 装饰分隔线 -->
-      <view
-        class="divider"
-        :class="{ 'fade-in': showButton }"
-      >
+      <view class="divider" :class="{ 'fade-in': showButton }">
         <view class="line line-left" />
         <view class="dot" />
         <view class="line line-right" />
@@ -76,9 +46,7 @@
 
     <!-- 底部品牌落款 -->
     <view class="footer">
-      <text class="footer-text">
-        {{ brandName }} · {{ tagline }}
-      </text>
+      <text class="footer-text">{{ brandName }} · {{ tagline }}</text>
     </view>
   </view>
 </template>
@@ -102,7 +70,7 @@ const loading = ref(true)
 const userName = ref('')
 const hasInterests = ref<boolean | null>(null)
 
-const timers: ReturnType<typeof setTimeout>[] = []
+let timers: ReturnType<typeof setTimeout>[] = []
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 let navigated = false
 

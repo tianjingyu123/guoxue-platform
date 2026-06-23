@@ -4,17 +4,9 @@
  * 4统计卡 + 邀请码列表(状态徽章/操作菜单禁用·删除/使用进度条/复制·分享/使用记录展开) + 创建底部弹窗 + 骨架屏
  * 复制/分享改用 uni.setClipboardData 跨端
  */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { circleDetailApi } from '@/lib/circle-detail-data'
-
-const circleId = ref('1')
-
-onLoad((q?: any) => {
-  if (q?.circleId) circleId.value = q.circleId
-})
 
 interface UsedUser { id: string; name: string; avatar: string; usedAt: string }
 interface InviteCode {
@@ -28,15 +20,20 @@ interface InviteCode {
   usedBy?: UsedUser[]
 }
 
-const isLoading = ref(true)
-const inviteCodes = ref<InviteCode[]>([])
+const mockStats = { totalInvited: 156, usedCodes: 12, pendingCodes: 5, thisWeek: 23 }
+const mockInviteCodes: InviteCode[] = [
+  { id: '1', code: 'GUOXUE2024A', maxUses: 10, usedCount: 8, status: 'active', createdAt: '2024-01-15T10:00:00Z', usedBy: [
+    { id: '1', name: '张三', avatar: '/static/avatars/u1.png', usedAt: '2024-01-16' },
+    { id: '2', name: '李四', avatar: '/static/avatars/u2.png', usedAt: '2024-01-17' },
+  ] },
+  { id: '2', code: 'GUOXUE2024B', maxUses: 5, usedCount: 5, status: 'expired', createdAt: '2024-01-10T10:00:00Z', expiresAt: '2024-01-20T10:00:00Z' },
+  { id: '3', code: 'VIP888', maxUses: 100, usedCount: 45, status: 'active', createdAt: '2024-01-01T10:00:00Z' },
+  { id: '4', code: 'TEST123', maxUses: 3, usedCount: 1, status: 'disabled', createdAt: '2024-01-05T10:00:00Z' },
+]
 
-const stats = computed(() => ({
-  totalInvited: inviteCodes.value.reduce((s, c) => s + c.usedCount, 0),
-  usedCodes: inviteCodes.value.filter(c => c.usedCount > 0).length,
-  pendingCodes: inviteCodes.value.filter(c => c.status === 'active' && c.usedCount < c.maxUses).length,
-  thisWeek: 0, // @todo: 后端返回本周统计
-}))
+const isLoading = ref(true)
+const stats = ref({ ...mockStats })
+const inviteCodes = ref<InviteCode[]>([])
 const showCreateModal = ref(false)
 const newCodeMaxUses = ref(10)
 const creating = ref(false)
@@ -44,15 +41,8 @@ const expandedCode = ref<string | null>(null)
 const activeMenu = ref<string | null>(null)
 const copiedCode = ref<string | null>(null)
 
-onMounted(async () => {
-  isLoading.value = true
-  try {
-    inviteCodes.value = await circleDetailApi.getInviteCodes(circleId.value)
-  } catch {
-    // 加载失败，保持为空
-  } finally {
-    isLoading.value = false
-  }
+onMounted(() => {
+  setTimeout(() => { inviteCodes.value = mockInviteCodes; isLoading.value = false }, 800)
 })
 
 function statusLabel(s: string) { return s === 'active' ? '有效' : s === 'disabled' ? '已禁用' : '已过期' }
@@ -60,15 +50,20 @@ function statusCls(s: string) { return s === 'active' ? 'ic-st-active' : s === '
 function formatDate(s: string) { const d = new Date(s); return `${d.getMonth() + 1}/${d.getDate()}` }
 
 async function createCode() {
-  if (creating.value) return
   creating.value = true
-  const res = await circleDetailApi.createInviteCode(circleId.value, newCodeMaxUses.value)
-  creating.value = false
-  if (res.success && res.code) {
-    inviteCodes.value = [res.code, ...inviteCodes.value]
-  } else {
-    uni.showToast({ title: res.message || '生成失败', icon: 'none' })
+  await new Promise((r) => setTimeout(r, 1000))
+  const newCode: InviteCode = {
+    id: Date.now().toString(),
+    code: `NEW${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+    maxUses: newCodeMaxUses.value,
+    usedCount: 0,
+    status: 'active',
+    createdAt: new Date().toISOString(),
   }
+  inviteCodes.value = [newCode, ...inviteCodes.value]
+  stats.value.pendingCodes += 1
+  showCreateModal.value = false
+  creating.value = false
 }
 
 function copyCode(code: string) {
@@ -97,49 +92,18 @@ function deleteCode(id: string) {
   <view class="ic">
     <!-- 顶部导航 -->
     <view class="ic-nav">
-      <view
-        class="ic-back"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="40"
-          color="#2C2C2C"
-        />
-      </view>
-      <text class="ic-title">
-        邀请码管理
-      </text>
-      <view
-        class="ic-add"
-        @tap="showCreateModal = true"
-      >
-        <app-icon
-          name="plus"
-          :size="40"
-          color="#C41E3A"
-        />
-      </view>
+      <view class="ic-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
+      <text class="ic-title">邀请码管理</text>
+      <view class="ic-add" @tap="showCreateModal = true"><app-icon name="plus" :size="40" color="#C41E3A" /></view>
     </view>
 
     <!-- 骨架屏 -->
-    <view
-      v-if="isLoading"
-      class="ic-body"
-    >
+    <view v-if="isLoading" class="ic-body">
       <view class="ic-stats">
-        <view
-          v-for="i in 4"
-          :key="i"
-          class="ic-skel-stat"
-        />
+        <view v-for="i in 4" :key="i" class="ic-skel-stat" />
       </view>
       <view class="ic-skel-list">
-        <view
-          v-for="i in 3"
-          :key="i"
-          class="ic-skel-card"
-        />
+        <view v-for="i in 3" :key="i" class="ic-skel-card" />
       </view>
     </view>
 
@@ -148,154 +112,49 @@ function deleteCode(id: string) {
       <view class="ic-body">
         <view class="ic-stats">
           <view class="ic-stat ic-stat-primary">
-            <view class="ic-stat-head">
-              <app-icon
-                name="users"
-                :size="26"
-                color="#ffffff"
-              /><text class="ic-stat-label ic-light">
-                总邀请人数
-              </text>
-            </view>
-            <text class="ic-stat-num ic-light">
-              {{ stats.totalInvited }}
-            </text>
+            <view class="ic-stat-head"><app-icon name="users" :size="26" color="#ffffff" /><text class="ic-stat-label ic-light">总邀请人数</text></view>
+            <text class="ic-stat-num ic-light">{{ stats.totalInvited }}</text>
           </view>
           <view class="ic-stat">
-            <view class="ic-stat-head">
-              <app-icon
-                name="gift"
-                :size="26"
-                color="#C9A96E"
-              /><text class="ic-stat-label">
-                本周新增
-              </text>
-            </view>
-            <text class="ic-stat-num">
-              {{ stats.thisWeek }}
-            </text>
+            <view class="ic-stat-head"><app-icon name="gift" :size="26" color="#C9A96E" /><text class="ic-stat-label">本周新增</text></view>
+            <text class="ic-stat-num">{{ stats.thisWeek }}</text>
           </view>
           <view class="ic-stat">
-            <view class="ic-stat-head">
-              <app-icon
-                name="check"
-                :size="26"
-                color="#22C55E"
-              /><text class="ic-stat-label">
-                已使用码
-              </text>
-            </view>
-            <text class="ic-stat-num">
-              {{ stats.usedCodes }}
-            </text>
+            <view class="ic-stat-head"><app-icon name="check" :size="26" color="#22C55E" /><text class="ic-stat-label">已使用码</text></view>
+            <text class="ic-stat-num">{{ stats.usedCodes }}</text>
           </view>
           <view class="ic-stat">
-            <view class="ic-stat-head">
-              <app-icon
-                name="clock"
-                :size="26"
-                color="#C41E3A"
-              /><text class="ic-stat-label">
-                待使用码
-              </text>
-            </view>
-            <text class="ic-stat-num">
-              {{ stats.pendingCodes }}
-            </text>
+            <view class="ic-stat-head"><app-icon name="clock" :size="26" color="#C41E3A" /><text class="ic-stat-label">待使用码</text></view>
+            <text class="ic-stat-num">{{ stats.pendingCodes }}</text>
           </view>
         </view>
       </view>
 
       <!-- 列表 -->
       <view class="ic-list">
-        <text class="ic-list-title">
-          邀请码列表
-        </text>
+        <text class="ic-list-title">邀请码列表</text>
 
-        <view
-          v-if="inviteCodes.length === 0"
-          class="ic-empty"
-        >
-          <view class="ic-empty-icon">
-            <app-icon
-              name="gift"
-              :size="56"
-              color="#999999"
-            />
-          </view>
-          <text class="ic-empty-text">
-            还没有创建邀请码
-          </text>
-          <view
-            class="ic-empty-btn"
-            @tap="showCreateModal = true"
-          >
-            创建邀请码
-          </view>
+        <view v-if="inviteCodes.length === 0" class="ic-empty">
+          <view class="ic-empty-icon"><app-icon name="gift" :size="56" color="#999999" /></view>
+          <text class="ic-empty-text">还没有创建邀请码</text>
+          <view class="ic-empty-btn" @tap="showCreateModal = true">创建邀请码</view>
         </view>
 
-        <view
-          v-for="code in inviteCodes"
-          :key="code.id"
-          class="ic-card"
-          :class="{ 'ic-card-disabled': code.status === 'disabled' }"
-        >
+        <view v-for="code in inviteCodes" :key="code.id" class="ic-card" :class="{ 'ic-card-disabled': code.status === 'disabled' }">
           <view class="ic-card-body">
             <view class="ic-card-head">
               <view class="ic-code-info">
                 <view class="ic-code-row">
-                  <text class="ic-code">
-                    {{ code.code }}
-                  </text>
-                  <text
-                    class="ic-badge"
-                    :class="statusCls(code.status)"
-                  >
-                    {{ statusLabel(code.status) }}
-                  </text>
+                  <text class="ic-code">{{ code.code }}</text>
+                  <text class="ic-badge" :class="statusCls(code.status)">{{ statusLabel(code.status) }}</text>
                 </view>
-                <text class="ic-code-date">
-                  创建于 {{ formatDate(code.createdAt) }}<text v-if="code.expiresAt">
-                    · 过期于 {{ formatDate(code.expiresAt) }}
-                  </text>
-                </text>
+                <text class="ic-code-date">创建于 {{ formatDate(code.createdAt) }}<text v-if="code.expiresAt"> · 过期于 {{ formatDate(code.expiresAt) }}</text></text>
               </view>
               <view class="ic-menu-wrap">
-                <view
-                  class="ic-menu-btn"
-                  @tap="activeMenu = activeMenu === code.id ? null : code.id"
-                >
-                  <app-icon
-                    name="more-horizontal"
-                    :size="36"
-                    color="#666666"
-                  />
-                </view>
-                <view
-                  v-if="activeMenu === code.id"
-                  class="ic-menu"
-                >
-                  <view
-                    v-if="code.status === 'active'"
-                    class="ic-menu-item"
-                    @tap="disableCode(code.id)"
-                  >
-                    <app-icon
-                      name="ban"
-                      :size="26"
-                      color="#666666"
-                    /><text>禁用</text>
-                  </view>
-                  <view
-                    class="ic-menu-item ic-menu-del"
-                    @tap="deleteCode(code.id)"
-                  >
-                    <app-icon
-                      name="trash-2"
-                      :size="26"
-                      color="#C41E3A"
-                    /><text>删除</text>
-                  </view>
+                <view class="ic-menu-btn" @tap="activeMenu = activeMenu === code.id ? null : code.id"><app-icon name="more-horizontal" :size="36" color="#666666" /></view>
+                <view v-if="activeMenu === code.id" class="ic-menu">
+                  <view v-if="code.status === 'active'" class="ic-menu-item" @tap="disableCode(code.id)"><app-icon name="ban" :size="26" color="#666666" /><text>禁用</text></view>
+                  <view class="ic-menu-item ic-menu-del" @tap="deleteCode(code.id)"><app-icon name="trash-2" :size="26" color="#C41E3A" /><text>删除</text></view>
                 </view>
               </view>
             </view>
@@ -303,85 +162,32 @@ function deleteCode(id: string) {
             <!-- 使用进度 -->
             <view class="ic-progress">
               <view class="ic-progress-row">
-                <text class="ic-progress-label">
-                  使用进度
-                </text>
-                <text class="ic-progress-val">
-                  {{ code.usedCount }}/{{ code.maxUses }}
-                </text>
+                <text class="ic-progress-label">使用进度</text>
+                <text class="ic-progress-val">{{ code.usedCount }}/{{ code.maxUses }}</text>
               </view>
-              <view class="ic-progress-track">
-                <view
-                  class="ic-progress-bar"
-                  :style="{ width: (code.usedCount / code.maxUses) * 100 + '%' }"
-                />
-              </view>
+              <view class="ic-progress-track"><view class="ic-progress-bar" :style="{ width: (code.usedCount / code.maxUses) * 100 + '%' }" /></view>
             </view>
 
             <!-- 操作按钮 -->
             <view class="ic-actions">
-              <view
-                class="ic-act ic-act-copy"
-                :class="{ 'ic-act-copied': copiedCode === code.code }"
-                @tap="copyCode(code.code)"
-              >
-                <app-icon
-                  :name="copiedCode === code.code ? 'check' : 'copy'"
-                  :size="28"
-                  :color="copiedCode === code.code ? '#16A34A' : '#666666'"
-                />
+              <view class="ic-act ic-act-copy" :class="{ 'ic-act-copied': copiedCode === code.code }" @tap="copyCode(code.code)">
+                <app-icon :name="copiedCode === code.code ? 'check' : 'copy'" :size="28" :color="copiedCode === code.code ? '#16A34A' : '#666666'" />
                 <text>{{ copiedCode === code.code ? '已复制' : '复制' }}</text>
               </view>
-              <view
-                class="ic-act ic-act-share"
-                @tap="shareCode(code.code)"
-              >
-                <app-icon
-                  name="share-2"
-                  :size="28"
-                  color="#ffffff"
-                /><text>分享</text>
-              </view>
+              <view class="ic-act ic-act-share" @tap="shareCode(code.code)"><app-icon name="share-2" :size="28" color="#ffffff" /><text>分享</text></view>
             </view>
           </view>
 
           <!-- 使用记录 -->
-          <view
-            v-if="code.usedBy && code.usedBy.length > 0"
-            class="ic-records"
-          >
-            <view
-              class="ic-records-toggle"
-              @tap="expandedCode = expandedCode === code.id ? null : code.id"
-            >
+          <view v-if="code.usedBy && code.usedBy.length > 0" class="ic-records">
+            <view class="ic-records-toggle" @tap="expandedCode = expandedCode === code.id ? null : code.id">
               <text>查看使用记录 ({{ code.usedBy.length }})</text>
-              <app-icon
-                :name="expandedCode === code.id ? 'chevron-up' : 'chevron-down'"
-                :size="28"
-                color="#666666"
-              />
+              <app-icon :name="expandedCode === code.id ? 'chevron-up' : 'chevron-down'" :size="28" color="#666666" />
             </view>
-            <view
-              v-if="expandedCode === code.id"
-              class="ic-records-list"
-            >
-              <view
-                v-for="u in code.usedBy"
-                :key="u.id"
-                class="ic-record"
-              >
-                <image
-                  class="ic-record-avatar"
-                  :src="u.avatar"
-                  mode="aspectFill"
-                />
-                <view class="ic-record-info">
-                  <text class="ic-record-name">
-                    {{ u.name }}
-                  </text><text class="ic-record-time">
-                    {{ u.usedAt }}
-                  </text>
-                </view>
+            <view v-if="expandedCode === code.id" class="ic-records-list">
+              <view v-for="u in code.usedBy" :key="u.id" class="ic-record">
+                <image class="ic-record-avatar" :src="u.avatar" mode="aspectFill" />
+                <view class="ic-record-info"><text class="ic-record-name">{{ u.name }}</text><text class="ic-record-time">{{ u.usedAt }}</text></view>
               </view>
             </view>
           </view>
@@ -390,54 +196,21 @@ function deleteCode(id: string) {
     </template>
 
     <!-- 创建邀请码底部弹窗 -->
-    <view
-      v-if="showCreateModal"
-      class="ic-modal-mask"
-      @tap="showCreateModal = false"
-    >
-      <view
-        class="ic-sheet"
-        @tap.stop
-      >
+    <view v-if="showCreateModal" class="ic-modal-mask" @tap="showCreateModal = false">
+      <view class="ic-sheet" @tap.stop>
         <view class="ic-sheet-head">
-          <text class="ic-sheet-title">
-            生成新邀请码
-          </text>
-          <view @tap="showCreateModal = false">
-            <app-icon
-              name="x"
-              :size="36"
-              color="#666666"
-            />
-          </view>
+          <text class="ic-sheet-title">生成新邀请码</text>
+          <view @tap="showCreateModal = false"><app-icon name="x" :size="36" color="#666666" /></view>
         </view>
         <view class="ic-sheet-body">
-          <text class="ic-field-label">
-            最大使用次数
-          </text>
+          <text class="ic-field-label">最大使用次数</text>
           <view class="ic-uses">
-            <view
-              v-for="n in [5, 10, 20, 50, 100]"
-              :key="n"
-              class="ic-use"
-              :class="{ 'ic-use-on': newCodeMaxUses === n }"
-              @tap="newCodeMaxUses = n"
-            >
-              {{ n }}次
-            </view>
+            <view v-for="n in [5, 10, 20, 50, 100]" :key="n" class="ic-use" :class="{ 'ic-use-on': newCodeMaxUses === n }" @tap="newCodeMaxUses = n">{{ n }}次</view>
           </view>
-          <view class="ic-tip">
-            邀请码生成后，被邀请人可通过邀请码直接加入圈子，无需审批
-          </view>
+          <view class="ic-tip">邀请码生成后，被邀请人可通过邀请码直接加入圈子，无需审批</view>
         </view>
         <view class="ic-sheet-foot">
-          <view
-            class="ic-create-btn"
-            :class="{ 'ic-create-disabled': creating }"
-            @tap="!creating && createCode()"
-          >
-            {{ creating ? '生成中...' : '生成邀请码' }}
-          </view>
+          <view class="ic-create-btn" :class="{ 'ic-create-disabled': creating }" @tap="!creating && createCode()">{{ creating ? '生成中...' : '生成邀请码' }}</view>
         </view>
       </view>
     </view>

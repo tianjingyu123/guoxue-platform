@@ -1,23 +1,10 @@
 <template>
   <view class="page">
-    <app-nav-bar
-      title="银行卡管理"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="32"
-      :title-weight="600"
-      :bar-height="112"
-    />
+    <app-nav-bar title="银行卡管理" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112" />
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <!-- 卡片列表 -->
-      <view
-        v-if="cards.length"
-        class="card-list"
-      >
+      <view v-if="cards.length" class="card-list">
         <view
           v-for="c in cards"
           :key="c.id"
@@ -27,140 +14,60 @@
           <view class="bc-deco" />
           <view class="bc-top">
             <view class="bc-bank">
-              <app-icon
-                name="credit-card"
-                :size="40"
-                color="#FFFFFF"
-              />
-              <text class="bc-bank-name">
-                {{ c.bankName }}
-              </text>
+              <app-icon name="credit-card" :size="40" color="#FFFFFF" />
+              <text class="bc-bank-name">{{ c.bankName }}</text>
             </view>
             <view class="bc-top-right">
-              <view
-                v-if="c.isDefault"
-                class="bc-default"
-              >
-                <app-icon
-                  name="star"
-                  :size="22"
-                  color="#FFFFFF"
-                />
-                <text class="bc-default-txt">
-                  默认
-                </text>
+              <view v-if="c.isDefault" class="bc-default">
+                <app-icon name="star" :size="22" color="#FFFFFF" />
+                <text class="bc-default-txt">默认</text>
               </view>
-              <view
-                class="bc-menu"
-                @tap="openMenu(c)"
-              >
-                <app-icon
-                  name="more-vertical"
-                  :size="36"
-                  color="#FFFFFF"
-                />
+              <view class="bc-menu" @tap="openMenu(c)">
+                <app-icon name="more-vertical" :size="36" color="#FFFFFF" />
               </view>
             </view>
           </view>
-          <text class="bc-type">
-            {{ c.cardType }}
-          </text>
-          <text class="bc-no">
-            {{ c.first4 }}&nbsp;&nbsp;****&nbsp;&nbsp;****&nbsp;&nbsp;{{ c.last4 }}
-          </text>
+          <text class="bc-type">{{ c.cardType }}</text>
+          <text class="bc-no">{{ c.first4 }}&nbsp;&nbsp;****&nbsp;&nbsp;****&nbsp;&nbsp;{{ c.last4 }}</text>
           <view class="bc-bottom">
-            <text class="bc-holder">
-              {{ maskName(c.holderName) }}
-            </text>
-            <text class="bc-bind">
-              绑定于 {{ c.bindTime }}
-            </text>
+            <text class="bc-holder">{{ maskName(c.holderName) }}</text>
+            <text class="bc-bind">绑定于 {{ c.bindTime }}</text>
           </view>
         </view>
       </view>
 
-      <app-empty
-        v-else
-        icon="credit-card"
-        text="还没有绑定银行卡"
-      />
+      <app-empty v-else icon="credit-card" text="还没有绑定银行卡" />
 
       <!-- 添加按钮 -->
-      <view
-        class="add-btn"
-        @tap="showAdd = true"
-      >
-        <app-icon
-          name="plus"
-          :size="36"
-          color="#C41E3A"
-        />
-        <text class="add-txt">
-          添加银行卡
-        </text>
+      <view class="add-btn" @tap="showAdd = true">
+        <app-icon name="plus" :size="36" color="#C41E3A" />
+        <text class="add-txt">添加银行卡</text>
       </view>
 
       <view class="tip">
-        <app-icon
-          name="shield"
-          :size="28"
-          color="#C9A96E"
-        />
-        <text class="tip-txt">
-          为保障资金安全，请绑定本人实名银行卡
-        </text>
+        <app-icon name="shield" :size="28" color="#C9A96E" />
+        <text class="tip-txt">为保障资金安全，请绑定本人实名银行卡</text>
       </view>
     </scroll-view>
 
     <!-- 添加卡片弹窗 -->
-    <view
-      v-if="showAdd"
-      class="mask"
-      @tap="showAdd = false"
-    >
-      <view
-        class="sheet"
-        @tap.stop
-      >
+    <view v-if="showAdd" class="mask" @tap="showAdd = false">
+      <view class="sheet" @tap.stop>
         <view class="sheet-head">
-          <text class="sheet-title">
-            添加银行卡
-          </text>
-          <text
-            class="sheet-close"
-            @tap="showAdd = false"
-          >
-            取消
-          </text>
+          <text class="sheet-title">添加银行卡</text>
+          <text class="sheet-close" @tap="showAdd = false">取消</text>
         </view>
         <view class="form">
           <view class="field">
-            <text class="label">
-              持卡人姓名
-            </text>
-            <input
-              v-model="form.holderName"
-              class="input"
-              placeholder="请输入持卡人姓名"
-              placeholder-class="ph"
-            >
+            <text class="label">持卡人姓名</text>
+            <input v-model="form.holderName" class="input" placeholder="请输入持卡人姓名" placeholder-class="ph" />
           </view>
           <view class="field">
-            <text class="label">
-              银行卡号
-            </text>
-            <input
-              v-model="form.cardNumber"
-              type="number"
-              class="input"
-              placeholder="请输入银行卡号"
-              placeholder-class="ph"
-            >
+            <text class="label">银行卡号</text>
+            <input v-model="form.cardNumber" type="number" class="input" placeholder="请输入银行卡号" placeholder-class="ph" />
           </view>
           <view class="field">
-            <text class="label">
-              所属银行
-            </text>
+            <text class="label">所属银行</text>
             <view class="bank-grid">
               <text
                 v-for="b in banks"
@@ -168,32 +75,15 @@
                 class="bank-chip"
                 :class="{ active: form.bankCode === b.code }"
                 @tap="form.bankCode = b.code"
-              >
-                {{ b.name }}
-              </text>
+              >{{ b.name }}</text>
             </view>
           </view>
           <view class="field">
-            <text class="label">
-              预留手机号
-            </text>
-            <input
-              v-model="form.phone"
-              type="number"
-              maxlength="11"
-              class="input"
-              placeholder="请输入银行预留手机号"
-              placeholder-class="ph"
-            >
+            <text class="label">预留手机号</text>
+            <input v-model="form.phone" type="number" maxlength="11" class="input" placeholder="请输入银行预留手机号" placeholder-class="ph" />
           </view>
         </view>
-        <view
-          class="submit"
-          :class="{ disabled: !canSubmit || submitting }"
-          @tap="addCard"
-        >
-          {{ submitting ? '添加中...' : '确认添加' }}
-        </view>
+        <view class="submit" :class="{ disabled: !canSubmit }" @tap="addCard">确认添加</view>
       </view>
     </view>
   </view>
@@ -201,7 +91,6 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useSubmitLock } from '@/composables/use-submit-lock'
 
 interface BankCard {
   id: string
@@ -233,8 +122,6 @@ const banks = [
 
 const showAdd = ref(false)
 const form = ref({ holderName: '', cardNumber: '', bankCode: '', phone: '' })
-
-const { submitting, withLock } = useSubmitLock()
 
 const canSubmit = computed(() =>
   form.value.holderName && form.value.cardNumber.length >= 16 && form.value.bankCode && form.value.phone.length === 11,
@@ -272,26 +159,24 @@ function openMenu(c: BankCard) {
 }
 
 function addCard() {
-  if (!canSubmit.value || submitting.value) return
-  withLock(async () => {
-    const bank = banks.find((b) => b.code === form.value.bankCode)
-    const num = form.value.cardNumber
-    cards.value.push({
-      id: String(Date.now()),
-      bankName: '中国' + (bank?.name || '银行'),
-      bankCode: form.value.bankCode,
-      cardType: '储蓄卡',
-      first4: num.slice(0, 4),
-      last4: num.slice(-4),
-      holderName: form.value.holderName,
-      bindTime: new Date().toISOString().slice(0, 10),
-      isDefault: cards.value.length === 0,
-      color: 'linear-gradient(135deg, #C9A96E 0%, #B08D4F 100%)',
-    })
-    showAdd.value = false
-    form.value = { holderName: '', cardNumber: '', bankCode: '', phone: '' }
-    uni.showToast({ title: '添加成功', icon: 'none' })
+  if (!canSubmit.value) return
+  const bank = banks.find((b) => b.code === form.value.bankCode)
+  const num = form.value.cardNumber
+  cards.value.push({
+    id: String(Date.now()),
+    bankName: '中国' + (bank?.name || '银行'),
+    bankCode: form.value.bankCode,
+    cardType: '储蓄卡',
+    first4: num.slice(0, 4),
+    last4: num.slice(-4),
+    holderName: form.value.holderName,
+    bindTime: new Date().toISOString().slice(0, 10),
+    isDefault: cards.value.length === 0,
+    color: 'linear-gradient(135deg, #C9A96E 0%, #B08D4F 100%)',
   })
+  showAdd.value = false
+  form.value = { holderName: '', cardNumber: '', bankCode: '', phone: '' }
+  uni.showToast({ title: '添加成功', icon: 'none' })
 }
 </script>
 

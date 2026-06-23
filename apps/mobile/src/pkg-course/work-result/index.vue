@@ -1,29 +1,18 @@
 <script setup lang="ts">
 /** 作业批改结果页 - 从原型 app/courses/work-result/page.tsx 迁移(graded 状态) */
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 作业批改结果, 参数 workId, 返回 WorkResult
-// @todo: 接入 courseApi 获取作业结果
-const _work = { score: 85, comment: '分析到位', submittedAt: '' }
-
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { work: _work }
-})
-
-const work = computed(() => pageData.value?.work ?? {} as any)
-const isEmpty = computed(() => !pageData.value?.work)
+// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
+import { workResult as work } from '@/lib/course-data'
 
 const statusMap = {
   pending: { text: '批改中', color: '#f97316', bg: '#FFF7ED', iconBg: '#FFEDD5', icon: 'clock' },
   graded: { text: '已批改', color: '#16a34a', bg: '#F0FDF4', iconBg: '#DCFCE7', icon: 'check-circle' },
   returned: { text: '已退回', color: '#ef4444', bg: '#FEF2F2', iconBg: '#FEE2E2', icon: 'alert-circle' },
 } as const
-const st = computed(() => statusMap[work.value.status as keyof typeof statusMap] ?? statusMap.pending)
+const st = computed(() => statusMap[work.status])
 
 function scoreColor(score: number, max: number) {
   const p = score / max
@@ -42,141 +31,58 @@ function barColor(score: number, max: number) {
 </script>
 
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无批改结果" />
-  <view v-else class="page">
+  <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
-      <view
-        class="nav-back"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="40"
-          color="#2C2C2C"
-        />
-      </view>
-      <text class="nav-title">
-        作业批改结果
-      </text>
+      <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
+      <text class="nav-title">作业批改结果</text>
       <view class="nav-placeholder" />
     </view>
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <view class="body">
         <!-- 状态卡 -->
-        <view
-          class="status-card"
-          :style="{ background: st.bg }"
-        >
+        <view class="status-card" :style="{ background: st.bg }">
           <view class="status-row">
-            <view
-              class="status-icon"
-              :style="{ background: st.iconBg }"
-            >
-              <app-icon
-                :name="st.icon"
-                :size="36"
-                :color="st.color"
-              />
+            <view class="status-icon" :style="{ background: st.iconBg }">
+              <app-icon :name="st.icon" :size="36" :color="st.color" />
             </view>
             <view class="status-main">
               <view class="status-line">
-                <text
-                  class="status-text"
-                  :style="{ color: st.color }"
-                >
-                  {{ st.text }}
-                </text>
-                <text
-                  v-if="work.status === 'graded' && work.score != null"
-                  class="score"
-                  :style="{ color: scoreColor(work.score, work.maxScore) }"
-                >
-                  {{ work.score }}<text class="score-max">
-                    /{{ work.maxScore }}分
-                  </text>
+                <text class="status-text" :style="{ color: st.color }">{{ st.text }}</text>
+                <text v-if="work.status === 'graded' && work.score != null" class="score" :style="{ color: scoreColor(work.score, work.maxScore) }">
+                  {{ work.score }}<text class="score-max">/{{ work.maxScore }}分</text>
                 </text>
               </view>
-              <text class="status-sub">
-                {{ work.courseTitle }} · {{ work.chapterTitle }}
-              </text>
+              <text class="status-sub">{{ work.courseTitle }} · {{ work.chapterTitle }}</text>
             </view>
           </view>
-          <view
-            v-if="work.status === 'pending'"
-            class="pending-tip"
-          >
+          <view v-if="work.status === 'pending'" class="pending-tip">
             <view class="pending-dot" />
-            <text class="pending-text">
-              教师正在批改中，请耐心等待...
-            </text>
+            <text class="pending-text">教师正在批改中，请耐心等待...</text>
           </view>
         </view>
 
         <!-- 教师评语 -->
-        <view
-          v-if="work.status === 'graded' && work.gradedBy"
-          class="card"
-        >
+        <view v-if="work.status === 'graded' && work.gradedBy" class="card">
           <view class="card-head">
-            <app-icon
-              name="message-square"
-              :size="32"
-              color="#C41E3A"
-            />
-            <text class="card-title">
-              教师评语
-            </text>
+            <app-icon name="message-square" :size="32" color="#C41E3A" />
+            <text class="card-title">教师评语</text>
           </view>
           <view class="card-body">
             <view class="teacher-row">
-              <image
-                class="teacher-avatar"
-                :src="work.gradedBy.avatar"
-                mode="aspectFill"
-              />
+              <image class="teacher-avatar" :src="work.gradedBy.avatar" mode="aspectFill" />
               <view class="teacher-info">
-                <text class="teacher-name">
-                  {{ work.gradedBy.name }}
-                </text>
-                <text class="graded-at">
-                  批改于 {{ work.gradedAt }}
-                </text>
+                <text class="teacher-name">{{ work.gradedBy.name }}</text>
+                <text class="graded-at">批改于 {{ work.gradedAt }}</text>
               </view>
             </view>
-            <text class="comment-text">
-              {{ work.teacherComment }}
-            </text>
-            <view
-              v-if="work.suggestions && work.suggestions.length"
-              class="suggest-box"
-            >
-              <text class="suggest-title">
-                修改建议：
-              </text>
-              <view
-                v-for="(s, i) in work.suggestions"
-                :key="i"
-                class="suggest-item"
-              >
-                <text class="suggest-dot">
-                  •
-                </text>
-                <text class="suggest-text">
-                  {{ s }}
-                </text>
+            <text class="comment-text">{{ work.teacherComment }}</text>
+            <view v-if="work.suggestions && work.suggestions.length" class="suggest-box">
+              <text class="suggest-title">修改建议：</text>
+              <view v-for="(s, i) in work.suggestions" :key="i" class="suggest-item">
+                <text class="suggest-dot">•</text>
+                <text class="suggest-text">{{ s }}</text>
               </view>
             </view>
           </view>
@@ -186,92 +92,40 @@ function barColor(score: number, max: number) {
         <view class="card">
           <view class="card-head card-head-between">
             <view class="card-head-left">
-              <app-icon
-                name="file-text"
-                :size="32"
-                color="#C9A96E"
-              />
-              <text class="card-title">
-                我的提交
-              </text>
+              <app-icon name="file-text" :size="32" color="#C9A96E" />
+              <text class="card-title">我的提交</text>
             </view>
-            <text class="submit-time">
-              {{ work.submittedAt }}
-            </text>
+            <text class="submit-time">{{ work.submittedAt }}</text>
           </view>
           <view class="card-body">
-            <text class="content-text">
-              {{ work.content }}
-            </text>
-            <view
-              v-if="work.images.length"
-              class="img-grid"
-            >
-              <view
-                v-for="(img, i) in work.images"
-                :key="i"
-                class="img-cell"
-              >
-                <image
-                  class="img"
-                  :src="img"
-                  mode="aspectFill"
-                />
-                <view class="img-mask">
-                  <app-icon
-                    name="zoom-in"
-                    :size="36"
-                    color="#ffffff"
-                  />
-                </view>
+            <text class="content-text">{{ work.content }}</text>
+            <view v-if="work.images.length" class="img-grid">
+              <view v-for="(img, i) in work.images" :key="i" class="img-cell">
+                <image class="img" :src="img" mode="aspectFill" />
+                <view class="img-mask"><app-icon name="zoom-in" :size="36" color="#ffffff" /></view>
               </view>
             </view>
           </view>
         </view>
 
         <!-- 评分详情 -->
-        <view
-          v-if="work.status === 'graded' && work.score != null"
-          class="card"
-        >
+        <view v-if="work.status === 'graded' && work.score != null" class="card">
           <view class="card-head">
-            <app-icon
-              name="star"
-              :size="32"
-              color="#C9A96E"
-            />
-            <text class="card-title">
-              评分详情
-            </text>
+            <app-icon name="star" :size="32" color="#C9A96E" />
+            <text class="card-title">评分详情</text>
           </view>
           <view class="card-body">
             <view class="score-center">
-              <text
-                class="score-big"
-                :style="{ color: scoreColor(work.score, work.maxScore) }"
-              >
-                {{ work.score }}
-              </text>
-              <text class="score-full">
-                满分 {{ work.maxScore }} 分
-              </text>
+              <text class="score-big" :style="{ color: scoreColor(work.score, work.maxScore) }">{{ work.score }}</text>
+              <text class="score-full">满分 {{ work.maxScore }} 分</text>
             </view>
             <view class="score-bar">
-              <view
-                class="score-bar-fill"
-                :style="{ width: (work.score / work.maxScore * 100) + '%', background: barColor(work.score, work.maxScore) }"
-              />
+              <view class="score-bar-fill" :style="{ width: (work.score / work.maxScore * 100) + '%', background: barColor(work.score, work.maxScore) }" />
             </view>
             <view class="score-scale">
-              <text class="scale-txt">
-                0
-              </text>
-              <text class="scale-txt">
-                60及格
-              </text>
-              <text class="scale-txt">
-                100
-              </text>
+              <text class="scale-txt">0</text>
+              <text class="scale-txt">60及格</text>
+              <text class="scale-txt">100</text>
             </view>
           </view>
         </view>
@@ -279,22 +133,10 @@ function barColor(score: number, max: number) {
     </scroll-view>
 
     <!-- 底部操作栏 -->
-    <view
-      v-if="work.canResubmit"
-      class="footer"
-    >
-      <view
-        class="footer-btn"
-        @tap="navigateTo('/pkg-course/work-submit/index')"
-      >
-        <app-icon
-          name="refresh-cw"
-          :size="32"
-          color="#ffffff"
-        />
-        <text class="footer-btn-txt">
-          重新提交
-        </text>
+    <view v-if="work.canResubmit" class="footer">
+      <view class="footer-btn" @tap="navigateTo('/pkg-course/work-submit/index')">
+        <app-icon name="refresh-cw" :size="32" color="#ffffff" />
+        <text class="footer-btn-txt">重新提交</text>
       </view>
     </view>
   </view>

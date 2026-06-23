@@ -1,60 +1,22 @@
 <template>
   <view class="page">
-    <app-nav-bar
-      title="绑定账号"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="32"
-      :title-weight="600"
-      :bar-height="112"
-    />
+    <app-nav-bar title="绑定账号" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112" />
 
     <view class="body">
-      <text class="tip">
-        绑定多个账号后可用任意方式登录，至少保留一种绑定方式。
-      </text>
+      <text class="tip">绑定多个账号后可用任意方式登录，至少保留一种绑定方式。</text>
 
-      <view
-        v-for="acc in accounts"
-        :key="acc.type"
-        class="card"
-      >
-        <view
-          class="icon-wrap"
-          :class="acc.status === 'bound' ? 'icon-on' : 'icon-off'"
-        >
-          <app-icon
-            :name="acc.icon"
-            :size="34"
-            :color="acc.status === 'bound' ? '#c41e3a' : '#8a8378'"
-          />
+      <view v-for="acc in accounts" :key="acc.type" class="card">
+        <view class="icon-wrap" :class="acc.status === 'bound' ? 'icon-on' : 'icon-off'">
+          <app-icon :name="acc.icon" :size="34" :color="acc.status === 'bound' ? '#c41e3a' : '#8a8378'" />
         </view>
         <view class="info">
-          <text class="label">
-            {{ acc.label }}
-          </text>
-          <text class="value">
-            {{ acc.status === 'bound' ? (acc.value || '已绑定') : '未绑定' }}
-          </text>
+          <text class="label">{{ acc.label }}</text>
+          <text class="value">{{ acc.status === 'bound' ? (acc.value || '已绑定') : '未绑定' }}</text>
         </view>
-        <text
-          v-if="acc.status === 'bound'"
-          class="unbind"
-          @tap="unbind(acc.type)"
-        >
-          解绑
-        </text>
-        <view
-          v-else
-          class="bind"
-          @tap="bind(acc.type)"
-        >
+        <text v-if="acc.status === 'bound'" class="unbind" @tap="unbind(acc.type)">解绑</text>
+        <view v-else class="bind" @tap="bind(acc.type)">
           <text>绑定</text>
-          <app-icon
-            name="chevron-right"
-            :size="22"
-            color="#c41e3a"
-          />
+          <app-icon name="chevron-right" :size="22" color="#c41e3a" />
         </view>
       </view>
     </view>

@@ -8,6 +8,56 @@
 export interface IconEntry { body: string; kind: 'tool' | 'lucide'; viewBox: string }
 
 export const ICON_REGISTRY: Record<string, IconEntry> = {
+  "calendar-plus": {
+    "body": "<path d=\"M8 2v4\"/><path d=\"M16 2v4\"/><rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M16 19h6\"/><path d=\"M19 16v6\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "car": {
+    "body": "<path d=\"M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2\"/><circle cx=\"7\" cy=\"17\" r=\"2\"/><path d=\"M9 17h6\"/><circle cx=\"17\" cy=\"17\" r=\"2\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "coffee": {
+    "body": "<path d=\"M10 2v2\"/><path d=\"M14 2v2\"/><path d=\"M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1\"/><path d=\"M6 2v2\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "map": {
+    "body": "<path d=\"M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z\"/><path d=\"M15 5.764v15\"/><path d=\"M9 3.236v15\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "calendar-days": {
+    "body": "<path d=\"M8 2v4\"/><path d=\"M16 2v4\"/><rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M8 14h.01\"/><path d=\"M12 14h.01\"/><path d=\"M16 14h.01\"/><path d=\"M8 18h.01\"/><path d=\"M12 18h.01\"/><path d=\"M16 18h.01\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "user-check": {
+    "body": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><polyline points=\"16 11 18 13 22 9\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "arrow-up-down": {
+    "body": "<path d=\"m21 16-4 4-4-4\"/><path d=\"M17 20V4\"/><path d=\"m3 8 4-4 4 4\"/><path d=\"M7 4v16\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "circle-dollar-sign": {
+    "body": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8\"/><path d=\"M12 18V6\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "arrow-down-right": {
+    "body": "<path d=\"m7 7 10 10\"/><path d=\"M17 7v10H7\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "file-warning": {
+    "body": "<path d=\"M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M3 14v2\"/><path d=\"M3 20h.01\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
   "bazi": {
     "body": "<rect x=\"6\" y=\"10\" width=\"8\" height=\"28\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.12\"/> <rect x=\"16\" y=\"10\" width=\"8\" height=\"28\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.12\"/> <rect x=\"26\" y=\"10\" width=\"8\" height=\"28\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.12\"/> <rect x=\"36\" y=\"10\" width=\"8\" height=\"28\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.12\"/> <line x1=\"6\" y1=\"24\" x2=\"14\" y2=\"24\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-opacity=\"0.6\"/> <line x1=\"16\" y1=\"24\" x2=\"24\" y2=\"24\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-opacity=\"0.6\"/> <line x1=\"26\" y1=\"24\" x2=\"34\" y2=\"24\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-opacity=\"0.6\"/> <line x1=\"36\" y1=\"24\" x2=\"44\" y2=\"24\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-opacity=\"0.6\"/>",
     "kind": "tool",
@@ -388,11 +438,6 @@ export const ICON_REGISTRY: Record<string, IconEntry> = {
     "kind": "lucide",
     "viewBox": "0 0 24 24"
   },
-  "bell-off": {
-    "body": "<path d=\"M10.268 21a2 2 0 0 0 3.464 0\"/><path d=\"M17 17H4a1 1 0 0 1-.74-1.673C4.59 13.956 6 12.499 6 8a6 6 0 0 1 .258-1.742\"/><path d=\"m2 2 20 20\"/><path d=\"M8.668 3.01A6 6 0 0 1 18 8c0 2.687.77 4.653 1.707 6.05\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
   "info": {
     "body": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 16v-4\"/><path d=\"M12 8h.01\"/>",
     "kind": "lucide",
@@ -553,15 +598,20 @@ export const ICON_REGISTRY: Record<string, IconEntry> = {
     "kind": "lucide",
     "viewBox": "0 0 24 24"
   },
-  "pin": {
-  "body": "<path d=\"M12 17v5\"/><path d=\"M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z\"/>",
-  "kind": "lucide",
-  "viewBox": "0 0 24 24"
+  "check-check": {
+    "body": "<path d=\"M18 6 7 17l-5-5\"/><path d=\"m22 10-7.5 7.5L13 16\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
   },
-  "pin-off": {
-  "body": "<path d=\"M12 17v5\"/><path d=\"M15 9.34V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H7.89\"/><path d=\"m2 2 20 20\"/><path d=\"M9 9v1.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h11\"/>",
-  "kind": "lucide",
-  "viewBox": "0 0 24 24"
+  "megaphone": {
+    "body": "<path d=\"m3 11 18-5v12L3 14v-3z\"/><path d=\"M11.6 16.8a3 3 0 1 1-5.8-1.6\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "pin": {
+    "body": "<path d=\"M12 17v5\"/><path d=\"M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
   },
   "shield": {
     "body": "<path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\"/>",
@@ -615,6 +665,11 @@ export const ICON_REGISTRY: Record<string, IconEntry> = {
   },
   "video": {
     "body": "<path d=\"m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5\"/><rect x=\"2\" y=\"6\" width=\"14\" height=\"12\" rx=\"2\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "video-off": {
+    "body": "<path d=\"M10.66 6H14a2 2 0 0 1 2 2v2.5l5.248-3.062A.5.5 0 0 1 22 7.87v8.196\"/><path d=\"M16 16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2\"/><path d=\"m2 2 20 20\"/>",
     "kind": "lucide",
     "viewBox": "0 0 24 24"
   },
@@ -693,6 +748,16 @@ export const ICON_REGISTRY: Record<string, IconEntry> = {
     "kind": "lucide",
     "viewBox": "0 0 24 24"
   },
+  "briefcase": {
+    "body": "<path d=\"M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\"/><rect width=\"20\" height=\"14\" x=\"2\" y=\"6\" rx=\"2\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "navigation": {
+    "body": "<polygon points=\"3 11 22 2 13 21 11 13 3 11\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
   "dollar-sign": {
     "body": "<line x1=\"12\" x2=\"12\" y1=\"2\" y2=\"22\"/><path d=\"M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6\"/>",
     "kind": "lucide",
@@ -713,23 +778,13 @@ export const ICON_REGISTRY: Record<string, IconEntry> = {
     "kind": "lucide",
     "viewBox": "0 0 24 24"
   },
+  "pause-circle": {
+    "body": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"10\" x2=\"10\" y1=\"15\" y2=\"9\"/><line x1=\"14\" x2=\"14\" y1=\"15\" y2=\"9\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
   "user-plus": {
     "body": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><line x1=\"19\" x2=\"19\" y1=\"8\" y2=\"14\"/><line x1=\"22\" x2=\"16\" y1=\"11\" y2=\"11\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "user-minus": {
-    "body": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><line x1=\"22\" x2=\"16\" y1=\"11\" y2=\"11\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "user-check": {
-    "body": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><polyline points=\"16 11 18 13 22 9\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "folder-open": {
-    "body": "<path d=\"m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2\"/>",
     "kind": "lucide",
     "viewBox": "0 0 24 24"
   },
@@ -873,6 +928,26 @@ export const ICON_REGISTRY: Record<string, IconEntry> = {
     "kind": "lucide",
     "viewBox": "0 0 24 24"
   },
+  "music": {
+    "body": "<path d=\"M9 18V5l12-2v13\"/><circle cx=\"6\" cy=\"18\" r=\"3\"/><circle cx=\"18\" cy=\"16\" r=\"3\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "upload": {
+    "body": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"17 8 12 3 7 8\"/><line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "hash": {
+    "body": "<line x1=\"4\" x2=\"20\" y1=\"9\" y2=\"9\"/><line x1=\"4\" x2=\"20\" y1=\"15\" y2=\"15\"/><line x1=\"10\" x2=\"8\" y1=\"3\" y2=\"21\"/><line x1=\"16\" x2=\"14\" y1=\"3\" y2=\"21\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
+  "file-video": {
+    "body": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"m10 11 5 3-5 3z\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
+  },
   "lightbulb": {
     "body": "<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"/><path d=\"M9 18h6\"/><path d=\"M10 22h4\"/>",
     "kind": "lucide",
@@ -944,14 +1019,9 @@ export const ICON_REGISTRY: Record<string, IconEntry> = {
     "viewBox": "0 0 24 24"
   },
   "edit-2": {
-  "body": "<path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\"/>",
-  "kind": "lucide",
-  "viewBox": "0 0 24 24"
-  },
-  "edit-3": {
-  "body": "<path d=\"M12 20h9\"/><path d=\"M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z\"/>",
-  "kind": "lucide",
-  "viewBox": "0 0 24 24"
+    "body": "<path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\"/>",
+    "kind": "lucide",
+    "viewBox": "0 0 24 24"
   },
   "store": {
     "body": "<path d=\"M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5\"/><path d=\"M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244\"/><path d=\"M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05\"/>",
@@ -1140,81 +1210,6 @@ export const ICON_REGISTRY: Record<string, IconEntry> = {
   },
   "sun": {
     "body": "<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2\"/><path d=\"M12 20v2\"/><path d=\"m4.93 4.93 1.41 1.41\"/><path d=\"m17.66 17.66 1.41 1.41\"/><path d=\"M2 12h2\"/><path d=\"M20 12h2\"/><path d=\"m6.34 17.66-1.41 1.41\"/><path d=\"m19.07 4.93-1.41 1.41\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "megaphone": {
-    "body": "<path d=\"m3 11 18-5v12L3 14v-3z\"/><path d=\"M11.6 16.8a3 3 0 1 1-5.8-1.6\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "wrench": {
-    "body": "<path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "wand-2": {
-    "body": "<path d=\"m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72\"/><path d=\"m14 7 3 3\"/><path d=\"M5 6v4\"/><path d=\"M19 14v4\"/><path d=\"M10 2v2\"/><path d=\"M7 8H3\"/><path d=\"M21 16h-4\"/><path d=\"M11 3H9\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "hash": {
-    "body": "<line x1=\"4\" x2=\"20\" y1=\"9\" y2=\"9\"/><line x1=\"4\" x2=\"20\" y1=\"15\" y2=\"15\"/><line x1=\"10\" x2=\"8\" y1=\"3\" y2=\"21\"/><line x1=\"16\" x2=\"14\" y1=\"3\" y2=\"21\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "bold": {
-    "body": "<path d=\"M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "italic": {
-    "body": "<line x1=\"19\" x2=\"10\" y1=\"4\" y2=\"4\"/><line x1=\"14\" x2=\"5\" y1=\"20\" y2=\"20\"/><line x1=\"15\" x2=\"9\" y1=\"4\" y2=\"20\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "quote": {
-    "body": "<path d=\"M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z\"/><path d=\"M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "upload": {
-    "body": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"17 8 12 3 7 8\"/><line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "link": {
-    "body": "<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "zoom-out": {
-    "body": "<circle cx=\"11\" cy=\"11\" r=\"8\"/><line x1=\"21\" x2=\"16.65\" y1=\"21\" y2=\"16.65\"/><line x1=\"8\" x2=\"14\" y1=\"11\" y2=\"11\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "rotate-cw": {
-    "body": "<path d=\"M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8\"/><path d=\"M21 3v5h-5\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "grid-3x3": {
-    "body": "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/><path d=\"M9 3v18\"/><path d=\"M15 3v18\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "scan": {
-    "body": "<path d=\"M3 7V5a2 2 0 0 1 2-2h2\"/><path d=\"M17 3h2a2 2 0 0 1 2 2v2\"/><path d=\"M21 17v2a2 2 0 0 1-2 2h-2\"/><path d=\"M7 21H5a2 2 0 0 1-2-2v-2\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "hand": {
-    "body": "<path d=\"M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2\"/><path d=\"M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2\"/><path d=\"M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8\"/><path d=\"M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15\"/>",
-    "kind": "lucide",
-    "viewBox": "0 0 24 24"
-  },
-  "paperclip": {
-    "body": "<path d=\"m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48\"/>",
     "kind": "lucide",
     "viewBox": "0 0 24 24"
   }

@@ -6,7 +6,6 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
-import { useSubmitLock } from '@/composables/use-submit-lock'
 
 interface QItem {
   id: string; title: string; content: string; asker: string; avatar: string
@@ -22,161 +21,60 @@ const questions = ref<QItem[]>([
 const showNew = ref(false)
 const newTitle = ref('')
 const newContent = ref('')
-const { submitting, withLock } = useSubmitLock()
 
 function postQuestion() {
-  if ((!newTitle.value.trim() || !newContent.value.trim()) || submitting.value) return
-  withLock(async () => {
-    await new Promise((r) => setTimeout(r, 500))
+  if (newTitle.value.trim() && newContent.value.trim()) {
     showNew.value = false
     newTitle.value = ''
     newContent.value = ''
     uni.showToast({ title: '问题已提交', icon: 'success' })
-  })
+  }
 }
 </script>
 
 <template>
   <view class="ca-page">
     <view class="ca-nav">
-      <view
-        class="ca-nav-btn"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="36"
-          color="#2C2C2C"
-        />
-      </view>
-      <text class="ca-nav-title">
-        咨询问答
-      </text>
+      <view class="ca-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#2C2C2C" /></view>
+      <text class="ca-nav-title">咨询问答</text>
       <view class="ca-nav-btn" />
     </view>
 
     <view class="ca-body">
-      <view
-        class="ca-ask-btn"
-        @tap="showNew = true"
-      >
-        <app-icon
-          name="message-square"
-          :size="28"
-          color="#ffffff"
-        />
-        <text class="ca-ask-btn-t">
-          提出问题
-        </text>
+      <view class="ca-ask-btn" @tap="showNew = true">
+        <app-icon name="message-square" :size="28" color="#ffffff" />
+        <text class="ca-ask-btn-t">提出问题</text>
       </view>
 
-      <view
-        v-if="showNew"
-        class="ca-form"
-      >
-        <input
-          v-model="newTitle"
-          class="ca-input"
-          placeholder="问题标题"
-          placeholder-class="ca-ph"
-        >
-        <textarea
-          v-model="newContent"
-          class="ca-textarea"
-          placeholder="详细描述您的问题..."
-          placeholder-class="ca-ph"
-        />
+      <view v-if="showNew" class="ca-form">
+        <input v-model="newTitle" class="ca-input" placeholder="问题标题" placeholder-class="ca-ph" />
+        <textarea v-model="newContent" class="ca-textarea" placeholder="详细描述您的问题..." placeholder-class="ca-ph" />
         <view class="ca-form-actions">
-          <view
-            class="ca-form-cancel"
-            @tap="showNew = false"
-          >
-            <text class="ca-form-cancel-t">
-              取消
-            </text>
-          </view>
-          <view
-            class="ca-form-send"
-            :class="{ 'is-disabled': !newTitle.trim() || !newContent.trim() || submitting }"
-            @tap="postQuestion"
-          >
-            <app-icon
-              name="send"
-              :size="26"
-              color="#ffffff"
-            />
-            <text class="ca-form-send-t">
-              {{ submitting ? '发送中...' : '发送' }}
-            </text>
+          <view class="ca-form-cancel" @tap="showNew = false"><text class="ca-form-cancel-t">取消</text></view>
+          <view class="ca-form-send" :class="{ 'is-disabled': !newTitle.trim() || !newContent.trim() }" @tap="postQuestion">
+            <app-icon name="send" :size="26" color="#ffffff" />
+            <text class="ca-form-send-t">发送</text>
           </view>
         </view>
       </view>
 
-      <text class="ca-section">
-        热门问题
-      </text>
+      <text class="ca-section">热门问题</text>
       <view class="ca-list">
-        <view
-          v-for="q in questions"
-          :key="q.id"
-          class="ca-card"
-          @tap="toastComingSoon"
-        >
+        <view v-for="q in questions" :key="q.id" class="ca-card" @tap="toastComingSoon">
           <view class="ca-card-top">
-            <image
-              class="ca-avatar"
-              :src="q.avatar"
-              mode="aspectFill"
-            />
+            <image class="ca-avatar" :src="q.avatar" mode="aspectFill" />
             <view class="ca-card-info">
-              <text class="ca-card-title">
-                {{ q.title }}
-              </text>
-              <text class="ca-card-desc">
-                {{ q.content }}
-              </text>
+              <text class="ca-card-title">{{ q.title }}</text>
+              <text class="ca-card-desc">{{ q.content }}</text>
             </view>
-            <view
-              v-if="q.status === 'unanswered'"
-              class="ca-badge"
-            >
-              <text class="ca-badge-t">
-                待答
-              </text>
-            </view>
+            <view v-if="q.status === 'unanswered'" class="ca-badge"><text class="ca-badge-t">待答</text></view>
           </view>
           <view class="ca-card-meta">
-            <text class="ca-meta-asker">
-              {{ q.asker }} • {{ q.time }}
-            </text>
+            <text class="ca-meta-asker">{{ q.asker }} • {{ q.time }}</text>
             <view class="ca-meta-stats">
-              <view class="ca-stat">
-                <app-icon
-                  name="eye"
-                  :size="22"
-                  color="#999999"
-                /><text class="ca-stat-t">
-                  {{ q.views }}
-                </text>
-              </view>
-              <view class="ca-stat">
-                <app-icon
-                  name="thumbs-up"
-                  :size="22"
-                  color="#999999"
-                /><text class="ca-stat-t">
-                  {{ q.likes }}
-                </text>
-              </view>
-              <view class="ca-stat">
-                <app-icon
-                  name="message-square"
-                  :size="22"
-                  color="#999999"
-                /><text class="ca-stat-t">
-                  {{ q.answers }}
-                </text>
-              </view>
+              <view class="ca-stat"><app-icon name="eye" :size="22" color="#999999" /><text class="ca-stat-t">{{ q.views }}</text></view>
+              <view class="ca-stat"><app-icon name="thumbs-up" :size="22" color="#999999" /><text class="ca-stat-t">{{ q.likes }}</text></view>
+              <view class="ca-stat"><app-icon name="message-square" :size="22" color="#999999" /><text class="ca-stat-t">{{ q.answers }}</text></view>
             </view>
           </view>
         </view>

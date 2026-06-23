@@ -2,74 +2,42 @@
   <view class="settings-page">
     <!-- 顶部 -->
     <view class="nav-bar">
-      <view
-        class="nav-back"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="40"
-          color="#1a1a1a"
-        />
+      <view class="nav-back" @tap="goBack">
+        <app-icon name="arrow-left" :size="40" color="#1a1a1a" />
       </view>
-      <text class="nav-title">
-        直播设置
-      </text>
+      <text class="nav-title">直播设置</text>
     </view>
 
     <view class="page-body">
       <!-- 直播间信息 -->
       <view class="section">
-        <text class="section-label">
-          直播间信息
-        </text>
+        <text class="section-label">直播间信息</text>
         <view class="card card-pad">
           <!-- 封面 -->
           <view class="cover-row">
             <view class="cover-wrap">
-              <image
-                class="cover-img"
-                :src="profile.cover"
-                mode="aspectFill"
-              />
+              <image class="cover-img" :src="profile.cover" mode="aspectFill" />
               <view class="cover-upload">
-                <app-icon
-                  name="upload"
-                  :size="24"
-                  color="#fff"
-                />
+                <app-icon name="upload" :size="24" color="#fff" />
               </view>
             </view>
             <view class="cover-info">
-              <text class="cover-title">
-                直播间封面
-              </text>
-              <text class="cover-desc">
-                建议 16:9 比例，不超过 2MB
-              </text>
+              <text class="cover-title">直播间封面</text>
+              <text class="cover-desc">建议 16:9 比例，不超过 2MB</text>
             </view>
           </view>
 
           <!-- 名称 -->
           <view class="field">
-            <text class="field-label">
-              直播间名称
-            </text>
-            <input
-              v-model="profile.name"
-              class="field-input"
-            >
+            <text class="field-label">直播间名称</text>
+            <input v-model="profile.name" class="field-input" />
           </view>
 
           <!-- 简介 -->
           <view class="field">
             <view class="field-head">
-              <text class="field-label">
-                直播间简介
-              </text>
-              <text class="field-count">
-                {{ profile.desc.length }}/100
-              </text>
+              <text class="field-label">直播间简介</text>
+              <text class="field-count">{{ profile.desc.length }}/100</text>
             </view>
             <textarea
               v-model="profile.desc"
@@ -83,28 +51,14 @@
 
       <!-- 通知设置 -->
       <view class="section">
-        <text class="section-label">
-          通知设置
-        </text>
+        <text class="section-label">通知设置</text>
         <view class="card card-list">
-          <view
-            v-for="n in notifyKeys"
-            :key="n.key"
-            class="toggle-row"
-          >
+          <view v-for="n in notifyKeys" :key="n.key" class="toggle-row">
             <view class="toggle-info">
-              <app-icon
-                name="bell"
-                :size="32"
-                color="#999"
-              />
+              <app-icon name="bell" :size="32" color="#999" />
               <view class="toggle-text">
-                <text class="toggle-title">
-                  {{ n.label }}
-                </text>
-                <text class="toggle-desc">
-                  {{ n.desc }}
-                </text>
+                <text class="toggle-title">{{ n.label }}</text>
+                <text class="toggle-desc">{{ n.desc }}</text>
               </view>
             </view>
             <view
@@ -120,28 +74,14 @@
 
       <!-- 隐私与互动 -->
       <view class="section">
-        <text class="section-label">
-          隐私与互动
-        </text>
+        <text class="section-label">隐私与互动</text>
         <view class="card card-list">
-          <view
-            v-for="p in privacyKeys"
-            :key="p.key"
-            class="toggle-row"
-          >
+          <view v-for="p in privacyKeys" :key="p.key" class="toggle-row">
             <view class="toggle-info">
-              <app-icon
-                name="shield"
-                :size="32"
-                color="#999"
-              />
+              <app-icon name="shield" :size="32" color="#999" />
               <view class="toggle-text">
-                <text class="toggle-title">
-                  {{ p.label }}
-                </text>
-                <text class="toggle-desc">
-                  {{ p.desc }}
-                </text>
+                <text class="toggle-title">{{ p.label }}</text>
+                <text class="toggle-desc">{{ p.desc }}</text>
               </view>
             </view>
             <view
@@ -157,49 +97,21 @@
 
       <!-- 更多设置 -->
       <view class="section">
-        <text class="section-label">
-          更多设置
-        </text>
+        <text class="section-label">更多设置</text>
         <view class="card card-list">
-          <view
-            class="entry-row"
-            @tap="goTeam"
-          >
+          <view class="entry-row" @tap="goTeam">
             <view class="entry-left">
-              <app-icon
-                name="video"
-                :size="32"
-                color="#999"
-              />
-              <text class="entry-text">
-                团队管理
-              </text>
+              <app-icon name="video" :size="32" color="#999" />
+              <text class="entry-text">团队管理</text>
             </view>
-            <app-icon
-              name="chevron-right"
-              :size="32"
-              color="#999"
-            />
+            <app-icon name="chevron-right" :size="32" color="#999" />
           </view>
-          <view
-            class="entry-row"
-            @tap="goEarnings"
-          >
+          <view class="entry-row" @tap="goEarnings">
             <view class="entry-left">
-              <app-icon
-                name="wallet"
-                :size="32"
-                color="#999"
-              />
-              <text class="entry-text">
-                收益设置
-              </text>
+              <app-icon name="wallet" :size="32" color="#999" />
+              <text class="entry-text">收益设置</text>
             </view>
-            <app-icon
-              name="chevron-right"
-              :size="32"
-              color="#999"
-            />
+            <app-icon name="chevron-right" :size="32" color="#999" />
           </view>
         </view>
       </view>
@@ -212,13 +124,7 @@
         :class="{ 'save-btn-saved': saved }"
         @tap="handleSave"
       >
-        <app-icon
-          v-if="saving"
-          name="loader-2"
-          :size="32"
-          color="#fff"
-          class="spin"
-        />
+        <app-icon v-if="saving" name="loader-2" :size="32" color="#fff" class="spin" />
         <text>{{ saved ? '已保存' : saving ? '保存中...' : '保存设置' }}</text>
       </view>
     </view>

@@ -1,30 +1,11 @@
 <template>
-  <view v-if="isLoading" class="reviews-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="80rpx" radius="16rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无评价" />
-  <view v-else class="reviews-page">
+  <view class="reviews-page">
     <!-- 顶部 -->
     <view class="nav-bar">
-      <view
-        class="nav-back"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="40"
-          color="#1a1a1a"
-        />
+      <view class="nav-back" @tap="goBack">
+        <app-icon name="arrow-left" :size="40" color="#1a1a1a" />
       </view>
-      <text class="nav-title">
-        直播评价
-      </text>
+      <text class="nav-title">直播评价</text>
     </view>
 
     <view class="page-body">
@@ -32,9 +13,7 @@
       <view class="stat-card">
         <view class="stat-row">
           <view class="stat-summary">
-            <text class="avg-num">
-              {{ avgRating }}
-            </text>
+            <text class="avg-num">{{ avgRating }}</text>
             <view class="star-row">
               <app-icon
                 v-for="s in 5"
@@ -45,45 +24,23 @@
                 :fill="s <= Math.round(Number(avgRating)) ? '#C9A96E' : 'none'"
               />
             </view>
-            <text class="stat-total">
-              {{ totalCount }} 条评价
-            </text>
+            <text class="stat-total">{{ totalCount }} 条评价</text>
           </view>
           <view class="dist-list">
-            <view
-              v-for="d in dist"
-              :key="d.star"
-              class="dist-item"
-            >
-              <app-icon
-                name="star"
-                :size="24"
-                color="#C9A96E"
-                fill="#C9A96E"
-              />
-              <text class="dist-star">
-                {{ d.star }}
-              </text>
+            <view v-for="d in dist" :key="d.star" class="dist-item">
+              <app-icon name="star" :size="24" color="#C9A96E" fill="#C9A96E" />
+              <text class="dist-star">{{ d.star }}</text>
               <view class="dist-bar">
-                <view
-                  class="dist-bar-fill"
-                  :style="{ width: d.pct + '%' }"
-                />
+                <view class="dist-bar-fill" :style="{ width: d.pct + '%' }" />
               </view>
-              <text class="dist-pct">
-                {{ d.pct }}%
-              </text>
+              <text class="dist-pct">{{ d.pct }}%</text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 筛选胶囊 -->
-      <scroll-view
-        scroll-x
-        class="filter-scroll"
-        :show-scrollbar="false"
-      >
+      <scroll-view scroll-x class="filter-scroll" :show-scrollbar="false">
         <view class="filter-row">
           <view
             v-for="f in filters"
@@ -98,23 +55,11 @@
       </scroll-view>
 
       <!-- 评价列表 -->
-      <view
-        v-if="filtered.length === 0"
-        class="empty-box"
-      >
-        <app-icon
-          name="message-square"
-          :size="96"
-          color="#cbb8a8"
-        />
-        <text class="empty-text">
-          暂无符合条件的评价
-        </text>
+      <view v-if="filtered.length === 0" class="empty-box">
+        <app-icon name="message-square" :size="96" color="#cbb8a8" />
+        <text class="empty-text">暂无符合条件的评价</text>
       </view>
-      <view
-        v-else
-        class="review-list"
-      >
+      <view v-else class="review-list">
         <view
           v-for="review in filtered"
           :key="review.id"
@@ -124,13 +69,9 @@
           <!-- 用户信息 -->
           <view class="review-head">
             <view class="review-user">
-              <view class="user-avatar">
-                {{ review.user[0] }}
-              </view>
+              <view class="user-avatar">{{ review.user[0] }}</view>
               <view>
-                <text class="user-name">
-                  {{ review.user }}
-                </text>
+                <text class="user-name">{{ review.user }}</text>
                 <view class="star-row">
                   <app-icon
                     v-for="s in 5"
@@ -143,36 +84,20 @@
                 </view>
               </view>
             </view>
-            <text class="review-time">
-              {{ review.time }}
-            </text>
+            <text class="review-time">{{ review.time }}</text>
           </view>
 
-          <text class="review-content">
-            {{ review.content }}
-          </text>
-          <text class="review-live">
-            场次：{{ review.live }}
-          </text>
+          <text class="review-content">{{ review.content }}</text>
+          <text class="review-live">场次：{{ review.live }}</text>
 
           <!-- 已有回复 -->
-          <view
-            v-if="replies[review.id]"
-            class="reply-box"
-          >
-            <text class="reply-label">
-              我的回复：
-            </text>
-            <text class="reply-text">
-              {{ replies[review.id] }}
-            </text>
+          <view v-if="replies[review.id]" class="reply-box">
+            <text class="reply-label">我的回复：</text>
+            <text class="reply-text">{{ replies[review.id] }}</text>
           </view>
 
           <!-- 回复输入框 -->
-          <view
-            v-if="replyId === review.id"
-            class="reply-editor"
-          >
+          <view v-if="replyId === review.id" class="reply-editor">
             <textarea
               v-model="replyText"
               class="reply-input"
@@ -180,52 +105,20 @@
               placeholder-class="reply-ph"
             />
             <view class="reply-actions">
-              <view
-                class="reply-btn reply-btn-cancel"
-                @tap="cancelReply"
-              >
-                取消
-              </view>
-              <view
-                class="reply-btn reply-btn-submit"
-                :class="{ disabled: submitting }"
-                @tap="submitReply(review.id)"
-              >
-                {{ submitting ? '发布中...' : '发布回复' }}
-              </view>
+              <view class="reply-btn reply-btn-cancel" @tap="cancelReply">取消</view>
+              <view class="reply-btn reply-btn-submit" @tap="submitReply(review.id)">发布回复</view>
             </view>
           </view>
 
           <!-- 操作区 -->
-          <view
-            v-else
-            class="review-ops"
-          >
-            <view
-              class="op-btn"
-              @tap="startReply(review.id)"
-            >
-              <app-icon
-                name="message-square"
-                :size="28"
-                color="#999"
-              />
-              <text class="op-text">
-                {{ replies[review.id] ? '修改回复' : '回复' }}
-              </text>
+          <view v-else class="review-ops">
+            <view class="op-btn" @tap="startReply(review.id)">
+              <app-icon name="message-square" :size="28" color="#999" />
+              <text class="op-text">{{ replies[review.id] ? '修改回复' : '回复' }}</text>
             </view>
             <view class="op-btn">
-              <app-icon
-                name="flag"
-                :size="28"
-                :color="review.flagged ? '#C9A96E' : '#999'"
-              />
-              <text
-                class="op-text"
-                :class="{ 'op-text-flag': review.flagged }"
-              >
-                标记
-              </text>
+              <app-icon name="flag" :size="28" :color="review.flagged ? '#C9A96E' : '#999'" />
+              <text class="op-text" :class="{ 'op-text-flag': review.flagged }">标记</text>
             </view>
           </view>
         </view>
@@ -237,19 +130,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-import { useSubmitLock } from '@/composables/use-submit-lock'
 import { goBack } from '@/utils/router'
 import { liveReviewFilters, liveReviewDist, liveReviews } from '@/lib/live-data'
-
-const isLoading = ref(false)
-const loadError = ref<string | null>(null)
-const isEmpty = computed(() => false)
-function reload() {
-  loadError.value = null
-}
 
 const filters = liveReviewFilters
 const dist = liveReviewDist
@@ -258,8 +140,6 @@ const reviews = liveReviews
 const filter = ref('all')
 const replyId = ref<string | null>(null)
 const replyText = ref('')
-const { submitting, withLock } = useSubmitLock()
-
 const replies = ref<Record<string, string>>(
   Object.fromEntries(reviews.filter((r) => r.reply).map((r) => [r.id, r.reply as string])),
 )
@@ -285,12 +165,10 @@ function cancelReply() {
   replyText.value = ''
 }
 function submitReply(id: string) {
-  if (!replyText.value.trim() || submitting.value) return
-  withLock(async () => {
-    replies.value = { ...replies.value, [id]: replyText.value }
-    replyId.value = null
-    replyText.value = ''
-  })
+  if (!replyText.value.trim()) return
+  replies.value = { ...replies.value, [id]: replyText.value }
+  replyId.value = null
+  replyText.value = ''
 }
 </script>
 
@@ -556,9 +434,6 @@ function submitReply(id: string) {
 .reply-btn-submit {
   color: #fff;
   background: #C41E3A;
-}
-.reply-btn-submit.disabled {
-  opacity: 0.5;
 }
 
 /* 操作区 */

@@ -1,23 +1,11 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view
-      class="nav"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
-      <view
-        class="nav-btn"
-        @tap="go('/discover')"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="40"
-          color="#1A1A1A"
-        />
+    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="nav-btn" @tap="go('/discover')">
+        <app-icon name="arrow-left" :size="40" color="#1A1A1A" />
       </view>
-      <text class="nav-title">
-        活动日历
-      </text>
+      <text class="nav-title">活动日历</text>
       <view class="nav-btn" />
     </view>
 
@@ -25,65 +13,30 @@
 
     <!-- 月份选择器 -->
     <view class="month-bar">
-      <view
-        class="month-btn"
-        @tap="changeMonth(-1)"
-      >
-        <app-icon
-          name="chevron-left"
-          :size="40"
-          color="#1A1A1A"
-        />
+      <view class="month-btn" @tap="changeMonth(-1)">
+        <app-icon name="chevron-left" :size="40" color="#1A1A1A" />
       </view>
       <view class="month-center">
-        <app-icon
-          name="calendar"
-          :size="32"
-          color="#C41E3A"
-        />
-        <text class="month-label">
-          {{ year }}年{{ month }}月
-        </text>
+        <app-icon name="calendar" :size="32" color="#C41E3A" />
+        <text class="month-label">{{ year }}年{{ month }}月</text>
       </view>
-      <view
-        class="month-btn"
-        @tap="changeMonth(1)"
-      >
-        <app-icon
-          name="chevron-right"
-          :size="40"
-          color="#1A1A1A"
-        />
+      <view class="month-btn" @tap="changeMonth(1)">
+        <app-icon name="chevron-right" :size="40" color="#1A1A1A" />
       </view>
     </view>
 
     <!-- 图例 -->
     <view class="legend">
-      <view
-        v-for="t in legendTypes"
-        :key="t.type"
-        class="legend-item"
-      >
-        <view
-          class="legend-dot"
-          :style="{ background: t.color }"
-        />
-        <text class="legend-label">
-          {{ t.label }}
-        </text>
+      <view v-for="t in legendTypes" :key="t.type" class="legend-item">
+        <view class="legend-dot" :style="{ background: t.color }" />
+        <text class="legend-label">{{ t.label }}</text>
       </view>
     </view>
 
     <!-- 星期标题 -->
     <view class="weekdays">
-      <view
-        v-for="d in weekdays"
-        :key="d"
-        class="weekday"
-      >
-        <text class="weekday-txt">
-          {{ d }}
-        </text>
+      <view v-for="d in weekdays" :key="d" class="weekday">
+        <text class="weekday-txt">{{ d }}</text>
       </view>
     </view>
 
@@ -99,33 +52,12 @@
         <text
           class="cal-day"
           :class="{ dim: !cell.isCurrentMonth, today: cell.date === today && cell.isCurrentMonth }"
-        >
-          {{ cell.day }}
-        </text>
-        <view
-          v-if="cell.marker"
-          class="cal-dots"
-        >
-          <view
-            v-if="cell.marker.hasFlashSale"
-            class="cal-dot"
-            :style="{ background: typeColor.flash_sale }"
-          />
-          <view
-            v-if="cell.marker.hasGroupBuy"
-            class="cal-dot"
-            :style="{ background: typeColor.group_buy }"
-          />
-          <view
-            v-if="cell.marker.hasLive"
-            class="cal-dot"
-            :style="{ background: typeColor.live }"
-          />
-          <view
-            v-if="cell.marker.hasCourse"
-            class="cal-dot"
-            :style="{ background: typeColor.course }"
-          />
+        >{{ cell.day }}</text>
+        <view v-if="cell.marker" class="cal-dots">
+          <view v-if="cell.marker.hasFlashSale" class="cal-dot" :style="{ background: typeColor.flash_sale }" />
+          <view v-if="cell.marker.hasGroupBuy" class="cal-dot" :style="{ background: typeColor.group_buy }" />
+          <view v-if="cell.marker.hasLive" class="cal-dot" :style="{ background: typeColor.live }" />
+          <view v-if="cell.marker.hasCourse" class="cal-dot" :style="{ background: typeColor.course }" />
         </view>
       </view>
     </view>
@@ -133,86 +65,39 @@
     <!-- 选中日期的活动列表 -->
     <view class="events">
       <block v-if="selectedDate">
-        <text class="events-title">
-          {{ selectedDate.replace(/-/g, '/') }} 的活动
-        </text>
-        <view
-          v-if="selectedEvents.length > 0"
-          class="events-list"
-        >
+        <text class="events-title">{{ selectedDate.replace(/-/g, '/') }} 的活动</text>
+        <view v-if="selectedEvents.length > 0" class="events-list">
           <view
             v-for="ev in selectedEvents"
             :key="ev.id"
             class="event-item"
             @tap="go(getEventLink(ev))"
           >
-            <view
-              class="event-icon"
-              :style="{ background: typeColor[ev.type] + '20' }"
-            >
-              <app-icon
-                :name="typeIcon[ev.type]"
-                :size="40"
-                :color="typeColor[ev.type]"
-              />
+            <view class="event-icon" :style="{ background: typeColor[ev.type] + '20' }">
+              <app-icon :name="typeIcon[ev.type]" :size="40" :color="typeColor[ev.type]" />
             </view>
             <view class="event-info">
               <view class="event-top">
-                <text class="event-title">
-                  {{ ev.title }}
-                </text>
-                <view
-                  class="event-badge"
-                  :class="{ on: ev.status === 'ongoing' }"
-                >
-                  <text
-                    class="event-badge-txt"
-                    :class="{ on: ev.status === 'ongoing' }"
-                  >
-                    {{ statusText(ev.status) }}
-                  </text>
+                <text class="event-title">{{ ev.title }}</text>
+                <view class="event-badge" :class="{ on: ev.status === 'ongoing' }">
+                  <text class="event-badge-txt" :class="{ on: ev.status === 'ongoing' }">{{ statusText(ev.status) }}</text>
                 </view>
               </view>
               <view class="event-meta">
-                <text class="event-meta-txt">
-                  {{ ev.timeRange }}
-                </text>
-                <text
-                  v-if="ev.extra"
-                  class="event-meta-txt"
-                >
-                  | {{ ev.extra }}
-                </text>
+                <text class="event-meta-txt">{{ ev.timeRange }}</text>
+                <text v-if="ev.extra" class="event-meta-txt">| {{ ev.extra }}</text>
               </view>
             </view>
-            <app-icon
-              name="chevron-right"
-              :size="28"
-              color="#999"
-            />
+            <app-icon name="chevron-right" :size="28" color="#999" />
           </view>
         </view>
-        <view
-          v-else
-          class="empty"
-        >
-          <app-icon
-            name="calendar"
-            :size="96"
-            color="#CCCCCC"
-          />
-          <text class="empty-txt">
-            该日期暂无活动
-          </text>
+        <view v-else class="empty">
+          <app-icon name="calendar" :size="96" color="#CCCCCC" />
+          <text class="empty-txt">该日期暂无活动</text>
         </view>
       </block>
-      <view
-        v-else
-        class="empty"
-      >
-        <text class="empty-txt">
-          点击日期查看活动详情
-        </text>
+      <view v-else class="empty">
+        <text class="empty-txt">点击日期查看活动详情</text>
       </view>
     </view>
   </view>

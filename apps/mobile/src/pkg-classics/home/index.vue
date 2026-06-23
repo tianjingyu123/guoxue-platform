@@ -1,58 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref } from 'vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
 import {
-  libraryStats, filterTypes, fmtReads, classicsApi,
+  libraryStats, categories, todayFeature, lastReading, weeklyMinutes,
+  bookLists, rankingData, audioBooks, featuredBooks, filterTypes, fmtReads,
 } from '@/lib/classics-data'
-import type { CategoryTile, BookListItem, RankItem, AudioItem, FeaturedItem } from '@/lib/classics-data'
-
-const isLoading = ref(true)
-const loadError = ref<string | null>(null)
-
-const categories = ref<CategoryTile[]>([])
-const todayFeature = ref<any>({})
-const lastReading = ref<any>({})
-const weeklyMinutes = ref(0)
-const bookLists = ref<BookListItem[]>([])
-const rankingData = ref<RankItem[]>([])
-const audioBooks = ref<AudioItem[]>([])
-const featuredBooks = ref<FeaturedItem[]>([])
-
-const isEmpty = computed(() =>
-  !categories.value || categories.value.length === 0
-)
-
-async function fetchData() {
-  isLoading.value = true
-  loadError.value = null
-  try {
-    const data = await classicsApi.getHomeData()
-    if (data) {
-      categories.value = data.categories || []
-      todayFeature.value = data.todayFeature || {}
-      lastReading.value = data.lastReading || {}
-      weeklyMinutes.value = data.weeklyMinutes ?? 0
-      bookLists.value = data.bookLists || []
-      rankingData.value = data.rankingData || []
-      audioBooks.value = data.audioBooks || []
-      featuredBooks.value = data.featuredBooks || []
-    }
-  } catch {
-    loadError.value = '加载失败'
-  } finally {
-    isLoading.value = false
-  }
-}
-
-onMounted(() => { fetchData() })
-
-function reload() {
-  fetchData()
-}
 
 const activeType = ref('all')
 
@@ -92,42 +45,17 @@ function onRefreshRanking() {}
 </script>
 
 <template>
-  <view v-if="isLoading" class="ch-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
-  <view v-else class="ch-page">
+  <view class="ch-page">
     <!-- 顶部导航 - 苹果式半透明 -->
     <view class="ch-topbar">
       <view class="ch-statusbar" />
       <view class="ch-topbar-inner">
-        <view
-          class="ch-circle-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="44"
-            color="#2c2c2c"
-          />
+        <view class="ch-circle-btn" @tap="goBack">
+          <app-icon name="arrow-left" :size="44" color="#2c2c2c" />
         </view>
-        <text class="ch-topbar-title">
-          古籍馆
-        </text>
-        <view
-          class="ch-circle-btn"
-          @tap="goSearch"
-        >
-          <app-icon
-            name="search"
-            :size="44"
-            color="#2c2c2c"
-          />
+        <text class="ch-topbar-title">古籍馆</text>
+        <view class="ch-circle-btn" @tap="goSearch">
+          <app-icon name="search" :size="44" color="#2c2c2c" />
         </view>
       </view>
     </view>
@@ -135,67 +63,34 @@ function onRefreshRanking() {}
     <view class="ch-main">
       <!-- Hero 大标题 -->
       <view class="ch-hero">
-        <text class="ch-hero-kicker">
-          中华典籍 · 经史子集
-        </text>
-        <text class="ch-hero-title">
-          千年典籍，尽收一馆
-        </text>
+        <text class="ch-hero-kicker">中华典籍 · 经史子集</text>
+        <text class="ch-hero-title">千年典籍，尽收一馆</text>
         <view class="ch-hero-stats">
-          <view
-            v-for="(s, i) in libraryStats"
-            :key="s.label"
-            class="ch-stat"
-          >
-            <view
-              v-if="i > 0"
-              class="ch-stat-dot"
-            />
-            <text class="ch-stat-val">
-              {{ s.value }}
-            </text>
-            <text class="ch-stat-label">
-              {{ s.label }}
-            </text>
+          <view v-for="(s, i) in libraryStats" :key="s.label" class="ch-stat">
+            <view v-if="i > 0" class="ch-stat-dot" />
+            <text class="ch-stat-val">{{ s.value }}</text>
+            <text class="ch-stat-label">{{ s.label }}</text>
           </view>
         </view>
       </view>
 
       <!-- 搜索栏 -->
       <view class="ch-sec">
-        <view
-          class="ch-searchbar"
-          @tap="goSearch"
-        >
-          <app-icon
-            name="search"
-            :size="36"
-            color="#999999"
-          />
-          <text class="ch-search-ph">
-            搜书名、作者、朝代或门类
-          </text>
+        <view class="ch-searchbar" @tap="goSearch">
+          <app-icon name="search" :size="36" color="#999999" />
+          <text class="ch-search-ph">搜书名、作者、朝代或门类</text>
         </view>
       </view>
 
       <!-- 今日导读 -->
       <view class="ch-sec">
-        <view
-          class="ch-today"
-          @tap="goDetail(todayFeature.id)"
-        >
+        <view class="ch-today" @tap="goDetail(todayFeature.id)">
           <view class="ch-today-bg" />
           <view class="ch-today-inner">
             <view>
-              <text class="ch-today-tag">
-                {{ todayFeature.tagline }}
-              </text>
-              <text class="ch-today-quote">
-                {{ todayFeature.quote }}
-              </text>
-              <text class="ch-today-desc">
-                {{ todayFeature.desc }}
-              </text>
+              <text class="ch-today-tag">{{ todayFeature.tagline }}</text>
+              <text class="ch-today-quote">{{ todayFeature.quote }}</text>
+              <text class="ch-today-desc">{{ todayFeature.desc }}</text>
             </view>
             <view class="ch-today-foot">
               <FlatCover
@@ -207,21 +102,11 @@ function onRefreshRanking() {}
                 class="ch-today-cover"
               />
               <view class="ch-today-meta">
-                <text class="ch-today-name">
-                  {{ todayFeature.title }}
-                </text>
-                <text class="ch-today-author">
-                  {{ todayFeature.author }}
-                </text>
+                <text class="ch-today-name">{{ todayFeature.title }}</text>
+                <text class="ch-today-author">{{ todayFeature.author }}</text>
                 <view class="ch-today-btn">
-                  <app-icon
-                    name="book-open"
-                    :size="32"
-                    color="#6f4521"
-                  />
-                  <text class="ch-today-btn-txt">
-                    立即阅读
-                  </text>
+                  <app-icon name="book-open" :size="32" color="#6f4521" />
+                  <text class="ch-today-btn-txt">立即阅读</text>
                 </view>
               </view>
             </view>
@@ -231,10 +116,7 @@ function onRefreshRanking() {}
 
       <!-- 继续阅读 -->
       <view class="ch-sec">
-        <view
-          class="ch-continue"
-          @tap="goDetail(lastReading.id)"
-        >
+        <view class="ch-continue" @tap="goDetail(lastReading.id)">
           <FlatCover
             :title="lastReading.title"
             :cover-color="coverColorForBook(lastReading.title)"
@@ -242,39 +124,20 @@ function onRefreshRanking() {}
             class="ch-continue-cover"
           />
           <view class="ch-continue-info">
-            <text class="ch-continue-label">
-              继续阅读
-            </text>
-            <text class="ch-continue-title">
-              {{ lastReading.title }}
-            </text>
+            <text class="ch-continue-label">继续阅读</text>
+            <text class="ch-continue-title">{{ lastReading.title }}</text>
             <view class="ch-continue-prog">
               <view class="ch-prog-track">
-                <view
-                  class="ch-prog-fill"
-                  :style="{ width: lastReading.progress + '%' }"
-                />
+                <view class="ch-prog-fill" :style="{ width: lastReading.progress + '%' }" />
               </view>
-              <text class="ch-prog-pct">
-                {{ lastReading.progress }}%
-              </text>
+              <text class="ch-prog-pct">{{ lastReading.progress }}%</text>
             </view>
           </view>
           <view class="ch-continue-week">
-            <app-icon
-              name="flame"
-              :size="32"
-              color="#e0894a"
-            />
+            <app-icon name="flame" :size="32" color="#e0894a" />
             <view class="ch-week-meta">
-              <text class="ch-week-label">
-                本周
-              </text>
-              <text class="ch-week-num">
-                {{ weeklyMinutes }}<text class="ch-week-unit">
-                  分
-                </text>
-              </text>
+              <text class="ch-week-label">本周</text>
+              <text class="ch-week-num">{{ weeklyMinutes }}<text class="ch-week-unit">分</text></text>
             </view>
           </view>
         </view>
@@ -291,22 +154,12 @@ function onRefreshRanking() {}
             @tap="goCategory(cat.id)"
           >
             <view class="ch-cat-top">
-              <text class="ch-cat-name">
-                {{ cat.name }}
-              </text>
-              <app-icon
-                :name="cat.icon"
-                :size="40"
-                color="rgba(255,255,255,0.8)"
-              />
+              <text class="ch-cat-name">{{ cat.name }}</text>
+              <app-icon :name="cat.icon" :size="40" color="rgba(255,255,255,0.8)" />
             </view>
             <view>
-              <text class="ch-cat-desc">
-                {{ cat.desc }}
-              </text>
-              <text class="ch-cat-count">
-                {{ cat.count }}
-              </text>
+              <text class="ch-cat-desc">{{ cat.desc }}</text>
+              <text class="ch-cat-count">{{ cat.count }}</text>
             </view>
           </view>
         </view>
@@ -316,32 +169,15 @@ function onRefreshRanking() {}
       <view class="ch-block">
         <view class="ch-sec-head">
           <view>
-            <text class="ch-sec-title">
-              经典书单
-            </text>
-            <text class="ch-sec-sub">
-              名家精选，循路而读
-            </text>
+            <text class="ch-sec-title">经典书单</text>
+            <text class="ch-sec-sub">名家精选，循路而读</text>
           </view>
-          <view
-            class="ch-sec-link"
-            @tap="goLists"
-          >
-            <text class="ch-sec-link-txt">
-              全部书单
-            </text>
-            <app-icon
-              name="chevron-right"
-              :size="28"
-              color="#c41e3a"
-            />
+          <view class="ch-sec-link" @tap="goLists">
+            <text class="ch-sec-link-txt">全部书单</text>
+            <app-icon name="chevron-right" :size="28" color="#c41e3a" />
           </view>
         </view>
-        <scroll-view
-          scroll-x
-          class="ch-hscroll"
-          :show-scrollbar="false"
-        >
+        <scroll-view scroll-x class="ch-hscroll" :show-scrollbar="false">
           <view class="ch-hscroll-row">
             <view
               v-for="list in bookLists"
@@ -349,12 +185,8 @@ function onRefreshRanking() {}
               class="ch-list-card"
               @tap="goCollection(list.id)"
             >
-              <text class="ch-list-title">
-                {{ list.title }}
-              </text>
-              <text class="ch-list-desc">
-                {{ list.desc }} · {{ list.count }} 本
-              </text>
+              <text class="ch-list-title">{{ list.title }}</text>
+              <text class="ch-list-desc">{{ list.desc }} · {{ list.count }} 本</text>
               <view class="ch-list-covers">
                 <FlatCover
                   v-for="(b, i) in list.books"
@@ -374,32 +206,15 @@ function onRefreshRanking() {}
       <view class="ch-block">
         <view class="ch-sec-head">
           <view>
-            <text class="ch-sec-title">
-              推荐榜
-            </text>
-            <text class="ch-sec-sub">
-              读者公认的传世经典
-            </text>
+            <text class="ch-sec-title">推荐榜</text>
+            <text class="ch-sec-sub">读者公认的传世经典</text>
           </view>
-          <view
-            class="ch-sec-link"
-            @tap="goRanking"
-          >
-            <text class="ch-sec-link-txt">
-              完整榜单
-            </text>
-            <app-icon
-              name="chevron-right"
-              :size="28"
-              color="#c41e3a"
-            />
+          <view class="ch-sec-link" @tap="goRanking">
+            <text class="ch-sec-link-txt">完整榜单</text>
+            <app-icon name="chevron-right" :size="28" color="#c41e3a" />
           </view>
         </view>
-        <scroll-view
-          scroll-x
-          class="ch-type-scroll"
-          :show-scrollbar="false"
-        >
+        <scroll-view scroll-x class="ch-type-scroll" :show-scrollbar="false">
           <view class="ch-type-row">
             <view
               v-for="t in filterTypes"
@@ -421,12 +236,7 @@ function onRefreshRanking() {}
               :class="{ 'ch-rank-row--border': index > 0 }"
               @tap="goDetail(book.id)"
             >
-              <text
-                class="ch-rank-num"
-                :class="{ 'ch-rank-num--top': index < 3 }"
-              >
-                {{ index + 1 }}
-              </text>
+              <text class="ch-rank-num" :class="{ 'ch-rank-num--top': index < 3 }">{{ index + 1 }}</text>
               <FlatCover
                 :title="book.title"
                 :cover-color="coverColorForBook(book.title)"
@@ -434,29 +244,14 @@ function onRefreshRanking() {}
                 class="ch-rank-cover"
               />
               <view class="ch-rank-info">
-                <text class="ch-rank-title">
-                  {{ book.title }}
-                </text>
-                <text class="ch-rank-desc">
-                  {{ book.desc }}
-                </text>
-                <text class="ch-rank-meta">
-                  {{ book.author }} · {{ book.dynasty }} · {{ fmtReads(book.reads) }}人读
-                </text>
+                <text class="ch-rank-title">{{ book.title }}</text>
+                <text class="ch-rank-desc">{{ book.desc }}</text>
+                <text class="ch-rank-meta">{{ book.author }} · {{ book.dynasty }} · {{ fmtReads(book.reads) }}人读</text>
               </view>
-              <app-icon
-                name="chevron-right"
-                :size="36"
-                color="rgba(0,0,0,0.2)"
-              />
+              <app-icon name="chevron-right" :size="36" color="rgba(0,0,0,0.2)" />
             </view>
           </view>
-          <view
-            class="ch-refresh"
-            @tap="onRefreshRanking"
-          >
-            换一批
-          </view>
+          <view class="ch-refresh" @tap="onRefreshRanking">换一批</view>
         </view>
       </view>
 
@@ -464,32 +259,15 @@ function onRefreshRanking() {}
       <view class="ch-block">
         <view class="ch-sec-head">
           <view>
-            <text class="ch-sec-title">
-              听书
-            </text>
-            <text class="ch-sec-sub">
-              轻松听，不啃厚书
-            </text>
+            <text class="ch-sec-title">听书</text>
+            <text class="ch-sec-sub">轻松听，不啃厚书</text>
           </view>
-          <view
-            class="ch-sec-link"
-            @tap="goAudioList"
-          >
-            <text class="ch-sec-link-txt">
-              更多
-            </text>
-            <app-icon
-              name="chevron-right"
-              :size="28"
-              color="#c41e3a"
-            />
+          <view class="ch-sec-link" @tap="goAudioList">
+            <text class="ch-sec-link-txt">更多</text>
+            <app-icon name="chevron-right" :size="28" color="#c41e3a" />
           </view>
         </view>
-        <scroll-view
-          scroll-x
-          class="ch-hscroll"
-          :show-scrollbar="false"
-        >
+        <scroll-view scroll-x class="ch-hscroll" :show-scrollbar="false">
           <view class="ch-hscroll-row">
             <view
               v-for="book in audioBooks"
@@ -505,24 +283,13 @@ function onRefreshRanking() {}
               />
               <view class="ch-audio-info">
                 <view>
-                  <text class="ch-audio-title">
-                    {{ book.title }}
-                  </text>
-                  <text class="ch-audio-desc">
-                    {{ book.desc }}
-                  </text>
+                  <text class="ch-audio-title">{{ book.title }}</text>
+                  <text class="ch-audio-desc">{{ book.desc }}</text>
                 </view>
                 <view class="ch-audio-foot">
-                  <text class="ch-audio-narrator">
-                    {{ book.narrator }}
-                  </text>
+                  <text class="ch-audio-narrator">{{ book.narrator }}</text>
                   <view class="ch-audio-play">
-                    <app-icon
-                      name="play"
-                      :size="28"
-                      color="#fff"
-                      :fill="true"
-                    />
+                    <app-icon name="play" :size="28" color="#fff" :fill="true" />
                   </view>
                 </view>
               </view>
@@ -535,25 +302,12 @@ function onRefreshRanking() {}
       <view class="ch-block">
         <view class="ch-sec-head">
           <view>
-            <text class="ch-sec-title">
-              精选古籍
-            </text>
-            <text class="ch-sec-sub">
-              编辑甄选，值得细读
-            </text>
+            <text class="ch-sec-title">精选古籍</text>
+            <text class="ch-sec-sub">编辑甄选，值得细读</text>
           </view>
-          <view
-            class="ch-sec-link"
-            @tap="goLists"
-          >
-            <text class="ch-sec-link-txt">
-              更多
-            </text>
-            <app-icon
-              name="chevron-right"
-              :size="28"
-              color="#c41e3a"
-            />
+          <view class="ch-sec-link" @tap="goLists">
+            <text class="ch-sec-link-txt">更多</text>
+            <app-icon name="chevron-right" :size="28" color="#c41e3a" />
           </view>
         </view>
         <view class="ch-sec-pad ch-featured-grid">
@@ -572,23 +326,12 @@ function onRefreshRanking() {}
             <view class="ch-featured-info">
               <view>
                 <view class="ch-featured-titlerow">
-                  <text class="ch-featured-title">
-                    {{ book.title }}
-                  </text>
-                  <text
-                    v-if="book.isFree"
-                    class="ch-badge-free"
-                  >
-                    免费
-                  </text>
+                  <text class="ch-featured-title">{{ book.title }}</text>
+                  <text v-if="book.isFree" class="ch-badge-free">免费</text>
                 </view>
-                <text class="ch-featured-desc">
-                  {{ book.desc }}
-                </text>
+                <text class="ch-featured-desc">{{ book.desc }}</text>
               </view>
-              <text class="ch-featured-author">
-                {{ book.author }}
-              </text>
+              <text class="ch-featured-author">{{ book.author }}</text>
             </view>
           </view>
         </view>
@@ -596,30 +339,15 @@ function onRefreshRanking() {}
 
       <!-- 底部 AI 入口 -->
       <view class="ch-sec ch-ai-sec">
-        <view
-          class="ch-ai-entry"
-          @tap="goAI"
-        >
+        <view class="ch-ai-entry" @tap="goAI">
           <view class="ch-ai-icon">
-            <app-icon
-              name="sparkles"
-              :size="40"
-              color="#fff"
-            />
+            <app-icon name="sparkles" :size="40" color="#fff" />
           </view>
           <view class="ch-ai-info">
-            <text class="ch-ai-title">
-              AI 国学助手
-            </text>
-            <text class="ch-ai-desc">
-              不懂就问，白话解读古籍疑难
-            </text>
+            <text class="ch-ai-title">AI 国学助手</text>
+            <text class="ch-ai-desc">不懂就问，白话解读古籍疑难</text>
           </view>
-          <app-icon
-            name="chevron-right"
-            :size="36"
-            color="rgba(0,0,0,0.2)"
-          />
+          <app-icon name="chevron-right" :size="36" color="rgba(0,0,0,0.2)" />
         </view>
       </view>
     </view>

@@ -1,31 +1,36 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { useSubmitLock } from '@/composables/use-submit-lock'
 import {
-  receivedComments as _receivedComments,
+  receivedComments,
   commentTypeNames,
   type ReceivedCommentItem,
 } from '@/lib/mine-data'
 
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { comments: _receivedComments }
-})
-
-const dataIsEmpty = computed(() => {
-  const c = pageData.value?.comments
-  return c !== undefined && c.length === 0
-})
-
 const list = ref<ReceivedCommentItem[]>([])
-watch(() => pageData.value?.comments, (val) => {
-  if (val) list.value = val.map((c: any) => ({ ...c }))
-}, { immediate: true })
 const filter = ref<'all' | 'unreplied'>('all')
+
+// 页面四状态：loading / error / empty / normal
+const loading = ref(true)
+const loadError = ref(false)
+
+function loadData() {
+  loading.value = true
+  loadError.value = false
+  setTimeout(() => {
+    try {
+      list.value = receivedComments.map((c) => ({ ...c }))
+      loading.value = false
+    } catch {
+      loadError.value = true
+      loading.value = false
+    }
+  }, 600)
+}
+
+onLoad(() => loadData())
 
 const unrepliedCount = computed(() => list.value.filter((c) => !c.isReplied).length)
 const filtered = computed(() =>
@@ -37,7 +42,7 @@ const isEmpty = computed(() => filtered.value.length === 0)
 const replyOpen = ref(false)
 const replying = ref<ReceivedCommentItem | null>(null)
 const replyContent = ref('')
-const { submitting, withLock } = useSubmitLock()
+const sending = ref(false)
 
 function openReply(c: ReceivedCommentItem) {
   replying.value = c
@@ -45,18 +50,19 @@ function openReply(c: ReceivedCommentItem) {
   replyOpen.value = true
 }
 function submitReply() {
-  if (!replying.value || !replyContent.value.trim() || submitting.value) return
-  withLock(async () => {
-    await new Promise((r) => setTimeout(r, 500))
+  if (!replying.value || !replyContent.value.trim()) return
+  sending.value = true
+  setTimeout(() => {
     const now = new Date().toISOString().slice(0, 16).replace('T', ' ')
     list.value = list.value.map((c) =>
       c.id === replying.value!.id
         ? { ...c, isReplied: true, myReply: { content: replyContent.value.trim(), createdAt: now } }
         : c,
     )
+    sending.value = false
     replyOpen.value = false
     uni.showToast({ title: '回复成功', icon: 'none' })
-  })
+  }, 500)
 }
 function openContent() {
   uni.showToast({ title: '内容详情开发中', icon: 'none' })
@@ -74,47 +80,23 @@ function openContent() {
     >
       <template #right>
         <view class="nav-filter">
-          <AppIcon
-            name="filter"
-            :size="20"
-            color="#fff"
-          />
-          <view
-            v-if="unrepliedCount > 0"
-            class="nav-filter-dot"
-          />
+          <AppIcon name="filter" :size="20" color="#fff" />
+          <view v-if="unrepliedCount > 0" class="nav-filter-dot" />
         </view>
       </template>
     </app-nav-bar>
 
     <!-- 筛选 -->
     <view class="filter-row">
-      <text
-        class="filter-chip"
-        :class="{ active: filter === 'all' }"
-        @tap="filter = 'all'"
-      >
-        全部
-      </text>
-      <text
-        class="filter-chip"
-        :class="{ active: filter === 'unreplied' }"
-        @tap="filter = 'unreplied'"
-      >
+      <text class="filter-chip" :class="{ active: filter === 'all' }" @tap="filter = 'all'">全部</text>
+      <text class="filter-chip" :class="{ active: filter === 'unreplied' }" @tap="filter = 'unreplied'">
         待回复{{ unrepliedCount > 0 ? ` (${unrepliedCount})` : '' }}
       </text>
     </view>
 
     <!-- 加载骨架 -->
-    <view
-      v-if="isLoading"
-      class="skeleton"
-    >
-      <view
-        v-for="i in 3"
-        :key="i"
-        class="sk-card"
-      >
+    <view v-if="loading" class="skeleton">
+      <view v-for="i in 3" :key="i" class="sk-card">
         <view class="sk-avatar shimmer" />
         <view class="sk-body">
           <view class="sk-line w40 shimmer" />
@@ -129,19 +111,16 @@ function openContent() {
       v-else-if="loadError"
       title="评论加载失败"
       desc="网络异常，请稍后重试"
-      @retry="reload"
+      @retry="loadData"
     />
 
-    <AppEmpty
-      v-else-if="dataIsEmpty"
-      title="暂无评论"
-    />
+    <!-- 空态 -->
+    <view v-else-if="isEmpty" class="empty">
+      <view class="empty-icon"><AppIcon name="message-circle" :size="44" color="#C9C2B6" /></view>
+      <text class="empty-title">{{ filter === 'unreplied' ? '暂无待回复的评论' : '暂无新评论' }}</text>
+    </view>
 
-    <scroll-view
-      v-else
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view v-else-if="!loading && !loadError" scroll-y class="scroll">
       <view class="comment-list">
         <view
           v-for="c in filtered"
@@ -150,141 +129,61 @@ function openContent() {
           :class="{ unreplied: !c.isReplied }"
         >
           <view class="card-top">
-            <image
-              class="avatar"
-              :src="c.commenter.avatar"
-              mode="aspectFill"
-            />
+            <image class="avatar" :src="c.commenter.avatar" mode="aspectFill" />
             <view class="card-body">
               <view class="name-row">
-                <text class="name">
-                  {{ c.commenter.nickname }}
-                </text>
-                <text
-                  v-if="c.commenter.level"
-                  class="level"
-                >
-                  Lv.{{ c.commenter.level }}
-                </text>
-                <text
-                  v-if="!c.isReplied"
-                  class="pending"
-                >
-                  待回复
-                </text>
+                <text class="name">{{ c.commenter.nickname }}</text>
+                <text v-if="c.commenter.level" class="level">Lv.{{ c.commenter.level }}</text>
+                <text v-if="!c.isReplied" class="pending">待回复</text>
               </view>
-              <text class="content">
-                {{ c.content }}
-              </text>
-              <text class="time">
-                {{ c.createdAt }}
-              </text>
+              <text class="content">{{ c.content }}</text>
+              <text class="time">{{ c.createdAt }}</text>
 
               <!-- 我的内容 -->
-              <view
-                class="my-content"
-                @tap="openContent"
-              >
-                <text class="mc-label">
-                  评论了我的{{ commentTypeNames[c.myContent.type] }}
-                </text>
-                <text class="mc-title">
-                  {{ c.myContent.title }}
-                </text>
+              <view class="my-content" @tap="openContent">
+                <text class="mc-label">评论了我的{{ commentTypeNames[c.myContent.type] }}</text>
+                <text class="mc-title">{{ c.myContent.title }}</text>
               </view>
 
               <!-- 我的回复 -->
-              <view
-                v-if="c.myReply"
-                class="my-reply"
-              >
-                <text class="mr-label">
-                  我的回复
-                </text>
-                <text class="mr-content">
-                  {{ c.myReply.content }}
-                </text>
-                <text class="mr-time">
-                  {{ c.myReply.createdAt }}
-                </text>
+              <view v-if="c.myReply" class="my-reply">
+                <text class="mr-label">我的回复</text>
+                <text class="mr-content">{{ c.myReply.content }}</text>
+                <text class="mr-time">{{ c.myReply.createdAt }}</text>
               </view>
 
               <!-- 操作 -->
               <view class="actions">
-                <view
-                  v-if="!c.isReplied"
-                  class="btn-reply"
-                  @tap="openReply(c)"
-                >
-                  <AppIcon
-                    name="message-circle"
-                    :size="16"
-                    color="#fff"
-                  />
-                  <text class="btn-reply-text">
-                    回复
-                  </text>
+                <view v-if="!c.isReplied" class="btn-reply" @tap="openReply(c)">
+                  <AppIcon name="message-circle" :size="16" color="#fff" />
+                  <text class="btn-reply-text">回复</text>
                 </view>
-                <view
-                  class="btn-view"
-                  @tap="openContent"
-                >
-                  <text class="btn-view-text">
-                    查看原文
-                  </text>
+                <view class="btn-view" @tap="openContent">
+                  <text class="btn-view-text">查看原文</text>
                 </view>
               </view>
             </view>
           </view>
         </view>
       </view>
-      <view class="list-foot">
-        已显示全部评论
-      </view>
+      <view class="list-foot">已显示全部评论</view>
     </scroll-view>
 
     <!-- 回复弹窗 -->
-    <view
-      v-if="replyOpen"
-      class="mask center mask-fade-in"
-      @tap="replyOpen = false"
-    >
-      <view
-        class="dialog dialog-pop-in"
-        @tap.stop
-      >
+    <view v-if="replyOpen" class="mask center mask-fade-in" @tap="replyOpen = false">
+      <view class="dialog dialog-pop-in" @tap.stop>
         <view class="dialog-head">
-          <text class="dialog-title">
-            回复评论
-          </text>
-          <view
-            class="dialog-close"
-            @tap="replyOpen = false"
-          >
-            <AppIcon
-              name="x"
-              :size="20"
-              color="#8a8178"
-            />
+          <text class="dialog-title">回复评论</text>
+          <view class="dialog-close" @tap="replyOpen = false">
+            <AppIcon name="x" :size="20" color="#8a8178" />
           </view>
         </view>
-        <view
-          v-if="replying"
-          class="origin"
-        >
+        <view v-if="replying" class="origin">
           <view class="origin-head">
-            <image
-              class="origin-avatar"
-              :src="replying.commenter.avatar"
-              mode="aspectFill"
-            />
-            <text class="origin-name">
-              {{ replying.commenter.nickname }}
-            </text>
+            <image class="origin-avatar" :src="replying.commenter.avatar" mode="aspectFill" />
+            <text class="origin-name">{{ replying.commenter.nickname }}</text>
           </view>
-          <text class="origin-content">
-            {{ replying.content }}
-          </text>
+          <text class="origin-content">{{ replying.content }}</text>
         </view>
         <textarea
           v-model="replyContent"
@@ -294,31 +193,16 @@ function openContent() {
           :maxlength="500"
           auto-height
         />
-        <text class="reply-count">
-          {{ replyContent.length }}/500
-        </text>
+        <text class="reply-count">{{ replyContent.length }}/500</text>
         <view class="dialog-actions">
-          <view
-            class="dialog-btn ghost"
-            @tap="replyOpen = false"
-          >
-            <text class="dialog-btn-text">
-              取消
-            </text>
-          </view>
+          <view class="dialog-btn ghost" @tap="replyOpen = false"><text class="dialog-btn-text">取消</text></view>
           <view
             class="dialog-btn solid"
-            :class="{ disabled: !replyContent.trim() || submitting }"
+            :class="{ disabled: !replyContent.trim() || sending }"
             @tap="submitReply"
           >
-            <AppIcon
-              name="send"
-              :size="16"
-              color="#fff"
-            />
-            <text class="dialog-btn-text solid-text">
-              {{ submitting ? '发送中...' : '发送' }}
-            </text>
+            <AppIcon name="send" :size="16" color="#fff" />
+            <text class="dialog-btn-text solid-text">{{ sending ? '发送中...' : '发送' }}</text>
           </view>
         </view>
       </view>

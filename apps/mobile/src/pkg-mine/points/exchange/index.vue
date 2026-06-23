@@ -1,38 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  pointsApi,
+  pointsInfo as infoData,
+  pointsExchangeItems,
   exchangeTypeLabels,
-  type PointsInfo,
   type PointsExchangeItem,
   type ExchangeType,
 } from '@/lib/points-data'
 
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  const [infoData, items] = await Promise.all([pointsApi.getPoints(), pointsApi.getExchangeItems()])
-  return { info: infoData, exchangeItems: items }
-})
-
-const dataIsEmpty = computed(() => {
-  const raw = pageData.value
-  return raw != null && raw.info === undefined
-})
-
-const info = ref<PointsInfo>({ balance: 0, totalEarned: 0, totalSpent: 0, todayEarned: 0 })
-const exchangeItems = ref<PointsExchangeItem[]>([])
-
-watch(() => pageData.value, (val) => {
-  if (val) {
-    info.value = { ...val.info }
-    exchangeItems.value = val.exchangeItems.map((e: any) => ({ ...e }))
-  }
-}, { immediate: true })
-
+const info = ref({ ...infoData })
+const exchangeItems = ref(pointsExchangeItems)
 const activeType = ref<ExchangeType | 'all'>('all')
 const exchanging = ref<number | null>(null)
 const successId = ref<number | null>(null)
@@ -72,18 +50,7 @@ function handleExchange(item: PointsExchangeItem) {
 </script>
 
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="100rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="60rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="dataIsEmpty" title="暂无数据" />
-  <view v-else class="page">
+  <view class="page">
     <view class="nav">
       <view class="nav-back" @tap="goBack">
         <AppIcon name="arrow-left" :size="44" color="#2D2A26" />

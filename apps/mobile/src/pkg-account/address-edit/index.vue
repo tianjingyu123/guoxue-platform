@@ -1,47 +1,25 @@
 <template>
   <view class="page">
     <!-- 导航栏 -->
-    <view
-      class="header"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
-        <view
-          class="nav-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="44"
-            color="#2C2C2C"
-          />
+        <view class="nav-back" @tap="goBack">
+          <app-icon name="chevron-left" :size="44" color="#2C2C2C" />
         </view>
-        <text class="nav-title">
-          {{ isEdit ? '编辑地址' : '新增地址' }}
-        </text>
+        <text class="nav-title">{{ isEdit ? '编辑地址' : '新增地址' }}</text>
         <view class="nav-placeholder" />
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="scroll-area"
-      :style="{ paddingTop: navHeight + 'px' }"
-    >
+    <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
       <!-- 表单卡片 -->
       <view class="form-card">
         <!-- 收货人 -->
         <view class="field">
           <view class="field-row">
             <view class="field-label">
-              <app-icon
-                name="user"
-                :size="30"
-                color="#C41E3A"
-              />
-              <text class="field-label-text">
-                收货人
-              </text>
+              <app-icon name="user" :size="30" color="#C41E3A" />
+              <text class="field-label-text">收货人</text>
             </view>
             <input
               v-model="name"
@@ -49,28 +27,17 @@
               placeholder="填写收货人姓名"
               placeholder-class="field-ph"
               @input="errors.name = ''"
-            >
+            />
           </view>
-          <text
-            v-if="errors.name"
-            class="field-err"
-          >
-            {{ errors.name }}
-          </text>
+          <text v-if="errors.name" class="field-err">{{ errors.name }}</text>
         </view>
 
         <!-- 手机号 -->
         <view class="field">
           <view class="field-row">
             <view class="field-label">
-              <app-icon
-                name="phone"
-                :size="30"
-                color="#C41E3A"
-              />
-              <text class="field-label-text">
-                手机号
-              </text>
+              <app-icon name="phone" :size="30" color="#C41E3A" />
+              <text class="field-label-text">手机号</text>
             </view>
             <input
               v-model="phone"
@@ -80,64 +47,32 @@
               placeholder="填写收货人手机号"
               placeholder-class="field-ph"
               @input="errors.phone = ''"
-            >
+            />
           </view>
-          <text
-            v-if="errors.phone"
-            class="field-err"
-          >
-            {{ errors.phone }}
-          </text>
+          <text v-if="errors.phone" class="field-err">{{ errors.phone }}</text>
         </view>
 
         <!-- 所在地区 -->
         <view class="field">
-          <view
-            class="field-row"
-            @tap="openPicker"
-          >
+          <view class="field-row" @tap="openPicker">
             <view class="field-label">
-              <app-icon
-                name="map-pin"
-                :size="30"
-                color="#C41E3A"
-              />
-              <text class="field-label-text">
-                所在地区
-              </text>
+              <app-icon name="map-pin" :size="30" color="#C41E3A" />
+              <text class="field-label-text">所在地区</text>
             </view>
-            <text
-              class="field-select"
-              :class="{ placeholder: !regionText }"
-            >
+            <text class="field-select" :class="{ placeholder: !regionText }">
               {{ regionText || '选择省 / 市 / 区' }}
             </text>
-            <app-icon
-              name="chevron-right"
-              :size="28"
-              color="#C0B8B0"
-            />
+            <app-icon name="chevron-right" :size="28" color="#C0B8B0" />
           </view>
-          <text
-            v-if="errors.region"
-            class="field-err"
-          >
-            {{ errors.region }}
-          </text>
+          <text v-if="errors.region" class="field-err">{{ errors.region }}</text>
         </view>
 
         <!-- 详细地址 -->
         <view class="field last">
           <view class="field-row align-top">
             <view class="field-label">
-              <app-icon
-                name="map-pin"
-                :size="30"
-                color="#C41E3A"
-              />
-              <text class="field-label-text">
-                详细地址
-              </text>
+              <app-icon name="map-pin" :size="30" color="#C41E3A" />
+              <text class="field-label-text">详细地址</text>
             </view>
             <textarea
               v-model="address"
@@ -148,98 +83,42 @@
               @input="errors.address = ''"
             />
           </view>
-          <text
-            v-if="errors.address"
-            class="field-err"
-          >
-            {{ errors.address }}
-          </text>
+          <text v-if="errors.address" class="field-err">{{ errors.address }}</text>
         </view>
       </view>
 
       <!-- 设为默认 -->
-      <view
-        class="default-card"
-        @tap="isDefault = !isDefault"
-      >
-        <text class="default-text">
-          设为默认地址
-        </text>
-        <view
-          class="switch"
-          :class="{ on: isDefault }"
-        >
+      <view class="default-card" @tap="isDefault = !isDefault">
+        <text class="default-text">设为默认地址</text>
+        <view class="switch" :class="{ on: isDefault }">
           <view class="switch-dot" />
         </view>
       </view>
     </scroll-view>
 
     <!-- 保存按钮 -->
-    <view
-      class="footer"
-      :style="{ paddingBottom: safeBottom + 'px' }"
-    >
-      <view
-        class="save-btn"
-        :class="{ disabled: saving }"
-        @tap="handleSave"
-      >
-        <text class="save-btn-text">
-          {{ saving ? '保存中...' : '保存地址' }}
-        </text>
+    <view class="footer" :style="{ paddingBottom: safeBottom + 'px' }">
+      <view class="save-btn" :class="{ disabled: saving }" @tap="handleSave">
+        <text class="save-btn-text">{{ saving ? '保存中...' : '保存地址' }}</text>
       </view>
     </view>
 
     <!-- 省市区选择弹窗 -->
-    <view
-      v-if="showPicker"
-      class="picker-mask"
-      @tap="closePicker"
-    >
-      <view
-        class="picker-panel"
-        @tap.stop
-      >
+    <view v-if="showPicker" class="picker-mask" @tap="closePicker">
+      <view class="picker-panel" @tap.stop>
         <view class="picker-head">
-          <text
-            class="picker-cancel"
-            @tap="pickerBack"
-          >
-            {{ pickerStep === 'province' ? '取消' : '返回' }}
-          </text>
+          <text class="picker-cancel" @tap="pickerBack">{{ pickerStep === 'province' ? '取消' : '返回' }}</text>
           <view class="picker-steps">
-            <text
-              class="picker-step"
-              :class="{ active: pickerStep === 'province' }"
-            >
-              省份
-            </text>
-            <text class="picker-sep">
-              /
-            </text>
-            <text
-              class="picker-step"
-              :class="{ active: pickerStep === 'city' }"
-            >
-              城市
-            </text>
-            <text class="picker-sep">
-              /
-            </text>
-            <text
-              class="picker-step"
-              :class="{ active: pickerStep === 'district' }"
-            >
-              区县
-            </text>
+            <text class="picker-step" :class="{ active: pickerStep === 'province' }">省份</text>
+            <text class="picker-sep">/</text>
+            <text class="picker-step" :class="{ active: pickerStep === 'city' }">城市</text>
+            <text class="picker-sep">/</text>
+            <text class="picker-step" :class="{ active: pickerStep === 'district' }">区县</text>
           </view>
           <view class="picker-ph" />
         </view>
 
-        <scroll-view
-          scroll-y
-          class="picker-list"
-        >
+        <scroll-view scroll-y class="picker-list">
           <template v-if="pickerStep === 'province'">
             <view
               v-for="p in provinces"
@@ -248,18 +127,8 @@
               :class="{ active: tempProvince === p }"
               @tap="selectProvince(p)"
             >
-              <text
-                class="picker-item-text"
-                :class="{ active: tempProvince === p }"
-              >
-                {{ p }}
-              </text>
-              <app-icon
-                v-if="tempProvince === p"
-                name="check"
-                :size="30"
-                color="#C41E3A"
-              />
+              <text class="picker-item-text" :class="{ active: tempProvince === p }">{{ p }}</text>
+              <app-icon v-if="tempProvince === p" name="check" :size="30" color="#C41E3A" />
             </view>
           </template>
           <template v-else-if="pickerStep === 'city'">
@@ -270,18 +139,8 @@
               :class="{ active: tempCity === c }"
               @tap="selectCity(c)"
             >
-              <text
-                class="picker-item-text"
-                :class="{ active: tempCity === c }"
-              >
-                {{ c }}
-              </text>
-              <app-icon
-                v-if="tempCity === c"
-                name="check"
-                :size="30"
-                color="#C41E3A"
-              />
+              <text class="picker-item-text" :class="{ active: tempCity === c }">{{ c }}</text>
+              <app-icon v-if="tempCity === c" name="check" :size="30" color="#C41E3A" />
             </view>
           </template>
           <template v-else>
@@ -291,9 +150,7 @@
               class="picker-item"
               @tap="selectDistrict(d)"
             >
-              <text class="picker-item-text">
-                {{ d }}
-              </text>
+              <text class="picker-item-text">{{ d }}</text>
             </view>
           </template>
         </scroll-view>
@@ -306,7 +163,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
-import { accountApi, REGIONS, PROVINCES } from '@/lib/account-data'
+import { REGIONS, PROVINCES, addressEditSample } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
@@ -343,7 +200,7 @@ const pickerDistricts = computed(() =>
   tempProvince.value && tempCity.value ? REGIONS[tempProvince.value]?.[tempCity.value] || [] : [],
 )
 
-onLoad(async (query) => {
+onLoad((query) => {
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 20
@@ -355,16 +212,13 @@ onLoad(async (query) => {
   }
   if (query && query.id) {
     isEdit.value = true
-    const addr = await accountApi.getAddress(query.id)
-    if (addr) {
-      name.value = addr.name
-      phone.value = addr.phone
-      province.value = addr.province
-      city.value = addr.city
-      district.value = addr.district
-      address.value = addr.address
-      isDefault.value = addr.isDefault
-    }
+    name.value = addressEditSample.name
+    phone.value = addressEditSample.phone
+    province.value = addressEditSample.province
+    city.value = addressEditSample.city
+    district.value = addressEditSample.district
+    address.value = addressEditSample.address
+    isDefault.value = addressEditSample.isDefault
   }
 })
 
@@ -381,28 +235,15 @@ function validate() {
   return Object.keys(e).length === 0
 }
 
-async function handleSave() {
+function handleSave() {
   if (saving.value) return
   if (!validate()) return
   saving.value = true
-  try {
-    await accountApi.saveAddress({
-      id: isEdit.value ? '' : undefined,
-      name: name.value,
-      phone: phone.value,
-      province: province.value,
-      city: city.value,
-      district: district.value,
-      address: address.value,
-      isDefault: isDefault.value,
-    })
+  setTimeout(() => {
+    saving.value = false
     uni.showToast({ title: '保存成功', icon: 'success' })
     setTimeout(() => goBack(), 600)
-  } catch {
-    uni.showToast({ title: '保存失败', icon: 'error' })
-  } finally {
-    saving.value = false
-  }
+  }, 500)
 }
 
 function openPicker() {

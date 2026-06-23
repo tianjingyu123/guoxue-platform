@@ -1,6 +1,6 @@
 import { createSSRApp } from 'vue'
 import App from './App.vue'
-// import 'uno.css'
+import 'uno.css'
 import './styles/tokens.scss'
 import './styles/animations.scss'
 import { loadBrandFonts } from './utils/canvas/font-loader'

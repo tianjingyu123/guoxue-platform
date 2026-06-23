@@ -1,124 +1,48 @@
 <script setup lang="ts">
 /** 国学课程首页 - 从原型 app/courses/page.tsx 迁移 */
 import { ref, computed } from 'vue'
-import { navigateTo, navigateBack } from '@/utils/router'
+import { navigateTo } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import HomeBanner from '@/components/home/home-banner.vue'
 import CourseCard from '@/components/cards/course-card.vue'
 import SectionHeader from '@/components/courses/section-header.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { courseApi, type Course } from '@/lib/course-data'
-
-function deriveFeatured(courses: Course[]) { return courses.filter((c) => c.tag === '热销').slice(0, 6) }
-function deriveRanking(courses: Course[]) { return [...courses].sort((a, b) => (b.students ?? 0) - (a.students ?? 0)).slice(0, 5) }
-function deriveFlashSale(courses: Course[]) { return courses.filter((c) => c.flashSale) }
-function deriveFree(courses: Course[]) { return courses.filter((c) => c.free) }
-function deriveNewest(courses: Course[]) { return courses.filter((c) => c.isNew) }
-
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  const [banners, all, categories, filters] = await Promise.all([
-    courseApi.getBanners(),
-    courseApi.getList(),
-    courseApi.getCategoryNav(),
-    courseApi.getFeedFilters(),
-  ])
-  return {
-    banners,
-    categories,
-    all,
-    featured: deriveFeatured(all),
-    ranking: deriveRanking(all),
-    flashSale: deriveFlashSale(all),
-    free: deriveFree(all),
-    newest: deriveNewest(all),
-    filters,
-  }
-})
-
-const courseBanners = computed(() => pageData.value?.banners ?? [])
-const categoryNav = computed(() => pageData.value?.categories ?? [])
-const allCourses = computed(() => pageData.value?.all ?? [])
-const featured = computed(() => pageData.value?.featured ?? [])
-const ranking = computed(() => pageData.value?.ranking ?? [])
-const flashSaleCourses = computed(() => pageData.value?.flashSale ?? [])
-const freeCourses = computed(() => pageData.value?.free ?? [])
-const newCourses = computed(() => pageData.value?.newest ?? [])
-const feedFilters = computed(() => pageData.value?.filters ?? [])
+import {
+  courseBanners, categoryNav, allCourses,
+  featured, ranking, flashSaleCourses, freeCourses, newCourses, feedFilters,
+} from '@/lib/course-data'
 
 const activeCategory = ref('all')
 
 const selected = computed(() =>
-  allCourses.value.filter((c) => activeCategory.value === 'all' || c.category === activeCategory.value),
+  allCourses.filter((c) => activeCategory.value === 'all' || c.category === activeCategory.value),
 )
 // react-masonry-css 按索引轮流填列:偶数→左列,奇数→右列
 const colLeft = computed(() => selected.value.filter((_, i) => i % 2 === 0))
 const colRight = computed(() => selected.value.filter((_, i) => i % 2 === 1))
 
-const isEmpty = computed(() => {
-  if (!pageData.value) return false
-  const d = pageData.value
-  return d.all.length === 0 && d.featured.length === 0 && d.ranking.length === 0 && d.flashSale.length === 0
-})
-
-function goBack() { navigateBack(1) }
+function goBack() { navigateBack('/discover') }
 function openSearch() { navigateTo('/search?from=course') }
 function openCategory(id: string) { navigateTo(`/courses-list?category=${id}`) }
 </script>
 
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无课程数据" />
-  <view v-else class="page">
+  <view class="page">
     <!-- 顶部栏 -->
     <view class="hdr">
       <view class="hdr-bar">
-        <view
-          class="back-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="44"
-            color="var(--text-strong)"
-          />
+        <view class="back-btn" @tap="goBack">
+          <app-icon name="chevron-left" :size="44" color="var(--text-strong)" />
         </view>
-        <text class="hdr-title">
-          国学课程
-        </text>
+        <text class="hdr-title">国学课程</text>
       </view>
       <!-- AI 搜索栏 -->
       <view class="search-wrap">
-        <view
-          class="search-bar"
-          @tap="openSearch"
-        >
-          <app-icon
-            name="search"
-            :size="32"
-            color="var(--text-soft)"
-          />
-          <text class="search-ph">
-            搜索课程、讲师...
-          </text>
+        <view class="search-bar" @tap="openSearch">
+          <app-icon name="search" :size="32" color="var(--text-soft)" />
+          <text class="search-ph">搜索课程、讲师...</text>
           <view class="ai-tag">
-            <app-icon
-              name="sparkles"
-              :size="24"
-              color="var(--brand)"
-            />
-            <text class="ai-txt">
-              AI
-            </text>
+            <app-icon name="sparkles" :size="24" color="var(--brand)" />
+            <text class="ai-txt">AI</text>
           </view>
         </view>
       </view>
@@ -129,164 +53,60 @@ function openCategory(id: string) { navigateTo(`/courses-list?category=${id}`) }
 
     <!-- 分类导航 -->
     <view class="cat-grid">
-      <view
-        v-for="cat in categoryNav"
-        :key="cat.id"
-        class="cat-item"
-        @tap="openCategory(cat.id)"
-      >
-        <view
-          class="cat-ico"
-          :style="{ background: cat.color + '1a' }"
-        >
-          <app-icon
-            :name="cat.icon"
-            :size="48"
-            :color="cat.color"
-          />
+      <view v-for="cat in categoryNav" :key="cat.id" class="cat-item" @tap="openCategory(cat.id)">
+        <view class="cat-ico" :style="{ background: cat.color + '1a' }">
+          <app-icon :name="cat.icon" :size="48" :color="cat.color" />
         </view>
-        <text class="cat-label">
-          {{ cat.label }}
-        </text>
+        <text class="cat-label">{{ cat.label }}</text>
       </view>
     </view>
 
     <!-- 限时优惠 -->
-    <view
-      v-if="flashSaleCourses.length"
-      class="sec sec-flash"
-    >
-      <section-header
-        icon="clock"
-        title="限时优惠"
-        subtitle="好课五折抢"
-        more-link="/courses/flash-sale"
-        icon-color="#e67e22"
-      />
-      <scroll-view
-        class="rail-row"
-        scroll-x
-        :show-scrollbar="false"
-      >
+    <view v-if="flashSaleCourses.length" class="sec sec-flash">
+      <section-header icon="clock" title="限时优惠" subtitle="好课五折抢" more-link="/courses/flash-sale" icon-color="#e67e22" />
+      <scroll-view class="rail-row" scroll-x :show-scrollbar="false">
         <view class="rail-inner">
-          <course-card
-            v-for="c in flashSaleCourses"
-            :key="c.id"
-            :data="c"
-            variant="rail"
-          />
+          <course-card v-for="c in flashSaleCourses" :key="c.id" :data="c" variant="rail" />
         </view>
       </scroll-view>
     </view>
 
     <!-- 精选好课 -->
-    <view
-      v-if="featured.length"
-      class="sec"
-    >
-      <section-header
-        icon="award"
-        title="精选好课"
-        subtitle="编辑严选"
-        more-link="/courses-list?sort=recommend"
-        icon-color="#c0392b"
-      />
-      <scroll-view
-        class="rail-row"
-        scroll-x
-        :show-scrollbar="false"
-      >
+    <view v-if="featured.length" class="sec">
+      <section-header icon="award" title="精选好课" subtitle="编辑严选" more-link="/courses-list?sort=recommend" icon-color="#c0392b" />
+      <scroll-view class="rail-row" scroll-x :show-scrollbar="false">
         <view class="rail-inner">
-          <course-card
-            v-for="c in featured"
-            :key="c.id"
-            :data="c"
-            variant="rail"
-          />
+          <course-card v-for="c in featured" :key="c.id" :data="c" variant="rail" />
         </view>
       </scroll-view>
     </view>
 
     <!-- 热门排行 -->
-    <view
-      v-if="ranking.length"
-      class="sec"
-    >
-      <section-header
-        icon="flame"
-        title="热门排行"
-        subtitle="学员都在学"
-        more-link="/courses-list?sort=popular"
-        icon-color="#e74c3c"
-      />
+    <view v-if="ranking.length" class="sec">
+      <section-header icon="flame" title="热门排行" subtitle="学员都在学" more-link="/courses-list?sort=popular" icon-color="#e74c3c" />
       <view class="rank-card">
-        <view
-          v-for="(c, i) in ranking"
-          :key="c.id"
-          class="rank-cell"
-          :class="{ 'rank-div': i > 0 }"
-        >
-          <course-card
-            :data="c"
-            variant="rank"
-            :rank="i + 1"
-          />
+        <view v-for="(c, i) in ranking" :key="c.id" class="rank-cell" :class="{ 'rank-div': i > 0 }">
+          <course-card :data="c" variant="rank" :rank="i + 1" />
         </view>
       </view>
     </view>
 
     <!-- 会员免费 -->
-    <view
-      v-if="freeCourses.length"
-      class="sec"
-    >
-      <section-header
-        icon="crown"
-        title="会员免费"
-        subtitle="开通会员畅学"
-        more-link="/courses-list?filter=free"
-        icon-color="#16a085"
-      />
-      <scroll-view
-        class="rail-row"
-        scroll-x
-        :show-scrollbar="false"
-      >
+    <view v-if="freeCourses.length" class="sec">
+      <section-header icon="crown" title="会员免费" subtitle="开通会员畅学" more-link="/courses-list?filter=free" icon-color="#16a085" />
+      <scroll-view class="rail-row" scroll-x :show-scrollbar="false">
         <view class="rail-inner">
-          <course-card
-            v-for="c in freeCourses"
-            :key="c.id"
-            :data="c"
-            variant="rail"
-          />
+          <course-card v-for="c in freeCourses" :key="c.id" :data="c" variant="rail" />
         </view>
       </scroll-view>
     </view>
 
     <!-- 新上架 -->
-    <view
-      v-if="newCourses.length"
-      class="sec"
-    >
-      <section-header
-        icon="sparkles"
-        title="新上架"
-        subtitle="抢先学习"
-        more-link="/courses-list?sort=newest"
-        icon-color="#2980b9"
-      />
-      <scroll-view
-        class="rail-row"
-        scroll-x
-        :show-scrollbar="false"
-      >
+    <view v-if="newCourses.length" class="sec">
+      <section-header icon="sparkles" title="新上架" subtitle="抢先学习" more-link="/courses-list?sort=newest" icon-color="#2980b9" />
+      <scroll-view class="rail-row" scroll-x :show-scrollbar="false">
         <view class="rail-inner">
-          <course-card
-            v-for="c in newCourses"
-            :key="c.id"
-            :data="c"
-            variant="rail"
-          />
+          <course-card v-for="c in newCourses" :key="c.id" :data="c" variant="rail" />
         </view>
       </scroll-view>
     </view>
@@ -294,66 +114,30 @@ function openCategory(id: string) { navigateTo(`/courses-list?category=${id}`) }
     <!-- 为你精选 瀑布流 -->
     <view class="sec-feed">
       <view class="feed-hd">
-        <text class="feed-title">
-          为你精选
-        </text>
-        <text
-          class="feed-more"
-          @tap="navigateTo('/courses-list')"
-        >
-          更多课程
-        </text>
+        <text class="feed-title">为你精选</text>
+        <text class="feed-more" @tap="navigateTo('/courses-list')">更多课程</text>
       </view>
-      <scroll-view
-        class="filter-row"
-        scroll-x
-        :show-scrollbar="false"
-      >
+      <scroll-view class="filter-row" scroll-x :show-scrollbar="false">
         <view class="filter-inner">
           <view
-            v-for="f in feedFilters"
-            :key="f.id"
-            class="filter-chip"
-            :class="{ on: activeCategory === f.id }"
+            v-for="f in feedFilters" :key="f.id"
+            class="filter-chip" :class="{ on: activeCategory === f.id }"
             @tap="activeCategory = f.id"
           >
-            <text
-              class="filter-txt"
-              :class="{ on: activeCategory === f.id }"
-            >
-              {{ f.label }}
-            </text>
+            <text class="filter-txt" :class="{ on: activeCategory === f.id }">{{ f.label }}</text>
           </view>
         </view>
       </scroll-view>
-      <view
-        v-if="selected.length"
-        class="masonry"
-      >
+      <view v-if="selected.length" class="masonry">
         <view class="masonry-col">
-          <course-card
-            v-for="c in colLeft"
-            :key="c.id"
-            :data="c"
-            variant="feed"
-          />
+          <course-card v-for="c in colLeft" :key="c.id" :data="c" variant="feed" />
         </view>
         <view class="masonry-col">
-          <course-card
-            v-for="c in colRight"
-            :key="c.id"
-            :data="c"
-            variant="feed"
-          />
+          <course-card v-for="c in colRight" :key="c.id" :data="c" variant="feed" />
         </view>
       </view>
-      <view
-        v-else
-        class="empty"
-      >
-        <text class="empty-txt">
-          该分类暂无课程
-        </text>
+      <view v-else class="empty">
+        <text class="empty-txt">该分类暂无课程</text>
       </view>
     </view>
   </view>

@@ -1,32 +1,10 @@
 <template>
-  <view v-if="isLoading" class="center">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="120rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无订单" desc="您还没有任何订单记录" actionText="去逛逛" @action="goShop" />
-  <view v-else class="center">
+  <view class="center">
     <!-- 头部 -->
-    <view
-      class="header"
-      :style="{ paddingTop: 'calc(12rpx + var(--status-bar-height, 0px))' }"
-    >
-      <app-nav-bar
-        title="我的订单"
-        :back-size="40"
-        background="transparent"
-        no-border
-      />
+    <view class="header" :style="{ paddingTop: 'calc(12rpx + var(--status-bar-height, 0px))' }">
+      <app-nav-bar title="我的订单" :back-size="40" background="transparent" no-border />
       <!-- 品类Tab -->
-      <scroll-view
-        scroll-x
-        class="cats"
-        :show-scrollbar="false"
-      >
+      <scroll-view scroll-x class="cats" :show-scrollbar="false">
         <view class="cats-inner">
           <view
             v-for="cat in categories"
@@ -35,47 +13,19 @@
             :class="{ active: activeCategory === cat.key }"
             @tap="activeCategory = cat.key"
           >
-            <app-icon
-              :name="cat.icon"
-              :size="28"
-              :color="activeCategory === cat.key ? '#FFFFFF' : '#999999'"
-            />
-            <text
-              class="cat-text"
-              :class="{ active: activeCategory === cat.key }"
-            >
-              {{ cat.label }}
-            </text>
-            <view
-              v-if="counts[cat.key] > 0"
-              class="cat-badge"
-              :class="{ active: activeCategory === cat.key }"
-            >
-              <text class="cat-badge-text">
-                {{ counts[cat.key] }}
-              </text>
+            <app-icon :name="cat.icon" :size="28" :color="activeCategory === cat.key ? '#FFFFFF' : '#999999'" />
+            <text class="cat-text" :class="{ active: activeCategory === cat.key }">{{ cat.label }}</text>
+            <view v-if="counts[cat.key] > 0" class="cat-badge" :class="{ active: activeCategory === cat.key }">
+              <text class="cat-badge-text">{{ counts[cat.key] }}</text>
             </view>
           </view>
         </view>
       </scroll-view>
       <!-- 状态筛选 -->
-      <scroll-view
-        scroll-x
-        class="states"
-        :show-scrollbar="false"
-      >
+      <scroll-view scroll-x class="states" :show-scrollbar="false">
         <view class="states-inner">
-          <view
-            class="state"
-            :class="{ active: activeStatus === '' }"
-            @tap="activeStatus = ''"
-          >
-            <text
-              class="state-text"
-              :class="{ active: activeStatus === '' }"
-            >
-              全部状态
-            </text>
+          <view class="state" :class="{ active: activeStatus === '' }" @tap="activeStatus = ''">
+            <text class="state-text" :class="{ active: activeStatus === '' }">全部状态</text>
           </view>
           <view
             v-for="(s, key) in statusConfig"
@@ -84,12 +34,7 @@
             :class="{ active: activeStatus === key }"
             @tap="activeStatus = key"
           >
-            <text
-              class="state-text"
-              :class="{ active: activeStatus === key }"
-            >
-              {{ s.label }}
-            </text>
+            <text class="state-text" :class="{ active: activeStatus === key }">{{ s.label }}</text>
           </view>
         </view>
       </scroll-view>
@@ -97,161 +42,64 @@
 
     <!-- 列表 -->
     <view class="content">
-      <view
-        v-if="filtered.length === 0"
-        class="empty"
-      >
-        <app-icon
-          name="package"
-          :size="96"
-          color="#E8E3DB"
-        />
-        <text class="empty-text">
-          暂无订单
-        </text>
+      <view v-if="filtered.length === 0" class="empty">
+        <app-icon name="package" :size="96" color="#E8E3DB" />
+        <text class="empty-text">暂无订单</text>
       </view>
 
-      <view
-        v-for="order in filtered"
-        :key="order.id"
-        class="order-card"
-      >
+      <view v-for="order in filtered" :key="order.id" class="order-card">
         <!-- 头 -->
         <view class="card-head">
           <view class="head-left">
-            <view
-              class="cat-tag"
-              :style="{ background: catColor(order.category).bg, color: catColor(order.category).color }"
-            >
-              <app-icon
-                :name="catIcon(order.category)"
-                :size="22"
-                :color="catColor(order.category).color"
-              />
-              <text
-                class="cat-tag-text"
-                :style="{ color: catColor(order.category).color }"
-              >
-                {{ catLabel(order.category) }}
-              </text>
+            <view class="cat-tag" :style="{ background: catColor(order.category).bg, color: catColor(order.category).color }">
+              <app-icon :name="catIcon(order.category)" :size="22" :color="catColor(order.category).color" />
+              <text class="cat-tag-text" :style="{ color: catColor(order.category).color }">{{ catLabel(order.category) }}</text>
             </view>
-            <text class="card-no">
-              {{ order.orderNo }}
-            </text>
+            <text class="card-no">{{ order.orderNo }}</text>
           </view>
-          <text
-            class="card-status"
-            :style="{ color: statusConfig[order.status].color }"
-          >
-            {{ statusConfig[order.status].label }}
-          </text>
+          <text class="card-status" :style="{ color: statusConfig[order.status].color }">{{ statusConfig[order.status].label }}</text>
         </view>
 
         <!-- 内容 -->
         <view class="card-body">
-          <image
-            v-if="order.cover"
-            class="cover"
-            :src="order.cover"
-            mode="aspectFill"
-          />
-          <view
-            v-else
-            class="cover ph"
-            :style="{ background: catColor(order.category).bg }"
-          >
-            <app-icon
-              :name="catIcon(order.category)"
-              :size="44"
-              :color="catColor(order.category).color"
-            />
+          <image v-if="order.cover" class="cover" :src="order.cover" mode="aspectFill" />
+          <view v-else class="cover ph" :style="{ background: catColor(order.category).bg }">
+            <app-icon :name="catIcon(order.category)" :size="44" :color="catColor(order.category).color" />
           </view>
           <view class="info">
-            <text class="title">
-              {{ order.title }}
-            </text>
+            <text class="title">{{ order.title }}</text>
             <view class="meta">
-              <text
-                v-if="order.extra?.teacherName"
-                class="meta-text"
-              >
-                讲师: {{ order.extra.teacherName }}
-              </text>
-              <text
-                v-if="order.extra?.duration"
-                class="meta-text"
-              >
-                {{ order.extra.duration }}
-              </text>
-              <text
-                v-if="order.extra?.quantity"
-                class="meta-text"
-              >
-                x{{ order.extra.quantity }}
-              </text>
+              <text v-if="order.extra?.teacherName" class="meta-text">讲师: {{ order.extra.teacherName }}</text>
+              <text v-if="order.extra?.duration" class="meta-text">{{ order.extra.duration }}</text>
+              <text v-if="order.extra?.quantity" class="meta-text">x{{ order.extra.quantity }}</text>
             </view>
-            <view
-              v-if="order.expiredAt"
-              class="expire"
-            >
-              <app-icon
-                name="clock"
-                :size="22"
-                color="#999999"
-              />
-              <text
-                class="expire-text"
-                :class="{ expired: isExpired(order.expiredAt) }"
-              >
-                有效期至 {{ order.expiredAt }}
-              </text>
+            <view v-if="order.expiredAt" class="expire">
+              <app-icon name="clock" :size="22" color="#999999" />
+              <text class="expire-text" :class="{ expired: isExpired(order.expiredAt) }">有效期至 {{ order.expiredAt }}</text>
             </view>
           </view>
           <view class="price-box">
-            <text class="price">
-              {{ order.price > 0 ? `¥${order.price}` : '免费' }}
-            </text>
-            <text
-              v-if="order.originalPrice && order.originalPrice > order.price"
-              class="origin"
-            >
-              ¥{{ order.originalPrice }}
-            </text>
+            <text class="price">{{ order.price > 0 ? `¥${order.price}` : '免费' }}</text>
+            <text v-if="order.originalPrice && order.originalPrice > order.price" class="origin">¥{{ order.originalPrice }}</text>
           </view>
         </view>
 
         <!-- 脚 -->
         <view class="card-foot">
-          <text class="foot-time">
-            {{ order.createdAt }}
-          </text>
+          <text class="foot-time">{{ order.createdAt }}</text>
           <view class="foot-actions">
             <template v-if="order.status === 'pending'">
-              <view class="mini ghost">
-                <text>取消订单</text>
-              </view>
-              <view class="mini primary">
-                <text>去付款</text>
-              </view>
+              <view class="mini ghost"><text>取消订单</text></view>
+              <view class="mini primary"><text>去付款</text></view>
             </template>
             <template v-else-if="order.status === 'expired'">
-              <view class="mini warn">
-                <text>立即续费</text>
-              </view>
+              <view class="mini warn"><text>立即续费</text></view>
             </template>
             <template v-else-if="order.status === 'completed' && order.expiredAt && !isExpired(order.expiredAt)">
-              <view class="mini ghost">
-                <text>续费</text>
-              </view>
+              <view class="mini ghost"><text>续费</text></view>
             </template>
             <template v-else-if="order.status === 'completed'">
-              <view class="mini text">
-                <text>查看详情</text><app-icon
-                  name="chevron-right"
-                  :size="22"
-                  color="#999999"
-                />
-              </view>
+              <view class="mini text"><text>查看详情</text><app-icon name="chevron-right" :size="22" color="#999999" /></view>
             </template>
           </view>
         </view>
@@ -263,32 +111,18 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-import { navigateTo } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  mockUnifiedOrders as _mockUnifiedOrders, orderCategories as _orderCategories, unifiedStatusConfig as _unifiedStatusConfig, categoryColorMap as _categoryColorMap,
+  mockUnifiedOrders, orderCategories, unifiedStatusConfig, categoryColorMap,
   type OrderCategory, type UnifiedOrderStatus,
 } from '@/lib/order-data'
 
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { orders: _mockUnifiedOrders, categories: _orderCategories, config: _unifiedStatusConfig, colorMap: _categoryColorMap }
-})
-
-const categories = computed<typeof _orderCategories>(() => pageData.value?.categories ?? [])
-const unifiedStatusConfig = computed<typeof _unifiedStatusConfig>(() => pageData.value?.config ?? _unifiedStatusConfig)
-const categoryColorMap = computed<typeof _categoryColorMap>(() => pageData.value?.colorMap ?? _categoryColorMap)
+const categories = orderCategories
 const statusConfig = unifiedStatusConfig
-const mockUnifiedOrders = computed(() => pageData.value?.orders ?? [])
-const isEmpty = computed(() => mockUnifiedOrders.value.length === 0)
-
 const activeCategory = ref<OrderCategory>('all')
 const activeStatus = ref<UnifiedOrderStatus | ''>('')
 
 const filtered = computed(() =>
-  mockUnifiedOrders.value.filter((o) => {
+  mockUnifiedOrders.filter((o) => {
     if (activeCategory.value !== 'all' && o.category !== activeCategory.value) return false
     if (activeStatus.value && o.status !== activeStatus.value) return false
     return true
@@ -296,17 +130,16 @@ const filtered = computed(() =>
 )
 const counts = computed(() => {
   const acc: Record<string, number> = {}
-  for (const cat of categories.value) {
-    acc[cat.key] = cat.key === 'all' ? mockUnifiedOrders.value.length : mockUnifiedOrders.value.filter((o) => o.category === cat.key).length
+  for (const cat of categories) {
+    acc[cat.key] = cat.key === 'all' ? mockUnifiedOrders.length : mockUnifiedOrders.filter((o) => o.category === cat.key).length
   }
   return acc
 })
 
-function catColor(c: OrderCategory) { return categoryColorMap.value[c] }
-function catIcon(c: OrderCategory) { return categories.value.find((x) => x.key === c)?.icon || 'package' }
-function catLabel(c: OrderCategory) { return categories.value.find((x) => x.key === c)?.label || '' }
+function catColor(c: OrderCategory) { return categoryColorMap[c] }
+function catIcon(c: OrderCategory) { return categories.find((x) => x.key === c)?.icon || 'package' }
+function catLabel(c: OrderCategory) { return categories.find((x) => x.key === c)?.label || '' }
 function isExpired(date: string) { return new Date(date).getTime() < Date.now() }
-function goShop() { navigateTo('/shop') }
 </script>
 
 <style lang="scss" scoped>

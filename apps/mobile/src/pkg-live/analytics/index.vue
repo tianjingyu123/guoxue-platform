@@ -1,67 +1,30 @@
 <template>
-  <view v-if="isLoading" class="analytics-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="80rpx" radius="16rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="60rpx" radius="16rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="400rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
-  <view v-else class="analytics-page">
+  <view class="analytics-page">
     <!-- 顶部导航 -->
     <view class="nav-bar">
       <view class="nav-left">
-        <view
-          class="nav-back"
-          @tap="goBack"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="40"
-            color="#1a1a1a"
-          />
+        <view class="nav-back" @tap="goBack">
+          <app-icon name="chevron-left" :size="40" color="#1a1a1a" />
         </view>
         <view class="nav-title-wrap">
-          <text class="nav-title">
-            {{ liveInfo.title }}
-          </text>
-          <text class="nav-sub">
-            {{ liveInfo.startTime }}
-          </text>
+          <text class="nav-title">{{ liveInfo.title }}</text>
+          <text class="nav-sub">{{ liveInfo.startTime }}</text>
         </view>
       </view>
       <view class="nav-right">
         <view class="nav-btn">
-          <app-icon
-            name="download"
-            :size="28"
-            color="#1a1a1a"
-          />
-          <text class="nav-btn-text">
-            导出报告
-          </text>
+          <app-icon name="download" :size="28" color="#1a1a1a" />
+          <text class="nav-btn-text">导出报告</text>
         </view>
         <view class="nav-btn">
-          <app-icon
-            name="share-2"
-            :size="28"
-            color="#1a1a1a"
-          />
-          <text class="nav-btn-text">
-            分享
-          </text>
+          <app-icon name="share-2" :size="28" color="#1a1a1a" />
+          <text class="nav-btn-text">分享</text>
         </view>
       </view>
     </view>
 
     <!-- Tab -->
-    <scroll-view
-      scroll-x
-      class="tab-scroll"
-      :show-scrollbar="false"
-    >
+    <scroll-view scroll-x class="tab-scroll" :show-scrollbar="false">
       <view class="tab-row">
         <view
           v-for="t in tabs"
@@ -76,335 +39,161 @@
     </scroll-view>
 
     <!-- 数据总览 -->
-    <view
-      v-if="activeTab === 'overview'"
-      class="tab-content"
-    >
+    <view v-if="activeTab === 'overview'" class="tab-content">
       <view class="info-card">
         <view class="info-cover">
-          <app-icon
-            name="play"
-            :size="64"
-            color="#fff"
-          />
+          <app-icon name="play" :size="64" color="#fff" />
         </view>
         <view class="info-body">
           <view class="info-badges">
-            <view class="badge badge-gray">
-              {{ liveInfo.type === 'knowledge' ? '知识授课' : '电商带货' }}
-            </view>
-            <view class="badge badge-dark">
-              已结束
-            </view>
+            <view class="badge badge-gray">{{ liveInfo.type === 'knowledge' ? '知识授课' : '电商带货' }}</view>
+            <view class="badge badge-dark">已结束</view>
           </view>
-          <text class="info-title">
-            {{ liveInfo.title }}
-          </text>
-          <text class="info-duration">
-            时长：{{ liveInfo.duration }}
-          </text>
+          <text class="info-title">{{ liveInfo.title }}</text>
+          <text class="info-duration">时长：{{ liveInfo.duration }}</text>
         </view>
       </view>
 
       <view class="core-grid">
-        <view
-          v-for="stat in coreStats"
-          :key="stat.label"
-          class="core-card"
-        >
+        <view v-for="stat in coreStats" :key="stat.label" class="core-card">
           <view class="core-head">
             <view class="core-text">
-              <text class="core-label">
-                {{ stat.label }}
-              </text>
-              <text class="core-value">
-                {{ stat.value }}
-              </text>
+              <text class="core-label">{{ stat.label }}</text>
+              <text class="core-value">{{ stat.value }}</text>
             </view>
-            <view
-              class="core-icon"
-              :class="trendBg(stat.trend)"
-            >
-              <app-icon
-                :name="stat.icon"
-                :size="32"
-                :color="trendColor(stat.trend)"
-              />
+            <view class="core-icon" :class="trendBg(stat.trend)">
+              <app-icon :name="stat.icon" :size="32" :color="trendColor(stat.trend)" />
             </view>
           </view>
-          <view
-            class="core-trend"
-            :style="{ color: trendColor(stat.trend) }"
-          >
-            <app-icon
-              :name="stat.trend === 'up' ? 'arrow-up' : stat.trend === 'down' ? 'arrow-down' : 'minus'"
-              :size="24"
-              :color="trendColor(stat.trend)"
-            />
-            <text
-              class="core-trend-text"
-              :style="{ color: trendColor(stat.trend) }"
-            >
-              较上场 {{ stat.change }}
-            </text>
+          <view class="core-trend" :style="{ color: trendColor(stat.trend) }">
+            <app-icon :name="stat.trend === 'up' ? 'arrow-up' : stat.trend === 'down' ? 'arrow-down' : 'minus'" :size="24" :color="trendColor(stat.trend)" />
+            <text class="core-trend-text" :style="{ color: trendColor(stat.trend) }">较上场 {{ stat.change }}</text>
           </view>
         </view>
       </view>
 
       <view class="card">
         <view class="card-title">
-          <app-icon
-            name="zap"
-            :size="32"
-            color="#f59e0b"
-          />
-          <text class="card-title-text">
-            AI复盘洞察
-          </text>
+          <app-icon name="zap" :size="32" color="#f59e0b" />
+          <text class="card-title-text">AI复盘洞察</text>
         </view>
         <view class="insight insight-green">
-          <app-icon
-            name="star"
-            :size="32"
-            color="#22c55e"
-          />
-          <text class="insight-text insight-text-green">
-            本场直播观看量较上场增长23%，20:15达到峰值3256人，建议在此时间段安排重点内容。
-          </text>
+          <app-icon name="star" :size="32" color="#22c55e" />
+          <text class="insight-text insight-text-green">本场直播观看量较上场增长23%，20:15达到峰值3256人，建议在此时间段安排重点内容。</text>
         </view>
         <view class="insight insight-blue">
-          <app-icon
-            name="target"
-            :size="32"
-            color="#3b82f6"
-          />
-          <text class="insight-text insight-text-blue">
-            关注转化率达3.4%，高于平台均值2.1%。25-44岁用户占比66%，建议针对此人群优化内容。
-          </text>
+          <app-icon name="target" :size="32" color="#3b82f6" />
+          <text class="insight-text insight-text-blue">关注转化率达3.4%，高于平台均值2.1%。25-44岁用户占比66%，建议针对此人群优化内容。</text>
         </view>
         <view class="insight insight-amber">
-          <app-icon
-            name="trending-up"
-            :size="32"
-            color="#f59e0b"
-          />
-          <text class="insight-text insight-text-amber">
-            弹幕高频词"八字""命理"说明用户对核心主题高度关注，可考虑开设进阶系列课程。
-          </text>
+          <app-icon name="trending-up" :size="32" color="#f59e0b" />
+          <text class="insight-text insight-text-amber">弹幕高频词"八字""命理"说明用户对核心主题高度关注，可考虑开设进阶系列课程。</text>
         </view>
       </view>
     </view>
 
     <!-- 流量分析 -->
-    <view
-      v-if="activeTab === 'traffic'"
-      class="tab-content"
-    >
+    <view v-if="activeTab === 'traffic'" class="tab-content">
       <view class="card">
         <view class="card-head-row">
           <view class="card-title">
-            <app-icon
-              name="bar-chart-3"
-              :size="32"
-              color="#C41E3A"
-            />
-            <text class="card-title-text">
-              在线人数趋势
-            </text>
+            <app-icon name="bar-chart-3" :size="32" color="#C41E3A" />
+            <text class="card-title-text">在线人数趋势</text>
           </view>
-          <view class="badge badge-outline">
-            峰值 3,256
-          </view>
+          <view class="badge badge-outline">峰值 3,256</view>
         </view>
         <view class="chart">
-          <view
-            v-for="(item, i) in trafficData"
-            :key="i"
-            class="chart-col"
-          >
+          <view v-for="(item, i) in trafficData" :key="i" class="chart-col">
             <view
               class="chart-bar"
               :class="{ 'chart-bar-peak': item.value === maxTraffic }"
               :style="{ height: (item.value / maxTraffic * 100) + '%' }"
             />
-            <text class="chart-label">
-              {{ item.time.split(':')[1] }}
-            </text>
+            <text class="chart-label">{{ item.time.split(':')[1] }}</text>
           </view>
         </view>
         <view class="chart-axis">
-          <text class="axis-text">
-            19:00
-          </text>
-          <text class="axis-text">
-            20:00
-          </text>
-          <text class="axis-text">
-            21:00
-          </text>
-          <text class="axis-text">
-            21:35
-          </text>
+          <text class="axis-text">19:00</text>
+          <text class="axis-text">20:00</text>
+          <text class="axis-text">21:00</text>
+          <text class="axis-text">21:35</text>
         </view>
       </view>
 
       <view class="card">
-        <text class="card-title-text card-title-block">
-          关键时刻
-        </text>
-        <view
-          v-for="(item, i) in keyMoments"
-          :key="i"
-          class="moment-row"
-        >
+        <text class="card-title-text card-title-block">关键时刻</text>
+        <view v-for="(item, i) in keyMoments" :key="i" class="moment-row">
           <view class="moment-dot-col">
             <view class="moment-dot" />
-            <view
-              v-if="i < keyMoments.length - 1"
-              class="moment-line"
-            />
+            <view v-if="i < keyMoments.length - 1" class="moment-line" />
           </view>
           <view class="moment-body">
             <view class="moment-head">
-              <text class="moment-time">
-                {{ item.time }}
-              </text>
-              <view class="badge badge-gray">
-                {{ item.event }}
-              </view>
+              <text class="moment-time">{{ item.time }}</text>
+              <view class="badge badge-gray">{{ item.event }}</view>
             </view>
-            <text class="moment-desc">
-              {{ item.desc }}
-            </text>
+            <text class="moment-desc">{{ item.desc }}</text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 观众画像 -->
-    <view
-      v-if="activeTab === 'audience'"
-      class="tab-content"
-    >
+    <view v-if="activeTab === 'audience'" class="tab-content">
       <view class="card">
         <view class="card-title">
-          <app-icon
-            name="pie-chart"
-            :size="32"
-            color="#C41E3A"
-          />
-          <text class="card-title-text">
-            性别分布
-          </text>
+          <app-icon name="pie-chart" :size="32" color="#C41E3A" />
+          <text class="card-title-text">性别分布</text>
         </view>
         <view class="gender-row">
           <view class="gender-ring">
             <view class="gender-ring-inner">
-              <app-icon
-                name="users"
-                :size="48"
-                color="#999"
-              />
+              <app-icon name="users" :size="48" color="#999" />
             </view>
           </view>
           <view class="gender-list">
-            <view
-              v-for="item in audience.gender"
-              :key="item.label"
-              class="gender-item"
-            >
-              <view
-                class="gender-dot"
-                :style="{ background: item.color }"
-              />
-              <text class="gender-label">
-                {{ item.label }}
-              </text>
-              <text class="gender-value">
-                {{ item.value }}%
-              </text>
+            <view v-for="item in audience.gender" :key="item.label" class="gender-item">
+              <view class="gender-dot" :style="{ background: item.color }" />
+              <text class="gender-label">{{ item.label }}</text>
+              <text class="gender-value">{{ item.value }}%</text>
             </view>
           </view>
         </view>
       </view>
 
       <view class="card">
-        <text class="card-title-text card-title-block">
-          年龄分布
-        </text>
-        <view
-          v-for="item in audience.age"
-          :key="item.label"
-          class="age-row"
-        >
+        <text class="card-title-text card-title-block">年龄分布</text>
+        <view v-for="item in audience.age" :key="item.label" class="age-row">
           <view class="age-head">
-            <text class="age-label">
-              {{ item.label }}岁
-            </text>
-            <text class="age-value">
-              {{ item.value }}%
-            </text>
+            <text class="age-label">{{ item.label }}岁</text>
+            <text class="age-value">{{ item.value }}%</text>
           </view>
           <view class="progress-track">
-            <view
-              class="progress-fill"
-              :style="{ width: item.value + '%' }"
-            />
+            <view class="progress-fill" :style="{ width: item.value + '%' }" />
           </view>
         </view>
       </view>
 
       <view class="card">
         <view class="card-title">
-          <app-icon
-            name="map-pin"
-            :size="32"
-            color="#C41E3A"
-          />
-          <text class="card-title-text">
-            地域Top5
-          </text>
+          <app-icon name="map-pin" :size="32" color="#C41E3A" />
+          <text class="card-title-text">地域Top5</text>
         </view>
-        <view
-          v-for="(item, i) in audience.region.slice(0, 5)"
-          :key="item.name"
-          class="region-row"
-        >
-          <view
-            class="region-rank"
-            :class="rankClass(i)"
-          >
-            {{ i + 1 }}
-          </view>
-          <text class="region-name">
-            {{ item.name }}
-          </text>
-          <text class="region-value">
-            {{ item.value }}%
-          </text>
+        <view v-for="(item, i) in audience.region.slice(0, 5)" :key="item.name" class="region-row">
+          <view class="region-rank" :class="rankClass(i)">{{ i + 1 }}</view>
+          <text class="region-name">{{ item.name }}</text>
+          <text class="region-value">{{ item.value }}%</text>
         </view>
       </view>
 
       <view class="card">
-        <text class="card-title-text card-title-block">
-          来源渠道
-        </text>
+        <text class="card-title-text card-title-block">来源渠道</text>
         <view class="source-grid">
-          <view
-            v-for="item in audience.source"
-            :key="item.label"
-            class="source-item"
-          >
-            <text class="source-icon">
-              {{ item.icon }}
-            </text>
+          <view v-for="item in audience.source" :key="item.label" class="source-item">
+            <text class="source-icon">{{ item.icon }}</text>
             <view class="source-info">
-              <text class="source-label">
-                {{ item.label }}
-              </text>
-              <text class="source-value">
-                {{ item.value }}%
-              </text>
+              <text class="source-label">{{ item.label }}</text>
+              <text class="source-value">{{ item.value }}%</text>
             </view>
           </view>
         </view>
@@ -412,136 +201,66 @@
     </view>
 
     <!-- 互动分析 -->
-    <view
-      v-if="activeTab === 'interaction'"
-      class="tab-content"
-    >
+    <view v-if="activeTab === 'interaction'" class="tab-content">
       <view class="inter-grid">
-        <view
-          v-for="item in interStats"
-          :key="item.label"
-          class="inter-card"
-        >
-          <app-icon
-            :name="item.icon"
-            :size="32"
-            color="#999"
-          />
-          <text class="inter-value">
-            {{ item.value.toLocaleString() }}
-          </text>
-          <text class="inter-label">
-            {{ item.label }}
-          </text>
+        <view v-for="item in interStats" :key="item.label" class="inter-card">
+          <app-icon :name="item.icon" :size="32" color="#999" />
+          <text class="inter-value">{{ item.value.toLocaleString() }}</text>
+          <text class="inter-label">{{ item.label }}</text>
         </view>
       </view>
 
       <view class="card">
-        <text class="card-title-text card-title-block">
-          弹幕热词
-        </text>
+        <text class="card-title-text card-title-block">弹幕热词</text>
         <view class="word-cloud">
           <text
             v-for="(item, i) in wordCloud"
             :key="i"
             class="word-item"
             :style="{ fontSize: item.size + 'rpx', color: item.color }"
-          >
-            {{ item.word }}
-          </text>
+          >{{ item.word }}</text>
         </view>
       </view>
 
       <view class="card">
         <view class="card-title">
-          <app-icon
-            name="gift"
-            :size="32"
-            color="#f59e0b"
-          />
-          <text class="card-title-text">
-            打赏明细
-          </text>
+          <app-icon name="gift" :size="32" color="#f59e0b" />
+          <text class="card-title-text">打赏明细</text>
         </view>
-        <view
-          v-for="(gift, i) in interaction.gifts"
-          :key="gift.name"
-          class="gift-row"
-        >
-          <view class="gift-rank">
-            {{ i + 1 }}
-          </view>
-          <text class="gift-name">
-            {{ gift.name }}
-          </text>
-          <text class="gift-count">
-            {{ gift.count }}个
-          </text>
-          <text class="gift-amount">
-            ¥{{ gift.amount }}
-          </text>
+        <view v-for="(gift, i) in interaction.gifts" :key="gift.name" class="gift-row">
+          <view class="gift-rank">{{ i + 1 }}</view>
+          <text class="gift-name">{{ gift.name }}</text>
+          <text class="gift-count">{{ gift.count }}个</text>
+          <text class="gift-amount">¥{{ gift.amount }}</text>
         </view>
       </view>
 
       <view class="card">
         <view class="card-title">
-          <app-icon
-            name="shopping-bag"
-            :size="32"
-            color="#C41E3A"
-          />
-          <text class="card-title-text">
-            商品数据Top3
-          </text>
+          <app-icon name="shopping-bag" :size="32" color="#C41E3A" />
+          <text class="card-title-text">商品数据Top3</text>
         </view>
-        <view
-          v-for="(p, i) in productStats"
-          :key="p.id"
-          class="prod-card"
-        >
+        <view v-for="(p, i) in productStats" :key="p.id" class="prod-card">
           <view class="prod-head">
-            <view
-              class="prod-rank"
-              :class="rankClass(i)"
-            >
-              {{ i + 1 }}
-            </view>
-            <text class="prod-name">
-              {{ p.name }}
-            </text>
+            <view class="prod-rank" :class="rankClass(i)">{{ i + 1 }}</view>
+            <text class="prod-name">{{ p.name }}</text>
           </view>
           <view class="prod-stats">
             <view class="prod-stat">
-              <text class="prod-stat-label">
-                点击
-              </text>
-              <text class="prod-stat-value">
-                {{ p.clicks }}
-              </text>
+              <text class="prod-stat-label">点击</text>
+              <text class="prod-stat-value">{{ p.clicks }}</text>
             </view>
             <view class="prod-stat">
-              <text class="prod-stat-label">
-                下单
-              </text>
-              <text class="prod-stat-value">
-                {{ p.orders }}
-              </text>
+              <text class="prod-stat-label">下单</text>
+              <text class="prod-stat-value">{{ p.orders }}</text>
             </view>
             <view class="prod-stat">
-              <text class="prod-stat-label">
-                成交
-              </text>
-              <text class="prod-stat-value prod-stat-primary">
-                ¥{{ p.amount }}
-              </text>
+              <text class="prod-stat-label">成交</text>
+              <text class="prod-stat-value prod-stat-primary">¥{{ p.amount }}</text>
             </view>
             <view class="prod-stat">
-              <text class="prod-stat-label">
-                转化率
-              </text>
-              <text class="prod-stat-value">
-                {{ p.conversion }}%
-              </text>
+              <text class="prod-stat-label">转化率</text>
+              <text class="prod-stat-value">{{ p.conversion }}%</text>
             </view>
           </view>
         </view>
@@ -549,158 +268,84 @@
     </view>
 
     <!-- 回放管理 -->
-    <view
-      v-if="activeTab === 'replay'"
-      class="tab-content"
-    >
+    <view v-if="activeTab === 'replay'" class="tab-content">
       <view class="card">
         <view class="card-title">
-          <app-icon
-            name="play"
-            :size="32"
-            color="#C41E3A"
-          />
-          <text class="card-title-text">
-            回放数据
-          </text>
+          <app-icon name="play" :size="32" color="#C41E3A" />
+          <text class="card-title-text">回放数据</text>
         </view>
         <view class="replay-grid">
           <view class="replay-stat">
-            <text class="replay-num">
-              {{ replay.playCount.toLocaleString() }}
-            </text>
-            <text class="replay-label">
-              播放次数
-            </text>
+            <text class="replay-num">{{ replay.playCount.toLocaleString() }}</text>
+            <text class="replay-label">播放次数</text>
           </view>
           <view class="replay-stat">
-            <text class="replay-num">
-              {{ replay.playDuration }}
-            </text>
-            <text class="replay-label">
-              平均时长
-            </text>
+            <text class="replay-num">{{ replay.playDuration }}</text>
+            <text class="replay-label">平均时长</text>
           </view>
           <view class="replay-stat">
-            <text class="replay-num">
-              ¥{{ replay.revenue }}
-            </text>
-            <text class="replay-label">
-              回放收益
-            </text>
+            <text class="replay-num">¥{{ replay.revenue }}</text>
+            <text class="replay-label">回放收益</text>
           </view>
         </view>
       </view>
 
       <view class="card">
-        <text class="card-title-text card-title-block">
-          回放设置
-        </text>
+        <text class="card-title-text card-title-block">回放设置</text>
         <view class="setting-row">
           <view class="setting-text">
-            <text class="setting-name">
-              公开回放
-            </text>
-            <text class="setting-desc">
-              允许所有用户观看直播回放
-            </text>
+            <text class="setting-name">公开回放</text>
+            <text class="setting-desc">允许所有用户观看直播回放</text>
           </view>
-          <view
-            class="switch"
-            :class="{ 'switch-on': replayPublic }"
-            @tap="replayPublic = !replayPublic"
-          >
+          <view class="switch" :class="{ 'switch-on': replayPublic }" @tap="replayPublic = !replayPublic">
             <view class="switch-knob" />
           </view>
         </view>
         <view class="setting-row">
           <view class="setting-text">
-            <text class="setting-name">
-              付费观看
-            </text>
-            <text class="setting-desc">
-              设置回放为付费内容
-            </text>
+            <text class="setting-name">付费观看</text>
+            <text class="setting-desc">设置回放为付费内容</text>
           </view>
-          <view
-            class="switch"
-            :class="{ 'switch-on': replayPaid }"
-            @tap="replayPaid = !replayPaid"
-          >
+          <view class="switch" :class="{ 'switch-on': replayPaid }" @tap="replayPaid = !replayPaid">
             <view class="switch-knob" />
           </view>
         </view>
-        <view
-          v-if="replayPaid"
-          class="paid-tip"
-        >
-          <text class="paid-tip-text">
-            付费价格将在保存后设置，建议定价区间：9.9-99元
-          </text>
+        <view v-if="replayPaid" class="paid-tip">
+          <text class="paid-tip-text">付费价格将在保存后设置，建议定价区间：9.9-99元</text>
         </view>
       </view>
 
       <view class="card">
-        <text class="card-title-text card-title-block">
-          上架至
-        </text>
+        <text class="card-title-text card-title-block">上架至</text>
         <view class="shelf-btn">
           <view class="shelf-icon shelf-icon-violet">
-            <app-icon
-              name="upload"
-              :size="40"
-              color="#8b5cf6"
-            />
+            <app-icon name="upload" :size="40" color="#8b5cf6" />
           </view>
           <view class="shelf-text">
-            <text class="shelf-name">
-              上架为付费课程
-            </text>
-            <text class="shelf-desc">
-              将回放转为独立课程销售
-            </text>
+            <text class="shelf-name">上架为付费课程</text>
+            <text class="shelf-desc">将回放转为独立课程销售</text>
           </view>
         </view>
         <view class="shelf-btn">
           <view class="shelf-icon shelf-icon-primary">
-            <app-icon
-              name="lock"
-              :size="40"
-              color="#C41E3A"
-            />
+            <app-icon name="lock" :size="40" color="#C41E3A" />
           </view>
           <view class="shelf-text">
-            <text class="shelf-name">
-              设为圈子专属
-            </text>
-            <text class="shelf-desc">
-              仅圈子成员可观看回放
-            </text>
+            <text class="shelf-name">设为圈子专属</text>
+            <text class="shelf-desc">仅圈子成员可观看回放</text>
           </view>
         </view>
       </view>
 
       <view class="card card-flush">
         <view class="replay-preview">
-          <app-icon
-            name="play"
-            :size="96"
-            color="rgba(255,255,255,0.5)"
-          />
-          <view class="preview-badge">
-            回放
-          </view>
-          <text class="preview-duration">
-            {{ liveInfo.duration }}
-          </text>
+          <app-icon name="play" :size="96" color="rgba(255,255,255,0.5)" />
+          <view class="preview-badge">回放</view>
+          <text class="preview-duration">{{ liveInfo.duration }}</text>
         </view>
         <view class="preview-info">
-          <text class="preview-title">
-            {{ liveInfo.title }}
-          </text>
-          <text class="preview-time">
-            {{ liveInfo.startTime }}
-          </text>
+          <text class="preview-title">{{ liveInfo.title }}</text>
+          <text class="preview-time">{{ liveInfo.startTime }}</text>
         </view>
       </view>
     </view>
@@ -709,20 +354,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import {
   analyticsLiveInfo, analyticsCoreStats, analyticsTrafficData, analyticsKeyMoments,
   analyticsAudience, analyticsInteraction, analyticsWordCloud, analyticsProductStats, analyticsReplay,
 } from '@/lib/live-data'
-
-const isLoading = ref(false)
-const loadError = ref<string | null>(null)
-const isEmpty = computed(() => false)
-function reload() {
-  loadError.value = null
-}
 
 const liveInfo = analyticsLiveInfo
 const coreStats = analyticsCoreStats

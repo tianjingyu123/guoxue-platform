@@ -59,69 +59,28 @@ function fmtMoney(n: number) {
 <template>
   <view class="tm">
     <!-- 顶部导航 -->
-    <view
-      class="tm-header"
-      :style="{ paddingTop: 'var(--status-bar-height, 0px)' }"
-    >
+    <view class="tm-header" :style="{ paddingTop: 'var(--status-bar-height, 0px)' }">
       <view class="tm-header-inner">
         <view class="tm-header-left">
-          <view
-            class="tm-back"
-            @tap="goBack"
-          >
-            <app-icon
-              name="arrow-left"
-              :size="40"
-              color="#1f1f1f"
-            />
-          </view>
-          <text class="tm-title">
-            老师邀约管理
-          </text>
+          <view class="tm-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#1f1f1f" /></view>
+          <text class="tm-title">老师邀约管理</text>
         </view>
-        <view
-          class="tm-find"
-          @tap="toastSoon"
-        >
-          <app-icon
-            name="search"
-            :size="32"
-            color="#C41E3A"
-          />
-          <text class="tm-find-txt">
-            找老师
-          </text>
+        <view class="tm-find" @tap="toastSoon">
+          <app-icon name="search" :size="32" color="#C41E3A" />
+          <text class="tm-find-txt">找老师</text>
         </view>
       </view>
     </view>
 
     <!-- 快捷操作 -->
     <view class="tm-quick">
-      <view
-        class="tm-quick-btn"
-        @tap="toastSoon"
-      >
-        <app-icon
-          name="users"
-          :size="40"
-          color="#C41E3A"
-        />
-        <text class="tm-quick-txt">
-          浏览人才库
-        </text>
+      <view class="tm-quick-btn" @tap="toastSoon">
+        <app-icon name="users" :size="40" color="#C41E3A" />
+        <text class="tm-quick-txt">浏览人才库</text>
       </view>
-      <view
-        class="tm-quick-btn"
-        @tap="toastSoon"
-      >
-        <app-icon
-          name="plus"
-          :size="40"
-          color="#C41E3A"
-        />
-        <text class="tm-quick-txt">
-          发布需求
-        </text>
+      <view class="tm-quick-btn" @tap="toastSoon">
+        <app-icon name="plus" :size="40" color="#C41E3A" />
+        <text class="tm-quick-txt">发布需求</text>
       </view>
     </view>
 
@@ -134,115 +93,39 @@ function fmtMoney(n: number) {
         :class="{ active: activeTab === tab.id }"
         @tap="activeTab = tab.id"
       >
-        <text
-          class="tm-tab-txt"
-          :class="{ active: activeTab === tab.id }"
-        >
-          {{ tab.label }}
-        </text>
+        <text class="tm-tab-txt" :class="{ active: activeTab === tab.id }">{{ tab.label }}</text>
       </view>
     </view>
 
-    <scroll-view
-      scroll-y
-      class="tm-body"
-    >
+    <scroll-view scroll-y class="tm-body">
       <!-- 邀约记录 -->
-      <view
-        v-if="activeTab === 'invitations'"
-        class="tm-list"
-      >
-        <view
-          v-for="item in invitations"
-          :key="item.id"
-          class="tm-card"
-        >
+      <view v-if="activeTab === 'invitations'" class="tm-list">
+        <view v-for="item in invitations" :key="item.id" class="tm-card">
           <view class="tm-inv">
-            <view class="tm-avatar">
-              <text class="tm-avatar-txt">
-                {{ item.teacher.name.slice(0, 1) }}
-              </text>
-            </view>
+            <view class="tm-avatar"><text class="tm-avatar-txt">{{ item.teacher.name.slice(0, 1) }}</text></view>
             <view class="tm-inv-main">
               <view class="tm-inv-top">
-                <text class="tm-inv-name">
-                  {{ item.teacher.name }}
-                </text>
-                <view
-                  class="tm-badge"
-                  :style="{ background: statusConfig[item.status].bg }"
-                >
-                  <text
-                    class="tm-badge-txt"
-                    :style="{ color: statusConfig[item.status].color }"
-                  >
-                    {{ statusConfig[item.status].label }}
-                  </text>
+                <text class="tm-inv-name">{{ item.teacher.name }}</text>
+                <view class="tm-badge" :style="{ background: statusConfig[item.status].bg }">
+                  <text class="tm-badge-txt" :style="{ color: statusConfig[item.status].color }">{{ statusConfig[item.status].label }}</text>
                 </view>
               </view>
-              <text class="tm-inv-title">
-                {{ item.teacher.title }}
-              </text>
+              <text class="tm-inv-title">{{ item.teacher.title }}</text>
               <view class="tm-inv-course">
-                <text class="tm-inv-course-name">
-                  {{ item.course }}
-                </text>
+                <text class="tm-inv-course-name">{{ item.course }}</text>
                 <view class="tm-inv-meta">
-                  <view class="tm-meta-item">
-                    <app-icon
-                      name="calendar"
-                      :size="24"
-                      color="#999"
-                    /><text class="tm-meta-txt">
-                      {{ item.date }}
-                    </text>
-                  </view>
-                  <view class="tm-meta-item">
-                    <app-icon
-                      name="clock"
-                      :size="24"
-                      color="#999"
-                    /><text class="tm-meta-txt">
-                      {{ item.time }}
-                    </text>
-                  </view>
+                  <view class="tm-meta-item"><app-icon name="calendar" :size="24" color="#999" /><text class="tm-meta-txt">{{ item.date }}</text></view>
+                  <view class="tm-meta-item"><app-icon name="clock" :size="24" color="#999" /><text class="tm-meta-txt">{{ item.time }}</text></view>
                 </view>
               </view>
               <view class="tm-inv-fee">
-                <text class="tm-fee">
-                  ¥{{ item.fee }}
-                </text>
-                <text
-                  v-if="item.status === 'confirmed'"
-                  class="tm-attendees"
-                >
-                  {{ item.attendees }}人报名
-                </text>
-                <text
-                  v-else-if="item.status === 'completed'"
-                  class="tm-attendees green"
-                >
-                  {{ item.attendees }}人参与
-                </text>
+                <text class="tm-fee">¥{{ item.fee }}</text>
+                <text v-if="item.status === 'confirmed'" class="tm-attendees">{{ item.attendees }}人报名</text>
+                <text v-else-if="item.status === 'completed'" class="tm-attendees green">{{ item.attendees }}人参与</text>
               </view>
-              <view
-                v-if="item.status === 'pending'"
-                class="tm-inv-actions"
-              >
-                <view class="tm-act-btn">
-                  <app-icon
-                    name="message-circle"
-                    :size="28"
-                    color="#1f1f1f"
-                  /><text class="tm-act-txt">
-                    联系老师
-                  </text>
-                </view>
-                <view class="tm-act-btn red">
-                  <text class="tm-act-txt red">
-                    取消邀约
-                  </text>
-                </view>
+              <view v-if="item.status === 'pending'" class="tm-inv-actions">
+                <view class="tm-act-btn"><app-icon name="message-circle" :size="28" color="#1f1f1f" /><text class="tm-act-txt">联系老师</text></view>
+                <view class="tm-act-btn red"><text class="tm-act-txt red">取消邀约</text></view>
               </view>
             </view>
           </view>
@@ -250,180 +133,79 @@ function fmtMoney(n: number) {
       </view>
 
       <!-- 我的需求 -->
-      <view
-        v-else-if="activeTab === 'demands'"
-        class="tm-list"
-      >
-        <view
-          class="tm-new-demand"
-          @tap="toastSoon"
-        >
-          <app-icon
-            name="plus"
-            :size="32"
-            color="#1f1f1f"
-          /><text class="tm-new-demand-txt">
-            发布新需求
-          </text>
+      <view v-else-if="activeTab === 'demands'" class="tm-list">
+        <view class="tm-new-demand" @tap="toastSoon">
+          <app-icon name="plus" :size="32" color="#1f1f1f" /><text class="tm-new-demand-txt">发布新需求</text>
         </view>
-        <view
-          v-for="item in demands"
-          :key="item.id"
-          class="tm-card"
-        >
+        <view v-for="item in demands" :key="item.id" class="tm-card">
           <view class="tm-dm-top">
             <view class="tm-dm-info">
               <view class="tm-dm-title-row">
-                <text class="tm-dm-title">
-                  {{ item.title }}
-                </text>
-                <view
-                  class="tm-badge"
-                  :style="{ background: statusConfig[item.status].bg }"
-                >
-                  <text
-                    class="tm-badge-txt"
-                    :style="{ color: statusConfig[item.status].color }"
-                  >
-                    {{ statusConfig[item.status].label }}
-                  </text>
+                <text class="tm-dm-title">{{ item.title }}</text>
+                <view class="tm-badge" :style="{ background: statusConfig[item.status].bg }">
+                  <text class="tm-badge-txt" :style="{ color: statusConfig[item.status].color }">{{ statusConfig[item.status].label }}</text>
                 </view>
               </view>
               <view class="tm-dm-meta">
-                <view class="tm-dm-cat">
-                  <text class="tm-dm-cat-txt">
-                    {{ item.category }}
-                  </text>
-                </view>
-                <text class="tm-meta-txt">
-                  {{ item.date }}
-                </text>
-                <text class="tm-meta-txt">
-                  预算 ¥{{ item.budget }}
-                </text>
+                <view class="tm-dm-cat"><text class="tm-dm-cat-txt">{{ item.category }}</text></view>
+                <text class="tm-meta-txt">{{ item.date }}</text>
+                <text class="tm-meta-txt">预算 ¥{{ item.budget }}</text>
               </view>
             </view>
-            <app-icon
-              name="chevron-right"
-              :size="40"
-              color="#999"
-            />
+            <app-icon name="chevron-right" :size="40" color="#999" />
           </view>
           <view class="tm-dm-foot">
-            <text class="tm-dm-apply">
-              <text class="tm-dm-apply-num">
-                {{ item.applications }}
-              </text> 位老师申请
-            </text>
-            <view
-              class="tm-dm-btn"
-              @tap.stop="toastSoon"
-            >
-              <text class="tm-dm-btn-txt">
-                查看申请
-              </text>
-            </view>
+            <text class="tm-dm-apply"><text class="tm-dm-apply-num">{{ item.applications }}</text> 位老师申请</text>
+            <view class="tm-dm-btn" @tap.stop="toastSoon"><text class="tm-dm-btn-txt">查看申请</text></view>
           </view>
         </view>
       </view>
 
       <!-- 课程排期 -->
-      <view
-        v-else-if="activeTab === 'schedule'"
-        class="tm-list"
-      >
+      <view v-else-if="activeTab === 'schedule'" class="tm-list">
         <view class="tm-card">
-          <text class="tm-sec-title">
-            2024年4月
-          </text>
+          <text class="tm-sec-title">2024年4月</text>
           <view class="tm-sch-list">
-            <view
-              v-for="item in confirmedList"
-              :key="item.id"
-              class="tm-sch-item"
-            >
+            <view v-for="item in confirmedList" :key="item.id" class="tm-sch-item">
               <view class="tm-sch-date">
-                <text class="tm-sch-day">
-                  {{ item.date.split('-')[2] }}
-                </text>
-                <text class="tm-sch-week">
-                  周一
-                </text>
+                <text class="tm-sch-day">{{ item.date.split('-')[2] }}</text>
+                <text class="tm-sch-week">周一</text>
               </view>
               <view class="tm-sch-info">
-                <text class="tm-sch-course">
-                  {{ item.course }}
-                </text>
-                <text class="tm-sch-sub">
-                  {{ item.teacher.name }} · {{ item.time }}
-                </text>
+                <text class="tm-sch-course">{{ item.course }}</text>
+                <text class="tm-sch-sub">{{ item.teacher.name }} · {{ item.time }}</text>
               </view>
-              <view class="tm-sch-badge">
-                <text class="tm-sch-badge-txt">
-                  {{ item.attendees }}人
-                </text>
-              </view>
+              <view class="tm-sch-badge"><text class="tm-sch-badge-txt">{{ item.attendees }}人</text></view>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 费用结算 -->
-      <view
-        v-else-if="activeTab === 'settlement'"
-        class="tm-list"
-      >
+      <view v-else-if="activeTab === 'settlement'" class="tm-list">
         <view class="tm-card">
           <view class="tm-settle-head">
-            <text class="tm-sec-title">
-              待结算
-            </text>
-            <text class="tm-settle-total">
-              ¥{{ fmtMoney(pendingTotal) }}
-            </text>
+            <text class="tm-sec-title">待结算</text>
+            <text class="tm-settle-total">¥{{ fmtMoney(pendingTotal) }}</text>
           </view>
-          <view
-            v-for="item in confirmedList"
-            :key="item.id"
-            class="tm-settle-row"
-          >
+          <view v-for="item in confirmedList" :key="item.id" class="tm-settle-row">
             <view>
-              <text class="tm-settle-course">
-                {{ item.course }}
-              </text>
-              <text class="tm-settle-sub">
-                {{ item.teacher.name }} · {{ item.date }}
-              </text>
+              <text class="tm-settle-course">{{ item.course }}</text>
+              <text class="tm-settle-sub">{{ item.teacher.name }} · {{ item.date }}</text>
             </view>
-            <text class="tm-settle-fee">
-              ¥{{ item.fee }}
-            </text>
+            <text class="tm-settle-fee">¥{{ item.fee }}</text>
           </view>
         </view>
         <view class="tm-card">
-          <text class="tm-sec-title">
-            已结算记录
-          </text>
-          <view
-            v-for="item in completedList"
-            :key="item.id"
-            class="tm-settle-paid"
-          >
+          <text class="tm-sec-title">已结算记录</text>
+          <view v-for="item in completedList" :key="item.id" class="tm-settle-paid">
             <view>
-              <text class="tm-settle-course light">
-                {{ item.course }}
-              </text>
-              <text class="tm-settle-sub">
-                {{ item.teacher.name }} · {{ item.date }}
-              </text>
+              <text class="tm-settle-course light">{{ item.course }}</text>
+              <text class="tm-settle-sub">{{ item.teacher.name }} · {{ item.date }}</text>
             </view>
             <view class="tm-settle-paid-right">
-              <text class="tm-settle-paid-fee">
-                ¥{{ item.fee }}
-              </text>
-              <text class="tm-settle-paid-label">
-                已支付
-              </text>
+              <text class="tm-settle-paid-fee">¥{{ item.fee }}</text>
+              <text class="tm-settle-paid-label">已支付</text>
             </view>
           </view>
         </view>

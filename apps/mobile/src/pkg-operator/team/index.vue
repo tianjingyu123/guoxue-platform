@@ -1,33 +1,11 @@
 <template>
-  <view v-if="isLoading" class="team-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="60rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
-  <view v-else class="team-page">
+  <view class="team-page">
     <!-- 顶部导航 -->
-    <app-nav-bar
-      title="团队管理"
-      :show-back="true"
-    >
+    <app-nav-bar title="团队管理" :show-back="true">
       <template #right>
-        <view
-          class="team-invite-btn"
-          @tap="openInvite"
-        >
-          <app-icon
-            name="user-plus"
-            :size="28"
-            color="#ffffff"
-          />
-          <text class="team-invite-btn-txt">
-            邀请下级
-          </text>
+        <view class="team-invite-btn" @tap="openInvite">
+          <app-icon name="user-plus" :size="28" color="#ffffff" />
+          <text class="team-invite-btn-txt">邀请下级</text>
         </view>
       </template>
     </app-nav-bar>
@@ -36,369 +14,128 @@
     <view class="team-overview">
       <view class="team-ov-grid">
         <view class="team-ov-card">
-          <view class="team-ov-top">
-            <app-icon
-              name="users"
-              :size="26"
-              color="#999"
-            /><text class="team-ov-label">
-              团队总人数
-            </text>
-          </view>
-          <text class="team-ov-val">
-            {{ overview.totalMembers }}
-          </text>
-          <text class="team-ov-sub green">
-            本月新增 +{{ overview.newMembersThisMonth }}
-          </text>
+          <view class="team-ov-top"><app-icon name="users" :size="26" color="#999" /><text class="team-ov-label">团队总人数</text></view>
+          <text class="team-ov-val">{{ overview.totalMembers }}</text>
+          <text class="team-ov-sub green">本月新增 +{{ overview.newMembersThisMonth }}</text>
         </view>
         <view class="team-ov-card">
-          <view class="team-ov-top">
-            <app-icon
-              name="wallet"
-              :size="26"
-              color="#999"
-            /><text class="team-ov-label">
-              累计佣金
-            </text>
-          </view>
-          <text class="team-ov-val primary">
-            {{ overview.totalCommission.toFixed(2) }}
-          </text>
-          <text class="team-ov-sub">
-            元
-          </text>
+          <view class="team-ov-top"><app-icon name="wallet" :size="26" color="#999" /><text class="team-ov-label">累计佣金</text></view>
+          <text class="team-ov-val primary">{{ overview.totalCommission.toFixed(2) }}</text>
+          <text class="team-ov-sub">元</text>
         </view>
         <view class="team-ov-card">
-          <view class="team-ov-top">
-            <app-icon
-              name="percent"
-              :size="26"
-              color="#999"
-            /><text class="team-ov-label">
-              提成比例
-            </text>
-          </view>
-          <text class="team-ov-val">
-            {{ overview.commissionRate }}%
-          </text>
-          <text class="team-ov-sub">
-            {{ overview.myLevel }}
-          </text>
+          <view class="team-ov-top"><app-icon name="percent" :size="26" color="#999" /><text class="team-ov-label">提成比例</text></view>
+          <text class="team-ov-val">{{ overview.commissionRate }}%</text>
+          <text class="team-ov-sub">{{ overview.myLevel }}</text>
         </view>
         <view class="team-ov-card">
-          <view class="team-ov-top">
-            <app-icon
-              name="trending-up"
-              :size="26"
-              color="#999"
-            /><text class="team-ov-label">
-              升级进度
-            </text>
-          </view>
-          <view class="team-progress-bar">
-            <view
-              class="team-progress-fill"
-              :style="{ width: upgradePercent + '%' }"
-            />
-          </view>
-          <text class="team-ov-sub">
-            距下一等级还需 {{ (overview.nextLevelRequirement - overview.totalCommission).toFixed(0) }} 元
-          </text>
+          <view class="team-ov-top"><app-icon name="trending-up" :size="26" color="#999" /><text class="team-ov-label">升级进度</text></view>
+          <view class="team-progress-bar"><view class="team-progress-fill" :style="{ width: upgradePercent + '%' }" /></view>
+          <text class="team-ov-sub">距下一等级还需 {{ (overview.nextLevelRequirement - overview.totalCommission).toFixed(0) }} 元</text>
         </view>
       </view>
     </view>
 
     <!-- Tab 切换 -->
     <view class="team-tabs">
-      <view
-        v-for="t in tabs"
-        :key="t.key"
-        class="team-tab"
-        :class="{ active: activeTab === t.key }"
-        @tap="activeTab = t.key"
-      >
-        <text class="team-tab-txt">
-          {{ t.label }}
-        </text>
+      <view v-for="t in tabs" :key="t.key" class="team-tab" :class="{ active: activeTab === t.key }" @tap="activeTab = t.key">
+        <text class="team-tab-txt">{{ t.label }}</text>
       </view>
     </view>
 
     <!-- 成员列表 -->
-    <view
-      v-if="activeTab === 'members'"
-      class="team-content"
-    >
+    <view v-if="activeTab === 'members'" class="team-content">
       <!-- 筛选栏 -->
       <view class="team-filter">
-        <view
-          class="team-select"
-          @tap="toggleDropdown('filter')"
-        >
-          <text class="team-select-txt">
-            {{ filterLabel }}
-          </text>
-          <app-icon
-            name="chevron-down"
-            :size="24"
-            color="#999"
-          />
-          <view
-            v-if="dropdown === 'filter'"
-            class="team-dropdown"
-          >
-            <view
-              v-for="o in filterOptions"
-              :key="o.value"
-              class="team-dropdown-item"
-              :class="{ active: memberFilter === o.value }"
-              @tap.stop="selectFilter(o.value)"
-            >
-              <text>{{ o.label }}</text>
-            </view>
+        <view class="team-select" @tap="toggleDropdown('filter')">
+          <text class="team-select-txt">{{ filterLabel }}</text>
+          <app-icon name="chevron-down" :size="24" color="#999" />
+          <view v-if="dropdown === 'filter'" class="team-dropdown">
+            <view v-for="o in filterOptions" :key="o.value" class="team-dropdown-item" :class="{ active: memberFilter === o.value }" @tap.stop="selectFilter(o.value)"><text>{{ o.label }}</text></view>
           </view>
         </view>
-        <view
-          class="team-select"
-          @tap="toggleDropdown('sort')"
-        >
-          <text class="team-select-txt">
-            {{ sortLabel }}
-          </text>
-          <app-icon
-            name="chevron-down"
-            :size="24"
-            color="#999"
-          />
-          <view
-            v-if="dropdown === 'sort'"
-            class="team-dropdown"
-          >
-            <view
-              v-for="o in sortOptions"
-              :key="o.value"
-              class="team-dropdown-item"
-              :class="{ active: memberSort === o.value }"
-              @tap.stop="selectSort(o.value)"
-            >
-              <text>{{ o.label }}</text>
-            </view>
+        <view class="team-select" @tap="toggleDropdown('sort')">
+          <text class="team-select-txt">{{ sortLabel }}</text>
+          <app-icon name="chevron-down" :size="24" color="#999" />
+          <view v-if="dropdown === 'sort'" class="team-dropdown">
+            <view v-for="o in sortOptions" :key="o.value" class="team-dropdown-item" :class="{ active: memberSort === o.value }" @tap.stop="selectSort(o.value)"><text>{{ o.label }}</text></view>
           </view>
         </view>
       </view>
 
       <view class="team-list">
-        <view
-          v-for="m in sortedMembers"
-          :key="m.id"
-          class="team-member-card"
-          @tap="openMemberDetail(m)"
-        >
+        <view v-for="m in sortedMembers" :key="m.id" class="team-member-card" @tap="openMemberDetail(m)">
           <view class="team-member-row">
-            <view class="team-avatar">
-              <text class="team-avatar-txt">
-                {{ m.nickname[0] }}
-              </text>
-            </view>
+            <view class="team-avatar"><text class="team-avatar-txt">{{ m.nickname[0] }}</text></view>
             <view class="team-member-info">
               <view class="team-member-name-row">
-                <text class="team-member-name">
-                  {{ m.nickname }}
-                </text>
-                <text class="team-badge secondary">
-                  {{ m.levelIcon }} {{ m.level }}
-                </text>
-                <text
-                  v-if="m.status === 'inactive'"
-                  class="team-badge outline"
-                >
-                  不活跃
-                </text>
+                <text class="team-member-name">{{ m.nickname }}</text>
+                <text class="team-badge secondary">{{ m.levelIcon }} {{ m.level }}</text>
+                <text v-if="m.status === 'inactive'" class="team-badge outline">不活跃</text>
               </view>
-              <text class="team-member-meta">
-                {{ m.phone }} · 加入于 {{ m.joinDate }}
-              </text>
+              <text class="team-member-meta">{{ m.phone }} · 加入于 {{ m.joinDate }}</text>
               <view class="team-member-stats">
-                <text class="team-member-stat">
-                  佣金 <text class="primary bold">
-                    {{ m.totalCommission.toFixed(2) }}
-                  </text>
-                </text>
-                <text class="team-member-stat">
-                  邀请 <text class="bold">
-                    {{ m.inviteCount }}
-                  </text> 人
-                </text>
+                <text class="team-member-stat">佣金 <text class="primary bold">{{ m.totalCommission.toFixed(2) }}</text></text>
+                <text class="team-member-stat">邀请 <text class="bold">{{ m.inviteCount }}</text> 人</text>
               </view>
             </view>
-            <app-icon
-              name="chevron-right"
-              :size="30"
-              color="#ccc"
-            />
+            <app-icon name="chevron-right" :size="30" color="#ccc" />
           </view>
         </view>
       </view>
     </view>
 
     <!-- 排行榜 -->
-    <view
-      v-else-if="activeTab === 'leaderboard'"
-      class="team-content"
-    >
+    <view v-else-if="activeTab === 'leaderboard'" class="team-content">
       <view class="team-period">
-        <view
-          v-for="p in periods"
-          :key="p.value"
-          class="team-period-btn"
-          :class="{ active: leaderboardPeriod === p.value }"
-          @tap="leaderboardPeriod = p.value"
-        >
-          <text class="team-period-txt">
-            {{ p.label }}
-          </text>
+        <view v-for="p in periods" :key="p.value" class="team-period-btn" :class="{ active: leaderboardPeriod === p.value }" @tap="leaderboardPeriod = p.value">
+          <text class="team-period-txt">{{ p.label }}</text>
         </view>
       </view>
       <view class="team-list">
-        <view
-          v-for="item in leaderboard"
-          :key="item.userId"
-          class="team-rank-card"
-          :class="{ top: item.rank <= 3 }"
-        >
+        <view v-for="item in leaderboard" :key="item.userId" class="team-rank-card" :class="{ top: item.rank <= 3 }">
           <view class="team-rank-row">
-            <view
-              class="team-rank-num"
-              :class="rankClass(item.rank)"
-            >
-              <text class="team-rank-num-txt">
-                {{ item.rank }}
-              </text>
-            </view>
-            <view class="team-avatar sm">
-              <text class="team-avatar-txt">
-                {{ item.nickname[0] }}
-              </text>
-            </view>
+            <view class="team-rank-num" :class="rankClass(item.rank)"><text class="team-rank-num-txt">{{ item.rank }}</text></view>
+            <view class="team-avatar sm"><text class="team-avatar-txt">{{ item.nickname[0] }}</text></view>
             <view class="team-rank-info">
               <view class="team-member-name-row">
-                <text class="team-member-name">
-                  {{ item.nickname }}
-                </text>
-                <app-icon
-                  v-if="item.rank === 1"
-                  name="trophy"
-                  :size="24"
-                  color="#eab308"
-                />
-                <app-icon
-                  v-else-if="item.rank === 2"
-                  name="medal"
-                  :size="24"
-                  color="#9ca3af"
-                />
-                <app-icon
-                  v-else-if="item.rank === 3"
-                  name="medal"
-                  :size="24"
-                  color="#d97706"
-                />
+                <text class="team-member-name">{{ item.nickname }}</text>
+                <app-icon v-if="item.rank === 1" name="trophy" :size="24" color="#eab308" />
+                <app-icon v-else-if="item.rank === 2" name="medal" :size="24" color="#9ca3af" />
+                <app-icon v-else-if="item.rank === 3" name="medal" :size="24" color="#d97706" />
               </view>
-              <text class="team-rank-level">
-                {{ item.level }}
-              </text>
+              <text class="team-rank-level">{{ item.level }}</text>
             </view>
             <view class="team-rank-value">
-              <text class="team-rank-val primary">
-                {{ item.value.toFixed(2) }}
-              </text>
+              <text class="team-rank-val primary">{{ item.value.toFixed(2) }}</text>
               <view class="team-rank-change">
-                <template v-if="item.change > 0">
-                  <app-icon
-                    name="arrow-up-right"
-                    :size="20"
-                    color="#16a34a"
-                  /><text class="green">
-                    +{{ item.change }}
-                  </text>
-                </template>
-                <template v-else-if="item.change < 0">
-                  <app-icon
-                    name="arrow-down-right"
-                    :size="20"
-                    color="#ef4444"
-                  /><text class="red">
-                    {{ item.change }}
-                  </text>
-                </template>
-                <text
-                  v-else
-                  class="muted"
-                >
-                  -
-                </text>
+                <template v-if="item.change > 0"><app-icon name="arrow-up-right" :size="20" color="#16a34a" /><text class="green">+{{ item.change }}</text></template>
+                <template v-else-if="item.change < 0"><app-icon name="arrow-down-right" :size="20" color="#ef4444" /><text class="red">{{ item.change }}</text></template>
+                <text v-else class="muted">-</text>
               </view>
             </view>
           </view>
         </view>
         <view class="team-myrank">
-          <text class="team-myrank-label">
-            我的排名
-          </text>
-          <text class="team-myrank-val">
-            第 {{ myRank }} 名
-          </text>
+          <text class="team-myrank-label">我的排名</text>
+          <text class="team-myrank-val">第 {{ myRank }} 名</text>
         </view>
       </view>
     </view>
 
     <!-- 团队动态 -->
-    <view
-      v-else-if="activeTab === 'activities'"
-      class="team-content"
-    >
+    <view v-else-if="activeTab === 'activities'" class="team-content">
       <view class="team-timeline">
         <view class="team-timeline-line" />
-        <view
-          v-for="a in activities"
-          :key="a.id"
-          class="team-activity"
-        >
-          <view class="team-activity-dot">
-            <text class="team-activity-emoji">
-              {{ activityIcon(a.type) }}
-            </text>
-          </view>
+        <view v-for="a in activities" :key="a.id" class="team-activity">
+          <view class="team-activity-dot"><text class="team-activity-emoji">{{ activityIcon(a.type) }}</text></view>
           <view class="team-activity-card">
             <view class="team-activity-head">
-              <view class="team-avatar sm">
-                <text class="team-avatar-txt">
-                  {{ a.userNickname[0] }}
-                </text>
-              </view>
+              <view class="team-avatar sm"><text class="team-avatar-txt">{{ a.userNickname[0] }}</text></view>
               <view class="team-activity-body">
-                <view>
-                  <text class="team-activity-name">
-                    {{ a.userNickname }}
-                  </text><text class="team-activity-content">
-                    {{ a.content }}
-                  </text>
-                </view>
-                <text
-                  v-if="a.amount"
-                  class="team-activity-amount primary"
-                >
-                  +{{ a.amount.toFixed(2) }} 元
-                </text>
-                <view class="team-activity-time">
-                  <app-icon
-                    name="clock"
-                    :size="20"
-                    color="#999"
-                  /><text class="team-activity-time-txt">
-                    {{ a.createdAt }}
-                  </text>
-                </view>
+                <view><text class="team-activity-name">{{ a.userNickname }}</text><text class="team-activity-content">{{ a.content }}</text></view>
+                <text v-if="a.amount" class="team-activity-amount primary">+{{ a.amount.toFixed(2) }} 元</text>
+                <view class="team-activity-time"><app-icon name="clock" :size="20" color="#999" /><text class="team-activity-time-txt">{{ a.createdAt }}</text></view>
               </view>
             </view>
           </view>
@@ -407,208 +144,81 @@
     </view>
 
     <!-- 成功案例 -->
-    <view
-      v-else-if="activeTab === 'cases'"
-      class="team-content"
-    >
+    <view v-else-if="activeTab === 'cases'" class="team-content">
       <view class="team-list">
-        <view
-          v-for="c in successCases"
-          :key="c.id"
-          class="team-case-card"
-        >
+        <view v-for="c in successCases" :key="c.id" class="team-case-card">
           <view class="team-case-head">
-            <view class="team-avatar">
-              <text class="team-avatar-txt">
-                {{ c.nickname[0] }}
-              </text>
-            </view>
+            <view class="team-avatar"><text class="team-avatar-txt">{{ c.nickname[0] }}</text></view>
             <view>
-              <text class="team-case-name">
-                {{ c.nickname }}
-              </text>
+              <text class="team-case-name">{{ c.nickname }}</text>
               <view class="team-case-meta">
-                <text class="team-badge primary-badge">
-                  {{ c.achievement }}
-                </text>
-                <text class="team-case-duration">
-                  加入 {{ c.duration }}
-                </text>
+                <text class="team-badge primary-badge">{{ c.achievement }}</text>
+                <text class="team-case-duration">加入 {{ c.duration }}</text>
               </view>
             </view>
           </view>
-          <text class="team-case-title">
-            {{ c.title }}
-          </text>
-          <text class="team-case-desc">
-            {{ c.description }}
-          </text>
+          <text class="team-case-title">{{ c.title }}</text>
+          <text class="team-case-desc">{{ c.description }}</text>
           <view class="team-case-footer">
-            <text class="team-case-footer-label">
-              累计收益
-            </text>
-            <text class="team-case-footer-val primary">
-              {{ c.totalEarnings.toFixed(2) }} 元
-            </text>
+            <text class="team-case-footer-label">累计收益</text>
+            <text class="team-case-footer-val primary">{{ c.totalEarnings.toFixed(2) }} 元</text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 邀请弹窗 -->
-    <view
-      v-if="showInvite"
-      class="team-mask"
-      @tap.self="showInvite = false"
-    >
+    <view v-if="showInvite" class="team-mask" @tap.self="showInvite = false">
       <view class="team-sheet">
         <view class="team-sheet-handle" />
-        <text class="team-sheet-title">
-          邀请下级
-        </text>
+        <text class="team-sheet-title">邀请下级</text>
         <view class="team-qr-wrap">
-          <view class="team-qr-box">
-            <app-icon
-              name="qr-code"
-              :size="120"
-              color="#ccc"
-            />
-          </view>
-          <text class="team-qr-hint">
-            扫码加入我的团队
-          </text>
+          <view class="team-qr-box"><app-icon name="qr-code" :size="120" color="#ccc" /></view>
+          <text class="team-qr-hint">扫码加入我的团队</text>
         </view>
         <view class="team-link-section">
-          <text class="team-link-label">
-            邀请链接
-          </text>
+          <text class="team-link-label">邀请链接</text>
           <view class="team-link-row">
-            <view class="team-link-box">
-              <text class="team-link-txt">
-                {{ inviteLink }}
-              </text>
-            </view>
-            <view
-              class="team-link-copy"
-              @tap="copyLink"
-            >
-              <app-icon
-                name="copy"
-                :size="26"
-                color="#ffffff"
-              /><text class="team-link-copy-txt">
-                复制
-              </text>
-            </view>
+            <view class="team-link-box"><text class="team-link-txt">{{ inviteLink }}</text></view>
+            <view class="team-link-copy" @tap="copyLink"><app-icon name="copy" :size="26" color="#ffffff" /><text class="team-link-copy-txt">复制</text></view>
           </view>
         </view>
-        <view class="team-share-btn">
-          <app-icon
-            name="share-2"
-            :size="30"
-            color="#ffffff"
-          /><text class="team-share-txt">
-            分享邀请海报
-          </text>
-        </view>
+        <view class="team-share-btn"><app-icon name="share-2" :size="30" color="#ffffff" /><text class="team-share-txt">分享邀请海报</text></view>
       </view>
     </view>
 
     <!-- 成员详情弹窗 -->
-    <view
-      v-if="showMemberDetail && selectedMember"
-      class="team-mask"
-      @tap.self="showMemberDetail = false"
-    >
+    <view v-if="showMemberDetail && selectedMember" class="team-mask" @tap.self="showMemberDetail = false">
       <view class="team-sheet tall">
         <view class="team-sheet-handle" />
-        <text class="team-sheet-title">
-          成员详情
-        </text>
-        <scroll-view
-          scroll-y
-          class="team-detail-scroll"
-        >
+        <text class="team-sheet-title">成员详情</text>
+        <scroll-view scroll-y class="team-detail-scroll">
           <view class="team-detail-info">
-            <view class="team-avatar lg">
-              <text class="team-avatar-txt">
-                {{ selectedMember.nickname[0] }}
-              </text>
-            </view>
+            <view class="team-avatar lg"><text class="team-avatar-txt">{{ selectedMember.nickname[0] }}</text></view>
             <view>
-              <text class="team-detail-name">
-                {{ selectedMember.nickname }}
-              </text>
-              <text class="team-badge secondary block">
-                {{ selectedMember.levelIcon }} {{ selectedMember.level }}
-              </text>
-              <text class="team-detail-date">
-                加入于 {{ selectedMember.joinDate }}
-              </text>
+              <text class="team-detail-name">{{ selectedMember.nickname }}</text>
+              <text class="team-badge secondary block">{{ selectedMember.levelIcon }} {{ selectedMember.level }}</text>
+              <text class="team-detail-date">加入于 {{ selectedMember.joinDate }}</text>
             </view>
           </view>
           <view class="team-detail-stats">
-            <view class="team-detail-stat">
-              <text class="team-detail-stat-num primary">
-                {{ selectedMember.totalCommission.toFixed(0) }}
-              </text><text class="team-detail-stat-label">
-                累计佣金
-              </text>
-            </view>
-            <view class="team-detail-stat">
-              <text class="team-detail-stat-num">
-                {{ selectedMember.thisMonthCommission.toFixed(0) }}
-              </text><text class="team-detail-stat-label">
-                本月佣金
-              </text>
-            </view>
-            <view class="team-detail-stat">
-              <text class="team-detail-stat-num">
-                {{ selectedMember.inviteCount }}
-              </text><text class="team-detail-stat-label">
-                邀请人数
-              </text>
+            <view class="team-detail-stat"><text class="team-detail-stat-num primary">{{ selectedMember.totalCommission.toFixed(0) }}</text><text class="team-detail-stat-label">累计佣金</text></view>
+            <view class="team-detail-stat"><text class="team-detail-stat-num">{{ selectedMember.thisMonthCommission.toFixed(0) }}</text><text class="team-detail-stat-label">本月佣金</text></view>
+            <view class="team-detail-stat"><text class="team-detail-stat-num">{{ selectedMember.inviteCount }}</text><text class="team-detail-stat-label">邀请人数</text></view>
+          </view>
+          <view class="team-detail-block">
+            <text class="team-detail-block-title">近期推广订单</text>
+            <view v-for="o in recentOrders" :key="o.id" class="team-order-row">
+              <view><text class="team-order-amount">订单金额 {{ o.amount }} 元</text><text class="team-order-time">{{ o.time }}</text></view>
+              <text class="team-order-commission primary">+{{ o.commission.toFixed(2) }}</text>
             </view>
           </view>
           <view class="team-detail-block">
-            <text class="team-detail-block-title">
-              近期推广订单
-            </text>
-            <view
-              v-for="o in recentOrders"
-              :key="o.id"
-              class="team-order-row"
-            >
-              <view>
-                <text class="team-order-amount">
-                  订单金额 {{ o.amount }} 元
-                </text><text class="team-order-time">
-                  {{ o.time }}
-                </text>
-              </view>
-              <text class="team-order-commission primary">
-                +{{ o.commission.toFixed(2) }}
-              </text>
-            </view>
-          </view>
-          <view class="team-detail-block">
-            <text class="team-detail-block-title">
-              邀请的成员
-            </text>
+            <text class="team-detail-block-title">邀请的成员</text>
             <view class="team-invited-wrap">
-              <view
-                v-for="im in invitedMembers"
-                :key="im.id"
-                class="team-invited-chip"
-              >
-                <view class="team-avatar xs">
-                  <text class="team-avatar-txt">
-                    {{ im.nickname[0] }}
-                  </text>
-                </view>
-                <text class="team-invited-name">
-                  {{ im.nickname }}
-                </text>
+              <view v-for="im in invitedMembers" :key="im.id" class="team-invited-chip">
+                <view class="team-avatar xs"><text class="team-avatar-txt">{{ im.nickname[0] }}</text></view>
+                <text class="team-invited-name">{{ im.nickname }}</text>
               </view>
             </view>
           </view>
@@ -620,39 +230,19 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  teamMgmtOverview as _teamMgmtOverview,
-  teamMgmtMembers as _teamMgmtMembers,
-  teamLeaderboard as _teamLeaderboard,
-  teamMyRank as _teamMyRank,
-  teamActivities as _teamActivities,
-  teamSuccessCases as _teamSuccessCases,
-  teamMemberRecentOrders as _teamMemberRecentOrders,
-  teamMemberInvitedMembers as _teamMemberInvitedMembers,
+  teamMgmtOverview as overview,
+  teamMgmtMembers,
+  teamLeaderboard as leaderboard,
+  teamMyRank as myRank,
+  teamActivities as activities,
+  teamSuccessCases as successCases,
+  teamMemberRecentOrders as recentOrders,
+  teamMemberInvitedMembers as invitedMembers,
   teamActivityIconMap,
   teamInviteLink as inviteLink,
   type TeamMgmtMember,
-  type TeamMgmtOverview,
 } from '@/lib/operator-data'
-
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { overview: _teamMgmtOverview, members: _teamMgmtMembers, leaderboard: _teamLeaderboard, myRank: _teamMyRank, activities: _teamActivities, successCases: _teamSuccessCases, recentOrders: _teamMemberRecentOrders, invitedMembers: _teamMemberInvitedMembers }
-})
-
-const isEmpty = computed(() => !pageData.value?.overview)
-
-const overview = computed<TeamMgmtOverview>(() => pageData.value?.overview ?? { totalMembers: 0, newMembersThisMonth: 0, totalCommission: 0, commissionRate: 0, myLevel: '', nextLevelRequirement: 0 })
-const teamMgmtMembers = computed(() => pageData.value?.members ?? [])
-const leaderboard = computed(() => pageData.value?.leaderboard ?? [])
-const myRank = computed(() => pageData.value?.myRank ?? { rank: 0, total: 0 })
-const activities = computed(() => pageData.value?.activities ?? [])
-const successCases = computed(() => pageData.value?.successCases ?? [])
-const recentOrders = computed(() => pageData.value?.recentOrders ?? [])
-const invitedMembers = computed(() => pageData.value?.invitedMembers ?? [])
 
 const tabs = [
   { key: 'members', label: '成员' },
@@ -663,7 +253,7 @@ const tabs = [
 const activeTab = ref<'members' | 'leaderboard' | 'activities' | 'cases'>('members')
 
 const upgradePercent = computed(() =>
-  Math.min((overview.value.totalCommission / overview.value.nextLevelRequirement) * 100, 100),
+  Math.min((overview.totalCommission / overview.nextLevelRequirement) * 100, 100),
 )
 
 // 成员筛选/排序
@@ -690,7 +280,7 @@ function selectFilter(v: 'all' | 'active' | 'inactive') { memberFilter.value = v
 function selectSort(v: 'commission' | 'inviteCount' | 'joinDate') { memberSort.value = v; dropdown.value = null }
 
 const sortedMembers = computed(() => {
-  let list = [...teamMgmtMembers.value]
+  let list = [...teamMgmtMembers]
   if (memberFilter.value === 'active') list = list.filter(m => m.status === 'active')
   if (memberFilter.value === 'inactive') list = list.filter(m => m.status === 'inactive')
   if (memberSort.value === 'commission') list.sort((a, b) => b.totalCommission - a.totalCommission)

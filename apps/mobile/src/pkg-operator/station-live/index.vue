@@ -1,56 +1,19 @@
 <template>
   <view class="lv-page">
     <!-- 导航栏 (渐变) -->
-    <view
-      class="lv-header"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="lv-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="lv-nav">
-        <view
-          class="lv-hbtn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#ffffff"
-          />
-        </view>
+        <view class="lv-hbtn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
         <view class="lv-station">
-          <image
-            class="lv-station-logo"
-            :src="stationLogo"
-            mode="aspectFill"
-          />
-          <text class="lv-station-name">
-            {{ stationName }} - 直播
-          </text>
+          <image class="lv-station-logo" :src="stationLogo" mode="aspectFill" />
+          <text class="lv-station-name">{{ stationName }} - 直播</text>
         </view>
-        <view
-          class="lv-hbtn"
-          @tap="onRefresh"
-        >
-          <app-icon
-            name="refresh-cw"
-            :size="40"
-            color="#ffffff"
-            :class="{ 'lv-spin': refreshing }"
-          />
-        </view>
+        <view class="lv-hbtn" @tap="onRefresh"><app-icon name="refresh-cw" :size="40" color="#ffffff" :class="{ 'lv-spin': refreshing }" /></view>
       </view>
       <view class="lv-search-wrap">
         <view class="lv-search">
-          <app-icon
-            name="search"
-            :size="28"
-            color="#9ca3af"
-          />
-          <input
-            v-model="keyword"
-            class="lv-search-input"
-            placeholder="搜索直播间"
-            placeholder-class="lv-ph"
-          >
+          <app-icon name="search" :size="28" color="#9ca3af" />
+          <input class="lv-search-input" v-model="keyword" placeholder="搜索直播间" placeholder-class="lv-ph" />
         </view>
       </view>
     </view>
@@ -64,9 +27,7 @@
         :class="{ active: filter === f.value }"
         @tap="filter = f.value"
       >
-        <text class="lv-filter-txt">
-          {{ f.label }}{{ f.value === 'live' ? `(${liveCount})` : '' }}
-        </text>
+        <text class="lv-filter-txt">{{ f.label }}{{ f.value === 'live' ? `(${liveCount})` : '' }}</text>
       </view>
     </view>
 
@@ -81,156 +42,57 @@
       >
         <!-- 封面 -->
         <view class="lv-cover">
-          <image
-            class="lv-cover-img"
-            :src="room.cover"
-            mode="aspectFill"
-          />
+          <image class="lv-cover-img" :src="room.cover" mode="aspectFill" />
           <!-- 状态标签 -->
-          <view
-            class="lv-status"
-            :style="statusStyle(room.status)"
-          >
-            <view
-              v-if="room.status === 'live'"
-              class="lv-dot"
-            />
-            <text
-              class="lv-status-txt"
-              :style="{ color: statusInfo(room.status).color }"
-            >
-              {{ statusInfo(room.status).label }}
-            </text>
+          <view class="lv-status" :style="statusStyle(room.status)">
+            <view v-if="room.status === 'live'" class="lv-dot" />
+            <text class="lv-status-txt" :style="{ color: statusInfo(room.status).color }">{{ statusInfo(room.status).label }}</text>
           </view>
           <!-- LIVE 角标 -->
-          <view
-            v-if="room.status === 'live'"
-            class="lv-live-badge"
-          >
-            <app-icon
-              name="radio"
-              :size="22"
-              color="#ffffff"
-            />
-            <text class="lv-live-txt">
-              LIVE
-            </text>
+          <view v-if="room.status === 'live'" class="lv-live-badge">
+            <app-icon name="radio" :size="22" color="#ffffff" />
+            <text class="lv-live-txt">LIVE</text>
           </view>
           <!-- 回放时长 -->
-          <view
-            v-if="room.status === 'replay' && room.replayDuration"
-            class="lv-duration"
-          >
-            <text class="lv-duration-txt">
-              {{ formatDuration(room.replayDuration) }}
-            </text>
+          <view v-if="room.status === 'replay' && room.replayDuration" class="lv-duration">
+            <text class="lv-duration-txt">{{ formatDuration(room.replayDuration) }}</text>
           </view>
           <!-- 预告倒计时 -->
-          <view
-            v-if="room.status === 'preview'"
-            class="lv-countdown"
-          >
-            <app-icon
-              name="clock"
-              :size="48"
-              color="#ffffff"
-            />
-            <text class="lv-countdown-txt">
-              {{ countdownText(room.scheduledTime) }}
-            </text>
+          <view v-if="room.status === 'preview'" class="lv-countdown">
+            <app-icon name="clock" :size="48" color="#ffffff" />
+            <text class="lv-countdown-txt">{{ countdownText(room.scheduledTime) }}</text>
           </view>
           <!-- 商品数量 -->
-          <view
-            v-if="room.productCount > 0"
-            class="lv-goods"
-          >
-            <app-icon
-              name="shopping-bag"
-              :size="22"
-              color="#ffffff"
-            />
-            <text class="lv-goods-txt">
-              {{ room.productCount }}件商品
-            </text>
+          <view v-if="room.productCount > 0" class="lv-goods">
+            <app-icon name="shopping-bag" :size="22" color="#ffffff" />
+            <text class="lv-goods-txt">{{ room.productCount }}件商品</text>
           </view>
         </view>
 
         <!-- 信息 -->
         <view class="lv-info">
-          <text class="lv-card-title">
-            {{ room.title }}
-          </text>
+          <text class="lv-card-title">{{ room.title }}</text>
           <view class="lv-anchor">
-            <image
-              class="lv-anchor-avatar"
-              :src="room.anchor.avatar"
-              mode="aspectFill"
-            />
-            <text class="lv-anchor-name">
-              {{ room.anchor.nickname }}
-            </text>
-            <text
-              v-if="room.isStationExclusive"
-              class="lv-exclusive"
-            >
-              专属
-            </text>
+            <image class="lv-anchor-avatar" :src="room.anchor.avatar" mode="aspectFill" />
+            <text class="lv-anchor-name">{{ room.anchor.nickname }}</text>
+            <text v-if="room.isStationExclusive" class="lv-exclusive">专属</text>
           </view>
           <view class="lv-stats">
-            <view class="lv-stat">
-              <app-icon
-                name="eye"
-                :size="26"
-                color="#9ca3af"
-              /><text class="lv-stat-txt">
-                {{ formatViewCount(room.viewCount) }}
-              </text>
-            </view>
-            <view class="lv-stat">
-              <app-icon
-                name="heart"
-                :size="26"
-                color="#9ca3af"
-              /><text class="lv-stat-txt">
-                {{ formatViewCount(room.likeCount) }}
-              </text>
-            </view>
+            <view class="lv-stat"><app-icon name="eye" :size="26" color="#9ca3af" /><text class="lv-stat-txt">{{ formatViewCount(room.viewCount) }}</text></view>
+            <view class="lv-stat"><app-icon name="heart" :size="26" color="#9ca3af" /><text class="lv-stat-txt">{{ formatViewCount(room.likeCount) }}</text></view>
           </view>
-          <view
-            v-if="room.tags && room.tags.length"
-            class="lv-tags"
-          >
-            <text
-              v-for="(t, i) in room.tags.slice(0, 3)"
-              :key="i"
-              class="lv-tag"
-            >
-              {{ t }}
-            </text>
+          <view v-if="room.tags && room.tags.length" class="lv-tags">
+            <text v-for="(t, i) in room.tags.slice(0, 3)" :key="i" class="lv-tag">{{ t }}</text>
           </view>
         </view>
       </view>
 
       <!-- 空态 (直播中筛选无内容) -->
-      <view
-        v-if="sortedList.length === 0 && filter === 'live'"
-        class="lv-empty"
-      >
-        <text class="lv-empty-txt">
-          暂无正在直播的内容
-        </text>
-        <view
-          class="lv-empty-btn"
-          @tap="filter = 'preview'"
-        >
-          <app-icon
-            name="clock"
-            :size="28"
-            color="#C9A96E"
-          />
-          <text class="lv-empty-btn-txt">
-            查看直播预告
-          </text>
+      <view v-if="sortedList.length === 0 && filter === 'live'" class="lv-empty">
+        <text class="lv-empty-txt">暂无正在直播的内容</text>
+        <view class="lv-empty-btn" @tap="filter = 'preview'">
+          <app-icon name="clock" :size="28" color="#C9A96E" />
+          <text class="lv-empty-btn-txt">查看直播预告</text>
         </view>
       </view>
     </view>

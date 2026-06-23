@@ -1,118 +1,48 @@
 <template>
   <view class="poster-page">
     <!-- 加载态 -->
-    <view
-      v-if="isLoading || !posterData"
-      class="poster-loading"
-    >
+    <view v-if="isLoading || !posterData" class="poster-loading">
       <view class="poster-loading__spinner" />
-      <text class="poster-loading__text">
-        加载中…
-      </text>
+      <text class="poster-loading__text">加载中…</text>
     </view>
 
     <template v-else>
       <!-- 顶部导航 -->
-      <view
-        class="navbar"
-        :style="{ paddingTop: statusBarHeight + 'px' }"
-      >
+      <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
         <view class="navbar__inner">
-          <view
-            class="navbar__btn"
-            @tap="goBack"
-          >
-            <AppIcon
-              name="x"
-              :size="44"
-              color="#ffffff"
-            />
+          <view class="navbar__btn" @tap="goBack">
+            <AppIcon name="x" :size="44" color="#ffffff" />
           </view>
-          <text class="navbar__title">
-            {{ typeTitle }}
-          </text>
+          <text class="navbar__title">{{ typeTitle }}</text>
           <view class="navbar__btn navbar__btn--placeholder" />
         </view>
       </view>
 
       <!-- 海报预览区 -->
-      <scroll-view
-        scroll-y
-        class="poster-scroll"
-      >
+      <scroll-view scroll-y class="poster-scroll">
         <view class="poster-preview">
           <!-- 可视海报卡片（与 canvas 同构，用于展示） -->
-          <view
-            class="poster-card"
-            :style="{ background: activeTheme.bg }"
-          >
-            <view
-              class="poster-card__border"
-              :style="{ borderColor: activeTheme.accent }"
-            >
-              <view
-                class="poster-card__tag"
-                :style="{ background: activeTheme.accent, color: activeTheme.headerStyle === 'dark' ? activeTheme.bg : '#ffffff' }"
-              >
+          <view class="poster-card" :style="{ background: activeTheme.bg }">
+            <view class="poster-card__border" :style="{ borderColor: activeTheme.accent }">
+              <view class="poster-card__tag" :style="{ background: activeTheme.accent, color: activeTheme.headerStyle === 'dark' ? activeTheme.bg : '#ffffff' }">
                 {{ posterData.tag }}
               </view>
-              <text
-                class="poster-card__title"
-                :style="{ color: activeTheme.gold }"
-              >
-                {{ posterData.title }}
-              </text>
-              <view
-                class="poster-card__divider"
-                :style="{ background: activeTheme.accent }"
-              />
-              <text
-                class="poster-card__subtitle"
-                :style="{ color: activeTheme.ink }"
-              >
-                {{ posterData.subtitle }}
-              </text>
-              <text
-                class="poster-card__desc"
-                :style="{ color: activeTheme.sub }"
-              >
-                {{ posterData.desc }}
-              </text>
+              <text class="poster-card__title" :style="{ color: activeTheme.gold }">{{ posterData.title }}</text>
+              <view class="poster-card__divider" :style="{ background: activeTheme.accent }" />
+              <text class="poster-card__subtitle" :style="{ color: activeTheme.ink }">{{ posterData.subtitle }}</text>
+              <text class="poster-card__desc" :style="{ color: activeTheme.sub }">{{ posterData.desc }}</text>
 
               <view class="poster-card__footer">
                 <view class="poster-card__author">
-                  <image
-                    :src="posterData.authorAvatar"
-                    class="poster-card__avatar"
-                    mode="aspectFill"
-                  />
+                  <image :src="posterData.authorAvatar" class="poster-card__avatar" mode="aspectFill" />
                   <view class="poster-card__author-info">
-                    <text
-                      class="poster-card__author-name"
-                      :style="{ color: activeTheme.ink }"
-                    >
-                      {{ posterData.author }}
-                    </text>
-                    <text
-                      class="poster-card__author-from"
-                      :style="{ color: activeTheme.sub }"
-                    >
-                      来自 热卜国学
-                    </text>
+                    <text class="poster-card__author-name" :style="{ color: activeTheme.ink }">{{ posterData.author }}</text>
+                    <text class="poster-card__author-from" :style="{ color: activeTheme.sub }">来自 热卜国学</text>
                   </view>
                 </view>
                 <view class="poster-card__qr">
-                  <image
-                    :src="posterData.qrcode"
-                    class="poster-card__qr-img"
-                    mode="aspectFit"
-                  />
-                  <text
-                    class="poster-card__qr-label"
-                    :style="{ color: activeTheme.sub }"
-                  >
-                    {{ posterData.qrLabel }}
-                  </text>
+                  <image :src="posterData.qrcode" class="poster-card__qr-img" mode="aspectFit" />
+                  <text class="poster-card__qr-label" :style="{ color: activeTheme.sub }">{{ posterData.qrLabel }}</text>
                 </view>
               </view>
             </view>
@@ -120,8 +50,8 @@
 
           <!-- 离屏 canvas：真实绘制并导出 -->
           <canvas
-            id="posterCanvas"
             canvas-id="posterCanvas"
+            id="posterCanvas"
             class="poster-canvas"
             :style="{ width: canvasW + 'px', height: canvasH + 'px' }"
           />
@@ -132,9 +62,7 @@
       <view class="panel">
         <!-- 风格选择 -->
         <view class="panel__section">
-          <text class="panel__label">
-            选择风格
-          </text>
+          <text class="panel__label">选择风格</text>
           <view class="theme-list">
             <view
               v-for="(theme, idx) in POSTER_THEMES"
@@ -144,21 +72,11 @@
               :style="{ background: theme.bg }"
               @tap="themeIndex = idx"
             >
-              <text
-                class="theme-item__name"
-                :style="{ color: theme.headerStyle === 'dark' ? theme.gold : theme.ink }"
-              >
+              <text class="theme-item__name" :style="{ color: theme.headerStyle === 'dark' ? theme.gold : theme.ink }">
                 {{ theme.name }}
               </text>
-              <view
-                v-if="themeIndex === idx"
-                class="theme-item__check"
-              >
-                <AppIcon
-                  name="check"
-                  :size="20"
-                  color="#ffffff"
-                />
+              <view v-if="themeIndex === idx" class="theme-item__check">
+                <AppIcon name="check" :size="20" color="#ffffff" />
               </view>
             </view>
           </view>
@@ -166,9 +84,7 @@
 
         <!-- 分享文案 -->
         <view class="panel__section">
-          <text class="panel__label">
-            分享文案
-          </text>
+          <text class="panel__label">分享文案</text>
           <view class="tone-tabs">
             <view
               v-for="(t, i) in SHARE_TONES"
@@ -181,58 +97,23 @@
             </view>
           </view>
           <view class="tone-text">
-            <text class="tone-text__content">
-              {{ currentTone }}
-            </text>
-            <view
-              class="tone-text__copy"
-              @tap="copyTone"
-            >
-              <AppIcon
-                name="copy"
-                :size="32"
-                color="rgba(255,255,255,0.6)"
-              />
+            <text class="tone-text__content">{{ currentTone }}</text>
+            <view class="tone-text__copy" @tap="copyTone">
+              <AppIcon name="copy" :size="32" color="rgba(255,255,255,0.6)" />
             </view>
           </view>
         </view>
 
         <!-- 操作按钮 -->
-        <view
-          class="actions"
-          :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 20rpx)' }"
-        >
-          <view
-            class="action-btn action-btn--outline"
-            :class="{ 'action-btn--disabled': isSaving }"
-            @tap="handleSave"
-          >
-            <view
-              v-if="isSaving"
-              class="action-btn__spinner"
-            />
-            <AppIcon
-              v-else
-              name="download"
-              :size="36"
-              color="#ffffff"
-            />
-            <text class="action-btn__txt">
-              保存到相册
-            </text>
+        <view class="actions" :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 20rpx)' }">
+          <view class="action-btn action-btn--outline" :class="{ 'action-btn--disabled': isSaving }" @tap="handleSave">
+            <view v-if="isSaving" class="action-btn__spinner" />
+            <AppIcon v-else name="download" :size="36" color="#ffffff" />
+            <text class="action-btn__txt">保存到相册</text>
           </view>
-          <view
-            class="action-btn action-btn--primary"
-            @tap="handleShare"
-          >
-            <AppIcon
-              name="share-2"
-              :size="36"
-              color="#ffffff"
-            />
-            <text class="action-btn__txt">
-              立即分享
-            </text>
+          <view class="action-btn action-btn--primary" @tap="handleShare">
+            <AppIcon name="share-2" :size="36" color="#ffffff" />
+            <text class="action-btn__txt">立即分享</text>
           </view>
         </view>
       </view>

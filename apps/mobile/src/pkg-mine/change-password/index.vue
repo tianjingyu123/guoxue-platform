@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { pwdRules, calcPwdStrength, mineApi } from '@/lib/mine-data'
+import { pwdRules, calcPwdStrength } from '@/lib/mine-data'
 
 const oldPwd = ref('')
 const newPwd = ref('')
@@ -41,134 +41,69 @@ function validate() {
 
 async function handleSubmit() {
   if (!validate()) return
-  if (loading.value) return
   loading.value = true
-  try {
-    const res = await mineApi.changePassword(oldPwd.value, newPwd.value)
-    if (res.success) {
-      showToast(res.message || '密码修改成功', 'success')
-      setTimeout(() => goBack(), 1000)
-    } else {
-      showToast(res.message || '修改失败', 'error')
-    }
-  } catch {
-    showToast('网络异常，请重试', 'error')
-  } finally {
-    loading.value = false
-  }
+  await new Promise((r) => setTimeout(r, 1200))
+  loading.value = false
+  showToast('密码修改成功', 'success')
+  setTimeout(() => goBack(), 1000)
 }
 </script>
 
 <template>
   <view class="page">
     <!-- 导航 -->
-    <app-nav-bar
-      title="修改密码"
-      title-align="left"
-      serif-title
-    />
+    <app-nav-bar title="修改密码" title-align="left" serif-title />
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <view class="container">
         <!-- 提示 -->
         <view class="tip">
-          <text class="tip-text">
-            为保护账号安全，修改密码后所有设备将重新登录。请妥善保管新密码。
-          </text>
+          <text class="tip-text">为保护账号安全，修改密码后所有设备将重新登录。请妥善保管新密码。</text>
         </view>
 
         <!-- 表单 -->
         <view class="card">
           <view class="field">
-            <text class="field-label">
-              当前密码
-            </text>
-            <view
-              class="input-wrap"
-              :class="{ error: errors.oldPwd }"
-            >
-              <AppIcon
-                name="lock"
-                :size="16"
-                color="#999"
-              />
+            <text class="field-label">当前密码</text>
+            <view class="input-wrap" :class="{ error: errors.oldPwd }">
+              <AppIcon name="lock" :size="16" color="#999" />
               <input
-                v-model="oldPwd"
                 class="input"
                 :password="!showOld"
+                v-model="oldPwd"
                 placeholder="请输入当前登录密码"
                 placeholder-class="ph"
-              >
+              />
               <view @tap="showOld = !showOld">
-                <AppIcon
-                  :name="showOld ? 'eye-off' : 'eye'"
-                  :size="16"
-                  color="#999"
-                />
+                <AppIcon :name="showOld ? 'eye-off' : 'eye'" :size="16" color="#999" />
               </view>
             </view>
-            <text
-              v-if="errors.oldPwd"
-              class="err"
-            >
-              {{ errors.oldPwd }}
-            </text>
+            <text v-if="errors.oldPwd" class="err">{{ errors.oldPwd }}</text>
           </view>
 
           <view class="field">
-            <text class="field-label">
-              新密码
-            </text>
-            <view
-              class="input-wrap"
-              :class="{ error: errors.newPwd }"
-            >
-              <AppIcon
-                name="lock"
-                :size="16"
-                color="#999"
-              />
+            <text class="field-label">新密码</text>
+            <view class="input-wrap" :class="{ error: errors.newPwd }">
+              <AppIcon name="lock" :size="16" color="#999" />
               <input
-                v-model="newPwd"
                 class="input"
                 :password="!showNew"
+                v-model="newPwd"
                 placeholder="请设置新密码"
                 placeholder-class="ph"
-              >
+              />
               <view @tap="showNew = !showNew">
-                <AppIcon
-                  :name="showNew ? 'eye-off' : 'eye'"
-                  :size="16"
-                  color="#999"
-                />
+                <AppIcon :name="showNew ? 'eye-off' : 'eye'" :size="16" color="#999" />
               </view>
             </view>
-            <text
-              v-if="errors.newPwd"
-              class="err"
-            >
-              {{ errors.newPwd }}
-            </text>
+            <text v-if="errors.newPwd" class="err">{{ errors.newPwd }}</text>
           </view>
 
           <!-- 强度条 -->
-          <view
-            v-if="newPwd.length > 0"
-            class="strength"
-          >
+          <view v-if="newPwd.length > 0" class="strength">
             <view class="strength-head">
-              <text class="strength-label">
-                密码强度
-              </text>
-              <text
-                class="strength-val"
-                :style="{ color: strengthColorClass }"
-              >
-                {{ strength.label }}
-              </text>
+              <text class="strength-label">密码强度</text>
+              <text class="strength-val" :style="{ color: strengthColorClass }">{{ strength.label }}</text>
             </view>
             <view class="strength-bars">
               <view
@@ -181,68 +116,36 @@ async function handleSubmit() {
           </view>
 
           <view class="field">
-            <text class="field-label">
-              确认新密码
-            </text>
-            <view
-              class="input-wrap"
-              :class="{ error: errors.confirmPwd }"
-            >
-              <AppIcon
-                name="lock"
-                :size="16"
-                color="#999"
-              />
+            <text class="field-label">确认新密码</text>
+            <view class="input-wrap" :class="{ error: errors.confirmPwd }">
+              <AppIcon name="lock" :size="16" color="#999" />
               <input
-                v-model="confirmPwd"
                 class="input"
                 :password="!showConfirm"
+                v-model="confirmPwd"
                 placeholder="请再次输入新密码"
                 placeholder-class="ph"
-              >
+              />
               <view @tap="showConfirm = !showConfirm">
-                <AppIcon
-                  :name="showConfirm ? 'eye-off' : 'eye'"
-                  :size="16"
-                  color="#999"
-                />
+                <AppIcon :name="showConfirm ? 'eye-off' : 'eye'" :size="16" color="#999" />
               </view>
             </view>
-            <text
-              v-if="errors.confirmPwd"
-              class="err"
-            >
-              {{ errors.confirmPwd }}
-            </text>
+            <text v-if="errors.confirmPwd" class="err">{{ errors.confirmPwd }}</text>
           </view>
         </view>
 
         <!-- 规则清单 -->
         <view class="card">
-          <text class="rules-title">
-            密码要求
-          </text>
-          <view
-            v-for="rule in pwdRules"
-            :key="rule.label"
-            class="rule"
-          >
+          <text class="rules-title">密码要求</text>
+          <view v-for="rule in pwdRules" :key="rule.label" class="rule">
             <AppIcon
               v-if="newPwd.length > 0"
               :name="rule.test(newPwd) ? 'check-circle' : 'x-circle'"
               :size="16"
               :color="rule.test(newPwd) ? '#22c55e' : '#cbd5e1'"
             />
-            <view
-              v-else
-              class="rule-empty"
-            />
-            <text
-              class="rule-label"
-              :style="{ color: newPwd.length > 0 && rule.test(newPwd) ? '#16a34a' : '#999' }"
-            >
-              {{ rule.label }}
-            </text>
+            <view v-else class="rule-empty" />
+            <text class="rule-label" :style="{ color: newPwd.length > 0 && rule.test(newPwd) ? '#16a34a' : '#999' }">{{ rule.label }}</text>
           </view>
         </view>
       </view>
@@ -250,26 +153,14 @@ async function handleSubmit() {
 
     <!-- 提交 -->
     <view class="footer">
-      <view
-        class="submit"
-        :class="{ disabled: loading }"
-        @tap="handleSubmit"
-      >
-        <text class="submit-text">
-          {{ loading ? '提交中...' : '确认修改' }}
-        </text>
+      <view class="submit" :class="{ disabled: loading }" @tap="handleSubmit">
+        <text class="submit-text">{{ loading ? '提交中...' : '确认修改' }}</text>
       </view>
     </view>
 
     <!-- toast -->
-    <view
-      v-if="toast"
-      class="toast"
-      :class="toast.type"
-    >
-      <text class="toast-text">
-        {{ toast.msg }}
-      </text>
+    <view v-if="toast" class="toast" :class="toast.type">
+      <text class="toast-text">{{ toast.msg }}</text>
     </view>
   </view>
 </template>

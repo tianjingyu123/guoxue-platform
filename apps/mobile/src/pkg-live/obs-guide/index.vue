@@ -1,24 +1,12 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view
-      class="nav"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
-        <view
-          class="nav-btn"
-          @tap="goBack"
-        >
-          <AppIcon
-            name="arrow-left"
-            :size="40"
-            color="#2C2C2C"
-          />
+        <view class="nav-btn" @tap="goBack">
+          <AppIcon name="arrow-left" :size="40" color="#2C2C2C" />
         </view>
-        <text class="nav-title">
-          OBS 推流教程
-        </text>
+        <text class="nav-title">OBS 推流教程</text>
       </view>
     </view>
 
@@ -26,61 +14,29 @@
       <!-- Hero -->
       <view class="hero">
         <view class="hero-icon">
-          <AppIcon
-            name="monitor"
-            :size="56"
-            color="#fff"
-          />
+          <AppIcon name="monitor" :size="56" color="#fff" />
         </view>
         <view class="hero-text">
-          <text class="hero-title">
-            OBS Studio 直播推流
-          </text>
-          <text class="hero-desc">
-            适合知识授课类横屏直播，画质清晰稳定
-          </text>
+          <text class="hero-title">OBS Studio 直播推流</text>
+          <text class="hero-desc">适合知识授课类横屏直播，画质清晰稳定</text>
         </view>
       </view>
 
       <!-- 配置步骤 -->
       <view class="section">
-        <text class="sec-title">
-          配置步骤
-        </text>
+        <text class="sec-title">配置步骤</text>
         <view class="step-list">
-          <view
-            v-for="(s, i) in steps"
-            :key="s.step"
-            class="step-card"
-          >
+          <view v-for="(s, i) in steps" :key="s.step" class="step-card">
             <view class="step-rail">
-              <view class="step-num">
-                {{ s.step }}
-              </view>
-              <view
-                v-if="i < steps.length - 1"
-                class="step-line"
-              />
+              <view class="step-num">{{ s.step }}</view>
+              <view v-if="i < steps.length - 1" class="step-line" />
             </view>
             <view class="step-main">
-              <text class="step-title">
-                {{ s.title }}
-              </text>
-              <text class="step-desc">
-                {{ s.desc }}
-              </text>
-              <view
-                v-if="s.action"
-                class="step-action"
-              >
-                <text class="step-action-txt">
-                  {{ s.action }}
-                </text>
-                <AppIcon
-                  name="external-link"
-                  :size="24"
-                  color="#C41E3A"
-                />
+              <text class="step-title">{{ s.title }}</text>
+              <text class="step-desc">{{ s.desc }}</text>
+              <view v-if="s.action" class="step-action">
+                <text class="step-action-txt">{{ s.action }}</text>
+                <AppIcon name="external-link" :size="24" color="#C41E3A" />
               </view>
             </view>
           </view>
@@ -89,63 +45,33 @@
 
       <!-- 推荐硬件配置 -->
       <view class="section">
-        <text class="sec-title">
-          推荐硬件配置
-        </text>
+        <text class="sec-title">推荐硬件配置</text>
         <view class="req-card">
-          <view
-            v-for="(r, i) in requirements"
-            :key="r.label"
-            class="req-row"
-            :class="{ 'req-border': i > 0 }"
-          >
-            <text class="req-label">
-              {{ r.label }}
-            </text>
-            <text class="req-value">
-              {{ r.value }}
-            </text>
+          <view v-for="(r, i) in requirements" :key="r.label" class="req-row" :class="{ 'req-border': i > 0 }">
+            <text class="req-label">{{ r.label }}</text>
+            <text class="req-value">{{ r.value }}</text>
           </view>
         </view>
       </view>
 
       <!-- 常见问题 -->
       <view class="section">
-        <text class="sec-title">
-          常见问题
-        </text>
+        <text class="sec-title">常见问题</text>
         <view class="faq-list">
-          <view
-            v-for="f in faq"
-            :key="f.q"
-            class="faq-card"
-          >
+          <view v-for="f in faq" :key="f.q" class="faq-card">
             <view class="faq-q-row">
-              <text class="faq-badge q">
-                Q
-              </text>
-              <text class="faq-q">
-                {{ f.q }}
-              </text>
+              <text class="faq-badge q">Q</text>
+              <text class="faq-q">{{ f.q }}</text>
             </view>
             <view class="faq-a-row">
-              <text class="faq-badge a">
-                A
-              </text>
-              <text class="faq-a">
-                {{ f.a }}
-              </text>
+              <text class="faq-badge a">A</text>
+              <text class="faq-a">{{ f.a }}</text>
             </view>
           </view>
         </view>
       </view>
 
-      <view
-        class="cta"
-        @tap="goCreate"
-      >
-        开始直播
-      </view>
+      <view class="cta" @tap="goCreate">开始直播</view>
     </view>
   </view>
 </template>
@@ -154,22 +80,7 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-const obsGuideSteps = [
-  { step: 1, title: '下载并安装 OBS Studio', desc: 'OBS Studio 是免费开源的直播推流软件，支持 Windows / macOS / Linux。', action: '前往官网下载', icon: 'download' },
-  { step: 2, title: '添加视频和音频来源', desc: '在 OBS「来源」面板中添加「显示器采集」或「视频采集设备」，再添加「音频输入采集」。', action: null, icon: 'video' },
-  { step: 3, title: '配置推流设置', desc: '打开「设置」→「推流」，选择「自定义」，填写平台推流地址和推流码。', action: null, icon: 'settings' },
-  { step: 4, title: '填写推流地址', desc: '在平台「开始直播」页面获取您的专属推流地址和推流码，填入 OBS 对应字段。', action: '获取我的推流码', icon: 'wifi' },
-  { step: 5, title: '调整编码参数', desc: '「输出」→「视频编码器」选 x264，码率 2500-4000 Kbps，分辨率 1280×720。', action: null, icon: 'monitor' },
-]
-const obsGuideRequirements = [
-  { label: 'CPU', value: 'i5 / Ryzen 5 及以上' }, { label: '内存', value: '8GB RAM 及以上' },
-  { label: '上传网速', value: '≥ 6Mbps' }, { label: '操作系统', value: 'Windows 10 / macOS 10.15+' },
-]
-const obsGuideFaq = [
-  { q: '推流码在哪里找？', a: '进入「开始直播」页面 → 点击「获取推流码」按钮即可查看和复制。' },
-  { q: '直播卡顿怎么办？', a: '降低码率至 2000Kbps，关闭其他占用网络的程序。' },
-  { q: 'OBS 显示推流失败？', a: '检查推流地址是否正确，推流码是否已过期，防火墙是否阻止了 OBS 的网络请求。' },
-]
+import { obsGuideSteps, obsGuideRequirements, obsGuideFaq } from '@/lib/live-data'
 
 const statusBarHeight = ref(0)
 const steps = ref(obsGuideSteps)

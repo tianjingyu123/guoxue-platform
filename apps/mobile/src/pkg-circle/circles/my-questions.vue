@@ -32,112 +32,43 @@ function toggle(id: string) { expanded.value = expanded.value === id ? null : id
 <template>
   <view class="mq-page">
     <view class="mq-nav">
-      <view
-        class="mq-nav-btn"
-        @tap="goBack"
-      >
-        <app-icon
-          name="arrow-left"
-          :size="34"
-          color="#2C2C2C"
-        />
-      </view>
-      <text class="mq-nav-title">
-        我的问答
-      </text>
+      <view class="mq-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
+      <text class="mq-nav-title">我的问答</text>
     </view>
 
     <view class="mq-filters">
-      <view
-        v-for="f in filterTabs"
-        :key="f"
-        class="mq-filter"
-        :class="{ 'is-active': filter === f }"
-        @tap="filter = f"
-      >
-        <text
-          class="mq-filter-t"
-          :class="{ 'is-active': filter === f }"
-        >
-          {{ tabLabel(f) }}
-        </text>
+      <view v-for="f in filterTabs" :key="f" class="mq-filter" :class="{ 'is-active': filter === f }" @tap="filter = f">
+        <text class="mq-filter-t" :class="{ 'is-active': filter === f }">{{ tabLabel(f) }}</text>
       </view>
     </view>
 
     <view class="mq-list">
-      <view
-        v-for="q in filtered"
-        :key="q.id"
-        class="mq-card"
-      >
-        <view
-          class="mq-card-main"
-          @tap="toggle(q.id)"
-        >
-          <image
-            class="mq-avatar"
-            :src="q.avatar"
-            mode="aspectFill"
-          />
+      <view v-for="q in filtered" :key="q.id" class="mq-card">
+        <view class="mq-card-main" @tap="toggle(q.id)">
+          <image class="mq-avatar" :src="q.avatar" mode="aspectFill" />
           <view class="mq-info">
             <view class="mq-info-top">
-              <text class="mq-expert">
-                {{ q.expert }}
-              </text>
-              <view
-                class="mq-status"
-                :class="q.status === 'answered' ? 'is-answered' : 'is-pending'"
-              >
-                <app-icon
-                  :name="q.status === 'answered' ? 'check-circle' : 'clock'"
-                  :size="22"
-                  :color="q.status === 'answered' ? '#16A34A' : '#F59E0B'"
-                />
-                <text
-                  class="mq-status-t"
-                  :class="q.status === 'answered' ? 'is-answered' : 'is-pending'"
-                >
-                  {{ q.status === 'answered' ? '已回答' : '待回答' }}
-                </text>
+              <text class="mq-expert">{{ q.expert }}</text>
+              <view class="mq-status" :class="q.status === 'answered' ? 'is-answered' : 'is-pending'">
+                <app-icon :name="q.status === 'answered' ? 'check-circle' : 'clock'" :size="22" :color="q.status === 'answered' ? '#16A34A' : '#F59E0B'" />
+                <text class="mq-status-t" :class="q.status === 'answered' ? 'is-answered' : 'is-pending'">{{ q.status === 'answered' ? '已回答' : '待回答' }}</text>
               </view>
             </view>
-            <text class="mq-content">
-              {{ q.content }}
-            </text>
+            <text class="mq-content">{{ q.content }}</text>
             <view class="mq-meta">
-              <text class="mq-date">
-                {{ q.askedAt }}
-              </text>
-              <text class="mq-cost">
-                {{ q.cost }}
-              </text>
+              <text class="mq-date">{{ q.askedAt }}</text>
+              <text class="mq-cost">{{ q.cost }}</text>
             </view>
           </view>
         </view>
 
-        <view
-          v-if="expanded === q.id && q.preview"
-          class="mq-answer"
-        >
-          <text class="mq-answer-label">
-            专家回答：
-          </text>
-          <text class="mq-answer-text">
-            {{ q.preview }}
-          </text>
-          <text class="mq-answer-time">
-            回复于 {{ q.answeredAt }}
-          </text>
+        <view v-if="expanded === q.id && q.preview" class="mq-answer">
+          <text class="mq-answer-label">专家回答：</text>
+          <text class="mq-answer-text">{{ q.preview }}</text>
+          <text class="mq-answer-time">回复于 {{ q.answeredAt }}</text>
         </view>
       </view>
-      <view
-        v-if="filtered.length === 0"
-        class="mq-empty"
-      >
-        <text class="mq-empty-t">
-          暂无问答记录
-        </text>
-      </view>
+      <view v-if="filtered.length === 0" class="mq-empty"><text class="mq-empty-t">暂无问答记录</text></view>
     </view>
   </view>
 </template>

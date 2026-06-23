@@ -2,18 +2,16 @@
 import { ref, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { mineApi } from '@/lib/mine-data'
+import { mineProfile } from '@/lib/mine-data'
 
 const step = ref(1)
-const currentPhone = '138****8888'
-const currentPhoneFull = '13888888888'
+const currentPhone = mineProfile.phone
 const verifyCode = ref('')
 const newPhone = ref('')
 const newCode = ref('')
 const countdown = ref(0)
 const newCountdown = ref(0)
 const loading = ref(false)
-const submitting = ref(false)
 const error = ref('')
 
 const steps = [
@@ -25,39 +23,21 @@ const steps = [
 let timer1: ReturnType<typeof setInterval> | null = null
 let timer2: ReturnType<typeof setInterval> | null = null
 
-async function sendVerifyCode() {
-  if (countdown.value > 0 || loading.value) return
-  loading.value = true
-  error.value = ''
-  const res = await mineApi.sendSmsCode(currentPhoneFull, 'change_phone')
-  loading.value = false
-  if (res.success) {
-    uni.showToast({ title: '验证码已发送', icon: 'success', duration: 1500 })
-    countdown.value = 60
-    timer1 = setInterval(() => {
-      countdown.value--
-      if (countdown.value <= 0 && timer1) clearInterval(timer1)
-    }, 1000)
-  } else {
-    error.value = res.message || '发送失败'
-  }
+function sendVerifyCode() {
+  if (countdown.value > 0) return
+  countdown.value = 60
+  timer1 = setInterval(() => {
+    countdown.value--
+    if (countdown.value <= 0 && timer1) clearInterval(timer1)
+  }, 1000)
 }
-async function sendNewCode() {
-  if (newCountdown.value > 0 || newPhone.value.length !== 11 || loading.value) return
-  loading.value = true
-  error.value = ''
-  const res = await mineApi.sendSmsCode(newPhone.value, 'change_phone')
-  loading.value = false
-  if (res.success) {
-    uni.showToast({ title: '验证码已发送', icon: 'success', duration: 1500 })
-    newCountdown.value = 60
-    timer2 = setInterval(() => {
-      newCountdown.value--
-      if (newCountdown.value <= 0 && timer2) clearInterval(timer2)
-    }, 1000)
-  } else {
-    error.value = res.message || '发送失败'
-  }
+function sendNewCode() {
+  if (newCountdown.value > 0 || newPhone.value.length !== 11) return
+  newCountdown.value = 60
+  timer2 = setInterval(() => {
+    newCountdown.value--
+    if (newCountdown.value <= 0 && timer2) clearInterval(timer2)
+  }, 1000)
 }
 function onVerifyInput(e: any) {
   verifyCode.value = e.detail.value.replace(/\D/g, '')
@@ -77,7 +57,10 @@ async function verifyCurrentPhone() {
     error.value = '请输入6位验证码'
     return
   }
-  // 验证码由后端在下步 changePhone 时一并校验，此处仅做客户端长度校验后进入下一步
+  loading.value = true
+  error.value = ''
+  await new Promise((r) => setTimeout(r, 1000))
+  loading.value = false
   step.value = 2
 }
 async function submitNewPhone() {
@@ -89,24 +72,12 @@ async function submitNewPhone() {
     error.value = '请输入6位验证码'
     return
   }
-  if (submitting.value) return
-  submitting.value = true
   loading.value = true
   error.value = ''
-  try {
-    const res = await mineApi.changePhone(currentPhone, verifyCode.value, newPhone.value, newCode.value)
-    if (res.success) {
-      step.value = 3
-      setTimeout(() => goBack(), 2000)
-    } else {
-      error.value = res.message || '更换失败'
-    }
-  } catch {
-    error.value = '网络异常，请重试'
-  } finally {
-    loading.value = false
-    submitting.value = false
-  }
+  await new Promise((r) => setTimeout(r, 1500))
+  loading.value = false
+  step.value = 3
+  setTimeout(() => goBack(), 2000)
 }
 function maskedNewPhone() {
   return newPhone.value.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
@@ -121,257 +92,92 @@ onUnmounted(() => {
 <template>
   <view class="page">
     <!-- 导航 -->
-    <app-nav-bar
-      title="修改手机号"
-      :title-size="36"
-    />
+    <app-nav-bar title="修改手机号" :title-size="36" />
 
     <!-- 步骤指示器 -->
     <view class="steps">
-      <view
-        v-for="(item, idx) in steps"
-        :key="item.num"
-        class="step-cell"
-      >
+      <view v-for="(item, idx) in steps" :key="item.num" class="step-cell">
         <view class="step-col">
-          <view
-            class="step-dot"
-            :class="{ active: step >= item.num }"
-          >
-            <AppIcon
-              v-if="step > item.num"
-              name="check-circle"
-              :size="20"
-              color="#fff"
-            />
-            <text
-              v-else
-              class="step-num"
-              :class="{ active: step >= item.num }"
-            >
-              {{ item.num }}
-            </text>
+          <view class="step-dot" :class="{ active: step >= item.num }">
+            <AppIcon v-if="step > item.num" name="check-circle" :size="20" color="#fff" />
+            <text v-else class="step-num" :class="{ active: step >= item.num }">{{ item.num }}</text>
           </view>
-          <text
-            class="step-label"
-            :class="{ active: step >= item.num }"
-          >
-            {{ item.label }}
-          </text>
+          <text class="step-label" :class="{ active: step >= item.num }">{{ item.label }}</text>
         </view>
-        <view
-          v-if="idx < 2"
-          class="step-line"
-          :class="{ active: step > item.num }"
-        />
+        <view v-if="idx < 2" class="step-line" :class="{ active: step > item.num }" />
       </view>
     </view>
 
     <!-- 步骤1 -->
-    <view
-      v-if="step === 1"
-      class="body"
-    >
+    <view v-if="step === 1" class="body">
       <view class="card">
         <view class="card-head">
-          <view class="head-icon red">
-            <AppIcon
-              name="shield"
-              :size="24"
-              color="#C41E3A"
-            />
-          </view>
+          <view class="head-icon red"><AppIcon name="shield" :size="24" color="#C41E3A" /></view>
           <view>
-            <text class="head-title">
-              验证当前手机号
-            </text>
-            <text class="head-sub">
-              为保障账号安全，请先验证身份
-            </text>
+            <text class="head-title">验证当前手机号</text>
+            <text class="head-sub">为保障账号安全，请先验证身份</text>
           </view>
         </view>
         <view class="phone-box">
-          <AppIcon
-            name="phone"
-            :size="20"
-            color="#666"
-          />
-          <text class="phone-text">
-            {{ currentPhone }}
-          </text>
-          <text class="phone-tag">
-            当前绑定
-          </text>
+          <AppIcon name="phone" :size="20" color="#666" />
+          <text class="phone-text">{{ currentPhone }}</text>
+          <text class="phone-tag">当前绑定</text>
         </view>
         <view class="form">
-          <text class="form-label">
-            短信验证码
-          </text>
+          <text class="form-label">短信验证码</text>
           <view class="code-row">
-            <input
-              class="code-input"
-              type="number"
-              :maxlength="6"
-              :value="verifyCode"
-              placeholder="请输入验证码"
-              placeholder-class="ph"
-              @input="onVerifyInput"
-            >
-            <view
-              class="code-btn"
-              :class="{ disabled: countdown > 0 }"
-              @tap="sendVerifyCode"
-            >
-              <text
-                class="code-btn-text"
-                :class="{ disabled: countdown > 0 }"
-              >
-                {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
-              </text>
+            <input class="code-input" type="number" :maxlength="6" :value="verifyCode" @input="onVerifyInput" placeholder="请输入验证码" placeholder-class="ph" />
+            <view class="code-btn" :class="{ disabled: countdown > 0 }" @tap="sendVerifyCode">
+              <text class="code-btn-text" :class="{ disabled: countdown > 0 }">{{ countdown > 0 ? `${countdown}s` : '获取验证码' }}</text>
             </view>
           </view>
-          <text
-            v-if="error"
-            class="err"
-          >
-            {{ error }}
-          </text>
-          <view
-            class="primary-btn"
-            :class="{ disabled: loading || verifyCode.length !== 6 }"
-            @tap="verifyCurrentPhone"
-          >
-            <text class="primary-btn-text">
-              {{ loading ? '验证中...' : '下一步' }}
-            </text>
-            <AppIcon
-              v-if="!loading"
-              name="arrow-right"
-              :size="16"
-              color="#fff"
-            />
+          <text v-if="error" class="err">{{ error }}</text>
+          <view class="primary-btn" :class="{ disabled: loading || verifyCode.length !== 6 }" @tap="verifyCurrentPhone">
+            <text class="primary-btn-text">{{ loading ? '验证中...' : '下一步' }}</text>
+            <AppIcon v-if="!loading" name="arrow-right" :size="16" color="#fff" />
           </view>
         </view>
       </view>
     </view>
 
     <!-- 步骤2 -->
-    <view
-      v-if="step === 2"
-      class="body"
-    >
+    <view v-if="step === 2" class="body">
       <view class="card">
         <view class="card-head">
-          <view class="head-icon green">
-            <AppIcon
-              name="phone"
-              :size="24"
-              color="#16a34a"
-            />
-          </view>
+          <view class="head-icon green"><AppIcon name="phone" :size="24" color="#16a34a" /></view>
           <view>
-            <text class="head-title">
-              绑定新手机号
-            </text>
-            <text class="head-sub">
-              请输入新的手机号并验证
-            </text>
+            <text class="head-title">绑定新手机号</text>
+            <text class="head-sub">请输入新的手机号并验证</text>
           </view>
         </view>
         <view class="form">
-          <text class="form-label">
-            新手机号
-          </text>
-          <input
-            class="full-input"
-            type="number"
-            :maxlength="11"
-            :value="newPhone"
-            placeholder="请输入新手机号"
-            placeholder-class="ph"
-            @input="onNewPhoneInput"
-          >
-          <text class="form-label">
-            短信验证码
-          </text>
+          <text class="form-label">新手机号</text>
+          <input class="full-input" type="number" :maxlength="11" :value="newPhone" @input="onNewPhoneInput" placeholder="请输入新手机号" placeholder-class="ph" />
+          <text class="form-label">短信验证码</text>
           <view class="code-row">
-            <input
-              class="code-input"
-              type="number"
-              :maxlength="6"
-              :value="newCode"
-              placeholder="请输入验证码"
-              placeholder-class="ph"
-              @input="onNewCodeInput"
-            >
-            <view
-              class="code-btn"
-              :class="{ disabled: newCountdown > 0 || newPhone.length !== 11 }"
-              @tap="sendNewCode"
-            >
-              <text
-                class="code-btn-text"
-                :class="{ disabled: newCountdown > 0 || newPhone.length !== 11 }"
-              >
-                {{ newCountdown > 0 ? `${newCountdown}s` : '获取验证码' }}
-              </text>
+            <input class="code-input" type="number" :maxlength="6" :value="newCode" @input="onNewCodeInput" placeholder="请输入验证码" placeholder-class="ph" />
+            <view class="code-btn" :class="{ disabled: newCountdown > 0 || newPhone.length !== 11 }" @tap="sendNewCode">
+              <text class="code-btn-text" :class="{ disabled: newCountdown > 0 || newPhone.length !== 11 }">{{ newCountdown > 0 ? `${newCountdown}s` : '获取验证码' }}</text>
             </view>
           </view>
-          <text
-            v-if="error"
-            class="err"
-          >
-            {{ error }}
-          </text>
-          <view
-            class="primary-btn"
-            :class="{ disabled: loading || newPhone.length !== 11 || newCode.length !== 6 }"
-            @tap="submitNewPhone"
-          >
-            <text class="primary-btn-text">
-              {{ loading ? '提交中...' : '确认绑定' }}
-            </text>
+          <text v-if="error" class="err">{{ error }}</text>
+          <view class="primary-btn" :class="{ disabled: loading || newPhone.length !== 11 || newCode.length !== 6 }" @tap="submitNewPhone">
+            <text class="primary-btn-text">{{ loading ? '提交中...' : '确认绑定' }}</text>
           </view>
-          <view
-            class="back-btn"
-            @tap="step = 1"
-          >
-            <text class="back-btn-text">
-              返回上一步
-            </text>
-          </view>
+          <view class="back-btn" @tap="step = 1"><text class="back-btn-text">返回上一步</text></view>
         </view>
       </view>
-      <text class="foot-tip">
-        温馨提示：更换手机号后，原手机号将无法用于登录和找回密码
-      </text>
+      <text class="foot-tip">温馨提示：更换手机号后，原手机号将无法用于登录和找回密码</text>
     </view>
 
     <!-- 步骤3 -->
-    <view
-      v-if="step === 3"
-      class="body"
-    >
+    <view v-if="step === 3" class="body">
       <view class="card done-card">
-        <view class="done-icon">
-          <AppIcon
-            name="check-circle"
-            :size="40"
-            color="#16a34a"
-          />
-        </view>
-        <text class="done-title">
-          绑定成功
-        </text>
-        <text class="done-sub">
-          新手机号已绑定
-        </text>
-        <text class="done-phone">
-          {{ maskedNewPhone() }}
-        </text>
-        <text class="done-tip">
-          页面即将自动返回...
-        </text>
+        <view class="done-icon"><AppIcon name="check-circle" :size="40" color="#16a34a" /></view>
+        <text class="done-title">绑定成功</text>
+        <text class="done-sub">新手机号已绑定</text>
+        <text class="done-phone">{{ maskedNewPhone() }}</text>
+        <text class="done-tip">页面即将自动返回...</text>
       </view>
     </view>
   </view>

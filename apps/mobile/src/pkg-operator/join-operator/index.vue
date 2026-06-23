@@ -32,61 +32,30 @@ function fmt(n: number) {
 
 <template>
   <view class="page">
-    <app-nav-bar
-      title="成为运营商"
-      back-icon="arrow-left"
-      :title-size="34"
-    />
+    <app-nav-bar title="成为运营商" back-icon="arrow-left" :title-size="34" />
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <!-- Hero Banner -->
       <view class="hero">
         <view class="hero-deco hero-deco-tr" />
         <view class="hero-deco hero-deco-bl" />
         <view class="hero-inner">
           <view class="hero-icon">
-            <AppIcon
-              name="building-2"
-              :size="52"
-              color="#fff"
-            />
+            <AppIcon name="building-2" :size="52" color="#fff" />
           </view>
           <view class="hero-badge">
-            <AppIcon
-              name="zap"
-              :size="20"
-              color="#fff"
-            />
-            <text class="hero-badge-text">
-              限时特惠
-            </text>
+            <AppIcon name="zap" :size="20" color="#fff" />
+            <text class="hero-badge-text">限时特惠</text>
           </view>
-          <text class="hero-title">
-            成为热卜运营商
-          </text>
-          <text class="hero-sub">
-            获得6个分站名额，建立您的推广团队
-          </text>
+          <text class="hero-title">成为热卜运营商</text>
+          <text class="hero-sub">获得6个分站名额，建立您的推广团队</text>
           <view class="hero-price">
-            <text class="hero-price-now">
-              ¥{{ price }}
-            </text>
-            <text class="hero-price-old">
-              ¥{{ originalPrice }}
-            </text>
+            <text class="hero-price-now">¥{{ price }}</text>
+            <text class="hero-price-old">¥{{ originalPrice }}</text>
           </view>
           <view class="hero-gift">
-            <AppIcon
-              name="gift"
-              :size="22"
-              color="#fff"
-            />
-            <text class="hero-gift-text">
-              赠送6个分站名额（价值¥{{ quotaValue }}）
-            </text>
+            <AppIcon name="gift" :size="22" color="#fff" />
+            <text class="hero-gift-text">赠送6个分站名额（价值¥{{ quotaValue }}）</text>
           </view>
         </view>
       </view>
@@ -95,50 +64,22 @@ function fmt(n: number) {
       <view class="px">
         <view class="card quota-card">
           <view class="card-title">
-            <AppIcon
-              name="layers"
-              :size="28"
-              color="#7c3aed"
-            />
-            <text class="card-title-text">
-              6个分站名额使用说明
-            </text>
+            <AppIcon name="layers" :size="28" color="#7c3aed" />
+            <text class="card-title-text">6个分站名额使用说明</text>
           </view>
           <view class="quota-grid">
             <view class="quota-item">
-              <view class="quota-ic quota-ic-op">
-                <AppIcon
-                  name="award"
-                  :size="32"
-                  color="#7c3aed"
-                />
-              </view>
-              <text class="quota-num quota-num-op">
-                1个
-              </text>
-              <text class="quota-desc">
-                自用建站
-              </text>
+              <view class="quota-ic quota-ic-op"><AppIcon name="award" :size="32" color="#7c3aed" /></view>
+              <text class="quota-num quota-num-op">1个</text>
+              <text class="quota-desc">自用建站</text>
             </view>
             <view class="quota-item">
-              <view class="quota-ic quota-ic-gold">
-                <AppIcon
-                  name="gift"
-                  :size="32"
-                  color="#C9A96E"
-                />
-              </view>
-              <text class="quota-num quota-num-gold">
-                5个
-              </text>
-              <text class="quota-desc">
-                可售卖 ¥999/个
-              </text>
+              <view class="quota-ic quota-ic-gold"><AppIcon name="gift" :size="32" color="#C9A96E" /></view>
+              <text class="quota-num quota-num-gold">5个</text>
+              <text class="quota-desc">可售卖 ¥999/个</text>
             </view>
           </view>
-          <text class="quota-tip">
-            售卖5个名额即可回本 ¥4,995，后续收益都是纯利润
-          </text>
+          <text class="quota-tip">售卖5个名额即可回本 ¥4,995，后续收益都是纯利润</text>
         </view>
       </view>
 
@@ -146,14 +87,8 @@ function fmt(n: number) {
       <view class="px">
         <view class="card">
           <view class="card-title">
-            <AppIcon
-              name="crown"
-              :size="28"
-              color="#C9A96E"
-            />
-            <text class="card-title-text">
-              运营商专属权益
-            </text>
+            <AppIcon name="crown" :size="28" color="#C9A96E" />
+            <text class="card-title-text">运营商专属权益</text>
           </view>
           <view class="benefit-list">
             <view
@@ -162,31 +97,15 @@ function fmt(n: number) {
               class="benefit-item"
               :class="{ hl: item.highlight }"
             >
-              <view
-                class="benefit-ic"
-                :class="{ hl: item.highlight }"
-              >
-                <AppIcon
-                  :name="item.icon"
-                  :size="28"
-                  :color="item.highlight ? '#7c3aed' : '#8a8178'"
-                />
+              <view class="benefit-ic" :class="{ hl: item.highlight }">
+                <AppIcon :name="item.icon" :size="28" :color="item.highlight ? '#7c3aed' : '#8a8178'" />
               </view>
               <view class="benefit-body">
                 <view class="benefit-head">
-                  <text class="benefit-title">
-                    {{ item.title }}
-                  </text>
-                  <text
-                    v-if="item.highlight"
-                    class="benefit-tag"
-                  >
-                    核心
-                  </text>
+                  <text class="benefit-title">{{ item.title }}</text>
+                  <text v-if="item.highlight" class="benefit-tag">核心</text>
                 </view>
-                <text class="benefit-desc">
-                  {{ item.desc }}
-                </text>
+                <text class="benefit-desc">{{ item.desc }}</text>
               </view>
             </view>
           </view>
@@ -196,72 +115,28 @@ function fmt(n: number) {
       <!-- 权益对比表 -->
       <view class="px">
         <view class="card">
-          <text class="card-h">
-            站长 vs 运营商
-          </text>
+          <text class="card-h">站长 vs 运营商</text>
           <view class="cmp">
             <view class="cmp-row cmp-head">
-              <text class="cmp-c cmp-c1">
-                权益
-              </text>
-              <text class="cmp-c cmp-c2 cmp-station">
-                站长
-              </text>
-              <text class="cmp-c cmp-c3 cmp-operator">
-                运营商
-              </text>
+              <text class="cmp-c cmp-c1">权益</text>
+              <text class="cmp-c cmp-c2 cmp-station">站长</text>
+              <text class="cmp-c cmp-c3 cmp-operator">运营商</text>
             </view>
-            <view
-              v-for="(item, i) in planComparison"
-              :key="i"
-              class="cmp-row"
-            >
-              <text class="cmp-c cmp-c1">
-                {{ item.feature }}
-              </text>
+            <view v-for="(item, i) in planComparison" :key="i" class="cmp-row">
+              <text class="cmp-c cmp-c1">{{ item.feature }}</text>
               <view class="cmp-c cmp-c2">
                 <template v-if="typeof item.station === 'boolean'">
-                  <AppIcon
-                    v-if="item.station"
-                    name="check"
-                    :size="28"
-                    color="#16a34a"
-                  />
-                  <text
-                    v-else
-                    class="cmp-dash"
-                  >
-                    -
-                  </text>
+                  <AppIcon v-if="item.station" name="check" :size="28" color="#16a34a" />
+                  <text v-else class="cmp-dash">-</text>
                 </template>
-                <text
-                  v-else
-                  class="cmp-val-station"
-                >
-                  {{ item.station }}
-                </text>
+                <text v-else class="cmp-val-station">{{ item.station }}</text>
               </view>
               <view class="cmp-c cmp-c3">
                 <template v-if="typeof item.operator === 'boolean'">
-                  <AppIcon
-                    v-if="item.operator"
-                    name="check"
-                    :size="28"
-                    color="#7c3aed"
-                  />
-                  <text
-                    v-else
-                    class="cmp-dash"
-                  >
-                    -
-                  </text>
+                  <AppIcon v-if="item.operator" name="check" :size="28" color="#7c3aed" />
+                  <text v-else class="cmp-dash">-</text>
                 </template>
-                <text
-                  v-else
-                  class="cmp-val-operator"
-                >
-                  {{ item.operator }}
-                </text>
+                <text v-else class="cmp-val-operator">{{ item.operator }}</text>
               </view>
             </view>
           </view>
@@ -272,43 +147,19 @@ function fmt(n: number) {
       <view class="px">
         <view class="card">
           <view class="card-title">
-            <AppIcon
-              name="sparkles"
-              :size="28"
-              color="#C9A96E"
-            />
-            <text class="card-title-text">
-              运营商收益案例
-            </text>
+            <AppIcon name="sparkles" :size="28" color="#C9A96E" />
+            <text class="card-title-text">运营商收益案例</text>
           </view>
           <view class="case-list">
-            <view
-              v-for="(item, i) in operatorEarningCases"
-              :key="i"
-              class="case-item"
-            >
-              <view class="case-ic">
-                <AppIcon
-                  name="building-2"
-                  :size="28"
-                  color="#7c3aed"
-                />
-              </view>
+            <view v-for="(item, i) in operatorEarningCases" :key="i" class="case-item">
+              <view class="case-ic"><AppIcon name="building-2" :size="28" color="#7c3aed" /></view>
               <view class="case-body">
-                <text class="case-name">
-                  {{ item.name }}
-                </text>
-                <text class="case-meta">
-                  入驻{{ item.days }}天 · 团队{{ item.teamSize }}人 · 已售{{ item.soldQuota }}个名额
-                </text>
+                <text class="case-name">{{ item.name }}</text>
+                <text class="case-meta">入驻{{ item.days }}天 · 团队{{ item.teamSize }}人 · 已售{{ item.soldQuota }}个名额</text>
               </view>
               <view class="case-right">
-                <text class="case-earn">
-                  ¥{{ fmt(item.earnings) }}
-                </text>
-                <text class="case-earn-label">
-                  累计收益
-                </text>
+                <text class="case-earn">¥{{ fmt(item.earnings) }}</text>
+                <text class="case-earn-label">累计收益</text>
               </view>
             </view>
           </view>
@@ -318,40 +169,17 @@ function fmt(n: number) {
       <!-- 常见问题 -->
       <view class="px">
         <view class="card">
-          <text class="card-h">
-            常见问题
-          </text>
+          <text class="card-h">常见问题</text>
           <view class="faq-list">
-            <view
-              v-for="(faq, i) in operatorFaqs"
-              :key="i"
-              class="faq-item"
-            >
-              <view
-                class="faq-q"
-                @tap="toggleFaq(i)"
-              >
-                <text class="faq-q-text">
-                  {{ faq.q }}
-                </text>
-                <view
-                  class="faq-arrow"
-                  :class="{ open: expandedFaq === i }"
-                >
-                  <AppIcon
-                    name="chevron-right"
-                    :size="26"
-                    color="#8a8178"
-                  />
+            <view v-for="(faq, i) in operatorFaqs" :key="i" class="faq-item">
+              <view class="faq-q" @tap="toggleFaq(i)">
+                <text class="faq-q-text">{{ faq.q }}</text>
+                <view class="faq-arrow" :class="{ open: expandedFaq === i }">
+                  <AppIcon name="chevron-right" :size="26" color="#8a8178" />
                 </view>
               </view>
-              <view
-                v-if="expandedFaq === i"
-                class="faq-a"
-              >
-                <text class="faq-a-text">
-                  {{ faq.a }}
-                </text>
+              <view v-if="expandedFaq === i" class="faq-a">
+                <text class="faq-a-text">{{ faq.a }}</text>
               </view>
             </view>
           </view>
@@ -364,57 +192,27 @@ function fmt(n: number) {
     <!-- 底部购买栏 -->
     <view class="buybar">
       <view class="buybar-agree">
-        <view
-          class="agree-box"
-          :class="{ on: agreed }"
-          @tap="agreed = !agreed"
-        >
-          <AppIcon
-            v-if="agreed"
-            name="check"
-            :size="22"
-            color="#fff"
-          />
+        <view class="agree-box" :class="{ on: agreed }" @tap="agreed = !agreed">
+          <AppIcon v-if="agreed" name="check" :size="22" color="#fff" />
         </view>
         <text class="agree-text">
           我已阅读并同意
-          <text
-            class="agree-link"
-            @tap="navigateTo('/pkg-operator/agreement-operator/index')"
-          >
-            《运营商服务协议》
-          </text>
+          <text class="agree-link" @tap="navigateTo('/pkg-operator/agreement-operator/index')">《运营商服务协议》</text>
         </text>
       </view>
       <view class="buybar-row">
         <view class="buybar-price">
           <view class="buybar-price-line">
-            <text class="buybar-price-now">
-              ¥{{ price }}
-            </text>
-            <text class="buybar-price-old">
-              ¥{{ originalPrice }}
-            </text>
+            <text class="buybar-price-now">¥{{ price }}</text>
+            <text class="buybar-price-old">¥{{ originalPrice }}</text>
           </view>
           <view class="buybar-price-gift">
-            <AppIcon
-              name="gift"
-              :size="20"
-              color="#7c3aed"
-            />
-            <text class="buybar-gift-text">
-              含6个分站名额
-            </text>
+            <AppIcon name="gift" :size="20" color="#7c3aed" />
+            <text class="buybar-gift-text">含6个分站名额</text>
           </view>
         </view>
-        <view
-          class="buybar-btn"
-          :class="{ disabled: !agreed }"
-          @tap="onSubmit"
-        >
-          <text class="buybar-btn-text">
-            立即开通
-          </text>
+        <view class="buybar-btn" :class="{ disabled: !agreed }" @tap="onSubmit">
+          <text class="buybar-btn-text">立即开通</text>
         </view>
       </view>
     </view>

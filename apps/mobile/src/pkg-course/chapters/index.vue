@@ -3,26 +3,9 @@
 import { ref, computed } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 章节学习进度, 参数 courseId, 返回 { progress:CourseProgress, chapters:ProgressChapter[] }
-import { courseApi } from '@/lib/course-data'
-
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  // TODO: 从路由参数获取 courseId，当前使用默认值
-  const courseId = '1'
-  const [course, chapters] = await Promise.all([
-    courseApi.getProgress(courseId),
-    courseApi.getProgressChapters(courseId),
-  ])
-  return { course, chapters }
-})
-
-const course = computed(() => pageData.value?.course ?? {} as any)
-const chapters = computed(() => pageData.value?.chapters ?? [])
-const isEmpty = computed(() => !pageData.value?.course || chapters.value.length === 0)
+// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
+import { courseProgress as course, progressChapters as chapters, type LessonStatus, type ProgressLesson } from '@/lib/course-data'
 
 const isRefreshing = ref(false)
 
@@ -31,10 +14,10 @@ function formatDuration(seconds: number) {
   const secs = seconds % 60
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
-function chapterDone(lessons: { status: string }[]) { return lessons.filter((l) => l.status === 'completed').length }
-function onLessonClick(lesson: { id: string; status: string }) {
+function chapterDone(lessons: ProgressLesson[]) { return lessons.filter((l) => l.status === 'completed').length }
+function onLessonClick(lesson: ProgressLesson) {
   if (lesson.status === 'locked') { uni.showToast({ title: '请先完成前面的课程或购买完整课程以解锁', icon: 'none' }); return }
-  navigateTo(`/courses/${course.value.id}/player?lesson=${lesson.id}`)
+  navigateTo(`/courses/${course.id}/player?lesson=${lesson.id}`)
 }
 function onRefresh() {
   if (isRefreshing.value) return
@@ -44,150 +27,68 @@ function onRefresh() {
 </script>
 
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无学习进度" />
-  <view v-else class="page">
+  <view class="page">
     <!-- 顶部导航 + 进度条 -->
     <view class="topbar">
       <view class="nav">
-        <view
-          class="nav-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="#2C2C2C"
-          />
+        <view class="nav-btn" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#2C2C2C" />
         </view>
-        <text class="nav-title">
-          {{ course.title }}
-        </text>
-        <view
-          class="nav-btn"
-          @tap="onRefresh"
-        >
-          <app-icon
-            name="refresh-cw"
-            :size="32"
-            color="#666666"
-            :class="{ spinning: isRefreshing }"
-          />
+        <text class="nav-title">{{ course.title }}</text>
+        <view class="nav-btn" @tap="onRefresh">
+          <app-icon name="refresh-cw" :size="32" color="#666666" :class="{ spinning: isRefreshing }" />
         </view>
       </view>
       <view class="progress-wrap">
         <view class="progress-hdr">
-          <text class="progress-label">
-            学习进度 <text class="progress-done">
-              {{ course.completedLessons }}
-            </text>/{{ course.totalLessons }}课时
-          </text>
-          <text class="progress-pct">
-            {{ course.progressPercent }}%
-          </text>
+          <text class="progress-label">学习进度 <text class="progress-done">{{ course.completedLessons }}</text>/{{ course.totalLessons }}课时</text>
+          <text class="progress-pct">{{ course.progressPercent }}%</text>
         </view>
         <view class="progress-track">
-          <view
-            class="progress-fill"
-            :style="{ width: course.progressPercent + '%' }"
-          />
+          <view class="progress-fill" :style="{ width: course.progressPercent + '%' }" />
         </view>
       </view>
     </view>
 
     <!-- 章节列表 -->
     <view class="list">
-      <view
-        v-for="chapter in chapters"
-        :key="chapter.id"
-        class="chapter-card"
-      >
+      <view v-for="chapter in chapters" :key="chapter.id" class="chapter-card">
         <view class="chapter-hdr">
-          <text class="chapter-title">
-            {{ chapter.title }}
-          </text>
+          <text class="chapter-title">{{ chapter.title }}</text>
           <text
             class="chapter-badge"
             :class="chapterDone(chapter.lessons) === chapter.lessons.length ? 'done' : 'normal'"
-          >
-            {{ chapterDone(chapter.lessons) }}/{{ chapter.lessons.length }}
-          </text>
+          >{{ chapterDone(chapter.lessons) }}/{{ chapter.lessons.length }}</text>
         </view>
         <view class="lesson-list">
           <view
-            v-for="lesson in chapter.lessons"
-            :key="lesson.id"
-            class="lesson-item"
-            :class="{ locked: lesson.status === 'locked' }"
+            v-for="lesson in chapter.lessons" :key="lesson.id"
+            class="lesson-item" :class="{ locked: lesson.status === 'locked' }"
             @tap="onLessonClick(lesson)"
           >
             <!-- 状态图标 -->
-            <view
-              class="status-ico"
-              :class="lesson.status"
-            >
-              <app-icon
-                v-if="lesson.status === 'completed'"
-                name="check-circle"
-                :size="32"
-                color="#16A34A"
-              />
-              <view
-                v-else-if="lesson.status === 'in-progress'"
-                class="dot"
-              />
-              <app-icon
-                v-else-if="lesson.status === 'available'"
-                name="play"
-                :size="26"
-                color="#C41E3A"
-                :fill="true"
-              />
-              <app-icon
-                v-else
-                name="lock"
-                :size="26"
-                color="#9CA3AF"
-              />
+            <view class="status-ico" :class="lesson.status">
+              <app-icon v-if="lesson.status === 'completed'" name="check-circle" :size="32" color="#16A34A" />
+              <view v-else-if="lesson.status === 'in-progress'" class="dot" />
+              <app-icon v-else-if="lesson.status === 'available'" name="play" :size="26" color="#C41E3A" :fill="true" />
+              <app-icon v-else name="lock" :size="26" color="#9CA3AF" />
             </view>
             <!-- 课时信息 -->
             <view class="lesson-meta">
               <text
                 class="lesson-title"
                 :class="{ completed: lesson.status === 'completed', active: lesson.status === 'in-progress' }"
-              >
-                {{ lesson.title }}
-              </text>
+              >{{ lesson.title }}</text>
               <view class="lesson-sub">
-                <app-icon
-                  name="clock"
-                  :size="22"
-                  color="#999999"
-                />
-                <text class="lesson-dur">
-                  {{ formatDuration(lesson.duration) }}
-                </text>
-                <text
-                  v-if="lesson.status === 'in-progress'"
-                  class="lesson-learning"
-                >
-                  学习中
-                </text>
+                <app-icon name="clock" :size="22" color="#999999" />
+                <text class="lesson-dur">{{ formatDuration(lesson.duration) }}</text>
+                <text v-if="lesson.status === 'in-progress'" class="lesson-learning">学习中</text>
               </view>
             </view>
             <!-- 右侧播放图标 -->
             <app-icon
               v-if="lesson.status !== 'locked' && lesson.status !== 'completed'"
-              name="play"
-              :size="28"
-              color="#C41E3A"
+              name="play" :size="28" color="#C41E3A"
             />
           </view>
         </view>

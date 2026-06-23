@@ -2,27 +2,7 @@
   <view class="page">
     <app-nav-bar :title="navTitle" />
 
-    <!-- 加载态：骨架屏 -->
-    <view v-if="loading" class="skeleton-wrap">
-      <AppSkeleton width="100%" height="200rpx" radius="20rpx" mb="32rpx" />
-      <AppSkeleton width="100%" height="300rpx" radius="20rpx" mb="32rpx" />
-      <AppSkeleton width="100%" height="100rpx" radius="44rpx" />
-    </view>
-
-    <!-- 错误态：重试 -->
-    <AppError v-else-if="loadError" :desc="loadError" @retry="fetchOrderData" />
-
-    <!-- 空态：无订单号 -->
-    <AppEmpty
-      v-else-if="!orderId"
-      title="暂无订单信息"
-      desc="未找到订单参数，请从订单列表进入"
-      actionText="返回首页"
-      @action="goHome"
-    />
-
-    <!-- 正常内容 -->
-    <view v-else class="content">
+    <view class="content">
       <!-- 状态区 -->
       <view class="status-block">
         <view class="status-icon" :class="isSuccess ? 'status-icon--success' : 'status-icon--fail'">
@@ -94,13 +74,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { navigateTo, goBack, reLaunch } from '@/utils/router'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-
-const loading = ref(false)
-const loadError = ref<string | null>(null)
+import { navigateTo, goBack } from '@/utils/router'
 
 const status = ref<'success' | 'fail'>('success')
 const orderId = ref('OD202606200001')
@@ -125,25 +99,7 @@ onLoad((options) => {
   if (options?.orderId) orderId.value = options.orderId
   if (options?.amount) amount.value = options.amount
   if (options?.reason) reason.value = decodeURIComponent(options.reason)
-  fetchOrderData()
 })
-
-async function fetchOrderData() {
-  if (!orderId.value) return
-  loading.value = true
-  loadError.value = null
-  try {
-    // TODO: 接入真实订单查询 API — shopApi.getOrderResult(orderId.value)
-    // 当前从 URL 参数获取数据，后续替换为异步 API 调用
-    await new Promise((r) => setTimeout(r, 300))
-  } catch {
-    loadError.value = '加载订单信息失败，请稍后重试'
-  } finally {
-    loading.value = false
-  }
-}
-
-// fetchOrderData 在 onLoad 中调用
 
 function goOrderDetail() {
   navigateTo(`/orders/${orderId.value}`)
@@ -173,9 +129,6 @@ function goProduct(id: string) {
 .content {
   padding: 0 32rpx 48rpx;
 }
-
-/* 骨架屏 */
-.skeleton-wrap { padding: 32rpx; }
 
 /* 状态区 */
 .status-block {

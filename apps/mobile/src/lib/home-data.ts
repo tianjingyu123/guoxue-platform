@@ -1,5 +1,4 @@
 /** 首页数据层（1:1 迁移自原型 components/home-feed.tsx + home/home-banner.tsx + common/daily-verse） */
-import { apiGet, useMock } from '@/utils/request'
 
 // ============================================
 // Banner 轮播数据
@@ -231,13 +230,4 @@ export function buildFeedItems(): RenderItem[] {
     pos++
   }
   return result
-}
-
-// ── API ──
-export const homeApi = {
-  /** 获取首页聚合数据 GET /home */
-  async getHomeData(): Promise<Record<string, any>> {
-    if (useMock()) return { banners: defaultBanners, feedItems }
-    try { return await apiGet<any>('/home') } catch { return { banners: defaultBanners, feedItems: [] } }
-  },
 }

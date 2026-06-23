@@ -1,13 +1,5 @@
 <template>
-  <view v-if="loading" class="cart-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="loadCart" />
-  <view v-else class="cart-page">
+  <view class="cart-page">
     <!-- 顶部导航 -->
     <app-nav-bar :title="`购物车(${items.length})`" back-icon="arrow-left" :back-size="40" :title-size="36" :bar-height="106">
       <template #right>
@@ -106,7 +98,14 @@
       <view style="height: 140rpx;" />
     </scroll-view>
 
-    <AppEmpty v-else icon="shopping-bag" title="购物车空空如也" actionText="去逛逛" @action="goMall" />
+    <!-- 空态 -->
+    <view class="empty" v-else>
+      <view class="empty-icon">
+        <app-icon name="shopping-bag" :size="80" color="#999999" />
+      </view>
+      <text class="empty-text">购物车空空如也</text>
+      <view class="empty-btn btn-press" @tap="goMall"><text class="empty-btn-text">去逛逛</text></view>
+    </view>
 
     <!-- 底部结算栏 -->
     <view class="footer" v-if="items.length">
@@ -151,28 +150,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { navigateTo, reLaunch } from '@/utils/router'
-import { shopApi, type FlatCartItem } from '@/lib/shop-data'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
+import { cartFlatItems, type FlatCartItem } from '@/lib/shop-data'
 
-const loading = ref(true)
-const loadError = ref<string | null>(null)
-const items = ref<FlatCartItem[]>([])
-
-async function loadCart() {
-  loading.value = true
-  loadError.value = null
-  try {
-    items.value = await shopApi.getCart()
-  } catch {
-    loadError.value = '加载购物车失败，请稍后重试'
-  }
-  finally { loading.value = false }
-}
-onMounted(loadCart)
+const items = ref<FlatCartItem[]>(JSON.parse(JSON.stringify(cartFlatItems)))
 const editMode = ref(false)
 const swipedId = ref<number | null>(null)
 
@@ -391,6 +373,29 @@ function goCheckout() {
 .invalid-sku { font-size: 24rpx; color: #CCCCCC; margin-top: 8rpx; }
 .invalid-reason { font-size: 24rpx; color: #FF6B6B; margin-top: 12rpx; }
 .invalid-close { flex-shrink: 0; width: 48rpx; height: 48rpx; }
+
+/* 空态 */
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 140rpx 0;
+}
+.empty-icon {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  background: #F5F0EB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 32rpx;
+}
+.empty-text { font-size: 28rpx; color: #666666; margin-bottom: 32rpx; }
+.empty-btn { padding: 16rpx 56rpx; background: #C41E3A; border-radius: 40rpx; }
+.empty-btn-text { color: #FFFFFF; font-size: 28rpx; }
 
 /* 底部结算栏 */
 .footer {

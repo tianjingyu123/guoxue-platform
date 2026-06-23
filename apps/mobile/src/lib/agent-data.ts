@@ -248,22 +248,3 @@ export const initialHistory: HistoryItem[] = [
 ]
 
 export const historyGroups = ['今天', '昨天', '本周', '更早']
-
-// ─── 智能体聊天 API ───
-import { apiPost, useMock } from '@/utils/request'
-
-export const agentChatApi = {
-  /** 发送消息 — POST /bots/:botId/chat */
-  send: async (botId: string, query: string, conversationId?: string): Promise<{ success: boolean; reply?: string; conversationId?: string; message: string }> => {
-    if (useMock()) {
-      // mock 延迟由调用方 (simple-chat.vue) 控制
-      return { success: true, reply: '这是AI助手的模拟回复。实际使用时将接入真实智能体API。', conversationId: conversationId || Date.now().toString(), message: 'ok' }
-    }
-    try {
-      const data = await apiPost<any>(`/bots/${botId}/chat`, { query, conversationId })
-      return { success: true, reply: data?.reply || data?.content || data?.message, conversationId: data?.conversationId, message: 'ok' }
-    } catch (e: any) {
-      return { success: false, message: e?.message || '发送失败' }
-    }
-  },
-}

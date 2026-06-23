@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import SimpleChat from '@/components/agent/simple-chat.vue'
-import { csWelcome, csQuick } from '@/lib/agent-data'
+import { csWelcome, csQuick, csReplies, csDefaultReply } from '@/lib/agent-data'
 
-function resolveReply() {
-  return '感谢您的反馈，客服人员将尽快处理。'
+function resolveReply(text: string) {
+  return csReplies[text] ?? csDefaultReply
 }
 </script>
 
@@ -16,6 +16,6 @@ function resolveReply() {
     :welcome="csWelcome"
     :quick-prompts="csQuick"
     :resolve-reply="resolveReply"
-    bot-id="customer-service"
+    :delay="800"
   />
 </template>

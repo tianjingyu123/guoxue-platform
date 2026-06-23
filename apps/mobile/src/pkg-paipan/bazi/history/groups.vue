@@ -59,154 +59,55 @@ function cancelAdd() {
 
 <template>
   <!-- ① 编辑分组视图 -->
-  <view
-    v-if="editingGroup"
-    class="page"
-  >
+  <view v-if="editingGroup" class="page">
     <view class="topbar">
-      <view
-        class="topbar-back"
-        @tap="cancelEdit"
-      >
-        <app-icon
-          name="chevron-left"
-          :size="44"
-          color="#ffffff"
-        />
-      </view>
-      <text class="topbar-title">
-        编辑分组
-      </text>
+      <view class="topbar-back" @tap="cancelEdit"><app-icon name="chevron-left" :size="44" color="#ffffff" /></view>
+      <text class="topbar-title">编辑分组</text>
       <view class="topbar-spacer" />
     </view>
     <view class="body">
-      <input
-        v-model="newGroupName"
-        class="name-input"
-        placeholder="分组名称"
-        placeholder-class="name-ph"
-      >
+      <input v-model="newGroupName" class="name-input" placeholder="分组名称" placeholder-class="name-ph" />
     </view>
     <view class="foot foot-edit">
-      <view
-        class="del-btn"
-        @tap="handleDeleteGroup"
-      >
-        <app-icon
-          name="trash-2"
-          :size="36"
-          color="#999999"
-        />
-        <text class="del-text">
-          删除分组
-        </text>
+      <view class="del-btn" @tap="handleDeleteGroup">
+        <app-icon name="trash-2" :size="36" color="#999999" />
+        <text class="del-text">删除分组</text>
       </view>
-      <view
-        class="primary-btn"
-        :class="{ 'btn-disabled': !newGroupName.trim() }"
-        @tap="handleSaveEdit"
-      >
-        <text class="primary-btn-text">
-          完成
-        </text>
-      </view>
+      <view class="primary-btn" :class="{ 'btn-disabled': !newGroupName.trim() }" @tap="handleSaveEdit"><text class="primary-btn-text">完成</text></view>
     </view>
   </view>
 
   <!-- ② 添加分组视图 -->
-  <view
-    v-else-if="isAdding"
-    class="page"
-  >
+  <view v-else-if="isAdding" class="page">
     <view class="topbar">
-      <view
-        class="topbar-back"
-        @tap="cancelAdd"
-      >
-        <app-icon
-          name="chevron-left"
-          :size="44"
-          color="#ffffff"
-        />
-      </view>
-      <text class="topbar-title">
-        添加分组
-      </text>
+      <view class="topbar-back" @tap="cancelAdd"><app-icon name="chevron-left" :size="44" color="#ffffff" /></view>
+      <text class="topbar-title">添加分组</text>
       <view class="topbar-spacer" />
     </view>
     <view class="body">
-      <input
-        v-model="newGroupName"
-        class="name-input"
-        placeholder="输入分组名称"
-        placeholder-class="name-ph"
-        focus
-      >
+      <input v-model="newGroupName" class="name-input" placeholder="输入分组名称" placeholder-class="name-ph" focus />
     </view>
     <view class="foot">
-      <view
-        class="primary-btn primary-btn-full"
-        :class="{ 'btn-disabled': !newGroupName.trim() }"
-        @tap="handleAddGroup"
-      >
-        <text class="primary-btn-text">
-          确定
-        </text>
-      </view>
+      <view class="primary-btn primary-btn-full" :class="{ 'btn-disabled': !newGroupName.trim() }" @tap="handleAddGroup"><text class="primary-btn-text">确定</text></view>
     </view>
   </view>
 
   <!-- ③ 分组列表视图 -->
-  <view
-    v-else
-    class="page"
-  >
+  <view v-else class="page">
     <view class="topbar">
-      <view
-        class="topbar-back"
-        @tap="navigateBack()"
-      >
-        <app-icon
-          name="chevron-left"
-          :size="44"
-          color="#ffffff"
-        />
-      </view>
-      <text class="topbar-title">
-        全部分组
-      </text>
+      <view class="topbar-back" @tap="navigateBack()"><app-icon name="chevron-left" :size="44" color="#ffffff" /></view>
+      <text class="topbar-title">全部分组</text>
       <view class="topbar-spacer" />
     </view>
-    <view class="count-bar">
-      <text class="count-text">
-        所有分组（{{ totalGroups }}）
-      </text>
-    </view>
+    <view class="count-bar"><text class="count-text">所有分组（{{ totalGroups }}）</text></view>
     <view class="glist">
-      <view
-        v-for="group in groups"
-        :key="group.id"
-        class="gitem"
-        :class="{ 'gitem-default': group.isDefault }"
-        @tap="handleEditGroup(group)"
-      >
-        <text class="gitem-name">
-          {{ group.name }}
-        </text>
-        <text class="gitem-count">
-          （{{ group.count }}）
-        </text>
+      <view v-for="group in groups" :key="group.id" class="gitem" :class="{ 'gitem-default': group.isDefault }" @tap="handleEditGroup(group)">
+        <text class="gitem-name">{{ group.name }}</text>
+        <text class="gitem-count">（{{ group.count }}）</text>
       </view>
     </view>
     <view class="foot">
-      <view
-        class="primary-btn primary-btn-full"
-        @tap="isAdding = true"
-      >
-        <text class="primary-btn-text">
-          添加
-        </text>
-      </view>
+      <view class="primary-btn primary-btn-full" @tap="isAdding = true"><text class="primary-btn-text">添加</text></view>
     </view>
   </view>
 </template>

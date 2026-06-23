@@ -1,47 +1,25 @@
 <template>
   <view class="ag-page">
-    <app-nav-bar
-      title="站长协议"
-      :border="true"
-    />
-    <scroll-view
-      scroll-y
-      class="ag-scroll"
-    >
+    <app-nav-bar title="站长协议" :border="true" />
+    <scroll-view scroll-y class="ag-scroll">
       <!-- 重要提示 -->
       <view class="ag-tip">
-        <text class="ag-tip-title">
-          重要提示
-        </text>
-        <text class="ag-tip-text">
-          {{ stationAgreementTip }}
-        </text>
+        <text class="ag-tip-title">重要提示</text>
+        <text class="ag-tip-text">{{ stationAgreementTip }}</text>
       </view>
 
       <!-- 协议内容 -->
       <view class="ag-list">
-        <view
-          v-for="(s, i) in stationAgreementSections"
-          :key="i"
-          class="ag-card"
-        >
-          <text class="ag-card-title">
-            {{ s.title }}
-          </text>
-          <text class="ag-card-content">
-            {{ s.content }}
-          </text>
+        <view v-for="(s, i) in stationAgreementSections" :key="i" class="ag-card">
+          <text class="ag-card-title">{{ s.title }}</text>
+          <text class="ag-card-content">{{ s.content }}</text>
         </view>
       </view>
 
       <!-- 更新时间 -->
       <view class="ag-footer">
-        <text class="ag-footer-text">
-          最后更新时间：2024年1月1日
-        </text>
-        <text class="ag-footer-text">
-          版本号：v1.0
-        </text>
+        <text class="ag-footer-text">最后更新时间：2024年1月1日</text>
+        <text class="ag-footer-text">版本号：v1.0</text>
       </view>
       <view class="ag-bottom-pad" />
     </scroll-view>

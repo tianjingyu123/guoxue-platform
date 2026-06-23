@@ -1,72 +1,31 @@
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="120rpx" radius="24rpx" mb="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无评价" />
-  <view v-else class="page">
-    <app-nav-bar
-      back-icon="arrow-left"
-      :back-size="40"
-      title-align="left"
-    >
+  <view class="page">
+    <app-nav-bar back-icon="arrow-left" :back-size="40" title-align="left">
       <template #center>
         <view class="nav-title-wrap">
-          <text class="nav-title">
-            评价订单
-          </text>
-          <text class="nav-id">
-            #{{ orderId }}
-          </text>
+          <text class="nav-title">评价订单</text>
+          <text class="nav-id">#{{ orderId }}</text>
         </view>
       </template>
     </app-nav-bar>
 
-    <scroll-view
-      scroll-y
-      class="scroll-area"
-    >
-      <view
-        v-for="(item, idx) in reviewItems"
-        :key="item.id"
-        class="review-card"
-      >
+    <scroll-view scroll-y class="scroll-area">
+      <view v-for="(item, idx) in reviewItems" :key="item.id" class="review-card">
         <!-- 商品信息 -->
         <view class="product-row">
-          <image
-            class="product-cover"
-            :src="item.cover"
-            mode="aspectFill"
-          />
+          <image class="product-cover" :src="item.cover" mode="aspectFill" />
           <view class="product-info">
-            <text class="product-name">
-              {{ item.name }}
-            </text>
-            <text class="product-idx">
-              商品 {{ idx + 1 }}/{{ reviewItems.length }}
-            </text>
+            <text class="product-name">{{ item.name }}</text>
+            <text class="product-idx">商品 {{ idx + 1 }}/{{ reviewItems.length }}</text>
           </view>
         </view>
 
         <view class="card-body">
           <!-- 星级评分 -->
           <view class="rating-block">
-            <text class="rating-label">
-              商品评分 <text class="req">
-                *
-              </text>
-            </text>
+            <text class="rating-label">商品评分 <text class="req">*</text></text>
             <view class="stars">
-              <view
-                v-for="star in 5"
-                :key="star"
-                class="star-btn"
-                @tap="setRating(idx, star)"
-              >
+              <view v-for="star in 5" :key="star" class="star-btn" @tap="setRating(idx, star)">
                 <app-icon
                   name="star"
                   :size="64"
@@ -74,21 +33,14 @@
                   :fill="star <= forms[idx].rating"
                 />
               </view>
-              <text
-                v-if="forms[idx].rating > 0"
-                class="rating-text"
-                :class="ratingClass(forms[idx].rating)"
-              >
+              <text v-if="forms[idx].rating > 0" class="rating-text" :class="ratingClass(forms[idx].rating)">
                 {{ ratingLabels[forms[idx].rating] }}
               </text>
             </view>
           </view>
 
           <!-- 评价标签 -->
-          <view
-            v-if="(tagsByRating[forms[idx].rating] || []).length > 0"
-            class="tags-wrap"
-          >
+          <view v-if="(tagsByRating[forms[idx].rating] || []).length > 0" class="tags-wrap">
             <view
               v-for="tag in tagsByRating[forms[idx].rating]"
               :key="tag"
@@ -96,28 +48,19 @@
               :class="{ active: forms[idx].tags.includes(tag) }"
               @tap="toggleTag(idx, tag)"
             >
-              <text
-                class="tag-text"
-                :class="{ active: forms[idx].tags.includes(tag) }"
-              >
-                {{ tag }}
-              </text>
+              <text class="tag-text" :class="{ active: forms[idx].tags.includes(tag) }">{{ tag }}</text>
             </view>
           </view>
 
           <!-- 文字评价 -->
           <view class="content-block">
             <view class="content-head">
-              <text class="content-label">
-                详细评价（选填）
-              </text>
-              <text class="word-count">
-                {{ forms[idx].content.length }}/200
-              </text>
+              <text class="content-label">详细评价（选填）</text>
+              <text class="word-count">{{ forms[idx].content.length }}/200</text>
             </view>
             <textarea
-              v-model="forms[idx].content"
               class="content-input"
+              v-model="forms[idx].content"
               placeholder="分享使用感受，帮助更多买家..."
               :maxlength="200"
               placeholder-class="ph"
@@ -126,22 +69,11 @@
 
           <!-- 图片上传入口 -->
           <view class="upload-row">
-            <view
-              class="upload-add"
-              @tap="addImage(idx)"
-            >
-              <app-icon
-                name="camera"
-                :size="40"
-                color="#9CA3AF"
-              />
-              <text class="upload-add-text">
-                添加图片
-              </text>
+            <view class="upload-add" @tap="addImage(idx)">
+              <app-icon name="camera" :size="40" color="#9CA3AF" />
+              <text class="upload-add-text">添加图片</text>
             </view>
-            <text class="upload-hint">
-              最多添加 6 张图片
-            </text>
+            <text class="upload-hint">最多添加 6 张图片</text>
           </view>
         </view>
       </view>
@@ -150,64 +82,32 @@
     </scroll-view>
 
     <!-- 底部提交 -->
-    <view
-      class="submit-bar"
-      :style="{ paddingBottom: 16 + safeBottom + 'px' }"
-    >
-      <text
-        v-if="!allRated"
-        class="submit-hint"
-      >
-        请为所有商品打分后提交
-      </text>
-      <view
-        class="submit-btn"
-        :class="{ disabled: !allRated || submitting }"
-        @tap="submit"
-      >
-        <text
-          class="submit-text"
-          :class="{ disabled: !allRated || submitting }"
-        >
-          {{ submitting ? '提交中...' : '提交评价' }}
-        </text>
+    <view class="submit-bar" :style="{ paddingBottom: 16 + safeBottom + 'px' }">
+      <text v-if="!allRated" class="submit-hint">请为所有商品打分后提交</text>
+      <view class="submit-btn" :class="{ disabled: !allRated }" @tap="submit">
+        <text class="submit-text" :class="{ disabled: !allRated }">提交评价</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
-import { useSubmitLock } from '@/composables/use-submit-lock'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { reviewItems as _orderReviewItems, reviewTagsByRating, reviewRatingLabels } from '@/lib/order-data'
-
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { items: _orderReviewItems }
-})
-
-const reviewItems = computed(() => pageData.value?.items ?? [])
-const isEmpty = computed(() => reviewItems.value.length === 0)
+import { reviewItems as orderReviewItems, reviewTagsByRating, reviewRatingLabels } from '@/lib/order-data'
 
 const safeBottom = ref(0)
-const { submitting, withLock } = useSubmitLock()
 const orderId = ref('1')
 
+const reviewItems = ref(orderReviewItems)
 const tagsByRating = reviewTagsByRating
 const ratingLabels = reviewRatingLabels
 
 interface ReviewForm { rating: number; tags: string[]; content: string; images: string[] }
-const forms = reactive<ReviewForm[]>([])
-watch(() => pageData.value?.items, (val) => {
-  if (val && forms.length === 0) {
-    val.forEach(() => forms.push({ rating: 0, tags: [], content: '', images: [] }))
-  }
-}, { immediate: true })
+const forms = reactive<ReviewForm[]>(
+  orderReviewItems.map(() => ({ rating: 0, tags: [], content: '', images: [] })),
+)
 
 const allRated = computed(() => forms.every((f) => f.rating > 0))
 
@@ -248,15 +148,13 @@ function addImage(idx: number) {
 }
 
 function submit() {
-  withLock(async () => {
-    if (!allRated.value) return
-    uni.showLoading({ title: '提交中...' })
-    setTimeout(() => {
-      uni.hideLoading()
-      uni.showToast({ title: '评价成功', icon: 'success' })
-      setTimeout(() => goBack(), 1500)
-    }, 900)
-  })
+  if (!allRated.value) return
+  uni.showLoading({ title: '提交中...' })
+  setTimeout(() => {
+    uni.hideLoading()
+    uni.showToast({ title: '评价成功', icon: 'success' })
+    setTimeout(() => goBack(), 1500)
+  }, 900)
 }
 </script>
 

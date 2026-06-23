@@ -2,289 +2,116 @@
   <view class="page">
     <!-- 注销须知 -->
     <block v-if="step === 'notice'">
-      <app-nav-bar
-        title="账号注销"
-        :back-icon="'arrow-left'"
-        :back-size="40"
-        :title-size="32"
-        :title-weight="600"
-        :bar-height="112"
-      />
+      <app-nav-bar title="账号注销" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112" />
       <view class="body">
         <view class="warn-card">
-          <view class="warn-icon">
-            <app-icon
-              name="alert-triangle"
-              :size="34"
-              color="#c41e3a"
-            />
-          </view>
+          <view class="warn-icon"><app-icon name="alert-triangle" :size="34" color="#c41e3a" /></view>
           <view>
-            <text class="warn-title">
-              注销账号须知
-            </text>
-            <text class="warn-sub">
-              注销账号后，以下数据将永久清空且无法恢复
-            </text>
+            <text class="warn-title">注销账号须知</text>
+            <text class="warn-sub">注销账号后，以下数据将永久清空且无法恢复</text>
           </view>
         </view>
 
         <view class="warn-list">
-          <view
-            v-for="(w, i) in warnings"
-            :key="i"
-            class="warn-item"
-          >
-            <text class="warn-emoji">
-              {{ w.icon }}
-            </text>
+          <view v-for="(w, i) in warnings" :key="i" class="warn-item">
+            <text class="warn-emoji">{{ w.icon }}</text>
             <view class="warn-info">
-              <text class="wi-title">
-                {{ w.title }}
-              </text>
-              <text class="wi-desc">
-                {{ w.description }}
-              </text>
+              <text class="wi-title">{{ w.title }}</text>
+              <text class="wi-desc">{{ w.description }}</text>
             </view>
-            <app-icon
-              name="x"
-              :size="26"
-              color="#c41e3a"
-            />
+            <app-icon name="x" :size="26" color="#c41e3a" />
           </view>
         </view>
 
-        <text class="sec-label">
-          您当前的账号数据
-        </text>
+        <text class="sec-label">您当前的账号数据</text>
         <view class="data-card">
-          <view class="data-col">
-            <text class="data-num c-accent">
-              {{ userData.coinBalance }}
-            </text><text class="data-cap">
-              国学币余额
-            </text>
-          </view>
-          <view class="data-col">
-            <text class="data-num c-primary">
-              {{ userData.circleCount }}
-            </text><text class="data-cap">
-              管理的圈子
-            </text>
-          </view>
-          <view class="data-col">
-            <text class="data-num c-ink">
-              {{ userData.contentCount }}
-            </text><text class="data-cap">
-              发布的内容
-            </text>
-          </view>
+          <view class="data-col"><text class="data-num c-accent">{{ userData.coinBalance }}</text><text class="data-cap">国学币余额</text></view>
+          <view class="data-col"><text class="data-num c-primary">{{ userData.circleCount }}</text><text class="data-cap">管理的圈子</text></view>
+          <view class="data-col"><text class="data-num c-ink">{{ userData.contentCount }}</text><text class="data-cap">发布的内容</text></view>
         </view>
 
-        <text class="sec-label">
-          内容处理方式
-        </text>
+        <text class="sec-label">内容处理方式</text>
         <view class="keep-card">
           <view class="keep-info">
-            <text class="keep-title">
-              保留已发布内容
-            </text>
-            <text class="keep-desc">
-              您的帖子和文章将匿名保留
-            </text>
+            <text class="keep-title">保留已发布内容</text>
+            <text class="keep-desc">您的帖子和文章将匿名保留</text>
           </view>
-          <view
-            class="switch"
-            :class="{ on: keepContent }"
-            @tap="keepContent = !keepContent"
-          >
-            <view
-              class="knob"
-              :class="{ on: keepContent }"
-            />
+          <view class="switch" :class="{ on: keepContent }" @tap="keepContent = !keepContent">
+            <view class="knob" :class="{ on: keepContent }" />
           </view>
         </view>
       </view>
 
       <view class="footer">
-        <view
-          class="btn-danger"
-          @tap="step = 'verify'"
-        >
-          我已了解，继续注销
-        </view>
-        <text class="footer-tip">
-          注销前请确保已提现全部收益
-        </text>
+        <view class="btn-danger" @tap="step = 'verify'">我已了解，继续注销</view>
+        <text class="footer-tip">注销前请确保已提现全部收益</text>
       </view>
     </block>
 
     <!-- 身份验证 -->
     <block v-else-if="step === 'verify'">
-      <app-nav-bar
-        title="身份验证"
-        :back-icon="'arrow-left'"
-        :back-size="40"
-        :title-size="32"
-        :title-weight="600"
-        :bar-height="112"
-        @back="step = 'notice'"
-      />
+      <app-nav-bar title="身份验证" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112" @back="step = 'notice'" />
       <view class="body">
         <view class="verify-card">
-          <view class="verify-ic">
-            <text class="emoji-lg">
-              🔐
-            </text>
-          </view>
+          <view class="verify-ic"><text class="emoji-lg">🔐</text></view>
           <view>
-            <text class="vc-title">
-              验证您的手机号
-            </text>
-            <text class="vc-sub">
-              我们需要验证您的身份以确保账号安全
-            </text>
+            <text class="vc-title">验证您的手机号</text>
+            <text class="vc-sub">我们需要验证您的身份以确保账号安全</text>
           </view>
         </view>
 
-        <text class="field-label">
-          当前绑定手机号
-        </text>
-        <view class="phone-box">
-          {{ userData.phone }}
-        </view>
+        <text class="field-label">当前绑定手机号</text>
+        <view class="phone-box">{{ userData.phone }}</view>
 
-        <text class="field-label">
-          短信验证码
-        </text>
+        <text class="field-label">短信验证码</text>
         <view class="code-row">
-          <input
-            v-model="verifyCode"
-            class="code-input"
-            :class="{ err: codeError }"
-            type="number"
-            maxlength="6"
-            placeholder="请输入6位验证码"
-            placeholder-class="ph"
-          >
-          <view
-            class="send-btn"
-            :class="{ disabled: countdown > 0 }"
-            @tap="sendCode"
-          >
+          <input class="code-input" :class="{ err: codeError }" v-model="verifyCode" type="number" maxlength="6" placeholder="请输入6位验证码" placeholder-class="ph" />
+          <view class="send-btn" :class="{ disabled: countdown > 0 }" @tap="sendCode">
             {{ countdown > 0 ? countdown + 's' : '获取验证码' }}
           </view>
         </view>
-        <text
-          v-if="codeError"
-          class="err-text"
-        >
-          {{ codeError }}
-        </text>
+        <text v-if="codeError" class="err-text">{{ codeError }}</text>
 
         <view class="amber-card">
-          <app-icon
-            name="alert-triangle"
-            :size="26"
-            color="#f59e0b"
-          />
+          <app-icon name="alert-triangle" :size="26" color="#f59e0b" />
           <view class="amber-text">
-            <text class="amber-title">
-              注销后将有7天冷静期
-            </text>
-            <text class="amber-sub">
-              在此期间若再次登录，注销申请将自动撤销。7天后账号将被永久删除。
-            </text>
+            <text class="amber-title">注销后将有7天冷静期</text>
+            <text class="amber-sub">在此期间若再次登录，注销申请将自动撤销。7天后账号将被永久删除。</text>
           </view>
         </view>
       </view>
 
       <view class="footer">
-        <view
-          class="btn-danger"
-          :class="{ disabled: verifyCode.length !== 6 }"
-          @tap="submit"
-        >
-          确认注销
-        </view>
+        <view class="btn-danger" :class="{ disabled: verifyCode.length !== 6 }" @tap="submit">确认注销</view>
       </view>
 
       <!-- 二次确认弹窗 -->
-      <view
-        v-if="showConfirm"
-        class="modal-mask"
-      >
+      <view v-if="showConfirm" class="modal-mask">
         <view class="modal">
-          <view class="modal-ic danger">
-            <app-icon
-              name="alert-triangle"
-              :size="44"
-              color="#c41e3a"
-            />
-          </view>
-          <text class="modal-title">
-            确定要注销账号吗？
-          </text>
-          <text class="modal-desc">
-            注销后您的所有数据将在7天冷静期后被永久删除，此操作不可撤销。
-          </text>
+          <view class="modal-ic danger"><app-icon name="alert-triangle" :size="44" color="#c41e3a" /></view>
+          <text class="modal-title">确定要注销账号吗？</text>
+          <text class="modal-desc">注销后您的所有数据将在7天冷静期后被永久删除，此操作不可撤销。</text>
           <view class="modal-btns">
-            <view
-              class="m-btn m-cancel"
-              @tap="showConfirm = false"
-            >
-              再想想
-            </view>
-            <view
-              class="m-btn m-confirm"
-              @tap="confirmDelete"
-            >
-              确认注销
-            </view>
+            <view class="m-btn m-cancel" @tap="showConfirm = false">再想想</view>
+            <view class="m-btn m-confirm" @tap="confirmDelete">确认注销</view>
           </view>
         </view>
       </view>
     </block>
 
     <!-- 成功页 -->
-    <view
-      v-else
-      class="success"
-    >
-      <view class="suc-ic">
-        <app-icon
-          name="alert-triangle"
-          :size="56"
-          color="#f59e0b"
-        />
-      </view>
-      <text class="suc-title">
-        注销申请已提交
-      </text>
-      <text class="suc-desc">
-        您的账号将于7天后正式注销。在此期间若再次登录，注销申请将自动撤销。
-      </text>
+    <view v-else class="success">
+      <view class="suc-ic"><app-icon name="alert-triangle" :size="56" color="#f59e0b" /></view>
+      <text class="suc-title">注销申请已提交</text>
+      <text class="suc-desc">您的账号将于7天后正式注销。在此期间若再次登录，注销申请将自动撤销。</text>
       <view class="suc-card">
-        <view class="suc-card-ic">
-          <text class="emoji-lg">
-            📅
-          </text>
-        </view>
+        <view class="suc-card-ic"><text class="emoji-lg">📅</text></view>
         <view>
-          <text class="scc-title">
-            7天冷静期
-          </text>
-          <text class="scc-sub">
-            预计注销时间：{{ deleteDate }}
-          </text>
+          <text class="scc-title">7天冷静期</text>
+          <text class="scc-sub">预计注销时间：{{ deleteDate }}</text>
         </view>
       </view>
-      <view
-        class="btn-primary"
-        @tap="goHome"
-      >
-        返回首页
-      </view>
+      <view class="btn-primary" @tap="goHome">返回首页</view>
     </view>
   </view>
 </template>

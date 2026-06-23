@@ -1,119 +1,48 @@
 <template>
   <view class="page">
-    <app-nav-bar
-      title="隐私设置"
-      :back-icon="'arrow-left'"
-      :back-size="40"
-      :title-size="32"
-      :title-weight="600"
-      :bar-height="112"
-    />
+    <app-nav-bar title="隐私设置" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="600" :bar-height="112" />
 
-    <scroll-view
-      scroll-y
-      class="scroll"
-    >
+    <scroll-view scroll-y class="scroll">
       <view class="container">
         <!-- 个人信息可见性 -->
         <view class="card">
-          <view class="card-head">
-            <text class="card-head-txt">
-              个人信息可见性
-            </text>
-          </view>
+          <view class="card-head"><text class="card-head-txt">个人信息可见性</text></view>
           <view class="rows">
-            <view
-              v-for="(it, idx) in visItems"
-              :key="it.id"
-              class="row"
-              :class="{ 'no-border': idx === 0 }"
-            >
+            <view v-for="(it, idx) in visItems" :key="it.id" class="row" :class="{ 'no-border': idx === 0 }">
               <view class="row-left">
-                <view class="ic-wrap">
-                  <app-icon
-                    :name="it.icon"
-                    :size="32"
-                    color="#c41e3a"
-                  />
-                </view>
+                <view class="ic-wrap"><app-icon :name="it.icon" :size="32" color="#c41e3a" /></view>
                 <view class="row-info">
-                  <text class="row-title">
-                    {{ it.title }}
-                  </text>
-                  <text class="row-desc">
-                    {{ it.desc }}
-                  </text>
+                  <text class="row-title">{{ it.title }}</text>
+                  <text class="row-desc">{{ it.desc }}</text>
                 </view>
               </view>
-              <switch
-                :checked="it.value"
-                color="#c41e3a"
-                style="transform:scale(0.85)"
-                @change="it.value = !it.value"
-              />
+              <switch :checked="it.value" color="#c41e3a" style="transform:scale(0.85)" @change="it.value = !it.value" />
             </view>
           </view>
         </view>
 
         <!-- 互动权限 -->
         <view class="card">
-          <view class="card-head">
-            <text class="card-head-txt">
-              互动权限
-            </text>
-          </view>
+          <view class="card-head"><text class="card-head-txt">互动权限</text></view>
           <view class="rows">
-            <view
-              v-for="(sel, idx) in selItems"
-              :key="sel.id"
-              class="sel-block"
-              :class="{ 'no-border': idx === 0 }"
-            >
+            <view v-for="(sel, idx) in selItems" :key="sel.id" class="sel-block" :class="{ 'no-border': idx === 0 }">
               <view class="sel-head">
                 <view class="row-left">
-                  <view class="ic-wrap">
-                    <app-icon
-                      :name="sel.icon"
-                      :size="32"
-                      color="#c41e3a"
-                    />
-                  </view>
-                  <text class="row-title">
-                    {{ sel.title }}
-                  </text>
+                  <view class="ic-wrap"><app-icon :name="sel.icon" :size="32" color="#c41e3a" /></view>
+                  <text class="row-title">{{ sel.title }}</text>
                 </view>
-                <view
-                  class="sel-cur"
-                  @click="sel.open = !sel.open"
-                >
-                  <text class="sel-cur-txt">
-                    {{ curLabel(sel) }}
-                  </text>
-                  <app-icon
-                    name="chevron-right"
-                    :size="24"
-                    color="#999"
-                    :style="{ transform: sel.open ? 'rotate(90deg)' : 'rotate(0deg)' }"
-                  />
+                <view class="sel-cur" @click="sel.open = !sel.open">
+                  <text class="sel-cur-txt">{{ curLabel(sel) }}</text>
+                  <app-icon name="chevron-right" :size="24" color="#999" :style="{ transform: sel.open ? 'rotate(90deg)' : 'rotate(0deg)' }" />
                 </view>
               </view>
-              <view
-                v-if="sel.open"
-                class="sel-opts"
-              >
+              <view v-if="sel.open" class="sel-opts">
                 <view
-                  v-for="opt in sel.options"
-                  :key="opt.value"
-                  class="opt"
-                  :class="{ 'opt-on': sel.value === opt.value }"
+                  v-for="opt in sel.options" :key="opt.value"
+                  class="opt" :class="{ 'opt-on': sel.value === opt.value }"
                   @click="sel.value = opt.value; sel.open = false"
                 >
-                  <text
-                    class="opt-txt"
-                    :class="{ 'opt-txt-on': sel.value === opt.value }"
-                  >
-                    {{ opt.label }}
-                  </text>
+                  <text class="opt-txt" :class="{ 'opt-txt-on': sel.value === opt.value }">{{ opt.label }}</text>
                 </view>
               </view>
             </view>
@@ -122,79 +51,36 @@
 
         <!-- 黑名单 -->
         <view class="card">
-          <view
-            class="blacklist"
-            @click="go('/settings/blacklist')"
-          >
+          <view class="blacklist" @click="go('/settings/blacklist')">
             <view class="row-left">
-              <view class="ic-wrap ic-red">
-                <app-icon
-                  name="user-x"
-                  :size="32"
-                  color="#e74c3c"
-                />
-              </view>
+              <view class="ic-wrap ic-red"><app-icon name="user-x" :size="32" color="#e74c3c" /></view>
               <view class="row-info">
-                <text class="row-title">
-                  黑名单管理
-                </text>
-                <text class="row-desc">
-                  已拉黑 3 人
-                </text>
+                <text class="row-title">黑名单管理</text>
+                <text class="row-desc">已拉黑 3 人</text>
               </view>
             </view>
-            <app-icon
-              name="chevron-right"
-              :size="28"
-              color="#ccc"
-            />
+            <app-icon name="chevron-right" :size="28" color="#ccc" />
           </view>
         </view>
 
         <!-- 其他 -->
         <view class="card">
-          <view class="card-head">
-            <text class="card-head-txt">
-              其他
-            </text>
-          </view>
+          <view class="card-head"><text class="card-head-txt">其他</text></view>
           <view class="rows">
-            <view
-              v-for="(it, idx) in otherItems"
-              :key="it.id"
-              class="row"
-              :class="{ 'no-border': idx === 0 }"
-            >
+            <view v-for="(it, idx) in otherItems" :key="it.id" class="row" :class="{ 'no-border': idx === 0 }">
               <view class="row-left">
-                <view class="ic-wrap">
-                  <app-icon
-                    :name="it.icon"
-                    :size="32"
-                    color="#c41e3a"
-                  />
-                </view>
+                <view class="ic-wrap"><app-icon :name="it.icon" :size="32" color="#c41e3a" /></view>
                 <view class="row-info">
-                  <text class="row-title">
-                    {{ it.title }}
-                  </text>
-                  <text class="row-desc">
-                    {{ it.desc }}
-                  </text>
+                  <text class="row-title">{{ it.title }}</text>
+                  <text class="row-desc">{{ it.desc }}</text>
                 </view>
               </view>
-              <switch
-                :checked="it.value"
-                color="#c41e3a"
-                style="transform:scale(0.85)"
-                @change="it.value = !it.value"
-              />
+              <switch :checked="it.value" color="#c41e3a" style="transform:scale(0.85)" @change="it.value = !it.value" />
             </view>
           </view>
         </view>
 
-        <text class="tip">
-          隐私设置修改后立即生效，部分设置可能需要刷新页面查看效果
-        </text>
+        <text class="tip">隐私设置修改后立即生效，部分设置可能需要刷新页面查看效果</text>
       </view>
     </scroll-view>
   </view>

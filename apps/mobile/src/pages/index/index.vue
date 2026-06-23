@@ -1,7 +1,7 @@
 <script setup lang="ts">
-/** 首页（V0响应式改造）：今日小语 + Header + Banner + 十宫格 +
- *  排盘引导卡 + 营销卡 + AI推荐瀑布流Feed(响应式多列) + 回到顶部 + 底部导航 */
-import { ref, computed, onMounted } from 'vue'
+/** 首页（1:1 迁移自原型 app/page.tsx）：今日小语 + Header + Banner + 十宫格 +
+ *  排盘引导卡 + 营销卡 + AI推荐瀑布流Feed + 回到顶部 + 底部导航 */
+import { ref, computed } from 'vue'
 import AppHeader from '@/components/app-header/app-header.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import QuickEntryGrid from '@/components/home/quick-entry-grid.vue'
@@ -11,28 +11,16 @@ import PaipanGuideCard from '@/components/home/paipan-guide-card.vue'
 import MarketingCard from '@/components/home/marketing-card.vue'
 import FeedCard from '@/components/home/feed-card.vue'
 import BackTop from '@/components/home/back-top.vue'
-import ResponsiveGrid from '@/components/layout/responsive-grid.vue'
-import { homeApi, type RenderItem } from '@/lib/home-data'
+import { defaultBanners, buildFeedItems, type RenderItem } from '@/lib/home-data'
 
 // 后台可控显隐（原型同名常量）
 const SHOW_PAIPAN_CARD = true
 const SHOW_MARKETING_CARD = true
 
-const feedItems = ref<RenderItem[]>([])
-const feedLoading = ref(true)
-const feedError = ref(false)
-
-onMounted(async () => {
-  try {
-    const data = await homeApi.getHomeData()
-    feedItems.value = data.feed || []
-    feedError.value = false
-  } catch {
-    feedError.value = true
-  } finally {
-    feedLoading.value = false
-  }
-})
+const renderItems = buildFeedItems()
+// 等效 react-masonry-css 轮询分列：偶数索引→左列，奇数索引→右列
+const leftCol = computed<RenderItem[]>(() => renderItems.filter((_, i) => i % 2 === 0))
+const rightCol = computed<RenderItem[]>(() => renderItems.filter((_, i) => i % 2 === 1))
 
 // 回到顶部
 const showBackTop = ref(false)
@@ -73,38 +61,35 @@ function backToTop() {
       <!-- 营销/活动入口大卡 -->
       <marketing-card v-if="SHOW_MARKETING_CARD" />
 
-      <!-- AI 推荐瀑布流 Feed（响应式多列） -->
-      <responsive-grid :mobileCols="2" :tabletCols="3" :desktopCols="4" :gap="12">
-        <feed-card
-          v-for="ri in feedItems"
-          :key="ri.key"
-          :data="ri"
-        />
-      </responsive-grid>
+      <!-- AI 推荐瀑布流 Feed（双列） -->
+      <view class="feed">
+        <view class="col">
+          <feed-card v-for="ri in leftCol" :key="ri.key" :data="ri" />
+        </view>
+        <view class="col">
+          <feed-card v-for="ri in rightCol" :key="ri.key" :data="ri" />
+        </view>
+      </view>
 
       <!-- 到底提示 -->
       <view class="end">
-        <view class="end-line" /><text class="end-text">
-          已经到底了
-        </text><view class="end-line" />
+        <view class="end-line" /><text class="end-text">已经到底了</text><view class="end-line" />
       </view>
     </scroll-view>
 
-    <back-top
-      :visible="showBackTop"
-      @tap="backToTop"
-    />
+    <back-top :visible="showBackTop" @tap="backToTop" />
     <bottom-nav active="home" />
   </view>
 </template>
 
 <style scoped lang="scss">
-.home {
-  min-height: 100vh;
-  background: var(--bg-paper, #faf8f5);
-  position: relative;
-}
+.home { min-height: 100vh; background: var(--bg-paper, #faf8f5); }
 .content { position: absolute; top: calc(176rpx + var(--status-bar-height, 0)); bottom: 112rpx; left: 0; right: 0; }
+.feed {
+  display: flex; gap: 12rpx;
+  padding: 12rpx 32rpx 0;
+}
+.col { flex: 1; min-width: 0; }
 .end {
   display: flex; align-items: center; justify-content: center; gap: 24rpx;
   padding: 48rpx 0 64rpx;

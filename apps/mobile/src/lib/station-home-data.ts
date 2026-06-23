@@ -1,5 +1,4 @@
 // 分站首页数据（对齐原型 lib/api/station-home mock；图片复用项目既有素材）
-import { apiGet, useMock } from '@/utils/request'
 
 export interface StationBrand {
   id: number
@@ -108,37 +107,4 @@ export function formatStatNumber(num: number): string {
   if (num >= 10000) return (num / 10000).toFixed(1) + 'w'
   if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
   return String(num)
-}
-
-export interface StationHomeResponse {
-  brand: StationBrand
-  banners: StationBanner[]
-  features: StationFeature[]
-  recommends: StationRecommend[]
-  feedList: StationFeedItem[]
-  posterImage: string
-}
-
-export const stationHomeApi = {
-  /** 获取分站首页聚合数据 GET /station/home */
-  async getHomeData(): Promise<StationHomeResponse> {
-    if (useMock()) return {
-      brand: stationBrand,
-      banners: stationBanners,
-      features: stationFeatures,
-      recommends: stationRecommends,
-      feedList: stationFeedList,
-      posterImage: stationPosterImage,
-    }
-    try { return await apiGet<StationHomeResponse>('/station/home') } catch {
-      return {
-        brand: stationBrand,
-        banners: stationBanners,
-        features: stationFeatures,
-        recommends: stationRecommends,
-        feedList: stationFeedList,
-        posterImage: stationPosterImage,
-      }
-    }
-  },
 }

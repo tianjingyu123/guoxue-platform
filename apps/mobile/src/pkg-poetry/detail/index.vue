@@ -1,33 +1,14 @@
 <template>
   <view class="pd-page">
     <!-- 顶部导航 -->
-    <view
-      class="pd-header"
-      :style="{ paddingTop: statusBarHeight + 'px' }"
-    >
+    <view class="pd-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="pd-header-row">
-        <view
-          class="pd-icon-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            color="var(--poem-text)"
-          />
+        <view class="pd-icon-btn" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="var(--poem-text)" />
         </view>
-        <text class="pd-header-title">
-          诗词详情
-        </text>
-        <view
-          class="pd-icon-btn"
-          @tap="showSharePanel = true"
-        >
-          <app-icon
-            name="share-2"
-            :size="40"
-            color="var(--poem-text)"
-          />
+        <text class="pd-header-title">诗词详情</text>
+        <view class="pd-icon-btn" @tap="showSharePanel = true">
+          <app-icon name="share-2" :size="40" color="var(--poem-text)" />
         </view>
       </view>
     </view>
@@ -35,20 +16,10 @@
     <view class="pd-main">
       <!-- 诗题与作者 -->
       <view class="pd-titlesec">
-        <text class="pd-poem-title">
-          {{ poem.title }}
-        </text>
-        <text class="pd-poem-meta">
-          〔{{ poem.dynasty }}〕{{ poem.author }} · {{ poem.form }}
-        </text>
+        <text class="pd-poem-title">{{ poem.title }}</text>
+        <text class="pd-poem-meta">〔{{ poem.dynasty }}〕{{ poem.author }} · {{ poem.form }}</text>
         <view class="pd-poem-tags">
-          <text
-            v-for="tag in poem.tags"
-            :key="tag"
-            class="pd-tag"
-          >
-            {{ tag }}
-          </text>
+          <text v-for="tag in poem.tags" :key="tag" class="pd-tag">{{ tag }}</text>
         </view>
       </view>
 
@@ -61,66 +32,33 @@
           @tap="activeTab = tab.key"
         >
           <view class="pd-tab-inner">
-            <text
-              class="pd-tab-label"
-              :style="{ color: activeTab === tab.key ? 'var(--poem-gold)' : 'var(--poem-text-soft)' }"
-            >
-              {{ tab.label }}
-            </text>
-            <text
-              v-if="tab.key === 'appreciation'"
-              class="pd-tab-ai"
-              @tap.stop="showAiPanel = true"
-            >
-              AI
-            </text>
+            <text class="pd-tab-label" :style="{ color: activeTab === tab.key ? 'var(--poem-gold)' : 'var(--poem-text-soft)' }">{{ tab.label }}</text>
+            <text v-if="tab.key === 'appreciation'" class="pd-tab-ai" @tap.stop="showAiPanel = true">AI</text>
           </view>
-          <view
-            v-if="activeTab === tab.key"
-            class="pd-tab-indicator"
-          />
+          <view v-if="activeTab === tab.key" class="pd-tab-indicator" />
         </view>
       </view>
 
       <!-- Tab 内容区 -->
       <view class="pd-tabcontent">
         <!-- 原文 -->
-        <view
-          v-if="activeTab === 'poem'"
-          class="pd-poem-body"
-        >
+        <view v-if="activeTab === 'poem'" class="pd-poem-body">
           <view class="pd-pinyin-toggle">
             <view
               class="pd-pinyin-btn"
               :class="{ 'pd-pinyin-on': showPinyin }"
               @tap="showPinyin = !showPinyin"
             >
-              <text
-                class="pd-pinyin-text"
-                :style="{ color: showPinyin ? 'var(--poem-gold)' : 'var(--poem-text-soft)' }"
-              >
-                拼音
-              </text>
+              <text class="pd-pinyin-text" :style="{ color: showPinyin ? 'var(--poem-gold)' : 'var(--poem-text-soft)' }">拼音</text>
             </view>
           </view>
 
           <!-- 竖排诗文（从右到左） -->
           <view class="pd-verse-wrap">
             <view class="pd-verse-row">
-              <view
-                v-for="(item, i) in reversedContent"
-                :key="i"
-                class="pd-verse-col"
-              >
-                <text
-                  v-if="showPinyin"
-                  class="pd-verse-pinyin"
-                >
-                  {{ item.pinyin }}
-                </text>
-                <text class="pd-verse-line">
-                  {{ item.line }}
-                </text>
+              <view v-for="(item, i) in reversedContent" :key="i" class="pd-verse-col">
+                <text v-if="showPinyin" class="pd-verse-pinyin">{{ item.pinyin }}</text>
+                <text class="pd-verse-line">{{ item.line }}</text>
               </view>
             </view>
           </view>
@@ -128,236 +66,109 @@
           <!-- 装饰分隔线 -->
           <view class="pd-divider">
             <view class="pd-divider-line" />
-            <text class="pd-divider-star">
-              ✦
-            </text>
+            <text class="pd-divider-star">✦</text>
             <view class="pd-divider-line" />
           </view>
 
           <!-- 互动统计 -->
           <view class="pd-stats">
-            <view
-              class="pd-stat"
-              @tap="isLiked = !isLiked"
-            >
-              <view
-                class="pd-stat-icon"
-                :style="{ background: isLiked ? 'rgba(192,67,58,0.2)' : 'var(--poem-gold-soft)' }"
-              >
-                <app-icon
-                  name="heart"
-                  :size="34"
-                  :color="isLiked ? '#c0433a' : '#e8c07a'"
-                  :fill="isLiked"
-                />
+            <view class="pd-stat" @tap="isLiked = !isLiked">
+              <view class="pd-stat-icon" :style="{ background: isLiked ? 'rgba(192,67,58,0.2)' : 'var(--poem-gold-soft)' }">
+                <app-icon name="heart" :size="34" :color="isLiked ? '#c0433a' : '#e8c07a'" :fill="isLiked" />
               </view>
-              <text class="pd-stat-text">
-                {{ (poem.likes / 1000).toFixed(1) }}k
-              </text>
+              <text class="pd-stat-text">{{ (poem.likes / 1000).toFixed(1) }}k</text>
             </view>
-            <view
-              class="pd-stat"
-              @tap="isBookmarked = !isBookmarked"
-            >
-              <view
-                class="pd-stat-icon"
-                style="background: var(--poem-gold-soft)"
-              >
-                <app-icon
-                  :name="isBookmarked ? 'bookmark-check' : 'bookmark'"
-                  :size="34"
-                  color="#e8c07a"
-                />
+            <view class="pd-stat" @tap="isBookmarked = !isBookmarked">
+              <view class="pd-stat-icon" style="background: var(--poem-gold-soft)">
+                <app-icon :name="isBookmarked ? 'bookmark-check' : 'bookmark'" :size="34" color="#e8c07a" />
               </view>
-              <text class="pd-stat-text">
-                {{ (poem.collections / 1000).toFixed(1) }}k
-              </text>
+              <text class="pd-stat-text">{{ (poem.collections / 1000).toFixed(1) }}k</text>
             </view>
-            <view
-              class="pd-stat"
-              @tap="handleCopy"
-            >
-              <view
-                class="pd-stat-icon"
-                style="background: var(--poem-gold-soft)"
-              >
-                <app-icon
-                  :name="copied ? 'check' : 'copy'"
-                  :size="34"
-                  color="#e8c07a"
-                />
+            <view class="pd-stat" @tap="handleCopy">
+              <view class="pd-stat-icon" style="background: var(--poem-gold-soft)">
+                <app-icon :name="copied ? 'check' : 'copy'" :size="34" color="#e8c07a" />
               </view>
-              <text class="pd-stat-text">
-                {{ copied ? '已复制' : '复制' }}
-              </text>
+              <text class="pd-stat-text">{{ copied ? '已复制' : '复制' }}</text>
             </view>
           </view>
         </view>
 
         <!-- 赏析 -->
-        <view
-          v-else-if="activeTab === 'appreciation'"
-          class="pd-appreciation"
-        >
-          <view
-            class="pd-ai-entry"
-            @tap="showAiPanel = true"
-          >
-            <app-icon
-              name="sparkles"
-              :size="28"
-              color="#9b7ec8"
-            />
+        <view v-else-if="activeTab === 'appreciation'" class="pd-appreciation">
+          <view class="pd-ai-entry" @tap="showAiPanel = true">
+            <app-icon name="sparkles" :size="28" color="#9b7ec8" />
             <view class="pd-ai-entry-body">
               <view class="pd-ai-entry-titlerow">
-                <text class="pd-ai-entry-title">
-                  AI 深度赏析
-                </text>
-                <text class="pd-ai-entry-badge">
-                  AI 生成
-                </text>
+                <text class="pd-ai-entry-title">AI 深度赏析</text>
+                <text class="pd-ai-entry-badge">AI 生成</text>
               </view>
-              <text class="pd-ai-entry-sub">
-                创作背景 · 意象分析 · 情感解读
-              </text>
+              <text class="pd-ai-entry-sub">创作背景 · 意象分析 · 情感解读</text>
             </view>
-            <app-icon
-              name="chevron-right"
-              :size="28"
-              color="#9b7ec8"
-            />
+            <app-icon name="chevron-right" :size="28" color="#9b7ec8" />
           </view>
 
           <view class="pd-appr-card">
-            <text class="pd-appr-label">
-              人工赏析
-            </text>
-            <text class="pd-appr-text">
-              {{ poem.appreciation }}
-            </text>
+            <text class="pd-appr-label">人工赏析</text>
+            <text class="pd-appr-text">{{ poem.appreciation }}</text>
           </view>
         </view>
 
         <!-- 译文 -->
-        <view
-          v-else-if="activeTab === 'translation'"
-          class="pd-trans-card"
-        >
-          <view
-            v-for="(item, i) in poem.content"
-            :key="i"
-            class="pd-trans-row"
-          >
-            <text class="pd-trans-orig">
-              {{ item.line }}
-            </text>
+        <view v-else-if="activeTab === 'translation'" class="pd-trans-card">
+          <view v-for="(item, i) in poem.content" :key="i" class="pd-trans-row">
+            <text class="pd-trans-orig">{{ item.line }}</text>
             <view class="pd-trans-divider" />
-            <text class="pd-trans-text">
-              {{ translations[i] }}
-            </text>
+            <text class="pd-trans-text">{{ translations[i] }}</text>
           </view>
         </view>
 
         <!-- 注释 -->
-        <view
-          v-else-if="activeTab === 'notes'"
-          class="pd-notes"
-        >
-          <view
-            v-for="(note, i) in poem.notes"
-            :key="i"
-            class="pd-note"
-          >
-            <text class="pd-note-word">
-              {{ note.word }}
-            </text>
+        <view v-else-if="activeTab === 'notes'" class="pd-notes">
+          <view v-for="(note, i) in poem.notes" :key="i" class="pd-note">
+            <text class="pd-note-word">{{ note.word }}</text>
             <view class="pd-note-divider" />
-            <text class="pd-note-text">
-              {{ note.note }}
-            </text>
+            <text class="pd-note-text">{{ note.note }}</text>
           </view>
         </view>
       </view>
 
       <!-- 作者简介 -->
-      <view
-        class="pd-author-sec"
-        @tap="toPoet(poem.authorId)"
-      >
+      <view class="pd-author-sec" @tap="toPoet(poem.authorId)">
         <view class="pd-author-avatar">
-          <text class="pd-author-avatar-text">
-            {{ poem.authorInfo.name.charAt(0) }}
-          </text>
+          <text class="pd-author-avatar-text">{{ poem.authorInfo.name.charAt(0) }}</text>
         </view>
         <view class="pd-author-body">
           <view class="pd-author-head">
-            <text class="pd-author-name">
-              {{ poem.authorInfo.name }}
-            </text>
-            <text class="pd-author-title">
-              {{ poem.authorInfo.title }}
-            </text>
+            <text class="pd-author-name">{{ poem.authorInfo.name }}</text>
+            <text class="pd-author-title">{{ poem.authorInfo.title }}</text>
           </view>
-          <text class="pd-author-meta">
-            {{ poem.authorInfo.dynasty }} · {{ poem.authorInfo.years }} · {{ poem.authorInfo.poemCount }} 首
-          </text>
-          <text class="pd-author-intro">
-            {{ poem.authorInfo.intro }}
-          </text>
+          <text class="pd-author-meta">{{ poem.authorInfo.dynasty }} · {{ poem.authorInfo.years }} · {{ poem.authorInfo.poemCount }} 首</text>
+          <text class="pd-author-intro">{{ poem.authorInfo.intro }}</text>
         </view>
-        <app-icon
-          name="chevron-right"
-          :size="34"
-          color="var(--poem-text-muted)"
-        />
+        <app-icon name="chevron-right" :size="34" color="var(--poem-text-muted)" />
       </view>
 
       <!-- 诗词品评 -->
       <view class="pd-disc-sec">
         <view class="pd-disc-head">
-          <text class="pd-disc-title">
-            诗词品评
-          </text>
-          <text class="pd-disc-meta">
-            {{ commentCount }} 条
-          </text>
+          <text class="pd-disc-title">诗词品评</text>
+          <text class="pd-disc-meta">{{ commentCount }} 条</text>
         </view>
-        <view
-          class="pd-disc-card"
-          @tap="showComments = true"
-        >
+        <view class="pd-disc-card" @tap="showComments = true">
           <view class="pd-disc-preview">
-            <view class="pd-disc-avatar">
-              {{ firstComment.author.name.charAt(0) }}
-            </view>
+            <view class="pd-disc-avatar">{{ firstComment.author.name.charAt(0) }}</view>
             <view class="pd-disc-body">
-              <text class="pd-disc-name">
-                {{ firstComment.author.name }}
-              </text>
-              <text class="pd-disc-content">
-                {{ firstComment.content }}
-              </text>
+              <text class="pd-disc-name">{{ firstComment.author.name }}</text>
+              <text class="pd-disc-content">{{ firstComment.content }}</text>
               <view class="pd-disc-like">
-                <app-icon
-                  name="heart"
-                  :size="26"
-                  color="rgba(245,234,216,0.3)"
-                />
-                <text class="pd-disc-like-text">
-                  {{ firstComment.likeCount }}
-                </text>
+                <app-icon name="heart" :size="26" color="rgba(245,234,216,0.3)" />
+                <text class="pd-disc-like-text">{{ firstComment.likeCount }}</text>
               </view>
             </view>
           </view>
           <view class="pd-disc-all">
-            <app-icon
-              name="message-circle"
-              :size="28"
-              color="#e8c07a"
-            />
-            <text class="pd-disc-all-text">
-              查看全部 {{ commentCount }} 条品评
-            </text>
+            <app-icon name="message-circle" :size="28" color="#e8c07a" />
+            <text class="pd-disc-all-text">查看全部 {{ commentCount }} 条品评</text>
           </view>
         </view>
       </view>
@@ -365,56 +176,27 @@
       <!-- 相关诗词 -->
       <view class="pd-related-sec">
         <view class="pd-related-head">
-          <text class="pd-related-title">
-            相关诗词
-          </text>
-          <view
-            class="pd-related-more"
-            @tap="toHome"
-          >
-            <text class="pd-more-muted">
-              更多
-            </text>
-            <app-icon
-              name="chevron-right"
-              :size="26"
-              color="var(--poem-text-muted)"
-            />
+          <text class="pd-related-title">相关诗词</text>
+          <view class="pd-related-more" @tap="toHome">
+            <text class="pd-more-muted">更多</text>
+            <app-icon name="chevron-right" :size="26" color="var(--poem-text-muted)" />
           </view>
         </view>
         <view class="pd-related-list">
-          <view
-            v-for="rp in poem.relatedPoems"
-            :key="rp.id"
-            class="pd-related-item"
-            @tap="toDetail(rp.id)"
-          >
+          <view v-for="rp in poem.relatedPoems" :key="rp.id" class="pd-related-item" @tap="toDetail(rp.id)">
             <view class="pd-related-body">
-              <text class="pd-related-name">
-                {{ rp.title }}
-              </text>
-              <text class="pd-related-preview">
-                {{ rp.preview }}
-              </text>
+              <text class="pd-related-name">{{ rp.title }}</text>
+              <text class="pd-related-preview">{{ rp.preview }}</text>
             </view>
-            <text class="pd-related-author">
-              {{ rp.author }}
-            </text>
-            <app-icon
-              name="chevron-right"
-              :size="28"
-              color="var(--poem-text-muted)"
-            />
+            <text class="pd-related-author">{{ rp.author }}</text>
+            <app-icon name="chevron-right" :size="28" color="var(--poem-text-muted)" />
           </view>
         </view>
       </view>
     </view>
 
     <!-- 底部操作栏 -->
-    <view
-      class="pd-bottom"
-      :style="{ paddingBottom: 'calc(24rpx + ' + safeBottom + 'px)' }"
-    >
+    <view class="pd-bottom" :style="{ paddingBottom: 'calc(24rpx + ' + safeBottom + 'px)' }">
       <view class="pd-bottom-row">
         <view
           class="pd-read-btn"
@@ -426,34 +208,14 @@
         >
           <template v-if="isPlaying">
             <view class="pd-soundwave">
-              <view
-                v-for="n in 5"
-                :key="n"
-                class="pd-wave-bar"
-                :class="'bar-wave-' + n"
-              />
+              <view v-for="n in 5" :key="n" class="pd-wave-bar" :class="'bar-wave-' + n" />
             </view>
-            <text
-              class="pd-read-text"
-              style="color: var(--poem-gold)"
-            >
-              朗读中
-            </text>
-            <app-icon
-              name="volume-x"
-              :size="30"
-              color="#e8c07a"
-            />
+            <text class="pd-read-text" style="color: var(--poem-gold)">朗读中</text>
+            <app-icon name="volume-x" :size="30" color="#e8c07a" />
           </template>
           <template v-else>
-            <app-icon
-              name="volume-2"
-              :size="30"
-              color="rgba(245,234,216,0.55)"
-            />
-            <text class="pd-read-text">
-              朗读
-            </text>
+            <app-icon name="volume-2" :size="30" color="rgba(245,234,216,0.55)" />
+            <text class="pd-read-text">朗读</text>
           </template>
         </view>
 
@@ -462,11 +224,7 @@
           :style="{ background: isBookmarked ? 'var(--poem-gold-soft)' : 'var(--poem-surface)', borderColor: isBookmarked ? 'var(--poem-gold-dim)' : 'var(--poem-border)' }"
           @tap="isBookmarked = !isBookmarked"
         >
-          <app-icon
-            :name="isBookmarked ? 'bookmark-check' : 'bookmark'"
-            :size="34"
-            :color="isBookmarked ? '#e8c07a' : 'rgba(245,234,216,0.55)'"
-          />
+          <app-icon :name="isBookmarked ? 'bookmark-check' : 'bookmark'" :size="34" :color="isBookmarked ? '#e8c07a' : 'rgba(245,234,216,0.55)'" />
         </view>
 
         <view
@@ -474,160 +232,71 @@
           :style="{ background: isLiked ? 'rgba(192,67,58,0.15)' : 'var(--poem-surface)', borderColor: isLiked ? 'rgba(192,67,58,0.4)' : 'var(--poem-border)' }"
           @tap="isLiked = !isLiked"
         >
-          <app-icon
-            name="heart"
-            :size="34"
-            :color="isLiked ? '#c0433a' : 'rgba(245,234,216,0.55)'"
-            :fill="isLiked"
-          />
+          <app-icon name="heart" :size="34" :color="isLiked ? '#c0433a' : 'rgba(245,234,216,0.55)'" :fill="isLiked" />
         </view>
 
-        <view
-          class="pd-act-btn pd-act-disc"
-          @tap="showComments = true"
-        >
-          <app-icon
-            name="message-circle"
-            :size="34"
-            color="rgba(245,234,216,0.55)"
-          />
+        <view class="pd-act-btn pd-act-disc" @tap="showComments = true">
+          <app-icon name="message-circle" :size="34" color="rgba(245,234,216,0.55)" />
           <view class="pd-act-dot" />
         </view>
 
-        <view
-          class="pd-act-btn"
-          @tap="showSharePanel = true"
-        >
-          <app-icon
-            name="share-2"
-            :size="34"
-            color="rgba(245,234,216,0.55)"
-          />
+        <view class="pd-act-btn" @tap="showSharePanel = true">
+          <app-icon name="share-2" :size="34" color="rgba(245,234,216,0.55)" />
         </view>
       </view>
     </view>
 
     <!-- AI 深度赏析面板 -->
-    <view
-      v-if="showAiPanel"
-      class="pd-overlay"
-    >
-      <view
-        class="pd-overlay-mask"
-        @tap="showAiPanel = false"
-      />
+    <view v-if="showAiPanel" class="pd-overlay">
+      <view class="pd-overlay-mask" @tap="showAiPanel = false" />
       <view class="pd-sheet sheet-slide-up">
         <view class="pd-sheet-head">
           <view class="pd-sheet-headleft">
-            <app-icon
-              name="sparkles"
-              :size="28"
-              color="#9b7ec8"
-            />
-            <text class="pd-sheet-title">
-              AI 深度赏析
-            </text>
-            <text class="pd-sheet-badge">
-              AI 生成
-            </text>
+            <app-icon name="sparkles" :size="28" color="#9b7ec8" />
+            <text class="pd-sheet-title">AI 深度赏析</text>
+            <text class="pd-sheet-badge">AI 生成</text>
           </view>
-          <view
-            class="pd-sheet-close"
-            @tap="showAiPanel = false"
-          >
-            <app-icon
-              name="x"
-              :size="28"
-              color="var(--poem-text-soft)"
-            />
+          <view class="pd-sheet-close" @tap="showAiPanel = false">
+            <app-icon name="x" :size="28" color="var(--poem-text-soft)" />
           </view>
         </view>
-        <scroll-view
-          scroll-y
-          class="pd-sheet-body"
-        >
+        <scroll-view scroll-y class="pd-sheet-body">
           <!-- idle -->
-          <view
-            v-if="aiStatus === 'idle'"
-            class="pd-ai-idle"
-          >
+          <view v-if="aiStatus === 'idle'" class="pd-ai-idle">
             <view class="pd-ai-idle-icon">
-              <app-icon
-                name="sparkles"
-                :size="48"
-                color="#9b7ec8"
-              />
+              <app-icon name="sparkles" :size="48" color="#9b7ec8" />
             </view>
             <view class="pd-ai-idle-text">
-              <text class="pd-ai-idle-title">
-                AI 深度解读《{{ poem.title }}》
-              </text>
-              <text class="pd-ai-idle-sub">
-                从创作背景、意象分析、情感解读三个维度深入解析
-              </text>
+              <text class="pd-ai-idle-title">AI 深度解读《{{ poem.title }}》</text>
+              <text class="pd-ai-idle-sub">从创作背景、意象分析、情感解读三个维度深入解析</text>
             </view>
-            <view
-              class="pd-ai-btn"
-              @tap="generateAi"
-            >
-              <text class="pd-ai-btn-text">
-                开始解析
-              </text>
+            <view class="pd-ai-btn" @tap="generateAi">
+              <text class="pd-ai-btn-text">开始解析</text>
             </view>
           </view>
           <!-- loading -->
           <view v-else-if="aiStatus === 'loading'">
             <view class="pd-ai-loading">
-              <app-icon
-                name="loader-2"
-                :size="28"
-                color="#9b7ec8"
-                class="pd-spin"
-              />
-              <text class="pd-ai-loading-text">
-                AI 正在解读诗词意境…
-              </text>
+              <app-icon name="loader-2" :size="28" color="#9b7ec8" class="pd-spin" />
+              <text class="pd-ai-loading-text">AI 正在解读诗词意境…</text>
             </view>
-            <rich-text
-              class="pd-ai-richtext ai-cursor"
-              :nodes="displayedHtml"
-            />
+            <rich-text class="pd-ai-richtext ai-cursor" :nodes="displayedHtml" />
           </view>
           <!-- done -->
           <view v-else-if="aiStatus === 'done'">
             <view class="pd-ai-donehead">
               <view class="pd-ai-donestatus">
-                <app-icon
-                  name="check"
-                  :size="26"
-                  color="#e8c07a"
-                />
-                <text class="pd-ai-donetext">
-                  解析完成
-                </text>
+                <app-icon name="check" :size="26" color="#e8c07a" />
+                <text class="pd-ai-donetext">解析完成</text>
               </view>
-              <view
-                class="pd-ai-regen"
-                @tap="generateAi"
-              >
-                <app-icon
-                  name="refresh-cw"
-                  :size="24"
-                  color="#9b7ec8"
-                />
-                <text class="pd-ai-regen-text">
-                  重新生成
-                </text>
+              <view class="pd-ai-regen" @tap="generateAi">
+                <app-icon name="refresh-cw" :size="24" color="#9b7ec8" />
+                <text class="pd-ai-regen-text">重新生成</text>
               </view>
             </view>
-            <rich-text
-              class="pd-ai-richtext"
-              :nodes="displayedHtml"
-            />
+            <rich-text class="pd-ai-richtext" :nodes="displayedHtml" />
             <view class="pd-ai-extra">
-              <text class="pd-ai-extra-label">
-                AI 赏析后的延伸阅读
-              </text>
+              <text class="pd-ai-extra-label">AI 赏析后的延伸阅读</text>
               <view class="pd-ai-extra-list">
                 <view
                   v-for="rp in poem.relatedPoems.slice(0, 2)"
@@ -636,18 +305,10 @@
                   @tap="goRelated(rp.id)"
                 >
                   <view class="pd-ai-extra-body">
-                    <text class="pd-ai-extra-title">
-                      {{ rp.title }}
-                    </text>
-                    <text class="pd-ai-extra-preview">
-                      {{ rp.preview }}
-                    </text>
+                    <text class="pd-ai-extra-title">{{ rp.title }}</text>
+                    <text class="pd-ai-extra-preview">{{ rp.preview }}</text>
                   </view>
-                  <app-icon
-                    name="chevron-right"
-                    :size="28"
-                    color="var(--poem-text-muted)"
-                  />
+                  <app-icon name="chevron-right" :size="28" color="var(--poem-text-muted)" />
                 </view>
               </view>
             </view>
@@ -657,28 +318,13 @@
     </view>
 
     <!-- AI 配图分享面板 -->
-    <view
-      v-if="showSharePanel"
-      class="pd-overlay"
-    >
-      <view
-        class="pd-overlay-mask"
-        @tap="showSharePanel = false"
-      />
+    <view v-if="showSharePanel" class="pd-overlay">
+      <view class="pd-overlay-mask" @tap="showSharePanel = false" />
       <view class="pd-sheet sheet-slide-up">
         <view class="pd-sheet-head">
-          <text class="pd-sheet-title">
-            生成诗词海报
-          </text>
-          <view
-            class="pd-sheet-close"
-            @tap="showSharePanel = false"
-          >
-            <app-icon
-              name="x"
-              :size="28"
-              color="var(--poem-text-soft)"
-            />
+          <text class="pd-sheet-title">生成诗词海报</text>
+          <view class="pd-sheet-close" @tap="showSharePanel = false">
+            <app-icon name="x" :size="28" color="var(--poem-text-soft)" />
           </view>
         </view>
         <view class="pd-share-body">
@@ -689,146 +335,59 @@
               :style="{ background: useAiImage ? 'var(--poem-ai-soft)' : 'var(--poem-bg-2)', borderColor: useAiImage ? 'var(--poem-ai)' : 'var(--poem-border)' }"
               @tap="useAiImage = true"
             >
-              <app-icon
-                name="sparkles"
-                :size="28"
-                :color="useAiImage ? '#9b7ec8' : 'rgba(245,234,216,0.3)'"
-              />
-              <text class="pd-share-opt-text">
-                AI 配图
-              </text>
-              <text
-                v-if="useAiImage"
-                class="pd-share-opt-badge"
-              >
-                AI 生成
-              </text>
+              <app-icon name="sparkles" :size="28" :color="useAiImage ? '#9b7ec8' : 'rgba(245,234,216,0.3)'" />
+              <text class="pd-share-opt-text">AI 配图</text>
+              <text v-if="useAiImage" class="pd-share-opt-badge">AI 生成</text>
             </view>
             <view
               class="pd-share-opt"
               :style="{ background: !useAiImage ? 'var(--poem-gold-soft)' : 'var(--poem-bg-2)', borderColor: !useAiImage ? 'var(--poem-gold)' : 'var(--poem-border)' }"
               @tap="useAiImage = false"
             >
-              <app-icon
-                name="image"
-                :size="28"
-                :color="!useAiImage ? '#e8c07a' : 'rgba(245,234,216,0.3)'"
-              />
-              <text class="pd-share-opt-text">
-                默认样式
-              </text>
+              <app-icon name="image" :size="28" :color="!useAiImage ? '#e8c07a' : 'rgba(245,234,216,0.3)'" />
+              <text class="pd-share-opt-text">默认样式</text>
             </view>
           </view>
 
           <!-- 预览区 -->
-          <view
-            class="pd-poster"
-            :style="{ background: imgStatus === 'done' ? 'linear-gradient(160deg, #0d1a2e 0%, #1a0e05 50%, #2e1f10 100%)' : 'linear-gradient(135deg, #1a0e05 0%, #2e1f10 100%)' }"
-          >
-            <view
-              v-if="imgStatus === 'idle'"
-              class="pd-poster-idle"
-            >
+          <view class="pd-poster" :style="{ background: imgStatus === 'done' ? 'linear-gradient(160deg, #0d1a2e 0%, #1a0e05 50%, #2e1f10 100%)' : 'linear-gradient(135deg, #1a0e05 0%, #2e1f10 100%)' }">
+            <view v-if="imgStatus === 'idle'" class="pd-poster-idle">
               <view class="poem-vertical pd-poster-verse">
-                <text
-                  v-for="(c, i) in poem.content"
-                  :key="i"
-                >
-                  {{ c.line }}
-                </text>
+                <text v-for="(c, i) in poem.content" :key="i">{{ c.line }}</text>
               </view>
-              <text class="pd-poster-hint">
-                {{ useAiImage ? '点击生成 AI 配图' : '默认深色背景海报' }}
-              </text>
+              <text class="pd-poster-hint">{{ useAiImage ? '点击生成 AI 配图' : '默认深色背景海报' }}</text>
             </view>
-            <view
-              v-else-if="imgStatus === 'generating'"
-              class="pd-poster-gen"
-            >
-              <app-icon
-                name="loader-2"
-                :size="44"
-                color="#9b7ec8"
-                class="pd-spin"
-              />
-              <text class="pd-poster-gen-text">
-                AI 正在感受诗词意境…
-              </text>
+            <view v-else-if="imgStatus === 'generating'" class="pd-poster-gen">
+              <app-icon name="loader-2" :size="44" color="#9b7ec8" class="pd-spin" />
+              <text class="pd-poster-gen-text">AI 正在感受诗词意境…</text>
             </view>
-            <view
-              v-else
-              class="pd-poster-done"
-            >
+            <view v-else class="pd-poster-done">
               <view class="poem-vertical pd-poster-verse">
-                <text
-                  v-for="(c, i) in poem.content"
-                  :key="i"
-                >
-                  {{ c.line }}
-                </text>
+                <text v-for="(c, i) in poem.content" :key="i">{{ c.line }}</text>
               </view>
-              <text class="pd-poster-sign">
-                — {{ poem.dynasty }} · {{ poem.author }}
-              </text>
-              <view class="pd-poster-badge">
-                AI 生成
-              </view>
+              <text class="pd-poster-sign">— {{ poem.dynasty }} · {{ poem.author }}</text>
+              <view class="pd-poster-badge">AI 生成</view>
             </view>
           </view>
 
           <!-- 操作按钮 -->
           <view class="pd-share-actions">
-            <view
-              v-if="imgStatus === 'idle'"
-              class="pd-share-genbtn"
-              @tap="generateImg"
-            >
-              <app-icon
-                name="sparkles"
-                :size="30"
-                color="#ffffff"
-              />
-              <text class="pd-share-genbtn-text">
-                {{ useAiImage ? '生成 AI 配图' : '生成海报' }}
-              </text>
+            <view v-if="imgStatus === 'idle'" class="pd-share-genbtn" @tap="generateImg">
+              <app-icon name="sparkles" :size="30" color="#ffffff" />
+              <text class="pd-share-genbtn-text">{{ useAiImage ? '生成 AI 配图' : '生成海报' }}</text>
             </view>
-            <view
-              v-else-if="imgStatus === 'generating'"
-              class="pd-share-genbtn pd-share-genbtn-disabled"
-            >
-              <app-icon
-                name="loader-2"
-                :size="30"
-                color="#ffffff"
-                class="pd-spin"
-              />
-              <text class="pd-share-genbtn-text">
-                生成中…
-              </text>
+            <view v-else-if="imgStatus === 'generating'" class="pd-share-genbtn pd-share-genbtn-disabled">
+              <app-icon name="loader-2" :size="30" color="#ffffff" class="pd-spin" />
+              <text class="pd-share-genbtn-text">生成中…</text>
             </view>
             <template v-else>
-              <view
-                class="pd-share-regen"
-                @tap="generateImg"
-              >
-                <app-icon
-                  name="refresh-cw"
-                  :size="28"
-                  color="#ffffff"
-                />
-                <text class="pd-share-regen-text">
-                  重新生成
-                </text>
+              <view class="pd-share-regen" @tap="generateImg">
+                <app-icon name="refresh-cw" :size="28" color="#ffffff" />
+                <text class="pd-share-regen-text">重新生成</text>
               </view>
               <view class="pd-share-save">
-                <app-icon
-                  name="download"
-                  :size="28"
-                  color="#1c1208"
-                />
-                <text class="pd-share-save-text">
-                  保存分享
-                </text>
+                <app-icon name="download" :size="28" color="#1c1208" />
+                <text class="pd-share-save-text">保存分享</text>
               </view>
             </template>
           </view>

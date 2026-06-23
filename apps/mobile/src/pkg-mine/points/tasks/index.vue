@@ -1,32 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
-import { useAsyncData } from '@/composables/useAsyncData'
-import { pointsApi, type PointsInfo, type PointsTask } from '@/lib/points-data'
+import { pointsInfo as infoData, pointsTasks } from '@/lib/points-data'
 
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  const [infoData, taskData] = await Promise.all([pointsApi.getPoints(), pointsApi.getTasks()])
-  return { info: infoData, tasks: taskData }
-})
-
-const dataIsEmpty = computed(() => {
-  const raw = pageData.value
-  return raw != null && raw.info === undefined
-})
-
-const info = ref<PointsInfo>({ balance: 0, totalEarned: 0, totalSpent: 0, todayEarned: 0 })
-const tasks = ref<PointsTask[]>([])
-
-watch(() => pageData.value, (val) => {
-  if (val) {
-    info.value = { ...val.info }
-    tasks.value = val.tasks.map((t) => ({ ...t }))
-  }
-}, { immediate: true })
-
+const info = ref({ ...infoData })
+const tasks = ref(pointsTasks.map((t) => ({ ...t })))
 const completing = ref<number | null>(null)
 
 const taskColors = ['#9a2e22', '#2563eb', '#16a34a', '#d97706', '#7c3aed']
@@ -59,18 +37,7 @@ function handleComplete(taskId: number) {
 </script>
 
 <template>
-  <view v-if="isLoading" class="page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="dataIsEmpty" title="暂无数据" />
-  <view v-else class="page">
+  <view class="page">
     <view class="nav">
       <view class="nav-back" @tap="goBack">
         <AppIcon name="arrow-left" :size="44" color="#2D2A26" />

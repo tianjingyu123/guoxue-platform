@@ -92,18 +92,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { navigateTo, reLaunch } from '@/utils/router'
-import { shopApi, type SkuCartItem } from '@/lib/shop-data'
+import { skuCartItems, type SkuCartItem } from '@/lib/shop-data'
 
-const loading = ref(true)
-const items = ref<SkuCartItem[]>([])
-
-onMounted(async () => {
-  try { items.value = await shopApi.getCart() }
-  catch { /* useMock handles fallback */ }
-  finally { loading.value = false }
-})
+const items = ref<SkuCartItem[]>(JSON.parse(JSON.stringify(skuCartItems)))
 const editMode = ref(false)
 const openId = ref<string | null>(null)
 

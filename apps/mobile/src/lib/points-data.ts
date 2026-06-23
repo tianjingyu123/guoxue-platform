@@ -1,7 +1,5 @@
 // 积分中心数据与类型（迁移自原型 /points 体系，1:1 还原 lib/api/points.ts 的 mock 数据）
 
-import { apiGet, useMock } from '@/utils/request'
-
 // 积分信息
 export interface PointsInfo {
   balance: number // 当前积分余额
@@ -82,28 +80,4 @@ export const exchangeTypeLabels: Record<ExchangeType, string> = {
   coin: '国学币',
   vip: '会员',
   gift: '实物',
-}
-
-// ── API ──
-export const pointsApi = {
-  /** 获取积分信息 GET /users/me/points */
-  async getPoints(): Promise<PointsInfo> {
-    if (useMock()) return pointsInfo
-    try { return await apiGet<PointsInfo>('/users/me/points') } catch { return pointsInfo }
-  },
-  /** 获取积分任务列表 */
-  async getTasks(): Promise<PointsTask[]> {
-    if (useMock()) return pointsTasks
-    try { return await apiGet<PointsTask[]>('/users/me/points/tasks') } catch { return pointsTasks }
-  },
-  /** 获取积分记录 GET /users/me/points/records */
-  async getRecords(): Promise<PointsHistoryItem[]> {
-    if (useMock()) return pointsHistory
-    try { return await apiGet<PointsHistoryItem[]>('/users/me/points/records') } catch { return pointsHistory }
-  },
-  /** 获取兑换商品列表 */
-  async getExchangeItems(): Promise<PointsExchangeItem[]> {
-    if (useMock()) return pointsExchangeItems
-    try { return await apiGet<PointsExchangeItem[]>('/users/me/points/exchange') } catch { return pointsExchangeItems }
-  },
 }

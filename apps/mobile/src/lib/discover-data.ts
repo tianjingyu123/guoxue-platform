@@ -2,7 +2,6 @@ import type {
   ProductCardData, CourseCardData, LiveCardData,
   AgentCardData, ClassicCardData, VideoCardData,
 } from '@/lib/card-utils'
-import { apiGet, useMock } from '@/utils/request'
 
 // 核心入口宫格 - 商业变现板块入口（高频在前）
 export const coreEntries = [
@@ -67,26 +66,3 @@ export const feedItems: FeedItem[] = [
   { kind: 'product', data: { id: 'p3', title: '开光五帝钱挂件 镇宅化煞', cover: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&q=80', coverRatio: '1:1', price: 58, originalPrice: 128, sales: 4500, tag: '新品' } },
   { kind: 'course', data: { id: 'c3', title: '六爻预测从零开始', cover: 'https://images.unsplash.com/photo-1519791883288-dc8bd696e667?w=400&q=80', coverRatio: '3:4', teacher: '陈老师', teacherAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80', price: 128, originalPrice: 299, students: 1300, lessons: 24 } },
 ]
-
-// ── API ──
-export const discoverApi = {
-  /** 获取发现页聚合数据 GET /discover */
-  async getDiscoverData(): Promise<Record<string, any>> {
-    if (useMock()) return {
-      entries: coreEntries,
-      categories,
-      columns,
-      hotWords,
-      feedItems,
-    }
-    try { return await apiGet<any>('/discover') } catch {
-      return { entries: coreEntries, categories, columns, hotWords, feedItems: [] }
-    }
-  },
-
-  /** 获取发现页 Feed 流 GET /discover/feed */
-  async getFeed(params?: Record<string, any>): Promise<FeedItem[]> {
-    if (useMock()) return feedItems
-    try { return await apiGet<FeedItem[]>('/discover/feed', params) } catch { return feedItems }
-  },
-}

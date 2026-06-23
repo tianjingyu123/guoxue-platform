@@ -1,126 +1,54 @@
 <template>
-  <view
-    class="reader"
-    :style="{ background: cfg.bg }"
-  >
+  <view class="reader" :style="{ background: cfg.bg }">
     <!-- 顶栏 -->
     <view
       class="r-topbar"
       :class="{ 'r-bar--hidden-top': !showControls }"
       :style="{ background: theme === 'dark' ? 'rgba(36,34,32,0.95)' : 'rgba(255,255,255,0.95)', borderColor: cfg.border }"
     >
-      <view
-        class="r-topbar-inner"
-        :style="{ paddingTop: statusBarHeight + 'px' }"
-      >
-        <view
-          class="r-icon-btn"
-          @tap="goBack"
-        >
-          <app-icon
-            name="arrow-left"
-            :size="40"
-            :color="cfg.text"
-          />
+      <view class="r-topbar-inner" :style="{ paddingTop: statusBarHeight + 'px' }">
+        <view class="r-icon-btn" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" :color="cfg.text" />
         </view>
-        <text
-          class="r-title"
-          :style="{ color: cfg.text }"
-        >
-          {{ chapter.title }}
-        </text>
+        <text class="r-title" :style="{ color: cfg.text }">{{ chapter.title }}</text>
         <view class="r-top-actions">
-          <view
-            class="r-icon-btn"
-            @tap="toggleBookmark"
-          >
-            <app-icon
-              :name="isBookmarked ? 'bookmark-check' : 'bookmark'"
-              :size="38"
-              :color="isBookmarked ? '#2563eb' : cfg.text"
-            />
+          <view class="r-icon-btn" @tap="toggleBookmark">
+            <app-icon :name="isBookmarked ? 'bookmark-check' : 'bookmark'" :size="38" :color="isBookmarked ? '#2563eb' : cfg.text" />
           </view>
-          <view
-            class="r-icon-btn r-icon-btn--dot"
-            @tap="openComments"
-          >
-            <app-icon
-              name="message-circle"
-              :size="38"
-              :color="cfg.text"
-            />
+          <view class="r-icon-btn r-icon-btn--dot" @tap="openComments">
+            <app-icon name="message-circle" :size="38" :color="cfg.text" />
             <view class="r-dot" />
           </view>
-          <view
-            class="r-icon-btn"
-            @tap="onDownload"
-          >
-            <app-icon
-              name="download"
-              :size="38"
-              :color="cfg.text"
-            />
+          <view class="r-icon-btn" @tap="onDownload">
+            <app-icon name="download" :size="38" :color="cfg.text" />
           </view>
         </view>
       </view>
     </view>
 
     <!-- 正文 -->
-    <scroll-view
-      scroll-y
-      class="r-scroll"
-      @tap="toggleControls"
-    >
+    <scroll-view scroll-y class="r-scroll" @tap="toggleControls">
       <view class="r-content">
-        <text
-          class="r-chapter-title"
-          :style="{ color: cfg.text }"
-        >
-          {{ chapter.title }}
-        </text>
+        <text class="r-chapter-title" :style="{ color: cfg.text }">{{ chapter.title }}</text>
         <text
           class="r-body"
           :style="{ color: cfg.text, fontSize: fontSize + 'px', lineHeight: lineHeight }"
+          >{{ chapter.content }}</text
         >
-          {{ chapter.content }}
-        </text>
         <!-- 章节切换 -->
-        <view
-          class="r-chapter-nav"
-          :style="{ borderColor: cfg.border }"
-        >
+        <view class="r-chapter-nav" :style="{ borderColor: cfg.border }">
           <view
             class="r-nav-btn"
             :class="{ 'r-nav-btn--disabled': chapter.currentChapter <= 1 }"
             :style="{ borderColor: cfg.border, color: cfg.text }"
           >
-            <app-icon
-              name="chevron-left"
-              :size="32"
-              :color="cfg.text"
-            />
-            <text :style="{ color: cfg.text }">
-              上一章
-            </text>
+            <app-icon name="chevron-left" :size="32" :color="cfg.text" />
+            <text :style="{ color: cfg.text }">上一章</text>
           </view>
-          <text
-            class="r-nav-count"
-            :style="{ color: cfg.secondary }"
-          >
-            {{ chapter.currentChapter }} / {{ chapter.totalChapters }}
-          </text>
-          <view
-            class="r-nav-btn r-nav-btn--primary"
-            @tap="openFinish"
-          >
-            <text class="r-nav-btn-primary-text">
-              下一章
-            </text>
-            <app-icon
-              name="chevron-right"
-              :size="32"
-              color="#ffffff"
-            />
+          <text class="r-nav-count" :style="{ color: cfg.secondary }">{{ chapter.currentChapter }} / {{ chapter.totalChapters }}</text>
+          <view class="r-nav-btn r-nav-btn--primary" @tap="openFinish">
+            <text class="r-nav-btn-primary-text">下一章</text>
+            <app-icon name="chevron-right" :size="32" color="#ffffff" />
           </view>
         </view>
       </view>
@@ -134,161 +62,50 @@
     >
       <!-- 进度 -->
       <view class="r-progress-row">
-        <text
-          class="r-progress-pct"
-          :style="{ color: cfg.secondary }"
-        >
-          {{ progressPct }}%
-        </text>
-        <view
-          class="r-slider"
-          @tap="onTrackTap"
-        >
-          <view
-            class="r-slider-track"
-            :style="{ background: cfg.border }"
-          >
-            <view
-              class="r-slider-filled"
-              :style="{ width: progressPct + '%' }"
-            />
-            <view
-              class="r-slider-thumb"
-              :style="{ left: progressPct + '%' }"
-            />
+        <text class="r-progress-pct" :style="{ color: cfg.secondary }">{{ progressPct }}%</text>
+        <view class="r-slider" @tap="onTrackTap">
+          <view class="r-slider-track" :style="{ background: cfg.border }">
+            <view class="r-slider-filled" :style="{ width: progressPct + '%' }" />
+            <view class="r-slider-thumb" :style="{ left: progressPct + '%' }" />
           </view>
         </view>
-        <text
-          class="r-progress-chap"
-          :style="{ color: cfg.secondary }"
-        >
-          {{ chapter.currentChapter }}/{{ chapter.totalChapters }}章
-        </text>
+        <text class="r-progress-chap" :style="{ color: cfg.secondary }">{{ chapter.currentChapter }}/{{ chapter.totalChapters }}章</text>
       </view>
       <!-- 工具 -->
-      <view
-        class="r-tools"
-        :style="{ paddingBottom: safeBottom + 'px' }"
-      >
-        <view
-          class="r-tool"
-          @tap="openMenu"
-        >
-          <app-icon
-            name="list"
-            :size="40"
-            :color="cfg.secondary"
-          />
-          <text
-            class="r-tool-label"
-            :style="{ color: cfg.secondary }"
-          >
-            目录
-          </text>
+      <view class="r-tools" :style="{ paddingBottom: safeBottom + 'px' }">
+        <view class="r-tool" @tap="openMenu">
+          <app-icon name="list" :size="40" :color="cfg.secondary" />
+          <text class="r-tool-label" :style="{ color: cfg.secondary }">目录</text>
         </view>
-        <view
-          class="r-tool"
-          @tap="openSettings"
-        >
-          <app-icon
-            name="settings"
-            :size="40"
-            :color="cfg.secondary"
-          />
-          <text
-            class="r-tool-label"
-            :style="{ color: cfg.secondary }"
-          >
-            设置
-          </text>
+        <view class="r-tool" @tap="openSettings">
+          <app-icon name="settings" :size="40" :color="cfg.secondary" />
+          <text class="r-tool-label" :style="{ color: cfg.secondary }">设置</text>
         </view>
-        <view
-          class="r-tool"
-          @tap="onSelectAction"
-        >
-          <app-icon
-            name="highlighter"
-            :size="40"
-            :color="cfg.secondary"
-          />
-          <text
-            class="r-tool-label"
-            :style="{ color: cfg.secondary }"
-          >
-            划线
-          </text>
+        <view class="r-tool" @tap="onSelectAction">
+          <app-icon name="highlighter" :size="40" :color="cfg.secondary" />
+          <text class="r-tool-label" :style="{ color: cfg.secondary }">划线</text>
         </view>
-        <view
-          class="r-tool"
-          @tap="onSelectAction"
-        >
-          <app-icon
-            name="message-square"
-            :size="40"
-            :color="cfg.secondary"
-          />
-          <text
-            class="r-tool-label"
-            :style="{ color: cfg.secondary }"
-          >
-            笔记
-          </text>
+        <view class="r-tool" @tap="onSelectAction">
+          <app-icon name="message-square" :size="40" :color="cfg.secondary" />
+          <text class="r-tool-label" :style="{ color: cfg.secondary }">笔记</text>
         </view>
-        <view
-          class="r-tool"
-          @tap="onShare"
-        >
-          <app-icon
-            name="share-2"
-            :size="40"
-            :color="cfg.secondary"
-          />
-          <text
-            class="r-tool-label"
-            :style="{ color: cfg.secondary }"
-          >
-            分享
-          </text>
+        <view class="r-tool" @tap="onShare">
+          <app-icon name="share-2" :size="40" :color="cfg.secondary" />
+          <text class="r-tool-label" :style="{ color: cfg.secondary }">分享</text>
         </view>
       </view>
     </view>
 
     <!-- 目录抽屉 -->
-    <view
-      v-if="showMenu"
-      class="r-mask"
-      @tap="closeAll"
-    />
-    <view
-      v-if="showMenu"
-      class="r-drawer"
-      :style="{ background: theme === 'dark' ? '#1a1815' : '#ffffff' }"
-    >
-      <view
-        class="r-drawer-head"
-        :style="{ paddingTop: statusBarHeight + 'px', borderColor: cfg.border }"
-      >
-        <text
-          class="r-drawer-title"
-          :style="{ color: cfg.text }"
-        >
-          目录
-        </text>
-        <view
-          class="r-icon-btn"
-          @tap="closeAll"
-        >
-          <app-icon
-            name="x"
-            :size="36"
-            :color="cfg.text"
-          />
+    <view v-if="showMenu" class="r-mask" @tap="closeAll" />
+    <view v-if="showMenu" class="r-drawer" :style="{ background: theme === 'dark' ? '#1a1815' : '#ffffff' }">
+      <view class="r-drawer-head" :style="{ paddingTop: statusBarHeight + 'px', borderColor: cfg.border }">
+        <text class="r-drawer-title" :style="{ color: cfg.text }">目录</text>
+        <view class="r-icon-btn" @tap="closeAll">
+          <app-icon name="x" :size="36" :color="cfg.text" />
         </view>
       </view>
-      <scroll-view
-        scroll-y
-        class="r-drawer-list"
-      >
+      <scroll-view scroll-y class="r-drawer-list">
         <view
           v-for="ch in chapters"
           :key="ch.id"
@@ -296,73 +113,29 @@
           :style="chapItemStyle(ch)"
           @tap="selectChapter(ch)"
         >
-          <text :style="{ color: ch.current ? '#2563eb' : cfg.text, fontWeight: ch.current ? '600' : '400' }">
-            {{ ch.title }}
-          </text>
+          <text :style="{ color: ch.current ? '#2563eb' : cfg.text, fontWeight: ch.current ? '600' : '400' }">{{ ch.title }}</text>
         </view>
       </scroll-view>
     </view>
 
     <!-- 设置面板 -->
-    <view
-      v-if="showSettings"
-      class="r-mask"
-      @tap="closeAll"
-    />
-    <view
-      v-if="showSettings"
-      class="r-sheet"
-      :style="{ background: theme === 'dark' ? '#1a1815' : '#ffffff' }"
-    >
+    <view v-if="showSettings" class="r-mask" @tap="closeAll" />
+    <view v-if="showSettings" class="r-sheet" :style="{ background: theme === 'dark' ? '#1a1815' : '#ffffff' }">
       <view class="r-sheet-handle" />
-      <view
-        class="r-sheet-body"
-        :style="{ paddingBottom: safeBottom + 'px' }"
-      >
+      <view class="r-sheet-body" :style="{ paddingBottom: safeBottom + 'px' }">
         <!-- 字号 -->
-        <text
-          class="r-sheet-label"
-          :style="{ color: cfg.secondary }"
-        >
-          字号
-        </text>
+        <text class="r-sheet-label" :style="{ color: cfg.secondary }">字号</text>
         <view class="r-fontsize-row">
-          <view
-            class="r-circle-btn"
-            :style="{ background: theme === 'dark' ? 'rgba(255,255,255,0.1)' : '#f3f4f6' }"
-            @tap="decFont"
-          >
-            <app-icon
-              name="minus"
-              :size="36"
-              :color="cfg.text"
-            />
+          <view class="r-circle-btn" :style="{ background: theme === 'dark' ? 'rgba(255,255,255,0.1)' : '#f3f4f6' }" @tap="decFont">
+            <app-icon name="minus" :size="36" :color="cfg.text" />
           </view>
-          <text
-            class="r-fontsize-val"
-            :style="{ color: cfg.text }"
-          >
-            {{ fontSize }}px
-          </text>
-          <view
-            class="r-circle-btn"
-            :style="{ background: theme === 'dark' ? 'rgba(255,255,255,0.1)' : '#f3f4f6' }"
-            @tap="incFont"
-          >
-            <app-icon
-              name="plus"
-              :size="36"
-              :color="cfg.text"
-            />
+          <text class="r-fontsize-val" :style="{ color: cfg.text }">{{ fontSize }}px</text>
+          <view class="r-circle-btn" :style="{ background: theme === 'dark' ? 'rgba(255,255,255,0.1)' : '#f3f4f6' }" @tap="incFont">
+            <app-icon name="plus" :size="36" :color="cfg.text" />
           </view>
         </view>
         <!-- 行距 -->
-        <text
-          class="r-sheet-label"
-          :style="{ color: cfg.secondary }"
-        >
-          行距
-        </text>
+        <text class="r-sheet-label" :style="{ color: cfg.secondary }">行距</text>
         <view class="r-lh-row">
           <view
             v-for="lh in lineHeights"
@@ -371,18 +144,11 @@
             :style="lhBtnStyle(lh.value)"
             @tap="lineHeight = lh.value"
           >
-            <text :style="{ color: lineHeight === lh.value ? '#ffffff' : theme === 'dark' ? '#d1d5db' : '#4b5563' }">
-              {{ lh.label }}
-            </text>
+            <text :style="{ color: lineHeight === lh.value ? '#ffffff' : theme === 'dark' ? '#d1d5db' : '#4b5563' }">{{ lh.label }}</text>
           </view>
         </view>
         <!-- 主题 -->
-        <text
-          class="r-sheet-label"
-          :style="{ color: cfg.secondary }"
-        >
-          主题
-        </text>
+        <text class="r-sheet-label" :style="{ color: cfg.secondary }">主题</text>
         <view class="r-theme-row">
           <view
             v-for="t in themeOptions"
@@ -391,74 +157,28 @@
             :style="{ background: t.bg, borderColor: theme === t.id ? '#2563eb' : 'transparent' }"
             @tap="theme = t.id"
           >
-            <app-icon
-              :name="t.icon"
-              :size="32"
-              :color="t.iconColor"
-            />
-            <text
-              class="r-theme-label"
-              :style="{ color: t.textColor }"
-            >
-              {{ t.label }}
-            </text>
+            <app-icon :name="t.icon" :size="32" :color="t.iconColor" />
+            <text class="r-theme-label" :style="{ color: t.textColor }">{{ t.label }}</text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 读完弹窗 -->
-    <view
-      v-if="showFinish"
-      class="r-mask r-mask--center"
-      @tap="closeAll"
-    >
-      <view
-        class="r-modal"
-        :style="{ background: theme === 'dark' ? '#242220' : '#ffffff' }"
-        @tap.stop
-      >
+    <view v-if="showFinish" class="r-mask r-mask--center" @tap="closeAll">
+      <view class="r-modal" :style="{ background: theme === 'dark' ? '#242220' : '#ffffff' }" @tap.stop>
         <view class="r-modal-icon">
-          <app-icon
-            name="check-circle"
-            :size="64"
-            color="#2563eb"
-          />
+          <app-icon name="check-circle" :size="64" color="#2563eb" />
         </view>
-        <text
-          class="r-modal-title"
-          :style="{ color: cfg.text }"
-        >
-          恭喜读完本章！
-        </text>
-        <text
-          class="r-modal-desc"
-          :style="{ color: cfg.secondary }"
-        >
-          继续阅读下一章，开启新的知识之旅
-        </text>
+        <text class="r-modal-title" :style="{ color: cfg.text }">恭喜读完本章！</text>
+        <text class="r-modal-desc" :style="{ color: cfg.secondary }">继续阅读下一章，开启新的知识之旅</text>
         <view class="r-modal-actions">
-          <view
-            class="r-modal-btn r-modal-btn--outline"
-            :style="{ borderColor: cfg.border, color: cfg.text }"
-            @tap="closeAll"
-          >
-            <text :style="{ color: cfg.text }">
-              稍后再说
-            </text>
+          <view class="r-modal-btn r-modal-btn--outline" :style="{ borderColor: cfg.border, color: cfg.text }" @tap="closeAll">
+            <text :style="{ color: cfg.text }">稍后再说</text>
           </view>
-          <view
-            class="r-modal-btn r-modal-btn--primary"
-            @tap="closeAll"
-          >
-            <app-icon
-              name="share-2"
-              :size="30"
-              color="#ffffff"
-            />
-            <text class="r-modal-btn-primary-text">
-              分享心得
-            </text>
+          <view class="r-modal-btn r-modal-btn--primary" @tap="closeAll">
+            <app-icon name="share-2" :size="30" color="#ffffff" />
+            <text class="r-modal-btn-primary-text">分享心得</text>
           </view>
         </view>
       </view>
@@ -475,25 +195,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
 import {
-  ebookApi,
+  ebookReaderChapter,
+  ebookReaderChapters,
+  ebookReaderDiscussions,
   ebookReaderThemes,
-  type EbookReaderChapter,
 } from '@/lib/ebook-data'
-import type { DiscussionConfig, DiscussionItemType } from '@/lib/discussion-types'
-
-/** 阅读器章节完整数据的类型（匹配 ebookReaderChapter 结构） */
-interface ReaderChapterData {
-  id: string
-  bookId: string
-  title: string
-  totalChapters: number
-  currentChapter: number
-  content: string
-}
+import type { DiscussionConfig } from '@/lib/discussion-types'
 
 type Theme = 'light' | 'sepia' | 'dark'
 
@@ -501,22 +212,9 @@ const sys = uni.getSystemInfoSync()
 const statusBarHeight = sys.statusBarHeight || 20
 const safeBottom = (sys.safeAreaInsets?.bottom ?? 0)
 
-const chapter = ref<ReaderChapterData>({
-  id: '', bookId: '', title: '', totalChapters: 0, currentChapter: 0, content: '',
-})
-const chapters = ref<EbookReaderChapter[]>([])
-const discussions = ref<DiscussionItemType[]>([])
-
-onMounted(async () => {
-  const [ch, chs, dcs] = await Promise.all([
-    ebookApi.getReaderChapter('1'),
-    ebookApi.getReaderChapters('1'),
-    ebookApi.getDiscussions('1'),
-  ])
-  chapter.value = ch
-  chapters.value = chs
-  discussions.value = dcs
-})
+const chapter = ebookReaderChapter
+const chapters = ebookReaderChapters
+const discussions = reactive([...ebookReaderDiscussions])
 
 const showControls = ref(true)
 const showMenu = ref(false)
@@ -542,13 +240,13 @@ const themeOptions: { id: Theme; label: string; bg: string; icon: string; iconCo
   { id: 'dark', label: '夜间', bg: '#1a1815', icon: 'moon', iconColor: '#9ca3af', textColor: '#d1d5db' },
 ]
 
-const discussionConfig = computed<DiscussionConfig>(() => ({
+const discussionConfig: DiscussionConfig = {
   scene: 'classic',
   mode: 'comment',
-  title: chapter.value.title,
+  title: chapter.title,
   accentColor: '#2563eb',
   placeholder: '分享你对本章的理解…',
-}))
+}
 
 function toggleControls() {
   showControls.value = !showControls.value

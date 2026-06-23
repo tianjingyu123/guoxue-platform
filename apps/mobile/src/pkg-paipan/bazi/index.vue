@@ -14,51 +14,24 @@ function goHistory() { navigateTo('/paipan/bazi/history') }
     <!-- 顶部导航 -->
     <view class="hdr">
       <view class="hdr-inner">
-        <view
-          class="hdr-back"
-          @tap="navigateBack()"
-        >
-          <app-icon
-            name="chevron-left"
-            :size="36"
-            color="rgba(255,255,255,0.85)"
-          />
-          <text class="hdr-back-text">
-            返回
-          </text>
+        <view class="hdr-back" @tap="navigateBack()">
+          <app-icon name="chevron-left" :size="36" color="rgba(255,255,255,0.85)" />
+          <text class="hdr-back-text">返回</text>
         </view>
-        <text class="hdr-title">
-          热卜八字
-        </text>
-        <view
-          class="hdr-history"
-          @tap="goHistory"
-        >
-          <app-icon
-            name="clock-3"
-            :size="28"
-            color="#ffffff"
-          />
-          <text class="hdr-history-text">
-            记录
-          </text>
+        <text class="hdr-title">热卜八字</text>
+        <view class="hdr-history" @tap="goHistory">
+          <app-icon name="clock-3" :size="28" color="#ffffff" />
+          <text class="hdr-history-text">记录</text>
         </view>
       </view>
     </view>
 
     <!-- 主体 -->
-    <scroll-view
-      scroll-y
-      class="body"
-    >
+    <scroll-view scroll-y class="body">
       <view class="body-inner">
         <bazi-input-form />
         <instant-bazi />
-        <disclaimer
-          variant="custom"
-          tone="subtle"
-          text="本工具仅供传统文化爱好者研究学习使用，命理分析结果不构成任何预测或建议。"
-        />
+        <disclaimer variant="custom" tone="subtle" text="本工具仅供传统文化爱好者研究学习使用，命理分析结果不构成任何预测或建议。" />
       </view>
     </scroll-view>
   </view>

@@ -1,50 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref } from 'vue'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import { rankTabs, classicsApi } from '@/lib/classics-data'
-import type { RankBook } from '@/lib/classics-data'
-
-const isLoading = ref(true)
-const loadError = ref<string | null>(null)
-const rankingBooks = ref<RankBook[]>([])
-
-const isEmpty = computed(() => !rankingBooks.value || rankingBooks.value.length === 0)
-
-onMounted(async () => {
-  isLoading.value = true
-  try {
-    const data = await classicsApi.getRankingBooks()
-    if (data && data.length > 0) {
-      rankingBooks.value = data
-    }
-  } catch {
-    loadError.value = '加载失败'
-  } finally {
-    isLoading.value = false
-  }
-})
-
-function reload() {
-  loadError.value = null
-  isLoading.value = true
-  classicsApi.getRankingBooks().then((data) => {
-    if (data && data.length > 0) rankingBooks.value = data
-  }).catch(() => {
-    loadError.value = '加载失败'
-  }).finally(() => {
-    isLoading.value = false
-  })
-}
+import { rankingPageBooks, rankTabs } from '@/lib/classics-data'
 
 const rankType = ref<'hot' | 'new' | 'rating'>('hot')
-const top3 = computed(() => rankingBooks.value.slice(0, 3))
-const rest = computed(() => rankingBooks.value.slice(3))
+const top3 = rankingPageBooks.slice(0, 3)
+const rest = rankingPageBooks.slice(3)
 
 function rankBg(rank: number): string {
   if (rank === 1) return '#c41e3a'
@@ -58,28 +22,14 @@ function goDetail(id: string) {
 </script>
 
 <template>
-  <view v-if="isLoading" class="ranking-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="40%" height="40rpx" radius="12rpx" mb="24rpx" />
-      <AppSkeleton width="60%" height="60rpx" radius="16rpx" mb="48rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无榜单数据" />
-  <view v-else class="ranking-page">
+  <view class="ranking-page">
     <ClassicsHeader title="推荐榜" />
 
     <view class="rk-main">
       <!-- Hero -->
       <view class="rk-hero">
-        <text class="rk-kicker">
-          读者公认
-        </text>
-        <text class="rk-title">
-          传世经典榜
-        </text>
+        <text class="rk-kicker">读者公认</text>
+        <text class="rk-title">传世经典榜</text>
       </view>
 
       <!-- 切换 -->
@@ -91,9 +41,7 @@ function goDetail(id: string) {
             class="rk-tab"
             :class="{ 'rk-tab--active': rankType === t.key }"
             @tap="rankType = t.key"
-          >
-            {{ t.label }}
-          </view>
+          >{{ t.label }}</view>
         </view>
       </view>
 
@@ -111,22 +59,11 @@ function goDetail(id: string) {
               :cover-color="coverColorForBook(book.title, book.category)"
               title-size="36rpx"
             />
-            <view
-              class="rk-badge"
-              :style="{ background: rankBg(book.rank) }"
-            >
-              {{ book.rank }}
-            </view>
+            <view class="rk-badge" :style="{ background: rankBg(book.rank) }">{{ book.rank }}</view>
           </view>
-          <text class="rk-top3-title">
-            {{ book.title }}
-          </text>
+          <text class="rk-top3-title">{{ book.title }}</text>
           <view class="rk-top3-views">
-            <AppIcon
-              name="eye"
-              :size="24"
-              color="#b3b3b3"
-            />
+            <AppIcon name="eye" :size="24" color="#b3b3b3" />
             <text>{{ book.views }}</text>
           </view>
         </view>
@@ -142,9 +79,7 @@ function goDetail(id: string) {
             :class="{ 'rk-row--bordered': i > 0 }"
             @tap="goDetail(book.id)"
           >
-            <text class="rk-row-rank">
-              {{ book.rank }}
-            </text>
+            <text class="rk-row-rank">{{ book.rank }}</text>
             <view class="rk-row-cover">
               <FlatCover
                 :title="book.title"
@@ -153,31 +88,16 @@ function goDetail(id: string) {
               />
             </view>
             <view class="rk-row-info">
-              <text class="rk-row-title">
-                {{ book.title }}
-              </text>
-              <text class="rk-row-author">
-                {{ book.author }} · {{ book.dynasty }}
-              </text>
+              <text class="rk-row-title">{{ book.title }}</text>
+              <text class="rk-row-author">{{ book.author }} · {{ book.dynasty }}</text>
               <view class="rk-row-meta">
-                <text class="rk-row-cat">
-                  {{ book.category }}
-                </text>
+                <text class="rk-row-cat">{{ book.category }}</text>
                 <view class="rk-row-stat">
-                  <AppIcon
-                    name="eye"
-                    :size="24"
-                    color="#b3b3b3"
-                  />
+                  <AppIcon name="eye" :size="24" color="#b3b3b3" />
                   <text>{{ book.views }}</text>
                 </view>
                 <view class="rk-row-stat">
-                  <AppIcon
-                    name="star"
-                    :size="24"
-                    color="#fbbf24"
-                    :fill="true"
-                  />
+                  <AppIcon name="star" :size="24" color="#fbbf24" fill="#fbbf24" />
                   <text>{{ book.rating }}</text>
                 </view>
               </view>

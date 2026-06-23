@@ -1,135 +1,49 @@
 <template>
-  <view v-if="isLoading" class="smp-page">
-    <view style="padding: 24rpx;">
-      <AppSkeleton width="100%" height="88rpx" radius="0" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="160rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="200rpx" radius="24rpx" mb="24rpx" />
-      <AppSkeleton width="100%" height="140rpx" radius="24rpx" />
-    </view>
-  </view>
-  <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无数据" />
-  <view v-else class="smp-page">
+  <view class="smp-page">
     <!-- 顶部导航 -->
-    <app-nav-bar
-      title="分站管理"
-      :show-back="true"
-      background="#C41E3A"
-      color="#ffffff"
-      :no-border="true"
-    >
+    <app-nav-bar title="分站管理" :show-back="true" background="#C41E3A" color="#ffffff" :no-border="true">
       <template #right>
-        <view
-          class="smp-nav-bell"
-          @tap="goNotices"
-        >
-          <app-icon
-            name="bell"
-            :size="40"
-            color="#ffffff"
-          />
-          <view
-            v-if="unreadNotices > 0"
-            class="smp-nav-dot"
-          />
+        <view class="smp-nav-bell" @tap="goNotices">
+          <app-icon name="bell" :size="40" color="#ffffff" />
+          <view v-if="unreadNotices > 0" class="smp-nav-dot" />
         </view>
       </template>
     </app-nav-bar>
 
-    <scroll-view
-      scroll-y
-      class="smp-scroll"
-    >
+    <scroll-view scroll-y class="smp-scroll">
       <!-- 分站信息卡 -->
       <view class="smp-info">
         <view class="smp-info-top">
-          <view class="smp-info-icon">
-            <app-icon
-              name="store"
-              :size="48"
-              color="#ffffff"
-            />
-          </view>
+          <view class="smp-info-icon"><app-icon name="store" :size="48" color="#ffffff" /></view>
           <view class="smp-info-main">
             <view class="smp-info-name-row">
-              <text class="smp-info-name">
-                {{ stationPanelInfo.name }}
-              </text>
-              <view class="smp-info-level">
-                <app-icon
-                  name="crown"
-                  :size="22"
-                  color="#C41E3A"
-                /><text class="smp-info-level-txt">
-                  {{ stationPanelInfo.levelName }}
-                </text>
-              </view>
+              <text class="smp-info-name">{{ stationPanelInfo.name }}</text>
+              <view class="smp-info-level"><app-icon name="crown" :size="22" color="#C41E3A" /><text class="smp-info-level-txt">{{ stationPanelInfo.levelName }}</text></view>
             </view>
-            <text class="smp-info-meta">
-              创建于 {{ stationPanelInfo.createTime }} · 有效期至 {{ stationPanelInfo.expireTime }}
-            </text>
+            <text class="smp-info-meta">创建于 {{ stationPanelInfo.createTime }} · 有效期至 {{ stationPanelInfo.expireTime }}</text>
           </view>
         </view>
         <view class="smp-info-status">
-          <view
-            class="smp-status-dot"
-            :class="stationPanelInfo.status"
-          />
-          <text class="smp-status-txt">
-            {{ statusLabel }}
-          </text>
-          <view
-            class="smp-info-renew"
-            @tap="goRenew"
-          >
-            <text class="smp-renew-txt">
-              续费
-            </text>
-          </view>
+          <view class="smp-status-dot" :class="stationPanelInfo.status" />
+          <text class="smp-status-txt">{{ statusLabel }}</text>
+          <view class="smp-info-renew" @tap="goRenew"><text class="smp-renew-txt">续费</text></view>
         </view>
       </view>
 
       <!-- 数据概览 -->
       <view class="smp-card">
-        <text class="smp-card-title">
-          数据概览
-        </text>
+        <text class="smp-card-title">数据概览</text>
         <view class="smp-ov-grid">
-          <view
-            v-for="(item, i) in stationPanelOverview"
-            :key="i"
-            class="smp-ov-item"
-          >
+          <view v-for="(item, i) in stationPanelOverview" :key="i" class="smp-ov-item">
             <view class="smp-ov-head">
-              <app-icon
-                :name="stationOverviewIconMap[item.icon || 'users']"
-                :size="32"
-                color="#C41E3A"
-              />
-              <view
-                v-if="item.trendType !== 'flat'"
-                class="smp-ov-trend"
-                :class="item.trendType"
-              >
-                <app-icon
-                  :name="item.trendType === 'up' ? 'trending-up' : 'trending-down'"
-                  :size="22"
-                  :color="item.trendType === 'up' ? '#16a34a' : '#dc2626'"
-                />
-                <text class="smp-ov-trend-txt">
-                  {{ Math.abs(item.trend || 0) }}%
-                </text>
+              <app-icon :name="stationOverviewIconMap[item.icon || 'users']" :size="32" color="#C41E3A" />
+              <view v-if="item.trendType !== 'flat'" class="smp-ov-trend" :class="item.trendType">
+                <app-icon :name="item.trendType === 'up' ? 'trending-up' : 'trending-down'" :size="22" :color="item.trendType === 'up' ? '#16a34a' : '#dc2626'" />
+                <text class="smp-ov-trend-txt">{{ Math.abs(item.trend || 0) }}%</text>
               </view>
             </view>
-            <text class="smp-ov-value">
-              {{ formatNum(item.value) }}<text class="smp-ov-unit">
-                {{ item.unit }}
-              </text>
-            </text>
-            <text class="smp-ov-label">
-              {{ item.label }}
-            </text>
+            <text class="smp-ov-value">{{ formatNum(item.value) }}<text class="smp-ov-unit">{{ item.unit }}</text></text>
+            <text class="smp-ov-label">{{ item.label }}</text>
           </view>
         </view>
       </view>
@@ -137,163 +51,71 @@
       <!-- 收益余额 -->
       <view class="smp-card">
         <view class="smp-balance-head">
-          <text class="smp-card-title">
-            收益余额
-          </text>
-          <view
-            class="smp-balance-detail"
-            @tap="goEarnings"
-          >
-            <text class="smp-balance-detail-txt">
-              明细
-            </text><app-icon
-              name="chevron-right"
-              :size="24"
-              color="#999"
-            />
-          </view>
+          <text class="smp-card-title">收益余额</text>
+          <view class="smp-balance-detail" @tap="goEarnings"><text class="smp-balance-detail-txt">明细</text><app-icon name="chevron-right" :size="24" color="#999" /></view>
         </view>
         <view class="smp-balance-grid">
           <view class="smp-bal-item">
-            <text class="smp-bal-value primary">
-              ¥{{ formatNum(stationPanelBalance.available) }}
-            </text>
-            <text class="smp-bal-label">
-              可提现
-            </text>
+            <text class="smp-bal-value primary">¥{{ formatNum(stationPanelBalance.available) }}</text>
+            <text class="smp-bal-label">可提现</text>
           </view>
           <view class="smp-bal-item">
-            <text class="smp-bal-value">
-              ¥{{ formatNum(stationPanelBalance.pending) }}
-            </text>
-            <text class="smp-bal-label">
-              待结算
-            </text>
+            <text class="smp-bal-value">¥{{ formatNum(stationPanelBalance.pending) }}</text>
+            <text class="smp-bal-label">待结算</text>
           </view>
           <view class="smp-bal-item">
-            <text class="smp-bal-value">
-              ¥{{ formatNum(stationPanelBalance.withdrawn) }}
-            </text>
-            <text class="smp-bal-label">
-              已提现
-            </text>
+            <text class="smp-bal-value">¥{{ formatNum(stationPanelBalance.withdrawn) }}</text>
+            <text class="smp-bal-label">已提现</text>
           </view>
           <view class="smp-bal-item">
-            <text class="smp-bal-value">
-              ¥{{ formatNum(stationPanelBalance.frozen) }}
-            </text>
-            <text class="smp-bal-label">
-              冻结中
-            </text>
+            <text class="smp-bal-value">¥{{ formatNum(stationPanelBalance.frozen) }}</text>
+            <text class="smp-bal-label">冻结中</text>
           </view>
         </view>
-        <view
-          class="smp-withdraw-btn"
-          @tap="goWithdraw"
-        >
-          <text class="smp-withdraw-txt">
-            立即提现
-          </text>
-        </view>
+        <view class="smp-withdraw-btn" @tap="goWithdraw"><text class="smp-withdraw-txt">立即提现</text></view>
       </view>
 
       <!-- 趋势图 -->
       <view class="smp-card">
         <view class="smp-trend-head">
           <view class="smp-trend-tabs">
-            <view
-              v-for="(t, i) in stationPanelTrends"
-              :key="i"
-              class="smp-trend-tab"
-              :class="{ active: trendIndex === i }"
-              @tap="trendIndex = i"
-            >
-              <text class="smp-trend-tab-txt">
-                {{ trendTypeLabel(t.type) }}
-              </text>
+            <view v-for="(t, i) in stationPanelTrends" :key="i" class="smp-trend-tab" :class="{ active: trendIndex === i }" @tap="trendIndex = i">
+              <text class="smp-trend-tab-txt">{{ trendTypeLabel(t.type) }}</text>
             </view>
           </view>
           <view class="smp-trend-tabs">
-            <view
-              v-for="p in (['week', 'month'] as const)"
-              :key="p"
-              class="smp-trend-tab"
-              :class="{ active: trendPeriod === p }"
-              @tap="trendPeriod = p"
-            >
-              <text class="smp-trend-tab-txt">
-                {{ p === 'month' ? '本月' : '本周' }}
-              </text>
+            <view v-for="p in ['week', 'month']" :key="p" class="smp-trend-tab" :class="{ active: trendPeriod === p }" @tap="trendPeriod = p">
+              <text class="smp-trend-tab-txt">{{ p === 'week' ? '本周' : '本月' }}</text>
             </view>
           </view>
         </view>
         <view class="smp-trend-summary">
-          <text class="smp-trend-total">
-            {{ activeTrend.type === 'revenue' ? '¥' : '' }}{{ formatNum(activeTrend.total) }}
-          </text>
-          <view
-            class="smp-trend-change"
-            :class="activeTrend.change >= 0 ? 'up' : 'down'"
-          >
-            <app-icon
-              :name="activeTrend.change >= 0 ? 'trending-up' : 'trending-down'"
-              :size="22"
-              :color="activeTrend.change >= 0 ? '#16a34a' : '#dc2626'"
-            />
-            <text class="smp-trend-change-txt">
-              {{ Math.abs(activeTrend.change) }}%
-            </text>
+          <text class="smp-trend-total">{{ activeTrend.type === 'revenue' ? '¥' : '' }}{{ formatNum(activeTrend.total) }}</text>
+          <view class="smp-trend-change" :class="activeTrend.change >= 0 ? 'up' : 'down'">
+            <app-icon :name="activeTrend.change >= 0 ? 'trending-up' : 'trending-down'" :size="22" :color="activeTrend.change >= 0 ? '#16a34a' : '#dc2626'" />
+            <text class="smp-trend-change-txt">{{ Math.abs(activeTrend.change) }}%</text>
           </view>
         </view>
         <view class="smp-chart">
-          <view
-            v-for="(p, i) in activeTrend.data"
-            :key="i"
-            class="smp-bar-col"
-          >
+          <view v-for="(p, i) in activeTrend.data" :key="i" class="smp-bar-col">
             <view class="smp-bar-wrap">
-              <view
-                class="smp-bar"
-                :style="{ height: barHeight(p.value) + '%' }"
-              />
+              <view class="smp-bar" :style="{ height: barHeight(p.value) + '%' }" />
             </view>
-            <text class="smp-bar-date">
-              {{ p.date }}
-            </text>
+            <text class="smp-bar-date">{{ p.date }}</text>
           </view>
         </view>
       </view>
 
       <!-- 快捷功能 -->
       <view class="smp-card">
-        <text class="smp-card-title">
-          快捷功能
-        </text>
+        <text class="smp-card-title">快捷功能</text>
         <view class="smp-qa-grid">
-          <view
-            v-for="qa in stationPanelQuickActions"
-            :key="qa.id"
-            class="smp-qa-item"
-            @tap="goAction(qa)"
-          >
+          <view v-for="qa in stationPanelQuickActions" :key="qa.id" class="smp-qa-item" @tap="goAction(qa)">
             <view class="smp-qa-icon">
-              <app-icon
-                :name="stationActionIconMap[qa.icon] || 'help-circle'"
-                :size="40"
-                color="#C41E3A"
-              />
-              <view
-                v-if="qa.badge"
-                class="smp-qa-badge"
-              >
-                <text class="smp-qa-badge-txt">
-                  {{ qa.badge }}
-                </text>
-              </view>
+              <app-icon :name="stationActionIconMap[qa.icon] || 'help-circle'" :size="40" color="#C41E3A" />
+              <view v-if="qa.badge" class="smp-qa-badge"><text class="smp-qa-badge-txt">{{ qa.badge }}</text></view>
             </view>
-            <text class="smp-qa-label">
-              {{ qa.label }}
-            </text>
+            <text class="smp-qa-label">{{ qa.label }}</text>
           </view>
         </view>
       </view>
@@ -301,44 +123,16 @@
       <!-- 最新通知 -->
       <view class="smp-card">
         <view class="smp-notice-head">
-          <text class="smp-card-title">
-            最新通知
-          </text>
-          <view
-            class="smp-notice-more"
-            @tap="goNotices"
-          >
-            <text class="smp-notice-more-txt">
-              查看全部
-            </text><app-icon
-              name="chevron-right"
-              :size="24"
-              color="#999"
-            />
-          </view>
+          <text class="smp-card-title">最新通知</text>
+          <view class="smp-notice-more" @tap="goNotices"><text class="smp-notice-more-txt">查看全部</text><app-icon name="chevron-right" :size="24" color="#999" /></view>
         </view>
-        <view
-          v-for="n in stationPanelNotices"
-          :key="n.id"
-          class="smp-notice-item"
-        >
-          <view
-            class="smp-notice-icon"
-            :class="n.type"
-          >
-            <app-icon
-              :name="noticeIcon(n.type)"
-              :size="28"
-              :color="noticeColor(n.type)"
-            />
+        <view v-for="n in stationPanelNotices" :key="n.id" class="smp-notice-item">
+          <view class="smp-notice-icon" :class="n.type">
+            <app-icon :name="noticeIcon(n.type)" :size="28" :color="noticeColor(n.type)" />
           </view>
           <view class="smp-notice-body">
-            <text class="smp-notice-title">
-              {{ n.title }}
-            </text>
-            <text class="smp-notice-time">
-              {{ n.createdAt }}
-            </text>
+            <text class="smp-notice-title">{{ n.title }}</text>
+            <text class="smp-notice-time">{{ n.createdAt }}</text>
           </view>
         </view>
       </view>
@@ -352,48 +146,28 @@
 import { ref, computed } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AppSkeleton from '@/components/common/app-skeleton.vue'
-import AppError from '@/components/common/app-error.vue'
-import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
-import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  stationPanelInfo as _stationPanelInfo,
-  stationPanelOverview as _stationPanelOverview,
+  stationPanelInfo,
+  stationPanelOverview,
   stationOverviewIconMap,
-  stationPanelTrends as _stationPanelTrends,
-  stationPanelBalance as _stationPanelBalance,
-  stationPanelQuickActions as _stationPanelQuickActions,
+  stationPanelTrends,
+  stationPanelBalance,
+  stationPanelQuickActions,
   stationActionIconMap,
-  stationPanelNotices as _stationPanelNotices,
+  stationPanelNotices,
   type StationPanelQuickAction,
-  type StationOverviewItem,
-  type StationTrendData,
-  type StationNotice,
 } from '@/lib/operator-data'
-
-const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { info: _stationPanelInfo, overview: _stationPanelOverview, trends: _stationPanelTrends, balance: _stationPanelBalance, quickActions: _stationPanelQuickActions, notices: _stationPanelNotices }
-})
-
-const isEmpty = computed(() => !pageData.value?.info)
-
-const stationPanelInfo = computed(() => pageData.value?.info ?? { id: 0, name: '', level: 0, levelName: '', createTime: '', expireTime: '', status: 'active' as 'active' | 'expired' | 'paused' })
-const stationPanelOverview = computed<StationOverviewItem[]>(() => pageData.value?.overview ?? [])
-const stationPanelTrends = computed<StationTrendData[]>(() => pageData.value?.trends ?? [])
-const stationPanelBalance = computed(() => pageData.value?.balance ?? { available: 0, pending: 0, withdrawn: 0, frozen: 0 })
-const stationPanelQuickActions = computed<StationPanelQuickAction[]>(() => pageData.value?.quickActions ?? [])
-const stationPanelNotices = computed<StationNotice[]>(() => pageData.value?.notices ?? [])
 
 const trendIndex = ref(0)
 const trendPeriod = ref<'week' | 'month'>('week')
-const activeTrend = computed(() => stationPanelTrends.value[trendIndex.value])
+const activeTrend = computed(() => stationPanelTrends[trendIndex.value])
 function trendTypeLabel(type: string) { return type === 'revenue' ? '收益' : '订单' }
-const unreadNotices = computed(() => stationPanelNotices.value.filter((n) => n.type === 'warning').length)
+const unreadNotices = computed(() => stationPanelNotices.filter((n) => n.type === 'warning').length)
 
 const statusLabel = computed(() => {
   const map: Record<string, string> = { active: '运营中', expired: '已过期', paused: '已暂停' }
-  return map[stationPanelInfo.value.status] || '运营中'
+  return map[stationPanelInfo.status] || '运营中'
 })
 
 const maxTrendValue = computed(() => Math.max(...activeTrend.value.data.map((p) => p.value)))

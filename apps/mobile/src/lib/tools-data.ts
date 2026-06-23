@@ -3,8 +3,6 @@
  * href 保持原型路径风格，路由跳转时由 utils/router 统一处理（详见路由表）。
  * 未开发工具统一指向 coming-soon 占位页。
  */
-import { apiGet, useMock } from '@/utils/request'
-
 export interface Tool { id: string; name: string; iconId: string; href: string; badge?: boolean }
 export interface MedicalTool { id: string; name: string; iconId: string; href: string; badge?: boolean }
 export interface Agent { id: string; name: string; description: string; avatar: string; href: string }
@@ -15,11 +13,11 @@ export const tools: Tool[] = [
   { id: 'bazi-analysis', name: '八字解析', iconId: 'bazi-analysis', href: '/paipan/tools/coming-soon?name=八字解析', badge: true },
   { id: 'qimen', name: '奇门遁甲', iconId: 'qimen', href: '/paipan/qimen' },
   { id: 'yinqimen', name: '阴盘奇门', iconId: 'yinqimen', href: '/paipan/tools/coming-soon?name=阴盘奇门' },
-  { id: 'liuyao', name: '六爻排盘', iconId: 'liuyao', href: '/paipan/liuyao' },
+  { id: 'liuyao', name: '六爻排盘', iconId: 'liuyao', href: '/paipan/tools/coming-soon?name=六爻排盘' },
   { id: 'meihua', name: '梅花易数', iconId: 'meihua', href: '/paipan/tools/coming-soon?name=梅花易数' },
   { id: 'yangming', name: '阳盘命理', iconId: 'yangming', href: '/paipan/yangpan' },
   { id: 'mingli-qimen', name: '命理奇门', iconId: 'mingli-qimen', href: '/paipan/tools/coming-soon?name=命理奇门' },
-  { id: 'ziwei', name: '紫微斗数', iconId: 'ziwei', href: '/paipan/ziwei' },
+  { id: 'ziwei', name: '紫微斗数', iconId: 'ziwei', href: '/paipan/tools/coming-soon?name=紫微斗数' },
   { id: 'daliuren', name: '大六壬', iconId: 'daliuren', href: '/paipan/tools/coming-soon?name=大六壬' },
   { id: 'xiaoliuren', name: '小六壬', iconId: 'xiaoliuren', href: '/paipan/tools/coming-soon?name=小六壬' },
   { id: 'jinkoujue', name: '金口诀', iconId: 'jinkoujue', href: '/paipan/tools/coming-soon?name=金口诀' },
@@ -91,33 +89,4 @@ export const AGENT_AVATAR_GRADIENT: Record<string, [string, string]> = {
   ziwei: ['#06b6d4', '#0284c7'],    // cyan-500 -> sky-600
   fengshui: ['#84cc16', '#16a34a'], // lime-500 -> green-600
   naming: ['#d946ef', '#9333ea'],   // fuchsia-500 -> purple-600
-}
-
-// ───────── API 层 ─────────
-
-/** 后端返回的工具格式 → 前端 Tool 格式的字段映射 */
-function mapBackendTool(b: { id: string; name: string; icon?: string; route?: string; desc?: string }): Tool {
-  return {
-    id: b.id,
-    name: b.name,
-    iconId: b.icon || b.id,
-    href: (b.route || '/paipan/' + b.id).replace('/fortune/', '/paipan/'),
-  }
-}
-
-export const toolsApi = {
-  /** 获取排盘工具列表 */
-  async list(): Promise<Tool[]> {
-    if (useMock()) return tools
-    try {
-      const res = await apiGet<{ tools: Array<{ id: string; name: string; icon?: string; route?: string; desc?: string }> }>('/fortune/tools')
-      return (res.tools || []).map(mapBackendTool)
-    } catch { return tools }
-  },
-
-  /** 获取引导卡数据 */
-  async getGuideCard(): Promise<any> {
-    if (useMock()) return { fortune: null, tools: [] }
-    try { return await apiGet('/fortune/guide-card') } catch { return { fortune: null, tools: [] } }
-  },
 }
