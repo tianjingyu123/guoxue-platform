@@ -2,11 +2,12 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 
 const status = ref<'pending' | 'completed'>('pending')
 const expireAt = ref('')
-const cancelling = ref(false)
 const showCancelDialog = ref(false)
+const { submitting, withLock } = useSubmitLock()
 const countdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -55,12 +56,12 @@ function goBack() {
   uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/index/index' }) })
 }
 function confirmCancel() {
-  cancelling.value = true
-  setTimeout(() => {
-    cancelling.value = false
+  if (submitting.value) return
+  withLock(async () => {
+    await new Promise((r) => setTimeout(r, 1500))
     showCancelDialog.value = false
     uni.reLaunch({ url: '/pkg-mine/settings/index' })
-  }, 1500)
+  })
 }
 function goHome() {
   uni.reLaunch({ url: '/pages/index/index' })
@@ -264,10 +265,11 @@ function goCustomerService() {
           </view>
           <view
             class="dialog-ok"
+            :class="{ disabled: submitting }"
             @tap="confirmCancel"
           >
             <text class="dialog-ok-text">
-              {{ cancelling ? '处理中...' : '确定撤销' }}
+              {{ submitting ? '处理中...' : '确定撤销' }}
             </text>
           </view>
         </view>
@@ -428,5 +430,6 @@ function goCustomerService() {
 .dialog-cancel { flex: 1; height: 88rpx; background: #f2ece1; border-radius: 24rpx; display: flex; align-items: center; justify-content: center; }
 .dialog-cancel-text { font-size: 30rpx; font-weight: 500; color: #2c2c2c; }
 .dialog-ok { flex: 1; height: 88rpx; background: #22c55e; border-radius: 24rpx; display: flex; align-items: center; justify-content: center; }
+.dialog-ok.disabled { opacity: 0.5; }
 .dialog-ok-text { font-size: 30rpx; font-weight: 500; color: #fff; }
 </style>

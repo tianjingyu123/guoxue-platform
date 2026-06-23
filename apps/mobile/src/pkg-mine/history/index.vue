@@ -6,6 +6,7 @@ import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { goBack } from '@/utils/router'
 import { useAsyncData } from '@/composables/useAsyncData'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import {
   historyGroups as _seedGroups,
   historyTypeConfig,
@@ -28,6 +29,7 @@ watch(() => pageData.value?.groups, (val) => {
 }, { immediate: true })
 const showClearConfirm = ref(false)
 const activeId = ref<string | null>(null)
+const { submitting, withLock } = useSubmitLock()
 
 const totalCount = computed(() => groups.value.reduce((s, g) => s + g.items.length, 0))
 
@@ -51,14 +53,20 @@ function onTouchEnd(_id: string) {
   // 状态在 move 中已确定
 }
 function deleteItem(id: string) {
-  groups.value = groups.value
-    .map((g) => ({ ...g, items: g.items.filter((i) => i.id !== id) }))
-    .filter((g) => g.items.length > 0)
-  activeId.value = null
+  if (submitting.value) return
+  withLock(async () => {
+    groups.value = groups.value
+      .map((g) => ({ ...g, items: g.items.filter((i) => i.id !== id) }))
+      .filter((g) => g.items.length > 0)
+    activeId.value = null
+  })
 }
 function clearAll() {
-  groups.value = []
-  showClearConfirm.value = false
+  if (submitting.value) return
+  withLock(async () => {
+    groups.value = []
+    showClearConfirm.value = false
+  })
 }
 function formatProgress(item: HistoryItem) {
   if (item.progress === undefined || !item.duration) return ''
@@ -314,10 +322,11 @@ function openItem() {
           </view>
           <view
             class="dialog-btn solid"
+            :class="{ disabled: submitting }"
             @tap="clearAll"
           >
             <text class="dialog-btn-text solid-text">
-              清空
+              {{ submitting ? '清空中...' : '清空' }}
             </text>
           </view>
         </view>
@@ -378,6 +387,7 @@ function openItem() {
 .dialog-btn { flex: 1; height: 84rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
 .dialog-btn.ghost { background: #F2ECE1; }
 .dialog-btn.solid { background: #C41E3A; }
+.dialog-btn.solid.disabled { opacity: 0.5; }
 .dialog-btn-text { font-size: 28rpx; color: #2C2C2C; font-weight: 500; }
 .solid-text { color: #fff; }
 </style>

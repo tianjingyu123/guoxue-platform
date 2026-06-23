@@ -8,7 +8,7 @@
     </view>
   </view>
   <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无订单" />
+  <AppEmpty v-else-if="isEmpty" title="暂无订单" desc="您还没有任何订单记录" actionText="去逛逛" @action="goShop" />
   <view v-else class="center">
     <!-- 头部 -->
     <view
@@ -266,6 +266,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
+import { navigateTo } from '@/utils/router'
 import { useAsyncData } from '@/composables/useAsyncData'
 import {
   mockUnifiedOrders as _mockUnifiedOrders, orderCategories as _orderCategories, unifiedStatusConfig as _unifiedStatusConfig, categoryColorMap as _categoryColorMap,
@@ -305,6 +306,7 @@ function catColor(c: OrderCategory) { return categoryColorMap.value[c] }
 function catIcon(c: OrderCategory) { return categories.value.find((x) => x.key === c)?.icon || 'package' }
 function catLabel(c: OrderCategory) { return categories.value.find((x) => x.key === c)?.label || '' }
 function isExpired(date: string) { return new Date(date).getTime() < Date.now() }
+function goShop() { navigateTo('/shop') }
 </script>
 
 <style lang="scss" scoped>

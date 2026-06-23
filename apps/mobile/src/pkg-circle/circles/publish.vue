@@ -9,6 +9,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import VisibilitySettings, { type Visibility, type PaymentType } from '@/components/circle/visibility-settings.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import { circleDetailApi } from '@/lib/circle-detail-data'
 
 const circleId = ref('1')
@@ -37,7 +38,7 @@ const a = reactive({
   price: 0,
 })
 const aErr = reactive<{ title?: string; content?: string; price?: string }>({})
-const aSubmitting = ref(false)
+const { submitting, withLock } = useSubmitLock()
 
 function uploadCover(target: 'a' | 'c') {
   uni.chooseImage({
@@ -50,21 +51,20 @@ function uploadCover(target: 'a' | 'c') {
   })
 }
 
-async function submitArticle() {
+function submitArticle() {
   aErr.title = a.title.trim() ? '' : '请输入文章标题'
   aErr.content = a.content.trim() ? '' : '请输入文章内容'
   aErr.price = (a.paymentType !== 'free' && a.price <= 0) ? '请设置价格' : ''
-  if (aErr.title || aErr.content || aErr.price) return
-  if (aSubmitting.value) return
-  aSubmitting.value = true
-  const res = await circleDetailApi.publishPost(circleId.value, { content: a.content, images: a.cover ? [a.cover] : [], type: 'TEXT' })
-  aSubmitting.value = false
-  if (res.success) {
-    uni.showToast({ title: '发布成功', icon: 'success' })
-    setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
-  } else {
-    uni.showToast({ title: res.message || '发布失败', icon: 'none' })
-  }
+  if (aErr.title || aErr.content || aErr.price || submitting.value) return
+  withLock(async () => {
+    const res = await circleDetailApi.publishPost(circleId.value, { content: a.content, images: a.cover ? [a.cover] : [], type: 'TEXT' })
+    if (res.success) {
+      uni.showToast({ title: '发布成功', icon: 'success' })
+      setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
+    } else {
+      uni.showToast({ title: res.message || '发布失败', icon: 'none' })
+    }
+  })
 }
 
 // ─── 课程表单 ───
@@ -76,7 +76,6 @@ const c = reactive({
   price: 99,
 })
 const cErr = reactive<{ title?: string; description?: string; price?: string }>({})
-const cSubmitting = ref(false)
 const avUnlocked = ref(false) // 音视频课程高级功能未开通
 
 function selectAV() {
@@ -89,21 +88,20 @@ function selectAV() {
   })
 }
 
-async function submitCourse() {
+function submitCourse() {
   cErr.title = c.title.trim() ? '' : '请输入课程名称'
   cErr.description = c.description.trim() ? '' : '请输入课程简介'
   cErr.price = (c.paymentType !== 'free' && c.price <= 0) ? '请设置价格' : ''
-  if (cErr.title || cErr.description || cErr.price) return
-  if (cSubmitting.value) return
-  cSubmitting.value = true
-  const res = await circleDetailApi.publishPost(circleId.value, { content: c.description, images: c.cover ? [c.cover] : [], type: 'TEXT' })
-  cSubmitting.value = false
-  if (res.success) {
-    uni.showToast({ title: '创建成功', icon: 'success' })
-    setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
-  } else {
-    uni.showToast({ title: res.message || '创建失败', icon: 'none' })
-  }
+  if (cErr.title || cErr.description || cErr.price || submitting.value) return
+  withLock(async () => {
+    const res = await circleDetailApi.publishPost(circleId.value, { content: c.description, images: c.cover ? [c.cover] : [], type: 'TEXT' })
+    if (res.success) {
+      uni.showToast({ title: '创建成功', icon: 'success' })
+      setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
+    } else {
+      uni.showToast({ title: res.message || '创建失败', icon: 'none' })
+    }
+  })
 }
 </script>
 
@@ -314,11 +312,11 @@ async function submitCourse() {
 
         <view
           class="cr-submit"
-          :class="{ disabled: aSubmitting }"
+          :class="{ disabled: submitting }"
           @tap="submitArticle"
         >
           <text class="cr-submit-t">
-            {{ aSubmitting ? '发布中...' : '发布文章' }}
+            {{ submitting ? '发布中...' : '发布文章' }}
           </text>
         </view>
       </view>
@@ -520,11 +518,11 @@ async function submitCourse() {
 
         <view
           class="cr-submit"
-          :class="{ disabled: cSubmitting }"
+          :class="{ disabled: submitting }"
           @tap="submitCourse"
         >
           <text class="cr-submit-t">
-            {{ cSubmitting ? '创建中...' : '创建课程' }}
+            {{ submitting ? '创建中...' : '创建课程' }}
           </text>
         </view>
       </view>

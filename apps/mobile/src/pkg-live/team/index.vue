@@ -548,9 +548,10 @@
           <view
             v-if="selectedMember && !selectedMember.hasActiveLive"
             class="dlg-btn dlg-btn-danger"
+            :class="{ disabled: submitting }"
             @tap="confirmRemove"
           >
-            确认移除
+            {{ submitting ? '移除中...' : '确认移除' }}
           </view>
         </view>
       </view>
@@ -563,6 +564,7 @@ import { ref, computed } from 'vue'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import {
   teamMembers, teamAvailableMembers, teamRoleConfig, teamPermissions,
   type TeamMember, type TeamRole,
@@ -588,6 +590,7 @@ const selectedMember = ref<TeamMember | null>(null)
 const addSearchQuery = ref('')
 const selectedRole = ref('cohost')
 const openMenuId = ref<number | null>(null)
+const { submitting, withLock } = useSubmitLock()
 
 const tabs = [
   { key: 'all', label: '全部' },
@@ -630,10 +633,12 @@ function openRemove(member: TeamMember) {
   openMenuId.value = null
 }
 function confirmRemove() {
-  if (selectedMember.value?.hasActiveLive) return
-  console.log('[v0] 移除成员', selectedMember.value?.id)
-  showRemoveDialog.value = false
-  selectedMember.value = null
+  if (selectedMember.value?.hasActiveLive || submitting.value) return
+  withLock(async () => {
+    console.log('[v0] 移除成员', selectedMember.value?.id)
+    showRemoveDialog.value = false
+    selectedMember.value = null
+  })
 }
 function goBack() {
   uni.navigateBack()
@@ -1175,6 +1180,9 @@ function goBack() {
 .dlg-btn-danger {
   background: #ef4444;
   color: #fff;
+}
+.dlg-btn-danger.disabled {
+  opacity: 0.5;
 }
 
 /* 编辑 */

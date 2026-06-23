@@ -5,6 +5,7 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import {
   myComments as _myComments,
   commentTypeNames,
@@ -28,6 +29,7 @@ watch(() => pageData.value?.comments, (val) => {
 const isEditMode = ref(false)
 const selectedIds = ref<number[]>([])
 const activeId = ref<number | null>(null)
+const { submitting, withLock } = useSubmitLock()
 
 function toggleEdit() {
   isEditMode.value = !isEditMode.value
@@ -47,16 +49,21 @@ function toggleActive(id: number) {
   activeId.value = activeId.value === id ? null : id
 }
 function deleteOne(id: number) {
-  list.value = list.value.filter((c) => c.id !== id)
-  activeId.value = null
-  uni.showToast({ title: '已删除', icon: 'none' })
+  if (submitting.value) return
+  withLock(async () => {
+    list.value = list.value.filter((c) => c.id !== id)
+    activeId.value = null
+    uni.showToast({ title: '已删除', icon: 'none' })
+  })
 }
 function batchDelete() {
-  if (selectedIds.value.length === 0) return
-  list.value = list.value.filter((c) => !selectedIds.value.includes(c.id))
-  selectedIds.value = []
-  isEditMode.value = false
-  uni.showToast({ title: '已删除', icon: 'none' })
+  if (selectedIds.value.length === 0 || submitting.value) return
+  withLock(async () => {
+    list.value = list.value.filter((c) => !selectedIds.value.includes(c.id))
+    selectedIds.value = []
+    isEditMode.value = false
+    uni.showToast({ title: '已删除', icon: 'none' })
+  })
 }
 function openTarget() {
   uni.showToast({ title: '内容详情开发中', icon: 'none' })
@@ -260,7 +267,7 @@ function openTarget() {
       </text>
       <view
         class="batch-del"
-        :class="{ disabled: selectedIds.length === 0 }"
+        :class="{ disabled: selectedIds.length === 0 || submitting }"
         @tap="batchDelete"
       >
         <AppIcon
@@ -269,7 +276,7 @@ function openTarget() {
           color="#fff"
         />
         <text class="batch-del-text">
-          删除 ({{ selectedIds.length }})
+          {{ submitting ? '删除中...' : `删除 (${selectedIds.length})` }}
         </text>
       </view>
     </view>

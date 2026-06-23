@@ -2,10 +2,11 @@
 import { ref, reactive, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import { defaultTeenModeSettings, teenTimeLimitOptions, teenFilterLevels, type TeenModeSettings } from '@/lib/mine-data'
 
 const settings = reactive<TeenModeSettings>({ ...defaultTeenModeSettings })
-const saving = ref(false)
+const { submitting, withLock } = useSubmitLock()
 
 // 弹窗状态
 const pwdModal = ref(false)
@@ -86,14 +87,16 @@ function openModifyPwd() {
 }
 
 function doReset() {
-  if (idCard.value.length !== 18) return
-  settings.hasPassword = false
-  resetModal.value = false
-  idCard.value = ''
-  pwdStep.value = 'set'
-  pwdSet.value = ''
-  pwdConfirm.value = ''
-  pwdModal.value = true
+  if (idCard.value.length !== 18 || submitting.value) return
+  withLock(async () => {
+    settings.hasPassword = false
+    resetModal.value = false
+    idCard.value = ''
+    pwdStep.value = 'set'
+    pwdSet.value = ''
+    pwdConfirm.value = ''
+    pwdModal.value = true
+  })
 }
 
 function pickTimeLimit(v: number) {
@@ -105,11 +108,11 @@ function pickFilter(v: 'strict' | 'moderate') {
   filterSheet.value = false
 }
 function save() {
-  saving.value = true
-  setTimeout(() => {
-    saving.value = false
+  if (submitting.value) return
+  withLock(async () => {
+    await new Promise((r) => setTimeout(r, 800))
     goBack()
-  }, 800)
+  })
 }
 </script>
 
@@ -385,11 +388,11 @@ function save() {
     <view class="footer-bar">
       <view
         class="btn-save"
-        :class="{ disabled: saving }"
+        :class="{ disabled: submitting }"
         @tap="save"
       >
         <text class="btn-save-text">
-          {{ saving ? '保存中...' : '保存设置' }}
+          {{ submitting ? '保存中...' : '保存设置' }}
         </text>
       </view>
     </view>
@@ -532,11 +535,11 @@ function save() {
           </view>
           <view
             class="modal-btn solid"
-            :class="{ disabled: idCard.length !== 18 }"
+            :class="{ disabled: idCard.length !== 18 || submitting }"
             @tap="doReset"
           >
             <text class="modal-btn-text solid-text">
-              验证并重置
+              {{ submitting ? '验证中...' : '验证并重置' }}
             </text>
           </view>
         </view>

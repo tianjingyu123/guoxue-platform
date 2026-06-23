@@ -7,7 +7,7 @@
     </view>
   </view>
   <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无物流信息" />
+  <AppEmpty v-else-if="isEmpty" title="暂无物流信息" desc="未找到相关物流记录" actionText="查看订单" @action="goOrders" />
   <view v-else class="page">
     <app-nav-bar
       title="物流详情"
@@ -185,6 +185,7 @@ import { ref, computed } from 'vue'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
+import { navigateTo } from '@/utils/router'
 import { useAsyncData } from '@/composables/useAsyncData'
 import { mockLogistics as _mockLogistics, logisticsStatusMap as _logisticsStatusMap, type LogisticsDetail } from '@/lib/order-data'
 
@@ -218,6 +219,7 @@ function callCompany() {
 function callCourier() {
   if (data.value.courierPhone) uni.makePhoneCall({ phoneNumber: data.value.courierPhone })
 }
+function goOrders() { navigateTo('/orders') }
 </script>
 
 <style lang="scss" scoped>

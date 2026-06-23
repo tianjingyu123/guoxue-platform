@@ -8,7 +8,7 @@
     </view>
   </view>
   <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无订单" />
+  <AppEmpty v-else-if="isEmpty" title="订单不存在" desc="该订单可能已删除或链接无效" actionText="返回列表" @action="goOrderList" />
   <view v-else class="detail">
     <!-- 顶部 -->
     <app-nav-bar
@@ -459,6 +459,7 @@ function goReview() { navigateTo(`/orders/${order.value.id}/review`) }
 function goAfterSale() { navigateTo(`/shop/after-sale?orderId=${order.value.id}`) }
 function goPay() { navigateTo(`/shop/paying?orderId=${order.value.id}`) }
 function goShop() { navigateTo('/shop') }
+function goOrderList() { navigateTo('/orders') }
 function toService() { navigateTo('/customer-service') }
 function confirmReceive() {
   withLock(async () => {

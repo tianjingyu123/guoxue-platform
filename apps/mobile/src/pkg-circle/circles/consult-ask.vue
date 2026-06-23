@@ -6,6 +6,7 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 
 interface QItem {
   id: string; title: string; content: string; asker: string; avatar: string
@@ -21,14 +22,17 @@ const questions = ref<QItem[]>([
 const showNew = ref(false)
 const newTitle = ref('')
 const newContent = ref('')
+const { submitting, withLock } = useSubmitLock()
 
 function postQuestion() {
-  if (newTitle.value.trim() && newContent.value.trim()) {
+  if ((!newTitle.value.trim() || !newContent.value.trim()) || submitting.value) return
+  withLock(async () => {
+    await new Promise((r) => setTimeout(r, 500))
     showNew.value = false
     newTitle.value = ''
     newContent.value = ''
     uni.showToast({ title: '问题已提交', icon: 'success' })
-  }
+  })
 }
 </script>
 
@@ -93,7 +97,7 @@ function postQuestion() {
           </view>
           <view
             class="ca-form-send"
-            :class="{ 'is-disabled': !newTitle.trim() || !newContent.trim() }"
+            :class="{ 'is-disabled': !newTitle.trim() || !newContent.trim() || submitting }"
             @tap="postQuestion"
           >
             <app-icon
@@ -102,7 +106,7 @@ function postQuestion() {
               color="#ffffff"
             />
             <text class="ca-form-send-t">
-              发送
+              {{ submitting ? '发送中...' : '发送' }}
             </text>
           </view>
         </view>

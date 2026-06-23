@@ -5,6 +5,7 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import {
   receivedComments as _receivedComments,
   commentTypeNames,
@@ -36,7 +37,7 @@ const isEmpty = computed(() => filtered.value.length === 0)
 const replyOpen = ref(false)
 const replying = ref<ReceivedCommentItem | null>(null)
 const replyContent = ref('')
-const sending = ref(false)
+const { submitting, withLock } = useSubmitLock()
 
 function openReply(c: ReceivedCommentItem) {
   replying.value = c
@@ -44,19 +45,18 @@ function openReply(c: ReceivedCommentItem) {
   replyOpen.value = true
 }
 function submitReply() {
-  if (!replying.value || !replyContent.value.trim()) return
-  sending.value = true
-  setTimeout(() => {
+  if (!replying.value || !replyContent.value.trim() || submitting.value) return
+  withLock(async () => {
+    await new Promise((r) => setTimeout(r, 500))
     const now = new Date().toISOString().slice(0, 16).replace('T', ' ')
     list.value = list.value.map((c) =>
       c.id === replying.value!.id
         ? { ...c, isReplied: true, myReply: { content: replyContent.value.trim(), createdAt: now } }
         : c,
     )
-    sending.value = false
     replyOpen.value = false
     uni.showToast({ title: '回复成功', icon: 'none' })
-  }, 500)
+  })
 }
 function openContent() {
   uni.showToast({ title: '内容详情开发中', icon: 'none' })
@@ -308,7 +308,7 @@ function openContent() {
           </view>
           <view
             class="dialog-btn solid"
-            :class="{ disabled: !replyContent.trim() || sending }"
+            :class="{ disabled: !replyContent.trim() || submitting }"
             @tap="submitReply"
           >
             <AppIcon
@@ -317,7 +317,7 @@ function openContent() {
               color="#fff"
             />
             <text class="dialog-btn-text solid-text">
-              {{ sending ? '发送中...' : '发送' }}
+              {{ submitting ? '发送中...' : '发送' }}
             </text>
           </view>
         </view>

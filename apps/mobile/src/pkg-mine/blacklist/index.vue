@@ -5,6 +5,7 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import { mineApi, type BlacklistItem, type SearchUserItem } from '@/lib/mine-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
@@ -27,22 +28,21 @@ const blacklistSearchPool = computed(() => pageData.value?.pool ?? [])
 // 移除确认
 const removeDialog = ref(false)
 const selected = ref<BlacklistItem | null>(null)
-const removing = ref(false)
+const { submitting, withLock } = useSubmitLock()
 
 function askRemove(u: BlacklistItem) {
   selected.value = u
   removeDialog.value = true
 }
 function confirmRemove() {
-  if (!selected.value) return
-  removing.value = true
-  setTimeout(() => {
+  if (!selected.value || submitting.value) return
+  withLock(async () => {
+    await new Promise((r) => setTimeout(r, 500))
     list.value = list.value.filter((u) => u.id !== selected.value!.id)
-    removing.value = false
     removeDialog.value = false
     selected.value = null
     uni.showToast({ title: '已移出黑名单', icon: 'none' })
-  }, 500)
+  })
 }
 
 // 添加黑名单
@@ -50,7 +50,6 @@ const addSheet = ref(false)
 const keyword = ref('')
 const searching = ref(false)
 const results = ref<SearchUserItem[]>([])
-const adding = ref<number | null>(null)
 
 watch(keyword, (kw) => {
   if (!kw.trim()) {
@@ -72,17 +71,16 @@ function openAdd() {
   results.value = []
 }
 function addToBlacklist(u: SearchUserItem) {
-  if (u.isBlocked) return
-  adding.value = u.id
-  setTimeout(() => {
+  if (u.isBlocked || submitting.value) return
+  withLock(async () => {
+    await new Promise((r) => setTimeout(r, 500))
     results.value = results.value.map((r) => (r.id === u.id ? { ...r, isBlocked: true } : r))
     list.value = [
       { id: Date.now(), userId: u.id, nickname: u.nickname, avatar: u.avatar, blockedAt: new Date().toISOString().slice(0, 10) },
       ...list.value,
     ]
-    adding.value = null
     uni.showToast({ title: '已加入黑名单', icon: 'none' })
-  }, 500)
+  })
 }
 
 const isEmpty = computed(() => list.value.length === 0)
@@ -217,10 +215,11 @@ const isEmpty = computed(() => list.value.length === 0)
           </view>
           <view
             class="dialog-btn solid"
+            :class="{ disabled: submitting }"
             @tap="confirmRemove"
           >
             <text class="dialog-btn-text solid-text">
-              {{ removing ? '移出中...' : '确定移出' }}
+              {{ submitting ? '移出中...' : '确定移出' }}
             </text>
           </view>
         </view>
@@ -320,10 +319,11 @@ const isEmpty = computed(() => list.value.length === 0)
               <view
                 v-else
                 class="btn-block"
+                :class="{ disabled: submitting }"
                 @tap="addToBlacklist(u)"
               >
                 <text class="btn-block-text">
-                  {{ adding === u.id ? '添加中...' : '拉黑' }}
+                  {{ submitting ? '添加中...' : '拉黑' }}
                 </text>
               </view>
             </view>
@@ -386,5 +386,6 @@ const isEmpty = computed(() => list.value.length === 0)
 .result-name { flex: 1; font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .result-done { font-size: 26rpx; color: #b8b0a4; }
 .btn-block { padding: 10rpx 28rpx; border: 1rpx solid #C41E3A; border-radius: 999rpx; }
+.btn-block.disabled { opacity: 0.5; }
 .btn-block-text { font-size: 26rpx; color: #C41E3A; }
 </style>

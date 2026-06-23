@@ -7,7 +7,7 @@
     </view>
   </view>
   <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无退款信息" />
+  <AppEmpty v-else-if="isEmpty" title="暂无退款信息" desc="未找到相关退款记录" actionText="查看订单" @action="goOrders" />
   <view v-else class="page">
     <app-nav-bar
       title="退款进度"
@@ -367,6 +367,7 @@ function viewOrder() {
 function goDispute() {
   navigateTo(`/orders/dispute?orderId=${data.value.orderId}`)
 }
+function goOrders() { navigateTo('/orders') }
 </script>
 
 <style lang="scss" scoped>

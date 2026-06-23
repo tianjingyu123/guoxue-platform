@@ -188,9 +188,10 @@
               </view>
               <view
                 class="reply-btn reply-btn-submit"
+                :class="{ disabled: submitting }"
                 @tap="submitReply(review.id)"
               >
-                发布回复
+                {{ submitting ? '发布中...' : '发布回复' }}
               </view>
             </view>
           </view>
@@ -239,6 +240,7 @@ import { ref, computed } from 'vue'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import { goBack } from '@/utils/router'
 import { liveReviewFilters, liveReviewDist, liveReviews } from '@/lib/live-data'
 
@@ -256,6 +258,8 @@ const reviews = liveReviews
 const filter = ref('all')
 const replyId = ref<string | null>(null)
 const replyText = ref('')
+const { submitting, withLock } = useSubmitLock()
+
 const replies = ref<Record<string, string>>(
   Object.fromEntries(reviews.filter((r) => r.reply).map((r) => [r.id, r.reply as string])),
 )
@@ -281,10 +285,12 @@ function cancelReply() {
   replyText.value = ''
 }
 function submitReply(id: string) {
-  if (!replyText.value.trim()) return
-  replies.value = { ...replies.value, [id]: replyText.value }
-  replyId.value = null
-  replyText.value = ''
+  if (!replyText.value.trim() || submitting.value) return
+  withLock(async () => {
+    replies.value = { ...replies.value, [id]: replyText.value }
+    replyId.value = null
+    replyText.value = ''
+  })
 }
 </script>
 
@@ -550,6 +556,9 @@ function submitReply(id: string) {
 .reply-btn-submit {
   color: #fff;
   background: #C41E3A;
+}
+.reply-btn-submit.disabled {
+  opacity: 0.5;
 }
 
 /* 操作区 */

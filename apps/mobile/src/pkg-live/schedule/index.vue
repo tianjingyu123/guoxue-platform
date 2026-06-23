@@ -425,9 +425,10 @@
           </view>
           <view
             class="dlg-btn dlg-btn-danger"
+            :class="{ disabled: submitting }"
             @tap="confirmDelete"
           >
-            确认删除
+            {{ submitting ? '删除中...' : '确认删除' }}
           </view>
         </view>
       </view>
@@ -440,6 +441,7 @@ import { ref, computed } from 'vue'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import { scheduleList, scheduleStatusConfig, type ScheduleItem } from '@/lib/live-data'
 import ScheduleCard from './schedule-card.vue'
 
@@ -459,6 +461,7 @@ const showDeleteDialog = ref(false)
 const selectedSchedule = ref<ScheduleItem | null>(null)
 const filterStatus = ref('all')
 const searchQuery = ref('')
+const { submitting, withLock } = useSubmitLock()
 
 const todayStr = '2026-05-10'
 const statusConfig = scheduleStatusConfig
@@ -529,15 +532,21 @@ function goCreate(id?: number) {
   uni.navigateTo({ url })
 }
 function onCopy(s: ScheduleItem) {
-  console.log('[v0] 复制场次', s.id)
+  if (submitting.value) return
+  withLock(async () => {
+    console.log('[v0] 复制场次', s.id)
+  })
 }
 function onDelete(s: ScheduleItem) {
   selectedSchedule.value = s
   showDeleteDialog.value = true
 }
 function confirmDelete() {
-  console.log('[v0] 删除场次', selectedSchedule.value?.id)
-  showDeleteDialog.value = false
+  if (submitting.value) return
+  withLock(async () => {
+    console.log('[v0] 删除场次', selectedSchedule.value?.id)
+    showDeleteDialog.value = false
+  })
 }
 </script>
 
@@ -974,5 +983,8 @@ function confirmDelete() {
 .dlg-btn-danger {
   background: #dc2626;
   color: #fff;
+}
+.dlg-btn-danger.disabled {
+  opacity: 0.5;
 }
 </style>

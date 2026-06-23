@@ -6,6 +6,7 @@
 import { ref, reactive } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, reLaunch } from '@/utils/router'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import { circleApi } from '@/lib/circle-data'
 
 type JoinMethod = 'free' | 'paid' | 'approval'
@@ -26,7 +27,7 @@ const joinMethod = ref<JoinMethod>('free')
 const yearlyPrice = ref('')
 const tags = ref<string[]>([])
 const tagInput = ref('')
-const loading = ref(false)
+const { submitting, withLock } = useSubmitLock()
 const errors = reactive<Record<string, string>>({})
 
 function uploadCover() {
@@ -67,25 +68,24 @@ function validate() {
   return Object.keys(e).length === 0
 }
 
-async function submit() {
-  if (!validate()) return
-  if (loading.value) return
-  loading.value = true
-  const res = await circleApi.create({
-    name: name.value,
-    intro: desc.value,
-    cover: cover.value || undefined,
-    tags: tags.value,
-    type: joinMethod.value === 'paid' ? 'PAID' : 'FREE',
-    price: joinMethod.value === 'paid' ? Number(yearlyPrice.value) || 0 : 0,
+function submit() {
+  if (!validate() || submitting.value) return
+  withLock(async () => {
+    const res = await circleApi.create({
+      name: name.value,
+      intro: desc.value,
+      cover: cover.value || undefined,
+      tags: tags.value,
+      type: joinMethod.value === 'paid' ? 'PAID' : 'FREE',
+      price: joinMethod.value === 'paid' ? Number(yearlyPrice.value) || 0 : 0,
+    })
+    if (res.success) {
+      uni.showToast({ title: '创建成功', icon: 'success' })
+      setTimeout(() => reLaunch('/pages/circles/index'), 600)
+    } else {
+      uni.showToast({ title: res.message || '创建失败', icon: 'none' })
+    }
   })
-  loading.value = false
-  if (res.success) {
-    uni.showToast({ title: '创建成功', icon: 'success' })
-    setTimeout(() => reLaunch('/pages/circles/index'), 600)
-  } else {
-    uni.showToast({ title: res.message || '创建失败', icon: 'none' })
-  }
 }
 </script>
 
@@ -383,11 +383,11 @@ async function submit() {
     <view class="cc-submit-bar">
       <view
         class="cc-submit"
-        :class="{ disabled: loading }"
+        :class="{ disabled: submitting }"
         @tap="submit"
       >
         <text class="cc-submit-t">
-          {{ loading ? '创建中…' : '创建圈子' }}
+          {{ submitting ? '创建中…' : '创建圈子' }}
         </text>
       </view>
     </view>

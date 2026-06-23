@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, redirectTo } from '@/utils/router'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 const mineProfile = { phone: '138****8888' }
 const deleteAccountReasons = [
   { id: 'not_useful', label: '不再使用该服务' },
@@ -31,19 +32,21 @@ const code = ref('')
 const countdown = ref(0)
 const confirmText = ref('')
 const showConfirm = ref(false)
-const loading = ref(false)
+const { submitting, withLock } = useSubmitLock()
 
 const assets = deleteAccountAssets
 const phone = mineProfile.phone
 
 let timer: ReturnType<typeof setInterval> | null = null
 function sendCode() {
-  if (countdown.value > 0) return
-  countdown.value = 60
-  timer = setInterval(() => {
-    countdown.value--
-    if (countdown.value <= 0 && timer) clearInterval(timer)
-  }, 1000)
+  if (countdown.value > 0 || submitting.value) return
+  withLock(async () => {
+    countdown.value = 60
+    timer = setInterval(() => {
+      countdown.value--
+      if (countdown.value <= 0 && timer) clearInterval(timer)
+    }, 1000)
+  })
 }
 
 const nextDisabled = computed(() => {
@@ -69,12 +72,12 @@ function next() {
   step.value++
 }
 function doDelete() {
-  if (confirmText.value !== '确认注销') return
-  loading.value = true
-  setTimeout(() => {
+  if (confirmText.value !== '确认注销' || submitting.value) return
+  withLock(async () => {
+    await new Promise((r) => setTimeout(r, 1500))
     const expire = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     redirectTo(`/mine/delete-account-result?status=pending&expire=${encodeURIComponent(expire)}`)
-  }, 1500)
+  })
 }
 function onCodeInput(e: any) {
   code.value = String(e.detail.value).replace(/\D/g, '').slice(0, 6)
@@ -370,11 +373,11 @@ function onCodeInput(e: any) {
               >
               <view
                 class="btn-code"
-                :class="{ disabled: countdown > 0 }"
+                :class="{ disabled: countdown > 0 || submitting }"
                 @tap="sendCode"
               >
                 <text class="btn-code-text">
-                  {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
+                  {{ countdown > 0 ? `${countdown}s` : submitting ? '发送中...' : '获取验证码' }}
                 </text>
               </view>
             </view>
@@ -447,11 +450,11 @@ function onCodeInput(e: any) {
           </view>
           <view
             class="confirm-btn danger"
-            :class="{ disabled: confirmText !== '确认注销' || loading }"
+            :class="{ disabled: confirmText !== '确认注销' || submitting }"
             @tap="doDelete"
           >
             <text class="confirm-btn-text danger-text">
-              {{ loading ? '处理中...' : '确认注销' }}
+              {{ submitting ? '处理中...' : '确认注销' }}
             </text>
           </view>
         </view>

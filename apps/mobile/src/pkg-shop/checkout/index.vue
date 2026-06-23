@@ -2,7 +2,35 @@
   <view class="checkout">
     <app-nav-bar title="确认订单" :back-size="40" :title-size="36" :bar-height="106" />
 
-    <!-- 超时倒计时条 -->
+    <!-- 加载态：骨架屏 -->
+    <view v-if="loading" class="skeleton-wrap">
+      <view class="sk-card">
+        <AppSkeleton width="100%" height="160rpx" radius="20rpx" mb="20rpx" />
+        <AppSkeleton width="100%" height="300rpx" radius="20rpx" mb="20rpx" />
+        <AppSkeleton width="100%" height="200rpx" radius="20rpx" mb="20rpx" />
+        <AppSkeleton width="100%" height="260rpx" radius="20rpx" />
+      </view>
+      <view class="sk-footer">
+        <AppSkeleton width="60%" height="60rpx" radius="12rpx" />
+        <AppSkeleton width="30%" height="72rpx" radius="40rpx" />
+      </view>
+    </view>
+
+    <!-- 错误态：重试 -->
+    <AppError v-else-if="loadError" :desc="loadError" @retry="loadData" />
+
+    <!-- 空态：无商品 -->
+    <AppEmpty
+      v-else-if="!items.length"
+      title="暂无订单商品"
+      desc="请先添加商品到购物车"
+      actionText="去逛逛"
+      @action="goMall"
+    />
+
+    <!-- 正常内容 -->
+    <template v-else>
+      <!-- 超时倒计时条 -->
     <view class="timer-bar" :class="{ urgent: isUrgent }">
       <view class="timer-left">
         <app-icon name="clock" :size="28" :color="isUrgent ? '#EF4444' : '#FF6B35'" />
@@ -125,19 +153,24 @@
         <view class="dialog-btn" @tap="onTimeout"><text>重新下单</text></view>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { redirectTo } from '@/utils/router'
+import { redirectTo, reLaunch } from '@/utils/router'
 import { shopApi, payMethods, formatCountdown, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
 import { useSubmitLock } from '@/composables/use-submit-lock'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 
 const items = ref<any[]>([])
 const addresses = ref<any[]>([])
 const coupons = ref<any[]>([])
 const loading = ref(true)
+const loadError = ref<string | null>(null)
 const currentAddress = ref<ShippingAddress | null>(null)
 const selectedCoupon = ref<CheckoutCoupon | null>(null)
 const payMethod = ref('wechat')
@@ -149,20 +182,29 @@ const { submitting, withLock } = useSubmitLock()
 const goodsTotal = computed(() => items.value.reduce((s, i) => s + i.price * i.quantity, 0))
 const payTotal = computed(() => Math.max(0, goodsTotal.value - (selectedCoupon.value?.value || 0)))
 
-// 15分钟倒计时
-const remain = ref(15 * 60 * 1000)
-const countdown = computed(() => formatCountdown(remain.value))
-const isUrgent = computed(() => remain.value <= 180 * 1000)
-let timer: ReturnType<typeof setInterval> | null = null
-onMounted(async () => {
+async function loadData() {
+  loading.value = true
+  loadError.value = null
   try {
     const data = await shopApi.getCheckoutData()
     items.value = data.items
     addresses.value = data.addresses
     coupons.value = data.coupons
     currentAddress.value = data.addresses.find((a: any) => a.isDefault) || data.addresses[0] || null
-  } catch { /* useMock handles fallback */ }
-  finally { loading.value = false }
+  } catch {
+    loadError.value = '加载结算数据失败，请稍后重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+// 15分钟倒计时
+const remain = ref(15 * 60 * 1000)
+const countdown = computed(() => formatCountdown(remain.value))
+const isUrgent = computed(() => remain.value <= 180 * 1000)
+let timer: ReturnType<typeof setInterval> | null = null
+onMounted(() => {
+  loadData()
   timer = setInterval(() => {
     remain.value -= 1000
     if (remain.value <= 0) {
@@ -178,10 +220,16 @@ function selectAddress(a: ShippingAddress) { currentAddress.value = a; showAddre
 function selectCoupon(c: CheckoutCoupon | null) { selectedCoupon.value = c; showCoupon.value = false }
 async function submitOrder() { await withLock(async () => { redirectTo('/shop/paying') }) }
 function onTimeout() { redirectTo('/shop/pay-timeout') }
+function goMall() { reLaunch('/mall') }
 </script>
 
 <style lang="scss" scoped>
 .checkout { min-height: 100vh; background: #F5F5F5; display: flex; flex-direction: column; }
+
+/* 骨架屏 */
+.skeleton-wrap { padding: 20rpx; display: flex; flex-direction: column; flex: 1; }
+.sk-card { padding: 0; }
+.sk-footer { display: flex; align-items: center; justify-content: space-between; padding: 20rpx 30rpx; padding-bottom: calc(20rpx + env(safe-area-inset-bottom)); position: fixed; left: 0; right: 0; bottom: 0; background: #FFFFFF; }
 
 .timer-bar { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 30rpx; background: #FFF5E6; &.urgent { background: #FEF2F2; } }
 .timer-left { display: flex; align-items: center; gap: 12rpx; }

@@ -8,7 +8,7 @@
     </view>
   </view>
   <AppError v-else-if="loadError" :desc="loadError" @retry="reload" />
-  <AppEmpty v-else-if="isEmpty" title="暂无订单" />
+  <AppEmpty v-else-if="isEmpty" title="暂无订单" desc="您还没有任何订单" actionText="去逛逛" @action="goShop" />
   <view v-else class="orders">
     <!-- 顶部导航 + 状态Tab -->
     <view

@@ -9,6 +9,7 @@ import { ref, reactive, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import {
   postDetail, comments as rawComments, parseMarkdown,
   REWARD_QUICK, REWARD_ALL,
@@ -18,6 +19,7 @@ import {
 const circleId = ref('1')
 const post = reactive({ ...postDetail })
 const mdBlocks = parseMarkdown(post.content)
+const { submitting, withLock } = useSubmitLock()
 
 // 互动状态
 const isLiked = ref(post.isLiked)
@@ -77,10 +79,13 @@ function startReply(c: Comment) {
   replyTo.value = c
 }
 function submitComment() {
-  if (!commentText.value.trim()) return
-  uni.showToast({ title: '评论已发送', icon: 'success' })
-  commentText.value = ''
-  replyTo.value = null
+  if (!commentText.value.trim() || submitting.value) return
+  withLock(async () => {
+    await new Promise((r) => setTimeout(r, 300))
+    uni.showToast({ title: '评论已发送', icon: 'success' })
+    commentText.value = ''
+    replyTo.value = null
+  })
 }
 
 function openShare() { navigateTo(`/pkg-circle/common/share-poster?type=post&targetId=${post.id}`) }
@@ -744,13 +749,13 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
         >
         <view
           class="pd-send"
-          :class="{ on: commentText.trim() }"
+          :class="{ on: commentText.trim() && !submitting }"
           @tap="submitComment"
         >
           <app-icon
             name="send"
             :size="36"
-            :color="commentText.trim() ? '#ffffff' : '#999999'"
+            :color="commentText.trim() && !submitting ? '#ffffff' : '#999999'"
           />
         </view>
       </view>

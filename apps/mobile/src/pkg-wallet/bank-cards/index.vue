@@ -189,10 +189,10 @@
         </view>
         <view
           class="submit"
-          :class="{ disabled: !canSubmit }"
+          :class="{ disabled: !canSubmit || submitting }"
           @tap="addCard"
         >
-          确认添加
+          {{ submitting ? '添加中...' : '确认添加' }}
         </view>
       </view>
     </view>
@@ -201,6 +201,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 
 interface BankCard {
   id: string
@@ -232,6 +233,8 @@ const banks = [
 
 const showAdd = ref(false)
 const form = ref({ holderName: '', cardNumber: '', bankCode: '', phone: '' })
+
+const { submitting, withLock } = useSubmitLock()
 
 const canSubmit = computed(() =>
   form.value.holderName && form.value.cardNumber.length >= 16 && form.value.bankCode && form.value.phone.length === 11,
@@ -269,24 +272,26 @@ function openMenu(c: BankCard) {
 }
 
 function addCard() {
-  if (!canSubmit.value) return
-  const bank = banks.find((b) => b.code === form.value.bankCode)
-  const num = form.value.cardNumber
-  cards.value.push({
-    id: String(Date.now()),
-    bankName: '中国' + (bank?.name || '银行'),
-    bankCode: form.value.bankCode,
-    cardType: '储蓄卡',
-    first4: num.slice(0, 4),
-    last4: num.slice(-4),
-    holderName: form.value.holderName,
-    bindTime: new Date().toISOString().slice(0, 10),
-    isDefault: cards.value.length === 0,
-    color: 'linear-gradient(135deg, #C9A96E 0%, #B08D4F 100%)',
+  if (!canSubmit.value || submitting.value) return
+  withLock(async () => {
+    const bank = banks.find((b) => b.code === form.value.bankCode)
+    const num = form.value.cardNumber
+    cards.value.push({
+      id: String(Date.now()),
+      bankName: '中国' + (bank?.name || '银行'),
+      bankCode: form.value.bankCode,
+      cardType: '储蓄卡',
+      first4: num.slice(0, 4),
+      last4: num.slice(-4),
+      holderName: form.value.holderName,
+      bindTime: new Date().toISOString().slice(0, 10),
+      isDefault: cards.value.length === 0,
+      color: 'linear-gradient(135deg, #C9A96E 0%, #B08D4F 100%)',
+    })
+    showAdd.value = false
+    form.value = { holderName: '', cardNumber: '', bankCode: '', phone: '' }
+    uni.showToast({ title: '添加成功', icon: 'none' })
   })
-  showAdd.value = false
-  form.value = { holderName: '', cardNumber: '', bankCode: '', phone: '' }
-  uni.showToast({ title: '添加成功', icon: 'none' })
 }
 </script>
 

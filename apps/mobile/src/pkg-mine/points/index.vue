@@ -5,6 +5,7 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
+import { useSubmitLock } from '@/composables/use-submit-lock'
 import {
   pointsInfo as _pointsInfo,
   pointsTasks as _pointsTasks,
@@ -39,6 +40,7 @@ watch(() => pageData.value, (val) => {
 const showExchangeModal = ref(false)
 const selectedItem = ref<PointsExchangeItem | null>(null)
 const exchangeSuccess = ref(false)
+const { submitting, withLock } = useSubmitLock()
 
 const userPoints = computed(() => info.value.balance)
 
@@ -58,14 +60,15 @@ function handleExchange(item: PointsExchangeItem) {
   }
 }
 function confirmExchange() {
-  if (!selectedItem.value) return
-  info.value.balance -= selectedItem.value.points
-  exchangeSuccess.value = true
-  setTimeout(() => {
+  if (!selectedItem.value || submitting.value) return
+  withLock(async () => {
+    info.value.balance -= selectedItem.value!.points
+    exchangeSuccess.value = true
+    await new Promise((r) => setTimeout(r, 2000))
     showExchangeModal.value = false
     exchangeSuccess.value = false
     selectedItem.value = null
-  }, 2000)
+  })
 }
 </script>
 
@@ -400,10 +403,11 @@ function confirmExchange() {
             </view>
             <view
               class="modal-btn modal-btn-confirm"
+              :class="{ disabled: submitting }"
               @tap="confirmExchange"
             >
               <text class="modal-btn-text modal-btn-text-light">
-                确认兑换
+                {{ submitting ? '兑换中...' : '确认兑换' }}
               </text>
             </view>
           </view>
@@ -843,6 +847,9 @@ function confirmExchange() {
 }
 .modal-btn-confirm {
   background: #9a2e22;
+}
+.modal-btn-confirm.disabled {
+  opacity: 0.5;
 }
 .modal-btn-text {
   font-size: 28rpx;
