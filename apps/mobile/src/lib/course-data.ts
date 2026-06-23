@@ -1,6 +1,7 @@
 // 课程模块数据(从原型 app/courses/page.tsx 迁移)
 import type { CourseCardData } from '@/lib/card-utils'
 import type { BannerItem } from '@/lib/home-data'
+import { apiGet, useMock } from '@/utils/request'
 
 // 课程首页 Banner
 export const courseBanners: BannerItem[] = [
@@ -341,4 +342,43 @@ export const workResult: WorkResult = {
   gradedAt: '2024-01-16 09:15',
   suggestions: ['建议补充五行生克关系的说明', '可以尝试分析自己的八字加深理解'],
   canResubmit: true,
+}
+
+// ── API ──
+export const courseApi = {
+  /** 获取课程列表 GET /courses */
+  async getList(params?: Record<string, any>): Promise<Course[]> {
+    if (useMock()) return allCourses
+    try { return await apiGet<Course[]>('/courses', params) } catch { return allCourses }
+  },
+
+  /** 获取课程详情 GET /courses/:id */
+  async getDetail(id: string): Promise<CourseDetail> {
+    if (useMock()) return courseDetail
+    try { return await apiGet<CourseDetail>(`/courses/${id}`) } catch { return courseDetail }
+  },
+
+  /** 获取课程章节 GET /courses/:id/chapters */
+  async getChapters(id: string): Promise<CourseChapter[]> {
+    if (useMock()) return courseChapters
+    try { return await apiGet<CourseChapter[]>(`/courses/${id}/chapters`) } catch { return courseChapters }
+  },
+
+  /** 获取课程评价 GET /courses/:id/reviews */
+  async getReviews(id: string): Promise<CourseReview[]> {
+    if (useMock()) return courseReviews
+    try { return await apiGet<CourseReview[]>(`/courses/${id}/reviews`) } catch { return courseReviews }
+  },
+
+  /** 获取课程学习进度 GET /courses/:id/progress */
+  async getProgress(id: string): Promise<CourseProgress> {
+    if (useMock()) return courseProgress
+    try { return await apiGet<CourseProgress>(`/courses/${id}/progress`) } catch { return courseProgress }
+  },
+
+  /** 获取课程轮播 Banner GET /courses/banners */
+  async getBanners(): Promise<BannerItem[]> {
+    if (useMock()) return courseBanners
+    try { return await apiGet<BannerItem[]>('/courses/banners') } catch { return courseBanners }
+  },
 }
