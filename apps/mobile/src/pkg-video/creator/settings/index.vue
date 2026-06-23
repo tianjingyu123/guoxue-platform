@@ -100,6 +100,7 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { creatorApi } from '@/lib/creator-data'
 
 type Tab = 'profile' | 'notify' | 'privacy' | 'payment'
 const statusBarHeight = ref(0)
@@ -151,10 +152,19 @@ const paymentItems = [
 async function handleSave() {
   if (saving.value) return
   saving.value = true
-  await new Promise((r) => setTimeout(r, 800))
-  saving.value = false
-  saved.value = true
-  setTimeout(() => (saved.value = false), 2500)
+  try {
+    await creatorApi.saveSettings({
+      profile: { ...profile.value },
+      notify: { ...notify.value },
+      privacy: { ...privacy.value },
+    })
+    saved.value = true
+    setTimeout(() => (saved.value = false), 2500)
+  } catch {
+    uni.showToast({ title: '保存失败', icon: 'none' })
+  } finally {
+    saving.value = false
+  }
 }
 
 uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })

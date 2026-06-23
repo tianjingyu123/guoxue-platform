@@ -12,6 +12,12 @@
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ paddingTop: navHeight + 'px' }">
+      <view v-if="loading" class="loading-state"><text>加载中...</text></view>
+      <view v-if="error" class="error-state">
+        <text>加载失败</text>
+        <view @tap="retry"><text>重试</text></view>
+      </view>
+      <view v-if="!loading && !error">
       <!-- 详情视图 -->
       <template v-if="selected">
         <view class="prod-box">
@@ -121,30 +127,49 @@
           </view>
         </view>
       </template>
+      </view>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { merchantInquiries } from '@/lib/merchant-data'
+import { merchantAdminApi } from '@/lib/merchant-data'
 
 type Inquiry = { id: string; productName: string; customer: string; status: 'answered' | 'unanswered'; question: string; answer: string; time: string; replies: number }
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
+const loading = ref(true)
+const error = ref(false)
 
 const sys = uni.getSystemInfoSync()
 statusBarHeight.value = sys.statusBarHeight || 0
 navHeight.value = (sys.statusBarHeight || 0) + 44
 
-const inquiries = ref<Inquiry[]>(merchantInquiries.map((i) => ({ ...i })))
+const inquiries = ref<Inquiry[]>([])
 const filter = ref<'all' | 'unanswered' | 'answered'>('all')
 const selected = ref<Inquiry | null>(null)
 const replyText = ref('')
 const isReplying = ref(false)
+
+onMounted(async () => {
+  try {
+    await merchantAdminApi.getDashboard()
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+})
+
+function retry() {
+  error.value = false
+  loading.value = true
+  onMounted()
+}
 
 const filters = [
   { key: 'all' as const, label: '全部' },
@@ -250,4 +275,11 @@ function onNavBack() {
 .reply-btn { margin-top: 12px; height: 46px; border-radius: 10px; background: #c41e3a; display: flex; align-items: center; justify-content: center; }
 .reply-btn.disabled { opacity: 0.5; }
 .reply-btn-text { font-size: 15px; font-weight: 500; color: #ffffff; }
+
+.loading-state { padding: 60px 0; display: flex; align-items: center; justify-content: center; }
+.loading-state text { font-size: 14px; color: #9ca3af; }
+.error-state { padding: 60px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.error-state text { font-size: 14px; color: #ef4444; }
+.error-state view { padding: 8px 20px; background: #c41e3a; border-radius: 8px; }
+.error-state view text { font-size: 14px; color: #fff; }
 </style>

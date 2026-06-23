@@ -22,7 +22,24 @@
 
     <!-- 预约咨询 -->
     <scroll-view v-if="activeTab === 'booking'" scroll-y class="tb-body">
-      <view class="tb-section">
+      <!-- 加载骨架 -->
+      <view v-if="loading" class="tb-section">
+        <view class="tb-block">
+          <view class="sk-line w30" />
+          <view style="display:flex;gap:12px;padding-top:8px;">
+            <view v-for="i in 3" :key="i" class="sk-box" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 错误 -->
+      <view v-else-if="error" class="tb-empty">
+        <app-icon name="alert-circle" :size="48" color="#ef4444" />
+        <text class="tb-empty-text">加载失败，请重试</text>
+        <view class="tb-retry-btn" @tap="retryLoad"><text class="tb-retry-text">重试</text></view>
+      </view>
+
+      <view v-else class="tb-section">
         <!-- 讲师选择 -->
         <view class="tb-block">
           <text class="tb-block-title">选择讲师</text>
@@ -146,7 +163,11 @@
     <!-- 我的预约 -->
     <scroll-view v-else scroll-y class="tb-body">
       <view class="tb-records">
-        <view v-if="bookings.length === 0" class="tb-empty">
+        <view v-if="bookingsLoading" class="tb-empty">
+          <app-icon name="loader" :size="48" color="#d1d5db" />
+          <text class="tb-empty-text">加载中...</text>
+        </view>
+        <view v-else-if="bookings.length === 0" class="tb-empty">
           <app-icon name="history" :size="48" color="#d1d5db" />
           <text class="tb-empty-text">暂无预约记录</text>
         </view>
@@ -230,9 +251,8 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
-  bookingTeachers,
+  offlineApi,
   getTeacherAvailability,
-  myTeacherBookings,
   getBookingStatusLabel,
   getBookingStatusStyle,
   type BookingTeacher,
@@ -252,7 +272,7 @@ const stationId = ref(1)
 const preselectedTeacherId = ref<number | null>(null)
 
 const activeTab = ref<'booking' | 'records'>('booking')
-const teachers = ref<BookingTeacher[]>(bookingTeachers)
+const teachers = ref<BookingTeacher[]>([])
 const selectedTeacher = ref<BookingTeacher | null>(null)
 const availability = ref<DateAvailability[]>([])
 const selectedDate = ref('')
@@ -262,19 +282,29 @@ const description = ref('')
 const submitting = ref(false)
 const showSuccess = ref(false)
 const bookings = ref<TeacherBooking[]>([])
+const loading = ref(true)
+const bookingsLoading = ref(false)
+const error = ref(false)
 
 const now = new Date()
 const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 
-onLoad((q) => {
+onLoad(async (q) => {
   stationId.value = q && q.stationId ? Number(q.stationId) : 1
   preselectedTeacherId.value = q && q.teacherId ? Number(q.teacherId) : null
-  if (preselectedTeacherId.value) {
-    const t = teachers.value.find((x) => x.id === preselectedTeacherId.value)
-    if (t) selectedTeacher.value = t
-  }
-  if (!selectedTeacher.value) {
-    selectedTeacher.value = teachers.value.find((t) => t.isAvailable) || teachers.value[0]
+  try {
+    teachers.value = await offlineApi.getBookingTeachers()
+    if (preselectedTeacherId.value) {
+      const t = teachers.value.find((x) => x.id === preselectedTeacherId.value)
+      if (t) selectedTeacher.value = t
+    }
+    if (!selectedTeacher.value) {
+      selectedTeacher.value = teachers.value.find((t) => t.isAvailable) || teachers.value[0] || null
+    }
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
   }
 })
 
@@ -337,28 +367,65 @@ function switchToRecords() {
   activeTab.value = 'records'
   loadBookings()
 }
-function loadBookings() {
-  bookings.value = [...myTeacherBookings]
+async function loadBookings() {
+  bookingsLoading.value = true
+  try {
+    bookings.value = await offlineApi.getMyBookings()
+  } catch {
+    uni.showToast({ title: '加载失败', icon: 'none' })
+  } finally {
+    bookingsLoading.value = false
+  }
 }
-function handleSubmit() {
-  if (!canSubmit.value) return
+async function handleSubmit() {
+  if (!canSubmit.value || submitting.value) return
   submitting.value = true
-  setTimeout(() => {
+  try {
+    const res = await offlineApi.createBooking({
+      teacherId: selectedTeacher.value!.id,
+      stationId: stationId.value,
+      date: selectedDate.value,
+      startTime: selectedSlot.value!.startTime,
+      endTime: selectedSlot.value!.endTime,
+      topic: topic.value.trim(),
+      description: description.value.trim(),
+    })
+    if (res.success) {
+      showSuccess.value = true
+    } else {
+      uni.showToast({ title: res.message || '预约失败', icon: 'none' })
+    }
+  } catch {
+    uni.showToast({ title: '预约失败', icon: 'none' })
+  } finally {
     submitting.value = false
-    showSuccess.value = true
-  }, 500)
+  }
 }
-function handleCancel(bookingId: number) {
-  uni.showModal({
-    title: '提示',
-    content: '确定要取消这个预约吗？',
-    success: (res) => {
-      if (res.confirm) {
-        bookings.value = bookings.value.filter((b) => b.id !== bookingId)
-        uni.showToast({ title: '取消成功', icon: 'none' })
-      }
-    },
+async function handleCancel(bookingId: number) {
+  if (submitting.value) return
+  const result = await new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title: '提示',
+      content: '确定要取消这个预约吗？',
+      success: (res) => resolve(!!res.confirm),
+      fail: () => resolve(false),
+    })
   })
+  if (!result) return
+  submitting.value = true
+  try {
+    const res = await offlineApi.cancelBooking(bookingId)
+    if (res.success) {
+      bookings.value = bookings.value.filter((b) => b.id !== bookingId)
+      uni.showToast({ title: '取消成功', icon: 'none' })
+    } else {
+      uni.showToast({ title: res.message || '取消失败', icon: 'none' })
+    }
+  } catch {
+    uni.showToast({ title: '取消失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 function onViewRecords() {
   showSuccess.value = false
@@ -370,6 +437,24 @@ function onContinue() {
   selectedSlot.value = null
   topic.value = ''
   description.value = ''
+}
+async function retryLoad() {
+  error.value = false
+  loading.value = true
+  try {
+    teachers.value = await offlineApi.getBookingTeachers()
+    if (preselectedTeacherId.value) {
+      const t = teachers.value.find((x) => x.id === preselectedTeacherId.value)
+      if (t) selectedTeacher.value = t
+    }
+    if (!selectedTeacher.value) {
+      selectedTeacher.value = teachers.value.find((t) => t.isAvailable) || teachers.value[0] || null
+    }
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -934,4 +1019,14 @@ function onContinue() {
   font-size: 15px;
   color: #1a1a1a;
 }
+/* 骨架屏 */
+.sk-line { height: 14px; background: #e5e7eb; border-radius: 4px; margin-bottom: 12px; animation: tb-sk-pulse 1.5s ease-in-out infinite; }
+.sk-line.w30 { width: 30%; }
+.sk-box { width: 80px; height: 96px; background: #e5e7eb; border-radius: 8px; animation: tb-sk-pulse 1.5s ease-in-out infinite; }
+@keyframes tb-sk-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.tb-retry-btn { padding: 8px 24px; background: #c41e3a; border-radius: 8px; display: inline-block; }
+.tb-retry-text { font-size: 14px; color: #fff; }
 </style>

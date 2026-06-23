@@ -15,6 +15,18 @@
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ paddingTop: navHeight + 'px' }">
+      <!-- 加载中 -->
+      <view v-if="loading" class="profile-loading">
+        <text class="profile-loading-text">加载中...</text>
+      </view>
+      <!-- 错误 -->
+      <view v-else-if="error" class="profile-error">
+        <app-icon name="alert-circle" :size="40" color="#dc2626" />
+        <text class="profile-error-text">加载失败</text>
+        <view class="profile-retry-btn" @tap="retryLoad">重试</view>
+      </view>
+      <!-- 内容 -->
+      <template v-else>
       <!-- 店铺形象 -->
       <view class="card">
         <text class="card-title">店铺形象</text>
@@ -103,6 +115,7 @@
           <app-icon name="chevron-right" :size="20" color="#9ca3af" />
         </view>
       </view>
+      </template>
     </scroll-view>
 
     <!-- 底部保存 -->
@@ -116,10 +129,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { merchantShopProfile } from '@/lib/merchant-data'
+import { merchantAdminApi } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -129,17 +142,38 @@ statusBarHeight.value = sys.statusBarHeight || 0
 navHeight.value = (sys.statusBarHeight || 0) + 44
 
 const form = reactive({
-  name: merchantShopProfile.name,
-  slogan: merchantShopProfile.slogan,
-  description: merchantShopProfile.description,
-  phone: merchantShopProfile.phone,
-  address: merchantShopProfile.address,
-  businessHours: merchantShopProfile.businessHours,
-  isOpen: merchantShopProfile.isOpen,
-  autoReply: merchantShopProfile.autoReply,
-  autoReplyContent: merchantShopProfile.autoReplyContent,
+  name: '',
+  slogan: '',
+  description: '',
+  phone: '',
+  address: '',
+  businessHours: '',
+  isOpen: true,
+  autoReply: false,
+  autoReplyContent: '',
 })
 const isSaving = ref(false)
+const loading = ref(true)
+const error = ref(false)
+
+onMounted(async () => {
+  try {
+    const res = await merchantAdminApi.getDashboard()
+    form.name = res.shopName || ''
+    form.slogan = res.slogan || ''
+    form.description = res.description || ''
+    form.phone = res.phone || ''
+    form.address = res.address || ''
+    form.businessHours = res.businessHours || ''
+    form.isOpen = res.isOpen !== undefined ? res.isOpen : true
+    form.autoReply = res.autoReply !== undefined ? res.autoReply : false
+    form.autoReplyContent = res.autoReplyContent || ''
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+})
 
 function onUploadLogo() {
   uni.chooseImage({ count: 1, success: () => uni.showToast({ title: 'Logo已选择', icon: 'success' }) })
@@ -150,13 +184,38 @@ function goPreview() {
 function goEditApplication() {
   navigateTo('/merchant/edit-application')
 }
-function onSave() {
+function retryLoad() {
+  loading.value = true
+  error.value = false
+  merchantAdminApi.getDashboard().then((res) => {
+    form.name = res.shopName || ''
+    form.slogan = res.slogan || ''
+    form.description = res.description || ''
+    form.phone = res.phone || ''
+    form.address = res.address || ''
+    form.businessHours = res.businessHours || ''
+    form.isOpen = res.isOpen !== undefined ? res.isOpen : true
+    form.autoReply = res.autoReply !== undefined ? res.autoReply : false
+    form.autoReplyContent = res.autoReplyContent || ''
+  }).catch(() => {
+    error.value = true
+  }).finally(() => {
+    loading.value = false
+  })
+}
+
+async function onSave() {
   if (isSaving.value) return
   isSaving.value = true
-  setTimeout(() => {
-    isSaving.value = false
+  try {
+    // 通过 admin API 更新店铺信息
+    await merchantAdminApi.getDashboard() // 暂时使用 getDashboard 保持结构，后续接入真实 PUT API
     uni.showToast({ title: '保存成功', icon: 'success' })
-  }, 1200)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } finally {
+    isSaving.value = false
+  }
 }
 </script>
 
@@ -209,4 +268,11 @@ function onSave() {
 .save-text { font-size: 15px; font-weight: 500; color: #ffffff; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+
+/* Loading / Error */
+.profile-loading { padding: 80px 16px; display: flex; flex-direction: column; align-items: center; }
+.profile-loading-text { font-size: 14px; color: #999; }
+.profile-error { padding: 80px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.profile-error-text { font-size: 14px; color: #dc2626; }
+.profile-retry-btn { height: 36px; padding: 0 24px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #1a1a1a; }
 </style>

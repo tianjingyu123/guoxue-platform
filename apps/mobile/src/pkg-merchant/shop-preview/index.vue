@@ -14,6 +14,12 @@
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ paddingTop: navHeight + 'px' }">
+      <view v-if="loading" class="loading-state"><text>加载中...</text></view>
+      <view v-if="error" class="error-state">
+        <text>加载失败</text>
+        <view @tap="retry"><text>重试</text></view>
+      </view>
+      <view v-if="!loading && !error">
       <!-- 店铺头部 -->
       <view class="shop-header">
         <view class="shop-top">
@@ -98,6 +104,7 @@
           </view>
         </view>
       </view>
+      </view>
     </scroll-view>
 
     <!-- 底部购物车 -->
@@ -114,20 +121,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { merchantShopProfile, shopPreviewProducts } from '@/lib/merchant-data'
+import { merchantAdminApi } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
+const loading = ref(true)
+const error = ref(false)
+const shop = ref<any>({})
+const products = ref<any[]>([])
 
 const sys = uni.getSystemInfoSync()
 statusBarHeight.value = sys.statusBarHeight || 0
 navHeight.value = (sys.statusBarHeight || 0) + 44
 
-const shop = merchantShopProfile
-const products = shopPreviewProducts
 const prodTab = ref('all')
 const prodTabs = [
   { key: 'all', label: '全部' },
@@ -135,6 +144,27 @@ const prodTabs = [
   { key: 'new', label: '新品' },
   { key: 'price', label: '价格' },
 ]
+
+onMounted(async () => {
+  try {
+    const [dashboard, productList] = await Promise.all([
+      merchantAdminApi.getDashboard(),
+      merchantAdminApi.getProducts(),
+    ])
+    shop.value = dashboard
+    products.value = productList
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+})
+
+function retry() {
+  error.value = false
+  loading.value = true
+  onMounted()
+}
 
 function onShare() {
   uni.showToast({ title: '分享功能开发中', icon: 'none' })
@@ -209,4 +239,11 @@ function onCart() {
 .cart-badge { position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; border-radius: 50%; background: #c41e3a; font-size: 10px; color: #ffffff; display: flex; align-items: center; justify-content: center; }
 .checkout-btn { flex: 1; height: 46px; border-radius: 10px; background: #c41e3a; display: flex; align-items: center; justify-content: center; }
 .checkout-text { font-size: 15px; font-weight: 500; color: #ffffff; }
+
+.loading-state { padding: 60px 0; display: flex; align-items: center; justify-content: center; }
+.loading-state text { font-size: 14px; color: #9ca3af; }
+.error-state { padding: 60px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.error-state text { font-size: 14px; color: #ef4444; }
+.error-state view { padding: 8px 20px; background: #c41e3a; border-radius: 8px; }
+.error-state view text { font-size: 14px; color: #fff; }
 </style>

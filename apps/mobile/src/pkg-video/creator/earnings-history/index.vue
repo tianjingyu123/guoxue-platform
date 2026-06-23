@@ -9,6 +9,16 @@
     </view>
 
     <scroll-view scroll-y class="eh-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
+      <!-- 加载/错误 -->
+      <view v-if="loading" class="eh-loading">
+        <view class="eh-loading-spin" />
+        <text class="eh-loading-txt">加载中...</text>
+      </view>
+      <view v-if="error" class="eh-error">
+        <text class="eh-error-txt">加载失败</text>
+        <view class="eh-error-btn" @tap="fetchData"><text class="eh-error-btn-txt">重试</text></view>
+      </view>
+      <template v-if="!loading && !error">
       <!-- 总体统计 -->
       <view class="eh-overview">
         <view class="eh-ov-card">
@@ -53,20 +63,48 @@
         <text class="eh-tip">• 点击记录可查看订单详情</text>
       </view>
       <view class="eh-pad" />
+      </template>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { creatorEarningsHistory as data } from '@/lib/creator-data'
+import { creatorApi } from '@/lib/creator-data'
 
 const statusBarHeight = ref(0)
+const loading = ref(true)
+const error = ref(false)
+const data = ref({ totalEarnings: 0, monthlyEarnings: 0, records: [] as Array<{ id: string; month: string; earnings: number; orders: number; trend: string; change: number }> })
+
 function fmtMoney(n: number) {
   return n.toLocaleString('zh-CN', { minimumFractionDigits: 2 })
 }
+
+onMounted(async () => {
+  try {
+    data.value = await creatorApi.getEarningsHistory()
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+})
+async function fetchData() {
+  error.value = false
+  loading.value = true
+  try {
+    data.value = await creatorApi.getEarningsHistory()
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
 uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })
 </script>
 
@@ -100,4 +138,13 @@ uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHei
 .eh-tips-title { font-size: 14px; font-weight: 600; color: #1e3a8a; margin-bottom: 4px; }
 .eh-tip { font-size: 12px; color: #1e40af; line-height: 1.5; }
 .eh-pad { height: 80px; }
+/* 加载/错误 */
+.eh-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; gap: 24rpx; }
+.eh-loading-spin { width: 56rpx; height: 56rpx; border: 4rpx solid #E5E7EB; border-top-color: #c41e3a; border-radius: 50%; animation: eh-spin 0.8s linear infinite; }
+@keyframes eh-spin { to { transform: rotate(360deg); } }
+.eh-loading-txt { font-size: 26rpx; color: #999; }
+.eh-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 48rpx; gap: 24rpx; }
+.eh-error-txt { font-size: 28rpx; color: #999; }
+.eh-error-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.eh-error-btn-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 </style>

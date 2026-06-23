@@ -161,7 +161,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { applicationStatusLabel, applicationStatusColor, type InstituteApplication } from '@/lib/institute-data'
+import { instituteApi, applicationStatusLabel, applicationStatusColor, type InstituteApplication } from '@/lib/institute-data'
 
 const sysInfo = uni.getSystemInfoSync()
 const statusBarHeight = ref(sysInfo.statusBarHeight || 20)
@@ -223,11 +223,12 @@ function validate(): boolean {
   return Object.keys(e).length === 0
 }
 
-function onSubmit() {
+async function onSubmit() {
   if (!validate()) return
+  if (submitting.value) return
   submitting.value = true
-  setTimeout(() => {
-    existingApplication.value = {
+  try {
+    const result = await instituteApi.applyMember({
       realName: form.value.realName,
       phone: form.value.phone,
       email: form.value.email,
@@ -237,11 +238,29 @@ function onSubmit() {
       certificates: [...form.value.certificates],
       trialVideoUrl: form.value.trialVideoUrl,
       status: 'submitted',
-      submittedAt: new Date().toLocaleDateString('zh-CN').replace(/\//g, '-'),
+    })
+    if (result.success) {
+      existingApplication.value = {
+        realName: form.value.realName,
+        phone: form.value.phone,
+        email: form.value.email,
+        specialties: [...form.value.specialties],
+        experience: form.value.experience,
+        introduction: form.value.introduction,
+        certificates: [...form.value.certificates],
+        trialVideoUrl: form.value.trialVideoUrl,
+        status: 'submitted',
+        submittedAt: new Date().toLocaleDateString('zh-CN').replace(/\//g, '-'),
+      }
+      uni.pageScrollTo({ scrollTop: 0, duration: 0 })
+    } else {
+      uni.showToast({ title: result.message || '申请失败', icon: 'none' })
     }
+  } catch {
+    uni.showToast({ title: '网络错误，请重试', icon: 'none' })
+  } finally {
     submitting.value = false
-    uni.pageScrollTo({ scrollTop: 0, duration: 0 })
-  }, 800)
+  }
 }
 
 function refreshStatus() {

@@ -26,6 +26,16 @@
     </view>
 
     <scroll-view scroll-y class="an-scroll" :style="{ paddingTop: statusBarHeight + 96 + 'px' }">
+      <!-- 加载/错误 -->
+      <view v-if="loading" class="an-loading">
+        <view class="an-loading-spin" />
+        <text class="an-loading-txt">加载中...</text>
+      </view>
+      <view v-if="error" class="an-error">
+        <text class="an-error-txt">加载失败</text>
+        <view class="an-error-btn" @tap="fetchData"><text class="an-error-btn-txt">重试</text></view>
+      </view>
+      <template v-if="!loading && !error">
       <!-- 关键指标 -->
       <view class="an-section">
         <text class="an-section-title">关键指标</text>
@@ -104,26 +114,43 @@
         </view>
       </view>
       <view class="an-pad" />
+      </template>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { creatorAnalytics as data } from '@/lib/creator-data'
+import { creatorApi } from '@/lib/creator-data'
 
 const statusBarHeight = ref(0)
+const loading = ref(true)
+const error = ref(false)
+const data = ref({ totalViews: 0, totalLikes: 0, totalComments: 0, totalShares: 0, viewTrend: [] as Array<{ date: string; views: number; likes: number; comments: number }>, videoMetrics: [] as Array<{ id: string; title: string; views: number; likes: number; comments: number; shares: number; duration: string; uploadDate: string }> })
 const period = ref<'week' | 'month' | 'year'>('week')
 const periods = [
   { key: 'week' as const, label: '本周' },
   { key: 'month' as const, label: '本月' },
   { key: 'year' as const, label: '本年' },
 ]
+onMounted(async () => {
+  try {
+    data.value = await creatorApi.getAnalytics()
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+})
+
 // 折线图：Y轴上界取整到 1500 的倍数(匹配原型刻度)
 const chartMax = computed(() => {
-  const peak = Math.max(...data.viewTrend.map((d) => d.views))
+  const trend = data.value.viewTrend
+  if (trend.length === 0) return 1500
+  const peak = Math.max(...trend.map((d) => d.views))
   const step = 1500
   return Math.ceil(peak / step) * step
 })
@@ -137,13 +164,26 @@ const yTicks = computed(() => {
 const svgW = 300
 const svgH = 200
 const pointCoords = computed(() => {
-  const n = data.viewTrend.length
-  return data.viewTrend.map((d, i) => ({
+  const trend = data.value.viewTrend
+  const n = trend.length
+  return trend.map((d, i) => ({
     x: n > 1 ? (i / (n - 1)) * svgW : svgW / 2,
     y: svgH - (d.views / chartMax.value) * svgH,
   }))
 })
 const linePoints = computed(() => pointCoords.value.map((p) => `${p.x},${p.y}`).join(' '))
+
+async function fetchData() {
+  error.value = false
+  loading.value = true
+  try {
+    data.value = await creatorApi.getAnalytics()
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
 
 uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })
 </script>
@@ -200,4 +240,13 @@ uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHei
 .an-video-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .an-vstat { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #666; }
 .an-pad { height: 80px; }
+/* 加载/错误 */
+.an-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; gap: 24rpx; }
+.an-loading-spin { width: 56rpx; height: 56rpx; border: 4rpx solid #E5E7EB; border-top-color: #c41e3a; border-radius: 50%; animation: an-spin 0.8s linear infinite; }
+@keyframes an-spin { to { transform: rotate(360deg); } }
+.an-loading-txt { font-size: 26rpx; color: #999; }
+.an-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 48rpx; gap: 24rpx; }
+.an-error-txt { font-size: 28rpx; color: #999; }
+.an-error-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.an-error-btn-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 </style>

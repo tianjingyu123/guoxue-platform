@@ -42,8 +42,38 @@
       </view>
     </scroll-view>
 
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="vl-loading">
+      <view class="vl-masonry">
+        <view class="vl-col">
+          <view v-for="i in 4" :key="'sl'+i" class="vl-card vl-skeleton">
+            <view class="vl-cover vl-skel-cover" /><view class="vl-info vl-skel-info"><view class="vl-skel-line" /><view class="vl-skel-line vl-skel-line-short" /></view>
+          </view>
+        </view>
+        <view class="vl-col">
+          <view v-for="i in 4" :key="'sr'+i" class="vl-card vl-skeleton">
+            <view class="vl-cover vl-skel-cover" /><view class="vl-info vl-skel-info"><view class="vl-skel-line" /><view class="vl-skel-line vl-skel-line-short" /></view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载失败 -->
+    <view v-if="error" class="vl-error">
+      <AppIcon name="alert-circle" :size="80" color="#9CA3AF" />
+      <text class="vl-error-txt">加载失败，请重试</text>
+      <view class="vl-error-btn" @tap="onRetry"><text class="vl-error-btn-txt">重新加载</text></view>
+    </view>
+
+    <!-- 空状态 -->
+    <view v-if="!loading && !error && videoList.length === 0" class="vl-empty">
+      <AppIcon name="video" :size="80" color="#9CA3AF" />
+      <text class="vl-empty-txt">暂无视频</text>
+      <text class="vl-empty-sub">去发布第一个视频吧</text>
+    </view>
+
     <!-- 双列瀑布流 -->
-    <view class="vl-masonry">
+    <view v-if="!loading && !error && videoList.length > 0" class="vl-masonry">
       <view class="vl-col">
         <view
           v-for="video in leftColumn"
@@ -140,10 +170,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import {
-  videoListItems,
+  videoApi,
   videoHotTopics,
   formatVideoNumber,
   formatDuration,
@@ -161,15 +192,30 @@ const tabs = [
 const activeTab = ref<'recommend' | 'follow' | 'hot'>('recommend')
 const hotTopics = videoHotTopics
 
+// 数据：通过 API 获取
+const videoList = ref<VideoListItem[]>([])
+const loading = ref(true)
+const error = ref(false)
+
+onMounted(async () => {
+  try {
+    videoList.value = await videoApi.listItems()
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+})
+
 // 双列瀑布流：原型用 CSS columns-2,按文档顺序顺序填充前后两半(非奇偶交替)
 // 左列=前半[0..3]，右列=后半[4..7]
-const half = computed(() => Math.ceil(videoListItems.length / 2))
-const leftColumn = computed(() => videoListItems.slice(0, half.value))
-const rightColumn = computed(() => videoListItems.slice(half.value))
+const half = computed(() => Math.ceil(videoList.value.length / 2))
+const leftColumn = computed(() => videoList.value.slice(0, half.value))
+const rightColumn = computed(() => videoList.value.slice(half.value))
 
 // 封面比例：照搬原型 index%3 的 3/4、3/5、4/5
 function coverRatio(video: VideoListItem): string {
-  const idx = videoListItems.findIndex((v) => v.id === video.id)
+  const idx = videoList.value.findIndex((v) => v.id === video.id)
   const r = idx % 3 === 0 ? 4 / 3 : idx % 3 === 1 ? 5 / 3 : 5 / 4
   return r * 100 + '%'
 }
@@ -188,6 +234,17 @@ function goDetail(id: string) {
 }
 function goTopic() {
   uni.showToast({ title: '话题页开发中', icon: 'none' })
+}
+async function onRetry() {
+  error.value = false
+  loading.value = true
+  try {
+    videoList.value = await videoApi.listItems()
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -363,4 +420,23 @@ function goTopic() {
   justify-content: center;
   z-index: 30;
 }
+
+/* 加载骨架屏 */
+.vl-skeleton { pointer-events: none; }
+.vl-skel-cover { background-color: #E5E7EB; animation: vl-shimmer 1.5s infinite; }
+.vl-skel-info { padding: 20rpx; }
+.vl-skel-line { height: 24rpx; background-color: #E5E7EB; border-radius: 4rpx; margin-bottom: 12rpx; animation: vl-shimmer 1.5s infinite; }
+.vl-skel-line-short { width: 60%; }
+@keyframes vl-shimmer { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* 错误 */
+.vl-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 48rpx; }
+.vl-error-txt { font-size: 28rpx; color: #9CA3AF; margin-top: 24rpx; }
+.vl-error-btn { margin-top: 32rpx; padding: 16rpx 48rpx; background-color: #c41e3a; border-radius: 999rpx; }
+.vl-error-btn-txt { font-size: 28rpx; color: #ffffff; font-weight: 500; }
+
+/* 空状态 */
+.vl-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 48rpx; }
+.vl-empty-txt { font-size: 28rpx; color: #9CA3AF; margin-top: 24rpx; }
+.vl-empty-sub { font-size: 24rpx; color: #C0C0C0; margin-top: 8rpx; }
 </style>

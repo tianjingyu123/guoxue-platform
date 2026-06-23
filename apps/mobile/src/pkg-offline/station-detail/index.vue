@@ -6,19 +6,41 @@
         <view class="sd-icon-btn" @tap="goBack">
           <app-icon name="chevron-left" :size="22" color="#1a1a1a" />
         </view>
-        <text class="sd-nav-title">{{ station.name }}</text>
+        <text class="sd-nav-title">{{ station?.name || '驿站详情' }}</text>
         <view class="sd-nav-actions">
           <view class="sd-icon-btn" @tap="onShare">
             <app-icon name="share-2" :size="20" color="#1a1a1a" />
           </view>
           <view class="sd-icon-btn" @tap="toggleFav">
-            <app-icon name="heart" :size="20" :color="station.isFavorited ? '#ef4444' : '#1a1a1a'" :fill="station.isFavorited" />
+            <app-icon name="heart" :size="20" :color="station?.isFavorited ? '#ef4444' : '#1a1a1a'" :fill="station?.isFavorited" />
           </view>
         </view>
       </view>
     </view>
 
     <scroll-view scroll-y class="sd-body">
+      <!-- 加载骨架 -->
+      <view v-if="loading" class="sd-skeleton">
+        <view class="sd-sk-cover" />
+        <view class="sd-sk-info">
+          <view class="sd-sk-line w50" />
+          <view class="sd-sk-line w30" />
+          <view class="sd-sk-line w80" />
+          <view class="sd-sk-line w60" />
+        </view>
+      </view>
+
+      <!-- 错误状态 -->
+      <view v-else-if="error" class="sd-error">
+        <app-icon name="alert-circle" :size="48" color="#ef4444" />
+        <text class="sd-error-text">加载失败，请重试</text>
+        <view class="sd-retry-btn" @tap="retryLoad">
+          <text class="sd-retry-text">重新加载</text>
+        </view>
+      </view>
+
+      <!-- 正常内容 -->
+      <template v-else-if="station">
       <!-- 封面 -->
       <view class="sd-cover">
         <app-icon name="map-pin" :size="48" color="#d8b48a" />
@@ -179,6 +201,7 @@
         </view>
       </view>
       <view class="sd-safe" />
+      </template>
     </scroll-view>
 
     <!-- 底部固定操作栏 -->
@@ -201,11 +224,10 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
-  getStationDetail,
+  offlineApi,
   getStationTypeLabel,
   getFacilityInfo,
   formatDistance,
-  stations,
   type StationDetail,
   type StationInstructor,
 } from '@/lib/offline-data'
@@ -216,10 +238,19 @@ try {
   statusBarHeight.value = info.statusBarHeight || 0
 } catch {}
 
-const station = ref<StationDetail>(getStationDetail(stations[0].id))
-onLoad((q) => {
-  const id = q && q.id ? Number(q.id) : stations[0].id
-  station.value = getStationDetail(id)
+const station = ref<StationDetail | null>(null)
+const loading = ref(true)
+const error = ref(false)
+
+onLoad(async (q) => {
+  const id = q && q.id ? Number(q.id) : 1
+  try {
+    station.value = await offlineApi.getStation(id)
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
 })
 
 type TabType = 'intro' | 'courses' | 'products' | 'instructors'
@@ -231,15 +262,28 @@ const tabs: { value: TabType; label: string; icon: string }[] = [
 ]
 const activeTab = ref<TabType>('intro')
 
+const submitting = ref(false)
 function toggleFav() {
+  if (!station.value) return
   station.value.isFavorited = !station.value.isFavorited
   uni.showToast({ title: station.value.isFavorited ? '已收藏' : '已取消收藏', icon: 'none' })
 }
 function onShare() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
-function onCall() { uni.makePhoneCall({ phoneNumber: station.value.phone }).catch(() => {}) }
-function onNavigate() { uni.showToast({ title: `导航到「${station.value.name}」`, icon: 'none' }) }
+function onCall() { if (station.value) uni.makePhoneCall({ phoneNumber: station.value.phone }).catch(() => {}) }
+function onNavigate() { if (station.value) uni.showToast({ title: `导航到「${station.value.name}」`, icon: 'none' }) }
 function goEvents() { navigateTo('/offline/events') }
 function onBook(ins: StationInstructor) { uni.showToast({ title: `预约「${ins.name}」`, icon: 'none' }) }
+async function retryLoad() {
+  error.value = false
+  loading.value = true
+  try {
+    station.value = await offlineApi.getStation(station.value?.id || 1)
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -339,4 +383,22 @@ function onBook(ins: StationInstructor) { uni.showToast({ title: `预约「${ins
 .sd-foot-btn.primary { background: #c41e3a; }
 .sd-foot-btn-text { font-size: 14px; font-weight: 500; color: #1a1a1a; }
 .sd-foot-btn-text.primary { color: #fff; }
+/* 骨架屏 */
+.sd-skeleton { padding: 0; }
+.sd-sk-cover { width: 100%; aspect-ratio: 2 / 1; background: #e5e7eb; animation: sd-sk-pulse 1.5s ease-in-out infinite; }
+.sd-sk-info { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.sd-sk-line { height: 16px; background: #e5e7eb; border-radius: 4px; animation: sd-sk-pulse 1.5s ease-in-out infinite; }
+.sd-sk-line.w50 { width: 50%; }
+.sd-sk-line.w30 { width: 30%; }
+.sd-sk-line.w60 { width: 60%; }
+.sd-sk-line.w80 { width: 80%; }
+@keyframes sd-sk-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+/* 错误/重试 */
+.sd-error { padding: 80px 0; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.sd-error-text { font-size: 14px; color: #9ca3af; }
+.sd-retry-btn { padding: 8px 24px; background: #c41e3a; border-radius: 8px; }
+.sd-retry-text { font-size: 14px; color: #fff; }
 </style>

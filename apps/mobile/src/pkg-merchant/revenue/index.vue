@@ -14,6 +14,9 @@
     </view>
 
     <scroll-view scroll-y class="rv-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
+      <view v-if="loading" class="state-loading"><text class="state-loading-text">加载中...</text></view>
+      <view v-if="error" class="state-error"><text class="state-error-text">加载失败</text><view class="state-retry" @tap="retry"><text class="state-retry-text">重试</text></view></view>
+      <template v-if="!loading && !error">
       <!-- 余额卡片 -->
       <view class="rv-balance">
         <view class="rv-balance-top">
@@ -115,20 +118,24 @@
         </view>
       </view>
       <view style="height: 24px" />
+      </template>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { merchantRevenue, revenueTransactions, revenueTypeConfig, revenueStatusConfig } from '@/lib/merchant-data'
+import { merchantAdminApi, revenueTypeConfig, revenueStatusConfig } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
 
-const r = merchantRevenue
+const r = ref<any>({})
+const transactions = ref<any[]>([])
+const loading = ref(true)
+const error = ref(false)
 const typeCfg = revenueTypeConfig
 const statusCfg = revenueStatusConfig
 const activeTab = ref('all')
@@ -141,7 +148,7 @@ const tabs = [
 ]
 
 const filteredTransactions = computed(() =>
-  revenueTransactions.filter((t) => {
+  transactions.value.filter((t: any) => {
     if (activeTab.value === 'income') return t.type === 'income'
     if (activeTab.value === 'withdraw') return t.type === 'withdraw'
     if (activeTab.value === 'refund') return t.type === 'refund' || t.type === 'fee'
@@ -154,6 +161,32 @@ function toast() {
 }
 function go(path: string) {
   navigateTo(path)
+}
+
+onMounted(async () => {
+  try {
+    const res = await merchantAdminApi.getRevenue()
+    r.value = { balance: res.balance, pendingSettle: res.pendingSettle, frozen: res.frozen, totalIncome: res.totalIncome, totalWithdraw: res.totalWithdraw, monthIncome: res.monthIncome, monthCompare: res.monthCompare }
+    transactions.value = res.transactions || []
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+})
+
+async function retry() {
+  error.value = false
+  loading.value = true
+  try {
+    const res = await merchantAdminApi.getRevenue()
+    r.value = { balance: res.balance, pendingSettle: res.pendingSettle, frozen: res.frozen, totalIncome: res.totalIncome, totalWithdraw: res.totalWithdraw, monthIncome: res.monthIncome, monthCompare: res.monthCompare }
+    transactions.value = res.transactions || []
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -208,4 +241,11 @@ function go(path: string) {
 .rv-settle { background: #fffbeb; border: 1px solid rgba(245,158,11,0.3); border-radius: 12px; padding: 16px; display: flex; align-items: flex-start; gap: 8px; }
 .rv-settle-title { font-size: 14px; font-weight: 500; color: #1a1a1a; display: block; }
 .rv-settle-desc { font-size: 12px; color: #6b7280; margin-top: 4px; display: block; line-height: 1.5; }
+/* 三态 */
+.state-loading { padding: 80px 0; text-align: center; }
+.state-loading-text { font-size: 14px; color: #9ca3af; }
+.state-error { padding: 80px 0; text-align: center; }
+.state-error-text { font-size: 14px; color: #ef4444; display: block; margin-bottom: 12px; }
+.state-retry { display: inline-block; padding: 8px 20px; background: #c41e3a; border-radius: 8px; }
+.state-retry-text { font-size: 14px; color: #fff; }
 </style>

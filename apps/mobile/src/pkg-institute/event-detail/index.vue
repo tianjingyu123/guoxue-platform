@@ -1,7 +1,31 @@
 <template>
   <view class="page">
+    <!-- 加载/错误 -->
+    <view v-if="loading" class="not-found-page">
+      <view class="nav-simple" :style="{ paddingTop: statusBarHeight + 'px' }">
+        <view class="nav-bar">
+          <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#1a1a1a" /></view>
+          <text class="nav-title">活动详情</text>
+        </view>
+      </view>
+      <view class="not-found" :style="{ paddingTop: navHeight + 'px' }">
+        <text class="not-found-text">加载中...</text>
+      </view>
+    </view>
+    <view v-else-if="error" class="not-found-page">
+      <view class="nav-simple" :style="{ paddingTop: statusBarHeight + 'px' }">
+        <view class="nav-bar">
+          <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#1a1a1a" /></view>
+          <text class="nav-title">活动详情</text>
+        </view>
+      </view>
+      <view class="not-found" :style="{ paddingTop: navHeight + 'px' }">
+        <text class="not-found-text">加载失败</text>
+        <view class="not-found-btn" @tap="onLoad({})"><text class="not-found-btn-text">重试</text></view>
+      </view>
+    </view>
     <!-- 不存在 -->
-    <view v-if="!event" class="not-found-page">
+    <view v-else-if="!event" class="not-found-page">
       <view class="nav-simple" :style="{ paddingTop: statusBarHeight + 'px' }">
         <view class="nav-bar">
           <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#1a1a1a" /></view>
@@ -112,7 +136,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { instituteEvents, eventTypeLabel, eventTypeColor, eventStatusLabel, eventStatusColor, type InstituteEvent } from '@/lib/institute-data'
+import { instituteApi, type InstituteEvent, eventTypeLabel, eventTypeColor, eventStatusLabel, eventStatusColor } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -121,11 +145,22 @@ statusBarHeight.value = sys.statusBarHeight || 0
 navHeight.value = (sys.statusBarHeight || 0) + 44
 
 const event = ref<InstituteEvent | null>(null)
+const loading = ref(true)
+const error = ref(false)
 const isEnrolled = ref(false)
 
-onLoad((q) => {
+onLoad(async (q) => {
   const id = q && q.id ? Number(q.id) : 1
-  event.value = instituteEvents.find((e) => e.id === id) || null
+  loading.value = true
+  error.value = false
+  try {
+    const events = await instituteApi.getEvents()
+    event.value = events.find((e) => e.id === id) || null
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
 })
 
 const isFull = computed(() => !!event.value && event.value.maxParticipants != null && event.value.currentParticipants >= event.value.maxParticipants)

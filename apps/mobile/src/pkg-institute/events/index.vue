@@ -44,7 +44,16 @@
 
       <!-- 列表视图 -->
       <view v-if="viewMode === 'list'" class="list">
-        <view v-if="filteredEvents.length === 0" class="empty">
+        <view v-if="loading" class="empty">
+          <app-icon name="calendar" :size="48" color="#d1d5db" />
+          <text class="empty-text">加载中...</text>
+        </view>
+        <view v-else-if="error" class="empty">
+          <app-icon name="calendar" :size="48" color="#d1d5db" />
+          <text class="empty-text">加载失败</text>
+          <view class="retry-btn" @tap="fetchEvents"><text class="retry-btn-text">重试</text></view>
+        </view>
+        <view v-else-if="filteredEvents.length === 0" class="empty">
           <app-icon name="calendar" :size="48" color="#d1d5db" />
           <text class="empty-text">暂无相关活动</text>
         </view>
@@ -98,7 +107,7 @@
       </view>
 
       <!-- 日历视图 -->
-      <view v-else class="calendar">
+      <view v-else-if="!loading && !error" class="calendar">
         <view class="cal-head">
           <view class="cal-nav-btn" @tap="prevMonth"><app-icon name="chevron-left" :size="20" color="#4b5563" /></view>
           <text class="cal-month">{{ calYear }}年{{ calMonth + 1 }}月</text>
@@ -140,9 +149,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { instituteEvents, eventTypeLabel, eventTypeColor, eventStatusLabel, eventStatusColor, type InstituteEventType } from '@/lib/institute-data'
+import { instituteApi, type InstituteEvent, eventTypeLabel, eventTypeColor, eventStatusLabel, eventStatusColor, type InstituteEventType } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -166,7 +176,27 @@ const now = new Date()
 const calYear = ref(now.getFullYear())
 const calMonth = ref(now.getMonth())
 
-const typeFiltered = computed(() => instituteEvents.filter((e) => selectedType.value === 'all' || e.type === selectedType.value))
+const allEvents = ref<InstituteEvent[]>([])
+const loading = ref(true)
+const error = ref(false)
+
+async function fetchEvents() {
+  loading.value = true
+  error.value = false
+  try {
+    allEvents.value = await instituteApi.getEvents()
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchEvents()
+})
+
+const typeFiltered = computed(() => allEvents.value.filter((e) => selectedType.value === 'all' || e.type === selectedType.value))
 const filteredEvents = computed(() => {
   if (!keyword.value) return typeFiltered.value
   const kw = keyword.value.toLowerCase()
@@ -279,4 +309,7 @@ function noop() {}
 .day-event-text { font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .day-more { font-size: 10px; color: #9ca3af; }
 .bottom-safe { height: 24px; }
+
+.retry-btn { margin-top: 8px; padding: 6px 16px; background: #c41e3a; border-radius: 8px; }
+.retry-btn-text { font-size: 13px; color: #fff; }
 </style>

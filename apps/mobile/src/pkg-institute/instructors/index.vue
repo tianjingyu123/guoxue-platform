@@ -51,7 +51,14 @@
 
       <!-- 列表 -->
       <view class="list">
-        <view v-if="filteredList.length === 0" class="empty">
+        <view v-if="loading" class="empty">
+          <text class="empty-text">加载中...</text>
+        </view>
+        <view v-else-if="error" class="empty">
+          <text class="empty-text">加载失败</text>
+          <view class="retry-btn" @tap="loading = false; error = false"><text class="retry-btn-text">重试</text></view>
+        </view>
+        <view v-else-if="filteredList.length === 0" class="empty">
           <app-icon name="users" :size="48" color="#d1d5db" />
           <text class="empty-text">未找到符合条件的讲师</text>
         </view>
@@ -98,10 +105,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { instructors as allInstructors, instructorLevelLabel, instructorLevelColor, type InstructorLevel } from '@/lib/institute-data'
+import { instituteApi, instructors as allInstructors, instructorLevelLabel, instructorLevelColor, type Instructor, type InstructorLevel } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -122,12 +129,20 @@ const keyword = ref('')
 const searchTerm = ref('')
 const activeLevel = ref<InstructorLevel | 'all'>('all')
 const activeSpecialty = ref('全部')
+const loading = ref(false)
+const error = ref(false)
 
 onLoad((q) => {
   if (q && q.keyword) {
     keyword.value = decodeURIComponent(q.keyword)
     searchTerm.value = keyword.value
   }
+})
+
+onMounted(() => {
+  loading.value = true
+  // 数据来自模块导入（同步），无需异步API
+  loading.value = false
 })
 
 function applyFilter() {

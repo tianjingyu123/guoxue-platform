@@ -12,7 +12,25 @@
     </view>
 
     <scroll-view scroll-y class="ck-body">
+      <!-- 加载骨架 -->
+      <view v-if="loading" class="ck-card sk">
+        <view class="ck-cover sk-bg" />
+        <view class="ck-course-info">
+          <view class="sk-line w80" />
+          <view class="sk-line w40" />
+          <view class="sk-line w60" />
+        </view>
+      </view>
+
+      <!-- 错误 -->
+      <view v-else-if="error" class="ck-card ck-closed">
+        <app-icon name="alert-circle" :size="48" color="#ef4444" />
+        <text class="ck-closed-title">加载失败</text>
+        <text class="ck-closed-sub">请检查网络后重试</text>
+      </view>
+
       <!-- 课程信息卡 -->
+      <template v-else-if="detail">
       <view class="ck-card ck-course">
         <view class="ck-cover">
           <app-icon name="graduation-cap" :size="44" color="#d8b48a" />
@@ -131,6 +149,7 @@
         <app-icon name="navigation" :size="16" color="#4b5563" />
         <text class="ck-nav-btn-text">导航到上课地点</text>
       </view>
+      </template>
     </scroll-view>
 
     <!-- 签到成功弹层 -->
@@ -178,22 +197,31 @@ try {
 } catch {}
 
 const courseId = ref(1)
-const detail = ref<CourseCheckinDetail>(getCourseCheckinDetail(1))
-const myRecord = ref<CheckinRecord | undefined>(detail.value.myRecord)
+const detail = ref<CourseCheckinDetail | null>(null)
+const myRecord = ref<CheckinRecord | undefined>(undefined)
 const checkinMode = ref<'qr' | 'code'>('qr')
 const inputCode = ref('')
 const showSuccess = ref(false)
 const successData = ref<{ rank?: number; points?: number }>({})
+const loading = ref(true)
+const error = ref(false)
 
 onLoad((q) => {
   courseId.value = q && q.courseId ? Number(q.courseId) : 1
-  detail.value = getCourseCheckinDetail(courseId.value)
-  myRecord.value = detail.value.myRecord
+  try {
+    detail.value = getCourseCheckinDetail(courseId.value)
+    myRecord.value = detail.value.myRecord
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
 })
 
-const course = computed(() => detail.value.course)
-const courseStatusLabel = computed(() => getCourseStatusLabel(course.value.status))
-const canCheckin = computed(() => isInCheckinWindow(course.value) && !myRecord.value)
+const submitting = ref(false)
+const course = computed(() => detail.value?.course)
+const courseStatusLabel = computed(() => course.value ? getCourseStatusLabel(course.value.status) : '')
+const canCheckin = computed(() => !!(course.value && isInCheckinWindow(course.value) && !myRecord.value))
 const canCheckout = computed(() => myRecord.value?.status === 'checked_in')
 const recordTimeText = computed(() => {
   const r = myRecord.value
@@ -204,18 +232,24 @@ const recordTimeText = computed(() => {
 })
 
 function doCheckin(method: 'qrcode' | 'code') {
-  myRecord.value = {
-    id: 1001,
-    courseId: courseId.value,
-    checkinTime: new Date().toTimeString().slice(0, 5),
-    checkinMethod: method,
-    status: 'checked_in',
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    myRecord.value = {
+      id: 1001,
+      courseId: courseId.value,
+      checkinTime: new Date().toTimeString().slice(0, 5),
+      checkinMethod: method,
+      status: 'checked_in',
+    }
+    successData.value = { rank: 16, points: 10 }
+    showSuccess.value = true
+    // #ifdef APP-PLUS || MP
+    try { uni.vibrateShort({}) } catch {}
+    // #endif
+  } finally {
+    submitting.value = false
   }
-  successData.value = { rank: 16, points: 10 }
-  showSuccess.value = true
-  // #ifdef APP-PLUS || MP
-  try { uni.vibrateShort({}) } catch {}
-  // #endif
 }
 function handleQrCheckin() {
   doCheckin('qrcode')
@@ -232,12 +266,17 @@ function handleCodeCheckin() {
   doCheckin('code')
 }
 function handleCheckout() {
-  if (!myRecord.value) return
-  myRecord.value = { ...myRecord.value, checkoutTime: new Date().toTimeString().slice(0, 5), status: 'checked_out' }
-  uni.showToast({ title: '签退成功', icon: 'success' })
+  if (!myRecord.value || submitting.value) return
+  submitting.value = true
+  try {
+    myRecord.value = { ...myRecord.value, checkoutTime: new Date().toTimeString().slice(0, 5), status: 'checked_out' }
+    uni.showToast({ title: '签退成功', icon: 'success' })
+  } finally {
+    submitting.value = false
+  }
 }
 function onNavigate() {
-  uni.showToast({ title: `导航到「${course.value.location.name}」`, icon: 'none' })
+  if (course.value) uni.showToast({ title: `导航到「${course.value.location.name}」`, icon: 'none' })
 }
 </script>
 
@@ -625,5 +664,15 @@ function onNavigate() {
 }
 .ck-success-btn {
   width: 100%;
+}
+/* 骨架屏 */
+.sk-bg { background: #e5e7eb; animation: ck-sk-pulse 1.5s ease-in-out infinite; }
+.sk-line { height: 14px; background: #e5e7eb; border-radius: 4px; margin-bottom: 8px; animation: ck-sk-pulse 1.5s ease-in-out infinite; }
+.sk-line.w40 { width: 40%; }
+.sk-line.w60 { width: 60%; }
+.sk-line.w80 { width: 80%; }
+@keyframes ck-sk-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 </style>

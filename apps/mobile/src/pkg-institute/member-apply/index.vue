@@ -219,6 +219,7 @@ import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
+  instituteApi,
   memberApplyRequirements as requirements,
   memberApplyTasks as tasks,
   memberApplyUserCircles as userCircles,
@@ -247,14 +248,26 @@ const selectedCircleName = computed(() => userCircles.find(c => c.id === selecte
 function toggleAgree(key: 'tasks' | 'refund' | 'rules') {
   agreements.value[key] = !agreements.value[key]
 }
-function handlePay() {
+async function handlePay() {
   if (paying.value) return
   paying.value = true
-  setTimeout(() => {
-    paying.value = false
+  try {
+    await instituteApi.applyMember({
+      realName: form.value.realName,
+      phone: '',
+      specialties: [form.value.expertise],
+      experience: form.value.introduction,
+      introduction: form.value.reason || '',
+      certificates: [],
+      status: 'submitted',
+    })
     showPayDialog.value = false
     step.value = 4
-  }, 1500)
+  } catch {
+    uni.showToast({ title: '支付失败，请重试', icon: 'none' })
+  } finally {
+    paying.value = false
+  }
 }
 function goInstitute() {
   navigateTo('/institute')

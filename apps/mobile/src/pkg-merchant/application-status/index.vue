@@ -16,7 +16,19 @@
     </view>
 
     <scroll-view scroll-y class="as-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
-      <view class="as-body">
+      <!-- 加载中 -->
+      <view v-if="loading" class="as-loading">
+        <view class="as-spin"><AppIcon name="loader-2" :size="24" color="#999" /></view>
+        <text class="as-loading-text">加载中...</text>
+      </view>
+      <!-- 错误 -->
+      <view v-else-if="error" class="as-error">
+        <AppIcon name="alert-circle" :size="40" color="#dc2626" />
+        <text class="as-error-text">加载失败</text>
+        <view class="as-retry-btn" @tap="handleRefresh">重试</view>
+      </view>
+      <!-- 内容 -->
+      <view v-else class="as-body">
         <!-- 状态卡片 -->
         <view class="as-status-card" :style="{ background: config.bg }">
           <view class="as-status-icon" :style="{ background: config.iconBg }">
@@ -121,9 +133,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { merchantApi } from '@/lib/merchant-data'
 
 type Status = 'PENDING_REVIEW' | 'REVIEW_FAILED' | 'DEPOSIT_PENDING' | 'AGREEMENT_PENDING' | 'ACTIVE' | 'SUSPENDED' | 'CLOSED'
 
@@ -149,16 +162,18 @@ const demoStatuses: Status[] = ['PENDING_REVIEW', 'REVIEW_FAILED', 'DEPOSIT_PEND
 
 const status = ref<Status>('PENDING_REVIEW')
 const isLoading = ref(false)
+const loading = ref(true)
+const error = ref(false)
 const demoIndex = ref(0)
 const statusBarHeight = ref(0)
 
-const applicationData = {
-  shopName: '古韵轩书店',
-  rejectReason: '营业执照图片不清晰，请重新上传',
-  depositAmount: 2000,
-  suspendReason: '存在违规商品',
-  openDate: '2024-01-18',
-}
+const applicationData = ref({
+  shopName: '',
+  rejectReason: '',
+  depositAmount: 0,
+  suspendReason: '',
+  openDate: '',
+})
 
 const config = computed(() => statusConfig[status.value])
 
@@ -173,11 +188,34 @@ const progressIndex = computed(() => {
   }
 })
 
+async function fetchApplication() {
+  try {
+    const res = await merchantApi.getApplication()
+    applicationData.value = {
+      shopName: res.shopName || '',
+      rejectReason: res.rejectReason || '',
+      depositAmount: res.depositAmount || 0,
+      suspendReason: res.suspendReason || '',
+      openDate: res.openDate || '',
+    }
+    if (res.status) {
+      status.value = res.status as Status
+    }
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
 async function handleRefresh() {
   if (isLoading.value) return
   isLoading.value = true
-  await new Promise((r) => setTimeout(r, 1000))
-  isLoading.value = false
+  try {
+    await fetchApplication()
+  } finally {
+    isLoading.value = false
+  }
 }
 
 function handleDemoSwitch() {
@@ -188,6 +226,10 @@ function handleDemoSwitch() {
 function go(url: string) {
   navigateTo(url)
 }
+
+onMounted(() => {
+  fetchApplication()
+})
 
 uni.getSystemInfo({
   success: (res) => {
@@ -265,4 +307,11 @@ uni.getSystemInfo({
 /* Demo */
 .as-demo { padding-top: 16px; border-top: 1px dashed #ddd; display: flex; flex-direction: column; gap: 8px; }
 .as-demo-label { font-size: 12px; color: #999; text-align: center; }
+
+/* Loading / Error */
+.as-loading { padding: 80px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.as-loading-text { font-size: 14px; color: #999; }
+.as-error { padding: 80px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.as-error-text { font-size: 14px; color: #dc2626; }
+.as-retry-btn { height: 36px; padding: 0 24px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #1a1a1a; }
 </style>

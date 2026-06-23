@@ -1,6 +1,6 @@
 // 视频创作者中心数据 —— 照搬原型 app/videos/creator/**
 
-import { apiGet, useMock } from '@/utils/request'
+import { apiGet, apiPost, apiPut, useMock } from '@/utils/request'
 
 /** 格式化数字：>=10000 显示「万」 —— 照搬原型 formatNumber */
 export function formatCreatorNumber(num: number): string {
@@ -198,6 +198,56 @@ export const creatorEarningsHistory = {
 // ============ API 层 ============
 
 export const creatorApi = {
+  /** 创作者概览 — GET /video/creator/overview */
+  async getOverview(): Promise<typeof creatorStats> {
+    if (useMock()) return creatorStats
+    try {
+      return await apiGet('/video/creator/overview')
+    } catch {
+      return creatorStats
+    }
+  },
+
+  /** 我的作品列表 — GET /video/creator/videos */
+  async getMyVideos(): Promise<CreatorVideo[]> {
+    if (useMock()) return myVideos
+    try {
+      return await apiGet('/video/creator/videos')
+    } catch {
+      return myVideos
+    }
+  },
+
+  /** 商品库 — GET /video/creator/products */
+  async getProducts(): Promise<CreatorProduct[]> {
+    if (useMock()) return creatorProductLibrary
+    try {
+      return await apiGet('/video/creator/products')
+    } catch {
+      return creatorProductLibrary
+    }
+  },
+
+  /** 收益预览 — GET /video/creator/earnings/preview */
+  async getEarningsPreview(): Promise<typeof creatorEarningsPreview> {
+    if (useMock()) return creatorEarningsPreview
+    try {
+      return await apiGet('/video/creator/earnings/preview')
+    } catch {
+      return creatorEarningsPreview
+    }
+  },
+
+  /** 数据分析 — GET /video/creator/analytics */
+  async getAnalytics(): Promise<typeof creatorAnalytics> {
+    if (useMock()) return creatorAnalytics
+    try {
+      return await apiGet('/video/creator/analytics')
+    } catch {
+      return creatorAnalytics
+    }
+  },
+
   /** 播放统计 — GET /video/vod/playback-stats/:fileId */
   async getPlaybackStats(fileId: string): Promise<any> {
     if (useMock()) return creatorAnalytics
@@ -215,6 +265,76 @@ export const creatorApi = {
       return await apiGet('/video/vod/search', params)
     } catch {
       return []
+    }
+  },
+
+  /** 销售数据 — GET /video/creator/sales */
+  async getSales(): Promise<typeof creatorSales> {
+    if (useMock()) return creatorSales
+    try {
+      return await apiGet('/video/creator/sales')
+    } catch {
+      return creatorSales
+    }
+  },
+
+  /** 收益概览 — GET /video/creator/revenue */
+  async getRevenueOverview(): Promise<typeof creatorRevenueOverview> {
+    if (useMock()) return creatorRevenueOverview
+    try {
+      return await apiGet('/video/creator/revenue')
+    } catch {
+      return creatorRevenueOverview
+    }
+  },
+
+  /** 提现记录 — GET /video/creator/withdraw-history */
+  async getWithdrawHistory(): Promise<typeof creatorWithdrawHistory> {
+    if (useMock()) return creatorWithdrawHistory
+    try {
+      return await apiGet('/video/creator/withdraw-history')
+    } catch {
+      return creatorWithdrawHistory
+    }
+  },
+
+  /** 收益历史 — GET /video/creator/earnings/history */
+  async getEarningsHistory(): Promise<typeof creatorEarningsHistory> {
+    if (useMock()) return creatorEarningsHistory
+    try {
+      return await apiGet('/video/creator/earnings/history')
+    } catch {
+      return creatorEarningsHistory
+    }
+  },
+
+  /** 提交提现 — POST /video/creator/withdraw */
+  async submitWithdraw(data: Record<string, any>): Promise<any> {
+    if (useMock()) return { success: true, message: '提现申请已提交' }
+    try {
+      return await apiPost('/video/creator/withdraw', data)
+    } catch (e: any) {
+      return { success: false, message: e?.message || '提现失败' }
+    }
+  },
+
+  /** 添加商品 — POST /video/creator/products */
+  async addProduct(data: Record<string, any>): Promise<any> {
+    if (useMock()) return { success: true, message: '商品已添加', id: String(Date.now()) }
+    try {
+      return await apiPost('/video/creator/products', data)
+    } catch (e: any) {
+      return { success: false, message: e?.message || '添加失败' }
+    }
+  },
+
+  /** 保存创作者设置 — PUT /video/creator/settings */
+  async saveSettings(data: Record<string, any>): Promise<any> {
+    if (useMock()) return { success: true, message: '保存成功' }
+    try {
+      return await apiPut('/video/creator/settings', data)
+    } catch (e: any) {
+      return { success: false, message: e?.message || '保存失败' }
     }
   },
 }

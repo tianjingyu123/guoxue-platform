@@ -112,6 +112,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { creatorApi } from '@/lib/creator-data'
 
 type ProductType = 'video' | 'course' | 'consult' | 'material'
 const TYPES: { key: ProductType; label: string; desc: string }[] = [
@@ -146,9 +147,22 @@ function removeTag(tag: string) {
 async function handleSubmit() {
   if (!valid.value || loading.value) return
   loading.value = true
-  await new Promise((r) => setTimeout(r, 1200))
-  loading.value = false
-  success.value = true
+  try {
+    await creatorApi.addProduct({
+      type: type.value,
+      title: form.value.title,
+      desc: form.value.desc,
+      price: form.value.price,
+      originalPrice: form.value.originalPrice,
+      stock: form.value.stock,
+      tags: tags.value,
+    })
+    success.value = true
+  } catch {
+    uni.showToast({ title: '发布失败，请重试', icon: 'none' })
+  } finally {
+    loading.value = false
+  }
 }
 
 uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })

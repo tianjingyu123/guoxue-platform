@@ -11,11 +11,28 @@
     </view>
 
     <scroll-view scroll-y class="od-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
+      <!-- 加载中 -->
+      <view v-if="loading" class="od-loading">
+        <text class="od-loading-text">加载中...</text>
+      </view>
+      <!-- 错误 -->
+      <view v-else-if="error" class="od-error">
+        <AppIcon name="alert-circle" :size="40" color="#dc2626" />
+        <text class="od-error-text">加载失败</text>
+        <view class="od-retry-btn" @tap="retry">重试</view>
+      </view>
+      <!-- 订单不存在 -->
+      <view v-else-if="!d" class="od-empty">
+        <AppIcon name="file-text" :size="40" color="#999" />
+        <text class="od-empty-text">订单不存在</text>
+      </view>
+      <!-- 内容 -->
+      <template v-else>
       <!-- 订单状态 -->
       <view class="od-status-banner">
         <AppIcon name="package" :size="40" color="#fff" />
         <view>
-          <text class="od-status-label">{{ statusCfg[d.status].label }}</text>
+          <text class="od-status-label">{{ statusCfg[d.status]?.label || '未知' }}</text>
           <text class="od-status-desc">请尽快发货，超时将自动关闭订单</text>
         </view>
       </view>
@@ -129,6 +146,7 @@
         </view>
       </view>
       <view style="height: 90px" />
+      </template>
     </scroll-view>
 
     <!-- 底部操作栏 -->
@@ -206,14 +224,16 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { merchantOrderDetail, orderDetailStatusConfig, expressCompanies } from '@/lib/merchant-data'
+import { merchantAdminApi, orderDetailStatusConfig, expressCompanies } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
 
-const d = merchantOrderDetail
+const d = ref<any>(null)
+const loading = ref(true)
+const error = ref(false)
 const statusCfg = orderDetailStatusConfig
-const orderId = ref(merchantOrderDetail.id)
+const orderId = ref('')
 
 const showShip = ref(false)
 const showExpress = ref(false)
@@ -221,8 +241,31 @@ const expressCompany = ref('')
 const trackingNo = ref('')
 const isSubmitting = ref(false)
 
+async function fetchOrder() {
+  try {
+    const orders = await merchantAdminApi.getOrders()
+    const found = orders.find((o: any) => String(o.id) === String(orderId.value))
+    if (found) {
+      d.value = found
+    } else {
+      error.value = true
+    }
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  loading.value = true
+  error.value = false
+  fetchOrder()
+}
+
 onLoad((opts: any) => {
   if (opts?.id) orderId.value = String(opts.id)
+  fetchOrder()
 })
 
 const expressName = computed(() => expressCompanies.find((c) => c.id === expressCompany.value)?.name || '')
@@ -348,4 +391,13 @@ function go(path: string) {
 .od-sheet-list { max-height: 50vh; }
 .od-sheet-item { padding: 14px 4px; border-bottom: 1px solid #f3f4f6; font-size: 15px; color: #1a1a1a; }
 .od-sheet-item.active { color: #c41e3a; }
+
+/* Loading / Error / Empty */
+.od-loading { padding: 80px 16px; display: flex; flex-direction: column; align-items: center; }
+.od-loading-text { font-size: 14px; color: #999; }
+.od-error { padding: 80px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.od-error-text { font-size: 14px; color: #dc2626; }
+.od-retry-btn { height: 36px; padding: 0 24px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #1a1a1a; }
+.od-empty { padding: 80px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.od-empty-text { font-size: 14px; color: #999; }
 </style>

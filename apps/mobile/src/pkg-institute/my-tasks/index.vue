@@ -41,7 +41,16 @@
 
       <!-- 任务列表 -->
       <view class="list">
-        <view v-if="filteredTasks.length === 0" class="empty">
+        <view v-if="loading" class="empty">
+          <view class="empty-icon"><app-icon name="file-text" :size="32" color="#9ca3af" /></view>
+          <text class="empty-text">加载中...</text>
+        </view>
+        <view v-else-if="error" class="empty">
+          <view class="empty-icon"><app-icon name="file-text" :size="32" color="#9ca3af" /></view>
+          <text class="empty-text">加载失败</text>
+          <view class="retry-btn" @tap="fetchTasks"><text class="retry-btn-text">重试</text></view>
+        </view>
+        <view v-else-if="filteredTasks.length === 0" class="empty">
           <view class="empty-icon">
             <app-icon name="file-text" :size="32" color="#9ca3af" />
           </view>
@@ -180,10 +189,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
-  instructorTasks, taskStats,
+  instituteApi,
   taskTypeLabel, taskTypeColor, taskStatusLabel, taskStatusColor,
   type InstructorTask, type TaskType,
 } from '@/lib/institute-data'
@@ -198,13 +208,41 @@ try {
 
 type TabType = 'available' | 'in_progress' | 'completed'
 const activeTab = ref<TabType>('available')
-const tasks = ref<InstructorTask[]>([...instructorTasks])
+const tasks = ref<InstructorTask[]>([])
+const loading = ref(true)
+const error = ref(false)
 
-const tabs = computed(() => [
-  { key: 'available' as TabType, label: '可领取', count: taskStats.available },
-  { key: 'in_progress' as TabType, label: '进行中', count: taskStats.inProgress },
-  { key: 'completed' as TabType, label: '已完成', count: taskStats.completed },
-])
+const tabs = computed(() => {
+  const available = tasks.value.filter(t => t.status === 'available').length
+  const inProgress = tasks.value.filter(t => t.status === 'in_progress' || t.status === 'submitted').length
+  const completed = tasks.value.filter(t => t.status === 'completed').length
+  return [
+    { key: 'available' as TabType, label: '可领取', count: available },
+    { key: 'in_progress' as TabType, label: '进行中', count: inProgress },
+    { key: 'completed' as TabType, label: '已完成', count: completed },
+  ]
+})
+
+const taskStats = computed(() => {
+  const totalReward = tasks.value.reduce((sum, t) => sum + (t.reward?.points || 0), 0)
+  return { totalReward }
+})
+
+async function fetchTasks() {
+  loading.value = true
+  error.value = false
+  try {
+    tasks.value = await instituteApi.getMyTasks()
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchTasks()
+})
 
 const filteredTasks = computed(() => tasks.value.filter(t => {
   if (activeTab.value === 'in_progress') return t.status === 'in_progress' || t.status === 'submitted'
@@ -258,20 +296,24 @@ function openSubmit(task: InstructorTask) {
   submitModalOpen.value = true
 }
 
-function submitTask() {
+async function submitTask() {
   if (!selectedTask.value || !submitContent.value.trim() || submitting.value) return
   submitting.value = true
-  setTimeout(() => {
+  try {
+    await instituteApi.completeTask(selectedTask.value.id)
     if (selectedTask.value) {
       selectedTask.value.status = 'submitted'
       selectedTask.value.submission = { content: submitContent.value, submittedAt: new Date().toLocaleString() }
     }
-    submitting.value = false
     submitModalOpen.value = false
     selectedTask.value = null
     submitContent.value = ''
     uni.showToast({ title: '已提交', icon: 'success' })
-  }, 1000)
+  } catch {
+    uni.showToast({ title: '提交失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 
 function openAbandon(task: InstructorTask) {
@@ -317,6 +359,9 @@ function abandonTask() {
 .empty { display: flex; flex-direction: column; align-items: center; padding: 48px 0; }
 .empty-icon { width: 64px; height: 64px; border-radius: 999px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
 .empty-text { font-size: 14px; color: #6b7280; }
+
+.retry-btn { margin-top: 12px; padding: 6px 16px; background: #c41e3a; border-radius: 8px; }
+.retry-btn-text { font-size: 13px; color: #fff; }
 
 .task-card { background: #fff; border-radius: 12px; border: 1px solid #ededed; overflow: hidden; margin-bottom: 12px; }
 .task-body { padding: 16px; }

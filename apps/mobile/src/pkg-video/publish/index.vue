@@ -82,7 +82,7 @@
           <AppIcon name="chevron-left" :size="48" color="#2C2C2C" />
         </view>
         <text class="vp-pub-title">发布设置</text>
-        <view class="vp-pub-submit" :class="{ disabled: uploading }" @tap="handlePublish">
+        <view class="vp-pub-submit" :class="{ disabled: uploading || submitting }" @tap="handlePublish">
           <text class="vp-pub-submit-txt">{{ uploading ? '发布中...' : '发布' }}</text>
         </view>
       </view>
@@ -313,9 +313,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { publishProductLibrary, publishHotTags } from '@/lib/video-data'
+import { videoApi, publishHotTags, type PublishProduct } from '@/lib/video-data'
 
 const statusBarHeight = ref(0)
 try {
@@ -341,11 +342,21 @@ const titleError = ref('')
 
 const hotTags = publishHotTags
 
+const productLibrary = ref<PublishProduct[]>([])
 const showProductSearch = ref(false)
 const productKeyword = ref('')
-const selectedProducts = ref<typeof publishProductLibrary>([])
-const searchResults = ref<typeof publishProductLibrary>([...publishProductLibrary])
+const selectedProducts = ref<PublishProduct[]>([])
+const searchResults = ref<PublishProduct[]>([])
 const showMyProducts = ref(true)
+
+onMounted(async () => {
+  try {
+    productLibrary.value = await videoApi.getProductLibrary()
+    searchResults.value = [...productLibrary.value]
+  } catch {
+    // 失败时保持空数组
+  }
+})
 
 const uploading = ref(false)
 const uploadProgress = ref(0)
@@ -353,6 +364,8 @@ const uploadProgress = ref(0)
 const estimatedCommission = computed(() =>
   selectedProducts.value.reduce((sum, p) => sum + (p.price * (p.commission || 10)) / 100, 0),
 )
+
+const submitting = ref(false)
 
 function pickFromAlbum() {
   // uni H5 无法真正提取帧，直接进入编辑步骤展示流程
@@ -381,7 +394,7 @@ function selectHotTag(tag: string) {
 function isProductSelected(p: { id: string }) {
   return !!selectedProducts.value.find((x) => x.id === p.id)
 }
-function toggleProduct(p: (typeof publishProductLibrary)[number]) {
+function toggleProduct(p: PublishProduct) {
   if (isProductSelected(p)) {
     selectedProducts.value = selectedProducts.value.filter((x) => x.id !== p.id)
   } else if (selectedProducts.value.length < 5) {
@@ -391,16 +404,16 @@ function toggleProduct(p: (typeof publishProductLibrary)[number]) {
 function searchProducts() {
   const kw = productKeyword.value.trim()
   if (kw) {
-    searchResults.value = publishProductLibrary.filter((p) => p.name.includes(kw))
+    searchResults.value = productLibrary.value.filter((p) => p.name.includes(kw))
     showMyProducts.value = false
   } else {
-    searchResults.value = [...publishProductLibrary]
+    searchResults.value = [...productLibrary.value]
     showMyProducts.value = true
   }
 }
 
 async function handlePublish() {
-  if (uploading.value) return
+  if (uploading.value || submitting.value) return
   if (!title.value.trim()) {
     titleError.value = '请输入视频标题'
     return
@@ -411,15 +424,31 @@ async function handlePublish() {
   }
   titleError.value = ''
   uploading.value = true
-  for (let i = 0; i <= 100; i += 10) {
-    await new Promise((r) => setTimeout(r, 200))
-    uploadProgress.value = i
-  }
-  setTimeout(() => {
-    uploading.value = false
+  submitting.value = true
+  try {
+    // 模拟上传进度
+    for (let i = 0; i <= 80; i += 10) {
+      await new Promise((r) => setTimeout(r, 200))
+      uploadProgress.value = i
+    }
+    // 调用真实 API 发布
+    await videoApi.publish({
+      title: title.value,
+      description: description.value,
+      tags: tags.value,
+      isPublic: isPublic.value,
+      products: selectedProducts.value.map((p) => p.id),
+    })
+    uploadProgress.value = 100
+    await new Promise((r) => setTimeout(r, 400))
     uni.showToast({ title: '发布成功', icon: 'success' })
     setTimeout(() => navigateTo('/videos'), 600)
-  }, 400)
+  } catch {
+    uni.showToast({ title: '发布失败，请重试', icon: 'none' })
+  } finally {
+    uploading.value = false
+    submitting.value = false
+  }
 }
 </script>
 

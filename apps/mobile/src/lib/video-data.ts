@@ -352,4 +352,34 @@ export const videoApi = {
       return { success: false, isLiked: false, likes: 0 }
     }
   },
+
+  /** 瀑布流列表 — GET /video/items */
+  async listItems(params?: Record<string, any>): Promise<VideoListItem[]> {
+    if (useMock()) return videoListItems
+    try {
+      return await apiGet('/video/items', params)
+    } catch {
+      return videoListItems
+    }
+  },
+
+  /** 搜索视频 — GET /video/search */
+  async search(params?: Record<string, any>): Promise<VideoSearchResult[]> {
+    if (useMock()) return videoSearchResults
+    try {
+      return await apiGet('/video/search', params)
+    } catch {
+      return videoSearchResults
+    }
+  },
+
+  /** 商品库列表 — GET /video/products */
+  async getProductLibrary(params?: Record<string, any>): Promise<PublishProduct[]> {
+    if (useMock()) return publishProductLibrary
+    try {
+      return await apiGet('/video/products', params)
+    } catch {
+      return publishProductLibrary
+    }
+  },
 }

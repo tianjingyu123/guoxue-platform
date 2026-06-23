@@ -12,6 +12,15 @@
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ paddingTop: navHeight + 'px' }">
+      <!-- 加载/错误 -->
+      <view v-if="loading" class="loading-block">
+        <text class="loading-text">加载中...</text>
+      </view>
+      <view v-else-if="error" class="error-block">
+        <text class="error-text">加载失败</text>
+        <view class="retry-btn" @tap="onLoad({ id: id })"><text class="retry-btn-text">重试</text></view>
+      </view>
+      <template v-else>
       <!-- 头部信息 -->
       <view class="header">
         <view class="header-row">
@@ -133,6 +142,7 @@
       </view>
 
       <view class="bottom-safe" />
+      </template>
     </scroll-view>
 
     <!-- 底部操作栏 -->
@@ -154,7 +164,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { getInstructorDetail, instructorLevelLabel, instructorLevelColor } from '@/lib/institute-data'
+import { instituteApi, getInstructorDetail, instructorLevelLabel, instructorLevelColor } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -164,6 +174,8 @@ navHeight.value = (sys.statusBarHeight || 0) + 44
 
 const id = ref(1)
 const detail = ref(getInstructorDetail(1))
+const loading = ref(false)
+const error = ref(false)
 const following = ref(false)
 const tab = ref<'intro' | 'courses' | 'reviews'>('intro')
 const tabList = [
@@ -175,7 +187,15 @@ const tabList = [
 onLoad((q) => {
   const pid = q && q.id ? Number(q.id) : 1
   id.value = pid
-  detail.value = getInstructorDetail(pid)
+  loading.value = true
+  error.value = false
+  try {
+    detail.value = getInstructorDetail(pid)
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
   following.value = !!detail.value.isFollowing
 })
 
@@ -259,4 +279,11 @@ function bookTeaching() {
 .book-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; background: #c41e3a; border-radius: 10px; padding: 10px 0; }
 .book-text { font-size: 14px; font-weight: 500; color: #fff; }
 .bottom-safe { height: 88px; }
+
+.loading-block { padding: 80px 16px; display: flex; align-items: center; justify-content: center; }
+.loading-text { font-size: 14px; color: #9ca3af; }
+.error-block { padding: 80px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.error-text { font-size: 14px; color: #ef4444; }
+.retry-btn { padding: 6px 16px; background: #c41e3a; border-radius: 8px; }
+.retry-btn-text { font-size: 13px; color: #fff; }
 </style>

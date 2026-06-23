@@ -36,7 +36,19 @@
 
     <!-- 协议正文 -->
     <template v-else>
-      <scroll-view scroll-y class="sa-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }" @scrolltolower="hasScrolled = true">
+      <!-- 加载中 -->
+      <view v-if="loading" class="sa-loading" :style="{ paddingTop: statusBarHeight + 44 + 80 + 'px' }">
+        <view class="sa-spin"><AppIcon name="loader-2" :size="24" color="#999" /></view>
+        <text class="sa-loading-text">加载协议中...</text>
+      </view>
+      <!-- 错误 -->
+      <view v-else-if="error" class="sa-error" :style="{ paddingTop: statusBarHeight + 44 + 80 + 'px' }">
+        <AppIcon name="alert-circle" :size="40" color="#dc2626" />
+        <text class="sa-error-text">加载失败</text>
+        <view class="sa-retry-btn" @tap="retryLoad">重试</view>
+      </view>
+      <!-- 内容 -->
+      <scroll-view v-else scroll-y class="sa-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }" @scrolltolower="hasScrolled = true">
         <view class="sa-doc-wrap">
           <view class="sa-doc">
             <text class="sa-doc-title">热卜平台商家入驻协议</text>
@@ -73,11 +85,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { merchantApi } from '@/lib/merchant-data'
 
-const agreementInfo = { version: 'v2024.01', signedAt: '2024-01-17 16:45:30', signedIP: '192.168.1.100' }
+const agreementInfo = ref({ title: '', content: '', version: '', updatedAt: '', signedAt: '', signedIP: '' })
+const loading = ref(true)
+const error = ref(false)
 
 const sections = [
   { h: '第一条 定义', ps: ['1.1 商家是指在平台上开设店铺、销售商品或提供服务的企业或个人。', '1.2 平台是指热卜运营的电子商务平台，包括但不限于网站、移动应用程序等。'] },
@@ -103,13 +118,63 @@ function toggleAgree() {
   agreed.value = !agreed.value
 }
 
+onMounted(async () => {
+  try {
+    const res = await merchantApi.getAgreementPreview()
+    agreementInfo.value = {
+      title: res.title || '商家入驻协议',
+      content: res.content || '',
+      version: res.version || '',
+      updatedAt: res.updatedAt || '',
+      signedAt: '',
+      signedIP: '',
+    }
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+})
+
+function retryLoad() {
+  loading.value = true
+  error.value = false
+  merchantApi.getAgreementPreview().then((res) => {
+    agreementInfo.value = {
+      title: res.title || '商家入驻协议',
+      content: res.content || '',
+      version: res.version || '',
+      updatedAt: res.updatedAt || '',
+      signedAt: '',
+      signedIP: '',
+    }
+  }).catch(() => {
+    error.value = true
+  }).finally(() => {
+    loading.value = false
+  })
+}
+
 async function handleSign() {
   if (!agreed.value || isSigning.value) return
   isSigning.value = true
-  await new Promise((r) => setTimeout(r, 1500))
-  isSigning.value = false
-  isSigned.value = true
-  setTimeout(() => navigateTo('/merchant/application-status'), 2000)
+  try {
+    const res = await merchantApi.signAgreement()
+    if (res.success) {
+      agreementInfo.value = {
+        ...agreementInfo.value,
+        signedAt: new Date().toLocaleString('zh-CN'),
+      }
+      isSigned.value = true
+      setTimeout(() => navigateTo('/merchant/application-status'), 2000)
+    } else {
+      uni.showToast({ title: res.message || '签署失败', icon: 'none' })
+    }
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '签署失败，请重试', icon: 'none' })
+  } finally {
+    isSigning.value = false
+  }
 }
 
 function go(url: string) {
@@ -169,4 +234,11 @@ uni.getSystemInfo({
 .sa-sign-btn-disabled { opacity: 0.5; }
 .sa-spin { display: inline-flex; animation: sa-spin 1s linear infinite; }
 @keyframes sa-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* Loading / Error */
+.sa-loading { padding: 0 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.sa-loading-text { font-size: 14px; color: #999; }
+.sa-error { padding: 0 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.sa-error-text { font-size: 14px; color: #dc2626; }
+.sa-retry-btn { height: 36px; padding: 0 24px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #1a1a1a; }
 </style>

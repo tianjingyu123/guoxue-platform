@@ -60,6 +60,16 @@
 
       <!-- 老师列表 -->
       <view class="list">
+        <view v-if="loading" class="empty-state">
+          <text class="empty-state-text">加载中...</text>
+        </view>
+        <view v-else-if="error" class="empty-state">
+          <text class="empty-state-text">加载失败</text>
+          <view class="retry-btn" @tap="fetchTeachers"><text class="retry-btn-text">重试</text></view>
+        </view>
+        <view v-else-if="filteredTeachers.length === 0" class="empty-state">
+          <text class="empty-state-text">暂无符合条件的老师</text>
+        </view>
         <view
           v-for="t in filteredTeachers"
           :key="t.id"
@@ -137,13 +147,15 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
-  offlineTeachers,
+  instituteApi,
   offlineTeacherLevelConfig as levelConfig,
   offlineTeacherSpecialties as specialties,
   offlineTeacherCities as cities,
+  type OfflineTeacher,
 } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
@@ -157,8 +169,27 @@ try {
 const keyword = ref('')
 const activeSpecialty = ref('全部')
 const activeCity = ref('全部')
+const teachers = ref<OfflineTeacher[]>([])
+const loading = ref(true)
+const error = ref(false)
 
-const filteredTeachers = computed(() => offlineTeachers.filter(t => {
+async function fetchTeachers() {
+  loading.value = true
+  error.value = false
+  try {
+    teachers.value = await instituteApi.getTalentPool()
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchTeachers()
+})
+
+const filteredTeachers = computed(() => teachers.value.filter(t => {
   if (activeSpecialty.value !== '全部' && !t.specialty.includes(activeSpecialty.value)) return false
   if (activeCity.value !== '全部' && t.location !== activeCity.value) return false
   if (keyword.value) {
@@ -200,6 +231,11 @@ function goDemand() {
 .chip-text-active { color: #fff; }
 
 .list { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+.empty-state { padding: 40px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.empty-state-text { font-size: 14px; color: #9ca3af; }
+.retry-btn { padding: 6px 16px; background: #c41e3a; border-radius: 8px; }
+.retry-btn-text { font-size: 13px; color: #fff; }
 .teacher-card { background: #fff; border-radius: 12px; border: 1px solid #ededed; padding: 14px; }
 .card-top { display: flex; gap: 12px; }
 .avatar { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }

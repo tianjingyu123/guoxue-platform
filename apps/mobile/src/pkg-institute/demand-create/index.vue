@@ -108,7 +108,7 @@
 import { ref, computed, reactive } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { demandSpecialtyOptions as specialties, demandTeachTypes as teachTypes, demandSalaries as salaries } from '@/lib/institute-data'
+import { instituteApi, demandSpecialtyOptions as specialties, demandTeachTypes as teachTypes, demandSalaries as salaries } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const scrollHeight = ref(600)

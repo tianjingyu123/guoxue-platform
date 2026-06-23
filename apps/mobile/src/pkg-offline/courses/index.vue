@@ -33,7 +33,7 @@
       <!-- 驿站下拉 -->
       <view v-if="showStationPicker" class="cl-dropdown">
         <view class="cl-drop-item" :class="{ active: selectedStation == null }" @tap="selectStation(undefined)">全部驿站</view>
-        <view v-for="s in stations" :key="s.id" class="cl-drop-item" :class="{ active: selectedStation === s.id }" @tap="selectStation(s.id)">
+        <view v-for="s in stationList" :key="s.id" class="cl-drop-item" :class="{ active: selectedStation === s.id }" @tap="selectStation(s.id)">
           <text class="cl-drop-name">{{ s.name }}</text>
           <text class="cl-drop-addr">{{ s.address }}</text>
         </view>
@@ -48,6 +48,29 @@
     <view v-if="showStationPicker || showDatePicker" class="cl-mask" @tap="closeDropdowns" />
 
     <scroll-view scroll-y class="cl-body">
+      <!-- 加载骨架 -->
+      <view v-if="loading" class="cl-list">
+        <view v-for="i in 3" :key="i" class="cl-card sk">
+          <view class="cl-card-main">
+            <view class="cl-cover sk-bg" />
+            <view class="cl-info">
+              <view class="sk-line w70" />
+              <view class="sk-line w40" />
+              <view class="sk-line w80" />
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 错误 -->
+      <view v-else-if="error" class="cl-empty">
+        <view class="cl-empty-icon"><app-icon name="alert-circle" :size="40" color="#ef4444" /></view>
+        <text class="cl-empty-title">加载失败</text>
+        <text class="cl-empty-sub">请检查网络后重试</text>
+        <view class="cl-retry-btn" @tap="retryLoad"><text class="cl-retry-text">重试</text></view>
+      </view>
+
+      <template v-else>
       <view v-if="filteredCourses.length === 0" class="cl-empty">
         <view class="cl-empty-icon"><app-icon name="calendar" :size="40" color="#9ca3af" /></view>
         <text class="cl-empty-title">暂无课程</text>
@@ -102,20 +125,22 @@
         </view>
       </view>
       <view class="cl-safe" />
+      </template>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
-  offlineCourses,
-  stations,
+  offlineApi,
   courseDateFilters,
   getCourseStatusLabel,
   getCourseStatusStyle,
+  type Station,
+  type OfflineCourse,
 } from '@/lib/offline-data'
 
 const statusBarHeight = ref(0)
@@ -130,13 +155,33 @@ const dateFilter = ref<'all' | 'today' | 'week' | 'month'>('all')
 const showStationPicker = ref(false)
 const showDatePicker = ref(false)
 
+const stationList = ref<Station[]>([])
+const courseList = ref<OfflineCourse[]>([])
+const loading = ref(true)
+const error = ref(false)
+
+onMounted(async () => {
+  try {
+    const [courses, sts] = await Promise.all([
+      offlineApi.getCourses(),
+      offlineApi.getStations(),
+    ])
+    courseList.value = courses
+    stationList.value = sts
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+})
+
 const selectedStationName = computed(() =>
-  selectedStation.value != null ? stations.find((s) => s.id === selectedStation.value)?.name || '选择驿站' : '全部驿站'
+  selectedStation.value != null ? stationList.value.find((s) => s.id === selectedStation.value)?.name || '选择驿站' : '全部驿站'
 )
 const selectedDateLabel = computed(() => courseDateFilters.find((d) => d.value === dateFilter.value)?.label || '全部时间')
 
 const filteredCourses = computed(() => {
-  let list = offlineCourses
+  let list = courseList.value
   if (selectedStation.value != null) list = list.filter((c) => c.stationId === selectedStation.value)
   if (keyword.value) list = list.filter((c) => c.title.includes(keyword.value) || c.instructor.name.includes(keyword.value))
   return list
@@ -152,6 +197,19 @@ function formatShortDate(s: string) {
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 function goDetail(id: number) { navigateTo(`/offline/courses/${id}`) }
+async function retryLoad() {
+  error.value = false
+  loading.value = true
+  try {
+    const [courses, sts] = await Promise.all([offlineApi.getCourses(), offlineApi.getStations()])
+    courseList.value = courses
+    stationList.value = sts
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -208,4 +266,16 @@ function goDetail(id: number) { navigateTo(`/offline/courses/${id}`) }
 .cl-tags { display: flex; align-items: center; gap: 6px; padding: 0 12px 12px; }
 .cl-tag { padding: 1px 8px; font-size: 10px; color: #6b7280; background: #f3f4f6; border-radius: 4px; }
 .cl-safe { height: 24px; }
+/* 骨架屏 */
+.sk-bg { background: #e5e7eb; animation: cl-sk-pulse 1.5s ease-in-out infinite; }
+.sk-line { height: 14px; background: #e5e7eb; border-radius: 4px; margin-bottom: 6px; animation: cl-sk-pulse 1.5s ease-in-out infinite; }
+.sk-line.w40 { width: 40%; }
+.sk-line.w70 { width: 70%; }
+.sk-line.w80 { width: 80%; }
+@keyframes cl-sk-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.cl-retry-btn { margin-top: 8px; padding: 8px 24px; background: #c41e3a; border-radius: 8px; }
+.cl-retry-text { font-size: 14px; color: #fff; }
 </style>

@@ -68,6 +68,16 @@
     </view>
 
     <scroll-view scroll-y class="wd-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
+      <!-- 加载/错误 -->
+      <view v-if="loading" class="wd-loading">
+        <view class="wd-loading-spin" />
+        <text class="wd-loading-txt">加载中...</text>
+      </view>
+      <view v-if="error" class="wd-error">
+        <text class="wd-error-txt">加载失败</text>
+        <view class="wd-error-btn" @tap="fetchData"><text class="wd-error-btn-txt">重试</text></view>
+      </view>
+      <template v-if="!loading && !error">
       <!-- 余额卡片 -->
       <view class="wd-card-balance">
         <view class="wd-card-top">
@@ -126,17 +136,23 @@
         <text class="wd-tip">• 最低提现金额为 10 元</text>
       </view>
       <view class="wd-pad" />
+      </template>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { creatorRevenueOverview as overview, creatorWithdrawHistory as history } from '@/lib/creator-data'
+import { creatorApi } from '@/lib/creator-data'
 
 const statusBarHeight = ref(0)
+const loading = ref(true)
+const error = ref(false)
+const overview = ref({ withdrawable: 0, frozen: 0, pending: 0, totalRevenue: 0, monthRevenue: 0 })
+const history = ref<Array<{ id: string; amount: number; fee: number; actualAmount: number; method: string; account: string; status: 'success' | 'processing' | 'failed'; createdAt: string; completedAt?: string }>>([])
 const showForm = ref(false)
 const withdrawAmount = ref('')
 const method = ref<'alipay' | 'bank'>('alipay')
@@ -153,19 +169,58 @@ const minFee = 1
 const amount = computed(() => parseFloat(withdrawAmount.value) || 0)
 const fee = computed(() => (amount.value > 0 ? Math.max(amount.value * feeRate, minFee) : 0))
 const actualAmount = computed(() => (amount.value > 0 ? amount.value - fee.value : 0))
-const submitDisabled = computed(() => submitting.value || amount.value <= 0 || amount.value > overview.withdrawable)
+const submitDisabled = computed(() => submitting.value || amount.value <= 0 || amount.value > overview.value.withdrawable)
+
+onMounted(async () => {
+  try {
+    const [ov, hist] = await Promise.all([
+      creatorApi.getRevenueOverview(),
+      creatorApi.getWithdrawHistory(),
+    ])
+    overview.value = ov
+    history.value = hist
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+})
+async function fetchData() {
+  error.value = false
+  loading.value = true
+  try {
+    const [ov, hist] = await Promise.all([
+      creatorApi.getRevenueOverview(),
+      creatorApi.getWithdrawHistory(),
+    ])
+    overview.value = ov
+    history.value = hist
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
 
 function withdrawAll() {
-  withdrawAmount.value = overview.withdrawable.toFixed(2)
+  withdrawAmount.value = overview.value.withdrawable.toFixed(2)
 }
 async function handleSubmit() {
   if (submitDisabled.value) return
   submitting.value = true
-  await new Promise((r) => setTimeout(r, 1200))
-  submitting.value = false
-  showForm.value = false
-  withdrawAmount.value = ''
-  uni.showToast({ title: '提现申请已提交', icon: 'success' })
+  try {
+    await creatorApi.submitWithdraw({
+      amount: amount.value,
+      method: method.value,
+    })
+    showForm.value = false
+    withdrawAmount.value = ''
+    uni.showToast({ title: '提现申请已提交', icon: 'success' })
+  } catch {
+    uni.showToast({ title: '提现失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 
 uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })
@@ -239,4 +294,13 @@ uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHei
 .wd-submit { height: 44px; line-height: 44px; text-align: center; background: #c41e3a; color: #ffffff; border-radius: 8px; font-size: 14px; font-weight: 500; }
 .wd-submit-disabled { opacity: 0.5; }
 .wd-pad { height: 80px; }
+/* 加载/错误 */
+.wd-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; gap: 24rpx; }
+.wd-loading-spin { width: 56rpx; height: 56rpx; border: 4rpx solid #E5E7EB; border-top-color: #c41e3a; border-radius: 50%; animation: wd-spin 0.8s linear infinite; }
+@keyframes wd-spin { to { transform: rotate(360deg); } }
+.wd-loading-txt { font-size: 26rpx; color: #999; }
+.wd-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 48rpx; gap: 24rpx; }
+.wd-error-txt { font-size: 28rpx; color: #999; }
+.wd-error-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.wd-error-btn-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 </style>

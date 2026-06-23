@@ -26,6 +26,9 @@
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ paddingTop: navHeight + 'px' }">
+      <view v-if="loading" class="state-loading"><text class="state-loading-text">加载中...</text></view>
+      <view v-if="error" class="state-error"><text class="state-error-text">加载失败</text><view class="state-retry" @tap="retry"><text class="state-retry-text">重试</text></view></view>
+      <template v-if="!loading && !error">
       <!-- 关键指标 -->
       <view class="section">
         <text class="section-title">关键指标</text>
@@ -148,15 +151,16 @@
           </view>
         </view>
       </view>
+      </template>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { merchantAnalytics, analyticsCategoryColors } from '@/lib/merchant-data'
+import { merchantAdminApi, analyticsCategoryColors } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(96)
@@ -165,7 +169,9 @@ const sys = uni.getSystemInfoSync()
 statusBarHeight.value = sys.statusBarHeight || 0
 navHeight.value = (sys.statusBarHeight || 0) + 96
 
-const data = merchantAnalytics
+const data = ref<any>({})
+const loading = ref(true)
+const error = ref(false)
 const colors = analyticsCategoryColors
 const period = ref<'day' | 'week' | 'month'>('month')
 const periods = [
@@ -178,7 +184,9 @@ const periods = [
 const svgW = 300
 const svgH = 180
 const salesMax = computed(() => {
-  const peak = Math.max(...data.salesTrend.map((d) => d.sales))
+  const trend = data.value?.salesTrend
+  if (!trend || trend.length === 0) return 2000
+  const peak = Math.max(...trend.map((d: any) => d.sales))
   const step = 2000
   return Math.ceil(peak / step) * step
 })
@@ -188,10 +196,16 @@ const salesTicks = computed(() => {
   for (let v = salesMax.value; v >= 0; v -= step) ticks.push(v)
   return ticks
 })
-const ordersMax = computed(() => Math.max(...data.salesTrend.map((d) => d.orders)) * 1.2)
+const ordersMax = computed(() => {
+  const trend = data.value?.salesTrend
+  if (!trend || trend.length === 0) return 40
+  return Math.max(...trend.map((d: any) => d.orders)) * 1.2
+})
 function coords(key: 'sales' | 'orders', max: number) {
-  const n = data.salesTrend.length
-  return data.salesTrend.map((d, i) => ({
+  const trend = data.value?.salesTrend
+  if (!trend) return []
+  const n = trend.length
+  return trend.map((d: any, i: number) => ({
     x: n > 1 ? (i / (n - 1)) * svgW : svgW / 2,
     y: svgH - (d[key] / max) * svgH,
   }))
@@ -203,9 +217,10 @@ const ordersLine = computed(() => ordersCoords.value.map((p) => `${p.x},${p.y}`)
 
 // conic-gradient 饼图
 const pieGradient = computed(() => {
+  if (!data.value?.categorySales) return 'conic-gradient(#e5e7eb 100%)'
   let acc = 0
   const stops: string[] = []
-  data.categorySales.forEach((c, i) => {
+  data.value.categorySales.forEach((c: any, i: number) => {
     const start = acc
     acc += c.percentage
     stops.push(`${colors[i % colors.length]} ${start}% ${acc}%`)
@@ -215,6 +230,24 @@ const pieGradient = computed(() => {
 
 function onExport() {
   uni.showToast({ title: '报表导出功能开发中', icon: 'none' })
+}
+
+onMounted(async () => {
+  try {
+    data.value = await merchantAdminApi.getDashboard()
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+})
+
+async function retry() {
+  error.value = false
+  loading.value = true
+  try { data.value = await merchantAdminApi.getDashboard() }
+  catch { error.value = true }
+  finally { loading.value = false }
 }
 </script>
 
@@ -293,4 +326,11 @@ function onExport() {
 .retention-num { font-size: 22px; font-weight: 700; color: #1a1a1a; }
 .retention-num-primary { color: #c41e3a; }
 .retention-label { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+/* 三态 */
+.state-loading { padding: 80px 0; text-align: center; }
+.state-loading-text { font-size: 14px; color: #9ca3af; }
+.state-error { padding: 80px 0; text-align: center; }
+.state-error-text { font-size: 14px; color: #ef4444; display: block; margin-bottom: 12px; }
+.state-retry { display: inline-block; padding: 8px 20px; background: #c41e3a; border-radius: 8px; }
+.state-retry-text { font-size: 14px; color: #fff; }
 </style>

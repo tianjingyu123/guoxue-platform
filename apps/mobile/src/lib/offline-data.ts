@@ -447,6 +447,43 @@ export function formatCheckinMethod(method: CheckinMethod): string {
   return methods[method]
 }
 
+// ========== 线下活动 events ==========
+export type EventStatus = 'upcoming' | 'ongoing' | 'ended'
+export interface OfflineEvent {
+  id: string
+  title: string
+  location: string
+  city: string
+  date: string
+  time: string
+  price: string
+  capacity: number
+  registered: number
+  status: EventStatus
+  organizer: string
+  tags: string[]
+}
+export const eventStatusCfg: Record<EventStatus, { label: string; color: string; bg: string }> = {
+  upcoming: { label: '即将开始', color: '#d97706', bg: 'rgba(217,119,6,0.12)' },
+  ongoing: { label: '进行中', color: '#c41e3a', bg: 'rgba(196,30,58,0.1)' },
+  ended: { label: '已结束', color: '#6b7280', bg: '#f3f4f6' },
+}
+export const eventCities = ['全部', '北京', '上海', '广州', '成都', '杭州']
+export const eventStatusFilters: { key: EventStatus | 'all'; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'upcoming', label: '即将开始' },
+  { key: 'ongoing', label: '进行中' },
+  { key: 'ended', label: '已结束' },
+]
+
+export const _mockEvents: OfflineEvent[] = [
+  { id: '1', title: '2024 甲辰年命理研讨大会', location: '北京国际会议中心 A 厅', city: '北京', date: '2024-03-20', time: '09:00 - 17:00', price: '¥380', capacity: 200, registered: 176, status: 'upcoming', organizer: '热卜国学文化', tags: ['命理', '八字', '年度大会'] },
+  { id: '2', title: '紫微斗数专题研修班', location: '上海静安区文化中心', city: '上海', date: '2024-03-25', time: '10:00 - 16:00', price: '¥680', capacity: 50, registered: 48, status: 'upcoming', organizer: '张玄风工作室', tags: ['紫微斗数', '小班授课'] },
+  { id: '3', title: '风水堪舆实地考察活动', location: '广州白云山风景区', city: '广州', date: '2024-04-06', time: '08:00 - 18:00', price: '¥260', capacity: 30, registered: 18, status: 'upcoming', organizer: '王德华堪舆学堂', tags: ['风水', '实地考察', '户外'] },
+  { id: '4', title: '易经六十四卦公益讲座', location: '成都市图书馆报告厅', city: '成都', date: '2024-03-15', time: '14:00 - 16:30', price: '免费', capacity: 120, registered: 120, status: 'ongoing', organizer: '热卜国学公益', tags: ['易经', '公益', '免费'] },
+  { id: '5', title: '国学文化新春交流会', location: '杭州西湖文化广场', city: '杭州', date: '2024-02-18', time: '13:00 - 17:00', price: '¥128', capacity: 80, registered: 80, status: 'ended', organizer: '热卜国学文化', tags: ['交流', '国学', '新春'] },
+]
+
 // ============ API 层 ============
 
 export const offlineApi = {
@@ -590,6 +627,61 @@ export const offlineApi = {
       return { success: true, message: data.approved ? '审核通过' : '审核拒绝' }
     } catch (e: any) {
       return { success: false, message: e?.message || '操作失败' }
+    }
+  },
+
+  /** 活动列表 — GET /offline/events */
+  async getEvents(params?: any): Promise<OfflineEvent[]> {
+    if (useMock()) return _mockEvents
+    try {
+      const data = await apiGet<any[]>('/offline/events', params)
+      return data || _mockEvents
+    } catch {
+      return _mockEvents
+    }
+  },
+
+  /** 讲师列表 — GET /offline/teachers */
+  async getBookingTeachers(params?: any): Promise<BookingTeacher[]> {
+    if (useMock()) return _mockBookingTeachers
+    try {
+      const data = await apiGet<any[]>('/offline/teachers', params)
+      return data || _mockBookingTeachers
+    } catch {
+      return _mockBookingTeachers
+    }
+  },
+
+  /** 我的预约 — GET /offline/bookings/my */
+  async getMyBookings(): Promise<TeacherBooking[]> {
+    if (useMock()) return _mockMyTeacherBookings
+    try {
+      const data = await apiGet<any[]>('/offline/bookings/my')
+      return data || _mockMyTeacherBookings
+    } catch {
+      return _mockMyTeacherBookings
+    }
+  },
+
+  /** 预约讲师 — POST /offline/bookings */
+  async createBooking(data: any): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '预约成功' }
+    try {
+      await apiPost('/offline/bookings', data)
+      return { success: true, message: '预约成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '预约失败' }
+    }
+  },
+
+  /** 取消预约 — POST /offline/bookings/:id/cancel */
+  async cancelBooking(id: number): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '已取消预约' }
+    try {
+      await apiPost(`/offline/bookings/${id}/cancel`)
+      return { success: true, message: '已取消预约' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '取消失败' }
     }
   },
 }

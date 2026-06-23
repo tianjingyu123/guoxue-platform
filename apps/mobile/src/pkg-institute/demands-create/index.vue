@@ -104,7 +104,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { demandCreateCategories as categories, demandCreateBudgets as budgets } from '@/lib/institute-data'
+import { instituteApi, demandCreateCategories as categories, demandCreateBudgets as budgets } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const scrollHeight = ref(600)

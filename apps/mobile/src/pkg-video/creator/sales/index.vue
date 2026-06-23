@@ -22,6 +22,16 @@
     </view>
 
     <scroll-view scroll-y class="sa-scroll" :style="{ paddingTop: statusBarHeight + 96 + 'px' }">
+      <!-- 加载/错误 -->
+      <view v-if="loading" class="sa-loading">
+        <view class="sa-loading-spin" />
+        <text class="sa-loading-txt">加载中...</text>
+      </view>
+      <view v-if="error" class="sa-error">
+        <text class="sa-error-txt">加载失败</text>
+        <view class="sa-error-btn" @tap="fetchData"><text class="sa-error-btn-txt">重试</text></view>
+      </view>
+      <template v-if="!loading && !error">
       <!-- 关键指标 -->
       <view class="sa-metric-grid">
         <view class="sa-card sa-metric">
@@ -94,25 +104,53 @@
         </view>
       </view>
       <view class="sa-pad" />
+      </template>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { creatorSales as data } from '@/lib/creator-data'
+import { creatorApi } from '@/lib/creator-data'
 
 const statusBarHeight = ref(0)
+const loading = ref(true)
+const error = ref(false)
+const data = ref({ totalSales: 0, totalRevenue: 0, totalOrders: 0, totalCustomers: 0, salesTrend: [] as Array<{ date: string; sales: number; revenue: number; orders: number }>, topProducts: [] as Array<{ id: string; title: string; sales: number; revenue: number; conversion: number }> })
 const period = ref<'week' | 'month'>('month')
 const periods = [
   { key: 'week' as const, label: '本周' },
   { key: 'month' as const, label: '本月' },
 ]
+onMounted(async () => {
+  try {
+    data.value = await creatorApi.getSales()
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+})
+async function fetchData() {
+  error.value = false
+  loading.value = true
+  try {
+    data.value = await creatorApi.getSales()
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
 // Y轴上界取整到 650 的倍数(匹配原型刻度间隔)；刻度从高到低
 const chartMax = computed(() => {
-  const peak = Math.max(...data.salesTrend.map((d) => Math.max(d.sales, d.revenue)))
+  const trend = data.value.salesTrend
+  if (trend.length === 0) return 650
+  const peak = Math.max(...trend.map((d) => Math.max(d.sales, d.revenue)))
   const step = 650
   return Math.ceil(peak / step) * step
 })
@@ -174,4 +212,13 @@ uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHei
 .sa-prod-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .sa-pstat { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #666; }
 .sa-pad { height: 80px; }
+/* 加载/错误 */
+.sa-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; gap: 24rpx; }
+.sa-loading-spin { width: 56rpx; height: 56rpx; border: 4rpx solid #E5E7EB; border-top-color: #c41e3a; border-radius: 50%; animation: sa-spin 0.8s linear infinite; }
+@keyframes sa-spin { to { transform: rotate(360deg); } }
+.sa-loading-txt { font-size: 26rpx; color: #999; }
+.sa-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 48rpx; gap: 24rpx; }
+.sa-error-txt { font-size: 28rpx; color: #999; }
+.sa-error-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.sa-error-btn-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 </style>
