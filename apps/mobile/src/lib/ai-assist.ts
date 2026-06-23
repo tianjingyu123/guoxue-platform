@@ -4,6 +4,7 @@
  * 轻量内联辅助：润色/摘要/续写/取标题/扩写/雅化，结果一键采用。
  * 真实接入时替换 runAIAssist 为 AI SDK 调用即可，组件层无需改动。
  */
+import { apiGet, apiPost, useMock } from '@/utils/request'
 
 export type AIAssistAction =
   | 'polish'
@@ -84,4 +85,18 @@ export async function runAIAssist(req: AIAssistRequest): Promise<AIAssistResult>
     default:
       return { action, candidates: [base] }
   }
+}
+
+// ===== API 对象 =====
+
+export const aiAssistApi = {
+  /** 执行 AI 辅助操作 POST /ai/assist */
+  async run(req: AIAssistRequest): Promise<AIAssistResult> {
+    if (useMock()) return runAIAssist(req)
+    try {
+      return await apiPost<AIAssistResult>('/ai/assist', req)
+    } catch {
+      return runAIAssist(req)
+    }
+  },
 }

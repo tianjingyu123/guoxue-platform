@@ -226,3 +226,49 @@ export const mockMyExitApps: ExitApplication[] = [
     platformReviewedAt: '2024-06-04',
   },
 ]
+
+// ─── 圈子退出/退款 API ───
+import { apiGet, apiPost, useMock } from '@/utils/request'
+
+export const circleExitApi = {
+  /** 获取当前用户在某圈子的会员信息 — GET /circles/:circleId/membership */
+  async getMembership(circleId: string): Promise<typeof mockMembership> {
+    if (useMock()) return mockMembership
+    try {
+      return await apiGet<typeof mockMembership>(`/circles/${circleId}/membership`)
+    } catch {
+      return mockMembership
+    }
+  },
+
+  /** 获取圈主端退出申请列表 — GET /circles/:circleId/exit-requests */
+  async getExitRequests(_circleId?: string): Promise<ExitApplication[]> {
+    if (useMock()) return mockExitRequests
+    try {
+      return await apiGet<ExitApplication[]>('/circles/exit-requests')
+    } catch {
+      return mockExitRequests
+    }
+  },
+
+  /** 获取我的退出申请列表 — GET /circles/my-exit-apps */
+  async getMyExitApps(): Promise<ExitApplication[]> {
+    if (useMock()) return mockMyExitApps
+    try {
+      return await apiGet<ExitApplication[]>('/circles/my-exit-apps')
+    } catch {
+      return mockMyExitApps
+    }
+  },
+
+  /** 提交退出申请 — POST /circles/:circleId/exit */
+  async applyExit(circleId: string, reason?: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '退出申请已提交，等待审核' }
+    try {
+      await apiPost(`/circles/${circleId}/exit`, { reason })
+      return { success: true, message: '退出申请已提交，等待审核' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '提交失败' }
+    }
+  },
+}

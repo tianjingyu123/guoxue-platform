@@ -1,4 +1,5 @@
 // ===== 站长助手 assistant 数据与 mock 响应（对齐原型 lib/api/station-assistant）=====
+import { apiGet, apiPost, useMock } from '@/utils/request'
 
 export interface ChartPoint {
   label: string
@@ -222,4 +223,23 @@ export function buildAssistantReply(content: string): {
       { title: '推广策略建议', priority: 'medium' },
     ],
   }
+}
+
+export const stationAssistantApi = {
+  /** 获取助手配置 GET /station/assistant */
+  async getConfig(): Promise<typeof assistantConfig> {
+    if (useMock()) return assistantConfig
+    try { return await apiGet<typeof assistantConfig>('/station/assistant') } catch { return assistantConfig }
+  },
+
+  /** 发送消息给助手 POST /station/assistant/message */
+  async sendMessage(content: string): Promise<{
+    text: string
+    chart?: ChartData
+    table?: TableData
+    actions?: ActionSuggestion[]
+  }> {
+    if (useMock()) return buildAssistantReply(content)
+    try { return await apiPost<ReturnType<typeof buildAssistantReply>>('/station/assistant/message', { content }) } catch { return buildAssistantReply(content) }
+  },
 }

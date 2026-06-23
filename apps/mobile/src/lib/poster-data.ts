@@ -182,3 +182,39 @@ export function getPosterData(type: PosterType, _targetId?: number): Promise<Pos
 export function recordPosterShare(_type: PosterType, _targetId: number | undefined, _action: string): Promise<{ code: number }> {
   return Promise.resolve({ code: 200 })
 }
+
+// ─── 海报生成 API ───
+import { apiGet, apiPost, useMock } from '@/utils/request'
+
+export const posterApi = {
+  /** 获取海报数据 — GET /posters/:type */
+  async getData(type: PosterType, targetId?: number): Promise<PosterRes> {
+    if (useMock()) return { code: 200, data: MOCK_POSTER[type] || MOCK_POSTER.invite }
+    try {
+      const params = targetId ? `?targetId=${targetId}` : ''
+      return await apiGet<PosterRes>(`/posters/${type}${params}`)
+    } catch {
+      return { code: 200, data: MOCK_POSTER[type] || MOCK_POSTER.invite }
+    }
+  },
+
+  /** 获取海报主题列表 — GET /posters/themes */
+  async getThemes(): Promise<PosterTheme[]> {
+    if (useMock()) return POSTER_THEMES
+    try {
+      return await apiGet<PosterTheme[]>('/posters/themes')
+    } catch {
+      return POSTER_THEMES
+    }
+  },
+
+  /** 记录海报分享行为 — POST /posters/share */
+  async recordShare(type: PosterType, targetId?: number, action?: string): Promise<{ code: number }> {
+    if (useMock()) return { code: 200 }
+    try {
+      return await apiPost('/posters/share', { type, targetId, action })
+    } catch {
+      return { code: 200 }
+    }
+  },
+}

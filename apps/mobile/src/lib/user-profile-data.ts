@@ -1,5 +1,6 @@
 // 用户主页数据层（v0 迁移自原型 lib/api/user-profile + types/user-profile）
 // 用于 pkg-circle/user/profile 页面
+import { apiGet, apiPost, useMock } from '@/utils/request'
 
 export interface UserProfileInfo {
   id: number
@@ -215,4 +216,48 @@ export function formatCount(num: number): string {
     return (num / 10000).toFixed(1) + '万'
   }
   return num.toString()
+}
+
+// ===== API 对象 =====
+
+export const userProfileApi = {
+  /** 获取用户资料 GET /user/profile/:id */
+  async getProfile(userId: number): Promise<ApiResult<UserProfileResponse>> {
+    if (useMock()) return getUserProfile(userId)
+    try {
+      return await apiGet<ApiResult<UserProfileResponse>>(`/user/profile/${userId}`)
+    } catch {
+      return getUserProfile(userId)
+    }
+  },
+
+  /** 获取用户内容列表 GET /user/profile/:id/posts */
+  async getPosts(userId: number, tab: string): Promise<ApiResult<{ list: UserPostItem[] }>> {
+    if (useMock()) return getUserPosts(userId, tab)
+    try {
+      return await apiGet<ApiResult<{ list: UserPostItem[] }>>(`/user/profile/${userId}/posts?tab=${tab}`)
+    } catch {
+      return getUserPosts(userId, tab)
+    }
+  },
+
+  /** 关注用户 POST /user/profile/:id/follow */
+  async follow(userId: number): Promise<ApiResult<{ isMutualFollow: boolean }>> {
+    if (useMock()) return followUser(userId)
+    try {
+      return await apiPost<ApiResult<{ isMutualFollow: boolean }>>(`/user/profile/${userId}/follow`)
+    } catch {
+      return followUser(userId)
+    }
+  },
+
+  /** 取关用户 POST /user/profile/:id/unfollow */
+  async unfollow(userId: number): Promise<ApiResult<Record<string, never>>> {
+    if (useMock()) return unfollowUser(userId)
+    try {
+      return await apiPost<ApiResult<Record<string, never>>>(`/user/profile/${userId}/unfollow`)
+    } catch {
+      return unfollowUser(userId)
+    }
+  },
 }
