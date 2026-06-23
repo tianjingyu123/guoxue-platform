@@ -145,6 +145,8 @@
       <view class="bottom-safe" />
     </scroll-view>
   </view>
+
+  </view>
 </template>
 
 <script setup lang="ts">

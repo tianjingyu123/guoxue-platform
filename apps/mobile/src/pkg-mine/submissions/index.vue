@@ -96,6 +96,9 @@
       </view>
     </view>
   </view>
+
+  </view>
+  </view>
 </template>
 
 <script setup lang="ts">

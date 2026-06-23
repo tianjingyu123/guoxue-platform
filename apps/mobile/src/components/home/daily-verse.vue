@@ -34,6 +34,8 @@ onMounted(() => {
       <text class="text">{{ verse.text }}</text>
       <text class="source">{{ verse.source }}</text>
     </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

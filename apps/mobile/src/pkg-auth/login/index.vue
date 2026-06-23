@@ -155,6 +155,10 @@
       <text class="footer-text">登录即代表您同意遵守平台规则，共建和谐社区</text>
     </view>
   </view>
+
+  </view>
+  </view>
+  </view>
 </template>
 
 <script setup lang="ts">

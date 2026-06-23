@@ -224,6 +224,8 @@ const zhiList = (p: Rec['pillars']) => [
       </view>
     </view>
   </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

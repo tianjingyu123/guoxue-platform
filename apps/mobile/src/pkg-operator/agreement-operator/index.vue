@@ -34,6 +34,8 @@
       <view class="ag-bottom-pad" />
     </scroll-view>
   </view>
+
+  </view>
 </template>
 
 <script setup lang="ts">

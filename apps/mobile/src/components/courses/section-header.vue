@@ -29,6 +29,8 @@ function openMore() { if (props.moreLink) navigateTo(props.moreLink) }
       <text class="sh-more-txt">全部</text>
       <app-icon name="chevron-right" :size="28" color="var(--text-soft)" />
     </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

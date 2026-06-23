@@ -234,6 +234,11 @@ function handleSubmit() {
       @close="showPlacePicker = false"
     />
   </view>
+
+  </view>
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

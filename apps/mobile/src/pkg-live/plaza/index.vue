@@ -137,6 +137,9 @@ function onSearch() {
       </template>
     </scroll-view>
   </view>
+
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

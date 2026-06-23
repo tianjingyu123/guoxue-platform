@@ -49,6 +49,8 @@ function goBack() {
       <view class="home-btn" @tap="goBack"><text class="home-btn-t">返回首页</text></view>
     </view>
   </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

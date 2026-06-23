@@ -69,6 +69,9 @@
         <text class="aip-disclaimer">内容由 AI 生成，仅供参考</text>
       </view>
     </view>
+
+  </view>
+  </view>
 </template>
 
 <script setup lang="ts">

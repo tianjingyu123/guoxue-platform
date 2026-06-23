@@ -381,6 +381,12 @@ function continueWithdraw() {
       </view>
     </view>
   </view>
+
+  </view>
+  </view>
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped>

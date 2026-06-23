@@ -277,6 +277,11 @@
       <view class="bottom-gap" />
     </scroll-view>
   </view>
+
+  </view>
+  </view>
+  </view>
+  </view>
 </template>
 
 <script setup lang="ts">

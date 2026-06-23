@@ -123,6 +123,8 @@ function openBot(bot: CircleBotItem) {
       </view>
     </scroll-view>
   </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

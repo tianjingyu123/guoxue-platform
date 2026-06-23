@@ -84,6 +84,8 @@
         <text class="ai-footer-text">AI回答基于热卜国学知识库生成，仅供参考</text>
       </view>
     </view>
+
+  </view>
 </template>
 
 <script setup lang="ts">

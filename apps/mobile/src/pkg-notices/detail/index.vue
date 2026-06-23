@@ -106,6 +106,9 @@
         <text class="bottom-btn-primary-text">分享公告</text>
       </view>
     </view>
+
+  </view>
+  </view>
 </template>
 
 <script setup lang="ts">

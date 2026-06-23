@@ -225,6 +225,9 @@ function diZhiCls(r: string) {
       <view class="pair-btn brand"><app-icon name="sparkles" :size="36" color="#ffffff" /><text class="pair-text">AI辅助分析</text></view>
       <view class="pair-btn accent"><text class="pair-text">命理奇门局</text></view>
     </view>
+
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

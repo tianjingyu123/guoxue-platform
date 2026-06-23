@@ -36,6 +36,8 @@ const tags = ['八字', '紫微', '六爻', '奇门']
       </view>
     </view>
   </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

@@ -177,6 +177,9 @@ onMounted(() => {
     </view>
   </view>
   </view>
+
+  </view>
+  </view>
 </template>
 
 <style scoped>

@@ -97,6 +97,8 @@ const selLabel = computed(() => `${selected.value.slice(5, 7)}月${selected.valu
       </view>
     </view>
   </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

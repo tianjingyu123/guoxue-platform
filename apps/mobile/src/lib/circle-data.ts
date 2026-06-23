@@ -88,15 +88,33 @@ export const circleApi = {
       const filtered = params?.category ? mockCircles.filter(c => c.category === params.category) : mockCircles
       return { data: filtered, total: filtered.length }
     }
-    return apiGet(`/circles?category=${params?.category || ''}`)
+    try {
+      const res = await apiGet<any>(`/circles?category=${params?.category || ''}`)
+      // 后端返回 { data: [...], pagination: { total } } → 统一为 { data: [...], total }
+      const arr = Array.isArray(res) ? res : (res?.data ?? [])
+      const total = res?.pagination?.total ?? res?.total ?? arr.length
+      return { data: arr, total }
+    } catch {
+      return { data: mockCircles, total: mockCircles.length }
+    }
   },
   my: async (): Promise<Circle[]> => {
     if (useMock()) return mockCircles.filter(c => c.isJoined)
-    return apiGet('/circles/my')
+    try {
+      const res = await apiGet<any>('/circles/my')
+      return Array.isArray(res) ? res : (res?.data ?? mockCircles.filter(c => c.isJoined))
+    } catch {
+      return mockCircles.filter(c => c.isJoined)
+    }
   },
   getRanking: async (): Promise<Circle[]> => {
     if (useMock()) return mockCircles.slice(0, 5).map((c, i) => ({ ...c, rank: i + 1 }))
-    return apiGet('/circles/ranking')
+    try {
+      const res = await apiGet<any>('/circles/ranking')
+      return Array.isArray(res) ? res : (res?.data ?? mockCircles.slice(0, 5)).map((c: any, i: number) => ({ ...c, rank: i + 1 }))
+    } catch {
+      return mockCircles.slice(0, 5).map((c, i) => ({ ...c, rank: i + 1 }))
+    }
   },
   join: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/join`),
   leave: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/leave`),

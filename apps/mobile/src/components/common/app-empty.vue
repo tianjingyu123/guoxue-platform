@@ -30,6 +30,8 @@ const emit = defineEmits<{ (e: 'action'): void }>()
     <view v-if="actionText" class="app-empty__action btn-press" @tap="emit('action')">
       <text class="app-empty__action-text">{{ actionText }}</text>
     </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

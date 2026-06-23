@@ -87,6 +87,10 @@
     <view v-if="scale !== 1" class="scale-tip">
       <text class="scale-text">{{ Math.round(scale * 100) }}%</text>
     </view>
+
+  </view>
+  </view>
+  </view>
 </template>
 
 <script setup lang="ts">

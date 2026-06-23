@@ -10,6 +10,11 @@
       <text class="fbc-title" :style="{ fontSize: titleSize || '20rpx' }">{{ title }}</text>
       <text v-if="author" class="fbc-author">{{ author }}</text>
     </view>
+
+  </view>
+  </view>
+  </view>
+  </view>
 </template>
 
 <script setup lang="ts">

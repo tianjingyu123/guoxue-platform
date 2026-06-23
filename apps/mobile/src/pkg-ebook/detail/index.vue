@@ -217,6 +217,9 @@
       @close="showComments = false"
     />
   </view>
+
+  </view>
+  </view>
 </template>
 
 <script setup lang="ts">

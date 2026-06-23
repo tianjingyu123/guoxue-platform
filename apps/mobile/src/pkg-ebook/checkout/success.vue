@@ -79,6 +79,8 @@
     </view>
     </template><!-- v-else end -->
   </view>
+
+  </view>
 </template>
 
 <script setup lang="ts">

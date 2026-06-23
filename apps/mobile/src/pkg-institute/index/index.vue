@@ -187,6 +187,12 @@
       <view class="bottom-safe" />
     </scroll-view>
   </view>
+
+  </view>
+  </view>
+  </view>
+  </view>
+  </view>
 </template>
 
 <script setup lang="ts">

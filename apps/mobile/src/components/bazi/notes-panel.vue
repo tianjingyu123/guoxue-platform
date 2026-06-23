@@ -242,6 +242,12 @@ function onSave() { uni.showToast({ title: '已保存', icon: 'success' }) }
         </view>
       </view>
     </view>
+
+  </view>
+  </view>
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

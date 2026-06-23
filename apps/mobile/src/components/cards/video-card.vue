@@ -27,6 +27,8 @@ function open() { navigateTo(`/video/${props.data.id}`) }
         </view>
       </view>
     </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

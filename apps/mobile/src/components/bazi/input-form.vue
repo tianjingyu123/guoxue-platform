@@ -148,6 +148,9 @@ function handleSubmit() {
     <date-picker-modal :open="showDatePicker" :initial-date="{ year: birthDate.year, month: birthDate.month, day: birthDate.day, hour: birthDate.hour, minute: birthDate.minute }" @close="showDatePicker = false" @confirm="onDateConfirm" />
     <location-picker-modal :open="showLocationPicker" :initial-location="birthPlace.province ? birthPlace : undefined" @close="showLocationPicker = false" @confirm="(v) => birthPlace = v" />
     <group-picker-modal :open="showGroupPicker" :initial-group="group" @close="showGroupPicker = false" @confirm="(v) => group = v" />
+
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

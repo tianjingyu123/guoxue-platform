@@ -165,6 +165,12 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
       </template>
     </view>
   </view>
+
+  </view>
+  </view>
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

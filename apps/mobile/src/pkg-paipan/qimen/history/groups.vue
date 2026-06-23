@@ -97,6 +97,10 @@ function cancelAdd() { isAdding.value = false; newGroupName.value = '' }
       <view class="done-btn full" @tap="isAdding = true"><text class="done-btn-t">添加</text></view>
     </view>
   </view>
+
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

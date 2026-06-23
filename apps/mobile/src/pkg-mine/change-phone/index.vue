@@ -221,6 +221,8 @@ onUnmounted(() => {
     </view>
     </template>
   </view>
+
+  </view>
 </template>
 
 <style scoped>

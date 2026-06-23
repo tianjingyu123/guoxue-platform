@@ -146,6 +146,8 @@
       <text class="cs-time">工作时间：每日 9:00-22:00</text>
     </view>
   </view>
+
+  </view>
 </template>
 
 <script setup lang="ts">

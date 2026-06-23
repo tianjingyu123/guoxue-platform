@@ -28,4 +28,6 @@ withDefaults(defineProps<{
       ? { width: size + 'rpx', height: size + 'rpx', borderRadius: '50%', marginBottom: mb }
       : { width, height, borderRadius: radius, marginBottom: mb }"
   />
+
+  </view>
 </template>

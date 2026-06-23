@@ -159,6 +159,8 @@ function openChat(item: HistoryItem) {
       </view>
     </view>
   </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

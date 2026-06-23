@@ -53,6 +53,10 @@ onUnmounted(() => {
       <view v-for="(_, i) in banners" :key="i" class="dot" :class="{ active: i === idx }" />
     </view>
   </view>
+
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

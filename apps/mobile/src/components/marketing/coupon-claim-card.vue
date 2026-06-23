@@ -39,6 +39,11 @@ function claim() {
     <view class="cc-btn" :class="{ 'cc-btn-done': isClaimed }" hover-class="cc-btn-press" @tap="claim">
       <text class="cc-btn-text" :class="{ 'cc-btn-text-done': isClaimed }">{{ isClaimed ? '已领取' : '立即领取' }}</text>
     </view>
+
+  </view>
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

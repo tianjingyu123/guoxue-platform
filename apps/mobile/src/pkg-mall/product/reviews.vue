@@ -199,6 +199,11 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
     </view>
     </template>
   </view>
+
+  </view>
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

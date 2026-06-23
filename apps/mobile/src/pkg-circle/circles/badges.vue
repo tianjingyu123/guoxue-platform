@@ -74,6 +74,8 @@ function pct(b: BadgeItem) { return Math.min(100, (b.progress! / b.total!) * 100
       </view>
     </view>
   </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

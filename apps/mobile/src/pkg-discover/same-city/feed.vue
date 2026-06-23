@@ -204,6 +204,9 @@ function dateOnly(t?: string) { return t ? t.split(' ')[0] : '' }
       </view>
     </view>
   </view>
+
+  </view>
+  </view>
 </template>
 
 <style scoped>

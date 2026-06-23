@@ -208,6 +208,10 @@
         <text v-else class="submit-text">提交审核</text>
       </view>
     </view>
+
+  </view>
+  </view>
+  </view>
 </template>
 
 <script setup lang="ts">

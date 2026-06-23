@@ -93,6 +93,8 @@ function deleteNoteItem(key: string) {
         </view>
       </view>
     </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

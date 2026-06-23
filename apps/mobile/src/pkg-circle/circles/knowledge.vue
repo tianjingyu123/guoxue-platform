@@ -188,6 +188,10 @@ function ignoreItem(id: string) {
       <view class="kb-spacer" />
     </scroll-view>
   </view>
+
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

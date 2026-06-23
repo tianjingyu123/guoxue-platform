@@ -157,6 +157,8 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
       </view>
     </view>
   </view>
+
+  </view>
 </template>
 
 <style scoped>

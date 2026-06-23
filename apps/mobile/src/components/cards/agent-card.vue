@@ -27,6 +27,8 @@ function open() { navigateTo(`/pkg-agent/agent/chat?id=${props.data.id}${props.c
       <text v-if="data.description" class="desc">{{ data.description }}</text>
       <view class="cta"><AppIcon name="message-circle" :size="28" color="#ffffff" /><text class="cta-txt">立即对话</text><AppIcon name="chevron-right" :size="24" color="#ffffff" /></view>
     </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

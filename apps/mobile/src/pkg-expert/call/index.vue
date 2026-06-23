@@ -453,6 +453,11 @@ onUnmounted(() => clearTimer())
       </view>
     </view>
   </view>
+
+  </view>
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

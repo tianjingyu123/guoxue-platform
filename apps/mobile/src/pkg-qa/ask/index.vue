@@ -139,6 +139,10 @@
         <text class="qk-submit-tx">提交并支付</text>
       </view>
     </view>
+
+  </view>
+  </view>
+  </view>
 </template>
 
 <script setup lang="ts">

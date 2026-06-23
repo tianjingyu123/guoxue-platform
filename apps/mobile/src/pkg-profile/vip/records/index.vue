@@ -42,6 +42,8 @@
 
       <text v-if="filtered.length === 0" class="empty">暂无记录</text>
     </view>
+
+  </view>
 </template>
 
 <script setup lang="ts">

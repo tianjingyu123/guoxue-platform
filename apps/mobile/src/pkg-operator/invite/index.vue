@@ -93,6 +93,8 @@
 
     <view class="inv-bottom-space" />
   </view>
+
+  </view>
 </template>
 
 <script setup lang="ts">

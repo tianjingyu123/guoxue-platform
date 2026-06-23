@@ -225,6 +225,9 @@ function handleSubmit() {
       </view>
     </view>
   </view>
+
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

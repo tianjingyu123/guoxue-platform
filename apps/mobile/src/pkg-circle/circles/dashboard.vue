@@ -228,6 +228,11 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
       <view class="db-spacer" />
     </scroll-view>
   </view>
+
+  </view>
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

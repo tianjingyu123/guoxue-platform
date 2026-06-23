@@ -187,6 +187,8 @@ function openItem() {
     </view>
     </template>
   </view>
+
+  </view>
 </template>
 
 <style scoped>

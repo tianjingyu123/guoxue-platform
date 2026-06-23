@@ -43,6 +43,8 @@ const content = computed(() => (props.variant === 'custom' ? props.text ?? '' : 
   <view v-else class="dc-subtle">
     <app-icon :name="iconName" :size="24" color="#999999" />
     <text class="dc-subtle-text">{{ content }}</text>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

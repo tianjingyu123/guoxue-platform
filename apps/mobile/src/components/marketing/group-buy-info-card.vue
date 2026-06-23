@@ -53,6 +53,8 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
     <view class="gb-btn" hover-class="gb-btn-press" @tap="emit('join')">
       <text class="gb-btn-text">立即参团，省¥{{ originalPrice - groupPrice }}</text>
     </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

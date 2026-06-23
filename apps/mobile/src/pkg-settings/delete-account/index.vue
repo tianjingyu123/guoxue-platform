@@ -114,6 +114,8 @@
       <view class="btn-primary" @tap="goHome">返回首页</view>
     </view>
   </view>
+
+  </view>
 </template>
 
 <script setup lang="ts">

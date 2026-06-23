@@ -75,6 +75,8 @@ function openUser() {
         <app-icon name="bookmark" :size="16" color="#999999" />
       </view>
     </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

@@ -207,6 +207,12 @@ function openProduct(id: number) { navigateTo(`/mall/product/${id}`) }
       </view>
     </view>
   </view>
+
+  </view>
+  </view>
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

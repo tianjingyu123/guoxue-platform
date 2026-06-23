@@ -80,6 +80,12 @@
       <text class="toast-text">{{ toastMsg }}</text>
     </view>
   </view>
+
+  </view>
+  </view>
+  </view>
+  </view>
+  </view>
 </template>
 
 <script>

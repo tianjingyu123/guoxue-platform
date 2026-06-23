@@ -47,6 +47,10 @@ function toggleBook() { booked.value = !booked.value }
         <text class="author-name">{{ data.host }}</text>
       </view>
     </view>
+
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

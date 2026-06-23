@@ -186,6 +186,8 @@ function daYunYears(idx: number) {
     <classics-section />
 
     <view class="ai-btn"><app-icon name="sparkles" :size="36" color="#ffffff" /><text class="ai-btn-text">AI辅助分析</text></view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">

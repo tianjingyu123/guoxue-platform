@@ -273,6 +273,10 @@ function fmt(n: number) {
     </view>
     </template>
   </view>
+
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped>

@@ -126,6 +126,11 @@ function openCircle(id: string) { navigateTo(`/pkg-circle/circles/detail?id=${id
       </view>
     </view>
   </view>
+
+  </view>
+  </view>
+  </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

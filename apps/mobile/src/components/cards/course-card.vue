@@ -107,6 +107,8 @@ function open() { navigateTo(`/course/${props.data.id}`) }
         <text v-if="data.students" class="author-trail">{{ formatCount(data.students) }}人学</text>
       </view>
     </view>
+
+  </view>
 </template>
 
 <style scoped lang="scss">
