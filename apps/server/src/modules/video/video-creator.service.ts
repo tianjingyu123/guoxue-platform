@@ -289,8 +289,17 @@ export class VideoCreatorService {
     return { success: true, message: "提现申请已提交" };
   }
 
-  /** 添加商品关联 */
-  async addProduct(_userId: string, data: { videoId: string; productId: string }) {
+  /** 添加商品关联 — 需验证视频归属权 */
+  async addProduct(userId: string, data: { videoId: string; productId: string }) {
+    // IDOR 防护：验证视频属于当前用户
+    const video = await this.prisma.video.findUnique({
+      where: { id: data.videoId },
+      select: { userId: true },
+    });
+    if (!video || video.userId !== userId) {
+      return { success: false, message: "只能给自己的视频添加商品" };
+    }
+
     await this.prisma.videoProduct.create({
       data: {
         videoId: data.videoId,
