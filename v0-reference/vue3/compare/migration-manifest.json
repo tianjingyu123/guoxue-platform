@@ -1,0 +1,3262 @@
+{
+  "$note": "迁移真源清单（机器生成，勿手改）。重新生成: node vue3/compare/gen-manifest.mjs",
+  "generatedAt": "2026-06-20T15:54:29.277Z",
+  "rules": {
+    "source": "app/**/page.tsx",
+    "skipRule": "①内容含 redirect( 或 export { default } 的旧版桩自动排除；②skip-routes.json 人工策展的非业务/冗余整页排除",
+    "matchAgainst": "vue3/compare/route-map.json 的 proto 字段(动态段归一化为 :p)"
+  },
+  "summary": {
+    "totalCanonical": 489,
+    "done": 277,
+    "pending": 212,
+    "skippedLegacy": 19
+  },
+  "pending": [
+    "/activity/[id]",
+    "/activity/calendar",
+    "/activity/landing",
+    "/address",
+    "/admin/batch-coupon-send",
+    "/admin/user-audit",
+    "/aftersale/[orderId]",
+    "/ai/cover-generate",
+    "/announcements",
+    "/appeal",
+    "/articles",
+    "/articles/create",
+    "/auth/recover",
+    "/auth/recover/email",
+    "/auth/recover/phone",
+    "/authors",
+    "/become-partner",
+    "/booking/[expertId]",
+    "/bots",
+    "/bots/chat/[id]",
+    "/bounty",
+    "/bounty/[id]",
+    "/bounty/answer",
+    "/bounty/create",
+    "/bounty/my",
+    "/call/[id]",
+    "/cart",
+    "/check-in",
+    "/common/image-viewer",
+    "/common/legal-doc",
+    "/common/scan",
+    "/competition",
+    "/competition/[id]",
+    "/competition/[id]/certificate",
+    "/competition/[id]/dashboard",
+    "/competition/[id]/judge",
+    "/competition/[id]/participants",
+    "/competition/[id]/poster",
+    "/competition/[id]/promotion-notice",
+    "/competition/[id]/quiz",
+    "/competition/[id]/register",
+    "/competition/[id]/result",
+    "/competition/[id]/score-detail",
+    "/competition/archive",
+    "/content/[slug]",
+    "/content/community-rules",
+    "/coupons",
+    "/coupons/center",
+    "/creator",
+    "/creator/live/create",
+    "/creator/revenue",
+    "/customer-service",
+    "/detail",
+    "/drafts",
+    "/earnings",
+    "/earnings/breakdown",
+    "/earnings/records",
+    "/earnings/withdraw",
+    "/editor",
+    "/error-pages",
+    "/error/forbidden",
+    "/error/maintenance",
+    "/error/network-error",
+    "/error/not-found",
+    "/expert/[id]",
+    "/experts",
+    "/favorites",
+    "/flash-sale",
+    "/fortune",
+    "/fortune/daily",
+    "/fortune/subscribe",
+    "/help",
+    "/help/guoxue-design",
+    "/help/media-guidelines",
+    "/history",
+    "/institute",
+    "/institute/apply",
+    "/institute/demands/create",
+    "/institute/events",
+    "/institute/events/[id]",
+    "/institute/instructors",
+    "/institute/instructors/[id]",
+    "/institute/member-apply",
+    "/institute/members",
+    "/institute/members/[id]",
+    "/institute/my-tasks",
+    "/institute/teacher-demand",
+    "/institute/teacher-demand/create",
+    "/institute/teacher-pool",
+    "/interests-guide",
+    "/learn/[id]",
+    "/learning/achievements",
+    "/learning/history",
+    "/likes",
+    "/login/forgot-password",
+    "/manage/checkin/[courseId]",
+    "/manage/course/[id]/analytics",
+    "/manage/course/[id]/reviews",
+    "/manage/live",
+    "/manage/live/[id]/analytics",
+    "/manage/live/create",
+    "/merchant/analytics",
+    "/merchant/application-status",
+    "/merchant/apply",
+    "/merchant/circle-bindding",
+    "/merchant/content-stats",
+    "/merchant/dashboard",
+    "/merchant/edit-application",
+    "/merchant/inquiries",
+    "/merchant/join",
+    "/merchant/notices",
+    "/merchant/order-detail",
+    "/merchant/orders",
+    "/merchant/pay-deposit",
+    "/merchant/product-edit",
+    "/merchant/products",
+    "/merchant/profile",
+    "/merchant/revenue",
+    "/merchant/reviews",
+    "/merchant/shop-preview",
+    "/merchant/sign-agreement",
+    "/merchant/violations",
+    "/mine/heritage-verify",
+    "/mine/identity-switch",
+    "/mine/institute",
+    "/mine/institute/admin",
+    "/mine/institute/admin/appoint",
+    "/mine/role-panels/admin-panel",
+    "/my-circles",
+    "/notices",
+    "/notices/[id]",
+    "/notices/upgrade",
+    "/notifications",
+    "/offline/checkin",
+    "/offline/courses",
+    "/offline/courses/[id]",
+    "/offline/events",
+    "/offline/manage",
+    "/offline/manage/courses",
+    "/offline/manage/courses/[id]",
+    "/offline/manage/courses/create",
+    "/offline/manage/info",
+    "/offline/manage/marketing",
+    "/offline/manage/orders",
+    "/offline/manage/products",
+    "/offline/manage/students",
+    "/offline/orders",
+    "/offline/products",
+    "/offline/settlements",
+    "/offline/stations",
+    "/offline/stations/[id]",
+    "/offline/teacher-booking",
+    "/payment/result",
+    "/payment/success",
+    "/points",
+    "/points/exchange",
+    "/points/history",
+    "/points/tasks",
+    "/policy/[type]",
+    "/policy/privacy-policy",
+    "/policy/user-agreement",
+    "/post/[id]",
+    "/poster",
+    "/privacy",
+    "/publish",
+    "/publish/video",
+    "/qa",
+    "/qa/[id]",
+    "/qa/ask",
+    "/qa/pending",
+    "/rankings",
+    "/reader/[id]",
+    "/renew",
+    "/report",
+    "/report/result",
+    "/report/result/[id]",
+    "/reservations",
+    "/result",
+    "/same-city/feed",
+    "/same-city/nearby-users",
+    "/search/advanced",
+    "/search/history",
+    "/search/result",
+    "/search/trending",
+    "/search/voice",
+    "/seckill",
+    "/seckill/rules",
+    "/share/landing",
+    "/splash",
+    "/tasks/daily",
+    "/teacher-certification",
+    "/teacher/dashboard",
+    "/terms",
+    "/terms/merchant",
+    "/topic/[tag]",
+    "/user/[id]/following",
+    "/verification",
+    "/video/[id]",
+    "/videos",
+    "/videos/[id]",
+    "/videos/creator",
+    "/videos/creator/analytics",
+    "/videos/creator/earnings/history",
+    "/videos/creator/products/add",
+    "/videos/creator/sales",
+    "/videos/creator/settings",
+    "/videos/creator/withdraw",
+    "/videos/publish",
+    "/videos/search",
+    "/welcome",
+    "/withdraw",
+    "/withdraw/records"
+  ],
+  "routes": [
+    {
+      "proto": "/",
+      "normalized": "/",
+      "status": "done",
+      "vue": "/#/pages/index/index"
+    },
+    {
+      "proto": "/about",
+      "normalized": "/about",
+      "status": "done",
+      "vue": "/#/pkg-mine/about/index"
+    },
+    {
+      "proto": "/activity/[id]",
+      "normalized": "/activity/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/activity/calendar",
+      "normalized": "/activity/calendar",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/activity/landing",
+      "normalized": "/activity/landing",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/address",
+      "normalized": "/address",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/admin/batch-coupon-send",
+      "normalized": "/admin/batch-coupon-send",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/admin/user-audit",
+      "normalized": "/admin/user-audit",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/aftersale/[orderId]",
+      "normalized": "/aftersale/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/agent/[id]",
+      "normalized": "/agent/:p",
+      "status": "done",
+      "vue": "/#/pkg-agent/agent/chat"
+    },
+    {
+      "proto": "/agent/customer-service",
+      "normalized": "/agent/customer-service",
+      "status": "done",
+      "vue": "/#/pkg-agent/agent/customer-service"
+    },
+    {
+      "proto": "/agent/history",
+      "normalized": "/agent/history",
+      "status": "done",
+      "vue": "/#/pkg-agent/agent/history"
+    },
+    {
+      "proto": "/agent/main",
+      "normalized": "/agent/main",
+      "status": "done",
+      "vue": "/#/pkg-agent/agent/main"
+    },
+    {
+      "proto": "/agents",
+      "normalized": "/agents",
+      "status": "done",
+      "vue": "/#/pkg-agent/agents/index"
+    },
+    {
+      "proto": "/agents/history",
+      "normalized": "/agents/history",
+      "status": "done",
+      "vue": "/#/pkg-agent/agents/history"
+    },
+    {
+      "proto": "/agents/questions",
+      "normalized": "/agents/questions",
+      "status": "done",
+      "vue": "/#/pkg-agent/agents/questions"
+    },
+    {
+      "proto": "/agents/ranking",
+      "normalized": "/agents/ranking",
+      "status": "done",
+      "vue": "/#/pkg-agent/agents/ranking"
+    },
+    {
+      "proto": "/agreement/operator",
+      "normalized": "/agreement/operator",
+      "status": "done",
+      "vue": "/#/pkg-operator/agreement-operator/index"
+    },
+    {
+      "proto": "/agreement/station",
+      "normalized": "/agreement/station",
+      "status": "done",
+      "vue": "/#/pkg-operator/agreement-station/index"
+    },
+    {
+      "proto": "/ai/cover-generate",
+      "normalized": "/ai/cover-generate",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/announcements",
+      "normalized": "/announcements",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/appeal",
+      "normalized": "/appeal",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/articles",
+      "normalized": "/articles",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/articles/[id]",
+      "normalized": "/articles/:p",
+      "status": "done",
+      "vue": "/#/pkg-circle/articles/detail?id=1"
+    },
+    {
+      "proto": "/articles/create",
+      "normalized": "/articles/create",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/auth/recover",
+      "normalized": "/auth/recover",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/auth/recover/email",
+      "normalized": "/auth/recover/email",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/auth/recover/phone",
+      "normalized": "/auth/recover/phone",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/authors",
+      "normalized": "/authors",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/become-partner",
+      "normalized": "/become-partner",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/booking/[expertId]",
+      "normalized": "/booking/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/bots",
+      "normalized": "/bots",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/bots/chat/[id]",
+      "normalized": "/bots/chat/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/bounty",
+      "normalized": "/bounty",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/bounty/[id]",
+      "normalized": "/bounty/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/bounty/answer",
+      "normalized": "/bounty/answer",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/bounty/create",
+      "normalized": "/bounty/create",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/bounty/my",
+      "normalized": "/bounty/my",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/call/[id]",
+      "normalized": "/call/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/cart",
+      "normalized": "/cart",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/check-in",
+      "normalized": "/check-in",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/checkout",
+      "normalized": "/checkout",
+      "status": "done",
+      "vue": "/#/pkg-shop/checkout/order"
+    },
+    {
+      "proto": "/circle",
+      "normalized": "/circle",
+      "status": "done",
+      "vue": null
+    },
+    {
+      "proto": "/circle/[id]",
+      "normalized": "/circle/:p",
+      "status": "done",
+      "vue": null
+    },
+    {
+      "proto": "/circle/[id]/analytics",
+      "normalized": "/circle/:p/analytics",
+      "status": "done",
+      "vue": null
+    },
+    {
+      "proto": "/circle/[id]/consult",
+      "normalized": "/circle/:p/consult",
+      "status": "done",
+      "vue": null
+    },
+    {
+      "proto": "/circle/[id]/earnings",
+      "normalized": "/circle/:p/earnings",
+      "status": "done",
+      "vue": null
+    },
+    {
+      "proto": "/circle/[id]/home",
+      "normalized": "/circle/:p/home",
+      "status": "done",
+      "vue": null
+    },
+    {
+      "proto": "/circle/[id]/members",
+      "normalized": "/circle/:p/members",
+      "status": "done",
+      "vue": null
+    },
+    {
+      "proto": "/circle/[id]/qa",
+      "normalized": "/circle/:p/qa",
+      "status": "done",
+      "vue": null
+    },
+    {
+      "proto": "/circle/[id]/settings",
+      "normalized": "/circle/:p/settings",
+      "status": "done",
+      "vue": null
+    },
+    {
+      "proto": "/circles",
+      "normalized": "/circles",
+      "status": "done",
+      "vue": "/#/pages/circles/index"
+    },
+    {
+      "proto": "/circles/[id]",
+      "normalized": "/circles/:p",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/detail"
+    },
+    {
+      "proto": "/circles/[id]/analytics/contents",
+      "normalized": "/circles/:p/analytics/contents",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/analytics"
+    },
+    {
+      "proto": "/circles/[id]/announcements/[annoId]",
+      "normalized": "/circles/:p/announcements/:p",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/announcements"
+    },
+    {
+      "proto": "/circles/[id]/booking",
+      "normalized": "/circles/:p/booking",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/booking"
+    },
+    {
+      "proto": "/circles/[id]/bots",
+      "normalized": "/circles/:p/bots",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/circle-bots"
+    },
+    {
+      "proto": "/circles/[id]/checkin/[activityId]",
+      "normalized": "/circles/:p/checkin/:p",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/checkin"
+    },
+    {
+      "proto": "/circles/[id]/consult/ask",
+      "normalized": "/circles/:p/consult/ask",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/consult-ask"
+    },
+    {
+      "proto": "/circles/[id]/consult/experts",
+      "normalized": "/circles/:p/consult/experts",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/consult-experts"
+    },
+    {
+      "proto": "/circles/[id]/consult/my-calls",
+      "normalized": "/circles/:p/consult/my-calls",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/my-calls"
+    },
+    {
+      "proto": "/circles/[id]/consult/my-questions",
+      "normalized": "/circles/:p/consult/my-questions",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/my-questions"
+    },
+    {
+      "proto": "/circles/[id]/consult/orders",
+      "normalized": "/circles/:p/consult/orders",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/consult-orders"
+    },
+    {
+      "proto": "/circles/[id]/dashboard",
+      "normalized": "/circles/:p/dashboard",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/dashboard"
+    },
+    {
+      "proto": "/circles/[id]/distribution",
+      "normalized": "/circles/:p/distribution",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/distribution"
+    },
+    {
+      "proto": "/circles/[id]/earnings/detail",
+      "normalized": "/circles/:p/earnings/detail",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/earnings"
+    },
+    {
+      "proto": "/circles/[id]/exit",
+      "normalized": "/circles/:p/exit",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/exit"
+    },
+    {
+      "proto": "/circles/[id]/exit-requests",
+      "normalized": "/circles/:p/exit-requests",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/exit-requests"
+    },
+    {
+      "proto": "/circles/[id]/guests",
+      "normalized": "/circles/:p/guests",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/guests"
+    },
+    {
+      "proto": "/circles/[id]/invite-codes",
+      "normalized": "/circles/:p/invite-codes",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/invite-codes"
+    },
+    {
+      "proto": "/circles/[id]/join-requests",
+      "normalized": "/circles/:p/join-requests",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/join-requests"
+    },
+    {
+      "proto": "/circles/[id]/knowledge",
+      "normalized": "/circles/:p/knowledge",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/knowledge"
+    },
+    {
+      "proto": "/circles/[id]/level",
+      "normalized": "/circles/:p/level",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/level"
+    },
+    {
+      "proto": "/circles/[id]/manage",
+      "normalized": "/circles/:p/manage",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/manage"
+    },
+    {
+      "proto": "/circles/[id]/posts/[postId]",
+      "normalized": "/circles/:p/posts/:p",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/post"
+    },
+    {
+      "proto": "/circles/[id]/preview",
+      "normalized": "/circles/:p/preview",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/preview"
+    },
+    {
+      "proto": "/circles/[id]/publish",
+      "normalized": "/circles/:p/publish",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/publish"
+    },
+    {
+      "proto": "/circles/[id]/recommend-ebook",
+      "normalized": "/circles/:p/recommend-ebook",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/recommend-ebook"
+    },
+    {
+      "proto": "/circles/[id]/settings/knowledge",
+      "normalized": "/circles/:p/settings/knowledge",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/settings-knowledge"
+    },
+    {
+      "proto": "/circles/activities",
+      "normalized": "/circles/activities",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/activities"
+    },
+    {
+      "proto": "/circles/badges",
+      "normalized": "/circles/badges",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/badges"
+    },
+    {
+      "proto": "/circles/bots",
+      "normalized": "/circles/bots",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/bots"
+    },
+    {
+      "proto": "/circles/calendar",
+      "normalized": "/circles/calendar",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/calendar"
+    },
+    {
+      "proto": "/circles/create",
+      "normalized": "/circles/create",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/create"
+    },
+    {
+      "proto": "/circles/mine",
+      "normalized": "/circles/mine",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/mine"
+    },
+    {
+      "proto": "/circles/ranking",
+      "normalized": "/circles/ranking",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/ranking"
+    },
+    {
+      "proto": "/circles/search",
+      "normalized": "/circles/search",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/search"
+    },
+    {
+      "proto": "/circles/stats",
+      "normalized": "/circles/stats",
+      "status": "done",
+      "vue": "/#/pkg-circle/circles/stats"
+    },
+    {
+      "proto": "/classics/[id]",
+      "normalized": "/classics/:p",
+      "status": "done",
+      "vue": "/#/pkg-classics/detail/index"
+    },
+    {
+      "proto": "/classics/ai-assistant",
+      "normalized": "/classics/ai-assistant",
+      "status": "done",
+      "vue": "/#/pkg-classics/ai-assistant/index"
+    },
+    {
+      "proto": "/classics/audiobooks",
+      "normalized": "/classics/audiobooks",
+      "status": "done",
+      "vue": "/#/pkg-classics/audiobooks/index"
+    },
+    {
+      "proto": "/classics/audiobooks/[id]",
+      "normalized": "/classics/audiobooks/:p",
+      "status": "done",
+      "vue": "/#/pkg-classics/audiobooks/player?id=1"
+    },
+    {
+      "proto": "/classics/bookmarks",
+      "normalized": "/classics/bookmarks",
+      "status": "done",
+      "vue": "/#/pkg-classics/bookmarks/index"
+    },
+    {
+      "proto": "/classics/bookshelf",
+      "normalized": "/classics/bookshelf",
+      "status": "done",
+      "vue": "/#/pkg-classics/bookshelf/index"
+    },
+    {
+      "proto": "/classics/category/[cat]",
+      "normalized": "/classics/category/:p",
+      "status": "done",
+      "vue": "/#/pkg-classics/category/index"
+    },
+    {
+      "proto": "/classics/collection/[id]",
+      "normalized": "/classics/collection/:p",
+      "status": "done",
+      "vue": "/#/pkg-classics/collection/index?id=1"
+    },
+    {
+      "proto": "/classics/collections",
+      "normalized": "/classics/collections",
+      "status": "done",
+      "vue": "/#/pkg-classics/collections/index"
+    },
+    {
+      "proto": "/classics/home",
+      "normalized": "/classics/home",
+      "status": "done",
+      "vue": "/#/pkg-classics/home/index"
+    },
+    {
+      "proto": "/classics/lists",
+      "normalized": "/classics/lists",
+      "status": "done",
+      "vue": "/#/pkg-classics/lists/index"
+    },
+    {
+      "proto": "/classics/notes",
+      "normalized": "/classics/notes",
+      "status": "done",
+      "vue": "/#/pkg-classics/notes/index"
+    },
+    {
+      "proto": "/classics/ranking",
+      "normalized": "/classics/ranking",
+      "status": "done",
+      "vue": "/#/pkg-classics/ranking/index"
+    },
+    {
+      "proto": "/classics/search",
+      "normalized": "/classics/search",
+      "status": "done",
+      "vue": "/#/pkg-classics/search/index"
+    },
+    {
+      "proto": "/common/image-viewer",
+      "normalized": "/common/image-viewer",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/common/legal-doc",
+      "normalized": "/common/legal-doc",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/common/scan",
+      "normalized": "/common/scan",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/common/share-poster",
+      "normalized": "/common/share-poster",
+      "status": "done",
+      "vue": "/#/pkg-circle/common/share-poster/index"
+    },
+    {
+      "proto": "/competition",
+      "normalized": "/competition",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/competition/[id]",
+      "normalized": "/competition/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/competition/[id]/certificate",
+      "normalized": "/competition/:p/certificate",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/competition/[id]/dashboard",
+      "normalized": "/competition/:p/dashboard",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/competition/[id]/judge",
+      "normalized": "/competition/:p/judge",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/competition/[id]/participants",
+      "normalized": "/competition/:p/participants",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/competition/[id]/poster",
+      "normalized": "/competition/:p/poster",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/competition/[id]/promotion-notice",
+      "normalized": "/competition/:p/promotion-notice",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/competition/[id]/quiz",
+      "normalized": "/competition/:p/quiz",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/competition/[id]/register",
+      "normalized": "/competition/:p/register",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/competition/[id]/result",
+      "normalized": "/competition/:p/result",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/competition/[id]/score-detail",
+      "normalized": "/competition/:p/score-detail",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/competition/archive",
+      "normalized": "/competition/archive",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/content/[slug]",
+      "normalized": "/content/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/content/community-rules",
+      "normalized": "/content/community-rules",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/coupons",
+      "normalized": "/coupons",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/coupons/center",
+      "normalized": "/coupons/center",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/course/[id]",
+      "normalized": "/course/:p",
+      "status": "done",
+      "vue": null
+    },
+    {
+      "proto": "/course/[id]/complete",
+      "normalized": "/course/:p/complete",
+      "status": "done",
+      "vue": null
+    },
+    {
+      "proto": "/courses",
+      "normalized": "/courses",
+      "status": "done",
+      "vue": "/#/pkg-course/home/index"
+    },
+    {
+      "proto": "/courses-list",
+      "normalized": "/courses-list",
+      "status": "done",
+      "vue": null
+    },
+    {
+      "proto": "/courses/[id]",
+      "normalized": "/courses/:p",
+      "status": "done",
+      "vue": "/#/pkg-course/detail/index"
+    },
+    {
+      "proto": "/courses/[id]/chapters",
+      "normalized": "/courses/:p/chapters",
+      "status": "done",
+      "vue": "/#/pkg-course/chapters/index"
+    },
+    {
+      "proto": "/courses/[id]/learn",
+      "normalized": "/courses/:p/learn",
+      "status": "done",
+      "vue": "/#/pkg-course/learn/index"
+    },
+    {
+      "proto": "/courses/[id]/player",
+      "normalized": "/courses/:p/player",
+      "status": "done",
+      "vue": "/#/pkg-course/player/index"
+    },
+    {
+      "proto": "/courses/certificate",
+      "normalized": "/courses/certificate",
+      "status": "done",
+      "vue": "/#/pkg-course/certificate/index"
+    },
+    {
+      "proto": "/courses/flash-sale",
+      "normalized": "/courses/flash-sale",
+      "status": "done",
+      "vue": "/#/pkg-course/flash-sale/index"
+    },
+    {
+      "proto": "/courses/purchase-confirm",
+      "normalized": "/courses/purchase-confirm",
+      "status": "done",
+      "vue": "/#/pkg-course/purchase-confirm/index"
+    },
+    {
+      "proto": "/courses/study-plan",
+      "normalized": "/courses/study-plan",
+      "status": "done",
+      "vue": "/#/pkg-course/study-plan/index"
+    },
+    {
+      "proto": "/courses/work-result",
+      "normalized": "/courses/work-result",
+      "status": "done",
+      "vue": "/#/pkg-course/work-result/index"
+    },
+    {
+      "proto": "/courses/work-review",
+      "normalized": "/courses/work-review",
+      "status": "done",
+      "vue": "/#/pkg-course/work-review/index"
+    },
+    {
+      "proto": "/courses/work-submit",
+      "normalized": "/courses/work-submit",
+      "status": "done",
+      "vue": "/#/pkg-course/work-submit/index"
+    },
+    {
+      "proto": "/creator",
+      "normalized": "/creator",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/creator/live",
+      "normalized": "/creator/live",
+      "status": "done",
+      "vue": "/#/pkg-live/manage/index"
+    },
+    {
+      "proto": "/creator/live/analytics/[id]",
+      "normalized": "/creator/live/analytics/:p",
+      "status": "done",
+      "vue": "/#/pkg-live/analytics/index"
+    },
+    {
+      "proto": "/creator/live/console",
+      "normalized": "/creator/live/console",
+      "status": "done",
+      "vue": "/#/pkg-live/console/index"
+    },
+    {
+      "proto": "/creator/live/create",
+      "normalized": "/creator/live/create",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/creator/live/earnings",
+      "normalized": "/creator/live/earnings",
+      "status": "done",
+      "vue": "/#/pkg-live/earnings/index"
+    },
+    {
+      "proto": "/creator/live/obs",
+      "normalized": "/creator/live/obs",
+      "status": "done",
+      "vue": "/#/pkg-live/obs/index"
+    },
+    {
+      "proto": "/creator/live/products",
+      "normalized": "/creator/live/products",
+      "status": "done",
+      "vue": "/#/pkg-live/products/index"
+    },
+    {
+      "proto": "/creator/live/reviews",
+      "normalized": "/creator/live/reviews",
+      "status": "done",
+      "vue": "/#/pkg-live/reviews/index"
+    },
+    {
+      "proto": "/creator/live/schedule",
+      "normalized": "/creator/live/schedule",
+      "status": "done",
+      "vue": "/#/pkg-live/schedule/index"
+    },
+    {
+      "proto": "/creator/live/settings",
+      "normalized": "/creator/live/settings",
+      "status": "done",
+      "vue": "/#/pkg-live/settings/index"
+    },
+    {
+      "proto": "/creator/live/team",
+      "normalized": "/creator/live/team",
+      "status": "done",
+      "vue": "/#/pkg-live/team/index"
+    },
+    {
+      "proto": "/creator/live/theme",
+      "normalized": "/creator/live/theme",
+      "status": "done",
+      "vue": "/#/pkg-live/theme/index"
+    },
+    {
+      "proto": "/creator/revenue",
+      "normalized": "/creator/revenue",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/customer-service",
+      "normalized": "/customer-service",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/detail",
+      "normalized": "/detail",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/discover",
+      "normalized": "/discover",
+      "status": "done",
+      "vue": "/#/pages/discover/index"
+    },
+    {
+      "proto": "/downloads",
+      "normalized": "/downloads",
+      "status": "done",
+      "vue": "/#/pkg-profile/downloads/index"
+    },
+    {
+      "proto": "/drafts",
+      "normalized": "/drafts",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/earnings",
+      "normalized": "/earnings",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/earnings/breakdown",
+      "normalized": "/earnings/breakdown",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/earnings/records",
+      "normalized": "/earnings/records",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/earnings/withdraw",
+      "normalized": "/earnings/withdraw",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/ebook",
+      "normalized": "/ebook",
+      "status": "done",
+      "vue": "/#/pkg-ebook/store/index"
+    },
+    {
+      "proto": "/ebook/[id]",
+      "normalized": "/ebook/:p",
+      "status": "done",
+      "vue": "/#/pkg-ebook/detail/index?id=1"
+    },
+    {
+      "proto": "/ebook/bookmarks",
+      "normalized": "/ebook/bookmarks",
+      "status": "done",
+      "vue": "/#/pkg-ebook/bookmarks/index"
+    },
+    {
+      "proto": "/ebook/bookshelf",
+      "normalized": "/ebook/bookshelf",
+      "status": "done",
+      "vue": "/#/pkg-ebook/bookshelf/index"
+    },
+    {
+      "proto": "/ebook/checkout/[id]",
+      "normalized": "/ebook/checkout/:p",
+      "status": "done",
+      "vue": "/#/pkg-ebook/checkout/index?id=1"
+    },
+    {
+      "proto": "/ebook/checkout/success",
+      "normalized": "/ebook/checkout/success",
+      "status": "done",
+      "vue": "/#/pkg-ebook/checkout/success"
+    },
+    {
+      "proto": "/ebook/notes",
+      "normalized": "/ebook/notes",
+      "status": "done",
+      "vue": "/#/pkg-ebook/notes/index"
+    },
+    {
+      "proto": "/ebook/reader/[id]",
+      "normalized": "/ebook/reader/:p",
+      "status": "done",
+      "vue": "/#/pkg-ebook/reader/index?id=1"
+    },
+    {
+      "proto": "/editor",
+      "normalized": "/editor",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/error-pages",
+      "normalized": "/error-pages",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/error/forbidden",
+      "normalized": "/error/forbidden",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/error/maintenance",
+      "normalized": "/error/maintenance",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/error/network-error",
+      "normalized": "/error/network-error",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/error/not-found",
+      "normalized": "/error/not-found",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/expert/[id]",
+      "normalized": "/expert/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/experts",
+      "normalized": "/experts",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/favorites",
+      "normalized": "/favorites",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/feedback",
+      "normalized": "/feedback",
+      "status": "done",
+      "vue": "/#/pkg-mine/feedback/index"
+    },
+    {
+      "proto": "/flash-sale",
+      "normalized": "/flash-sale",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/follows",
+      "normalized": "/follows",
+      "status": "done",
+      "vue": "/#/pkg-profile/follows/index"
+    },
+    {
+      "proto": "/forgot-password",
+      "normalized": "/forgot-password",
+      "status": "done",
+      "vue": "/#/pkg-auth/forgot-password/index"
+    },
+    {
+      "proto": "/fortune",
+      "normalized": "/fortune",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/fortune/daily",
+      "normalized": "/fortune/daily",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/fortune/subscribe",
+      "normalized": "/fortune/subscribe",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/help",
+      "normalized": "/help",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/help/guoxue-design",
+      "normalized": "/help/guoxue-design",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/help/media-guidelines",
+      "normalized": "/help/media-guidelines",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/history",
+      "normalized": "/history",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/im/add-friend",
+      "normalized": "/im/add-friend",
+      "status": "done",
+      "vue": "/#/pkg-im/im/add-friend/index"
+    },
+    {
+      "proto": "/im/chat/[id]",
+      "normalized": "/im/chat/:p",
+      "status": "done",
+      "vue": "/#/pkg-im/im/chat/index?id=101"
+    },
+    {
+      "proto": "/im/contacts",
+      "normalized": "/im/contacts",
+      "status": "done",
+      "vue": "/#/pkg-im/im/contacts/index"
+    },
+    {
+      "proto": "/im/conversations",
+      "normalized": "/im/conversations",
+      "status": "done",
+      "vue": "/#/pkg-im/im/conversations/index"
+    },
+    {
+      "proto": "/im/create-group",
+      "normalized": "/im/create-group",
+      "status": "done",
+      "vue": "/#/pkg-im/im/create-group/index"
+    },
+    {
+      "proto": "/im/friend-requests",
+      "normalized": "/im/friend-requests",
+      "status": "done",
+      "vue": "/#/pkg-im/im/friend-requests/index"
+    },
+    {
+      "proto": "/im/group-chat/[id]",
+      "normalized": "/im/group-chat/:p",
+      "status": "done",
+      "vue": "/#/pkg-im/im/group-chat/index?id=1"
+    },
+    {
+      "proto": "/im/group-detail/[id]",
+      "normalized": "/im/group-detail/:p",
+      "status": "done",
+      "vue": "/#/pkg-im/im/group-detail/index?id=1"
+    },
+    {
+      "proto": "/im/group-list",
+      "normalized": "/im/group-list",
+      "status": "done",
+      "vue": "/#/pkg-im/im/group-list/index"
+    },
+    {
+      "proto": "/im/invite",
+      "normalized": "/im/invite",
+      "status": "done",
+      "vue": "/#/pkg-im/im/invite/index"
+    },
+    {
+      "proto": "/im/messages",
+      "normalized": "/im/messages",
+      "status": "done",
+      "vue": "/#/pkg-im/im/messages/index"
+    },
+    {
+      "proto": "/institute",
+      "normalized": "/institute",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/institute/apply",
+      "normalized": "/institute/apply",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/institute/demands/create",
+      "normalized": "/institute/demands/create",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/institute/events",
+      "normalized": "/institute/events",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/institute/events/[id]",
+      "normalized": "/institute/events/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/institute/instructors",
+      "normalized": "/institute/instructors",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/institute/instructors/[id]",
+      "normalized": "/institute/instructors/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/institute/member-apply",
+      "normalized": "/institute/member-apply",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/institute/members",
+      "normalized": "/institute/members",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/institute/members/[id]",
+      "normalized": "/institute/members/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/institute/my-tasks",
+      "normalized": "/institute/my-tasks",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/institute/teacher-demand",
+      "normalized": "/institute/teacher-demand",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/institute/teacher-demand/create",
+      "normalized": "/institute/teacher-demand/create",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/institute/teacher-pool",
+      "normalized": "/institute/teacher-pool",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/interests-guide",
+      "normalized": "/interests-guide",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/invite",
+      "normalized": "/invite",
+      "status": "done",
+      "vue": "/#/pkg-profile/invite/index"
+    },
+    {
+      "proto": "/invite/history",
+      "normalized": "/invite/history",
+      "status": "done",
+      "vue": "/#/pkg-profile/invite/history/index"
+    },
+    {
+      "proto": "/join/operator",
+      "normalized": "/join/operator",
+      "status": "done",
+      "vue": "/#/pkg-operator/join-operator/index"
+    },
+    {
+      "proto": "/join/station",
+      "normalized": "/join/station",
+      "status": "done",
+      "vue": "/#/pkg-operator/join-station/index"
+    },
+    {
+      "proto": "/learn/[id]",
+      "normalized": "/learn/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/learning",
+      "normalized": "/learning",
+      "status": "done",
+      "vue": "/#/pkg-profile/learning/index"
+    },
+    {
+      "proto": "/learning/achievements",
+      "normalized": "/learning/achievements",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/learning/history",
+      "normalized": "/learning/history",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/likes",
+      "normalized": "/likes",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/live",
+      "normalized": "/live",
+      "status": "done",
+      "vue": "/#/pkg-live/plaza/index"
+    },
+    {
+      "proto": "/live/[id]",
+      "normalized": "/live/:p",
+      "status": "done",
+      "vue": "/#/pkg-live/watch/index"
+    },
+    {
+      "proto": "/live/create",
+      "normalized": "/live/create",
+      "status": "done",
+      "vue": "/#/pkg-live/create/index"
+    },
+    {
+      "proto": "/live/end",
+      "normalized": "/live/end",
+      "status": "done",
+      "vue": "/#/pkg-live/end/index"
+    },
+    {
+      "proto": "/live/horizontal",
+      "normalized": "/live/horizontal",
+      "status": "done",
+      "vue": "/#/pkg-live/horizontal/index"
+    },
+    {
+      "proto": "/live/host-data",
+      "normalized": "/live/host-data",
+      "status": "done",
+      "vue": "/#/pkg-live/host-data/index"
+    },
+    {
+      "proto": "/live/hosts",
+      "normalized": "/live/hosts",
+      "status": "done",
+      "vue": "/#/pkg-live/hosts/index"
+    },
+    {
+      "proto": "/live/obs-guide",
+      "normalized": "/live/obs-guide",
+      "status": "done",
+      "vue": "/#/pkg-live/obs-guide/index"
+    },
+    {
+      "proto": "/live/preview",
+      "normalized": "/live/preview",
+      "status": "done",
+      "vue": "/#/pkg-live/preview/index"
+    },
+    {
+      "proto": "/live/replay-home",
+      "normalized": "/live/replay-home",
+      "status": "done",
+      "vue": "/#/pkg-live/replay-home/index"
+    },
+    {
+      "proto": "/live/replay/[id]",
+      "normalized": "/live/replay/:p",
+      "status": "done",
+      "vue": "/#/pkg-live/replay-detail/index"
+    },
+    {
+      "proto": "/live/replay/[id]/comments",
+      "normalized": "/live/replay/:p/comments",
+      "status": "done",
+      "vue": "/#/pkg-live/replay-comment/index"
+    },
+    {
+      "proto": "/live/replays",
+      "normalized": "/live/replays",
+      "status": "done",
+      "vue": "/#/pkg-live/replays/index"
+    },
+    {
+      "proto": "/live/stream-config",
+      "normalized": "/live/stream-config",
+      "status": "done",
+      "vue": "/#/pkg-live/stream-config/index"
+    },
+    {
+      "proto": "/live/vertical",
+      "normalized": "/live/vertical",
+      "status": "done",
+      "vue": "/#/pkg-live/vertical/index"
+    },
+    {
+      "proto": "/login",
+      "normalized": "/login",
+      "status": "done",
+      "vue": "/#/pkg-auth/login/index"
+    },
+    {
+      "proto": "/login/forgot-password",
+      "normalized": "/login/forgot-password",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/mall",
+      "normalized": "/mall",
+      "status": "done",
+      "vue": "/#/pkg-mall/home/index"
+    },
+    {
+      "proto": "/mall/category",
+      "normalized": "/mall/category",
+      "status": "done",
+      "vue": "/#/pkg-mall/category/index"
+    },
+    {
+      "proto": "/mall/product/[id]",
+      "normalized": "/mall/product/:p",
+      "status": "done",
+      "vue": "/#/pkg-mall/product/detail"
+    },
+    {
+      "proto": "/mall/product/[id]/reviews",
+      "normalized": "/mall/product/:p/reviews",
+      "status": "done",
+      "vue": "/#/pkg-mall/product/reviews"
+    },
+    {
+      "proto": "/manage/checkin/[courseId]",
+      "normalized": "/manage/checkin/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/manage/course/[id]/analytics",
+      "normalized": "/manage/course/:p/analytics",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/manage/course/[id]/reviews",
+      "normalized": "/manage/course/:p/reviews",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/manage/live",
+      "normalized": "/manage/live",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/manage/live/[id]/analytics",
+      "normalized": "/manage/live/:p/analytics",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/manage/live/create",
+      "normalized": "/manage/live/create",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/analytics",
+      "normalized": "/merchant/analytics",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/application-status",
+      "normalized": "/merchant/application-status",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/apply",
+      "normalized": "/merchant/apply",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/circle-bindding",
+      "normalized": "/merchant/circle-bindding",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/content-stats",
+      "normalized": "/merchant/content-stats",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/dashboard",
+      "normalized": "/merchant/dashboard",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/edit-application",
+      "normalized": "/merchant/edit-application",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/inquiries",
+      "normalized": "/merchant/inquiries",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/join",
+      "normalized": "/merchant/join",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/notices",
+      "normalized": "/merchant/notices",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/order-detail",
+      "normalized": "/merchant/order-detail",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/orders",
+      "normalized": "/merchant/orders",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/pay-deposit",
+      "normalized": "/merchant/pay-deposit",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/product-edit",
+      "normalized": "/merchant/product-edit",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/products",
+      "normalized": "/merchant/products",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/profile",
+      "normalized": "/merchant/profile",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/revenue",
+      "normalized": "/merchant/revenue",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/reviews",
+      "normalized": "/merchant/reviews",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/shop-preview",
+      "normalized": "/merchant/shop-preview",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/sign-agreement",
+      "normalized": "/merchant/sign-agreement",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/merchant/violations",
+      "normalized": "/merchant/violations",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/mine/achievements",
+      "normalized": "/mine/achievements",
+      "status": "done",
+      "vue": "/#/pkg-mine/achievements/index"
+    },
+    {
+      "proto": "/mine/applications",
+      "normalized": "/mine/applications",
+      "status": "done",
+      "vue": "/#/pkg-mine/applications/index"
+    },
+    {
+      "proto": "/mine/bind-accounts",
+      "normalized": "/mine/bind-accounts",
+      "status": "done",
+      "vue": "/#/pkg-mine/bind-accounts/index"
+    },
+    {
+      "proto": "/mine/blacklist",
+      "normalized": "/mine/blacklist",
+      "status": "done",
+      "vue": "/#/pkg-mine/blacklist/index"
+    },
+    {
+      "proto": "/mine/bookings",
+      "normalized": "/mine/bookings",
+      "status": "done",
+      "vue": "/#/pkg-mine/bookings/index"
+    },
+    {
+      "proto": "/mine/change-password",
+      "normalized": "/mine/change-password",
+      "status": "done",
+      "vue": "/#/pkg-mine/change-password/index"
+    },
+    {
+      "proto": "/mine/change-phone",
+      "normalized": "/mine/change-phone",
+      "status": "done",
+      "vue": "/#/pkg-mine/change-phone/index"
+    },
+    {
+      "proto": "/mine/data-export",
+      "normalized": "/mine/data-export",
+      "status": "done",
+      "vue": "/#/pkg-mine/data-export/index"
+    },
+    {
+      "proto": "/mine/delete-account",
+      "normalized": "/mine/delete-account",
+      "status": "done",
+      "vue": "/#/pkg-mine/delete-account/index"
+    },
+    {
+      "proto": "/mine/delete-account-result",
+      "normalized": "/mine/delete-account-result",
+      "status": "done",
+      "vue": "/#/pkg-mine/delete-account-result/index"
+    },
+    {
+      "proto": "/mine/downloads",
+      "normalized": "/mine/downloads",
+      "status": "done",
+      "vue": "/#/pkg-mine/downloads/index"
+    },
+    {
+      "proto": "/mine/edit-profile",
+      "normalized": "/mine/edit-profile",
+      "status": "done",
+      "vue": "/#/pkg-mine/edit-profile/index"
+    },
+    {
+      "proto": "/mine/follows",
+      "normalized": "/mine/follows",
+      "status": "done",
+      "vue": "/#/pkg-mine/follows/index"
+    },
+    {
+      "proto": "/mine/heritage-verify",
+      "normalized": "/mine/heritage-verify",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/mine/history",
+      "normalized": "/mine/history",
+      "status": "done",
+      "vue": "/#/pkg-mine/history/index"
+    },
+    {
+      "proto": "/mine/identity-switch",
+      "normalized": "/mine/identity-switch",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/mine/institute",
+      "normalized": "/mine/institute",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/mine/institute/admin",
+      "normalized": "/mine/institute/admin",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/mine/institute/admin/appoint",
+      "normalized": "/mine/institute/admin/appoint",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/mine/invite-records",
+      "normalized": "/mine/invite-records",
+      "status": "done",
+      "vue": "/#/pkg-mine/invite-records/index"
+    },
+    {
+      "proto": "/mine/learning-dashboard",
+      "normalized": "/mine/learning-dashboard",
+      "status": "done",
+      "vue": "/#/pkg-mine/learning-dashboard/index"
+    },
+    {
+      "proto": "/mine/memberships",
+      "normalized": "/mine/memberships",
+      "status": "done",
+      "vue": "/#/pkg-mine/memberships/index"
+    },
+    {
+      "proto": "/mine/my-comments",
+      "normalized": "/mine/my-comments",
+      "status": "done",
+      "vue": "/#/pkg-mine/my-comments/index"
+    },
+    {
+      "proto": "/mine/my-courses",
+      "normalized": "/mine/my-courses",
+      "status": "done",
+      "vue": "/#/pkg-mine/my-courses/index"
+    },
+    {
+      "proto": "/mine/my-likes",
+      "normalized": "/mine/my-likes",
+      "status": "done",
+      "vue": "/#/pkg-mine/my-likes/index"
+    },
+    {
+      "proto": "/mine/payment-password",
+      "normalized": "/mine/payment-password",
+      "status": "done",
+      "vue": "/#/pkg-mine/payment-password/index"
+    },
+    {
+      "proto": "/mine/points",
+      "normalized": "/mine/points",
+      "status": "done",
+      "vue": "/#/pkg-mine/points/index"
+    },
+    {
+      "proto": "/mine/privacy-authorization",
+      "normalized": "/mine/privacy-authorization",
+      "status": "done",
+      "vue": "/#/pkg-mine/privacy-authorization/index"
+    },
+    {
+      "proto": "/mine/received-comments",
+      "normalized": "/mine/received-comments",
+      "status": "done",
+      "vue": "/#/pkg-mine/received-comments/index"
+    },
+    {
+      "proto": "/mine/role-panels/admin-panel",
+      "normalized": "/mine/role-panels/admin-panel",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/mine/role-panels/operator-panel",
+      "normalized": "/mine/role-panels/operator-panel",
+      "status": "done",
+      "vue": "/#/pkg-operator/operator-panel/index"
+    },
+    {
+      "proto": "/mine/role-panels/station-master-panel",
+      "normalized": "/mine/role-panels/station-master-panel",
+      "status": "done",
+      "vue": "/#/pkg-operator/station-master-panel/index"
+    },
+    {
+      "proto": "/mine/security",
+      "normalized": "/mine/security",
+      "status": "done",
+      "vue": "/#/pkg-mine/security/index"
+    },
+    {
+      "proto": "/mine/settings",
+      "normalized": "/mine/settings",
+      "status": "done",
+      "vue": "/#/pkg-mine/settings/index"
+    },
+    {
+      "proto": "/mine/submissions",
+      "normalized": "/mine/submissions",
+      "status": "done",
+      "vue": "/#/pkg-mine/submissions/index"
+    },
+    {
+      "proto": "/mine/teen-mode",
+      "normalized": "/mine/teen-mode",
+      "status": "done",
+      "vue": "/#/pkg-mine/teen-mode/index"
+    },
+    {
+      "proto": "/mine/wallet",
+      "normalized": "/mine/wallet",
+      "status": "done",
+      "vue": "/#/pkg-mine/wallet/index"
+    },
+    {
+      "proto": "/my-circles",
+      "normalized": "/my-circles",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/notices",
+      "normalized": "/notices",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/notices/[id]",
+      "normalized": "/notices/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/notices/upgrade",
+      "normalized": "/notices/upgrade",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/notifications",
+      "normalized": "/notifications",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/checkin",
+      "normalized": "/offline/checkin",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/courses",
+      "normalized": "/offline/courses",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/courses/[id]",
+      "normalized": "/offline/courses/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/events",
+      "normalized": "/offline/events",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/manage",
+      "normalized": "/offline/manage",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/manage/courses",
+      "normalized": "/offline/manage/courses",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/manage/courses/[id]",
+      "normalized": "/offline/manage/courses/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/manage/courses/create",
+      "normalized": "/offline/manage/courses/create",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/manage/info",
+      "normalized": "/offline/manage/info",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/manage/marketing",
+      "normalized": "/offline/manage/marketing",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/manage/orders",
+      "normalized": "/offline/manage/orders",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/manage/products",
+      "normalized": "/offline/manage/products",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/manage/students",
+      "normalized": "/offline/manage/students",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/orders",
+      "normalized": "/offline/orders",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/products",
+      "normalized": "/offline/products",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/settlements",
+      "normalized": "/offline/settlements",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/stations",
+      "normalized": "/offline/stations",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/stations/[id]",
+      "normalized": "/offline/stations/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/offline/teacher-booking",
+      "normalized": "/offline/teacher-booking",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/operator/analysis",
+      "normalized": "/operator/analysis",
+      "status": "done",
+      "vue": "/#/pkg-operator/analysis/index"
+    },
+    {
+      "proto": "/operator/dashboard",
+      "normalized": "/operator/dashboard",
+      "status": "done",
+      "vue": "/#/pkg-operator/dashboard/index"
+    },
+    {
+      "proto": "/operator/dormant",
+      "normalized": "/operator/dormant",
+      "status": "done",
+      "vue": "/#/pkg-operator/dormant/index"
+    },
+    {
+      "proto": "/operator/invite",
+      "normalized": "/operator/invite",
+      "status": "done",
+      "vue": "/#/pkg-operator/invite/index"
+    },
+    {
+      "proto": "/operator/quota",
+      "normalized": "/operator/quota",
+      "status": "done",
+      "vue": "/#/pkg-operator/quota/index"
+    },
+    {
+      "proto": "/operator/settings",
+      "normalized": "/operator/settings",
+      "status": "done",
+      "vue": "/#/pkg-operator/settings/index"
+    },
+    {
+      "proto": "/operator/team",
+      "normalized": "/operator/team",
+      "status": "done",
+      "vue": "/#/pkg-operator/team/index"
+    },
+    {
+      "proto": "/orders",
+      "normalized": "/orders",
+      "status": "done",
+      "vue": "/#/pkg-order/list/index"
+    },
+    {
+      "proto": "/orders/[id]",
+      "normalized": "/orders/:p",
+      "status": "done",
+      "vue": "/#/pkg-order/detail/index"
+    },
+    {
+      "proto": "/orders/[id]/review",
+      "normalized": "/orders/:p/review",
+      "status": "done",
+      "vue": "/#/pkg-order/review/index"
+    },
+    {
+      "proto": "/orders/center",
+      "normalized": "/orders/center",
+      "status": "done",
+      "vue": "/#/pkg-order/center/index"
+    },
+    {
+      "proto": "/orders/dispute",
+      "normalized": "/orders/dispute",
+      "status": "done",
+      "vue": "/#/pkg-order/dispute/index"
+    },
+    {
+      "proto": "/orders/invoice",
+      "normalized": "/orders/invoice",
+      "status": "done",
+      "vue": "/#/pkg-order/invoice/index"
+    },
+    {
+      "proto": "/orders/logistics",
+      "normalized": "/orders/logistics",
+      "status": "done",
+      "vue": "/#/pkg-order/logistics/index"
+    },
+    {
+      "proto": "/orders/refund-progress",
+      "normalized": "/orders/refund-progress",
+      "status": "done",
+      "vue": "/#/pkg-order/refund/index"
+    },
+    {
+      "proto": "/paipan",
+      "normalized": "/paipan",
+      "status": "done",
+      "vue": "/#/pages/paipan/index"
+    },
+    {
+      "proto": "/paipan/[toolId]",
+      "normalized": "/paipan/:p",
+      "status": "done",
+      "vue": null
+    },
+    {
+      "proto": "/paipan/bazi",
+      "normalized": "/paipan/bazi",
+      "status": "done",
+      "vue": "/#/pkg-paipan/bazi/index"
+    },
+    {
+      "proto": "/paipan/bazi/history",
+      "normalized": "/paipan/bazi/history",
+      "status": "done",
+      "vue": "/#/pkg-paipan/bazi/history/index"
+    },
+    {
+      "proto": "/paipan/bazi/history/celebrities",
+      "normalized": "/paipan/bazi/history/celebrities",
+      "status": "done",
+      "vue": "/#/pkg-paipan/bazi/history/celebrities"
+    },
+    {
+      "proto": "/paipan/bazi/history/groups",
+      "normalized": "/paipan/bazi/history/groups",
+      "status": "done",
+      "vue": "/#/pkg-paipan/bazi/history/groups"
+    },
+    {
+      "proto": "/paipan/bazi/result",
+      "normalized": "/paipan/bazi/result",
+      "status": "done",
+      "vue": "/#/pkg-paipan/bazi/result"
+    },
+    {
+      "proto": "/paipan/qimen",
+      "normalized": "/paipan/qimen",
+      "status": "done",
+      "vue": "/#/pkg-paipan/qimen/index"
+    },
+    {
+      "proto": "/paipan/qimen/history",
+      "normalized": "/paipan/qimen/history",
+      "status": "done",
+      "vue": "/#/pkg-paipan/qimen/history/index"
+    },
+    {
+      "proto": "/paipan/qimen/history/groups",
+      "normalized": "/paipan/qimen/history/groups",
+      "status": "done",
+      "vue": "/#/pkg-paipan/qimen/history/groups"
+    },
+    {
+      "proto": "/paipan/qimen/result",
+      "normalized": "/paipan/qimen/result",
+      "status": "done",
+      "vue": "/#/pkg-paipan/qimen/result"
+    },
+    {
+      "proto": "/paipan/tools/coming-soon",
+      "normalized": "/paipan/tools/coming-soon",
+      "status": "done",
+      "vue": "/#/pkg-paipan/tools/coming-soon?name=六爻排盘"
+    },
+    {
+      "proto": "/paipan/yangpan",
+      "normalized": "/paipan/yangpan",
+      "status": "done",
+      "vue": "/#/pkg-paipan/yangpan/index"
+    },
+    {
+      "proto": "/paipan/yangpan/history",
+      "normalized": "/paipan/yangpan/history",
+      "status": "done",
+      "vue": "/#/pkg-paipan/yangpan/history/index"
+    },
+    {
+      "proto": "/paipan/yangpan/history/groups",
+      "normalized": "/paipan/yangpan/history/groups",
+      "status": "done",
+      "vue": "/#/pkg-paipan/yangpan/history/groups"
+    },
+    {
+      "proto": "/paipan/yangpan/result",
+      "normalized": "/paipan/yangpan/result",
+      "status": "done",
+      "vue": "/#/pkg-paipan/yangpan/result"
+    },
+    {
+      "proto": "/payment/result",
+      "normalized": "/payment/result",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/payment/success",
+      "normalized": "/payment/success",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/poetry",
+      "normalized": "/poetry",
+      "status": "done",
+      "vue": "/#/pkg-poetry/index/index"
+    },
+    {
+      "proto": "/poetry/[id]",
+      "normalized": "/poetry/:p",
+      "status": "done",
+      "vue": "/#/pkg-poetry/detail/index?id=1"
+    },
+    {
+      "proto": "/poetry/categories",
+      "normalized": "/poetry/categories",
+      "status": "done",
+      "vue": "/#/pkg-poetry/categories/index"
+    },
+    {
+      "proto": "/poetry/collections",
+      "normalized": "/poetry/collections",
+      "status": "done",
+      "vue": "/#/pkg-poetry/collections/index"
+    },
+    {
+      "proto": "/points",
+      "normalized": "/points",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/points/exchange",
+      "normalized": "/points/exchange",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/points/history",
+      "normalized": "/points/history",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/points/tasks",
+      "normalized": "/points/tasks",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/policy/[type]",
+      "normalized": "/policy/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/policy/privacy-policy",
+      "normalized": "/policy/privacy-policy",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/policy/user-agreement",
+      "normalized": "/policy/user-agreement",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/post/[id]",
+      "normalized": "/post/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/poster",
+      "normalized": "/poster",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/privacy",
+      "normalized": "/privacy",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/profile",
+      "normalized": "/profile",
+      "status": "done",
+      "vue": "/#/pages/profile/index"
+    },
+    {
+      "proto": "/profile/edit",
+      "normalized": "/profile/edit",
+      "status": "done",
+      "vue": "/#/pages/profile/edit"
+    },
+    {
+      "proto": "/publish",
+      "normalized": "/publish",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/publish/video",
+      "normalized": "/publish/video",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/qa",
+      "normalized": "/qa",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/qa/[id]",
+      "normalized": "/qa/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/qa/ask",
+      "normalized": "/qa/ask",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/qa/pending",
+      "normalized": "/qa/pending",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/rankings",
+      "normalized": "/rankings",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/reader/[id]",
+      "normalized": "/reader/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/register",
+      "normalized": "/register",
+      "status": "done",
+      "vue": "/#/pkg-auth/register/index"
+    },
+    {
+      "proto": "/renew",
+      "normalized": "/renew",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/report",
+      "normalized": "/report",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/report/result",
+      "normalized": "/report/result",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/report/result/[id]",
+      "normalized": "/report/result/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/reservations",
+      "normalized": "/reservations",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/result",
+      "normalized": "/result",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/same-city/feed",
+      "normalized": "/same-city/feed",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/same-city/nearby-users",
+      "normalized": "/same-city/nearby-users",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/search",
+      "normalized": "/search",
+      "status": "done",
+      "vue": "/#/pkg-search/search/index"
+    },
+    {
+      "proto": "/search/advanced",
+      "normalized": "/search/advanced",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/search/history",
+      "normalized": "/search/history",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/search/result",
+      "normalized": "/search/result",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/search/trending",
+      "normalized": "/search/trending",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/search/voice",
+      "normalized": "/search/voice",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/seckill",
+      "normalized": "/seckill",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/seckill/rules",
+      "normalized": "/seckill/rules",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/settings",
+      "normalized": "/settings",
+      "status": "done",
+      "vue": "/#/pkg-settings/index/index"
+    },
+    {
+      "proto": "/settings/bindaccount",
+      "normalized": "/settings/bindaccount",
+      "status": "done",
+      "vue": "/#/pkg-settings/bindaccount/index"
+    },
+    {
+      "proto": "/settings/blacklist",
+      "normalized": "/settings/blacklist",
+      "status": "done",
+      "vue": "/#/pkg-settings/blacklist/index"
+    },
+    {
+      "proto": "/settings/delete-account",
+      "normalized": "/settings/delete-account",
+      "status": "done",
+      "vue": "/#/pkg-settings/delete-account/index"
+    },
+    {
+      "proto": "/settings/notifications",
+      "normalized": "/settings/notifications",
+      "status": "done",
+      "vue": "/#/pkg-settings/notifications/index"
+    },
+    {
+      "proto": "/settings/password",
+      "normalized": "/settings/password",
+      "status": "done",
+      "vue": "/#/pkg-settings/password/index"
+    },
+    {
+      "proto": "/settings/payment-methods",
+      "normalized": "/settings/payment-methods",
+      "status": "done",
+      "vue": "/#/pkg-settings/payment-methods/index"
+    },
+    {
+      "proto": "/settings/payment-password",
+      "normalized": "/settings/payment-password",
+      "status": "done",
+      "vue": "/#/pkg-settings/payment-password/index"
+    },
+    {
+      "proto": "/settings/phone",
+      "normalized": "/settings/phone",
+      "status": "done",
+      "vue": "/#/pkg-settings/phone/index"
+    },
+    {
+      "proto": "/settings/privacy",
+      "normalized": "/settings/privacy",
+      "status": "done",
+      "vue": "/#/pkg-settings/privacy/index"
+    },
+    {
+      "proto": "/share/landing",
+      "normalized": "/share/landing",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/shop",
+      "normalized": "/shop",
+      "status": "done",
+      "vue": "/#/pkg-shop/home/index"
+    },
+    {
+      "proto": "/shop/[id]",
+      "normalized": "/shop/:p",
+      "status": "done",
+      "vue": "/#/pkg-shop/product/index"
+    },
+    {
+      "proto": "/shop/addresses",
+      "normalized": "/shop/addresses",
+      "status": "done",
+      "vue": "/#/pkg-account/addresses/index"
+    },
+    {
+      "proto": "/shop/addresses/edit",
+      "normalized": "/shop/addresses/edit",
+      "status": "done",
+      "vue": "/#/pkg-account/address-edit/index"
+    },
+    {
+      "proto": "/shop/after-sale",
+      "normalized": "/shop/after-sale",
+      "status": "done",
+      "vue": "/#/pkg-account/after-sale/index"
+    },
+    {
+      "proto": "/shop/after-sale-rejected",
+      "normalized": "/shop/after-sale-rejected",
+      "status": "done",
+      "vue": "/#/pkg-account/after-sale-rejected/index"
+    },
+    {
+      "proto": "/shop/after-sale/[id]",
+      "normalized": "/shop/after-sale/:p",
+      "status": "done",
+      "vue": "/#/pkg-account/after-sale-detail/index"
+    },
+    {
+      "proto": "/shop/cart",
+      "normalized": "/shop/cart",
+      "status": "done",
+      "vue": "/#/pkg-shop/cart/sku"
+    },
+    {
+      "proto": "/shop/categories",
+      "normalized": "/shop/categories",
+      "status": "done",
+      "vue": "/#/pkg-shop/categories/index"
+    },
+    {
+      "proto": "/shop/checkout",
+      "normalized": "/shop/checkout",
+      "status": "done",
+      "vue": "/#/pkg-shop/checkout/index"
+    },
+    {
+      "proto": "/shop/compare",
+      "normalized": "/shop/compare",
+      "status": "done",
+      "vue": "/#/pkg-shop/compare/index"
+    },
+    {
+      "proto": "/shop/coupon-detail",
+      "normalized": "/shop/coupon-detail",
+      "status": "done",
+      "vue": "/#/pkg-shop/coupon-detail/index"
+    },
+    {
+      "proto": "/shop/coupons",
+      "normalized": "/shop/coupons",
+      "status": "done",
+      "vue": "/#/pkg-shop/coupons/index"
+    },
+    {
+      "proto": "/shop/exchange",
+      "normalized": "/shop/exchange",
+      "status": "done",
+      "vue": "/#/pkg-shop/exchange/index"
+    },
+    {
+      "proto": "/shop/flash-sale",
+      "normalized": "/shop/flash-sale",
+      "status": "done",
+      "vue": "/#/pkg-shop/flash-sale/index"
+    },
+    {
+      "proto": "/shop/group-buy",
+      "normalized": "/shop/group-buy",
+      "status": "done",
+      "vue": "/#/pkg-shop/group-buy/index"
+    },
+    {
+      "proto": "/shop/group-buy-fail",
+      "normalized": "/shop/group-buy-fail",
+      "status": "done",
+      "vue": "/#/pkg-shop/group-buy/fail"
+    },
+    {
+      "proto": "/shop/group-buy-success",
+      "normalized": "/shop/group-buy-success",
+      "status": "done",
+      "vue": "/#/pkg-shop/group-buy/success"
+    },
+    {
+      "proto": "/shop/group-buy/[id]",
+      "normalized": "/shop/group-buy/:p",
+      "status": "done",
+      "vue": "/#/pkg-shop/group-buy/detail"
+    },
+    {
+      "proto": "/shop/my-after-sales",
+      "normalized": "/shop/my-after-sales",
+      "status": "done",
+      "vue": "/#/pkg-account/my-after-sales/index"
+    },
+    {
+      "proto": "/shop/pay-fail",
+      "normalized": "/shop/pay-fail",
+      "status": "done",
+      "vue": "/#/pkg-shop/pay-fail/index"
+    },
+    {
+      "proto": "/shop/pay-success",
+      "normalized": "/shop/pay-success",
+      "status": "done",
+      "vue": "/#/pkg-shop/pay-success/index"
+    },
+    {
+      "proto": "/shop/pay-timeout",
+      "normalized": "/shop/pay-timeout",
+      "status": "done",
+      "vue": "/#/pkg-shop/pay-timeout/index"
+    },
+    {
+      "proto": "/shop/paying",
+      "normalized": "/shop/paying",
+      "status": "done",
+      "vue": "/#/pkg-shop/paying/index"
+    },
+    {
+      "proto": "/shop/payment-methods",
+      "normalized": "/shop/payment-methods",
+      "status": "done",
+      "vue": "/#/pkg-shop/payment-methods/index"
+    },
+    {
+      "proto": "/shop/reviews",
+      "normalized": "/shop/reviews",
+      "status": "done",
+      "vue": "/#/pkg-shop/reviews/index"
+    },
+    {
+      "proto": "/splash",
+      "normalized": "/splash",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/station/[id]",
+      "normalized": "/station/:p",
+      "status": "done",
+      "vue": "/#/pkg-operator/station-detail/index"
+    },
+    {
+      "proto": "/station/[id]/teachers",
+      "normalized": "/station/:p/teachers",
+      "status": "done",
+      "vue": "/#/pkg-operator/station-teachers/index"
+    },
+    {
+      "proto": "/station/assistant",
+      "normalized": "/station/assistant",
+      "status": "done",
+      "vue": "/#/pkg-operator/station-assistant/index"
+    },
+    {
+      "proto": "/station/config",
+      "normalized": "/station/config",
+      "status": "done",
+      "vue": "/#/pkg-operator/station-config/index"
+    },
+    {
+      "proto": "/station/earnings",
+      "normalized": "/station/earnings",
+      "status": "done",
+      "vue": "/#/pkg-operator/station-earnings/index"
+    },
+    {
+      "proto": "/station/home",
+      "normalized": "/station/home",
+      "status": "done",
+      "vue": "/#/pkg-operator/station-home/index"
+    },
+    {
+      "proto": "/station/live",
+      "normalized": "/station/live",
+      "status": "done",
+      "vue": "/#/pkg-operator/station-live/index"
+    },
+    {
+      "proto": "/station/manage",
+      "normalized": "/station/manage",
+      "status": "done",
+      "vue": "/#/pkg-operator/station-manage/index"
+    },
+    {
+      "proto": "/station/materials",
+      "normalized": "/station/materials",
+      "status": "done",
+      "vue": "/#/pkg-operator/station-materials/index"
+    },
+    {
+      "proto": "/station/poster",
+      "normalized": "/station/poster",
+      "status": "done",
+      "vue": "/#/pkg-operator/station-poster/index"
+    },
+    {
+      "proto": "/station/promote",
+      "normalized": "/station/promote",
+      "status": "done",
+      "vue": "/#/pkg-operator/station-promote/index"
+    },
+    {
+      "proto": "/store/[id]",
+      "normalized": "/store/:p",
+      "status": "done",
+      "vue": null
+    },
+    {
+      "proto": "/tasks/daily",
+      "normalized": "/tasks/daily",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/teacher-certification",
+      "normalized": "/teacher-certification",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/teacher/dashboard",
+      "normalized": "/teacher/dashboard",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/terms",
+      "normalized": "/terms",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/terms/merchant",
+      "normalized": "/terms/merchant",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/topic/[tag]",
+      "normalized": "/topic/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/user/[id]",
+      "normalized": "/user/:p",
+      "status": "done",
+      "vue": "/#/pkg-circle/user/profile"
+    },
+    {
+      "proto": "/user/[id]/following",
+      "normalized": "/user/:p/following",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/verification",
+      "normalized": "/verification",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/video/[id]",
+      "normalized": "/video/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/videos",
+      "normalized": "/videos",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/videos/[id]",
+      "normalized": "/videos/:p",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/videos/creator",
+      "normalized": "/videos/creator",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/videos/creator/analytics",
+      "normalized": "/videos/creator/analytics",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/videos/creator/earnings/history",
+      "normalized": "/videos/creator/earnings/history",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/videos/creator/products/add",
+      "normalized": "/videos/creator/products/add",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/videos/creator/sales",
+      "normalized": "/videos/creator/sales",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/videos/creator/settings",
+      "normalized": "/videos/creator/settings",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/videos/creator/withdraw",
+      "normalized": "/videos/creator/withdraw",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/videos/publish",
+      "normalized": "/videos/publish",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/videos/search",
+      "normalized": "/videos/search",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/vip",
+      "normalized": "/vip",
+      "status": "done",
+      "vue": "/#/pkg-profile/vip/index"
+    },
+    {
+      "proto": "/vip/records",
+      "normalized": "/vip/records",
+      "status": "done",
+      "vue": "/#/pkg-profile/vip/records/index"
+    },
+    {
+      "proto": "/wallet",
+      "normalized": "/wallet",
+      "status": "done",
+      "vue": "/#/pkg-wallet/index/index"
+    },
+    {
+      "proto": "/wallet/bank-cards",
+      "normalized": "/wallet/bank-cards",
+      "status": "done",
+      "vue": "/#/pkg-wallet/bank-cards/index"
+    },
+    {
+      "proto": "/wallet/bill",
+      "normalized": "/wallet/bill",
+      "status": "done",
+      "vue": "/#/pkg-wallet/bill/index"
+    },
+    {
+      "proto": "/wallet/recharge",
+      "normalized": "/wallet/recharge",
+      "status": "done",
+      "vue": "/#/pkg-mine/wallet/recharge"
+    },
+    {
+      "proto": "/wallet/transactions",
+      "normalized": "/wallet/transactions",
+      "status": "done",
+      "vue": "/#/pkg-mine/wallet/transactions"
+    },
+    {
+      "proto": "/wallet/withdraw",
+      "normalized": "/wallet/withdraw",
+      "status": "done",
+      "vue": "/#/pkg-mine/wallet/withdraw"
+    },
+    {
+      "proto": "/welcome",
+      "normalized": "/welcome",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/withdraw",
+      "normalized": "/withdraw",
+      "status": "pending",
+      "vue": null
+    },
+    {
+      "proto": "/withdraw/records",
+      "normalized": "/withdraw/records",
+      "status": "pending",
+      "vue": null
+    }
+  ],
+  "skipped": [
+    {
+      "proto": "/common/achievement-demo",
+      "reason": "开发演示页(成就组件demo)，非业务页",
+      "file": "app/common/achievement-demo/page.tsx"
+    },
+    {
+      "proto": "/common/ai-assist-demo",
+      "reason": "开发演示页(AI辅助demo)，非业务页",
+      "file": "app/common/ai-assist-demo/page.tsx"
+    },
+    {
+      "proto": "/common/discussion-demo",
+      "reason": "开发演示页(讨论组件demo)，非业务页",
+      "file": "app/common/discussion-demo/page.tsx"
+    },
+    {
+      "proto": "/demo/captcha",
+      "reason": "开发演示页(验证码组件demo)，非业务页",
+      "file": "app/demo/captcha/page.tsx"
+    },
+    {
+      "proto": "/demo/cards",
+      "reason": "开发演示页(卡片组件demo)，非业务页",
+      "file": "app/demo/cards/page.tsx"
+    },
+    {
+      "proto": "/demo/feature-guide",
+      "reason": "开发演示页(功能引导demo)，非业务页",
+      "file": "app/demo/feature-guide/page.tsx"
+    },
+    {
+      "proto": "/demo/image-viewer",
+      "reason": "开发演示页(图片查看器demo)，非业务页",
+      "file": "app/demo/image-viewer/page.tsx"
+    },
+    {
+      "proto": "/demo/permission",
+      "reason": "开发演示页(权限申请demo)，非业务页",
+      "file": "app/demo/permission/page.tsx"
+    },
+    {
+      "proto": "/demo/progress",
+      "reason": "开发演示页(进度组件demo)，非业务页",
+      "file": "app/demo/progress/page.tsx"
+    },
+    {
+      "proto": "/demo/splash",
+      "reason": "开发演示页(启动页demo)，非业务页",
+      "file": "app/demo/splash/page.tsx"
+    },
+    {
+      "proto": "/demo/update",
+      "reason": "开发演示页(更新弹窗demo)，非业务页",
+      "file": "app/demo/update/page.tsx"
+    },
+    {
+      "proto": "/design/illustrations",
+      "reason": "设计演示页(插画素材展示)，非业务页",
+      "file": "app/design/illustrations/page.tsx"
+    },
+    {
+      "proto": "/help/list-demo",
+      "reason": "开发演示页(列表样式demo)，非业务页",
+      "file": "app/help/list-demo/page.tsx"
+    },
+    {
+      "proto": "/legal/child-privacy",
+      "reason": "冗余法律组：App实际链接 /policy/* 系列，legal/* 全组0处引用，保留 policy 一套",
+      "file": "app/legal/child-privacy/page.tsx"
+    },
+    {
+      "proto": "/legal/data-collection-list",
+      "reason": "冗余法律组：legal/* 全组0处引用，保留 policy 一套",
+      "file": "app/legal/data-collection-list/page.tsx"
+    },
+    {
+      "proto": "/legal/privacy-policy",
+      "reason": "冗余法律组：App实际链接 /policy/privacy-policy(2处)，legal版0引用",
+      "file": "app/legal/privacy-policy/page.tsx"
+    },
+    {
+      "proto": "/legal/teen-mode-intro",
+      "reason": "冗余法律组：legal/* 全组0处引用，保留 policy 一套",
+      "file": "app/legal/teen-mode-intro/page.tsx"
+    },
+    {
+      "proto": "/legal/third-party-sdk",
+      "reason": "冗余法律组：legal/* 全组0处引用，保留 policy 一套",
+      "file": "app/legal/third-party-sdk/page.tsx"
+    },
+    {
+      "proto": "/legal/user-agreement",
+      "reason": "冗余法律组：App实际链接 /policy/user-agreement(4处)，legal版0引用",
+      "file": "app/legal/user-agreement/page.tsx"
+    }
+  ]
+}

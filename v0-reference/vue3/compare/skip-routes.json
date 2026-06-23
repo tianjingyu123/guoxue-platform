@@ -1,0 +1,24 @@
+{
+  "$note": "人工策展的跳过清单：非业务页(开发演示)与冗余重复页，正式排除在'待迁'之外，每条附理由。注意：redirect/re-export 旧版桩由 gen-manifest.mjs 自动识别排除，无需在此登记；本清单只收'整页形式、脚本无法自动判定'的跳过项。修改后需重新运行 node vue3/compare/gen-manifest.mjs。",
+  "skip": [
+    { "route": "/demo/captcha", "reason": "开发演示页(验证码组件demo)，非业务页" },
+    { "route": "/demo/cards", "reason": "开发演示页(卡片组件demo)，非业务页" },
+    { "route": "/demo/feature-guide", "reason": "开发演示页(功能引导demo)，非业务页" },
+    { "route": "/demo/image-viewer", "reason": "开发演示页(图片查看器demo)，非业务页" },
+    { "route": "/demo/permission", "reason": "开发演示页(权限申请demo)，非业务页" },
+    { "route": "/demo/progress", "reason": "开发演示页(进度组件demo)，非业务页" },
+    { "route": "/demo/splash", "reason": "开发演示页(启动页demo)，非业务页" },
+    { "route": "/demo/update", "reason": "开发演示页(更新弹窗demo)，非业务页" },
+    { "route": "/common/achievement-demo", "reason": "开发演示页(成就组件demo)，非业务页" },
+    { "route": "/common/ai-assist-demo", "reason": "开发演示页(AI辅助demo)，非业务页" },
+    { "route": "/common/discussion-demo", "reason": "开发演示页(讨论组件demo)，非业务页" },
+    { "route": "/design/illustrations", "reason": "设计演示页(插画素材展示)，非业务页" },
+    { "route": "/help/list-demo", "reason": "开发演示页(列表样式demo)，非业务页" },
+    { "route": "/legal/child-privacy", "reason": "冗余法律组：App实际链接 /policy/* 系列，legal/* 全组0处引用，保留 policy 一套" },
+    { "route": "/legal/data-collection-list", "reason": "冗余法律组：legal/* 全组0处引用，保留 policy 一套" },
+    { "route": "/legal/privacy-policy", "reason": "冗余法律组：App实际链接 /policy/privacy-policy(2处)，legal版0引用" },
+    { "route": "/legal/teen-mode-intro", "reason": "冗余法律组：legal/* 全组0处引用，保留 policy 一套" },
+    { "route": "/legal/third-party-sdk", "reason": "冗余法律组：legal/* 全组0处引用，保留 policy 一套" },
+    { "route": "/legal/user-agreement", "reason": "冗余法律组：App实际链接 /policy/user-agreement(4处)，legal版0引用" }
+  ]
+}

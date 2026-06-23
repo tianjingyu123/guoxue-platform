@@ -1,0 +1,828 @@
+[
+ {
+  "proto": "/paipan/bazi",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-paipan/bazi/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/paipan/bazi/history",
+  "status": "migrate",
+  "owner": "B",
+  "vue": "/#/pkg-paipan/bazi/history/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/paipan/qimen",
+  "status": "migrate",
+  "owner": "B",
+  "vue": "/#/pkg-paipan/qimen/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/paipan/qimen/result",
+  "status": "migrate",
+  "owner": "B",
+  "vue": "/#/pkg-paipan/qimen/result",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/paipan/qimen/history",
+  "status": "migrate",
+  "owner": "B",
+  "vue": "/#/pkg-paipan/qimen/history/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/paipan/qimen/history/groups",
+  "status": "migrate",
+  "owner": "B",
+  "vue": "/#/pkg-paipan/qimen/history/groups",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/paipan/yangpan",
+  "status": "migrate",
+  "owner": "B",
+  "vue": "/#/pkg-paipan/yangpan/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/paipan/yangpan/result",
+  "status": "migrate",
+  "owner": "B",
+  "vue": "/#/pkg-paipan/yangpan/result",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/paipan/yangpan/history",
+  "status": "migrate",
+  "owner": "B",
+  "vue": "/#/pkg-paipan/yangpan/history/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/paipan/yangpan/history/groups",
+  "status": "migrate",
+  "owner": "B",
+  "vue": "/#/pkg-paipan/yangpan/history/groups",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/paipan/tools/coming-soon",
+  "status": "migrate",
+  "owner": "B",
+  "vue": "/#/pkg-paipan/tools/coming-soon?name=六爻排盘",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/paipan/bazi/history/celebrities",
+  "status": "migrate",
+  "owner": "B",
+  "vue": "/#/pkg-paipan/bazi/history/celebrities",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/paipan/bazi/history/groups",
+  "status": "migrate",
+  "owner": "B",
+  "vue": "/#/pkg-paipan/bazi/history/groups",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/agent/1",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-agent/agent/chat",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/agent/history",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-agent/agent/history",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/detail",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/posts/1",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/post",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/publish",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/publish",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/manage",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/manage",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/bots",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/bots",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/knowledge",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/knowledge",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/dashboard",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/dashboard",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/announcements/1",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/announcements",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/join-requests",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/join-requests",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/exit-requests",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/exit-requests",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/invite-codes",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/invite-codes",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/guests",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/guests",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/distribution",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/distribution",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/earnings/detail",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/earnings",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/level",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/level",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/analytics/contents",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/analytics",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/settings/knowledge",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/settings-knowledge",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/consult/ask",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/consult-ask",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/consult/experts",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/consult-experts",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/consult/orders",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/consult-orders",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/consult/my-calls",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/my-calls",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/consult/my-questions",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/my-questions",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/exit",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/exit",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/booking",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/booking",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/checkin/1",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/checkin",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/recommend-ebook",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/recommend-ebook",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/bots",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/circle-bots",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/circles/1/preview",
+  "status": "golden",
+  "owner": "A",
+  "vue": "/#/pkg-circle/circles/preview",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mall/product/1",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-mall/product/detail",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mall/product/1/reviews",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-mall/product/reviews",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/shop/1",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-shop/product/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/shop/categories",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-shop/categories/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/shop/reviews",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-shop/reviews/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/shop/compare",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-shop/compare/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/shop/group-buy/1",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-shop/group-buy/detail",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/shop/group-buy-success",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-shop/group-buy/success",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/shop/group-buy-fail",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-shop/group-buy/fail",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/shop/coupon-detail",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-shop/coupon-detail/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/shop/pay-fail",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-shop/pay-fail/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/shop/payment-methods",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-shop/payment-methods/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/orders/center",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-order/center/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/orders/1",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-order/detail/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/orders/1/review",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-order/review/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/orders/invoice",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-order/invoice/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/orders/refund-progress",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-order/refund/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/orders/dispute",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-order/dispute/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/shop/after-sale/1",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-account/after-sale-detail/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/shop/addresses",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-account/addresses/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/shop/addresses/edit",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-account/address-edit/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/teen-mode",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-mine/teen-mode/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/data-export",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-mine/data-export/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/points",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-mine/points/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/history",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-mine/history/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/my-likes",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-mine/my-likes/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/my-comments",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-mine/my-comments/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/received-comments",
+  "status": "reviewed",
+  "owner": "B",
+  "vue": "/#/pkg-mine/received-comments/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/courses/1",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-course/detail/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/instructor/1",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-course/instructor/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/courses/1/chapters",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-course/chapters/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/courses/1/learn",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-course/learn/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/courses/1/player",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-course/player/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/courses/purchase-confirm",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-course/purchase-confirm/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/courses/certificate",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-course/certificate/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/courses/study-plan",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-course/study-plan/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/courses/work-submit",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-course/work-submit/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/courses/work-review",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-course/work-review/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/courses/work-result",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-course/work-result/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/im/chat/101",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-im/im/chat/index?id=101",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/im/group-chat/1",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-im/im/group-chat/index?id=1",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/articles/1",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-circle/articles/detail?id=1",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/search/result?keyword=八字",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-search/search/result?keyword=八字",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/courses-list?category=bazi",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-course/courses-list/index?category=bazi",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/classics/audiobooks/1",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-classics/audiobooks/player?id=1",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/classics/collections",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-classics/collections/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/classics/collection/1",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-classics/collection/index?id=1",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/classics/bookmarks",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-classics/bookmarks/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/classics/notes",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-classics/notes/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/ebook/1",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-ebook/detail/index?id=1",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/ebook/bookmarks",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-ebook/bookmarks/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/ebook/checkout/1",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-ebook/checkout/index?id=1",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/ebook/reader/1",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-ebook/reader/index?id=1",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/poetry/1",
+  "status": "migrate",
+  "owner": "B",
+  "vue": "/#/pkg-poetry/detail/index?id=1",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/classics/bookshelf",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-classics/bookshelf/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/role-panels/operator-panel",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-operator/operator-panel/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/edit-profile",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-mine/edit-profile/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/achievements",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-mine/achievements/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/memberships",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-mine/memberships/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/my-courses",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-mine/my-courses/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/learning-dashboard",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-mine/learning-dashboard/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/follows",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-mine/follows/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/downloads",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-mine/downloads/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/bookings",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-mine/bookings/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/mine/invite-records",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-mine/invite-records/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/settings/notifications",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-settings/notifications/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/settings/privacy",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-settings/privacy/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/settings/phone",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-settings/phone/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/settings/password",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-settings/password/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/settings/payment-password",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-settings/payment-password/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/settings/blacklist",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-settings/blacklist/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/settings/bindaccount",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-settings/bindaccount/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/settings/delete-account",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-settings/delete-account/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/wallet/bank-cards",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-wallet/bank-cards/index",
+  "suspendedBoard": false
+ },
+ {
+  "proto": "/wallet/bill",
+  "status": "migrate",
+  "owner": "V",
+  "vue": "/#/pkg-wallet/bill/index",
+  "suspendedBoard": false
+ }
+]

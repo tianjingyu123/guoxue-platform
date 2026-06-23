@@ -1,0 +1,283 @@
+/**
+ * 短视频板块 mock 数据 —— 严格照搬原型 app/video/[id]/page.tsx mockVideos，逐字段对齐，不增删。
+ * @data-needs: 视频流，参数 id(来自 onLoad 定位起始视频)，GET 返回 VideoItem[]
+ */
+
+export interface VideoProduct {
+  id: string
+  name: string
+  price: number
+  originalPrice: number
+  image: string
+  sales: number
+}
+
+export interface VideoHotComment {
+  user: string
+  content: string
+  likes: number
+}
+
+export interface VideoAuthor {
+  id: string
+  name: string
+  avatar: string
+  isFollowed: boolean
+  followers: number
+  verified: boolean
+}
+
+export interface VideoItem {
+  id: string
+  title: string
+  author: VideoAuthor
+  coverUrl: string
+  videoUrl: string
+  likes: number
+  comments: number
+  shares: number
+  isLiked: boolean
+  isCollected: boolean
+  music: string
+  products: VideoProduct[]
+  hotComments: VideoHotComment[]
+}
+
+export const mockVideos: VideoItem[] = [
+  {
+    id: '1',
+    title: '八字命理入门：教你看懂自己的命盘',
+    author: {
+      id: '1',
+      name: '易学张老师',
+      avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=teacher1',
+      isFollowed: false,
+      followers: 128000,
+      verified: true,
+    },
+    coverUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=700&fit=crop',
+    videoUrl: '',
+    likes: 12680,
+    comments: 856,
+    shares: 234,
+    isLiked: false,
+    isCollected: false,
+    music: '原声 - 易学张老师',
+    products: [
+      {
+        id: 'p1',
+        name: '八字命理学入门书籍',
+        price: 68,
+        originalPrice: 98,
+        image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=100&h=100&fit=crop',
+        sales: 3280,
+      },
+    ],
+    hotComments: [
+      { user: '小白学易', content: '终于懂了，讲得太清楚了！', likes: 328 },
+      { user: '命理爱好者', content: '老师能讲讲大运流年吗？', likes: 156 },
+    ],
+  },
+  {
+    id: '2',
+    title: '紫微斗数：你的命宫主星是什么？#紫微斗数 #命理',
+    author: {
+      id: '2',
+      name: '紫微斗数林师傅',
+      avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=teacher2',
+      isFollowed: true,
+      followers: 86000,
+      verified: true,
+    },
+    coverUrl: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400&h=700&fit=crop',
+    videoUrl: '',
+    likes: 8920,
+    comments: 562,
+    shares: 189,
+    isLiked: true,
+    isCollected: false,
+    music: '古风BGM - 云水禅心',
+    products: [],
+    hotComments: [{ user: '紫微迷', content: '我是天府星，说得好准！', likes: 89 }],
+  },
+  {
+    id: '3',
+    title: '风水布局：客厅财位怎么找？这几点要注意',
+    author: {
+      id: '3',
+      name: '风水大师王',
+      avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=master1',
+      isFollowed: false,
+      followers: 256000,
+      verified: true,
+    },
+    coverUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=700&fit=crop',
+    videoUrl: '',
+    likes: 23500,
+    comments: 1280,
+    shares: 567,
+    isLiked: false,
+    isCollected: true,
+    music: '轻音乐 - 福运连连',
+    products: [
+      {
+        id: 'p2',
+        name: '招财貔貅摆件 天然黑曜石',
+        price: 298,
+        originalPrice: 398,
+        image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop',
+        sales: 8560,
+      },
+      {
+        id: 'p3',
+        name: '五帝钱挂件 真品铜钱',
+        price: 128,
+        originalPrice: 168,
+        image: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=100&h=100&fit=crop',
+        sales: 12300,
+      },
+    ],
+    hotComments: [{ user: '装修小白', content: '正好要装修，太及时了！', likes: 256 }],
+  },
+  {
+    id: '4',
+    title: '姓名学：名字里这几个字最旺运势！',
+    author: {
+      id: '4',
+      name: '姓名学专家陈',
+      avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=expert1',
+      isFollowed: false,
+      followers: 198000,
+      verified: false,
+    },
+    coverUrl: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=700&fit=crop',
+    videoUrl: '',
+    likes: 45600,
+    comments: 3420,
+    shares: 1890,
+    isLiked: false,
+    isCollected: false,
+    music: '国风音乐 - 锦绣',
+    products: [
+      {
+        id: 'p4',
+        name: '姓名学全解 起名改名宝典',
+        price: 88,
+        originalPrice: 128,
+        image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=100&h=100&fit=crop',
+        sales: 5680,
+      },
+    ],
+    hotComments: [{ user: '准父母', content: '正好给宝宝起名，收藏了！', likes: 568 }],
+  },
+  {
+    id: '5',
+    title: '六爻占卜实战：如何起卦断卦',
+    author: {
+      id: '5',
+      name: '六爻研究社',
+      avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=liuyao',
+      isFollowed: false,
+      followers: 75000,
+      verified: true,
+    },
+    coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&h=700&fit=crop',
+    videoUrl: '',
+    likes: 6780,
+    comments: 423,
+    shares: 156,
+    isLiked: false,
+    isCollected: false,
+    music: '古琴曲 - 高山流水',
+    products: [],
+    hotComments: [{ user: '易学新手', content: '请问老师，六爻和梅花易数哪个更准？', likes: 78 }],
+  },
+]
+
+/** 格式化数字：>=10000 显示「万」 —— 照搬原型 formatNumber */
+export function formatVideoNumber(num: number): string {
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + '万'
+  }
+  return num.toString()
+}
+
+/** 格式化时长 秒 -> m:ss —— 照搬原型 formatDuration */
+export function formatDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+// ===== 列表页（/videos）数据 —— 照搬原型 app/videos/page.tsx =====
+export interface VideoListItem {
+  id: string
+  title: string
+  coverUrl: string
+  duration: number
+  author: { name: string; avatar: string }
+  likes: number
+  plays: number
+  hasProduct: boolean
+  isHot: boolean
+}
+
+export const videoListItems: VideoListItem[] = [
+  { id: '1', title: '八字命理入门：教你看懂自己的命盘 #八字 #命理入门', coverUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop', duration: 68, author: { name: '易学张老师', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=teacher1' }, likes: 12680, plays: 89000, hasProduct: true, isHot: true },
+  { id: '2', title: '紫微斗数：你的命宫主星是什么？', coverUrl: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400&h=600&fit=crop', duration: 95, author: { name: '紫微林师傅', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=teacher2' }, likes: 8920, plays: 56000, hasProduct: false, isHot: false },
+  { id: '3', title: '风水布局：客厅财位怎么找？这几点必须注意', coverUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=450&fit=crop', duration: 120, author: { name: '风水大师王', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=master1' }, likes: 23500, plays: 156000, hasProduct: true, isHot: true },
+  { id: '4', title: '姓名学：名字里这几个字最旺运势！', coverUrl: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=550&fit=crop', duration: 85, author: { name: '姓名学专家陈', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=expert1' }, likes: 45600, plays: 289000, hasProduct: true, isHot: true },
+  { id: '5', title: '奇门遁甲入门：什么是九宫八门？', coverUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=400&h=480&fit=crop', duration: 156, author: { name: '奇门张师傅', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=qimen' }, likes: 6780, plays: 42000, hasProduct: false, isHot: false },
+  { id: '6', title: '面相学：从眉毛看一个人的性格和运势', coverUrl: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&h=520&fit=crop', duration: 78, author: { name: '面相大师李', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=face' }, likes: 18900, plays: 123000, hasProduct: true, isHot: false },
+  { id: '7', title: '六爻预测：如何起卦？新手必看教程', coverUrl: 'https://images.unsplash.com/photo-1516796181074-bf453fbfa3e6?w=400&h=600&fit=crop', duration: 145, author: { name: '六爻王老师', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=liuyao' }, likes: 5600, plays: 34000, hasProduct: false, isHot: false },
+  { id: '8', title: '手相入门：生命线、智慧线、感情线怎么看', coverUrl: 'https://images.unsplash.com/photo-1544027993-37dbfe43562a?w=400&h=480&fit=crop', duration: 92, author: { name: '手相师小周', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=palm' }, likes: 28900, plays: 198000, hasProduct: true, isHot: true },
+]
+
+export const videoHotTopics = [
+  { id: '1', name: '八字入门', count: '128万' },
+  { id: '2', name: '风水布局', count: '89万' },
+  { id: '3', name: '取名改名', count: '56万' },
+  { id: '4', name: '面相手相', count: '45万' },
+]
+
+// ===== 搜索页（/videos/search）数据 —— 照搬原型 app/videos/search/page.tsx =====
+export interface VideoSearchResult {
+  id: string
+  title: string
+  author: string
+  authorAvatar: string
+  cover: string
+  duration: string
+  views: number
+  publishedAt: string
+  category: string
+}
+
+export const videoHotKeywords = ['八字入门', '紫微斗数', '奇门遁甲', '风水布局', '易经', '流年运势', '命理基础', '面相手相']
+
+// ===== 发布页（/videos/publish）数据 —— 照搬原型 app/videos/publish/page.tsx myProductLibrary/hotTags =====
+export interface PublishProduct {
+  id: string
+  name: string
+  cover: string
+  price: number
+  commission: number
+  stock: number
+}
+
+export const publishProductLibrary: PublishProduct[] = [
+  { id: '1', name: '八字命理学入门书籍', cover: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=100&h=100&fit=crop', price: 68, commission: 10, stock: 500 },
+  { id: '2', name: '招财貔貅摆件', cover: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop', price: 298, commission: 15, stock: 200 },
+  { id: '3', name: '五帝钱挂件', cover: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=100&h=100&fit=crop', price: 128, commission: 12, stock: 350 },
+  { id: '4', name: '姓名学全解', cover: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=100&h=100&fit=crop', price: 88, commission: 10, stock: 800 },
+  { id: '5', name: '风水堪舆实战课程', cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop', price: 199, commission: 20, stock: 999 },
+]
+
+export const publishHotTags = ['易经', '风水', '八字', '命理', '国学', '周易', '梅花易数', '六爻']
+
+export const videoSearchResults: VideoSearchResult[] = [
+  { id: '1', title: '八字入门：四柱八字基础讲解', author: '周易大师', authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40', cover: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=300&h=160&fit=crop', duration: '28:35', views: 128500, publishedAt: '3天前', category: '八字' },
+  { id: '2', title: '紫微斗数十四主星全解析', author: '张玄风', authorAvatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=40', cover: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=300&h=160&fit=crop', duration: '45:12', views: 98200, publishedAt: '1周前', category: '紫微' },
+  { id: '3', title: '奇门遁甲九宫布局实战课', author: '林奇门', authorAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=40', cover: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=300&h=160&fit=crop', duration: '32:48', views: 76400, publishedAt: '2周前', category: '奇门' },
+  { id: '4', title: '风水布局：阳宅财位实操讲解', author: '王德华', authorAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40', cover: 'https://images.unsplash.com/photo-1502943693086-33b5b1cfdf2f?w=300&h=160&fit=crop', duration: '22:16', views: 62300, publishedAt: '3周前', category: '风水' },
+]

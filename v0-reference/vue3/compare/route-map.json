@@ -1,0 +1,3319 @@
+{
+  "_meta": {
+    "description": "单一事实表：原型路由 -> uni-app H5 hash 路由 的映射与状态。这是保真迁移进度的唯一权威来源。",
+    "protoBase": "http://localhost:3000",
+    "vueBase": "http://localhost:5173",
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "viewportNote": "必须用 375 宽：原型固定 px 设计宽=375，uni-app rpx 按 750rpx=屏宽标定，仅在 375 下两端尺寸一致。514 宽会让 uni-app 内容放大 ~1.37x 导致整页重影。diff 比例仅作排序，最终以肉眼看 diff 图为准（仅文字边缘红边=通过）。",
+    "navNote": "uni-app H5 必须用 uni.reLaunch 导航，直接 goto hash 会回退首页。",
+    "owner": {
+      "A": "A 账号已 100% 高保真锁定（黄金参照，不改动，仅作范本）",
+      "B": "B 账号已做、保真度待审、需补救",
+      "NONE": "原型存在但 vue3 尚未迁移"
+    },
+    "status": {
+      "golden": "已锁定 100%（A）",
+      "review": "B 账号已做、待跑 diff 审查",
+      "reviewed": "v0 已审查 review 页（看图通过；若有补救见 fixes[] 与 compare/REVIEW-FIXES.md）",
+      "migrate": "v0 新迁、已跑 diff 看图通过",
+      "todo": "待迁移"
+    },
+    "reviewConvention": {
+      "changelog": "compare/REVIEW-FIXES.md 记录 v0 对 B 账号已部署 review 页面的每一处补救，供 Claude Code 定位与后续优化。",
+      "onReview": "审查 review 页后：status 升级为 reviewed；补 reviewedAt(日期) 与 fixes(改动点数组，未改动则 [])；同步在 REVIEW-FIXES.md 登记（含 ✅ 放行/🔧 补救）。",
+      "noTouchGolden": "owner=A / status=golden 页面为黄金范本，v0 不改动。"
+    },
+    "deprecatedNote": "deprecated=true 表示该页已被更权威的页面取代(supersededBy)，代码保留(可能仍上线)但不再作为迁移真源，新功能以 supersededBy 指向页为准。"
+  },
+  "pairs": [
+    {
+      "proto": "/",
+      "vue": "/#/pages/index/index",
+      "owner": "A",
+      "status": "golden",
+      "note": "首页 - 黄金范本"
+    },
+    {
+      "proto": "/circles",
+      "vue": "/#/pages/circles/index",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子主页 tab"
+    },
+    {
+      "proto": "/paipan",
+      "vue": "/#/pages/paipan/index",
+      "owner": "A",
+      "status": "golden",
+      "note": "排盘工具 tab"
+    },
+    {
+      "proto": "/discover",
+      "vue": "/#/pages/discover/index",
+      "owner": "A",
+      "status": "golden",
+      "note": "发现页 tab"
+    },
+    {
+      "proto": "/profile",
+      "vue": "/#/pages/profile/index",
+      "owner": "A",
+      "status": "golden",
+      "note": "我的 tab"
+    },
+    {
+      "proto": "/profile/edit",
+      "vue": "/#/pages/profile/edit",
+      "owner": "A",
+      "status": "golden",
+      "note": "编辑资料"
+    },
+    {
+      "proto": "/paipan/bazi",
+      "vue": "/#/pkg-paipan/bazi/index",
+      "owner": "A",
+      "status": "golden",
+      "note": "排盘八字"
+    },
+    {
+      "proto": "/paipan/bazi/result",
+      "vue": "/#/pkg-paipan/bazi/result",
+      "owner": "A",
+      "status": "golden",
+      "note": "八字结果"
+    },
+    {
+      "proto": "/paipan/bazi/history",
+      "vue": "/#/pkg-paipan/bazi/history/index",
+      "owner": "B",
+      "status": "migrate",
+      "note": "八字历史·用户列表：v0新迁,看图通过(差异为中文红边+行高微位移假阳性,结构/配色/文案/四柱五行色1:1)",
+      "migratedAt": "2026-06-19",
+      "diff": "5.45%"
+    },
+    {
+      "proto": "/paipan/qimen",
+      "vue": "/#/pkg-paipan/qimen/index",
+      "owner": "B",
+      "status": "migrate",
+      "note": "奇门遁甲·入口：v0新迁,看图通过(结构/配色/文案/九宫排盘/五行色1:1,差异为中文红边+顶栏状态栏位移假阳性)",
+      "migratedAt": "2026-06-19",
+      "diff": "11.91%"
+    },
+    {
+      "proto": "/paipan/qimen/result",
+      "vue": "/#/pkg-paipan/qimen/result",
+      "owner": "B",
+      "status": "migrate",
+      "note": "奇门遁甲·结果：v0新迁,看图通过(结构/配色/文案/九宫排盘/五行色1:1,差异为中文红边+顶栏状态栏位移假阳性)",
+      "migratedAt": "2026-06-19",
+      "diff": "7.75%"
+    },
+    {
+      "proto": "/paipan/qimen/history",
+      "vue": "/#/pkg-paipan/qimen/history/index",
+      "owner": "B",
+      "status": "migrate",
+      "note": "奇门遁甲·历史：v0新迁,看图通过(结构/配色/文案/九宫排盘/五行色1:1,差异为中文红边+顶栏状态栏位移假阳性)",
+      "migratedAt": "2026-06-19",
+      "diff": "7.63%"
+    },
+    {
+      "proto": "/paipan/qimen/history/groups",
+      "vue": "/#/pkg-paipan/qimen/history/groups",
+      "owner": "B",
+      "status": "migrate",
+      "note": "奇门遁甲·分组：v0新迁,看图通过(结构/配色/文案/九宫排盘/五行色1:1,差异为中文红边+顶栏状态栏位移假阳性)",
+      "migratedAt": "2026-06-19",
+      "diff": "3.34%"
+    },
+    {
+      "proto": "/paipan/yangpan",
+      "vue": "/#/pkg-paipan/yangpan/index",
+      "owner": "B",
+      "status": "migrate",
+      "note": "阳盘奇门·入口：v0新迁,看图通过(结构/配色/文案/九宫排盘/四柱五行色/出生地点反查1:1,差异为中文红边+顶栏状态栏位移假阳性)",
+      "migratedAt": "2026-06-19",
+      "diff": "12.90%"
+    },
+    {
+      "proto": "/paipan/yangpan/result",
+      "vue": "/#/pkg-paipan/yangpan/result",
+      "owner": "B",
+      "status": "migrate",
+      "note": "阳盘奇门·结果：v0新迁,看图通过(结构/配色/文案/九宫排盘/四柱五行色/出生地点反查1:1,差异为中文红边+顶栏状态栏位移假阳性)",
+      "migratedAt": "2026-06-19",
+      "diff": "6.80%"
+    },
+    {
+      "proto": "/paipan/yangpan/history",
+      "vue": "/#/pkg-paipan/yangpan/history/index",
+      "owner": "B",
+      "status": "migrate",
+      "note": "阳盘奇门·历史：v0新迁,看图通过(结构/配色/文案/九宫排盘/四柱五行色/出生地点反查1:1,差异为中文红边+顶栏状态栏位移假阳性)",
+      "migratedAt": "2026-06-19",
+      "diff": "7.20%"
+    },
+    {
+      "proto": "/paipan/yangpan/history/groups",
+      "vue": "/#/pkg-paipan/yangpan/history/groups",
+      "owner": "B",
+      "status": "migrate",
+      "note": "阳盘奇门·分组：v0新迁,看图通过(结构/配色/文案/九宫排盘/四柱五行色/出生地点反查1:1,差异为中文红边+顶栏状态栏位移假阳性)",
+      "migratedAt": "2026-06-19",
+      "diff": "1.43%"
+    },
+    {
+      "proto": "/paipan/tools/coming-soon",
+      "vue": "/#/pkg-paipan/tools/coming-soon?name=六爻排盘",
+      "owner": "B",
+      "status": "migrate",
+      "note": "工具占位页·开发中：v0新迁,看图通过(1:1还原:渐变圆+时钟图标+开发中+即将上线pill+返回首页;name参数透传正确)。修复:app-icon的color不能用CSS变量var()(�����������������������������被编码进dataURI致SVG内无定义而透明),改用具体色值#c41e3a",
+      "protoQuery": "?name=六爻排盘",
+      "migratedAt": "2026-06-19",
+      "diff": "2.60%"
+    },
+    {
+      "proto": "/paipan/bazi/history/celebrities",
+      "vue": "/#/pkg-paipan/bazi/history/celebrities",
+      "owner": "B",
+      "status": "migrate",
+      "note": "八字历史·案例库：v0新迁,看图通过(差异为中文红边+行高微位移假阳性,结构/配色/文案/四柱五行色1:1)",
+      "migratedAt": "2026-06-19",
+      "diff": "8.05%"
+    },
+    {
+      "proto": "/paipan/bazi/history/groups",
+      "vue": "/#/pkg-paipan/bazi/history/groups",
+      "owner": "B",
+      "status": "migrate",
+      "note": "八字历史·分组编辑：v0新迁,看图通过(差异为中文红边+行高微位移假阳性,结构/配色/文案/四柱五行色1:1)",
+      "migratedAt": "2026-06-19",
+      "diff": "4.00%"
+    },
+    {
+      "proto": "/agent/main",
+      "vue": "/#/pkg-agent/agent/main",
+      "owner": "A",
+      "status": "golden",
+      "note": "智能体主页"
+    },
+    {
+      "proto": "/agent/1",
+      "vue": "/#/pkg-agent/agent/chat",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "智能体对话 /agent/[id]"
+    },
+    {
+      "proto": "/agent/customer-service",
+      "vue": "/#/pkg-agent/agent/customer-service",
+      "owner": "A",
+      "status": "golden",
+      "note": "智能客服"
+    },
+    {
+      "proto": "/agent/history",
+      "vue": "/#/pkg-agent/agent/history",
+      "owner": "A",
+      "status": "golden",
+      "note": "智能体历史"
+    },
+    {
+      "proto": "/circles/1",
+      "vue": "/#/pkg-circle/circles/detail",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子详情 /circles/[id]"
+    },
+    {
+      "proto": "/circles/1/posts/1",
+      "vue": "/#/pkg-circle/circles/post",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子帖子详情"
+    },
+    {
+      "proto": "/circles/create",
+      "vue": "/#/pkg-circle/circles/create",
+      "owner": "A",
+      "status": "golden",
+      "note": "创建圈子"
+    },
+    {
+      "proto": "/circles/1/publish",
+      "vue": "/#/pkg-circle/circles/publish",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子发布"
+    },
+    {
+      "proto": "/circles/1/manage",
+      "vue": "/#/pkg-circle/circles/manage",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子管理"
+    },
+    {
+      "proto": "/circles/ranking",
+      "vue": "/#/pkg-circle/circles/ranking",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子排行"
+    },
+    {
+      "proto": "/circles/activities",
+      "vue": "/#/pkg-circle/circles/activities",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子活动"
+    },
+    {
+      "proto": "/circles/calendar",
+      "vue": "/#/pkg-circle/circles/calendar",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子日历"
+    },
+    {
+      "proto": "/circles/badges",
+      "vue": "/#/pkg-circle/circles/badges",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子徽章"
+    },
+    {
+      "proto": "/circles/search",
+      "vue": "/#/pkg-circle/circles/search",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子搜索"
+    },
+    {
+      "proto": "/circles/mine",
+      "vue": "/#/pkg-circle/circles/mine",
+      "owner": "A",
+      "status": "golden",
+      "note": "我的圈子"
+    },
+    {
+      "proto": "/circles/bots",
+      "vue": "/#/pkg-circle/circles/bots",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子机器人列表"
+    },
+    {
+      "proto": "/circles/stats",
+      "vue": "/#/pkg-circle/circles/stats",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子统计"
+    },
+    {
+      "proto": "/circles/1/knowledge",
+      "vue": "/#/pkg-circle/circles/knowledge",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子知识库"
+    },
+    {
+      "proto": "/circles/1/dashboard",
+      "vue": "/#/pkg-circle/circles/dashboard",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子仪表盘"
+    },
+    {
+      "proto": "/circles/1/announcements/1",
+      "vue": "/#/pkg-circle/circles/announcements",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子公告"
+    },
+    {
+      "proto": "/circles/1/join-requests",
+      "vue": "/#/pkg-circle/circles/join-requests",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "入圈申请"
+    },
+    {
+      "proto": "/circles/1/exit-requests",
+      "vue": "/#/pkg-circle/circles/exit-requests",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "退圈申请"
+    },
+    {
+      "proto": "/circles/1/invite-codes",
+      "vue": "/#/pkg-circle/circles/invite-codes",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "邀请码"
+    },
+    {
+      "proto": "/circles/1/guests",
+      "vue": "/#/pkg-circle/circles/guests",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "嘉宾"
+    },
+    {
+      "proto": "/circles/1/distribution",
+      "vue": "/#/pkg-circle/circles/distribution",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "分销"
+    },
+    {
+      "proto": "/circles/1/earnings/detail",
+      "vue": "/#/pkg-circle/circles/earnings",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子收益"
+    },
+    {
+      "proto": "/circles/1/level",
+      "vue": "/#/pkg-circle/circles/level",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子等级"
+    },
+    {
+      "proto": "/circles/1/analytics/contents",
+      "vue": "/#/pkg-circle/circles/analytics",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "内容分析"
+    },
+    {
+      "proto": "/circles/1/settings/knowledge",
+      "vue": "/#/pkg-circle/circles/settings-knowledge",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "知识库设置"
+    },
+    {
+      "proto": "/circles/1/consult/ask",
+      "vue": "/#/pkg-circle/circles/consult-ask",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "咨询提问"
+    },
+    {
+      "proto": "/circles/1/consult/experts",
+      "vue": "/#/pkg-circle/circles/consult-experts",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "咨询专家"
+    },
+    {
+      "proto": "/circles/1/consult/orders",
+      "vue": "/#/pkg-circle/circles/consult-orders",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "咨询订单"
+    },
+    {
+      "proto": "/circles/1/consult/my-calls",
+      "vue": "/#/pkg-circle/circles/my-calls",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "我的通话"
+    },
+    {
+      "proto": "/circles/1/consult/my-questions",
+      "vue": "/#/pkg-circle/circles/my-questions",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "我的提问"
+    },
+    {
+      "proto": "/circles/1/exit",
+      "vue": "/#/pkg-circle/circles/exit",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "退出圈子"
+    },
+    {
+      "proto": "/circles/1/booking",
+      "vue": "/#/pkg-circle/circles/booking",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子预约"
+    },
+    {
+      "proto": "/circles/1/checkin/1",
+      "vue": "/#/pkg-circle/circles/checkin",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子签到"
+    },
+    {
+      "proto": "/circles/1/recommend-ebook",
+      "vue": "/#/pkg-circle/circles/recommend-ebook",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "推荐电子书"
+    },
+    {
+      "proto": "/circles/1/bots",
+      "vue": "/#/pkg-circle/circles/circle-bots",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子内机器人"
+    },
+    {
+      "proto": "/circles/1/preview",
+      "vue": "/#/pkg-circle/circles/preview",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子预览"
+    },
+    {
+      "proto": "/mall",
+      "vue": "/#/pkg-mall/home/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "商城首页。审查✅通过未改动：搜索栏+购物车角标/限时秒杀·超值拼团·我的订单·优惠券四宫格(进行中标)/直播带货横滑(开光吉祥物专场8920·周易古籍珍藏版专场4150·手工罗盘·直播中标+观看数)/新人专享红banner首单立减20元/限时秒杀倒计时+商品(-42%·-47%·-50%)，双端近像素级一致。基线13.63%为中文字形红边+倒计时秒数动态。"
+    },
+    {
+      "proto": "/mall/product/1",
+      "vue": "/#/pkg-mall/product/detail",
+      "owner": "B",
+      "status": "reviewed",
+      "dynamic": true,
+      "note": "商城商品详情。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/mall/product/1/reviews",
+      "vue": "/#/pkg-mall/product/reviews",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "dynamic": true,
+      "note": "商品评价。审查✅通过未改动：98%好评率+4.9星+共328条评价/标签横滑(全部328·质量好128��有质感86·性价比高72·包装精美56·�������42·正品保��)/默认����/评论卡(易学爱好者VIP会员5星2024-01-15+内容+图片占位+购买规格精装版+商家回复2024-01-16+赞56·命理研究者圈主)，双端正常渲染近一致。基线8.54%为中文字形红边。"
+    },
+    {
+      "proto": "/mall/category",
+      "vue": "/#/pkg-mall/category/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "商城分类。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/shop",
+      "vue": "/#/pkg-shop/home/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "店铺首页。审查✅通过未改动：搜索栏+购物车角标3+通知红点/国学典籍大促红渐变banner+轮播点/四宫格(限时秒杀·拼团特惠·领券中心·积分兑换各色图标)/八分类宫格(古籍善本·文房四宝·香道用品·茶道器具·命理工具·风水摆件·养生食品·更多分类)/限时秒杀红卡+倒计时+3商品(¥68·¥199·¥88)/拼团特惠(周易全集精装套装¥299还差1人)，双端近像素级一致。基线11.96%为中文红边+倒计时秒数+顶栏sticky滚动态(proto深色vs vue透明底略浅)。"
+    },
+    {
+      "proto": "/shop/1",
+      "vue": "/#/pkg-shop/product/index",
+      "owner": "B",
+      "status": "reviewed",
+      "dynamic": true,
+      "note": "店铺商品 /shop/[id]。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/shop/categories",
+      "vue": "/#/pkg-shop/categories/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "店铺分类。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/shop/reviews",
+      "vue": "/#/pkg-shop/reviews/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "店铺评价。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/shop/exchange",
+      "vue": "/#/pkg-shop/exchange/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "申请换货。⚪抽查✅通过未改动：选择换货商品(周易六十四卦详解精装版¥168 x1·紫微斗数入门教程标准版¥88 x2)/换货原因/换货类型(同款换同款选中红框·换其他规格)/问题描述/提交换货申请按钮。注:底部按钮红→橙渐变(from-#C41E3A to-#E85D04)经核对原型源码确认为原型设计,vue正确还原。基线7.54%为中文红边。"
+    },
+    {
+      "proto": "/shop/compare",
+      "vue": "/#/pkg-shop/compare/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [
+        "🔧整页重写(8.71%→6.28%): B原实现为另一套交互(候选勾选器+清空+扁平斑马表),与原型整页不符,按原型重写",
+        "导航右侧: 清空→只看差异切换pill(选中#C41E3A红底白字)",
+        "商品区: 候选勾选器→已选商品横滑卡(封面+名+¥价+右上角黑圆X删除)+末尾添加商品虚线插槽(点击弹出底部选择器)",
+        "对比表: 扁平斑马表→分组可折叠(价格信息/课程规格,chevron-up/down)+差异行#FFF5F5粉底+参数名红点+最低价#C41E3A红色高亮",
+        "底部: 新增sticky每商品一个查看红按钮(external-link图标)",
+        "新增商品选择弹窗(底部sheet,排除已选)",
+        "配色改用原型#FAF8F5底/#C41E3A红/#E8E3DB边/#2C2C2C文字",
+        "补注册图标external-link"
+      ],
+      "note": "商品对比。⚠️整页重写以对齐原型(详见fixes)。审查后与原型近像素级一致(只看差异/已选卡+删除/添加插槽弹窗/分组折叠表/差���高亮红点/����查看按��),6.28%为中文���������������。说明:封面vue渲染真实图(��据���cover),原型mock为空显示'封面'占位文字,此为数据差异非结构差异。数据=>shop-data.ts的compareProducts/comparePickList。"
+    },
+    {
+      "proto": "/shop/flash-sale",
+      "vue": "/#/pkg-shop/flash-sale/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "限时抢购。审查✅通过未改动：红渐变限时秒杀头/时段tab(10:00已结束·14:00抢购中选中·18:00·20:00即将开始)/滚动通知(用户138****8888刚抢到)/距离结束还剩倒计时01:59:58/商品卡(周易¥68 ¥168已抢78%进度条+秒杀角标·紫微¥38 ¥98已抢90%+即将售罄标·立即抢购红btn)，双端近像素级一致。基线12.54%为中文红边+倒计时秒数动态差1秒。"
+    },
+    {
+      "proto": "/seckill",
+      "vue": "/#/pkg-shop/seckill/index",
+      "owner": "V",
+      "status": "migrate",
+      "migratedAt": "2026-06-20",
+      "note": "秒杀(v0新迁,A组)。橙红渐变头部+规则入口/时段tab(进行中带倒计时·即将开始·已结束)/滚动中奖通知/秒杀商品卡(原价划线+秒杀价+已抢进度条+剩余库存+立即抢购/即将开始/已售罄态)/秒杀玩法说明。入口:activity详情页。商品跳/mall/product/:id,规则跳/seckill/rules。"
+    },
+    {
+      "proto": "/seckill/rules",
+      "vue": "/#/pkg-shop/seckill/rules/index",
+      "owner": "V",
+      "status": "migrate",
+      "migratedAt": "2026-06-20",
+      "note": "秒杀规则(v0新迁,A组)。橙红渐变hero/活动规则列表(参与资格·活动时间·支付规则·禁��行��·��款政策·实物商品,���带emoji图标)/常见问题FAQ/底部免责提示。"
+    },
+    {
+      "proto": "/shop/group-buy",
+      "vue": "/#/pkg-shop/group-buy/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "拼团特惠列表。审查✅通过未改动：红头��������惠/拼团商品·我的拼团(1)tab/���请好友���起拼团banner/商品卡(3人团周易¥99单买¥168·省69元·还���1人头像·07:59:58倒计时·去拼团红+开新团/5人团紫微¥128省110元还差2人11:59:58/3人团风水¥68省60元已成团灰·已拼满)，双端近像素级一致。基线19.97%为中文字形红边+倒计时秒数动态差1秒。"
+    },
+    {
+      "proto": "/shop/group-buy/1",
+      "vue": "/#/pkg-shop/group-buy/detail",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "dynamic": true,
+      "note": "拼团详情。审查✅通过未改动：橙渐变拼团详情顶栏+分享/商品卡(周易六十四卦详解·精装典藏版描述·¥99 ¥199·省¥100橙标)/3人成团+24小时有效/正在拼团(2个团进行中)/参团卡(还差1人·还差2���+皇冠头像+问号占位+倒计时01:59:58·04:59:58+去参团橙btn)/拼团规则3条勾选/底部¥99开新团橙渐变btn，双端像素级一致。基线10.55%为中文红边+倒计时秒数动态差1秒。"
+    },
+    {
+      "proto": "/shop/group-buy-success",
+      "vue": "/#/pkg-shop/group-buy/success",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "拼团成功。审查✅通过未改动：绿渐变/对勾/拼团成功/¥128 ¥298删除线 省¥170橙标/成团成员共3人/成团时间/订单编号GB202401150001复制/预计发货时间/分享得优惠券橙卡/查看订单红+继续逛逛，与原型一致。基线23%高差异为原型proto白屏假阳性(Suspense+异步取数无参时停在fallback)，vue端渲染完整。"
+    },
+    {
+      "proto": "/shop/group-buy-fail",
+      "vue": "/#/pkg-shop/group-buy/fail",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "拼团失败。审查✅通过未改动：灰渐变拼团未成功/警告图标/拼团超时未凑齐人数/紫微斗数¥128/参团人数1/3人(?头像)/失败时间/退款信息卡¥128.00+三段进度条(申请退款✓·处理中红·退款完成灰)/订单编号复���/查看退款+重新开团红+浏览其他拼团，与原型一致。基线13.95%含中文字形红边。"
+    },
+    {
+      "proto": "/shop/coupons",
+      "vue": "/#/pkg-shop/coupons/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "优惠券。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/shop/coupon-detail",
+      "vue": "/#/pkg-shop/coupon-detail/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "优惠券详情。审查✅通过未改动：红渐变券头(50/元/满200可用/至2024-12-31/描述)/优惠券代码mono+复制/使用说明4条红圆点/适用商品课程列表(ShoppingBag商品BookOpen课程图标+名称line-clamp+¥价格)/立即使用红渐变btn，与原型一致。基线19%高差异为原型proto白屏假阳性(Suspense+useSearchParams无参)，vue端渲染完整。"
+    },
+    {
+      "proto": "/cart",
+      "vue": "/#/pkg-shop/cart/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "购物车(根/cart,双轨设计之根套,与/shop/cart=cart/sku是两套不同设计,见router.ts注释)。⚪抽查✅通过未改动：购物车(4)+编辑/3商品卡(《渊海子平》¥168·八字命理¥299·黑曜石手链¥128含勾选+数量步进)/失效商品(1)清除全部+已下架灰卡/底部全选+已选2件+合计¥467.00+结算(2)红按钮。proto白屏假阳性,vue完整。[修正]此条proto原误写为/shop/cart导致迁移清单误判/cart为未迁,实为router.ts中/cart→cart/index,已更正。"
+    },
+    {
+      "proto": "/shop/cart",
+      "vue": "/#/pkg-shop/cart/sku",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "购物车 SKU 选择(变体)。⚪低差异档(基线<8%)批量审查✅通过未改动：已抽查代表页确认为proto白屏假阳性/vue渲染完整或双端近一致模式，无真实结构偏差。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/shop/checkout",
+      "vue": "/#/pkg-shop/checkout/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "结算。⚪低差异档(基线<8%)批量审查✅通过未改动：已抽查代表页确认为proto白屏假阳性/vue渲染完整或双端近一致模式，无真实结构偏差。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/checkout",
+      "vue": "/#/pkg-shop/checkout/order",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "结算订单(变体)。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/shop/paying",
+      "vue": "/#/pkg-shop/paying/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "支付中。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页���������过)，差异为proto白屏���阳性/��文字��红边/����态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/shop/pay-success",
+      "vue": "/#/pkg-shop/pay-success/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "支付成功。审查✅通过未改动：绿渐变/对勾/¥344.00/订单卡(编��复制+���式+时间)/���看����������红+返回首页/��你����，与��������。��线40%高����为原型入��动画(showAnimation,opacity-0���始)�����图���序������性，��������13.85%全������。"
+    },
+    {
+      "proto": "/shop/pay-fail",
+      "vue": "/#/pkg-shop/pay-fail/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "支付失败。审查✅通过未改动：红渐变/白圆X/装饰圆环/失败原因卡/订单编号—失败时间/重新支付红+换个方式支付+查看订单详情/温馨提示橙框4条，与原型一致。观察项(未改,留给CC决策):原型金额=searchParams amount||'0'故无参时显示¥0.00,vue显示¥344.00(与另两结果页mock一致);金额为参数驱动动态数据非固定文案。基线38%高差异为入场动画时序假阳性,重跑8.45%。"
+    },
+    {
+      "proto": "/shop/pay-timeout",
+      "vue": "/#/pkg-shop/pay-timeout/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "支付超时。审查✅通过未��动：橙渐变/时钟/支付超时/订单金额¥344.00/可能的原因3项(网络/银行卡/支付App)/订单信息ORD20241201123456/重新支付红+换个支付方式+查看订单，与原型一致。基线37%高差异为入场动画时序假阳���,重跑11.24%全红边。"
+    },
+    {
+      "proto": "/shop/payment-methods",
+      "vue": "/#/pkg-shop/payment-methods/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "支付方式。⚪低差异档(基线<8%)批量审查✅通过未改动：已抽查代表页确认为proto白屏假阳性/vue渲染完整或双端近一致模式，无真实结构偏差。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/orders",
+      "vue": "/#/pkg-order/list/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "订单列表。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/orders/center",
+      "vue": "/#/pkg-order/center/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "订单中心。⚪抽查✅通过未改动：我的订单/全部10·商品1·课程2·圈子1 tab/全部状态·待付款·已付款·已完成·已取消·退款二级tab/订单卡(课程C2024...八字入门¥299已完成·圈子R...八字命理研习社¥199·商品P...周易六十四卦¥168·直播L...紫微斗数¥49.9含类型徽标+状态+价格+时间+查看详情)。proto白屏假阳性,vue完整。"
+    },
+    {
+      "proto": "/orders/1",
+      "vue": "/#/pkg-order/detail/index",
+      "owner": "B",
+      "status": "reviewed",
+      "dynamic": true,
+      "note": "订单详情。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/orders/1/review",
+      "vue": "/#/pkg-order/review/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "dynamic": true,
+      "note": "订单评价。审查✅通过未改动：评价订单#1头/商品卡(《渊海子平》精装典藏版 商品1/2·商品评分5星空*+详细评价选填0/200文本框'分享使用感受帮助更多买家...'+添加图片0/6相机/紫微斗数入门教程 商品2/2)/底部'请为所有商品打分后提交'+提交评价禁用按钮，与原型一致。基线8.02%为原型proto白屏假阳性，vue端渲染完整。"
+    },
+    {
+      "proto": "/orders/logistics",
+      "vue": "/#/pkg-order/logistics/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "物流。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/orders/invoice",
+      "vue": "/#/pkg-order/invoice/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "发票。审查✅通过未改动：发票管理头/申请开票(3)·已申请(3)tab/选择订单3卡(周易¥299·紫微¥168·风水¥88可勾选)/发票类型(个人发票选中红框·企业发票)/发票抬头/提交申请红按钮，与原型一致。基线9.00%为原型proto白屏假阳性，vue端渲染完整。"
+    },
+    {
+      "proto": "/orders/refund-progress",
+      "vue": "/#/pkg-order/refund/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "退款进度。审查✅通过未改动：绿渐变退款金额卡¥168.00/原路退回微信/预计到账胶囊/退款进度时间轴5节点(申请提交·商家审核·平台审核已完成绿勾+退款处理橙色pulse+退款到账灰)/退款信息(单号·关联订单·类型·原因·时间)/退款商品卡/温馨提示橙框/联系客服+我要申诉，与原型源码区块一一对应。基线24%高差异为原型proto白屏假阳性，vue端渲染完整(463行结构齐全)。",
+      "protoQuery": "?id=1"
+    },
+    {
+      "proto": "/orders/dispute",
+      "vue": "/#/pkg-order/dispute/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "订单纠纷。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "protoQuery": "?orderId=order_001",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/shop/after-sale",
+      "vue": "/#/pkg-account/after-sale/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "申请售后。⚪抽查✅通过未改动：售后类型(仅退款无需退货选中红框·退货退款需寄回商品)/退款原因*/退款金额*最多可退¥256.00+¥256+全额退款/问题描述0/500/上传凭证最多5张+提交申请红按钮。proto白屏假阳性,vue完整。",
+      "protoQuery": "?orderId=order_001&maxAmount=256"
+    },
+    {
+      "proto": "/shop/after-sale/1",
+      "vue": "/#/pkg-account/after-sale-detail/index",
+      "owner": "B",
+      "status": "reviewed",
+      "dynamic": true,
+      "note": "售后详情。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/shop/after-sale-rejected",
+      "vue": "/#/pkg-account/after-sale-rejected/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "售后被拒。审�������过未改动：红渐变售后申请已驳回/白圆X图标/驳回原因卡/处理时间/售后信息(商品周易六十四卦详解·精装版·¥168·x1·仅退款·退款金额¥168红·退款原因·售后单号as001复制)/重新申请outline+我要申诉红+查看订单详情，与原型一致。基线32%高差异为入场动画时序假阳性，重跑10.97%全红边。"
+    },
+    {
+      "proto": "/shop/my-after-sales",
+      "vue": "/#/pkg-account/my-after-sales/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "我的售后。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/shop/addresses",
+      "vue": "/#/pkg-account/addresses/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "收货地址。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto������假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/address",
+      "vue": "/#/pkg-account/address/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "收货地址页(第②套,弹窗版,v0新迁)。与已迁的/shop/addresses(跳转独立edit页版)独立并存——原型确有两套地址系统,checkout页用Link href=/address指向本页(用户授权1:1迁弹窗版并存)。顶导(返回/收货地址)+地址卡列表(3条mock:收件人+脱敏手机+默认金徽章+完整地址+编辑钮edit-2+设为默认链接,点击卡片切换滑动删除红按钮)+空态(map-pin圆+暂无收货地址)+底部固定红按钮(新增收货地址)+删除确认弹窗(取消/删除)+全屏编辑弹窗(收件人/手机号/所在地区/详细地址textarea/设为默认开关,保存禁用态)+三级地区选择器底部抽屉(省province→市city→区district,REGIONS数据照抄,返回/取消逻辑+已选check)。3条地址数据全照抄。配色:accent金徽章/destructive红/secondary米输入框。"
+    },
+    {
+      "proto": "/shop/addresses/edit",
+      "vue": "/#/pkg-account/address-edit/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "编辑地址。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/mine/settings",
+      "vue": "/#/pkg-mine/settings/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "设置。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "deprecated": true,
+      "supersededBy": "/settings",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/security",
+      "vue": "/#/pkg-mine/security/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "安全。审查✅通过未改动：深色账号安全评分卡82/100+圆环进度+密码/手机/邮箱/支付/实名5图标/登录安全(登录密码·手机号码138****8888·邮箱绑定u***@example.com+已设置绿标)/支付安全(支付密码·实名认证张*明)/设备管理2台/注销账号红，与原型一致。基线20.96%为原型proto白屏假阳性(Suspense异步取数)，vue端渲染完整。",
+      "deprecated": true,
+      "supersededBy": "/settings (账号与安全已并入设置主页)",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/change-password",
+      "vue": "/#/pkg-mine/change-password/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "修改密码。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "deprecated": true,
+      "supersededBy": "/settings/password",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/change-phone",
+      "vue": "/#/pkg-mine/change-phone/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "修改手机。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "deprecated": true,
+      "supersededBy": "/settings/phone",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/payment-password",
+      "vue": "/#/pkg-mine/payment-password/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "支付密码。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "deprecated": true,
+      "supersededBy": "/settings/payment-password",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/bind-accounts",
+      "vue": "/#/pkg-mine/bind-accounts/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "绑定账号。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "deprecated": true,
+      "supersededBy": "/settings/bindaccount",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/privacy-authorization",
+      "vue": "/#/pkg-mine/privacy-authorization/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "隐私授权。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "deprecated": true,
+      "supersededBy": "/settings/privacy",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/blacklist",
+      "vue": "/#/pkg-mine/blacklist/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "黑名单。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "deprecated": true,
+      "supersededBy": "/settings/blacklist",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/teen-mode",
+      "vue": "/#/pkg-mine/teen-mode/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "青少年模式。审查✅通过未改动：青少年模式头+忘记密码/守护青少年健康成长蓝青渐变卡/青少年模式开关(点击开启)/使用时长限制(每日使用时长40分钟)/使用时段限制(禁止使用时段22:00-6:00)/夜间自动���启深色模���开关/内容过滤(级别适��)/监护密码(修��监��密��未设置��标)，���原���一致。���线12.20%���原型proto白屏假阳性，vue端渲染完整。"
+    },
+    {
+      "proto": "/notifications",
+      "vue": "/#/pkg-mine/notifications/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "通知中心页(通知列表,v0新迁)。区别于已迁的/settings/notifications(通知设置开关页)——本页是通知列表中心,入口来自merchant/teacher/mine dashboard。顶导(返回/通知/未读总数红徽章99+/刷新钮refreshing时spin/全部已读check-check无未读时禁用)+loading骨架屏500ms(5条)+通知列表(18条mock:互动5/系统4/收益4/交易3/客服2,每条=typeColors圆底图标[interaction蓝/system琥珀/income绿/transaction紫/service玫红]+标题+未读红点+时间+内容2行截断+category标签+未读bg-primary/5高亮)+底部'已显示全部通知'+空态。点单条标记已读+跳link;全部已读toast。补2图标check-check/megaphone。【注】原型互动消息avatar资源(/avatars/*.jpg)在原型中不存在(显示裂图),迁移统一用typeColors圆底+分类图标更干净。18条数据全照抄lib/api/messages.ts。"
+    },
+    {
+      "proto": "/mine/data-export",
+      "vue": "/#/pkg-mine/data-export/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "数据导出。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/mine/delete-account",
+      "vue": "/#/pkg-mine/delete-account/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "注销账号。���低���异档(基线<8%)批量审查✅通过未����：��属��低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "deprecated": true,
+      "supersededBy": "/settings/delete-account",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/delete-account-result",
+      "vue": "/#/pkg-mine/delete-account-result/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "注销结果。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "deprecated": true,
+      "supersededBy": "/settings/delete-account (成功态已并入注销页第3步)",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/wallet",
+      "vue": "/#/pkg-mine/wallet/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "钱包。���查✅���过未改动：红渐变国学币余额1280≈¥128+充值/提现/闪电图标/会员3级成长值进度4520/6000/累计充值¥2500·累计消费¥1220/积分3680·成长值4520/快速充值网格(100¥10·500¥50送20币·1000推荐¥100送50币·2000¥200送120币)，与原型一致。基线20.85%为原型proto白屏假阳性，vue端渲染完整。",
+      "deprecated": true,
+      "supersededBy": "/wallet",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/wallet/recharge",
+      "vue": "/#/pkg-mine/wallet/recharge",
+      "owner": "V",
+      "status": "migrate",
+      "note": "钱包充值(v0新迁)"
+    },
+    {
+      "proto": "/wallet/withdraw",
+      "vue": "/#/pkg-mine/wallet/withdraw",
+      "owner": "V",
+      "status": "migrate",
+      "note": "钱包提现(v0新迁,默认表单态)"
+    },
+    {
+      "proto": "/wallet/transactions",
+      "vue": "/#/pkg-mine/wallet/transactions",
+      "owner": "V",
+      "status": "migrate",
+      "note": "交易记录(v0新迁)"
+    },
+    {
+      "proto": "/points",
+      "vue": "/#/pkg-mine/points/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "积分中心(重做)。以真原型/points为准:API版积分中心(余额卡100积分=¥1/累计获取5280·累计使用2700·今日+15)/获取任务列表(每日签到+5·发布帖子+10·发布文章+30已完成·邀请好友+100·购买+1)/积分兑换网格(优惠券/国学币/会员/实物)/近期明细预览/兑换确认弹窗。子页:exchange/history/tasks。修正说明:原/mine/points(B于2026-06-19 reviewed)实为孤立误迁——应用主导航profile/wallet实际指向顶层/points而非/mine/points,且旧版含原型不存在的'成长值tab'+硬编码mock。现按1:1原则废弃旧版,改以API版/points为规范页覆盖pkg-mine/points/index。"
+    },
+    {
+      "proto": "/points/exchange",
+      "vue": "/#/pkg-mine/points/exchange/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "积分兑换(v0新迁)。余额条/分类筛选(全部/优惠券/国学币/会员/实物)/兑换商品网格(立即兑换·兑换中·兑换成功·积分不足态)/兑换说明。"
+    },
+    {
+      "proto": "/points/history",
+      "vue": "/#/pkg-mine/points/history/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "积分记录(v0新迁)。统计卡(余额/累计获取/累计使用)/快捷操作(去做任务·积分兑换)/tab筛选(全部/获取记录/使用记录)/记录列表(收支图标+涨跌色)。"
+    },
+    {
+      "proto": "/points/tasks",
+      "vue": "/#/pkg-mine/points/tasks/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "积分任务(v0新迁)。金色渐变总览卡(当前积分/今日已获/任务进度条)/任务列表(图标+积分徽章+子进度条+完成交互)/更多获取方式说明。"
+    },
+    {
+      "proto": "/mine/history",
+      "vue": "/#/pkg-mine/history/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "浏览历史(旧版:封面+进度+左滑删除,mine-data源)。⚠️孤岛页:原型和vue中均无任何入口链接到/mine/history(已核查)。profile菜单'浏览历史'实际指向顶级/history(分组+多选删除版),见下条。本页为被取代的旧设计,有原型依据故保留,可经直接URL访问,但非用户可达主路径。⚪低差异档批量审查✅通过未改动。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/history",
+      "vue": "/#/pkg-mine/browse-history/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "浏览历史页(顶级,真实在用版,v0新迁,修复断链)。【关键】profile个人中心'常用功能'菜单的'浏览历史'(profile-data.ts:67)指向/history,但router原先无此映射→该链接此前是断的;本次迁移补上/history→pkg-mine/browse-history映射修复断链。区别于孤岛/mine/history(封面进度左滑版),本页是分组+多选删除设计。顶导(返回/浏览历史/管理·完成切换+清空)+加载骨架500ms+日���分组(今天/昨天/1月13日)+历史卡(6类型course/article/product/circle/classic/agent:typeColors圆底图标[blue/purple/orange/green/amber/pink各/10底]+类型徽章+时间+标题+副标题+course类进度条)+编辑模式(每卡选择圈+底部删除栏全选/删除N)+清空确认(uni.showModal)+空态(clock圆+暂无浏览历史)。点卡片→对应详情路由(/learn/article/mall.product/circle.home/classics/agent)。9条mock分3组全照抄lib/api/history.ts。"
+    },
+    {
+      "proto": "/mine/my-likes",
+      "vue": "/#/pkg-mine/my-likes/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "我的点赞(旧版孤岛)。⚠️孤岛页:原型和vue中均无入口链接到/mine/my-likes(已核查);profile顶部'获赞'统计指向顶级/likes(见下条,本轮已迁)。本页为被取代的旧设计,有原型依据故保留,可经直接URL访问。⚪低差异档批量审查✅通过未改动。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/likes",
+      "vue": "/#/pkg-mine/likes/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "我的点赞页(顶级真实活页,v0新迁)。profile个人中心顶部'获赞'统计数字(profile/page.tsx:214 Link href=/likes)指向本页(vue profile统计区原未做成可点,迁移后router已可达)。区别于孤岛/mine/my-likes(见上条)。顶导(返回/我的点赞)+类型筛选Tab(全部/帖子/文章/短视频/课程,带count,横向滚动,活动项红底边)+点赞卡(左封面112px[video=play图标+时长角标/course=book-open/其它=file-text]+右内容[类型徽章4色:帖子蓝/文章绿/视频紫/课程金+标题2行+摘要1行+底部作者/课程价¥/视频点赞数/时间+取消点赞实心红心])+空态(heart圆+暂无点赞记录+去发现内容按钮)。6条mock内联照抄原型。点卡片→href详情(/articles/:id已覆盖,/video/:id /post/:id动态路由暂缺走兜底,与原型未迁详情同等待遇)。"
+    },
+    {
+      "proto": "/mine/my-comments",
+      "vue": "/#/pkg-mine/my-comments/index",
+      "owner": "B",
+      "status": "reviewed",
+      "note": "我的评论。⚪低差异档(基线<8%)批量审查✅通过未改动：归属⚪低差异档，按抽查策略覆盖(同簇代表页已逐页目检通过)，差异为proto白屏假阳性/中文字形红边/动态值。",
+      "reviewedAt": "2026-06-19",
+      "fixes": []
+    },
+    {
+      "proto": "/mine/received-comments",
+      "vue": "/#/pkg-mine/received-comments/index",
+      "owner": "B",
+      "status": "reviewed",
+      "reviewedAt": "2026-06-19",
+      "fixes": [],
+      "note": "收到的评论。审查✅通过未改动：红头收到的评论+筛选/全部·待回复(2)tab/评论卡(求学者Lv.3待回复标+内容+时间+评论了我的文章引用+回复红btn·查看原文/易学迷Lv.5+我的回复粉框/思辨者Lv.2待回复)，与原型一致。基线16.20%含中文字形红边。"
+    },
+    {
+      "proto": "/courses",
+      "vue": "/#/pkg-course/home/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "课程首页(v0新迁)"
+    },
+    {
+      "proto": "/courses/1",
+      "vue": "/#/pkg-course/detail/index",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "课程详情(v0新迁)"
+    },
+    {
+      "proto": "/instructor/1",
+      "vue": "/#/pkg-course/instructor/index",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "讲师详情(v0新迁,��institute/instructors/[id];入口=课程详情页讲师卡;白底顶栏+头部(头像/认证角标/姓名/等级标签/职称/专长tag)+三栏统计(学员/课程/评分)+3Tab(简介:个人简介/学术背景/从业经历/资质证书;课程:featuredCourses卡=>/courses/:id;评价:reviews列表)+底部关注/预约授课(=>/offline/teacher-booking?instructorId=);数据mock于instructor-data.ts;briefcase图标本轮补入icons-registry;下游offline/teacher-booking未迁)"
+    },
+    {
+      "proto": "/courses/1/chapters",
+      "vue": "/#/pkg-course/chapters/index",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "课程章节列表(v0新迁)"
+    },
+    {
+      "proto": "/courses/1/learn",
+      "vue": "/#/pkg-course/learn/index",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "课程学习中心(v0新迁)"
+    },
+    {
+      "proto": "/courses/1/player",
+      "vue": "/#/pkg-course/player/index",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "课程视��播放(v0��迁)"
+    },
+    {
+      "proto": "/courses/flash-sale",
+      "vue": "/#/pkg-course/flash-sale/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "课程限时特惠(v0新迁)"
+    },
+    {
+      "proto": "/courses/purchase-confirm",
+      "vue": "/#/pkg-course/purchase-confirm/index",
+      "owner": "V",
+      "status": "migrate",
+      "protoQuery": "?id=1",
+      "note": "课程购�������认(v0新迁)"
+    },
+    {
+      "proto": "/courses/certificate",
+      "vue": "/#/pkg-course/certificate/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "课程结业证书(v0新迁)"
+    },
+    {
+      "proto": "/courses/study-plan",
+      "vue": "/#/pkg-course/study-plan/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "课程学习计划(v0新迁)"
+    },
+    {
+      "proto": "/courses/work-submit",
+      "vue": "/#/pkg-course/work-submit/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "课程作业提交(v0新迁)"
+    },
+    {
+      "proto": "/courses/work-review",
+      "vue": "/#/pkg-course/work-review/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "课程作业批改(v0新迁)"
+    },
+    {
+      "proto": "/courses/work-result",
+      "vue": "/#/pkg-course/work-result/index",
+      "owner": "V",
+      "status": "migrate",
+      "protoQuery": "?id=1",
+      "note": "课程作业批改结果(v0新迁)"
+    },
+    {
+      "proto": "/live",
+      "vue": "/#/pkg-live/plaza/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播广场入口(v0新迁·标杆)"
+    },
+    {
+      "proto": "/live/hosts",
+      "vue": "/#/pkg-live/hosts/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播主播列表(v0新迁)"
+    },
+    {
+      "proto": "/live/replays",
+      "vue": "/#/pkg-live/replays/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播回放列表(v0新迁)"
+    },
+    {
+      "proto": "/live/replay-home",
+      "vue": "/#/pkg-live/replay-home/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播回放首页(v0新迁)"
+    },
+    {
+      "proto": "/live/host-data",
+      "vue": "/#/pkg-live/host-data/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "���播数据中心(v0新迁)"
+    },
+    {
+      "proto": "/live/stream-config",
+      "vue": "/#/pkg-live/stream-config/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "推流配置(v0新迁)"
+    },
+    {
+      "proto": "/live/obs-guide",
+      "vue": "/#/pkg-live/obs-guide/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "OBS推流教程(v0新迁)"
+    },
+    {
+      "proto": "/live/create",
+      "vue": "/#/pkg-live/create/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "��建直播(v0新迁)"
+    },
+    {
+      "proto": "/live/preview",
+      "vue": "/#/pkg-live/preview/index",
+      "owner": "V",
+      "status": "migrate",
+      "protoQuery": "?id=1",
+      "note": "直播预告(v0新迁)"
+    },
+    {
+      "proto": "/live/vertical",
+      "vue": "/#/pkg-live/vertical/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "竖�������直播间(v0新迁)"
+    },
+    {
+      "proto": "/live/horizontal",
+      "vue": "/#/pkg-live/horizontal/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "横屏直播间-竖屏提示态(v0新迁)"
+    },
+    {
+      "proto": "/live/1",
+      "vue": "/#/pkg-live/watch/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播间观看页[id]知识竖屏(v0新迁)"
+    },
+    {
+      "proto": "/live/end",
+      "vue": "/#/pkg-live/end/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播结束页(v0新迁)"
+    },
+    {
+      "proto": "/live/replay/1",
+      "vue": "/#/pkg-live/replay-detail/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "回放详情页(v0新迁)"
+    },
+    {
+      "proto": "/live/replay/1/comments",
+      "vue": "/#/pkg-live/replay-comment/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "回放评价页(v0新迁)"
+    },
+    {
+      "proto": "/login",
+      "vue": "/#/pkg-auth/login/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "登录主页(v0新迁,A���)"
+    },
+    {
+      "proto": "/register",
+      "vue": "/#/pkg-auth/register/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "注册页(v0新迁,A级,默认step=phone)"
+    },
+    {
+      "proto": "/forgot-password",
+      "vue": "/#/pkg-auth/forgot-password/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "��回密码(v0新迁,A级,默认step=1)"
+    },
+    {
+      "proto": "/auth/recover",
+      "vue": "/#/pkg-auth/recover/index",
+      "owner": "v0",
+      "status": "migrate",
+      "note": "找回账号·方式选择页：v0新迁,修复设置-手机页『找回原账号』断链。三卡(手机/邮箱/联系客服),手机&邮箱子页待迁toast占位,联系客服跳已迁feedback",
+      "migratedAt": "2026-06-22"
+    },
+    {
+      "proto": "/feedback",
+      "vue": "/#/pkg-mine/feedback/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "意见反馈(v0新迁,A级,默认tab=submit)"
+    },
+    {
+      "proto": "/about",
+      "vue": "/#/pkg-mine/about/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "关于我们(v0新迁,B级)"
+    },
+    {
+      "proto": "/im/conversations",
+      "vue": "/#/pkg-im/im/conversations/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "会话列表(v0新迁,默认列表态)"
+    },
+    {
+      "proto": "/im/chat/101",
+      "vue": "/#/pkg-im/im/chat/index?id=101",
+      "owner": "V",
+      "status": "migrate",
+      "note": "单聊(v0新迁,A级,默认target101互关态)"
+    },
+    {
+      "proto": "/im/group-chat/1",
+      "vue": "/#/pkg-im/im/group-chat/index?id=1",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "群聊(v0新迁,源im/group-chat/[id];入口=会话列表群聊项;自定义导航(返回+群名+在线人数+成员抽屉入口)+群公告条(可展���=>公告详情抽屉)+消息流(群主/管理员角标气泡,自����息右���齐,@高亮,撤回占位,2分钟内可撤回)+@成员面板(含@所有人,owner/admin权限)+长按菜单(复制/撤回)+成员侧边抽屉(角色排序)+底部输入(语音/表情/图片/+号占位);数据mock于im-data.ts(GroupDetail/GroupMember/GroupChatMessage+getGroupRoleName/getGroupOnlineCount/searchGroupMembersForAt,复用canWithdrawMessage与时间格���化);图标全部已存在)"
+    },
+    {
+      "proto": "/im/messages",
+      "vue": "/#/pkg-im/im/messages/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "消息中心(v0新迁,竖屏;入口=会话列表顶部;sticky顶栏(返回/标题/全部已读)+4分类Tab(系统通知/互动消息/交易消息/客服消息,带未读红点角标+底部红条指示)+消息列表(头像or分类圆形图标+未读红点/未读浅红底,标题+分类标签+时间,内容2行截断,点击标已读并跳link)+已显示全部消息底注+空态;原型getCategoryIcon配色1:1)"
+    },
+    {
+      "proto": "/im/add-friend",
+      "vue": "/#/pkg-im/im/add-friend/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "添加好友(入口=通讯录/会话页;sticky顶栏(返回+添加好友)+���索栏(输入框搜索手机号/智��号/昵���+红色搜索按钮,loading���圈)+未���索时'其他方式'(扫一����/手机联系���/智玄号3项,圆角卡+primary/10图标底)+搜索后'搜索结果'(头��+昵称+���介+N���共���好友+添加按钮,已添加变描边'已添加',发送中转圈)+无结果'未找到该用户';机器diff零差异+人眼并排达标)",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/im/create-group",
+      "vue": "/#/pkg-im/im/create-group/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "��建群��(两步;入口=会话��/通讯录;步骤1选�����:搜索框+好友列表(头像+���称+圆形勾选,选��primary底)+底���已选N�����+下一步;步骤2���群名:群头像(camera占位可上传)+群名称输入(限20字)+群简介textarea(���100���)+已选��员横滚��像(可���x移除,带角标×)+底部完成创建按钮;步骤2顶栏返回回步骤1);机器diff零差异+人眼并排(两步)达标",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/im/contacts",
+      "vue": "/#/pkg-im/im/contacts/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "��讯录(入口=会话页/消息;顶栏(返回+通讯录+搜索/加好友图标)+按拼音首��母A-Z分组列表(sticky字母头+好友项:头像+在线绿点+备注名(原昵称)+签名/最后活跃)+右侧字母索引条(点击scroll-into-view定位,active红底)+加载骨架屏+空态;点击好友弹底部操作sheet(大头像+在线状态+发消息/查看主页按钮);搜索弹层(top全屏,输入昵称/备注/拼音首字母,搜索骨架/结果/未找到/未输入态);24个好友数据落im-data.ts(mockFriendsWithPinyin+groupFriendsByLetter+searchFriends);机器diff零差异+人眼并排(列表态+搜索态+操作sheet)达标",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/im/group-list",
+      "vue": "/#/pkg-im/im/group-list/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "群聊列表(入口=会话页/消息;顶栏(返回+群聊+加号)+sticky搜索框(搜索群聊,清除X)+列表项(群头像红渐变方角+免打扰角标bell-off+群名+角色图标owner皇冠金/admin盾蓝+成员数(N)+置顶pin图标+最后消息发送人:内容+时间+未读Badge红/免打扰灰)+置顶项浅灰底+右下浮动创建按钮(红圆+号)+更多菜单(底部弹层:置顶/免打扰/退群解散)+退群解散确认弹窗(居中,owner显解散member显退出)+骨架屏+空态;5群数据落im-data.ts(mockGroupList+getSortedGroupList置顶优先+searchGroupList+getGroupRoleName);新增bell-off图标;原型id4数据乱码已修;机器diff零差异+人眼并排(列��态+搜��态+菜单+确认弹窗)达标",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/im/friend-requests",
+      "vue": "/#/pkg-im/im/friend-requests/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "好友请求(入口=通讯录/消息;顶栏(返回+好友请求+占位);待处理区(灰底标题'待处理(N)'+全部同意红字按钮)+待处理项(圆头像+昵称+签名+留言+时间+拒绝X描边/同意✓红实心按钮,处理中显...);�����处理区(可折叠灰底标题+chevron-up/down)+已处理项(70%透明+小头像+昵称+状态图标check-circle绿/x-circle红/clock灰+状态文字+留言+处理时间);拒绝确认弹窗(居中,标题+'确定要拒绝X的好友请求吗?'+理由textarea+取消/拒绝红);骨架屏;全空态user-plus/仅待处理空态users;5请求数据落im-data.ts(mockFriendRequests:3待处理+1同意+1拒绝;getFriendRequestsData+getRequestStatusText);机器diff零差异+人眼并排(待处理+已处理展开+拒绝弹窗)达标",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/im/invite",
+      "vue": "/#/pkg-im/im/invite/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "邀请好友(完整版,区别于/invite排行榜版;顶栏红渐变(返回+邀请好友+占位)+邀请奖励琥珀卡(gift+三权益:注册10积分/付费返佣10%/会员20元)+3Tab(推荐链接link-2/二维码qr-code/分享海报image);推荐链接Tab:邀请码GUOXUE2026(复制)+邀请链接(复制链接,已复制态check);二维码Tab:qr框+长按扫描提示+邀请码+保存二维码/复制链接;分享海报Tab:背景三选(红/蓝/金渐变,选中红框)+DOM同构海报卡(头像/userName国学爱好者/title/subtitle/三benefits/qr/邀请码ABC123)+重新生成/保存海报;分享渠道(微信绿/朋友圈绿/QQ蓝/复制灰圆形);查看邀请记录入口(→/mine/invite-records);数据内联(linkInfo+posterConfig对应getInviteLinkInfo/getInvitePosterConfig mock);canvas海报采用share-poster的DOM同构卡模式;机器diff零差异+人眼并排(三Tab切换)达标",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/im/group-detail/[id]",
+      "vue": "/#/pkg-im/im/group-detail/index?id=1",
+      "owner": "V",
+      "status": "migrate",
+      "note": "群资料/群设置(动态路由,onLoad读id;顶栏(返回+群聊信息+占位);群信息卡(群头像红渐变+群名edit-3+群号+二维码qr-code);群成员区(标题'群成员(N)'+查看全部chevron-right→右滑抽屉;成员网格头像+昵称+群主crown金/管理员shield蓝徽章+邀请user-plus/移除按钮按权限;抽屉:全部成员+角色分组);群公告(notice内容/无则空态+群主管理员可edit);分隔设置项(我的群昵称→编辑弹窗;消息免打扰bell switch;置顶聊天pin switch;显示群成员昵称switch;保存到通讯录switch);底部红色危险按钮(member=退出群聊/owner=解散群);退出/解散确认弹窗;权限getGroupPermissions按myRole计算;数据复用im-data(mockGroupDetail+mockGroupMembers+mockGroupSettings+mockGroupDetailMembers,GroupSettings/GroupPermissions类型);新增pin-off/edit-3图标;人眼并排(���页+成员抽屉+��出弹窗)达标",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/articles/1",
+      "vue": "/#/pkg-circle/articles/detail?id=1",
+      "owner": "V",
+      "status": "migrate",
+      "note": "文章详情(v0新迁,A级,含5种内联推荐卡)"
+    },
+    {
+      "proto": "/search",
+      "vue": "/#/pkg-search/search/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "全局搜索主页(v0新迁,A级,历史/热门/联想/猜你想搜+AI搜索弹窗;全局app-header入口)"
+    },
+    {
+      "proto": "/search/result?keyword=八字",
+      "vue": "/#/pkg-search/search/result?keyword=八字",
+      "owner": "V",
+      "status": "migrate",
+      "note": "搜索结果页(v0新迁,A级,6Tab+AI总结折叠+多类型结果+空态;来源页决定默认Tab)"
+    },
+    {
+      "proto": "/courses-list?category=bazi",
+      "vue": "/#/pkg-course/courses-list/index?category=bazi",
+      "owner": "V",
+      "status": "migrate",
+      "note": "课程列表页(v0新迁,A���������������,搜索栏+文字分类Tab+排序下拉+免费筛选+推荐轮播+限时秒杀倒��时+全部课程双列瀑布流+筛选抽屉+空态;复用course-card feed变体;入口=课程首页分类/更多)"
+    },
+    {
+      "proto": "/creator/live/console",
+      "vue": "/#/pkg-live/console/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播中控制台(v0新迁,横屏桌面布局,左:直播预览+实时数据���+弹幕/连麦Tab,右:商品管理+营销工具(抽奖/优惠券/红包)+提词器;含抽奖弹窗/发券弹窗/结束直播确认弹窗;直播计时器+实时弹幕推送+自动滚动;入口=creator开播流程)"
+    },
+    {
+      "proto": "/creator/live/obs",
+      "vue": "/#/pkg-live/obs/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "OBS推流设���(v0新迁,竖屏;推流状态卡(实时时长计时/帧率/码率/分辨率/��帧率)+推流配置信息(服务器地址/串流密钥可见切换/复制/重新生成)+OBS配置指南5步+安全提示+画质配置单选(高清/标清/流畅+推荐标)+测速入口+OBS输出参考表+常���问题折叠;重新生成密钥确认弹窗;入口=creator直播管理)"
+    },
+    {
+      "proto": "/creator/live/theme",
+      "vue": "/#/pkg-live/theme/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播间装修(v0新迁,竖屏;3Tab=主题模版/挂件装饰/动效设置;主题模版6款(默认/新中式/春节/中秋/极简白/水墨,免费vip标+使用中标)+自定义主色6色;挂件4个(福字/灯笼/祥云/铜钱,位置+开关);动效=入场特效6款/点赞样式4款/组件样式;实时预览区(emoji��位);底部固定栏=重置+保存应用;���口=creator直播管理)"
+    },
+    {
+      "proto": "/creator/live/schedule",
+      "vue": "/#/pkg-live/schedule/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播排期管理(v0新迁,竖屏;日历/列表双视图切换+状态筛选(全部/待开播/直播中/已结束)+搜索;日历视图=月份切换+7列网格+场次彩点指示(蓝待播/红直播/灰结束)+选中日期场次���表;列表视���=3状态统计卡+场次卡列表;ScheduleCard含封面占位/系列标/状态徽章/时间观看数meta/操作菜单(编辑复制删除);3弹窗(新建场次/批量导入xlsx/删除确认);今日固定2026-05-10;编辑跳create?id=)"
+    },
+    {
+      "proto": "/creator/live/team",
+      "vue": "/#/pkg-live/team/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "主播团队管理(v0新迁,竖屏;成员统计+搜索+角色筛选(主播/副播/场控运营/嘉宾,各带图标颜色等级)+成员列表卡(头像在线点/角色徽章/擅长标签/直播场次/操作菜单)+权限说明区(按角色展示权限项);弹窗=添加成员(可选讲师/成员+角色选��)/编辑角色/移除确认;入口=creator直播管理)"
+    },
+    {
+      "proto": "/creator/live/analytics/[id]",
+      "vue": "/#/pkg-live/analytics/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播数据复盘(v0新迁,竖屏,query=id;场次信息卡+5Tab(总览/流量/观众/互动/回放);总览=6核心数据卡(观看/峰值/时长/关注/加圈/打赏含趋势)+关键时刻时间轴;流量=在线人数折线(canvas/纯CSS柱)+关键节点;观众=性别饼/年龄分布/地域TOP/来源占比;互动=弹幕点赞评论分享数+礼物排行+弹幕词云;回放=播放数据+商品转化表+公开/付费开关;导出报告按钮)"
+    },
+    {
+      "proto": "/creator/live/reviews",
+      "vue": "/#/pkg-live/reviews/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播评价管理(v0新迁,竖屏;评分分布(5星条形图+平均分)+筛选(全部/5星/4星/3星及以下/待回复/已回复)+评价卡(头像/用户/星级/内容/直播场次/时间/回复区);可回复/举报;入口=creator直播��理)"
+    },
+    {
+      "proto": "/creator/live/settings",
+      "vue": "/#/pkg-live/settings/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播间设置(v0新迁,竖屏;直播间资料(封面/名称/简介编辑)+通知设置(新观众/打赏/评论/带货成交开关)+隐私互动(允许评论/打赏/显示观看数/自动录制开关)+更多设置入口;底部固定保存按钮含loading/已保存态)"
+    },
+    {
+      "proto": "/creator/live/products",
+      "vue": "/#/pkg-live/products/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "带货商品管理(v0���迁,竖屏;搜索+状态筛选(全部/已上架/已下架)+商品卡(封面/名称/价格/库存/已售/上架开关/编辑删除操作/库存不足提示)+空态;入口=creator直播管理)"
+    },
+    {
+      "proto": "/creator/live/earnings",
+      "vue": "/#/pkg-live/earnings/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播收益(v0新迁,竖屏;时间范围切换(近7天/30天/90天)+收��总览卡(总收益/打赏/带货+趋势涨跌)+提现入口+明细类型筛选(全部/打赏/带货)+收益流水列表(日期/类型/描述/金额/场次))"
+    },
+    {
+      "proto": "/creator/live",
+      "vue": "/#/pkg-live/manage/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播管理首页(v0新迁,竖屏;顶部铃铛/设置入口+5张横滑数据概览卡(本月直播/累计观看/新增粉丝/打赏收入/带货成交,原型渐变��本项目实色)+创建直播主按钮+3快捷入口(知识授课/电商带货/快速开播)+状态Tab(全部/预告中/直播中/已结束/草稿含计数)+直播���片列表(封面占位/状态徽章/类型标��/标题/排期时间/观看时长收益or预约数;按状态显示进入直播/编辑/继续编辑/数据按钮+展开操作菜单编辑/数据详情/删��)+空状态+悬浮���速开播FAB;进入直播=>console,数据=>analytics,创建/编辑=>create)"
+    },
+    {
+      "proto": "/common/share-poster",
+      "vue": "/#/pkg-circle/common/share-poster/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "分享海报生成器(v0新迁,深色全屏,query=type(invite|circle|post|article|live)+targetId;入口=圈子详情/帖子详情分享按钮;顶栏X关闭+类型标题;海报预览卡(4套国学主题:经典金/水墨/朱砂/青瓷,含标签/标题/分隔线/副标题/描述/作者头像/二维码占位);风格选择(主题色块+选中check角标)+分享文案(3风格雅致/诚挚/启发tab+文案预览+复制)+底部保存到相册/立即分享;真实uni canvas离屏绘制并canvasToTempFilePath导出,H5用a标签下载/小程序saveImageToPhotosAlbum;原型依��PosterCanvas+POSTER_THEMES+SHARE_TONES+getPosterData均v0重建,��维码用GenerateImage占��)"
+    },
+    {
+      "proto": "/user/[id]",
+      "vue": "/#/pkg-circle/user/profile",
+      "owner": "V",
+      "status": "migrate",
+      "note": "用户主页(v0新迁,自���义导航全��,query=id;入口=帖子卡片作者头像/圈子详情成员/帖子详情作者,三处高频死链;顶部背景封面(渐变兜底)+悬浮头像(认证badge角标)+顶栏返回/分享/更多菜单(举报/拉黑);用户信息(昵称+认证标签+简介+Lv等级金标+互相关注粉标)+数据看板(关注/粉丝/获赞,点关注粉丝toast占位)+关注·私信操作行(关注乐观更���,私信=>im/chat);4内容Tab(动态/帖子/文章/短视频,底部红条指示)+三种卡片(帖子:文本+1/4宫格图+点赞评论;文章:左图右标题横卡;短视频:9:16双列网格带播放按钮;动态Tab混排);内��点击=>帖子详情/文章详情/视频详��;原型依赖getUserProfile/getUserPosts/follow等均v0重建mock,仅迁主页未含following/followers子页)"
+    },
+    {
+      "proto": "/agents",
+      "vue": "/#/pkg-agent/agents/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "AI智能体广场(v0新迁,自定义��航;入��=排盘首页「AI智能体」更多;红���sticky顶栏(返回+标题+在线数zap badge+���话记录=>/agents/history)+白色搜索框(语音搜索mock:点mic后2秒填入「八字分析」+聆听三点动画遮罩+清除按钮);主智能客服入口卡(深色渐变+bot图标=>/agent/main);热门问答(flame标题+更多=>/agents/questions+前3条排名卡,点击=>/agent/:botId?q=);智能体列表(trending标题+热度榜=>/agents/ranking+卡片:头像(纯色底+dicebear bottts)+前3名角标+名称+official冠/NEW标+描述+能力标签+评分/对话数/语音标+对话按钮=>/agent/:id,默认显示4个+查看全部展开);原型hotBots/hotQuestions/formatCount均v0重��为agents-square-data.ts,头像渐变类改纯色bgColor;下��/agent/main|chat|history已存在,/agents/history|questions|ranking仍待迁)"
+    },
+    {
+      "proto": "/agent/main",
+      "vue": "/#/pkg-agent/agent/main",
+      "owner": "V",
+      "status": "migrate",
+      "note": "��能体主对话页(页面早已存在,本轮仅补router映射;入口=广场「热卜智能助手」卡片)"
+    },
+    {
+      "proto": "/agents/history",
+      "vue": "/#/pkg-agent/agents/history",
+      "owner": "V",
+      "status": "migrate",
+      "note": "对话历史(v0新迁,自��义导航白色顶��+返回;入口=��场顶栏clock按钮;搜索框(按名���/末条消息过滤)+对���卡���(bot��像圆底+名称+分类���标(5类��联��映射)+末条时间+末����息省��+未������角标+删除trash���钮stop���泡);空状态(message-square灰图标+暂无/未找到文案);点卡片=>/agent/:id;原型mockConvs/CATEGORY_COLORS=>agents-square-data.ts的agentConversations+页内catColor映射)"
+    },
+    {
+      "proto": "/agents/questions",
+      "vue": "/#/pkg-agent/agents/questions",
+      "owner": "V",
+      "status": "migrate",
+      "note": "常见问题FAQ(v0新迁,自定义导航;入口=广场热门问答「更多」;���索框+分类chip横滑(���部+使用说明/收费说明/隐私安全/功能介绍,选中红底)+FAQ手风琴卡(help-circle图标+问题+chevron上下,点击展开答案,单开);空状态;原型faqs=>agents-square-data.ts的agentFaqs)"
+    },
+    {
+      "proto": "/agents/ranking",
+      "vue": "/#/pkg-agent/agents/ranking",
+      "owner": "V",
+      "status": "migrate",
+      "note": "智能体热度榜(v0新迁,自定义导航居中标题;入口=广场智能体列表「热度榜」;分类chip横滑筛选(��部+算命/国学/风水/占卜/健康)+排行卡(头像image+verified红勾角标+#排名红大字+名称+分类灰标+描述+四宫格统计(用户/对话/评分2格红底)+立即对话红按钮);点卡片/按钮=>/agent/:id;原型mockAgentsRanking的unsplash头像改dicebear bottts=>agents-square-data.ts的agentsRanking)"
+    },
+    {
+      "proto": "/classics/audiobooks",
+      "vue": "/#/pkg-classics/audiobooks/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "古籍听书列表(v0新迁,ClassicsHeader标题听书+默认搜索;Hero红kicker名家播讲+大标题轻松听典籍;今日主打大卡(棕渐变linear150deg #a06a38->#5f3a1a圆角56rpx,FlatCover184rpx+编辑主打tag+���名desc+时长/播放量meta+白底立即收听按钮);全部有声书列表(卡片FlatCover128rpx+标题desc+品质chip/时长/播放量meta+心形收藏+���圆play按钮);点卡/play=>player?id;数据照抄原��mockAudioBooks(4本)=>classics-data.ts的mockAudioBooks/fmtPlays)"
+    },
+    {
+      "proto": "/classics/audiobooks/1",
+      "vue": "/#/pkg-classics/audiobooks/player?id=1",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "古籍听书播放器(v0新迁,背景宣纸#faf8f5;顶栏渐变#f5f0e6->#faf8f5圆按钮返回/分享+居中听书;旋转唱片448rpx(深棕渐变+双环+中心192x256rpx书封竖排书名,播放时8s旋转);书名朝代作者朗读者+当前章;进度条amber600;控制行(倍速/上一章skip-back/128rpx amber播放暂停/���一章/心形like);底部目录/循环/定时;章节抽屉(底部弹层,当前章amber底);数据audioBookPlayerData default=道德经6章=>classics-data.ts)"
+    },
+    {
+      "proto": "/classics/ranking",
+      "vue": "/#/pkg-classics/ranking/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "古籍推荐榜(v0新迁,背景#f4f2ee;ClassicsHeader标题推荐榜+默认���索;入口=古���home推荐榜「完整榜单」;Hero红kicker读者公认+大标题传世经典榜;tab胶囊(热门/最新/评分,选中故宫红#c41e3a白字,静态不切数据);三甲grid3大卡(FlatCover+排名角标56rpx 1=红#c41e3a/2=金#c9a96e/3=#a06a38+书名+eye浏览量);其余清单卡(rank数字+FlatCover112rpx+书名+作者朝代+分类chip/eye浏览量/star评分);颜色用coverColorForBook(title,category);点卡=>detail?id;数据照抄原型books10条=>classics-data.ts的rankingPageBooks/rankTabs)"
+    },
+    {
+      "proto": "/classics/lists",
+      "vue": "/#/pkg-classics/lists/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "古籍精选书单(v0新迁,��景#f4f2ee;ClassicsHeader标题精选书单+right插槽自定义「+创建」红按钮(母版新增可选具名插槽,向后兼��);入口=古籍home精选书单「更多」;Hero红kicker名家甄选+大标题循路而读+副标题;书单卡(圆角48rpx白底:标题36rpx+@作者·N本书+desc2行;书封堆叠flex-end 3个FlatCover(flex-1 max160rpx,coverColorForBook(title)算色,titleSize28rpx)+「+N本」灰占位144rpx aspect3:4;#标签胶囊圆角full;底部栏border-t:心形点赞(toLocaleString千分位)/分享/查看书单红+chevron);点卡=>collection?id;数据照抄原型lists5条=>classics-data.ts的listsPageData)"
+    },
+    {
+      "proto": "/classics/collections",
+      "vue": "/#/pkg-classics/collections/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "古籍我的收藏(v0新迁,背景#f4f2ee;ClassicsHeader标题我的收藏+showSearch=false;Hero红kicker珍藏一处+大标题我的收藏;搜索框88rpx圆角32白底;类型筛选chip横滑(全部/文章/有声书/视频/课程,选中=foreground深底background浅字);收藏���(FlatCover112rpx+标题+类型icon(headphones/book-open/video/graduation-cap)+类型tag灰底+作者+������放N���+trash删除);空状态(heart圆+提示+去逛古籍馆红按钮);搜索+筛选computed过滤;audiobook=>player?id 其余=>detail?id;数据照抄原型mockCollections5条=>classics-data.ts的mockCollections/collectionTypeMeta/collectionFilters)"
+    },
+    {
+      "proto": "/classics/collection/1",
+      "vue": "/#/pkg-classics/collection/index?id=1",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "古籍合集详情(v0新迁,���景默认xuan-paper;入口=书单页查看书单;sticky半透header(返回/分享/more圆按钮);渐变��面卡(amber=#fef3c7->#fde68a,purple=#f3e8ff->#e9d5ff;精选书单badge+标题40rpx+desc+统��(curator·N本·X万���看过)+outline标签);书封堆叠预览(-space叠放5个竖排封面#f5f0e1+「+N」)+加入书架红按钮(toggle已加入=secondary)+开始阅读outline(toast);书单内容清单(���号1-3金#c9a96e/其余secondary+竖排封面带#d4c4a8书脊+紫色AI sparkle角标#a855f7+书名+译文badge#fef3c7+[朝代]作者+desc);相关书单横滑卡384rpx渐变头;书=>detail?id 相关=>collection?id;数据照抄原型collectionsData 2条=>classics-data.ts的collectionsDetailData)"
+    },
+    {
+      "proto": "/classics/bookmarks",
+      "vue": "/#/pkg-classics/bookmarks/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "古籍我的书签(v0新迁,背景默认;sticky header(返回+我的书签+more菜单批量管理/选择模式取消+删除N红);搜索框secondary圆角full+视图切换胶囊(时间线/按书籍,active=background白底shadow);时间线视图:色卡border-l-8(amber#fef3c7/#fcd34d,blue#dbeafe/#93c5fd,green#dcfce7/#86efac,purple#f3e8ff/#d8b4fe)+《书���》+章节·第N页+content衬线+clock时间+more(showActionSheet分享/跳转/删除);按书籍视图:书籍栏(竖排封面amber渐变+《书名》+[朝代]作者+N个书签)+缩进列表border-l;空状态bookmark圆+去阅读;搜索+视图computed,选择模式批量删;书=>detail?id;数据照抄原型bookmarksData4条=>classics-data.ts)"
+    },
+    {
+      "proto": "/classics/notes",
+      "vue": "/#/pkg-classics/notes/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "古籍我的笔记(v0新迁,背��默认;结构同书签;sticky header(返回+我的笔记+more批量管理/选择模式);搜索+视图切换;时间线卡(card白底border:《书名》+章节页+more(编辑/分享/跳转/删除showActionSheet)+原文引用块border-l-4 amber#fbbf24 bg#fef3c7/50 衬线#92400e+笔记内容muted+标签行(tag icon+secondary胶囊)+clock updatedAt);按书籍视图(书籍栏+缩进:原文#b45309 line-clamp1+笔记muted line-clamp2);空状态file-text圆+去阅读;搜索按内容/原文/书名/标签过滤;书=>detail?id;数据照抄原型notesData3条=>classics-data.ts)"
+    },
+    {
+      "proto": "/classics/ai-assistant",
+      "vue": "/#/pkg-classics/ai-assistant/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "古籍AI��手聊天���(v0新迁,背景#faf8f5;入口=古籍home/search;flex列布局100vh;sticky header(返回圆btn+居中标题古籍AI助手+副标内容由AI生成+history圆btn);scroll-view消息区;空状态(模拟AI回复卡card白+rotate/赞/踩/copy操作栏+3个相���问题白卡+「聊聊新话题」分隔线+AIIntroCard内联(紫檀渐变头像Hi~我是古籍AI助手)+3个快捷问题secondary浅卡);对话态(user气泡红#c41e3a右tr-sm+assistant紫檀渐变sparkle头像+card回复tl-sm+操作栏赞绿#22c55e踩红#ef4444切换+loading三点bounce动画正在思��);底部sticky输入栏(textarea auto-height+mic图标+紫檀渐变send圆btn,空/loading时opacity0.5);AI配色照抄原型classics-ai-btn紫檀渐变#6b5b7a->#8a7a99(非亮紫violet);发送setTimeout1.5s模拟回复generateAIResponse;补注册图标thumbs-down;无外链数据自包含)"
+    },
+    {
+      "proto": "/ebook",
+      "vue": "/#/pkg-ebook/store/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "电子书城首页(v0新迁,知识蓝主题--ebook-*;背景#f8fafc;flex列100vh;sticky毛玻璃header(返回+搜索框圆角full+书架bookmark入口);scroll-view;大标题电子书馆serif+精品好书随身畅读;会员主打大卡蓝渐变#2d3a8c->#1e2660(crown金#fcd34d+开通会员畅读全场+立即开通白胶囊btn=>toast);编辑精选(sparkles蓝+featured卡:FlatBookCover渐变封面+限时免费绿tag+书名+作者+star评分+Nk人在读+立即阅读蓝);分类chip横滑(全部/命理/经典/风水/术数/养生,选中=蓝底白字);排序(热门flame/最新clock/好评trending-up,选中=蓝浅底);全部好书3列网格(FlatBookCover渐变+会员紫/免费绿角标+书名+价格(免费绿/会员免费紫/¥红));搜索+分类computed过滤;书=>detail?id;FlatBookCover母版新增可选gradientTo渐变prop(向后兼容书架纯色);数据=>ebook-data.ts的ebookStoreBooks/Categories/Sorts+EBOOK_COVER��名映射照抄原型COVER)"
+    },
+    {
+      "proto": "/ebook/1",
+      "vue": "/#/pkg-ebook/detail/index?id=1",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "电��书详情(v0新迁,背景#f8fafc;入口=电子书城/书架;flex列100vh+底部固定操作栏;sticky毛���璃header(返回/书籍详情/分享);scroll-view;Hero(FlatBookCover渐变封面+书名40rpx+副标+作者圆点���像#2563eb+star评分+N��评价);数据条卡(��数/页数/已购/章节4列+竖分割线);书籍���介卡(衬线whitespace-pre-line+���开全部蓝chevron旋转line-clamp4);作者卡(蓝渐变首字头像+title+关注蓝浅btn);目录卡(章节列表:序号+标题+试读绿tag/lock锁+N页,免费或已购可点=>reader,否则=>checkout toast);书友讨论(复用discussion-sheet母��,config.scene=classic/accentColor=#2563eb;首条预览卡#a06a38头像+查看全部N条);相关推荐横滑(FlatBookCover+书名+¥红);平台标识file-text;底部操作栏(收藏heart填充红/评论/试读outline+会员免费领取紫/免费阅读��/¥立即购买蓝);commentCount累计回复;数据=>ebook-data.ts的ebookDetailData+ebookDiscussions(DiscussionItem格式)+ebookColorFromHex照抄原型)"
+    },
+    {
+      "proto": "/ebook/bookmarks",
+      "vue": "/#/pkg-ebook/bookmarks/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "电子书书签管理(v0新迁,背景#f8fafc;sticky毛玻璃header(返回=>书架+书签管理+N个计数)+搜索框圆角full灰底;scroll-view;按书分组(书封小卡#hex+书名+N个书签+继续读蓝chevron);书签卡(divide列表:bookmark蓝icon+章节·第N页+正文line-clamp2+时间+trash删除);空状态(bookmark灰+暂无书签+去阅读蓝btn);搜索按书名/正文/章节过滤;点书签=>reader?id&chapter;数据=>ebook-data.ts的ebookBookmarks4条照抄原型)"
+    },
+    {
+      "proto": "/ebook/notes",
+      "vue": "/#/pkg-ebook/notes/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "电子书笔记&划线(v0新迁,背景#f8fafc;sticky header(返回+笔记&划线+download蓝);统计行(pen-line蓝N条笔记+highlighter琥珀N处划����);搜索+类型筛选chip(全部/笔记/划线,选中蓝底白字);按书分组卡;记录项(highlight=highlighter琥珀/note=pen-line蓝+章节+share/trash;选中文字块border-l-4(划线色+40透明底/笔记蓝#eff6ff底);笔记内容灰底块pen-line+笔记标签;时间);空状态message-square灰;搜索按选中文字/笔记内容过滤,filter按type;数据=>ebook-data.ts的ebookNotes4条照抄原型;补注册图标highlighter)"
+    },
+    {
+      "proto": "/ebook/checkout/1",
+      "vue": "/#/pkg-ebook/checkout/index?id=1",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "电子书确认订单(v0新迁,背景#f8fafc;flex列100vh+底部固定支付栏;sticky header(返回=>详情+确认订单);书籍信息卡(蓝封面+书名+作者+数字商品永久可读+crown紫会员可免费领取+开通会员下划线);价格明细卡(原价删除线/限时优惠绿/优惠券绿/实付红大字);优惠券卡(tag红+可用1张+chevron展开输入框+使用outline,输入后-¥10);支付方式��(微信#07c160/支���宝#1677ff/云闪付#e60012/汇���#f97316/Apple#374151,选中蓝浅��+radio蓝点);安全提示shield绿;底部��(应付红大字+��即支付���btn lock,��击spinner支付中1.2s=>success);简化说明:原型的usePaymentBindings支付绑定hook+BindPaymentDialog在vue��未迁移,降级���直接走支付流程(视觉/主流程1:1);数据=>ebook-data.ts的ebookCheckoutBook/ebookPayMethods)"
+    },
+    {
+      "proto": "/ebook/checkout/success",
+      "vue": "/#/pkg-ebook/checkout/success",
+      "owner": "V",
+      "status": "migrate",
+      "tier": "B",
+      "note": "电子书支付成功(v0新迁B类结果页,背景#f8fafc;白底Hero(check-circle蓝圆+支付成功!+《书名》已添加到书架+立即阅读蓝btn=>reader/去书架outline=>bookshelf);订单详情卡(订单号mono/支付方式/实付红/购买时间);相关推荐买了此书的人还买了横滑(2:3封面+书名+¥红=>detail);数据=>ebook-data.ts的ebookOrderInfo/ebookRelatedBuy照抄原型)"
+    },
+    {
+      "proto": "/ebook/reader/1",
+      "vue": "/#/pkg-ebook/reader/index?id=1",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "电子书阅读器(v0新迁,最复杂页627行;入口=详情目录/书架/支付成功;三主题动态配色themeConfig(light白#1f2937字/sepia#f5f0e5底#5c4a3a字#d4c4a8边/dark#1a1815底#c5c0b8字#242220面#3d3a37边),全页bg/text/border随theme切换;点击正文中央toggle顶/底栏(transform滑入滑出);顶栏(返回/书名truncate/书签bookmark<->bookmark-check蓝/讨论/设置);正文scroll-view(衬线Noto Serif SC+whitespace-pre-line+fontSize14-28px动态+lineHeight1.5/1.8/2.2;章节标题居中;章节切换:上一章disabled/N总N/下一章蓝=>读完弹窗);底栏(进度条自绘slider蓝thumb只读35%+章数;工具栏目录list/设置type/主题sun-type-moon循环/讨论);目录抽屉(左576rpx+当前章蓝底8%);设置面板(底部sheet:字号��圆按钮14-28/行距紧凑适中宽松三选/主题日间sun琥珀-护眼type-夜间moon三卡选中蓝边);读完弹窗(check-circle蓝圆+恭喜读完本章+稍后再说/分享心得);��节讨论复用discussion-sheet母版scene=classic/accentColor=#2563eb;补注册图标bookmark-check/sun;数据=>ebook-data.ts的ebookReaderChapter/Chapters/Discussions/Themes照抄原型;说明:��型文字选区���线/������输入为交互态浮层,���始视图1:1)"
+    },
+    {
+      "proto": "/paipan/[toolId]",
+      "vue": "",
+      "owner": "B",
+      "status": "skipped",
+      "note": "���儿���:vue端tools-data�������href指向/paipan/{toolId};���依赖vue端不存��的后端API(getInputSchema/calculateTool)动态拉��表单schema与计��结果;无真实���据可1:1���抄。�����与用户确认跳���(2026-06-19)。未上线工具入���由coming-soon占位页��盖。"
+    },
+    {
+      "proto": "/poetry",
+      "vue": "/#/pkg-poetry/index/index",
+      "owner": "B",
+      "status": "migrate",
+      "note": "诗词雅集·首页：v0新迁,看图通过(深色金棕主题+竖排诗文+朝代tab+AI赏析/配图面板+品评抽屉1:1,差异为中文红边假阳性)",
+      "migratedAt": "2026-06-19",
+      "diff": "6.61%"
+    },
+    {
+      "proto": "/fortune",
+      "vue": "/#/pkg-fortune/index/index",
+      "owner": "v0",
+      "status": "migrate",
+      "note": "每日运势·主页：v0新迁,修复金刚区'运势'入口断链(原指向不存在的/pkg-classics/fortune)。综合运势SVG圆环+评分等级+今日宜忌+四类运势(事业/感情/财运/健康)+幸运卡+今日提醒",
+      "migratedAt": "2026-06-22"
+    },
+    {
+      "proto": "/same-city/feed",
+      "vue": "/#/pkg-discover/same-city/feed",
+      "owner": "v0",
+      "status": "migrate",
+      "note": "同城发现Feed：v0新迁,接入app-header『同城』tab(原href='/'占位入口断链)。城市切换+刷新+类型筛选tab(全部/活动/课程/圈子/驿站)+内容卡片(封面/类型标签/距离/价格/时间/位置/统计/作者/标签,视频带播放按钮)+城市选择底部弹层(当前定位+热门城市8个)。分级:卡片详情跳转用toast占位(各类详情页未迁),导航按钮toast提示(uni环境无window.open)。补navigation图标",
+      "migratedAt": "2026-06-22"
+    },
+    {
+      "proto": "/video/1",
+      "vue": "/#/pkg-video/detail/index?id=1",
+      "owner": "v0",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "短视频全屏播放详情(抖音式)：v0新迁,修复video-card等多处已上线页跳/video/:id的断链。上下滑切换视频(touch跟随+回弹+0.3s过渡)+单击暂停/双击飘心点赞+右侧互动栏(头像+关注/点赞/评论/收藏/分享/旋转唱片)+底部作者+标题+音乐+商品入口+评论/商品/购物车三弹层(加购/改数量/结算)。补music图标。mock严格照搬原型mockVideos5条。数据=>video-data.ts",
+      "migratedAt": "2026-06-22"
+    },
+    {
+      "proto": "/videos",
+      "vue": "/#/pkg-video/list/index",
+      "owner": "v0",
+      "status": "migrate",
+      "note": "短视频列表(瀑布流)：v0新迁。顶部搜索栏+发布按钮+关注/推荐/热门tab+热门话题横栏(flame图标)+双列瀑布流卡片(封面按index%3变高宽比/热门标签/带货标签/时长/播放量/标题/作者/点赞)+红色浮动发布按钮。话题页未迁=>toast占位。mock照搬原型videoListItems8条+hotTopics4条。修复:AppIcon import路径应为@/components/common/app-icon.vue",
+      "migratedAt": "2026-06-22"
+    },
+    {
+      "proto": "/videos/search",
+      "vue": "/#/pkg-video/search/index",
+      "owner": "v0",
+      "status": "migrate",
+      "note": "短视频搜索：v0新迁。搜索栏(返回/输入/清空/搜索)+未搜索态(搜索历史chips可清空+热门搜索前3带红序号)+已搜索态(结果数+横向结果卡片:封面/时长/播放钮/头像/标题/作者/播放量eye/时间clock)。结果点击原型跳/videos/:id(549版未迁)改跳已迁/video/:id。mock照搬原型HOT_KEYWORDS8+searchResults4",
+      "migratedAt": "2026-06-22"
+    },
+    {
+      "proto": "/videos/publish",
+      "vue": "/#/pkg-video/publish/index",
+      "owner": "v0",
+      "status": "migrate",
+      "note": "短视频发布：v0新迁,接通列表页/creator页发布入口断链。三步流程select(黑底圆形video图标+从相册选择/拍摄视频)->edit(黑底视频预览+播放钮+封面帧横滑选择带红框勾选)->publish(发布设置:封面缩略图+标题/描述+话题标签8热门+关联商品多选+佣金计算+公开开关)+上传进度遮罩+商品搜索底部弹层(5件商品库+选中角标+已选N/5+确认)。补upload/hash图标。mock照搬原型myProductLibrary5+hotTags8=>video-data.ts。⚠️H5无法真选本地视频/提取帧,select点击直接进edit用占位灰阶帧降级,功能交互人眼逐步核对一致。⚠️孤儿页/publish/video(仅未迁的drafts链接)跳过。不做静态diff(原型停select黑屏依赖文件选择)",
+      "migratedAt": "2026-06-22"
+    },
+    {
+      "proto": "/videos/creator",
+      "vue": "/#/pkg-video/creator/index",
+      "owner": "v0",
+      "status": "migrate",
+      "note": "视频创作者中心首页：v0新迁,接通发布页『商品管理』及多入口。故宫红渐变头图(头像+认证创作者+粉丝+发布钮)+4统计(总播放/总点赞/带货订单/累计收益)+4tab(数据概览:数据趋势4卡+带货数据3卡+热门作品列表带排名角标;我的作品;商品管理;收益中心)。跳analytics/sales/products-add/withdraw/earnings-history/settings。数据=>creator-data.ts照搬creatorStats/myVideos/productLibrary",
+      "migratedAt": "2026-06-22"
+    },
+    {
+      "proto": "/videos/creator/analytics",
+      "vue": "/#/pkg-video/creator/analytics/index",
+      "owner": "v0",
+      "status": "migrate",
+      "note": "创作者数据分析：v0新迁。4总览卡(播放/点赞/评论/分享)+7日趋势CSS柱图(项目无图表库,纯view柱)+单视频指标列表(播放/点赞/评论/分享/时长)。mock照搬原型mockAnalyticsData",
+      "migratedAt": "2026-06-22"
+    },
+    {
+      "proto": "/videos/creator/sales",
+      "vue": "/#/pkg-video/creator/sales/index",
+      "owner": "v0",
+      "status": "migrate",
+      "note": "创作者销售数据：v0新迁。4总览卡(销售额/收入/订单/客户)+销售趋势CSS双柱图(销售额+收入)+热销商品榜(销量/收入/转化率)。mock照搬原型mockSalesData",
+      "migratedAt": "2026-06-22"
+    },
+    {
+      "proto": "/videos/creator/products/add",
+      "vue": "/#/pkg-video/creator/products-add/index",
+      "owner": "v0",
+      "status": "migrate",
+      "note": "创作者选品/添加商品：v0新迁。商品类型选择(实物/虚拟/服务)+表单(名称/价格/佣金比例/库存/描述/标签)+提交成功态。原型嵌套/products/add->扁平vue products-add。mock照搬原型",
+      "migratedAt": "2026-06-22"
+    },
+    {
+      "proto": "/videos/creator/withdraw",
+      "vue": "/#/pkg-video/creator/withdraw/index",
+      "owner": "v0",
+      "status": "migrate",
+      "note": "创作者提现：v0新迁。双视图(总览:可提现/冻结/待结算/累计/本月+提现方式;表单:金额输入+全部提现+到账方式+手续费计算)+提现记录。原型依赖getCreatorRevenueOverview(proto缺失)->按字段内联mock。数据=>creator-data.ts",
+      "migratedAt": "2026-06-22"
+    },
+    {
+      "proto": "/videos/creator/earnings/history",
+      "vue": "/#/pkg-video/creator/earnings-history/index",
+      "owner": "v0",
+      "status": "migrate",
+      "note": "创作者收益历史：v0新迁。累计收益+本月收益头卡+月度收益记录列表(月份/收益/订单数/环比涨跌trend)。原型嵌套/earnings/history->扁平earnings-history。mock照搬原型mockEarningsHistory",
+      "migratedAt": "2026-06-22"
+    },
+    {
+      "proto": "/videos/creator/settings",
+      "vue": "/#/pkg-video/creator/settings/index",
+      "owner": "v0",
+      "status": "migrate",
+      "note": "创作者设置：v0新迁。4tab(基本资料/通知设置/隐私设置/账号安全)+各项开关toggle+保存按钮。mock照搬原型",
+      "migratedAt": "2026-06-22"
+    },
+    {
+      "proto": "/poetry/categories",
+      "vue": "/#/pkg-poetry/categories/index",
+      "owner": "B",
+      "status": "migrate",
+      "note": "诗词雅集·分类：v0新迁,看图通过(深色金棕主题+竖排诗文+朝代tab+AI赏析/配图面板+品评抽屉1:1,差异为中文红边假阳性)",
+      "migratedAt": "2026-06-19",
+      "diff": "5.98%"
+    },
+    {
+      "proto": "/poetry/collections",
+      "vue": "/#/pkg-poetry/collections/index",
+      "owner": "B",
+      "status": "migrate",
+      "note": "诗词雅集·集锦：v0新迁,看图通过(深色金棕主题+竖排诗文+朝代tab+AI赏��/配图面板+品评抽屉1:1,差异为中文红边假阳性)",
+      "migratedAt": "2026-06-19",
+      "diff": "5.49%"
+    },
+    {
+      "proto": "/poetry/1",
+      "vue": "/#/pkg-poetry/detail/index?id=1",
+      "owner": "B",
+      "status": "migrate",
+      "note": "诗词雅集·详情：v0新迁,看图通过(深色金棕主题+竖排诗文+朝代tab+AI赏析/配图面板+品评抽屉1:1,差异为中文红边假阳性)",
+      "protoQuery": "",
+      "migratedAt": "2026-06-19",
+      "diff": "4.51%"
+    },
+    {
+      "proto": "/circle",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "旧版重复页,已废弃。新版为 /circles(37页已全迁),vue 迁的是新版。不迁此旧版。(2026-06-19核验)"
+    },
+    {
+      "proto": "/circle/[id]",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "旧版重复页,已废弃。新版为 /circles(37页已全迁),vue 迁的是新版。不迁此旧版。(2026-06-19核验)"
+    },
+    {
+      "proto": "/circle/[id]/analytics",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "旧版重复页,已废弃。新版为 /circles(37页已全迁),vue 迁的是新版。不迁此旧版。(2026-06-19核验)"
+    },
+    {
+      "proto": "/circle/[id]/consult",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "旧版重复页,已��弃。新版为 /circles(37页已全迁),vue 迁的是新版。不迁此旧版。(2026-06-19核验)"
+    },
+    {
+      "proto": "/circle/[id]/earnings",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "旧版���复页,已废弃。新版为 /circles(37页已全迁),vue 迁的是新版。不迁此旧版。(2026-06-19核验)"
+    },
+    {
+      "proto": "/circle/[id]/home",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "旧版重复页,已废弃。新版为 /circles(37页已全迁),vue 迁的是新版。不迁此旧版。(2026-06-19核验)"
+    },
+    {
+      "proto": "/circle/[id]/members",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "旧版重复页,已废弃。新版为 /circles(37页已全迁),vue 迁的是新版。不迁此旧版。(2026-06-19核验)"
+    },
+    {
+      "proto": "/circle/[id]/qa",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "旧版重复页,已废弃。新版为 /circles(37页已��迁),vue 迁的是新版。不迁此旧版。(2026-06-19核验)"
+    },
+    {
+      "proto": "/circle/[id]/settings",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "旧版重复页,已废弃。新版为 /circles(37页已全迁),vue 迁的是新版。不迁此旧版。(2026-06-19核验)"
+    },
+    {
+      "proto": "/course/[id]",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "旧版重复页,已废弃。新版为 /courses(12页已全迁),vue 迁的是新版。不迁此旧版。(2026-06-19核验)"
+    },
+    {
+      "proto": "/course/[id]/complete",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "旧版重复页,已废弃。新版为 /courses(12页已全迁),vue 迁的是新版。不迁此旧版。(2026-06-19核验)"
+    },
+    {
+      "proto": "/courses-list",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "旧版重复页,已废弃。新版为 /courses(12页已全迁),vue 迁的是新版。不迁此旧版。(2026-06-19核验)"
+    },
+    {
+      "proto": "/store/[id]",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "旧版重复页,已废弃。新版为 /shop(已迁),vue 迁的是新版。不迁此旧版。(2026-06-19核验)"
+    },
+    {
+      "proto": "/chat",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "重定向桩页,原型代码注释明确标注旧版废���,redirect到 /im/conversations。不迁。(2026-06-19核验)"
+    },
+    {
+      "proto": "/chat/new",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "重定向桩页,原���代码注释明确标注旧版废弃,redirect到 /im/contacts。���迁。(2026-06-19核验)"
+    },
+    {
+      "proto": "/chat/[id]",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "重定向桩页,原型代码注释明确标注旧版废弃,redirect到 /im/chat/[id]。不迁。(2026-06-19核验)"
+    },
+    {
+      "proto": "/classics",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "重定向桩页,原型代码注释明确标注旧版废弃,redirect到 /classics/home。不迁。(2026-06-19核验)"
+    },
+    {
+      "proto": "/contacts",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "重定向桩页,原型代码注释明确标注旧版废弃,redirect到 /im/contacts。不迁。(2026-06-19核验)"
+    },
+    {
+      "proto": "/messages",
+      "vue": "",
+      "owner": "NONE",
+      "status": "skipped",
+      "note": "重定向桩页,原型代码注释明确标注旧版废弃,redirect到 /im/conversations。不迁。(2026-06-19核验)"
+    },
+    {
+      "proto": "/classics/bookshelf",
+      "vue": "/#/pkg-classics/bookshelf/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/classics/category/[cat]",
+      "vue": "/#/pkg-classics/category/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登���route-map,2026-06-19补登记。需补跑diff看图验收。 (路径已核实修正)"
+    },
+    {
+      "proto": "/classics/[id]",
+      "vue": "/#/pkg-classics/detail/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登���route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/classics/home",
+      "vue": "/#/pkg-classics/home/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/classics/search",
+      "vue": "/#/pkg-classics/search/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实����但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/ebook/bookshelf",
+      "vue": "/#/pkg-ebook/bookshelf/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需���跑diff看图验收。"
+    },
+    {
+      "proto": "/agreement/operator",
+      "vue": "/#/pkg-operator/agreement-operator/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实��但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。 (路径已核实修正)"
+    },
+    {
+      "proto": "/agreement/station",
+      "vue": "/#/pkg-operator/agreement-station/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验���。 (路径已核实修正)"
+    },
+    {
+      "proto": "/operator/analysis",
+      "vue": "/#/pkg-operator/analysis/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff���图验收。"
+    },
+    {
+      "proto": "/operator/dashboard",
+      "vue": "/#/pkg-operator/dashboard/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/operator/dormant",
+      "vue": "/#/pkg-operator/dormant/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/operator/invite",
+      "vue": "/#/pkg-operator/invite/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/join/operator",
+      "vue": "/#/pkg-operator/join-operator/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/join/station",
+      "vue": "/#/pkg-operator/join-station/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/mine/role-panels/operator-panel",
+      "vue": "/#/pkg-operator/operator-panel/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登��route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/operator/quota",
+      "vue": "/#/pkg-operator/quota/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/operator/settings",
+      "vue": "/#/pkg-operator/settings/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/station/assistant",
+      "vue": "/#/pkg-operator/station-assistant/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/station/config",
+      "vue": "/#/pkg-operator/station-config/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/station/[id]",
+      "vue": "/#/pkg-operator/station-detail/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/station/earnings",
+      "vue": "/#/pkg-operator/station-earnings/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/station/home",
+      "vue": "/#/pkg-operator/station-home/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/station/live",
+      "vue": "/#/pkg-operator/station-live/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/station/manage",
+      "vue": "/#/pkg-operator/station-manage/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看���验收。"
+    },
+    {
+      "proto": "/mine/role-panels/station-master-panel",
+      "vue": "/#/pkg-operator/station-master-panel/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收��"
+    },
+    {
+      "proto": "/station/materials",
+      "vue": "/#/pkg-operator/station-materials/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/station/poster",
+      "vue": "/#/pkg-operator/station-poster/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/station/promote",
+      "vue": "/#/pkg-operator/station-promote/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需���跑diff看图验收。"
+    },
+    {
+      "proto": "/station/[id]/teachers",
+      "vue": "/#/pkg-operator/station-teachers/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/operator/team",
+      "vue": "/#/pkg-operator/team/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "已实现但之前漏登记route-map,2026-06-19补登记。需补跑diff看图验收。"
+    },
+    {
+      "proto": "/mine/edit-profile",
+      "vue": "/#/pkg-mine/edit-profile/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "编辑资料:头像+昵称+简介+兴趣标签+头像action-sheet,看图通过",
+      "diff": "3.33%",
+      "migratedAt": "2026-06-20",
+      "deprecated": true,
+      "supersededBy": "/profile/edit",
+      "deprecatedReason": "旧套,profile菜单直链顶级活页/profile/edit",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/achievements",
+      "vue": "/#/pkg-mine/achievements/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "成就墙:进��卡+分类tab+3列成就网格+稀���度,看图通过(差异��tab横滚���置)",
+      "diff": "7.50%",
+      "migratedAt": "2026-06-20",
+      "deprecated": true,
+      "supersededBy": null,
+      "deprecatedReason": "废弃功能,最新原型无此页(全局无人链接),建议清除不替换",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/memberships",
+      "vue": "/#/pkg-mine/memberships/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "我的权益:统计卡+4状态筛选+权益卡(��度条/自动续费/续费/到期警告/管理订阅折���),看图通过(差异因原型图��未渲染+原型自带乱码,vue更优)",
+      "diff": "12.82%",
+      "migratedAt": "2026-06-20",
+      "deprecated": true,
+      "supersededBy": "/vip",
+      "deprecatedReason": "旧套,profile菜单直链顶级活页/vip",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/vip",
+      "vue": "/#/pkg-profile/vip/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "会员中心(顶级活页,/mine/memberships旧套的正确替代):顶部金色渐变+会员卡(皇冠/等级Badge/有效期/500+免费课程·无限AI·会员积分三数据/自动续费switch)+选择等级横滚(basic琥珀/pro紫/premium金橙渐变)+套餐3列(推荐/折扣标/原价划线/¥每天)+会员专属权益2列(8项,按选中等级置灰)+权益对比组件(MembershipComparison)+会员评价2条(五星)+常见问题3条+底部购买栏(¥价格/立即开通)+支付方式Sheet(微信/支付���/云闪付/汇付天下);数据照抄lib/api/vip.ts mock",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/vip/records",
+      "vue": "/#/pkg-profile/vip/records/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "VIP开通记录:返回导航+筛选Tabs(全部/购买/续费/赠送)+记录卡(等级标签basic琥珀/pro紫/premium橙+套餐名+类型图标+金额/渠道/开始/到期+时间)+空态;数据照抄原型mockRecords",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/my-courses",
+      "vue": "/#/pkg-mine/my-courses/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "我的课程:Tab学习中/已完结+本周统计卡+课程卡(进度条/继续学习/上次学到/过期警���),看图通过(差异为课程封面图资源缺失)",
+      "diff": "9.20%",
+      "migratedAt": "2026-06-20",
+      "deprecated": true,
+      "supersededBy": "/learning",
+      "deprecatedReason": "旧套,profile菜单直链顶级活页/learning",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/learning-dashboard",
+      "vue": "/#/pkg-mine/learning-dashboard/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "学习看板:连续学习徽章+4项统计卡+近30天柱状趋势图+最近学习,看图通过(差异为趋势图随机柱高,双方均随机)",
+      "diff": "26.17%",
+      "migratedAt": "2026-06-20",
+      "deprecated": true,
+      "supersededBy": null,
+      "deprecatedReason": "废弃功���,最新原型无此页(全局无人链接),建议清除不替换",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/follows",
+      "vue": "/#/pkg-mine/follows/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "关注与粉丝:关注/粉丝Tab+用户列表+关注按钮三态,看图通过",
+      "diff": "3.58%",
+      "migratedAt": "2026-06-20",
+      "deprecated": true,
+      "supersededBy": "/follows",
+      "deprecatedReason": "旧套,profile菜单直链顶级活页/follows",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/downloads",
+      "vue": "/#/pkg-mine/downloads/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "下载管理:存储空间卡+3Tab(全部/下载中/已完成)+���载项(进度/速度/暂停继续/状态/操作菜单)+删除清除确认,看图通过(差异为vue用文件类型图标替代灰色占��)",
+      "diff": "7.79%",
+      "migratedAt": "2026-06-20",
+      "deprecated": true,
+      "supersededBy": "/downloads",
+      "deprecatedReason": "旧套,profile菜单直链顶级活页/downloads",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/bookings",
+      "vue": "/#/pkg-mine/bookings/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "预约记录:4分段Tab+预约卡(类型标签/状态色/时间时长地点备注/添加日历/取消)+取消确认,看图通过",
+      "diff": "5.17%",
+      "migratedAt": "2026-06-20",
+      "deprecated": true,
+      "supersededBy": null,
+      "deprecatedReason": "废弃功能,最新原型无此页(全局无人链接),建议清除不替换",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/applications",
+      "vue": "/#/pkg-mine/applications/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "我的申请:3Tab(功能开通/入��/退出)+功能申请卡(状态色/驳回原因/重新申请)+退出��向审核进度条+退��金额+驳回弹窗,���图通过",
+      "diff": "4.36%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/invite-records",
+      "vue": "/#/pkg-mine/invite-records/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "邀请记录:红色渐变统计卡(4格+待结算)+邀请链接��口+4筛选Tab+邀请记录卡(头像/皇冠/佣金/状态)+二维码Sheet,看图通过(差异为vue首���色块头像)",
+      "diff": "13.85%",
+      "migratedAt": "2026-06-20",
+      "deprecated": true,
+      "supersededBy": "/invite",
+      "deprecatedReason": "旧套,profile菜单直链顶级活页/invite",
+      "deprecatedAt": "2026-06-20"
+    },
+    {
+      "proto": "/mine/submissions",
+      "vue": "/#/pkg-mine/submissions/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "我的投稿:刷新+4状态Tab带计数+投稿卡(封面/状态徽章/审核中提示/已通过浏览点赞/未通过原因+重投),看图通过(差异为封面占位)",
+      "diff": "11.64%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/settings",
+      "vue": "/#/pkg-settings/index/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "设置主页第①套:账号与安全(手机号/登录密码/二次验证)+隐私设置+通知设置+外观主题三段控件+通用设置,看图通过",
+      "diff": "4.38%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/settings/notifications",
+      "vue": "/#/pkg-settings/notifications/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "通知设置:推送总开关+互��/内容/交易/系统4分区平铺+免打扰时段,看图通过(差异为proto长页截断)",
+      "diff": "5.05%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/settings/privacy",
+      "vue": "/#/pkg-settings/privacy/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "隐私设置:个人信息可见性(在线/最后上线/位置/收藏/关注5���关)+互动权限(私���/评论/圈子下拉)+黑名单入口+其他(浏览历史/个性化推荐),看图通过(差异为原型Web面包屑,移动端省略,与项���约���一致)",
+      "diff": "7.01%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/settings/phone",
+      "vue": "/#/pkg-settings/phone/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "修改手机号:三步流程(步骤指示器+验证当前手机60s倒计时+绑定新号+成功页自动返回)+手机号已被绑定弹窗,看图通��",
+      "diff": "2.73%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/settings/password",
+      "vue": "/#/pkg-settings/password/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "登录密码:旧/新/确认密码+显隐+强度条+规则校验+成功页,看图通过",
+      "diff": "2.43%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/settings/payment-password",
+      "vue": "/#/pkg-settings/payment-password/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "支付密码:四步(验证身份60s+6格密码设置+确认+成功),��图通过",
+      "diff": "9.43%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/settings/payment-methods",
+      "vue": "/#/pkg-settings/payment-methods/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "支付方式:微信/支付宝/云闪付/汇付4渠道绑定,看图通过",
+      "diff": "5.65%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/settings/blacklist",
+      "vue": "/#/pkg-settings/blacklist/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "黑名单:搜索+列表+移除+空态,看图通过",
+      "diff": "3.12%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/settings/bindaccount",
+      "vue": "/#/pkg-settings/bindaccount/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "绑定账号:手机/邮箱/微信/AppleID,看图通过(Apple��user图标)",
+      "diff": "3.47%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/settings/delete-account",
+      "vue": "/#/pkg-settings/delete-account/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "账���注销:三步+二次确认弹窗+7天冷静期,看图通过",
+      "diff": "11.43%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/wallet",
+      "vue": "/#/pkg-wallet/index/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "钱包主页:国学币余额卡(居中)+积分/成长值+等级进���+累计充值消费+充值提现+近期交易+充值说明,看图通过",
+      "diff": "11.41%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/wallet/bank-cards",
+      "vue": "/#/pkg-wallet/bank-cards/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "银行卡管理:卡片列表(明文卡号/脱敏持卡人/默认星标/三点菜单/绑定日期)+添加弹窗+解绑确认,看图通过",
+      "diff": "23.66%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/wallet/bill",
+      "vue": "/#/pkg-wallet/bill/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "账单���情:月/年切换+周期翻页+收支圆环图+支出/收入分类(可展开明细)+导出PDF,看图通过",
+      "diff": "13.60%",
+      "migratedAt": "2026-06-20"
+    },
+    {
+      "proto": "/downloads",
+      "vue": "/#/pkg-profile/downloads/index",
+      "status": "migrate",
+      "owner": "V",
+      "note": "我的个人中心活页(profile菜单直链),pkg-profile分包"
+    },
+    {
+      "proto": "/follows",
+      "vue": "/#/pkg-profile/follows/index",
+      "status": "migrate",
+      "owner": "V",
+      "note": "我的个人中心活页(profile菜单直链),pkg-profile分包"
+    },
+    {
+      "proto": "/learning",
+      "vue": "/#/pkg-profile/learning/index",
+      "status": "migrate",
+      "owner": "V",
+      "note": "我的个人中心活页(profile菜单直链),pkg-profile分包"
+    },
+    {
+      "proto": "/invite",
+      "vue": "/#/pkg-profile/invite/index",
+      "status": "migrate",
+      "owner": "V",
+      "note": "我的个人中心活页(profile菜单直链),pkg-profile分包"
+    },
+    {
+      "proto": "/invite/history",
+      "vue": "/#/pkg-profile/invite/history/index",
+      "status": "migrate",
+      "owner": "V",
+      "note": "我的个人中心活页(profile菜单直链),pkg-profile分包"
+    },
+    {
+      "proto": "/bounty",
+      "vue": "/#/pkg-bounty/index/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "悬赏广场列表页(A级,v0新迁),pkg-bounty分包。状态tab(全部/进行中/已完成)+悬赏卡(发布者+状态标+标签+内容+回答数/浏览数+金额)+骨架屏+空态。"
+    },
+    {
+      "proto": "/bounty/1",
+      "vue": "/#/pkg-bounty/detail/index?id=1",
+      "status": "migrate",
+      "owner": "V",
+      "dynamic": true,
+      "migratedAt": "2026-06-21",
+      "note": "��赏详情页(A级,v0新迁)。金额卡+发布者+内容+回答列表(点赞/采纳)+回答弹窗+底部按身份切换的操作按钮。"
+    },
+    {
+      "proto": "/bounty/create",
+      "vue": "/#/pkg-bounty/create/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "发布悬��页(A级,v0新迁)。标题+分类+内���+悬赏金额+截止时间表单,余��校验+国学红金配色。"
+    },
+    {
+      "proto": "/bounty/answer?id=1",
+      "vue": "/#/pkg-bounty/answer/index?id=1",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "回答悬赏页(A级,v0新迁)。��用悬赏卡+回答输入+图片上传+提示+���部提交。"
+    },
+    {
+      "proto": "/bounty/my",
+      "vue": "/#/pkg-bounty/my/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "我的悬赏页(A级,v0新迁)。发布的/回答的tab+统计卡+按状态切换操作按钮的卡片列表+空态。"
+    },
+    {
+      "proto": "/qa",
+      "vue": "/#/pkg-qa/index/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "付费问答列表页(A级,v0新迁)。状态tab(全部/待回答/已回答)+问答卡(提问者+状态标+价格/圈子/私密标签+答主预览卡+浏览/点赞统计)+骨架屏+空态。"
+    },
+    {
+      "proto": "/qa/1",
+      "vue": "/#/pkg-qa/detail/index?id=1",
+      "status": "migrate",
+      "owner": "V",
+      "dynamic": true,
+      "migratedAt": "2026-06-21",
+      "note": "问答详情页(A级,v0新迁)。状态徽章+提问卡+答主卡+答案区四态(已答/待答/过期/退款)+付费围观锁+围观用户+评价+底部答主操作+围观/回答/拒绝/评价4弹窗。"
+    },
+    {
+      "proto": "/qa/ask",
+      "vue": "/#/pkg-qa/ask/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "发起提问页(A级,v0新迁)。答主卡+标题/详情表单+允许围观开关+围观价格档位+回答期限+温馨提示+底部支付栏。"
+    },
+    {
+      "proto": "/qa/pending",
+      "vue": "/#/pkg-qa/pending/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "待回答问题页(A级,v0新迁)。统计卡(待回答/即将过期/待赚取)+待回答分组(紧急高亮)+已过期分组+��馨提示。proto无后端时��空态。"
+    },
+    {
+      "proto": "/help",
+      "vue": "/#/pkg-help/index/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "帮助中��(B级,v0新迁)。��索+AI搜索+6彩色分类网格(可��选)+热门问题手风琴(展开+有帮助反���)+更多帮助+联系客服���list-demo/guoxue-design为开发demo不迁,media-guidelines素��规范暂不迁。"
+    },
+    {
+      "proto": "/experts",
+      "vue": "/#/pkg-expert/index/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "专家/讲师列表页(A级,v0新迁)。搜��+AI搜索+分类tab+排序下拉+筛选弹窗(价格/在线)+讲师卡(头像+在线点+认���V+标签+评分+提问/连麦价格按钮)+空态。"
+    },
+    {
+      "proto": "/expert/1",
+      "vue": "/#/pkg-expert/detail/index?id=1",
+      "status": "migrate",
+      "owner": "V",
+      "dynamic": true,
+      "migratedAt": "2026-06-21",
+      "note": "专家详情页(A级,v0新迁)。渐变头图+悬浮信息卡(头像/认证/认证标签)+数据统计+个人简介+咨询服务三档(图文/音频/视频)+精选问答(模糊围观)+用户评价(星级/有帮助)+底部提问/连麦栏+提问弹窗+连麦弹窗。"
+    },
+    {
+      "proto": "/booking/1",
+      "vue": "/#/pkg-expert/booking/index?expertId=1",
+      "status": "migrate",
+      "owner": "V",
+      "dynamic": true,
+      "migratedAt": "2026-06-22",
+      "note": "预约连麦页(A级,v0新迁)。讲师信息卡(头像/认证V/好评/咨询数/单价)+连麦方式二选一(语音/视频)+未来14天日期横滑选择(今天/周X/日/月,选中红底)+时段选择(上午/下午/晚上,30分钟粒度,可预约绿/已占用灰/已选中红+图例)+连麦时长(15/30/45/60分钟)+提示卡+底部固定栏(已选摘要+预估费用+确认预约,1.5s loading)+预约成功态(对勾+详情卡+查看预约/返回首页)。注:原型该页无上游入口(孤岛页,expert详情连麦弹窗按钮原型即无跳转,照抄保持不接线),经 /booking/:expertId 动态路由直达。"
+    },
+    {
+      "proto": "/call/1",
+      "vue": "/#/pkg-expert/call/index?id=1",
+      "status": "migrate",
+      "owner": "V",
+      "dynamic": true,
+      "migratedAt": "2026-06-22",
+      "note": "连麦通话页(A级,v0新迁)。状态机5态:booking预约(达人卡/语音视频二选一/3档套餐15·30·60分钟+按分钟计费切换/问题描述/余额280币/底部预计费用+开始连麦)→waiting等待接听(脉冲头像)→connecting连接中(ping动画)→active通话中(黑底/费用计时角标/虚拟头像切换/音频波形Math.random/视频小窗/静音·挂断·视频开关·转文字控制栏/点击模拟断连/余额不足弹窗)→ended结束(对勾+时长·消费·达人结算卡+返回·再次咨询)。复用 components/agent/reconnecting-overlay.vue 重连浮层。入口:reservations页 href=`/call/${id}`。经 /call/:id 动态路由命中。"
+    },
+    {
+      "proto": "/reservations",
+      "vue": "/#/pkg-mine/reservations/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "我的预约页(B���列表页,v0新迁)。���导(返回/我的���约)+类型Tab横滑(全部/连麦咨询/线下课程/讲���排期,选中红底)+预约卡列表(5条mock:call连麦/offline线下/schedule排期三型×pending待确认·confirmed已确认·completed已完成·cancelled已取消四态)。每卡:类型图标(phone蓝/graduation-cap绿/calendar紫)+状态徽章(橙/绿/灰/红)+标题+预约对象(头像首字+V认证+连麦方式video/audio·时长)+日期时间+地点(offline)+取消原因(cancelled)+价格¥+操作按钮(取消预约/进入连麦→/call/:id/查看详情→/offline/courses/:id/查看详情→/reservations/:id/再次预约)。空态(日历图标+暂无预约+找讲师咨询→/experts)+取消确认弹窗(再想想/确认取消)。数值全照抄原型。入口:booking页『查看预约』+result页『查看详情』href=/reservations。"
+    },
+    {
+      "proto": "/legal/teen-mode-intro",
+      "vue": "/#/pkg-mine/teen-mode-intro/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "青少年模式介绍页(B级静态页,v0新迁)。顶导(返回/青少年模��)+头部Banner(盾牌圆图标+守护青少年健康成长+说明)+核心功能4卡(时长管理clock蓝/内容过滤filter绿/夜间模式moon紫/密码保护lock橙,各含描述+3个对勾详情)+额外保护措施列表(4项:浏览记录/异常通知/禁止充值/推荐内容)+使用须知(amber警示框4条)+常���问题列表(4项→/help/faq)+联系我们(support@rebu.com)+底部固定按钮(立即开启青少年模式→/mine/teen-mode)。内容全硬编码照抄原型。注:原型该页正文硬编码不受legal.ts字段bug影响。"
+    },
+    {
+      "proto": "/legal/third-party-sdk",
+      "vue": "/#/pkg-settings/third-party-sdk/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "第三方SDK���表页(B级静态页,v0新迁)。顶导(返回/第三方SDK列��/刷新)+蓝色说明卡(盾牌+关于第三方SDK说明)+搜索框(搜索SDK名称或提供方)+分类筛选横滑胶囊(全部/账号登录/支付服务/社交分享/地图服务/数据统计/消息推送/媒��播放/其他服务,选中��底)+统计文字(共N个)+SDK卡列表(10个mock:微信/支付宝/微信支付/高德/友盟/极光/Bugly/阿里云/QQ互联/微博,每卡含分类图标+名称+提供方+分类徽章+使用目的+收集信息标签+隐私政策/官网链接)+空态(search图标+未找到)+底部提示(privacy@rebu.com/400-888-8888)。9分类色映射(blue/green/purple/orange/cyan/red/indigo/pink/gray)+loading骨架屏500ms。10个SDK数据全照抄。内容硬编码不受legal.ts bug影响。"
+    },
+    {
+      "proto": "/legal/data-collection-list",
+      "vue": "/#/pkg-settings/data-collection-list/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "个人信息收集清单页(B级静态页,v0新迁)。顶导(返回/个人信息收集清单/管理授权)+蓝色说明卡(《个人信息��护法》第17条+统计:共29项/必需/可选)+全部展开·收起+6个可折叠分类卡(账号信息user/位置信息map-pin/设备信息smartphone/行为记录activity/交易记录credit-card/互动数据message-circle,各含primary圆图标+名称+项数+描述+可管理绿徽章+展开箭头)+字段列表(29字段:名称+必需橙/可选灰徽章+用途+法律���据,可管理类末尾管理入口)+标签说明图例+处理依据说明(合同履行/同意/合法利益/法律义务)+联系方式privacy@rebu.com+底部固定按钮(管理我的授权→/settings/privacy)。默认展开account。29字段全照抄。内容硬编码不受legal.ts bug影响。"
+    },
+    {
+      "proto": "/legal/user-agreement",
+      "vue": "/#/pkg-settings/user-agreement/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "用户协议页(B级文档页,v0新迁,修复原型bug)。顶导(返回/标题/目录list按钮)+scroll-view文档区(版本+更新于+已确认绿行)+结构化正文(分节h2+段落runs+列表,每节带id锚点)+底部确认栏(requireConfirm且未确认:滚到底才可点『我已阅读并同意』,400ms确认)+右侧目录抽屉(scroll-into-view跳转+active高亮)。【修复bug】原型读document.content但API返回htmlContent致正文空白,迁移时建vue3/src/lib/legal-data.ts结构化数据正常渲染(用户授权修正)。共享数据模块供3页复用。"
+    },
+    {
+      "proto": "/legal/privacy-policy",
+      "vue": "/#/pkg-settings/privacy-policy/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "隐私政策页(B级文档页,v0新迁)。结构同user-agreement(导航+文档信息+结构化正文分节+目录抽屉),hasConfirmed=true故无底部确认栏。原型本页读htmlContent正确渲染正常。数据取自legal-data.ts['privacy-policy']。"
+    },
+    {
+      "proto": "/legal/child-privacy",
+      "vue": "/#/pkg-settings/child-privacy/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "儿童个人信息保护规则页(B级文档页,v0新迁,修复原型bug)。结构同privacy-policy。【修复bug】原型读document.content且child-privacy不在mockDocContents/LegalDocType中致整页加载失败,迁移时按域语义补全结构化内容(legal-data.ts['child-privacy'])正常渲染(用户授权修正)。"
+    },
+    {
+      "proto": "/admin/batch-coupon-send",
+      "vue": null,
+      "status": "skip",
+      "owner": "V",
+      "note": "【不迁·用户裁定2026-06-21】批量发券运营工具。该功能已在管理后台总平台实现,前端小程序无需此页。"
+    },
+    {
+      "proto": "/admin/user-audit",
+      "vue": null,
+      "status": "skip",
+      "owner": "V",
+      "note": "【不迁·用户裁定2026-06-21】用户行为审计/风控工具。该功能已在管理后台总平台实现,前端小程序无需此页。"
+    },
+    {
+      "proto": "/report",
+      "vue": "/#/pkg-report/index/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "举报表单页(A级,v0新迁)。举报对象摘要(帖子/用户/评论三态)+8举报类型单选卡+详细说明textarea+最多4张截图上传+温馨提示+提交按钮+成功弹窗。"
+    },
+    {
+      "proto": "/report/result",
+      "vue": "/#/pkg-report/result/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "举报记录列表页(A级,v0新迁)。4列统计卡+状态筛选tab(全部/待处理/处理中/已处理/已驳回)+记录列表+底部Sheet详情弹层(对象/信息/处理状态/申诉入口)。proto无后端时为空态,vue用mock渲染完整设计。"
+    },
+    {
+      "proto": "/report/result/1",
+      "vue": "/#/pkg-report/detail/index?id=1",
+      "status": "migrate",
+      "owner": "V",
+      "dynamic": true,
+      "migratedAt": "2026-06-21",
+      "note": "举报结果详情页(A级,v0新迁)。结果状态卡(成立绿/不成立灰渐变)+被举报对象+举报信息(编号/类型/时间)+处理说明+处罚措施+内容规范入口+底部返回首页。"
+    },
+    {
+      "proto": "/content/community-rules",
+      "vue": "/#/pkg-report/community-rules/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "社区规范页(B级静态页,v0新迁,修复断链)。【修复断链】举报详情页(pkg-report/detail)'内容规范'入口navigateTo('/content/community-rules'),但router原先无映射→点击落到toastComingSoon兜底;本次迁移+补映射修复。顶导(返回/社区规范)+标题区(shield红圆图标+社区规范+副标题)+引言+3段:鼓励的行为(check-circle-2绿,5条绿底卡)/禁止的行为(ban红,7条红底卡)/违规处理(alert-triangle橙,4级处罚:一级黄/二级橙/三级红/封号深灰,各带等级徽章+描述)+底部说明。内容全照抄原型(allowed5/prohibited7/punishments4),静态无需联调。"
+    },
+    {
+      "proto": "/activity/1",
+      "vue": "/#/pkg-activity/detail/index?id=1",
+      "status": "migrate",
+      "owner": "V",
+      "dynamic": true,
+      "migratedAt": "2026-06-21",
+      "note": "活动详情页(双十一国学节,A级,v0新迁)。配置化7模块:banner轮播+倒计时+规则手风琴+优惠券横滑(领取态)+限时秒杀横滑(OFF角标+库存进度)+活动精选网格(课程/商品标签)+排行榜(消费/邀请tab)+底部分享栏+分享弹窗。内联mock完整。"
+    },
+    {
+      "proto": "/activity/calendar",
+      "vue": "/#/pkg-activity/calendar/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "活动日历页(A级,v0新迁)。月份切换+活��类型图��(秒杀/拼团/直播/课程)+6行日历网格(当月高亮/今日标红/活动彩点标记)+选中日期活动列表(图标/状态徽章/时段)。日历逻辑完整移植,markers用mock补当月3天。"
+    },
+    {
+      "proto": "/activity/landing",
+      "vue": "/#/pkg-activity/landing/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "活动落地页(A级,v0新迁)。营销活动通用容器(原型按?route=动态渲染秒杀/拼团/促销三类型)。vue以秒杀类型mock渲染:渐变banner+倒计时条+限时秒杀商品列表(原价划线+秒杀价+已抢进度+限购+立即抢购/已抢光态)+��动规则手风琴。"
+    },
+    {
+      "proto": "/notices",
+      "vue": "/#/pkg-notices/index/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "平台公告列表页(A级,v0新迁)。6类型筛选tab(全部/系统/更新/活动/维护/政策)+公告卡(封面图+置顶Pin+未读红点+标题+摘要+类型徽章+相对时间+阅读数)+加载更多/已加载全部。原型依赖HTTP无后端时空态,vue用mock 6条覆盖各类型。注:已选定只迁notices新版,跳过notice旧版(用户裁定2026-06-21,两套平台公告重复)。"
+    },
+    {
+      "proto": "/notices/1",
+      "vue": "/#/pkg-notices/detail/index?id=1",
+      "status": "migrate",
+      "owner": "V",
+      "dynamic": true,
+      "migratedAt": "2026-06-21",
+      "note": "公告详情页(A级,v0新迁)。封面图+置顶/类型标签(图标)+标题+发布时间/阅读数+结构化正文(标��/段落/列表)+相关链接+附件下载+发布信息+底部返��/分享栏。富文本以��构化段落渲染。"
+    },
+    {
+      "proto": "/notices/upgrade",
+      "vue": "/#/pkg-notices/upgrade/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "版本升级公告���(A级,v0新迁)。渐变头图(装饰圆点+热卜logo+版本号v3.2.0)+关闭/强制倒计时按钮+维护时间提示(条件渲染)+新功能/体验优化/问题修复三分组(各带图标计数)+底部我知道了按钮(强制模式倒计时禁用)。mock为normal模式可直接关闭���"
+    },
+    {
+      "proto": "/ai/cover-generate",
+      "vue": "/#/pkg-ai/cover-generate/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "AI封面生成页(A级,v0新迁,pkg-ai分包)。从创作/发帖页带?title=&summary=&contentId=调起。标题输入+Prompt(智能生成wand-2)+6风格网格(国风/现代/水墨/极简/插画/摄影,选中红边+对勾)+4尺寸+生成数量(2/4/6)+生成按钮(loading转圈)+结果网��(选中ring)+选中预览(标签/prompt/保存/下载/应用)+历史记录底部Sheet。生成走mock(setTimeout 1.5s+渐变色块占位图,原型走ai-cover API)。补了wand-2 lucide图标。无独立入口(从创作流query调起)。"
+    },
+    {
+      "proto": "/topics/1",
+      "vue": "/#/pkg-circle/circles/topic-detail?id=1",
+      "status": "migrate",
+      "owner": "V",
+      "dynamic": true,
+      "migratedAt": "2026-06-21",
+      "note": "话题详情页(A级,v0新迁)。复数topics版:红色渐变大头图(��回/分享+装饰圆环)+悬浮话题卡(Hash图标+名称+描述+内容/关注数+关注按钮)+最新/最热tab+帖子流(来源标签文章/圈子+作者+内容line-clamp3+图片+赞/评论)+悬浮发帖FAB。补了hash lucide图���。注:之前记忆误判topic已迁,实际vue完全无topic文件、route-map无记录,本轮才首次迁移。"
+    },
+    {
+      "proto": "/topic/八字案例",
+      "vue": "/#/pkg-circle/circles/topic-tag?tag=八字案例",
+      "status": "migrate",
+      "owner": "V",
+      "dynamic": true,
+      "migratedAt": "2026-06-21",
+      "note": "话题标签聚合页(A级,v0新迁)。单数topic版:sticky导航+话题信息区(Hash+#标签#+描述+内容/关注数+关注按钮)+排序下拉(最新发布/最受欢迎)+刷新+内容列表(article横卡含封面占位/post图文网格1-3列/video竖图含播放角标+时长)+加载更多。与topics详情页为两套不同设计,都需迁。"
+    },
+    {
+      "proto": "/authors",
+      "vue": "/#/pkg-author/index/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "作者列表页(A级,v0新迁,pkg-author分包)。顶栏返回+搜索框(按名称/专长/简介)+筛选tab(全部/已认证)+排序picker(粉丝数/文章数/评分)+作者卡(头像+名称+认证Award+专长徽章+简介+文章/粉丝/评分)+空态。内联mock 6条命理��。点击作者走/authors/:id(详情页未迁,navigateTo未注册时toast兜底)。"
+    },
+    {
+      "proto": "/editor",
+      "vue": "/#/pkg-circle/circles/editor",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "创作编辑器页(A级,v0新迁)。接?id=&circleId= query(从creator创作中心/mine/submissions投稿调起)。顶栏草稿/发布+post/article类型切换+标题(article)+自适应textarea+图片网格(mock占位)+封面预览+选��子行+选话题行(≤3)+底部工具栏(bold/italic/quote/图片+4个AI胶囊)+圈子/话题/AI四个���部Sheet。富文本插入用追加方式(uni textarea无选区API),AI润色/标题/标签/封面全走mock setTimeout兜底。补了bold/italic/quote三个lucide图标。"
+    },
+    {
+      "proto": "/drafts",
+      "vue": "/#/pkg-mine/drafts/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "草稿箱页(A级,v0新迁,pkg-mine分包)。顶栏返回+类型筛选tab(全部/帖子/文章/短视频带计数)+草稿卡(类型图标或视频缩略图+标题/无标题草稿+内容line-clamp2+圈子+相对时间formatTime+编辑/删除按钮)+空态(去发布内容)+删除确认弹窗。内联mock 5条。原型左滑删除交互改为卡片右侧删除按钮(uni无touch选区,删除走确认弹窗)。点击草稿带?draft=跳/publish。"
+    },
+    {
+      "proto": "/favorites",
+      "vue": "/#/pkg-mine/favorites/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "��的收藏��(A级,v0新迁,pkg-mine分包)。顶栏返���+管理/完成(编辑模式)+6类型筛选tab(全部/课程/��子/文章/商品/直播/讲师带计数)+刷新+收藏卡(封面或类型图标+类型徽章+已失效徽章+收藏日期+标题/副标题+价格/免费)+编辑模式多选圆框+全选+底部批量���除栏+单个删除+空态。原型依赖HTTP���后端时空态,vue用mock 6条覆盖各类型(含1失���)。批量/��个删除走uni.showModal确认。"
+    },
+    {
+      "proto": "/welcome",
+      "vue": "/#/pkg-auth/welcome/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "注册成功欢迎仪式页(A级峰值时刻,v0新迁,pkg-auth分包)。宣纸渐变背���+柔和金色光晕+中心热卜LOGO(zoom-in缩放渐入)+渐入欢迎标题(含用户名)+Slogan+开始探索按钮(3s倒计时+arrow-right)+金色装饰分隔线+底部品牌落款。渐入动画用ref+setTimeout序列(1s/1.5s/2s)。getProfile走mock(默认昵称道友+有兴趣),倒计时结束reLaunch首页,无兴趣navigateTo/interests-guide(未迁兜底)。logo沿用/images/logo.jpg,BRAND常量复用。"
+    },
+    {
+      "proto": "/verification",
+      "vue": "/#/pkg-settings/verification/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "实名认证页(A级,v0新迁,pkg-settings分包)。4状态��(none/pending/approved/rejected,status ref切换):未认证表单态=认证须知卡(琥珀)+真实姓名+身份证号18位校验+人像/国徽面双面上传(虚线框点击上传→已上传对勾+移除)+拍摄提示+隐私声明+底部提交审核按钮(canSubmit激活红/灰,提交loading 1.5s转pending);审核中=clock琥珀图标+提交/预计时间+徽章+等待提示;已认证=check绿+认证姓名/时间+信息安全保障;失败=xcircle红+审核时间+失败原因+重新认证按钮。上传走mock,补upload图标。补:疑似最后一个明确长尾页。"
+    },
+    {
+      "proto": "/interests-guide",
+      "vue": "/#/pkg-auth/interests-guide/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "兴趣引导页(A级,v0新迁,pkg-auth分包,注��流welcome下游)。顶部八卦符号装饰��景(渐变+5个飘散卦象)+步骤指示器1/2+AI个性化推荐角标+标题选择你感兴趣的领域+已选N/8提示+兴趣标签网格(24个FALLBACK_TAGS emoji图标+名称,选中红底白字+对勾,3-8个限制,达上限静默拦截+提示)+骨架屏+底部已选标签预览+开始探索按钮(<3抖动shake动画/≥3渐变激活)。emoji是原型标签内容数据非UI图标,1:1保留。提交reLaunch首页/pages/index/index。补:注册流闭环welcome→interests-guide→首页。"
+    },
+    {
+      "proto": "/common/scan",
+      "vue": "/#/pkg-common/scan/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "扫码结果页(A级,v0新迁,新建pkg-common分包)。接?content= query(从offline/checkin等扫码入口调起)。状态机parsing解析中(转圈loader)→success成功→error失败。parseQrCode解析9种类型:friend好友名片/group群聊/pay收款码/course课程/article文章/live直播/invite邀请注册/checkin签到/url外部链接,各自类型图标圆标(彩色)+专属内容卡布局+操作按钮(arrow-right,handler走mock 1.5s或url直跳)。失败态=无法识别+原始内容卡+重新扫码/返回首页。默认行为对齐原型:无content即error态(compare 1.71%),9种类型解析逻辑在真实?content=扫码场景完整工作。补link图标。"
+    },
+    {
+      "proto": "/common/image-viewer",
+      "vue": "/#/pkg-common/image-viewer/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "全屏图片查看器(A级通用组件,v0新迁,pkg-common分包)。接?images=逗号分隔&index= query。黑底全屏+顶栏(x关闭+N/总数计数)+图片区(image aspectFit+transform translate/scale/rotate)+左右切换箭头(首尾禁用)+底部圆点指示器(当前拉长)+5操作按钮(缩小/放大/旋转/保存/分享)+缩放比例提示(scale!=1显示)+控制栏3s自动隐藏(点击切换)。手势:单指拖动(放大时)/未缩放左右滑切��/双指捏合缩放/双击放大还原,均用uni touch事件clientX实现。保存/分享走mock toast。无images时默认3张unsplash占位图。补zoom-out/rotate-cw图标。入口名为demo但是真实通用查看器。"
+    },
+    {
+      "proto": "/appeal",
+      "vue": "/#/pkg-order/appeal/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "交易申诉页(A级,v0新迁,pkg-order分包,与dispute/refund同类)。3步表单+提交进度态。表单态:步骤��示器1选择订单/2申诉类型/3填写详情(step>s显对勾,连接线激活)+步骤1订单卡(file-text缩略+标题+订单号+价格+状态徽章+右侧radio选中)+步骤2申诉类型卡(5类:未收到货/货不对版/质量问题/虚假宣传/其他)+步骤3理由textarea(≥10字才可提交,500字数器)+凭证上传(mock ≤5张+移除)+提示卡+底部上一步/下一步(canProceed激活)/提交按钮(loading 1.5s)。提交态:成功卡(check-circle绿+申诉���号AP+时间戳)+处理进度4节点时间线(已提交/审核中current红clock/介入处理/完成,完成态绿)+申诉内容摘要(订单/类型/理由/凭证)+温馨提示。全mock,内联3订单+5类型+4时间线。"
+    },
+    {
+      "proto": "/become-partner",
+      "vue": "/#/pkg-operator/become-partner/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "成为合作伙伴页(B级偏中,v0新迁,pkg-operator分包,讲师商业招募)。3状态intro/apply/success。intro:Hero红渐变(携手儒布共创未来+描述)+合作权益4卡(trending-up高额分成/users流量支持/award品牌背书/check-circle运���支持,图标圆标+标题+描述)+数据统计3格(2000+合作讲师/50万+用户/98%满意度)+底部立即申请按钮。apply:申请表单(姓名/联系电话number/专业方向三必填+个人简介textarea选填)+底部提交申请(canSubmit激活,loading 1.5s)。success:绿圆check-circle+申请已提交+提示+返回首页(reLaunch首页)。全mock。"
+    },
+    {
+      "proto": "/announcements",
+      "vue": "/#/pkg-operator/announcements/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "平台公告页(B级,v0新迁,pkg-operator分包,入口驿站站长面板)。用户裁定2026-06-21:与已迁notices(pkg-notices平台公告���版)功能重叠但UI不同(分类筛选+置顶分组),照迁不跳。顶栏返回+分类���选tab(全部/平台通知notice/活动公告activity/功能更新update/重要公告important)+置顶公告组(红高亮卡border+置顶红徽章+NEW)+普通公告组(类型图标圆标+标题truncate+NEW+摘要line-clamp2+时间clock)+空态megaphone。类型图标色:notice蓝bell/activity粉gift/update绿wrench/important红alert-triangle。内联mock 7条。点击详情navigateTo /notices/:id复用已迁notices详情兜底。注意区分:vue的pkg-circle/circles/announcements是圈子公告(不同功能)。"
+    },
+    {
+      "proto": "/bots",
+      "vue": "/#/pkg-agent/bots/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "智能体广场页(A级,v0新迁,pkg-agent分包)。全站AI Bot应用市场,辨析:与已迁circles/bots(pkg-circle圈子内机器人列表)是不同功能。红渐变头(返回+sparkles智能体广场+排行榜trending-up跳/pkg-agent/agents/ranking)+搜索框(点开弹层)+分类Tab(10类all/bazi/fengshui/health/divination/naming/dream/face/palm/other各带图标)+Banner+热门智能体2列网格卡(头像+官方badge-check/NEW���章+名称+描述line-clamp2+评分star+热度flame+免费/价格crown)+新上线横滚+为你推荐feed(bot_recommend/hot_topic/user_story三类型)+搜索弹层(热门搜索标签)。点击bot跳/pkg-agent/bots/chat?id=。补grid-3x3/scan/hand图标。全mock。注:此页连同注册曾因上一轮提交丢失,本轮重做补回。"
+    },
+    {
+      "proto": "/bots/chat/[id]",
+      "vue": "/#/pkg-agent/bots/chat/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-21",
+      "note": "Bot对话页(A级,v0新迁,pkg-agent分包,接?id= query)。circles/bots和bots广场都跳此路径。红渐变顶栏(返回+头像+名称+在线/官方认证状态+语音通话phone+more菜单[历史/分享/设置/清空对话])+对话scroll-view(欢迎语气泡+推荐问题chip+能力说明tag,消息气泡左bot白/右user红+流式blink光标+图片/文件消息paperclip+时间)+使用限制提示条(今日免费次数+升级会员)+底部输入栏(语音mic/mic-off+输入框+附件image-plus+发送send/loader)。流式回复用setInterval逐字mock(30ms),Markdown简化用rich-text渲染粗体/标题/列表。文件走chooseImage,语音/通话/菜单走toast。补paperclip图标。"
+    },
+    {
+      "proto": "/merchant/join",
+      "vue": "/#/pkg-merchant/join/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家入驻引导页(v0新迁,pkg-merchant分包,入驻链路起点)。故宫红hero(限时福利徽章+主标题+副标题)+核心数据+2x2优势卡(流量扶持trending-up/海量用户users/安全保障shield/专属客服headphones)+4步入驻流程+店铺类型选择(个人/企业/旗舰本地选中态)+成功案例横滚+FAQ手风琴(本地展开)+底部固定双按钮(咨询客服+立即入驻跳/merchant/apply)。全内联mock。"
+    },
+    {
+      "proto": "/merchant/apply",
+      "vue": "/#/pkg-merchant/apply/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家入驻申请表(v0新迁,最大页585行)。3步进��+完成度进度条+店铺信息(Logo上传chooseImage/店铺���/类型/简介)+联系人(姓名/手机+验证码倒计时60s/邮箱)+资质材料(营业执照/法人身份证��像面+国徽面上传)+经营类目多选≤5(超限toast)+协议勾选(跳/terms/merchant)+提交3步进度弹窗(校验→上传→提交setTimeout模拟)成功跳application-status。完整表单校验。"
+    },
+    {
+      "proto": "/merchant/application-status",
+      "vue": "/#/pkg-merchant/application-status/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "入驻申请状态中枢(v0新迁,状态机)。7状态配置各对应头卡图标色(时钟蓝/勾绿/叉红/暂停黄)+店铺名+5步进度条(已提交/审核中/待缴费/待签署/已开通,当前红高亮)+条件动作按钮(修改申请→edit/签约→sign-agreement/缴费→pay-deposit/进店→dashboard兜底)+演示模式切换状态按钮(本地)。补pause-circle图标。"
+    },
+    {
+      "proto": "/merchant/edit-application",
+      "vue": "/#/pkg-merchant/edit-application/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "修改入驻资料(v0新迁)。橙色警告提示(修改需重新审核)+店铺信息(名称+企业店铺badge,名称每年限改1次)+资质材料(营业执照+法人身份证人像面/国徽面已上传态+重新上传)+联系人信息(预填)+底部固定提交修改。预填mock。返回application-status。"
+    },
+    {
+      "proto": "/merchant/sign-agreement",
+      "vue": "/#/pkg-merchant/sign-agreement/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "签署入驻协议(v0新迁)。顶栏版本号v2024.01+协议全文卡(7条:定义/入驻条件/商家权义/费用结算/保证金/违约/争议)+滚动到底解锁(scroll触底)+协议结束分隔+底部勾选'已阅读并同意'+确认签署(成功态跳pay-deposit)。"
+    },
+    {
+      "proto": "/merchant/pay-deposit",
+      "vue": "/#/pkg-merchant/pay-deposit/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "缴纳保证金(v0新迁)。粉底应缴金额卡(¥2000=基础1000+类目1000)+保证金说明(shield绿标)+3支付方式(微信/支付宝/银行卡转账,选银行卡显示银行信息块+复制setClipboardData)+底部确认支付(成功态)。"
+    },
+    {
+      "proto": "/terms/merchant",
+      "vue": "/#/pkg-merchant/terms/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家入驻协议条款(v0新迁,从apply/sign跳入)。顶栏返回+协议标题+生效日期+协议正文多条款滚动。纯静态展示。原型路径/terms/merchant->vue pkg-merchant/terms。"
+    },
+    {
+      "proto": "/merchant/dashboard",
+      "vue": "/#/pkg-merchant/dashboard/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家工作台(v0新迁,经营管理中枢)。故宫红头图(店铺名+认证badge+评分+访客)+今日数据(订单/销售额带CSS柱状sparkline,订单红/销售绿+环比arrow-up-right/down-right)+待处理事项4角标(待发货8/待审核2/退款5/咨询3跳orders?status=/products/order-detail等)+常用功能3x2(商品/订单/收入/数据/评价/设置)+平台公告横幅+经营小贴士。数据=>merchant-data.ts。"
+    },
+    {
+      "proto": "/merchant/products",
+      "vue": "/#/pkg-merchant/products/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家商品列表(v0新迁)。搜索框+4tab筛选带计数(全部/在售/售罄/下架)+商品卡(图+名+价+库存,状态徽章已上架绿/已售罄红/已下架灰,库存0红)+more下拉菜单(编辑跳product-edit?id=/上下架/删除二次确认弹窗)+底部新增商品跳product-edit。补arrow-up-down图标。数据=>merchant-data.ts。"
+    },
+    {
+      "proto": "/merchant/product-edit",
+      "vue": "/#/pkg-merchant/product-edit/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家商品编辑(v0新迁,接?id=切发布/编辑态)。图片九宫格上传(chooseImage,首图主图标记)+基本信息(名称/描述textarea)+价格库存双栏+分类选择(自定义浮层)+标签多选+开关设置(自定义switch:上架/推荐)+底部双按钮(保存草稿/立即发布,成功toast返回)。预填mock(编辑态)。"
+    },
+    {
+      "proto": "/merchant/orders",
+      "vue": "/#/pkg-merchant/orders/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家订单列表(v0新迁,接?status=初始tab)。搜索+5tab带计数(全部/待付款/待发货/待收货/已完成)+订单卡(订单号+状态徽章+商品缩略+金额+按状态显操作:待发货红'发货'/待收货'提醒'等)+点卡跳order-detail?id=。数据=>merchant-data.ts。"
+    },
+    {
+      "proto": "/merchant/order-detail",
+      "vue": "/#/pkg-merchant/order-detail/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家订单详情(v0新迁,接?id=)。橙色状态头(待发货)+收货信息(姓名/电话/地址+复制copy/拨号phone makePhoneCall)+商品列表+买家备注+金额明细(商品/运费/优惠/实付)+订单信息(订单号复制/下单时间/支付方式)+物流时间线+底部发货按钮(弹窗选快递��司+单号输入确认)。数据=>merchant-data.ts。"
+    },
+    {
+      "proto": "/merchant/revenue",
+      "vue": "/#/pkg-merchant/revenue/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家收入(v0新迁)。故宫红余额卡(可提现金额+提现按钮+待结算)+三栏数据概览(今日/本���/累计收入)+收支明细tab(全部/收入/支出)+交��列表(订单收入红/提现支出灰/类型图标+时间+金额±)+��算说明。补circle-dollar-sign图标。数据=>merchant-data.ts。"
+    },
+    {
+      "proto": "/merchant/reviews",
+      "vue": "/#/pkg-merchant/reviews/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家评价管理(v0新迁)。统计概览(4.8星/总评价/待回复橙)+4tab筛选(全部/待回复/差评/有图)+评价卡(商品+星级+买家+内容+晒图缩略)+商家回复灰块+待回复展开textarea回复表单(本地状态切换,发送后转已回复)。数据=>merchant-data.ts merchantReviews。"
+    },
+    {
+      "proto": "/merchant/analytics",
+      "vue": "/#/pkg-merchant/analytics/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家数据分析(v0新迁,原型 getMerchantAnalytics API缺失=>合理mock)。周期切换(今天/本周/本月)+关键指标2x2(销售/订单/访客/转化率,trending-up绿/down红)+销售趋势【SVG双折线】(红销售#c41e3a/金订单#c9a96e+网格+X/Y轴+图例)+分类销售【conic-gradient环形饼图】+分类详情+热销TOP3+用户留存3栏。Recharts折线饼图改原生SVG/CSS实现。数据=>merchant-data.ts merchantAnalytics。"
+    },
+    {
+      "proto": "/merchant/profile",
+      "vue": "/#/pkg-merchant/profile/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家店铺设置(v0新迁)。顶栏预览按钮跳shop-preview+店铺形象(Logo+相机角标chooseImage)+基本信息(名称/口号/简介)+联系方式(电话/地址/营业时间带图标label)+营业设置(自定义switch:营业状态/自动回复)+自动回复内容条件展示+修改入驻资料跳edit-application+底部保存(loading态)。数据=>merchant-data.ts merchantShopProfile。"
+    },
+    {
+      "proto": "/merchant/shop-preview",
+      "vue": "/#/pkg-merchant/shop-preview/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家店铺预览(v0新迁,买家视角)。故宫红渐变头部(Logo+店铺名+金牌商家badge+slogan+评分/关注/商品)+服务标签+数据4栏(商品/销量/评价/粉丝,上浮卡)+关注/客服按钮+店铺信息(电话/地址/营业时间)+商品4tab+商品2列网格(价格红+划线原价+已售)+底部购物车(角标2)+去结算。预览模式操作均toast提示。数据=>merchant-data.ts。"
+    },
+    {
+      "proto": "/merchant/notices",
+      "vue": "/#/pkg-merchant/notices/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家平台公告(v0新迁,列表+详情单页切换)。未读提示条+全部标记已读+公告列表(5类型色彩important红/activity蓝/warning橙/success绿/info灰+图标+分类徽章+未读红点红环)。点击进详情(类型色块+标题+分类+时间+正文+相关操作按钮,点击自动标记已读)。返回键优先回列表。数据=>merchant-data.ts merchantNotices+noticeTypeConfig+noticeCategoryBadge。"
+    },
+    {
+      "proto": "/merchant/inquiries",
+      "vue": "/#/pkg-merchant/inquiries/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家客户咨询(v0新迁,列表+详情单页切换)。统计3卡(总咨询/待回答橙/已回答绿)+筛选(全部/待回答/已回答)+咨询列表(商品+客户user+时间+问题+待回复橙提示+状态徽章)。详情(商品+客户卡+问题+已有回复绿块+待回答时显回复textarea提交,模拟1s后转已回答)。返回键优先回列表。数据=>merchant-data.ts merchantInquiries。"
+    },
+    {
+      "proto": "/merchant/content-stats",
+      "vue": "/#/pkg-merchant/content-stats/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家内容统计(v0新迁,跑diff看图通过4.96%=字形红边)。数据严格对齐原型lib/api/merchant.ts的mockContentStats+mockContentItems:数据概览2x2(发布商品142/156+已发布文章48+总浏览45,680+总点赞3,240)+商品分组卡(已发布142/草稿12,标题156件)+文章分组卡(48篇/总阅读45680/总点赞3240)+内容列表(全部/商品/文章tab+5条:渊海子平古籍影印本/紫砂茶具套装/如何快速入门八字学/新推出算命初学者套装(草稿)/古籍分享系列Vol.2,卡片标题+状态徽章已发布绿/草稿灰+浏览eye/点赞thumbs-up/商品显销量)。初次提交数据为臆造已修正对齐。数据=>merchant-data.ts merchantContentStats+merchantContentList+contentStatusBadge。"
+    },
+    {
+      "proto": "/merchant/circle-bindding",
+      "vue": "/#/pkg-merchant/circle-bindding/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家圈子绑定(v0新迁)。说明卡(红底)+搜索框+可绑定圈子列表(头像+名称+分类徽章+成员数,选中红边红勾avatar+chevron红)多选toggle+已选统计卡(列出已选圈子名)+底部固定双按钮(返回+确认绑定,选0禁用,提交1.5s后toast成功跳dashboard)。数据=>merchant-data.ts merchantCircles。注:文件夹名circle-bindding沿用原型拼写。"
+    },
+    {
+      "proto": "/merchant/violations",
+      "vue": "/#/pkg-merchant/violations/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "商家违规管理(v0新迁)。扣分概览卡(当前扣12分/上限48+CSS进度条+评级文字)+扣分说明(满分清零规则)+违规记录列表(类型图标色product橙file-warning/service红shield-alert/delay黄alert-triangle+标题+描述+关联商品或订单号+处罚+扣分+状态徽章待处理红/申诉中蓝/已处理灰+待处理显申诉(描边)/去处理(红底)按钮)。跑diff看图通过7.09%=字形红边,数据与原型一致。补file-warning图标。数据=>merchant-data.ts merchantViolations+violationTypeConfig+violationStatusConfig。"
+    },
+    {
+      "proto": "/institute",
+      "vue": "/#/pkg-institute/index/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "研究院(书院)首页(v0新迁,板块中枢)。故宫红渐变banner(研究院名+认证badge+简介)+搜索框+4格统计(讲师/课程/学员/活动)+关于我们卡+金牌讲师2列网格(头像+姓名+级别badge+领域标签+评分,跳instructor-detail)+近期活动列表(跳event-detail)+成为讲师入口(跳apply)。数据严格对齐lib/api/institute.ts mock=>institute-data.ts。"
+    },
+    {
+      "proto": "/institute/instructors",
+      "vue": "/#/pkg-institute/instructors/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "研究院讲师广场(v0新迁)。标题'讲师广场'+搜索+级别筛选(全部/金牌/高级/中级/初级)+领域筛选横滚(全部/八字命理/紫微斗数/六爻预测/风水堪舆等)+讲师列表卡(头像+姓名+级别badge色+领域标签+简介+评分/学员/课程数,点击跳instructor-detail/:id)。数据=>institute-data.ts instructors+levelLabel/levelColor。"
+    },
+    {
+      "proto": "/institute/instructors/[id]",
+      "vue": "/#/pkg-institute/instructor-detail/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "研究院讲师详情(v0新迁,接?id=)。头部(大头像+姓名+级别badge+领域标签+评分)+3格统计(学员/课程/好评率)+Tab切换(简介graduation-cap经历briefcase/课程列表/学员评价)+底部固定栏(关注heart+预约咨询按钮)。数据=>institute-data.ts instructors按id查。"
+    },
+    {
+      "proto": "/institute/events",
+      "vue": "/#/pkg-institute/events/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "研究院活动列表(v0新迁,列表/日历双视图切换)。顶栏list/calendar-days切换+列表视图(活动卡:封面emoji+类型badge+标题+时间clock+地点map-pin+人数users+价格+报名按钮)+日历视图(月历网格,有活动日红点,点击日期筛选)。注:原型footer用enrolledCount/maxEnrollment(mock无该字段)恒显'/不限人'+'我要报名',已照原型复刻。数据=>institute-data.ts events。"
+    },
+    {
+      "proto": "/institute/events/[id]",
+      "vue": "/#/pkg-institute/event-detail/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "研究院活动详情(v0新迁,接?id=)。封面图(emoji渐变)+类型badge+标题+标签+时间/地点/人数/讲师信息行+活动介绍description+底部固定栏(价格currentParticipants/maxParticipants+立即报名按钮)。补share-2图标。数据=>institute-data.ts events按id查。"
+    },
+    {
+      "proto": "/institute/apply",
+      "vue": "/#/pkg-institute/apply/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "研究院讲师申请(v0新迁,双态:默认表单/提交后状态卡)。表单态:提示卡+基本信息(姓名/手机/邮箱,校验)+专业信息(擅长领域12chip多选/经历/简介≥50字带计数)+资质证明九宫格(拍照上传,模拟placeholder)+试讲视频链接+底部提交。提交后切状态卡(status图标圆+标签applicationStatusLabel+申请信息+刷新)。数据=>institute-data.ts applicationStatusLabel/Color。"
+    },
+    {
+      "proto": "/institute/my-tasks",
+      "vue": "/#/pkg-institute/my-tasks/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "研究院我的任务(v0新迁,讲师工作台)。累计奖励统计卡+可领取/进行中/已完成Tab+任务卡(类型/状态徽章taskStatusColor/要求/截止/奖励)+提交成果与放弃任务弹窗。数据=>institute-data.ts tasks/taskStatusColor。"
+    },
+    {
+      "proto": "/institute/teacher-pool",
+      "vue": "/#/pkg-institute/teacher-pool/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "研究院线下老师人才库(v0新迁,上批遗漏补写)。搜索+领域/城市筛选面板+老师卡(级别色gold/info/success转内联hex+评分+课程/学员数+价格区间+可约状态)+底部驿站入口。数据=>institute-data.ts offlineTeachers/offlineTeacherLevelConfig。"
+    },
+    {
+      "proto": "/institute/teacher-demand",
+      "vue": "/#/pkg-institute/teacher-demand/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "研究院课程需求大厅(v0新迁)。老师/驿站视角切换+状态Tab(全部/招募中/已匹配/已完成)+需求卡(驿站名+标题+专业+日期+预算+报名人数+状态徽章demandStatusConfig)+底部发布按钮。数据=>institute-data.ts teacherDemands/demandStatusConfig。"
+    },
+    {
+      "proto": "/institute/teacher-demand/create",
+      "vue": "/#/pkg-institute/demand-create/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "研究院发布师资需求(v0新迁)。多字段表单(标题/专业chip/授课方式/薪酬/人数/日期/要求/联系)+提交成功页。数据=>institute-data.ts demandSpecialtyOptions/demandTeachTypes/demandSalaries。"
+    },
+    {
+      "proto": "/institute/members",
+      "vue": "/#/pkg-institute/members/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "研究院成员列表(v0新迁,成员管理)。3项统计+管理层/人才库筛选+按职位排序成员卡(院长金冠/副院长奖章/秘书长星标角标memberRoleConfig+圈子名+成员数+贡献值+人才库标签)+申请加入入口。数据=>institute-data.ts instituteMembers/memberRoleConfig。"
+    },
+    {
+      "proto": "/institute/members/[id]",
+      "vue": "/#/pkg-institute/instructor-detail/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "研究院成员详情(v0新迁)。原型该页直接复用讲师详情组件(InstructorDetailPage调getInstructorDetail),故路由 /institute/members/:id 复用已迁 instructor-detail 页,不另造页。"
+    },
+    {
+      "proto": "/institute/member-apply",
+      "vue": "/#/pkg-institute/member-apply/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "研究院成员申请四步向导(v0新迁,最复杂页)。步骤指示器(资格检查→填资料→支付保证金→申请完成)+门槛检查(圈主/100人/90天/实名)+任务承诺(月/季/年度)+协议勾选+保证金支付确认弹窗。数据=>institute-data.ts memberApplyRequirements/Tasks/UserCircles/Steps。"
+    },
+    {
+      "proto": "/institute/demands/create",
+      "vue": "/#/pkg-institute/demands-create/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "研究院发布通用需求(v0新迁,区别于师资需求)。标题/类型chip/预算chip/截止日期/详情计数/联系人/联系方式表单+提交成功页。注:课程需求详情 /institute/demands/:id 暂指coming-soon占位。数据=>institute-data.ts demandCreateCategories/demandCreateBudgets。"
+    },
+    {
+      "proto": "/offline/stations",
+      "vue": "/#/pkg-offline/stations/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "线下驿站列表(v0新迁,offline板块C端,新建pkg-offline分包)。顶栏列表/地图切换+搜索+类型筛选(全部/旗舰店/书院/工作室/合作点)+附近驿站横滚+全部驿站列表卡(封面占位图标+评分+设施图标wifi/car/coffee+收藏+距离formatDistance+导航)。补car/coffee/map图标。数据严格对齐lib/api/offline.ts=>offline-data.ts stations/getStationTypeLabel/getFacilityInfo。"
+    },
+    {
+      "proto": "/offline/stations/[id]",
+      "vue": "/#/pkg-offline/station-detail/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "线下驿站详情(v0新迁,onLoad接?id=)。封面占位+基本信息(名称/类型/评分/营业时间/标签)+4Tab(介绍/课程/商品/讲师)+设施宫格+主理人卡+底部固定栏(收藏/电话/导航)。数据=>offline-data.ts getStationDetail按id查。"
+    },
+    {
+      "proto": "/offline/courses",
+      "vue": "/#/pkg-offline/courses/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "线下课程列表(v0新迁)。搜索+驿站筛选下拉+日期筛选下拉(全部/今天/本周/本月)+课程卡(封面占位+讲师+时间formatCourseDateTime+地点+价格划线/免费+报名进度+状态徽章getCourseStatusStyle绿蓝橙紫灰红+标签)。数据=>offline-data.ts offlineCourses/courseDateFilters。"
+    },
+    {
+      "proto": "/offline/courses/[id]",
+      "vue": "/#/pkg-offline/course-detail/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "线下课程详情(v0新迁,onLoad接?id=)。封面+状态+价格+时间/地点/报名信息卡+已报名头像+3Tab(介绍纯文本换行/大纲outline/讲师instructorDetail)+底部操作栏(报名/已报名两态)+入场码弹窗+取消报名确认弹窗。注:id=1命中myEnrollment显示已报名态。原型content用dangerouslySetInnerHTML,uniapp转纯文本换行。补calendar-plus图标。数据=>offline-data.ts getOfflineCourseDetail按id查。"
+    },
+    {
+      "proto": "/offline/teacher-booking",
+      "vue": "/#/pkg-offline/teacher-booking/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "线下讲师预约(v0新迁,最大页938行,onLoad接?stationId=/teacherId=)。预约咨询/我的预约双Tab。预约咨询:讲师横滚选择(休息态置灰)+讲师信息卡(评分/评价数/预约数/专长标签/简介)+月历日期选择(切月)+时段宫格getTeacherAvailability(已约满置灰)+咨询主题(必填)+补充说明+底部费用栏(选时段后算价)+立即预约确认弹窗。我的预约:bookings列表(讲师/驿站/日期时段/主题/费用/状态徽章getBookingStatusStyle待确认橙/已确认绿等+取消按钮)。注:availability原型用Math.random,改确定性seededAvailable保证diff稳定。数据=>offline-data.ts bookingTeachers/getTeacherAvailability/myTeacherBookings。"
+    },
+    {
+      "proto": "/offline/events",
+      "vue": "/#/pkg-offline/events/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "线下活动列表(v0新迁,页面内联mock)。搜索+城市筛选(全部/北京/上海/广州/成都/杭州)+状态筛选(全部/即将开始/进行中/已结束)+活动卡(封面米色渐变占位+状态徽章+价格+标题+地点+日期时间+报名进度条currentParticipants/maxParticipants+标签+主办方+立即报名按钮)。原型封面用unsplash,改CSS渐变占位。数据=>页面内联events数组。"
+    },
+    {
+      "proto": "/offline/checkin",
+      "vue": "/#/pkg-offline/checkin/index",
+      "status": "migrate",
+      "owner": "V",
+      "migratedAt": "2026-06-22",
+      "note": "线下课程签到(v0新迁,onLoad接?courseId=)。课程信息卡(封面占位+状态徽章+讲师+日期时段+地点+报名/已签到统计)+签到状态区(当前2026-06-22已过签到窗口checkinStart=06-05故isInCheckinWindow=false显示'签到未开放'时钟卡)+导航到上课地点按钮。窗口内时支持扫码/签到码RB2026/位置签到(本地state模拟)。数据=>offline-data.ts getCourseCheckinDetail/isInCheckinWindow/checkinCourse。"
+    }
+  ]
+}

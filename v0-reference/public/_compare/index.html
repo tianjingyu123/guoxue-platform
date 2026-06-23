@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>booking 页迁移验收对比</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #faf8f5;
+      color: #2c2c2c;
+      padding: 24px 16px 64px;
+      line-height: 1.5;
+    }
+    .head {
+      max-width: 1100px;
+      margin: 0 auto 24px;
+    }
+    h1 { font-size: 22px; margin-bottom: 8px; }
+    .meta { font-size: 14px; color: #999; margin-bottom: 4px; }
+    .verdict {
+      display: inline-block;
+      margin-top: 10px;
+      background: #22c55e;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 999px;
+    }
+    .grid {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .col {
+      background: #fff;
+      border: 1px solid #e8e0d5;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .col h2 {
+      font-size: 15px;
+      padding: 12px 14px;
+      border-bottom: 1px solid #f0ece4;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tag { width: 10px; height: 10px; border-radius: 50%; }
+    .tag-proto { background: #c41e3a; }
+    .tag-vue { background: #c9a96e; }
+    .tag-diff { background: #374151; }
+    .col img { width: 100%; display: block; background: #f5f1eb; }
+    .col p { font-size: 13px; color: #999; padding: 10px 14px; }
+    .notes {
+      max-width: 1100px;
+      margin: 28px auto 0;
+      background: #fff;
+      border: 1px solid #e8e0d5;
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .notes h3 { font-size: 16px; margin-bottom: 10px; }
+    .notes ul { padding-left: 20px; }
+    .notes li { font-size: 14px; margin-bottom: 6px; }
+    .hl { color: #c41e3a; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="head">
+    <h1>预约连麦页 · 迁移验收对比</h1>
+    <div class="meta">原型路由 /booking/1　→　Vue3 路由 /#/pkg-expert/booking/index?expertId=1</div>
+    <div class="meta">视口 375 × 812　|　diff 7.39%　|　验收日期 2026-06-22</div>
+    <div class="verdict">看图终判：通过 · 1:1 高保真</div>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+      <h2><span class="tag tag-proto"></span>原型 (Next.js)</h2>
+      <img src="./booking-proto.png" alt="原型截图" />
+      <p>设计唯一真源</p>
+    </div>
+    <div class="col">
+      <h2><span class="tag tag-vue"></span>Vue3 (uni-app H5)</h2>
+      <img src="./booking-vue.png" alt="Vue3 截图" />
+      <p>迁移产出</p>
+    </div>
+    <div class="col">
+      <h2><span class="tag tag-diff"></span>差异图 (diff)</h2>
+      <img src="./booking-diff.png" alt="差异图" />
+      <p>红色 = 像素差异点</p>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>验收说明</h3>
+    <ul>
+      <li><span class="hl">结构 / 布局 / 配色 / 文案 1:1 吻合</span>：标题、讲师卡（周易大师 / 好评4.9 / 咨询1280次 / 10币每分钟）、连麦方式双卡、日期横滑、时段分组、图例、底部固定栏全部一致。</li>
+      <li>diff 红色区域<span class="hl">仅两类噪声</span>：① 时段格子占用色差　② 由占用行数不同引发的整页几像素垂直位移 + 文字边缘红边。</li>
+      <li>根因：原型时段占用用 <code>Math.random()</code> 实时随机生成，每次刷新都不同。Vue 版<span class="hl">逻辑逐行照抄一致</span>，差异纯由两端随机种子不同造成，非迁移失真。</li>
+      <li>决策：按铁律一/二，<span class="hl">保持原型随机逻辑，不加固定种子</span>。</li>
+    </ul>
+  </div>
+</body>
+</html>

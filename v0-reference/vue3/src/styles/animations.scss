@@ -1,0 +1,227 @@
+/* ============================================================
+   动画（从原型 globals.css 迁移；时长与缓动逐条核对）
+   迁移时陆续补齐：fly-to-cart/shimmer/marquee/弹幕/礼物等。
+   ============================================================ */
+
+/* 太极缓慢自转（底部排盘 tab 选中态，9s 周期） */
+@keyframes taiji-slow-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.taiji-slow-rotate { animation: taiji-slow-rotate 9s linear infinite; }
+
+/* 太极呼吸光晕（排盘 tab 选中态托底） */
+@keyframes taiji-breathing-glow {
+  0%, 100% { box-shadow: 0 2rpx 24rpx rgba(196, 30, 58, 0.25); }
+  50% { box-shadow: 0 2rpx 40rpx rgba(196, 30, 58, 0.45); }
+}
+.taiji-breathing-glow { animation: taiji-breathing-glow 2.4s ease-in-out infinite; }
+
+/* 通用渐入 */
+@keyframes fade-in { from { opacity: 0; transform: translateY(20rpx); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+
+/* 鎏金光芒旋转（峰值时刻解锁仪式复用） */
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.animate-spin-slow { animation: spin 8s linear infinite; }
+
+/* ============================================================
+   首页 Feed / 卡片动效集合（从原型 globals.css 迁移）
+   ============================================================ */
+
+/* 卡片按压 */
+.card-press { transition: transform 0.15s ease-out; }
+.card-press:active { transform: scale(0.98); }
+
+/* 太极旋转（首页排盘卡 8s / 刷新指示 1s） */
+@keyframes taiji-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.taiji-rotate { animation: taiji-rotate 8s linear infinite; }
+.taiji-rotate-fast { animation: taiji-rotate 1s linear infinite; }
+
+/* 直播状态呼吸灯 */
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(196, 30, 58, 0.7); }
+  50% { opacity: 0.85; box-shadow: 0 0 0 12rpx rgba(196, 30, 58, 0); }
+}
+.live-indicator { animation: live-pulse 1.5s ease-in-out infinite; }
+
+/* 直播卡片边框闪烁 */
+@keyframes live-card-glow {
+  0%, 100% { box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.08), 0 0 0 0 rgba(196, 30, 58, 0.3); }
+  50% { box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.08), 0 0 32rpx 4rpx rgba(196, 30, 58, 0.2); }
+}
+.live-card-glow { animation: live-card-glow 2s ease-in-out infinite; }
+
+/* 金色光晕呼吸 */
+@keyframes gold-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 169, 110, 0.4); opacity: 0.7; }
+  50% { box-shadow: 0 0 24rpx 8rpx rgba(201, 169, 110, 0.2); opacity: 1; }
+}
+.gold-glow { animation: gold-glow 3s ease-in-out infinite; }
+
+/* 渐变流动 */
+@keyframes gradient-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.gradient-flow { background-size: 200% 200%; animation: gradient-flow 6s ease-in-out infinite; }
+
+/* 智能体卡片渐变配色 */
+.agent-gradient-warm {
+  background: linear-gradient(135deg, #c9a96e 0%, #d4b87d 25%, #e8d4a8 50%, #d4b87d 75%, #c9a96e 100%);
+  background-size: 200% 200%; animation: gradient-flow 6s ease-in-out infinite;
+}
+.agent-gradient-cool {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 25%, #c4b5fd 50%, #a78bfa 75%, #8b5cf6 100%);
+  background-size: 200% 200%; animation: gradient-flow 7s ease-in-out infinite;
+}
+.agent-gradient-earth {
+  background: linear-gradient(135deg, #92715a 0%, #a68b6a 25%, #c4a882 50%, #a68b6a 75%, #92715a 100%);
+  background-size: 200% 200%; animation: gradient-flow 8s ease-in-out infinite;
+}
+.agent-gradient-sky {
+  background: linear-gradient(135deg, #64748b 0%, #94a3b8 25%, #cbd5e1 50%, #94a3b8 75%, #64748b 100%);
+  background-size: 200% 200%; animation: gradient-flow 6s ease-in-out infinite;
+}
+
+/* 智能体图标金色光晕 */
+@keyframes agent-icon-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 169, 110, 0.3); }
+  50% { box-shadow: 0 0 40rpx 16rpx rgba(201, 169, 110, 0.5); }
+}
+.agent-icon-glow { animation: agent-icon-glow 3.5s ease-in-out infinite; }
+
+/* 在线状态绿色呼吸 */
+@keyframes online-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.6); opacity: 1; }
+  50% { box-shadow: 0 0 16rpx 8rpx rgba(74, 222, 128, 0.4); opacity: 0.8; }
+}
+.animate-online-glow { animation: online-glow 2s ease-in-out infinite; }
+
+/* 角标闪烁 */
+@keyframes badge-flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+.badge-flash { animation: badge-flash 1.5s ease-in-out infinite; }
+
+/* ============================================================
+   智能体对话页动效（语音波形/流式光标/打字跳动/慢旋光环）
+   ============================================================ */
+
+/* 语音通话声波 */
+@keyframes soundwave { 0%, 100% { height: 16rpx; } 50% { height: 80rpx; } }
+.animate-soundwave { animation: soundwave 0.5s ease-in-out infinite alternate; }
+
+/* 流式输出光标 */
+@keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+.streaming-cursor::after { content: '|'; animation: blink 0.7s infinite; }
+
+/* 打字中三圆点跳动 */
+@keyframes typing-bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-10rpx); } }
+.typing-dot { animation: typing-bounce 1.2s ease-in-out infinite; }
+
+/* 通话头像慢旋光环 */
+@keyframes ring-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.ring-spin-slow { animation: ring-spin 8s linear infinite; }
+
+/* ping 扩散（重连浮层） */
+@keyframes ping-ring { 0% { transform: scale(1); opacity: 0.7; } 75%, 100% { transform: scale(1.8); opacity: 0; } }
+.animate-ping-ring { animation: ping-ring 1.4s cubic-bezier(0, 0, 0.2, 1) infinite; }
+
+/* ============================================================
+   通用交互动效（保真补救：骨架屏 / 弹窗 / 飞入购物车 / 按压等）
+   依据 docs/迁移准备/05-页面改造标准流程.md
+   ============================================================ */
+
+/* —— 骨架屏微光 —— */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #ececec 25%, #f5f5f5 37%, #ececec 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 8rpx;
+}
+
+/* —— 弹窗背景遮罩渐暗 —— */
+@keyframes mask-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mask-fade-out { from { opacity: 1; } to { opacity: 0; } }
+.mask-fade-in { animation: mask-fade-in 0.25s ease-out forwards; }
+.mask-fade-out { animation: mask-fade-out 0.2s ease-in forwards; }
+
+/* —— 底部弹窗滑入 / 滑出 —— */
+@keyframes sheet-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes sheet-slide-down { from { transform: translateY(0); } to { transform: translateY(100%); } }
+.sheet-slide-up { animation: sheet-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.sheet-slide-down { animation: sheet-slide-down 0.25s ease-in forwards; }
+
+/* —— 中央弹窗弹性缩放入场 —— */
+@keyframes dialog-pop-in {
+  0% { transform: scale(0.8); opacity: 0; }
+  60% { transform: scale(1.03); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes dialog-pop-out { from { transform: scale(1); opacity: 1; } to { transform: scale(0.9); opacity: 0; } }
+.dialog-pop-in { animation: dialog-pop-in 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.dialog-pop-out { animation: dialog-pop-out 0.2s ease-in forwards; }
+
+/* —— 飞入购物车（商品小球抛物线） —— */
+@keyframes fly-to-cart {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: translate(var(--fly-x, 0), var(--fly-y, 0)) scale(0.2); opacity: 0.4; }
+}
+.fly-to-cart { animation: fly-to-cart 0.6s cubic-bezier(0.5, -0.3, 0.7, 1) forwards; }
+
+/* —— 列表项 / 通用按压反馈 —— */
+.tap-press { transition: transform 0.12s ease-out, background-color 0.15s ease-out; }
+.tap-press:active { transform: scale(0.97); }
+.list-press { transition: background-color 0.15s ease-out; }
+.list-press:active { background-color: rgba(0, 0, 0, 0.04); }
+
+/* —— 主按钮按压 —— */
+.btn-press { transition: transform 0.12s ease-out, opacity 0.15s ease-out; }
+.btn-press:active { transform: scale(0.98); opacity: 0.9; }
+
+/* —— 进度条流动（售后/物流进度节点） —— */
+@keyframes progress-flow {
+  0% { background-position: 0 0; }
+  100% { background-position: 40rpx 0; }
+}
+.progress-flow {
+  background-image: linear-gradient(90deg, rgba(255,255,255,0.3) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.3) 75%, transparent 75%);
+  background-size: 40rpx 100%;
+  animation: progress-flow 0.6s linear infinite;
+}
+
+/* —— 内容渐显（数据加载完成后） —— */
+@keyframes content-fade-in { from { opacity: 0; transform: translateY(12rpx); } to { opacity: 1; transform: translateY(0); } }
+.content-fade-in { animation: content-fade-in 0.35s ease-out forwards; }
+
+/* —— 开关滑动过渡（隐私授权等） —— */
+.switch-track { transition: background-color 0.25s ease; }
+.switch-thumb { transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* ============================================================
+   诗词板块专属：竖排 / 声波(TTS) / AI光标(从原型 globals.css 1:1 迁移)
+   ============================================================ */
+/* 声波动画（TTS朗读状态）*/
+@keyframes soundwave { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1.0); } }
+.bar-wave-1 { animation: soundwave 0.8s ease-in-out infinite; animation-delay: 0s; }
+.bar-wave-2 { animation: soundwave 0.8s ease-in-out infinite; animation-delay: 0.15s; }
+.bar-wave-3 { animation: soundwave 0.8s ease-in-out infinite; animation-delay: 0.30s; }
+.bar-wave-4 { animation: soundwave 0.8s ease-in-out infinite; animation-delay: 0.45s; }
+.bar-wave-5 { animation: soundwave 0.8s ease-in-out infinite; animation-delay: 0.20s; }
+
+/* AI赏析流式打字光标 */
+@keyframes blink-cursor { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+.ai-cursor::after { content: '|'; animation: blink-cursor 0.8s step-end infinite; color: var(--poem-ai); margin-left: 1px; }
+
+/* 诗词竖排字体增强 */
+.poem-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.25em;
+  line-height: 2.2;
+}
