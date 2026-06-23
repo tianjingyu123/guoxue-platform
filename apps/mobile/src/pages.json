@@ -112,6 +112,18 @@
           }
         },
         {
+          "path": "liuyao/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "liuyao/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "yangpan/index",
           "style": {
             "navigationStyle": "custom"
@@ -131,6 +143,18 @@
         },
         {
           "path": "yangpan/history/groups",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "ziwei/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "ziwei/result",
           "style": {
             "navigationStyle": "custom"
           }

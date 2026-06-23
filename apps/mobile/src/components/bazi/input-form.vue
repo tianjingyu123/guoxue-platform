@@ -7,6 +7,8 @@ import DatePickerModal from './date-picker-modal.vue'
 import LocationPickerModal from './location-picker-modal.vue'
 import GroupPickerModal from './group-picker-modal.vue'
 
+const props = withDefaults(defineProps<{ targetRoute?: string }>(), { targetRoute: '/paipan/bazi/result' })
+
 const name = ref('')
 const gender = ref<'male' | 'female'>('male')
 const birthDate = ref({ year: 1990, month: 1, day: 1, hour: 12, minute: 0, isLunar: false })
@@ -64,7 +66,7 @@ function handleSubmit() {
     `district=${encodeURIComponent(birthPlace.value.district)}`,
     `trueSolar=${useTrueSolarTime.value}`, `earlyZi=${useEarlyZiHour.value}`, `dst=${useDaylightSaving.value}`,
   ].join('&')
-  navigateTo(`/paipan/bazi/result?${q}`)
+  navigateTo(`${props.targetRoute}?${q}`)
 }
 </script>
 

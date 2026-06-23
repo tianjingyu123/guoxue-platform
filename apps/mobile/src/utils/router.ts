@@ -61,6 +61,9 @@ const ROUTE_MAP: Record<string, string> = {
   '/paipan/bazi/history/celebrities': '/pkg-paipan/bazi/history/celebrities',
   '/paipan/bazi/history/groups': '/pkg-paipan/bazi/history/groups',
   '/paipan/bazi/history': '/pkg-paipan/bazi/history/index',
+  // 六爻排盘簇（入口/结果）
+  '/paipan/liuyao': '/pkg-paipan/liuyao/index',
+  '/paipan/liuyao/result': '/pkg-paipan/liuyao/result',
   // 奇门遁甲簇（入口/结果/历史/分组）
   '/paipan/qimen': '/pkg-paipan/qimen/index',
   '/paipan/qimen/result': '/pkg-paipan/qimen/result',
