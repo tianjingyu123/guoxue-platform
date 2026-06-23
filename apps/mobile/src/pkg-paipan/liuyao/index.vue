@@ -275,8 +275,6 @@ function handleSubmit() {
       </view>
     </scroll-view>
   </view>
-
-  </view>
 </template>
 
 <style scoped lang="scss">

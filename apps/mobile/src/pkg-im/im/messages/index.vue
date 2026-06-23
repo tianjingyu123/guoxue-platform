@@ -88,9 +88,6 @@
       <text class="msg-empty__desc">当前分类下没有消息</text>
     </view>
   </view>
-
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">

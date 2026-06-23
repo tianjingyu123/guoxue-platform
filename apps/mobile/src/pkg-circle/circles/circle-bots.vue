@@ -83,12 +83,6 @@
     <!-- FAB -->
     <view v-if="isAdmin && !loading && bots.length > 0" class="cb-fab" @tap="toComingSoon"><app-icon name="plus" :size="40" color="#ffffff" /></view>
   </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">

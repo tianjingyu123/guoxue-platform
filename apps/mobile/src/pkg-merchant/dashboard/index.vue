@@ -1,8 +1,5 @@
 <template>
   <view class="dash">
-    <view v-if="loading" class="state-loading"><text class="state-loading-text">加载中...</text></view>
-    <view v-if="error" class="state-error"><text class="state-error-text">加载失败</text><view class="state-retry" @tap="retry"><text class="state-retry-text">重试</text></view></view>
-    <template v-if="!loading && !error">
     <!-- 顶部店铺信息 -->
     <view class="dash-hero" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="dash-hero-top">
@@ -196,24 +193,16 @@
         </view>
       </view>
     </view>
-    </template>
-  </view>
-
-  </view>
-  </view>
-  </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { merchantAdminApi, merchantQuickActions } from '@/lib/merchant-data'
+import { merchantDashboard, merchantQuickActions } from '@/lib/merchant-data'
 
-const d = ref<any>({})
-const loading = ref(true)
-const error = ref(false)
+const d = merchantDashboard
 const actions = merchantQuickActions
 const statusBarHeight = ref(0)
 
@@ -233,24 +222,6 @@ function sparkBars(data: number[]): number[] {
 
 function go(path: string) {
   navigateTo(path)
-}
-
-onMounted(async () => {
-  try {
-    d.value = await merchantAdminApi.getDashboard()
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-})
-
-async function retry() {
-  error.value = false
-  loading.value = true
-  try { d.value = await merchantAdminApi.getDashboard() }
-  catch { error.value = true }
-  finally { loading.value = false }
 }
 </script>
 
@@ -325,11 +296,4 @@ async function retry() {
 .dash-tip-title { font-size: 14px; font-weight: 500; color: #1a1a1a; display: block; }
 .dash-tip-desc { font-size: 12px; color: #6b7280; margin-top: 4px; display: block; line-height: 1.5; }
 .dash-tip-link { font-size: 12px; color: #d97706; margin-top: 8px; display: block; }
-/* 三态 */
-.state-loading { padding: 80px 0; text-align: center; }
-.state-loading-text { font-size: 14px; color: #9ca3af; }
-.state-error { padding: 80px 0; text-align: center; }
-.state-error-text { font-size: 14px; color: #ef4444; display: block; margin-bottom: 12px; }
-.state-retry { display: inline-block; padding: 8px 20px; background: #c41e3a; border-radius: 8px; }
-.state-retry-text { font-size: 14px; color: #fff; }
 </style>

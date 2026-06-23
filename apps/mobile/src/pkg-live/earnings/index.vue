@@ -118,8 +118,6 @@
     </view>
     <view class="bottom-spacer" />
   </view>
-
-  </view>
 </template>
 
 <script setup lang="ts">

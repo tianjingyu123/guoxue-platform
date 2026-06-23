@@ -144,8 +144,6 @@
     <view v-if="copied" class="toast"><text>复制成功</text></view>
   </template>
   </view>
-
-  </view>
 </template>
 
 <script setup lang="ts">

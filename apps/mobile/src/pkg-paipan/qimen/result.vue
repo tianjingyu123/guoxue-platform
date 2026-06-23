@@ -336,9 +336,6 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
       </view>
     </view>
   </view>
-
-  </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

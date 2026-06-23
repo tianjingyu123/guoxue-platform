@@ -215,10 +215,6 @@ function deleteCode(id: string) {
       </view>
     </view>
   </view>
-
-  </view>
-  </view>
-  </view>
 </template>
 
 <style lang="scss" scoped>

@@ -198,9 +198,6 @@ function confirm() {
         </view>
       </view>
     </view>
-
-  </view>
-  </view>
   </view>
 </template>
 

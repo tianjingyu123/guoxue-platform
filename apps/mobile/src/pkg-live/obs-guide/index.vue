@@ -74,8 +74,6 @@
       <view class="cta" @tap="goCreate">开始直播</view>
     </view>
   </view>
-
-  </view>
 </template>
 
 <script setup lang="ts">

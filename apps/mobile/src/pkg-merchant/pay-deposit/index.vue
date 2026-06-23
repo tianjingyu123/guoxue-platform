@@ -37,19 +37,7 @@
 
     <!-- 缴费态 -->
     <template v-else>
-      <!-- 加载中 -->
-      <view v-if="loading" class="pd-loading" :style="{ paddingTop: statusBarHeight + 44 + 80 + 'px' }">
-        <view class="pd-spin"><AppIcon name="loader-2" :size="24" color="#999" /></view>
-        <text class="pd-loading-text">加载中...</text>
-      </view>
-      <!-- 错误 -->
-      <view v-else-if="error" class="pd-error" :style="{ paddingTop: statusBarHeight + 44 + 80 + 'px' }">
-        <AppIcon name="alert-circle" :size="40" color="#dc2626" />
-        <text class="pd-error-text">加载失败</text>
-        <view class="pd-retry-btn" @tap="retryLoad">重试</view>
-      </view>
-      <!-- 内容 -->
-      <scroll-view v-else scroll-y class="pd-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
+      <scroll-view scroll-y class="pd-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
         <view class="pd-body">
           <!-- 金额卡 -->
           <view class="pd-amount-card">
@@ -147,15 +135,12 @@
       </view>
     </template>
   </view>
-
-  </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { merchantApi } from '@/lib/merchant-data'
 
 const paymentMethods = [
   { id: 'wechat', name: '微信支付', icon: 'smartphone', color: '#22c55e' },
@@ -163,33 +148,14 @@ const paymentMethods = [
   { id: 'bank', name: '银行卡转账', icon: 'building-2', color: '#f97316' },
 ]
 
-const depositInfo = ref({ baseDeposit: 0, categoryDeposit: 0, totalDeposit: 0, paidAt: '', transactionId: '' })
+const depositInfo = { baseDeposit: 1000, categoryDeposit: 1000, totalDeposit: 2000, paidAt: '2024-01-17 15:30:25', transactionId: 'PAY202401171530250001' }
 const bankInfo = { bankName: '中国工商银行', accountName: '热卜（北京）科技有限公司', accountNo: '6222 0202 0001 1234 5678', remark: '商家入驻保证金' }
 
 const selectedMethod = ref('wechat')
 const isPaying = ref(false)
 const isPaid = ref(false)
 const copied = ref(false)
-const loading = ref(true)
-const error = ref(false)
 const statusBarHeight = ref(0)
-
-onMounted(async () => {
-  try {
-    const res = await merchantApi.getDepositInfo()
-    depositInfo.value = {
-      baseDeposit: res.baseDeposit || Math.round((res.amount || 0) * 0.5),
-      categoryDeposit: res.categoryDeposit || Math.round((res.amount || 0) * 0.5),
-      totalDeposit: res.amount || res.totalDeposit || 0,
-      paidAt: res.paidAt || '',
-      transactionId: res.transactionId || '',
-    }
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-})
 
 function handleCopy(text: string) {
   uni.setClipboardData({
@@ -204,42 +170,10 @@ function handleCopy(text: string) {
 async function handlePay() {
   if (isPaying.value) return
   isPaying.value = true
-  try {
-    const res = await merchantApi.payDeposit()
-    if (res.success) {
-      depositInfo.value = {
-        ...depositInfo.value,
-        paidAt: new Date().toLocaleString('zh-CN'),
-        transactionId: res.transactionId || ('PAY' + Date.now()),
-      }
-      isPaid.value = true
-      setTimeout(() => navigateTo('/merchant/application-status'), 3000)
-    } else {
-      uni.showToast({ title: res.message || '支付失败', icon: 'none' })
-    }
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '支付失败，请重试', icon: 'none' })
-  } finally {
-    isPaying.value = false
-  }
-}
-
-function retryLoad() {
-  loading.value = true
-  error.value = false
-  merchantApi.getDepositInfo().then((res) => {
-    depositInfo.value = {
-      baseDeposit: res.baseDeposit || Math.round((res.amount || 0) * 0.5),
-      categoryDeposit: res.categoryDeposit || Math.round((res.amount || 0) * 0.5),
-      totalDeposit: res.amount || res.totalDeposit || 0,
-      paidAt: res.paidAt || '',
-      transactionId: res.transactionId || '',
-    }
-  }).catch(() => {
-    error.value = true
-  }).finally(() => {
-    loading.value = false
-  })
+  await new Promise((r) => setTimeout(r, 2000))
+  isPaying.value = false
+  isPaid.value = true
+  setTimeout(() => navigateTo('/merchant/application-status'), 3000)
 }
 
 function go(url: string) {
@@ -326,11 +260,4 @@ uni.getSystemInfo({
 .pd-pay-btn-disabled { opacity: 0.5; }
 .pd-spin { display: inline-flex; animation: pd-spin 1s linear infinite; }
 @keyframes pd-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-/* Loading / Error */
-.pd-loading { padding: 0 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.pd-loading-text { font-size: 14px; color: #999; }
-.pd-error { padding: 0 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.pd-error-text { font-size: 14px; color: #dc2626; }
-.pd-retry-btn { height: 36px; padding: 0 24px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #1a1a1a; }
 </style>

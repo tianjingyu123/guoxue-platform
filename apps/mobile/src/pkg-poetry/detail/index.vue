@@ -204,6 +204,7 @@
           </view>
         </view>
       </view>
+      </template>
     </view>
 
     <!-- 底部操作栏 -->
@@ -404,7 +405,6 @@
           </view>
         </view>
       </view>
-      </template>
     </view>
 
     <!-- 诗词品评抽屉 -->
@@ -603,7 +603,7 @@ function toHome() {
 }
 
 onLoad(() => {
-  // 当前仅静夜思一首示例数据，q.id 预留
+  // 当前仅静夜思一首示例数据，q.id ��留
 })
 </script>
 

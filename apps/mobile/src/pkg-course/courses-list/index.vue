@@ -327,9 +327,6 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
 
     <bottom-nav active="discover" />
   </view>
-
-  </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

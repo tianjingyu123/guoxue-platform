@@ -164,9 +164,6 @@ function pickMenu(mode: SelectMode) { selectMode.value = mode; showMenu.value = 
       </view>
     </view>
   </view>
-
-  </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

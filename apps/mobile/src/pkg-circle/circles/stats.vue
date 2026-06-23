@@ -152,12 +152,6 @@ onMounted(() => { nextTick(() => setTimeout(drawLineChart, 100)) })
       </view>
     </scroll-view>
   </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

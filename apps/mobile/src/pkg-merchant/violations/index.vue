@@ -12,9 +12,6 @@
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ top: navH + 'px' }">
-      <view v-if="loading" class="state-loading"><text class="state-loading-text">加载中...</text></view>
-      <view v-if="error" class="state-error"><text class="state-error-text">加载失败</text><view class="state-retry" @tap="retry"><text class="state-retry-text">重试</text></view></view>
-      <template v-if="!loading && !error">
       <!-- 违规概览 -->
       <view class="overview-wrap">
         <view class="card">
@@ -105,21 +102,17 @@
         </view>
       </view>
       <view style="height: 40px" />
-      </template>
     </scroll-view>
-  </view>
-
-  </view>
-  </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
-  merchantAdminApi,
+  merchantViolationStats,
+  merchantViolations,
   violationTypeConfig,
   violationStatusConfig,
 } from '@/lib/merchant-data'
@@ -133,14 +126,12 @@ uni.getSystemInfo({
   },
 })
 
-const stats = ref<any>({})
-const violations = ref<any[]>([])
-const loading = ref(true)
-const error = ref(false)
+const stats = merchantViolationStats
+const violations = merchantViolations
 const typeConfig = violationTypeConfig
 const statusConfig = violationStatusConfig
 
-const scorePercent = computed(() => (stats.value.score / stats.value.maxScore) * 100)
+const scorePercent = computed(() => (stats.score / stats.maxScore) * 100)
 const levelLabel = computed(() => (scorePercent.value > 50 ? '警告' : scorePercent.value > 25 ? '注意' : '良好'))
 const levelColor = computed(() => (scorePercent.value > 50 ? '#dc2626' : scorePercent.value > 25 ? '#d97706' : '#16a34a'))
 const levelBg = computed(() => (scorePercent.value > 50 ? '#fee2e2' : scorePercent.value > 25 ? '#fef3c7' : '#dcfce7'))
@@ -150,32 +141,6 @@ function onAppeal() {
 }
 function onHandle() {
   uni.showToast({ title: '处理功能开发中', icon: 'none' })
-}
-
-onMounted(async () => {
-  try {
-    const res = await merchantAdminApi.getViolations()
-    stats.value = res.stats || {}
-    violations.value = res.items || []
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-})
-
-async function retry() {
-  error.value = false
-  loading.value = true
-  try {
-    const res = await merchantAdminApi.getViolations()
-    stats.value = res.stats || {}
-    violations.value = res.items || []
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
 }
 </script>
 
@@ -239,11 +204,4 @@ async function retry() {
 .empty { padding: 80px 0; display: flex; flex-direction: column; align-items: center; }
 .empty-icon { width: 64px; height: 64px; border-radius: 50%; background: #dcfce7; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
 .empty-text { font-size: 14px; color: #9ca3af; }
-/* 三态 */
-.state-loading { padding: 80px 0; text-align: center; }
-.state-loading-text { font-size: 14px; color: #9ca3af; }
-.state-error { padding: 80px 0; text-align: center; }
-.state-error-text { font-size: 14px; color: #ef4444; display: block; margin-bottom: 12px; }
-.state-retry { display: inline-block; padding: 8px 20px; background: #c41e3a; border-radius: 8px; }
-.state-retry-text { font-size: 14px; color: #fff; }
 </style>

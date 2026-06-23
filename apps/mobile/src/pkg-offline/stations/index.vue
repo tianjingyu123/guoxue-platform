@@ -33,28 +33,6 @@
     </view>
 
     <scroll-view scroll-y class="st-body">
-      <!-- 加载骨架 -->
-      <view v-if="loading" class="st-section">
-        <view v-for="i in 3" :key="i" class="st-card sk">
-          <view class="st-cover sk-bg" />
-          <view class="st-card-info">
-            <view class="sk-line w60" />
-            <view class="sk-line w40" />
-            <view class="sk-line w80" />
-          </view>
-        </view>
-      </view>
-
-      <!-- 错误状态 -->
-      <view v-else-if="error" class="st-empty">
-        <app-icon name="alert-circle" :size="48" color="#ef4444" />
-        <text class="st-empty-text">加载失败，请重试</text>
-        <view class="st-retry-btn" @tap="retry">
-          <text class="st-retry-text">重新加载</text>
-        </view>
-      </view>
-
-      <template v-else>
       <!-- 附近驿站 -->
       <view v-if="showNearby" class="st-section">
         <view class="st-sec-head">
@@ -146,23 +124,16 @@
         </view>
       </view>
       <view class="st-safe" />
-      </template>
     </scroll-view>
-  </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
-  offlineApi,
+  stations,
   stationTypeFilters,
   getStationTypeLabel,
   getFacilityInfo,
@@ -180,19 +151,7 @@ try {
 const viewMode = ref<'list' | 'map'>('list')
 const selectedType = ref<StationType | 'all'>('all')
 const keyword = ref('')
-const stationList = ref<Station[]>([])
-const loading = ref(true)
-const error = ref(false)
-
-onMounted(async () => {
-  try {
-    stationList.value = await offlineApi.getStations()
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-})
+const stationList = ref<Station[]>(stations.map((s) => ({ ...s })))
 
 const filteredStations = computed(() => {
   let list = stationList.value
@@ -219,17 +178,6 @@ function onNavigate(s: Station) {
 }
 function goDetail(id: number) {
   navigateTo(`/offline/stations/${id}`)
-}
-async function retry() {
-  error.value = false
-  loading.value = true
-  try {
-    stationList.value = await offlineApi.getStations()
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
 }
 </script>
 
@@ -283,16 +231,4 @@ async function retry() {
 .st-navbtn { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .st-navbtn-text { font-size: 12px; color: #c41e3a; }
 .st-safe { height: 24px; }
-/* 骨架屏 */
-.sk-bg { background: #e5e7eb; animation: sk-pulse 1.5s ease-in-out infinite; }
-.sk-line { height: 14px; background: #e5e7eb; border-radius: 4px; margin-top: 8px; animation: sk-pulse 1.5s ease-in-out infinite; }
-.sk-line.w60 { width: 60%; }
-.sk-line.w40 { width: 40%; }
-.sk-line.w80 { width: 80%; }
-@keyframes sk-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-.st-retry-btn { margin-top: 8px; padding: 8px 24px; background: #c41e3a; border-radius: 8px; }
-.st-retry-text { font-size: 14px; color: #fff; }
 </style>

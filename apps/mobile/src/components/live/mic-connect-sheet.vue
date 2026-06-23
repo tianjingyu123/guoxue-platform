@@ -66,11 +66,6 @@
       </view>
       <view class="mic-safe" />
     </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
   </view>
 </template>
 

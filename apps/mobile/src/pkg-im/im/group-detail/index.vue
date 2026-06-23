@@ -435,8 +435,6 @@ function goInvite() {
       </view>
     </view>
   </view>
-
-  </view>
 </template>
 
 <style scoped>

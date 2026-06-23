@@ -15,9 +15,6 @@
     </view>
 
     <scroll-view scroll-y class="pl-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
-      <view v-if="loading" class="state-loading"><text class="state-loading-text">加载中...</text></view>
-      <view v-if="error" class="state-error"><text class="state-error-text">加载失败</text><view class="state-retry" @tap="retry"><text class="state-retry-text">重试</text></view></view>
-      <template v-if="!loading && !error">
       <!-- 搜索和筛选 -->
       <view class="pl-toolbar">
         <view class="pl-search-row">
@@ -122,7 +119,6 @@
         </view>
       </view>
       <view style="height: 80px" />
-      </template>
     </scroll-view>
 
     <!-- 批量操作栏 -->
@@ -170,23 +166,19 @@
       </view>
     </view>
   </view>
-
-  </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { merchantAdminApi, productStatusConfig, type MerchantProduct } from '@/lib/merchant-data'
+import { merchantProducts, productStatusConfig, type MerchantProduct } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
 
 const statusCfg = productStatusConfig
-const products = ref<MerchantProduct[]>([])
-const loading = ref(true)
-const error = ref(false)
+const products = ref<MerchantProduct[]>([...merchantProducts])
 const activeTab = ref('all')
 const searchQuery = ref('')
 const selected = ref<string[]>([])
@@ -276,24 +268,6 @@ function toast() {
 function go(path: string) {
   navigateTo(path)
 }
-
-onMounted(async () => {
-  try {
-    products.value = await merchantAdminApi.getProducts()
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-})
-
-async function retry() {
-  error.value = false
-  loading.value = true
-  try { products.value = await merchantAdminApi.getProducts() }
-  catch { error.value = true }
-  finally { loading.value = false }
-}
 </script>
 
 <style scoped>
@@ -367,11 +341,4 @@ async function retry() {
 .pl-dialog-actions { display: flex; gap: 12px; margin-top: 20px; }
 .pl-dialog-btn { flex: 1; text-align: center; padding: 10px; border-radius: 8px; font-size: 14px; border: 1px solid #d1d5db; color: #1a1a1a; }
 .pl-dialog-btn.danger { background: #ef4444; border-color: #ef4444; color: #fff; }
-/* 三态 */
-.state-loading { padding: 80px 0; text-align: center; }
-.state-loading-text { font-size: 14px; color: #9ca3af; }
-.state-error { padding: 80px 0; text-align: center; }
-.state-error-text { font-size: 14px; color: #ef4444; display: block; margin-bottom: 12px; }
-.state-retry { display: inline-block; padding: 8px 20px; background: #c41e3a; border-radius: 8px; }
-.state-retry-text { font-size: 14px; color: #fff; }
 </style>

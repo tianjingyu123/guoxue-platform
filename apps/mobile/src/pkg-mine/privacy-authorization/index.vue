@@ -209,8 +209,6 @@ async function authorize(type: 'always' | 'while_using' | 'authorized' | 'deny')
       </view>
     </view>
   </view>
-
-  </view>
 </template>
 
 <style scoped>

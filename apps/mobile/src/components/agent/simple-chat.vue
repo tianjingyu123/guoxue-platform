@@ -117,11 +117,6 @@ function reset() {
     </view>
     <view class="tip safe-pb">内容由 AI 生成，仅供参考，不构成专业建议，请理性看待。</view>
   </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

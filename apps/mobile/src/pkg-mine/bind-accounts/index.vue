@@ -173,11 +173,6 @@ async function handleUnbind() {
     <!-- toast -->
     <view v-if="toast" class="toast"><text class="toast-text">{{ toast }}</text></view>
   </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
 </template>
 
 <style scoped>

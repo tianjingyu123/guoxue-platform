@@ -11,19 +11,6 @@
     </view>
 
     <scroll-view scroll-y class="ea-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
-      <!-- 加载中 -->
-      <view v-if="loading" class="ea-loading">
-        <view class="ea-spin"><AppIcon name="loader-2" :size="24" color="#999" /></view>
-        <text class="ea-loading-text">加载中...</text>
-      </view>
-      <!-- 错误 -->
-      <view v-else-if="error" class="ea-error">
-        <AppIcon name="alert-circle" :size="40" color="#dc2626" />
-        <text class="ea-error-text">加载失败</text>
-        <view class="ea-retry-btn" @tap="retry">重试</view>
-      </view>
-      <!-- 内容 -->
-      <template v-else>
       <!-- 提示 -->
       <view class="ea-tip-wrap">
         <view class="ea-tip">
@@ -121,7 +108,6 @@
       </view>
 
       <view class="ea-bottom-placeholder" />
-      </template>
     </scroll-view>
 
     <!-- 底部提交 -->
@@ -132,85 +118,32 @@
       </view>
     </view>
   </view>
-
-  </view>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { merchantApi } from '@/lib/merchant-data'
 
 const formData = reactive({
-  shopName: '',
-  shopType: '',
-  legalPerson: '',
-  contactName: '',
-  contactPhone: '',
-  contactEmail: '',
-  categories: [] as string[],
+  shopName: '墨香阁文化',
+  shopType: '企业店铺',
+  legalPerson: '张三',
+  contactName: '张三',
+  contactPhone: '13888888888',
+  contactEmail: 'zhangsan@example.com',
+  categories: ['命理咨询', '古籍图书'],
 })
 
 const isSubmitting = ref(false)
-const loading = ref(true)
-const error = ref(false)
 const statusBarHeight = ref(0)
-
-onMounted(async () => {
-  try {
-    const res = await merchantApi.getApplication()
-    formData.shopName = res.shopName || ''
-    formData.shopType = res.shopType || ''
-    formData.legalPerson = res.legalPerson || ''
-    formData.contactName = res.contactName || ''
-    formData.contactPhone = res.contactPhone || ''
-    formData.contactEmail = res.contactEmail || ''
-    formData.categories = res.categories || []
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-})
 
 async function handleSubmit() {
   if (isSubmitting.value) return
   isSubmitting.value = true
-  try {
-    await merchantApi.updateApplication({
-      shopName: formData.shopName,
-      legalPerson: formData.legalPerson,
-      contactName: formData.contactName,
-      contactPhone: formData.contactPhone,
-      contactEmail: formData.contactEmail,
-      categories: formData.categories,
-    })
-    navigateTo('/merchant/application-status')
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '提交失败，请重试', icon: 'none' })
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
-function retry() {
-  loading.value = true
-  error.value = false
-  // 重新触发 onMounted 逻辑
-  merchantApi.getApplication().then((res) => {
-    formData.shopName = res.shopName || ''
-    formData.shopType = res.shopType || ''
-    formData.legalPerson = res.legalPerson || ''
-    formData.contactName = res.contactName || ''
-    formData.contactPhone = res.contactPhone || ''
-    formData.contactEmail = res.contactEmail || ''
-    formData.categories = res.categories || []
-  }).catch(() => {
-    error.value = true
-  }).finally(() => {
-    loading.value = false
-  })
+  await new Promise((r) => setTimeout(r, 2000))
+  isSubmitting.value = false
+  navigateTo('/merchant/application-status')
 }
 
 function go(url: string) {
@@ -280,11 +213,4 @@ uni.getSystemInfo({
 .ea-submit-disabled { opacity: 0.5; }
 .ea-spin { display: inline-flex; animation: ea-spin 1s linear infinite; }
 @keyframes ea-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-/* Loading / Error */
-.ea-loading { padding: 80px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.ea-loading-text { font-size: 14px; color: #999; }
-.ea-error { padding: 80px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.ea-error-text { font-size: 14px; color: #dc2626; }
-.ea-retry-btn { height: 36px; padding: 0 24px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #1a1a1a; }
 </style>

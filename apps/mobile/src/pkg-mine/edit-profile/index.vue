@@ -114,6 +114,7 @@
         <text class="sheet-cancel-text">取消</text>
       </view>
     </view>
+  </view>
 </template>
 
 <script setup lang="ts">

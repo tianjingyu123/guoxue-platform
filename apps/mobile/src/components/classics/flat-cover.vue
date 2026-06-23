@@ -48,8 +48,6 @@ const titleMaxWidth = computed(() => (cleanTitle.value.length === 4 ? '2.4em' : 
       <view class="fc-accent" :style="{ backgroundColor: c.accent }" />
       <text v-if="footer" class="fc-footer" :style="{ color: c.sub }">{{ footer }}</text>
     </view>
-
-  </view>
   </view>
 </template>
 

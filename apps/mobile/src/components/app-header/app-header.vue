@@ -67,10 +67,6 @@ function onTab(tab: { name: string; href: string }) {
       </view>
     </view>
   </view>
-
-  </view>
-  </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

@@ -126,6 +126,7 @@
       <view class="load-more">
         <text class="load-more-txt">上拉加载更多</text>
       </view>
+      </template>
     </view>
 
     <!-- 搜索覆盖层 -->
@@ -151,13 +152,8 @@
         <view class="hot-search-row">
           <text v-for="tag in hotSearches" :key="tag" class="hot-search-tag" @tap="searchQuery = tag">{{ tag }}</text>
         </view>
+        </view>
       </view>
-    </view>
-      </template>
-  </view>
-
-  </view>
-  </view>
   </view>
 </template>
 

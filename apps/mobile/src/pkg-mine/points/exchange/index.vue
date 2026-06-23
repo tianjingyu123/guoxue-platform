@@ -171,8 +171,6 @@ async function handleExchange(item: PointsExchangeItem) {
       <view class="bottom-space" />
     </scroll-view>
   </view>
-
-  </view>
 </template>
 
 <style scoped>

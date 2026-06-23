@@ -49,9 +49,6 @@
       <text class="empty-text">{{ keyword ? '没有找到相关用户' : (tab === 'following' ? '还没有关注任何人' : '还没有粉丝') }}</text>
     </view>
   </view>
-
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">

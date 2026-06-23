@@ -50,8 +50,6 @@ function voiceList() { return props.media.voiceNotes[props.noteKey] || [] }
         <view class="img-del" @tap.stop="media.deleteImage(noteKey, i)"><app-icon name="x" :size="18" color="#ffffff" /></view>
       </view>
     </view>
-
-  </view>
   </view>
 </template>
 

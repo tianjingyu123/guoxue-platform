@@ -126,8 +126,6 @@ function fmtLikes(n: number): string {
 
     <view class="lp-bottom-safe" />
   </view>
-
-  </view>
 </template>
 
 <style scoped lang="scss">

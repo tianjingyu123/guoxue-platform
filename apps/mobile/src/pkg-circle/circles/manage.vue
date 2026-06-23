@@ -334,10 +334,6 @@ function saveSettings() { uni.showToast({ title: '设置已保存', icon: 'succe
       </view>
     </view>
   </view>
-
-  </view>
-  </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

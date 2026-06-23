@@ -52,9 +52,6 @@ function goSearch() {
       </view>
       <view v-else class="ch-btn ch-btn--placeholder" />
     </view>
-
-  </view>
-  </view>
   </view>
 </template>
 

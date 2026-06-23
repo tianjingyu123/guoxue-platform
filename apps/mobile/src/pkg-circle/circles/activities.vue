@@ -88,8 +88,6 @@ function pct(a: Activity) { return Math.min(100, (a.participants / a.maxParticip
       </view>
     </view>
   </view>
-
-  </view>
 </template>
 
 <style scoped lang="scss">

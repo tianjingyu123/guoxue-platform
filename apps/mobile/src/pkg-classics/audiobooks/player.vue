@@ -166,9 +166,9 @@ function nextChapter() {
           <text class="ap-action-txt">定时</text>
         </view>
       </view>
+      </template>
     </view>
 
-      </template>
     <!-- 章节目录抽屉 -->
     <view v-if="showChapters" class="ap-mask" @tap="showChapters = false">
       <view class="ap-sheet" @tap.stop>
@@ -193,12 +193,6 @@ function nextChapter() {
         </scroll-view>
       </view>
     </view>
-  </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
   </view>
 </template>
 

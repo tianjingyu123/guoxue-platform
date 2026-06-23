@@ -5,21 +5,6 @@
     @touchmove="onTouchMove"
     @touchend="onTouchEnd"
   >
-    <!-- 加载中 -->
-    <view v-if="loading" class="vp__loader">
-      <view class="vp__loader-spin" />
-      <text class="vp__loader-txt">加载中...</text>
-    </view>
-
-    <!-- 加载失败 -->
-    <view v-if="error" class="vp__loader">
-      <AppIcon name="alert-circle" :size="80" color="rgba(255,255,255,0.5)" />
-      <text class="vp__loader-txt">加载失败</text>
-      <view class="vp__retry-btn" @tap="fetchVideos()"><text class="vp__retry-txt">重试</text></view>
-    </view>
-
-    <!-- 视频内容 -->
-    <template v-if="!loading && !error && videos.length > 0">
     <!-- 视频容器：支持上下滑动 -->
     <view class="vp__stage">
       <!-- 上一个视频预览 -->
@@ -255,7 +240,6 @@
         </view>
       </view>
     </view>
-    </template>
   </view>
 </template>
 
@@ -264,7 +248,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { videoApi, formatVideoNumber as fmt, type VideoItem, type VideoProduct } from '@/lib/video-data'
+import { mockVideos, formatVideoNumber as fmt, type VideoItem, type VideoProduct } from '@/lib/video-data'
 
 interface CartItem { productId: string; quantity: number; product: VideoProduct }
 
@@ -274,29 +258,10 @@ const statusBarHeight = ref(sysInfo.statusBarHeight || 0)
 const safeBottom = ref(sysInfo.safeAreaInsets?.bottom || 0)
 const windowH = ref(sysInfo.windowHeight || 0)
 
-// ===== 数据（通过 API 获取） =====
+// ===== 数据（默认渲染真实 mock；@data-needs 由 Claude 接入） =====
 // @data-needs: 视频流，参数 id(来自 onLoad)，GET 返回 VideoItem[]
-const videos = ref<VideoItem[]>([])
-const loading = ref(true)
-const error = ref(false)
+const videos = ref<VideoItem[]>(mockVideos.map((v) => ({ ...v })))
 const currentIndex = ref(0)
-
-async function fetchVideos(initialId?: string) {
-  loading.value = true
-  error.value = false
-  try {
-    const list = await videoApi.list()
-    videos.value = list.map((v) => ({ ...v }))
-    if (initialId) {
-      const idx = videos.value.findIndex((v) => v.id === String(initialId))
-      if (idx !== -1) currentIndex.value = idx
-    }
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-}
 
 // ===== 播放/UI 状态 =====
 const isPlaying = ref(true)
@@ -335,7 +300,10 @@ function layerStyle(offset: number) {
 
 onLoad((opts) => {
   const id = opts?.id
-  fetchVideos(id)
+  if (id) {
+    const idx = videos.value.findIndex((v) => v.id === String(id))
+    if (idx !== -1) currentIndex.value = idx
+  }
 })
 
 // ===== 触摸滑动 =====
@@ -407,19 +375,10 @@ function onSingleTap(e: any) {
   }, 300)
 }
 
-async function onLike() {
+function onLike() {
   const v = currentVideo.value
-  const prevLiked = v.isLiked
-  // 乐观更新
   v.isLiked = !v.isLiked
   v.likes += v.isLiked ? 1 : -1
-  try {
-    await videoApi.like(v.id)
-  } catch {
-    // 回滚
-    v.isLiked = prevLiked
-    v.likes += prevLiked ? 1 : -1
-  }
 }
 function onCollect() {
   currentVideo.value.isCollected = !currentVideo.value.isCollected
@@ -457,13 +416,6 @@ function onBack() {
   background: #000;
   overflow: hidden;
 }
-/* 加载/错误 */
-.vp__loader { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; gap: 24rpx; }
-.vp__loader-spin { width: 64rpx; height: 64rpx; border: 4rpx solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; animation: vp-spin 0.8s linear infinite; }
-@keyframes vp-spin { to { transform: rotate(360deg); } }
-.vp__loader-txt { font-size: 28rpx; color: rgba(255,255,255,0.5); }
-.vp__retry-btn { padding: 16rpx 48rpx; background: rgba(255,255,255,0.15); border-radius: 999rpx; }
-.vp__retry-txt { font-size: 26rpx; color: #fff; font-weight: 500; }
 .vp__stage { position: absolute; inset: 0; overflow: hidden; }
 .vp__layer { position: absolute; inset: 0; width: 100%; height: 100%; }
 .vp__cover { width: 100%; height: 100%; }

@@ -18,9 +18,6 @@
         class="ds-panel"
       />
     </view>
-
-  </view>
-  </view>
   </view>
 </template>
 

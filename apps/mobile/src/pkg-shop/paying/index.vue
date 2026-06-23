@@ -77,10 +77,6 @@
       <text class="brand-tip">热卜国学 提供安全支付保障</text>
     </view>
   </view>
-
-  </view>
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">

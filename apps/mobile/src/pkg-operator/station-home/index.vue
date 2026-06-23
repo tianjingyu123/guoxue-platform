@@ -275,9 +275,6 @@ async function retry() { await loadData() }
       </view>
     </view>
   </view>
-
-  </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

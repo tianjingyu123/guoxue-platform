@@ -55,9 +55,6 @@ async function toggle(id: string) {
       </view>
     </view>
   </view>
-
-  </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

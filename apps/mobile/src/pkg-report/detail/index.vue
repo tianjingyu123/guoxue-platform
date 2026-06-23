@@ -110,8 +110,6 @@
         <text class="rd-home-text">返回首页</text>
       </view>
     </view>
-
-  </view>
   </view>
 </template>
 

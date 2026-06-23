@@ -182,8 +182,6 @@ function goCustomerService() {
       <text class="footer-note">如有问题请联系客服：400-xxx-xxxx</text>
     </view>
   </view>
-
-  </view>
 </template>
 
 <style scoped>

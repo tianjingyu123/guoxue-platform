@@ -251,6 +251,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
         <text class="join-btn" :class="{ joined: item.isMember }">{{ item.isMember ? '已加入' : '加入' }}</text>
       </view>
     </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

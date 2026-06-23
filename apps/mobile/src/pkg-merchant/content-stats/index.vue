@@ -12,12 +12,6 @@
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ top: navH + 'px' }">
-      <view v-if="loading" class="loading-state"><text>加载中...</text></view>
-      <view v-if="error" class="error-state">
-        <text>加载失败</text>
-        <view @tap="retry"><text>重试</text></view>
-      </view>
-      <view v-if="!loading && !error">
       <!-- 数据概览 -->
       <view class="grid2">
         <view class="ov-card">
@@ -125,27 +119,18 @@
         </view>
       </view>
       <view style="height: 40px" />
-      </view>
     </scroll-view>
-  </view>
-
-  </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { merchantAdminApi, contentStatusBadge } from '@/lib/merchant-data'
+import { merchantContentStats, merchantContentList, contentStatusBadge } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(20)
 const navH = ref(64)
-const loading = ref(true)
-const error = ref(false)
-const stats = ref<any>({})
-const contentList = ref<any[]>([])
-
 uni.getSystemInfo({
   success: (r) => {
     statusBarHeight.value = r.statusBarHeight || 20
@@ -153,22 +138,7 @@ uni.getSystemInfo({
   },
 })
 
-onMounted(async () => {
-  try {
-    await merchantAdminApi.getDashboard()
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-})
-
-function retry() {
-  error.value = false
-  loading.value = true
-  onMounted()
-}
-
+const stats = merchantContentStats
 const activeType = ref<'all' | '商品' | '文章'>('all')
 const tabs = [
   { label: '全部', value: 'all' as const },
@@ -177,8 +147,8 @@ const tabs = [
 ]
 
 const filteredList = computed(() => {
-  if (activeType.value === 'all') return contentList.value
-  return contentList.value.filter((c: any) => c.type === activeType.value)
+  if (activeType.value === 'all') return merchantContentList
+  return merchantContentList.filter((c) => c.type === activeType.value)
 })
 
 function formatNum(n: number) {
@@ -236,11 +206,4 @@ function formatNum(n: number) {
 
 .empty { background: #fff; border-radius: 12px; padding: 32px; display: flex; justify-content: center; }
 .empty-text { font-size: 14px; color: #9ca3af; }
-
-.loading-state { padding: 60px 0; display: flex; align-items: center; justify-content: center; }
-.loading-state text { font-size: 14px; color: #9ca3af; }
-.error-state { padding: 60px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.error-state text { font-size: 14px; color: #ef4444; }
-.error-state view { padding: 8px 20px; background: #c41e3a; border-radius: 8px; }
-.error-state view text { font-size: 14px; color: #fff; }
 </style>

@@ -138,11 +138,6 @@ function fmtLikes(n: number) {
       </template>
     </view>
   </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

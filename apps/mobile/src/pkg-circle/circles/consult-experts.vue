@@ -95,8 +95,6 @@ const filtered = computed(() => experts.filter(e => {
       </view>
     </view>
   </view>
-
-  </view>
 </template>
 
 <style scoped lang="scss">

@@ -173,12 +173,6 @@
 
     <view class="bottom-gap" />
   </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">

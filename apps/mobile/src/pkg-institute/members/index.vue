@@ -50,16 +50,6 @@
 
       <!-- 成员列表 -->
       <view class="list">
-        <view v-if="loading" class="empty-state">
-          <text class="empty-state-text">加载中...</text>
-        </view>
-        <view v-else-if="error" class="empty-state">
-          <text class="empty-state-text">加载失败</text>
-          <view class="retry-btn" @tap="fetchMembers"><text class="retry-btn-text">重试</text></view>
-        </view>
-        <view v-else-if="filteredMembers.length === 0" class="empty-state">
-          <text class="empty-state-text">暂无成员</text>
-        </view>
         <view
           v-for="m in filteredMembers"
           :key="m.id"
@@ -111,20 +101,16 @@
       </view>
     </view>
   </view>
-
-  </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
-  instituteApi,
+  instituteMembers,
   memberRoleConfig as roleConfig,
   memberFilterOptions as filterOptions,
-  type InstituteMember,
   type MemberRole,
 } from '@/lib/institute-data'
 
@@ -138,33 +124,14 @@ try {
 
 const keyword = ref('')
 const activeFilter = ref('all')
-const members = ref<InstituteMember[]>([])
-const loading = ref(true)
-const error = ref(false)
 
-async function fetchMembers() {
-  loading.value = true
-  error.value = false
-  try {
-    members.value = await instituteApi.getMembers()
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
+const stats = {
+  total: instituteMembers.length,
+  leadership: instituteMembers.filter(m => m.role !== 'member').length,
+  teachers: instituteMembers.filter(m => m.isOnlineTeacher).length,
 }
 
-onMounted(() => {
-  fetchMembers()
-})
-
-const stats = computed(() => ({
-  total: members.value.length,
-  leadership: members.value.filter(m => m.role !== 'member').length,
-  teachers: members.value.filter(m => m.isOnlineTeacher).length,
-}))
-
-const filteredMembers = computed(() => members.value
+const filteredMembers = computed(() => instituteMembers
   .filter(m => {
     if (activeFilter.value === 'leadership') return m.role === 'dean' || m.role === 'vice_dean' || m.role === 'secretary'
     if (activeFilter.value === 'teacher') return m.isOnlineTeacher
@@ -232,11 +199,6 @@ function goApply() {
 .meta-text { font-size: 10px; color: #9ca3af; }
 
 .bottom-pad { height: 16px; }
-
-.empty-state { padding: 40px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.empty-state-text { font-size: 14px; color: #9ca3af; }
-.retry-btn { padding: 6px 16px; background: #c41e3a; border-radius: 8px; }
-.retry-btn-text { font-size: 13px; color: #fff; }
 .footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid #ededed; }
 .footer-btn { display: flex; align-items: center; justify-content: center; height: 44px; background: linear-gradient(90deg, #d4a017, #b8860b); border-radius: 8px; }
 .footer-btn-text { font-size: 14px; color: #fff; font-weight: 500; }

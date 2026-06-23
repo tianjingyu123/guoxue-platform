@@ -135,9 +135,6 @@ function go(url: string) {
       <view class="bottom-space" />
     </scroll-view>
   </view>
-
-  </view>
-  </view>
 </template>
 
 <style scoped>

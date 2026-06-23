@@ -41,8 +41,6 @@
       <view class="safe-bottom" />
     </scroll-view>
   </view>
-
-  </view>
 </template>
 
 <script setup lang="ts">

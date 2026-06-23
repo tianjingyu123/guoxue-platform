@@ -77,8 +77,6 @@
       </view>
     </scroll-view>
   </view>
-
-  </view>
 </template>
 
 <script>

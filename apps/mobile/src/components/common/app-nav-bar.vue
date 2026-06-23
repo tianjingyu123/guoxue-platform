@@ -19,8 +19,6 @@
         <slot name="right" />
       </view>
     </view>
-
-  </view>
   </view>
 </template>
 

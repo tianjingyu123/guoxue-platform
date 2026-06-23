@@ -74,10 +74,6 @@
       <text @tap="goShop">返回商城首页</text>
     </view>
   </view>
-
-  </view>
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">

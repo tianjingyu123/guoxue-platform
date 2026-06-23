@@ -14,19 +14,6 @@
     </view>
 
     <scroll-view scroll-y class="cc-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
-      <!-- 加载中 -->
-      <view v-if="loading" class="cc-loading">
-        <view class="cc-loading-spin" />
-        <text class="cc-loading-txt">加载中...</text>
-      </view>
-
-      <!-- 加载失败 -->
-      <view v-if="error" class="cc-error">
-        <text class="cc-error-txt">加载失败</text>
-        <view class="cc-error-btn" @tap="onRetry"><text class="cc-error-btn-txt">重试</text></view>
-      </view>
-
-      <template v-if="!loading && !error">
       <!-- 创作者信息卡片 -->
       <view class="cc-profile">
         <view class="cc-profile-top">
@@ -325,37 +312,24 @@
       </view>
 
       <view class="cc-bottom-pad" />
-      </template>
     </scroll-view>
-  </view>
-
-  </view>
-  </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, goBack } from '@/utils/router'
 import {
-  creatorApi,
+  creatorStats as stats,
+  myVideos as videos,
+  creatorProductLibrary as products,
+  creatorEarningsPreview as earningsPreview,
   formatCreatorNumber,
-  type CreatorVideo,
-  type CreatorProduct,
 } from '@/lib/creator-data'
 
 const statusBarHeight = ref(0)
-const loading = ref(true)
-const error = ref(false)
 const activeTab = ref<'overview' | 'videos' | 'products' | 'earnings'>('overview')
-
-// 数据
-const stats = ref({ totalViews: 0, totalLikes: 0, totalComments: 0, totalShares: 0, followers: 0, totalEarnings: 0, pendingEarnings: 0, withdrawnEarnings: 0, totalSales: 0, totalGMV: 0, commission: 0, conversionRate: 0, viewsTrend: 0, likesTrend: 0, followersTrend: 0, salesTrend: 0 })
-const videos = ref<CreatorVideo[]>([])
-const products = ref<CreatorProduct[]>([])
-const earningsPreview = ref<Array<{ type: string; amount: number; time: string; product: string }>>([])
 
 const tabs = [
   { id: 'overview' as const, label: '数据概览', icon: 'bar-chart-3' },
@@ -366,47 +340,8 @@ const tabs = [
 
 const fmt = formatCreatorNumber
 
-onMounted(async () => {
-  try {
-    const [ov, vids, prods, earns] = await Promise.all([
-      creatorApi.getOverview(),
-      creatorApi.getMyVideos(),
-      creatorApi.getProducts(),
-      creatorApi.getEarningsPreview(),
-    ])
-    stats.value = ov
-    videos.value = vids
-    products.value = prods
-    earningsPreview.value = earns
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-})
-
 function go(url: string) {
   navigateTo(url)
-}
-async function onRetry() {
-  error.value = false
-  loading.value = true
-  try {
-    const [ov, vids, prods, earns] = await Promise.all([
-      creatorApi.getOverview(),
-      creatorApi.getMyVideos(),
-      creatorApi.getProducts(),
-      creatorApi.getEarningsPreview(),
-    ])
-    stats.value = ov
-    videos.value = vids
-    products.value = prods
-    earningsPreview.value = earns
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
 }
 
 uni.getSystemInfo({
@@ -1013,13 +948,4 @@ uni.getSystemInfo({
 .cc-bottom-pad {
   height: 80px;
 }
-/* 加载/错误 */
-.cc-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; gap: 24rpx; }
-.cc-loading-spin { width: 56rpx; height: 56rpx; border: 4rpx solid #E5E7EB; border-top-color: #c41e3a; border-radius: 50%; animation: cc-spin 0.8s linear infinite; }
-@keyframes cc-spin { to { transform: rotate(360deg); } }
-.cc-loading-txt { font-size: 26rpx; color: #999; }
-.cc-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 48rpx; gap: 24rpx; }
-.cc-error-txt { font-size: 28rpx; color: #999; }
-.cc-error-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
-.cc-error-btn-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 </style>

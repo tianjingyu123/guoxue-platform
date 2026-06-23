@@ -155,8 +155,6 @@
       </view>
       <text v-else class="load-text">点击加载更多</text>
     </view>
-
-  </view>
   </view>
 </template>
 

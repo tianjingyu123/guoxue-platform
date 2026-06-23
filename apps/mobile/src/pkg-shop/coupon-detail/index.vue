@@ -88,8 +88,6 @@
       </template>
     </view>
   </view>
-
-  </view>
 </template>
 
 <script setup lang="ts">

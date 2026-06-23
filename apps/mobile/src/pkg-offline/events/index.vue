@@ -49,26 +49,8 @@
         </view>
       </scroll-view>
 
-      <!-- 加载骨架 -->
-      <view v-if="loading" class="ev-list">
-        <view v-for="i in 3" :key="i" class="ev-card sk">
-          <view class="ev-cover sk-bg" />
-          <view class="ev-info">
-            <view class="sk-line w70" />
-            <view class="sk-line w50" />
-            <view class="sk-line w90" />
-          </view>
-        </view>
-      </view>
-
-      <!-- 错误 -->
-      <view v-else-if="error" class="ev-empty">
-        <text class="ev-empty-text">加载失败</text>
-        <view class="ev-retry-btn" @tap="retry"><text class="ev-retry-text">重试</text></view>
-      </view>
-
       <!-- 活动列表 -->
-      <view v-else class="ev-list">
+      <view class="ev-list">
         <view v-for="event in filtered" :key="event.id" class="ev-card">
           <view class="ev-cover">
             <app-icon name="calendar" :size="40" color="#d8b48a" />
@@ -132,26 +114,12 @@
       </view>
     </scroll-view>
   </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import {
-  offlineApi,
-  eventStatusCfg as statusCfg,
-  eventCities as cities,
-  eventStatusFilters as statusFilters,
-  type OfflineEvent,
-  type EventStatus,
-} from '@/lib/offline-data'
 
 const statusBarHeight = ref(0)
 try {
@@ -159,26 +127,49 @@ try {
   statusBarHeight.value = info.statusBarHeight || 0
 } catch {}
 
-const events = ref<OfflineEvent[]>([])
-const loading = ref(true)
-const error = ref(false)
+type EventStatus = 'upcoming' | 'ongoing' | 'ended'
+interface OfflineEvent {
+  id: string
+  title: string
+  location: string
+  city: string
+  date: string
+  time: string
+  price: string
+  capacity: number
+  registered: number
+  status: EventStatus
+  organizer: string
+  tags: string[]
+}
+
+const events: OfflineEvent[] = [
+  { id: '1', title: '2024 甲辰年命理研讨大会', location: '北京国际会议中心 A 厅', city: '北京', date: '2024-03-20', time: '09:00 - 17:00', price: '¥380', capacity: 200, registered: 176, status: 'upcoming', organizer: '热卜国学文化', tags: ['命理', '八字', '年度大会'] },
+  { id: '2', title: '紫微斗数专题研修班', location: '上海静安区文化中心', city: '上海', date: '2024-03-25', time: '10:00 - 16:00', price: '¥680', capacity: 50, registered: 48, status: 'upcoming', organizer: '张玄风工作室', tags: ['紫微斗数', '小班授课'] },
+  { id: '3', title: '风水堪舆实地考察活动', location: '广州白云山风景区', city: '广州', date: '2024-04-06', time: '08:00 - 18:00', price: '¥260', capacity: 30, registered: 18, status: 'upcoming', organizer: '王德华堪舆学堂', tags: ['风水', '实地考察', '户外'] },
+  { id: '4', title: '易经六十四卦公益讲座', location: '成都市图书馆报告厅', city: '成都', date: '2024-03-15', time: '14:00 - 16:30', price: '免费', capacity: 120, registered: 120, status: 'ongoing', organizer: '热卜国学公益', tags: ['易经', '公益', '免费'] },
+  { id: '5', title: '国学文化新春交流会', location: '杭州西湖文化广场', city: '杭州', date: '2024-02-18', time: '13:00 - 17:00', price: '¥128', capacity: 80, registered: 80, status: 'ended', organizer: '热卜国学文化', tags: ['交流', '国学', '新春'] },
+]
+
+const statusCfg: Record<EventStatus, { label: string; color: string; bg: string }> = {
+  upcoming: { label: '即将开始', color: '#d97706', bg: 'rgba(217,119,6,0.12)' },
+  ongoing: { label: '进行中', color: '#c41e3a', bg: 'rgba(196,30,58,0.1)' },
+  ended: { label: '已结束', color: '#6b7280', bg: '#f3f4f6' },
+}
+const cities = ['全部', '北京', '上海', '广州', '成都', '杭州']
+const statusFilters: { key: EventStatus | 'all'; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'upcoming', label: '即将开始' },
+  { key: 'ongoing', label: '进行中' },
+  { key: 'ended', label: '已结束' },
+]
 
 const search = ref('')
 const city = ref('全部')
 const statusFilter = ref<EventStatus | 'all'>('all')
 
-onMounted(async () => {
-  try {
-    events.value = await offlineApi.getEvents()
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-})
-
 const filtered = computed(() =>
-  events.value.filter((e) => {
+  events.filter((e) => {
     const matchSearch = !search.value || e.title.includes(search.value) || e.tags.some((t) => t.includes(search.value))
     const matchCity = city.value === '全部' || e.city === city.value
     const matchStatus = statusFilter.value === 'all' || e.status === statusFilter.value
@@ -197,17 +188,6 @@ function btnLabel(e: OfflineEvent) {
 function onRegister(e: OfflineEvent) {
   if (e.status === 'ended' || e.registered >= e.capacity) return
   uni.showToast({ title: '报名成功', icon: 'success' })
-}
-async function retry() {
-  error.value = false
-  loading.value = true
-  try {
-    events.value = await offlineApi.getEvents()
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
 }
 </script>
 
@@ -459,17 +439,4 @@ async function retry() {
   font-size: 14px;
   color: #9ca3af;
 }
-/* 骨架屏 */
-.sk-bg { background: #e5e7eb; animation: ev-sk-pulse 1.5s ease-in-out infinite; }
-.sk .ev-info { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-.sk-line { height: 14px; background: #e5e7eb; border-radius: 4px; animation: ev-sk-pulse 1.5s ease-in-out infinite; }
-.sk-line.w50 { width: 50%; }
-.sk-line.w70 { width: 70%; }
-.sk-line.w90 { width: 90%; }
-@keyframes ev-sk-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-.ev-retry-btn { margin-top: 8px; padding: 8px 24px; background: #c41e3a; border-radius: 8px; display: inline-block; }
-.ev-retry-text { font-size: 14px; color: #fff; }
 </style>

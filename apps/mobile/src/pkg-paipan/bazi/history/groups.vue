@@ -110,10 +110,6 @@ function cancelAdd() {
       <view class="primary-btn primary-btn-full" @tap="isAdding = true"><text class="primary-btn-text">添加</text></view>
     </view>
   </view>
-
-  </view>
-  </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

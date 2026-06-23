@@ -11,9 +11,6 @@
     </view>
 
     <scroll-view scroll-y class="ol-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
-      <view v-if="loading" class="state-loading"><text class="state-loading-text">加载中...</text></view>
-      <view v-if="error" class="state-error"><text class="state-error-text">加载失败</text><view class="state-retry" @tap="retry"><text class="state-retry-text">重试</text></view></view>
-      <template v-if="!loading && !error">
       <!-- 搜索 -->
       <view class="ol-toolbar">
         <view class="ol-search-row">
@@ -91,27 +88,22 @@
         </view>
       </view>
       <view style="height: 24px" />
-      </template>
     </scroll-view>
-  </view>
-
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { merchantAdminApi, orderStatusConfig } from '@/lib/merchant-data'
+import { merchantOrders, orderStatusConfig } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
 
 const statusCfg = orderStatusConfig
-const orders = ref<any[]>([])
-const loading = ref(true)
-const error = ref(false)
+const orders = merchantOrders
 const activeTab = ref('all')
 const searchQuery = ref('')
 
@@ -127,14 +119,14 @@ onLoad((opts: any) => {
 })
 
 const stats = computed<Record<string, number>>(() => ({
-  all: orders.value.length,
-  pending: orders.value.filter((o) => o.status === 'pending').length,
-  shipped: orders.value.filter((o) => o.status === 'shipped').length,
-  refunding: orders.value.filter((o) => o.status === 'refunding').length,
+  all: orders.length,
+  pending: orders.filter((o) => o.status === 'pending').length,
+  shipped: orders.filter((o) => o.status === 'shipped').length,
+  refunding: orders.filter((o) => o.status === 'refunding').length,
 }))
 
 const filteredOrders = computed(() =>
-  orders.value.filter((o) => {
+  orders.filter((o) => {
     if (activeTab.value !== 'all' && o.status !== activeTab.value) return false
     if (searchQuery.value && !o.id.includes(searchQuery.value) && !o.productTitle.includes(searchQuery.value)) return false
     return true
@@ -149,24 +141,6 @@ function toast() {
 }
 function go(path: string) {
   navigateTo(path)
-}
-
-onMounted(async () => {
-  try {
-    orders.value = await merchantAdminApi.getOrders()
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-})
-
-async function retry() {
-  error.value = false
-  loading.value = true
-  try { orders.value = await merchantAdminApi.getOrders() }
-  catch { error.value = true }
-  finally { loading.value = false }
 }
 </script>
 
@@ -213,11 +187,4 @@ async function retry() {
 
 .ol-empty { padding: 80px 0; text-align: center; }
 .ol-empty-txt { font-size: 14px; color: #9ca3af; }
-/* 三态 */
-.state-loading { padding: 80px 0; text-align: center; }
-.state-loading-text { font-size: 14px; color: #9ca3af; }
-.state-error { padding: 80px 0; text-align: center; }
-.state-error-text { font-size: 14px; color: #ef4444; display: block; margin-bottom: 12px; }
-.state-retry { display: inline-block; padding: 8px 20px; background: #c41e3a; border-radius: 8px; }
-.state-retry-text { font-size: 14px; color: #fff; }
 </style>

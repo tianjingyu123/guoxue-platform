@@ -242,9 +242,6 @@ function goCart() { navigateTo('/shop/cart') }
     </view>
     </template>
   </view>
-
-  </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

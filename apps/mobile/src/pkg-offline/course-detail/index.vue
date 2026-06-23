@@ -6,7 +6,7 @@
         <view class="cd-icon-btn" @tap="goBack">
           <app-icon name="chevron-left" :size="22" color="#1a1a1a" />
         </view>
-        <text class="cd-nav-title">{{ course?.title || '课程详情' }}</text>
+        <text class="cd-nav-title">{{ course.title }}</text>
         <view class="cd-nav-actions">
           <view class="cd-icon-btn" @tap="isFavorited = !isFavorited">
             <app-icon name="heart" :size="20" :color="isFavorited ? '#ef4444' : '#9ca3af'" :fill="isFavorited" />
@@ -19,25 +19,6 @@
     </view>
 
     <scroll-view scroll-y class="cd-body">
-      <!-- 加载骨架 -->
-      <view v-if="loading" class="cd-skeleton">
-        <view class="cd-sk-cover" />
-        <view class="cd-sk-info">
-          <view class="cd-sk-line w50" />
-          <view class="cd-sk-line w30" />
-          <view class="cd-sk-line w80" />
-        </view>
-      </view>
-
-      <!-- 错误 -->
-      <view v-else-if="error" class="cd-error">
-        <app-icon name="alert-circle" :size="48" color="#ef4444" />
-        <text class="cd-error-text">加载失败，请重试</text>
-        <view class="cd-retry-btn" @tap="retryLoad"><text class="cd-retry-text">重试</text></view>
-      </view>
-
-      <!-- 正常内容 -->
-      <template v-else-if="course">
       <!-- 封面 -->
       <view class="cd-cover">
         <app-icon name="graduation-cap" :size="48" color="#d8b48a" />
@@ -184,7 +165,6 @@
         </view>
       </view>
       <view class="cd-safe" />
-      </template>
     </scroll-view>
 
     <!-- 底部操作栏 -->
@@ -203,8 +183,8 @@
       </template>
       <template v-else>
         <view class="cd-foot-price">
-          <text v-if="course?.price === 0" class="cd-foot-price-text free">免费</text>
-          <text v-else class="cd-foot-price-text">¥{{ course?.price }}</text>
+          <text v-if="course.price === 0" class="cd-foot-price-text free">免费</text>
+          <text v-else class="cd-foot-price-text">¥{{ course.price }}</text>
         </view>
         <view class="cd-foot-btn primary" :class="{ disabled: !canEnroll }" @tap="onEnroll">
           <text class="cd-foot-btn-text primary">{{ isFull ? '已满员' : canEnroll ? '立即报名' : getCourseStatusLabel(course.status) }}</text>
@@ -213,7 +193,7 @@
     </view>
 
     <!-- 入场二维码弹窗 -->
-    <view v-if="showQrCode && course?.myEnrollment" class="cd-modal-mask" @tap="showQrCode = false">
+    <view v-if="showQrCode && course.myEnrollment" class="cd-modal-mask" @tap="showQrCode = false">
       <view class="cd-modal" @tap.stop>
         <view class="cd-modal-head">
           <text class="cd-modal-title">入场二维码</text>
@@ -221,11 +201,11 @@
         </view>
         <view class="cd-qr"><app-icon name="qr-code" :size="120" color="#1a1a1a" /></view>
         <text class="cd-qr-hint">请在入场时向工作人员出示此二维码</text>
-        <text v-if="course?.myEnrollment?.seatNo" class="cd-qr-seat">座位号: {{ course?.myEnrollment?.seatNo }}</text>
+        <text v-if="course.myEnrollment.seatNo" class="cd-qr-seat">座位号: {{ course.myEnrollment.seatNo }}</text>
         <view class="cd-qr-info">
-          <text class="cd-qr-info-row">课程: {{ course?.title }}</text>
-          <text class="cd-qr-info-row">时间: {{ course?.startTime ? formatCourseDateTime(course.startTime) : '' }}</text>
-          <text class="cd-qr-info-row">地点: {{ course?.address }}</text>
+          <text class="cd-qr-info-row">课程: {{ course.title }}</text>
+          <text class="cd-qr-info-row">时间: {{ formatCourseDateTime(course.startTime) }}</text>
+          <text class="cd-qr-info-row">地点: {{ course.address }}</text>
         </view>
         <view class="cd-modal-btn" @tap="showQrCode = false"><text class="cd-modal-btn-text">关闭</text></view>
       </view>
@@ -244,12 +224,6 @@
       </view>
     </view>
   </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">
@@ -258,10 +232,11 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
-  offlineApi,
+  getOfflineCourseDetail,
   getCourseStatusLabel,
   getCourseStatusStyle,
   formatCourseDateTime,
+  offlineCourses,
   type OfflineCourseDetail,
 } from '@/lib/offline-data'
 
@@ -271,20 +246,10 @@ try {
   statusBarHeight.value = info.statusBarHeight || 0
 } catch {}
 
-const course = ref<OfflineCourseDetail | null>(null)
-const loading = ref(true)
-const error = ref(false)
-let courseId = 1
-
-onLoad(async (q) => {
-  courseId = q && q.id ? Number(q.id) : 1
-  try {
-    course.value = await offlineApi.getCourse(courseId)
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
+const course = ref<OfflineCourseDetail>(getOfflineCourseDetail(offlineCourses[0].id))
+onLoad((q) => {
+  const id = q && q.id ? Number(q.id) : offlineCourses[0].id
+  course.value = getOfflineCourseDetail(id)
 })
 
 type TabType = 'intro' | 'outline' | 'instructor'
@@ -298,65 +263,28 @@ const isFavorited = ref(false)
 const showQrCode = ref(false)
 const showCancelConfirm = ref(false)
 
-const submitting = ref(false)
-const statusStyle = computed(() => course.value ? getCourseStatusStyle(course.value.status) : { color: '#6b7280', bg: '#f3f4f6' })
-const isEnrolled = computed(() => !!course.value?.myEnrollment)
-const isFull = computed(() => course.value?.status === 'full')
-const canEnroll = computed(() => course.value?.status === 'enrolling' && !isEnrolled.value)
+const statusStyle = computed(() => getCourseStatusStyle(course.value.status))
+const isEnrolled = computed(() => !!course.value.myEnrollment)
+const isFull = computed(() => course.value.status === 'full')
+const canEnroll = computed(() => course.value.status === 'enrolling' && !isEnrolled.value)
 
 function onShare() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
-function onNavigate() { if (course.value) uni.showToast({ title: `导航到「${course.value.stationName}」`, icon: 'none' }) }
-function goInstructor() { if (course.value) navigateTo(`/instructor/${course.value.instructor.id}`) }
+function onNavigate() { uni.showToast({ title: `导航到「${course.value.stationName}」`, icon: 'none' }) }
+function goInstructor() { navigateTo(`/instructor/${course.value.instructor.id}`) }
 function onAddCalendar() { uni.showToast({ title: '已添加到日历', icon: 'none' }) }
-async function onEnroll() {
-  if (!canEnroll.value || submitting.value) return
-  submitting.value = true
-  try {
-    if (course.value!.price > 0) { uni.showToast({ title: '正在跳转支付...', icon: 'none' }); return }
-    const res = await offlineApi.register(courseId)
-    if (res.success) {
-      course.value!.myEnrollment = { id: 10001, status: 'confirmed', enrollTime: new Date().toISOString(), seatNo: 'A-' + Math.floor(Math.random() * 30 + 1) }
-      course.value!.currentParticipants += 1
-      uni.showToast({ title: '报名成功', icon: 'success' })
-      showQrCode.value = true
-    } else {
-      uni.showToast({ title: res.message || '报名失败', icon: 'none' })
-    }
-  } catch {
-    uni.showToast({ title: '报名失败', icon: 'none' })
-  } finally {
-    submitting.value = false
-  }
+function onEnroll() {
+  if (!canEnroll.value) return
+  if (course.value.price > 0) { uni.showToast({ title: '正在跳转支付...', icon: 'none' }); return }
+  course.value.myEnrollment = { id: 10001, status: 'confirmed', enrollTime: new Date().toISOString(), seatNo: 'A-' + Math.floor(Math.random() * 30 + 1) }
+  course.value.currentParticipants += 1
+  uni.showToast({ title: '报名成功', icon: 'success' })
+  showQrCode.value = true
 }
-async function onCancel() {
-  if (submitting.value) return
-  submitting.value = true
-  try {
-    const res = await offlineApi.cancelRegistration(courseId)
-    if (res.success) {
-      course.value!.myEnrollment = undefined
-      course.value!.currentParticipants = Math.max(course.value!.currentParticipants - 1, 0)
-      uni.showToast({ title: '取消成功', icon: 'none' })
-    } else {
-      uni.showToast({ title: res.message || '取消失败', icon: 'none' })
-    }
-  } catch {
-    uni.showToast({ title: '取消失败', icon: 'none' })
-  } finally {
-    submitting.value = false
-    showCancelConfirm.value = false
-  }
-}
-async function retryLoad() {
-  error.value = false
-  loading.value = true
-  try {
-    course.value = await offlineApi.getCourse(courseId)
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
+function onCancel() {
+  course.value.myEnrollment = undefined
+  course.value.currentParticipants = Math.max(course.value.currentParticipants - 1, 0)
+  showCancelConfirm.value = false
+  uni.showToast({ title: '取消成功', icon: 'none' })
 }
 </script>
 
@@ -464,20 +392,4 @@ async function retryLoad() {
 .cd-confirm-btn.danger { background: #dc2626; }
 .cd-confirm-btn-text { font-size: 15px; color: #1a1a1a; }
 .cd-confirm-btn-text.danger { color: #fff; }
-/* 骨架屏 */
-.cd-skeleton { }
-.cd-sk-cover { width: 100%; aspect-ratio: 16 / 9; background: #e5e7eb; animation: cd-sk-pulse 1.5s ease-in-out infinite; }
-.cd-sk-info { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.cd-sk-line { height: 16px; background: #e5e7eb; border-radius: 4px; animation: cd-sk-pulse 1.5s ease-in-out infinite; }
-.cd-sk-line.w50 { width: 50%; }
-.cd-sk-line.w30 { width: 30%; }
-.cd-sk-line.w80 { width: 80%; }
-@keyframes cd-sk-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-.cd-error { padding: 80px 0; display: flex; flex-direction: column; align-items: center; gap: 16px; }
-.cd-error-text { font-size: 14px; color: #9ca3af; }
-.cd-retry-btn { padding: 8px 24px; background: #c41e3a; border-radius: 8px; }
-.cd-retry-text { font-size: 14px; color: #fff; }
 </style>

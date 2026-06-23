@@ -37,7 +37,7 @@ function go(url: string, id: string) {
         <view v-if="tab.id === 'paipan'" class="paipan">
           <view class="taiji-wrap" :class="{ 'taiji-breathing-glow': isActive('paipan') }">
             <image
-              src="/h5/static/taiji.svg"
+              src="/static/taiji.svg"
               class="taiji"
               :class="{ 'taiji-slow-rotate': isActive('paipan') }"
             />

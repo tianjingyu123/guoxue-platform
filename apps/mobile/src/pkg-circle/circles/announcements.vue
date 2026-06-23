@@ -200,11 +200,6 @@ function share() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
       </view>
     </view>
   </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

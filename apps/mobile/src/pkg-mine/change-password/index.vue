@@ -168,9 +168,6 @@ async function handleSubmit() {
       <text class="toast-text">{{ toast.msg }}</text>
     </view>
   </view>
-
-  </view>
-  </view>
 </template>
 
 <style scoped>

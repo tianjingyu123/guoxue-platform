@@ -109,8 +109,6 @@
     <!-- AI 搜索弹窗 -->
     <ai-search-modal :is-open="aiModalOpen" @close="aiModalOpen = false" />
   </view>
-
-  </view>
 </template>
 
 <script setup lang="ts">

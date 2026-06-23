@@ -72,24 +72,13 @@
 
       <!-- 已搜索：结果列表 -->
       <block v-else>
-        <!-- 加载中 -->
-        <view v-if="loading" class="vs-loading">
-          <view class="vs-loading-spin" />
-          <text class="vs-loading-txt">搜索中...</text>
-        </view>
-        <!-- 加载失败 -->
-        <view v-if="error" class="vs-empty">
-          <text class="vs-empty-txt">搜索失败，请重试</text>
-          <view class="vs-error-btn" @tap="doSearch(query)"><text class="vs-error-btn-txt">重新搜索</text></view>
-        </view>
-        <template v-if="!loading && !error">
-        <text class="vs-result-count">找到 {{ searchResults.length }} 个相关视频</text>
-        <view v-if="searchResults.length === 0" class="vs-empty">
+        <text class="vs-result-count">找到 {{ filtered.length }} 个相关视频</text>
+        <view v-if="filtered.length === 0" class="vs-empty">
           <text class="vs-empty-txt">未找到相关视频</text>
         </view>
         <view v-else class="vs-results">
           <view
-            v-for="video in searchResults"
+            v-for="video in filtered"
             :key="video.id"
             class="vs-result"
             @tap="goDetail(video.id)"
@@ -122,30 +111,33 @@
             </view>
           </view>
         </view>
-        </template>
       </block>
     </view>
-  </view>
-
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { videoApi, videoHotKeywords, type VideoSearchResult } from '@/lib/video-data'
+import { videoHotKeywords, videoSearchResults } from '@/lib/video-data'
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 0 } })
 
 const query = ref('')
 const searched = ref(false)
-const searchResults = ref<VideoSearchResult[]>([])
-const loading = ref(false)
-const error = ref(false)
 const history = ref<string[]>(['八字命理', '紫微斗数入门', '流年运势2024'])
 const hotKeywords = videoHotKeywords
+
+const filtered = computed(() =>
+  videoSearchResults.filter(
+    (v) =>
+      !query.value ||
+      v.title.toLowerCase().includes(query.value.toLowerCase()) ||
+      v.category.includes(query.value),
+  ),
+)
 
 function onInput() {
   searched.value = false
@@ -153,23 +145,13 @@ function onInput() {
 function clearQuery() {
   query.value = ''
   searched.value = false
-  searchResults.value = []
 }
-async function doSearch(q: string) {
+function doSearch(q: string) {
   if (!q.trim()) return
   query.value = q
   searched.value = true
-  loading.value = true
-  error.value = false
   if (!history.value.includes(q)) {
     history.value = [q, ...history.value].slice(0, 10)
-  }
-  try {
-    searchResults.value = await videoApi.search({ keyword: q })
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
   }
 }
 function clearHistory() {
@@ -319,12 +301,4 @@ function goDetail(id: string) {
 .vs-result-stats { display: flex; align-items: center; gap: 16rpx; }
 .vs-stat-ic { display: flex; align-items: center; gap: 4rpx; }
 .vs-stat { font-size: 22rpx; color: #9CA3AF; }
-
-/* 加载 */
-.vs-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 128rpx 0; }
-.vs-loading-spin { width: 56rpx; height: 56rpx; border: 4rpx solid #E5E7EB; border-top-color: #c41e3a; border-radius: 50%; animation: vs-spin 0.8s linear infinite; }
-@keyframes vs-spin { to { transform: rotate(360deg); } }
-.vs-loading-txt { font-size: 26rpx; color: #9CA3AF; margin-top: 16rpx; }
-.vs-error-btn { margin-top: 24rpx; padding: 16rpx 48rpx; background-color: #c41e3a; border-radius: 999rpx; }
-.vs-error-btn-txt { font-size: 28rpx; color: #ffffff; font-weight: 500; }
 </style>

@@ -268,10 +268,6 @@ function confirmExchange() {
       </view>
     </view>
   </view>
-
-  </view>
-  </view>
-  </view>
 </template>
 
 <style scoped>

@@ -251,10 +251,6 @@
         </view>
       </view>
     </view>
-
-  </view>
-  </view>
-  </view>
   </view>
 </template>
 

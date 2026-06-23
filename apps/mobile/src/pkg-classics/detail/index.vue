@@ -163,8 +163,6 @@
           </view>
         </scroll-view>
       </view>
-    </view>
-
       </template>
     <!-- 底部固定操作栏 -->
     <view class="cd-bottom">
@@ -189,7 +187,6 @@
       @close="showComments = false"
     />
   </view>
-
   </view>
 </template>
 

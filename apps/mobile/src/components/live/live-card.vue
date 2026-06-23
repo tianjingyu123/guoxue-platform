@@ -77,9 +77,6 @@ function toggleBook() {
         <text v-if="data.type === 'commerce' && data.productCount" class="goods">{{ data.productCount }}件好物</text>
       </view>
     </view>
-
-  </view>
-  </view>
   </view>
 </template>
 

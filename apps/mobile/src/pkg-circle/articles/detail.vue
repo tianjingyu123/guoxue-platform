@@ -434,9 +434,6 @@ function toggleEmbedCircle(i: number, init: boolean) {
       </view>
     </view>
   </view>
-
-  </view>
-  </view>
 </template>
 
 <style scoped>

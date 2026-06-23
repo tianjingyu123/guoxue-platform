@@ -163,8 +163,6 @@ function notReady() {
       </view>
     </scroll-view>
   </view>
-
-  </view>
 </template>
 
 <style scoped>

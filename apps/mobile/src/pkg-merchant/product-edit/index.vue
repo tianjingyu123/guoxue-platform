@@ -11,8 +11,7 @@
     </view>
 
     <scroll-view scroll-y class="pe-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
-      <view v-if="loading" class="loading-state"><text>加载中...</text></view>
-      <view v-else class="pe-body">
+      <view class="pe-body">
         <!-- 商品图片 -->
         <view class="pe-card">
           <view class="pe-card-head">
@@ -173,10 +172,6 @@
       </view>
     </view>
   </view>
-
-  </view>
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">
@@ -184,10 +179,9 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { merchantAdminApi, productCategories } from '@/lib/merchant-data'
+import { productCategories, productEditPreset } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(0)
-const loading = ref(false)
 uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
 
 const categories = productCategories
@@ -212,34 +206,10 @@ const form = ref({
   limitPerPerson: '',
 })
 
-onLoad(async (opts: any) => {
+onLoad((opts: any) => {
   if (opts?.id) {
     isEdit.value = true
-    loading.value = true
-    try {
-      const products = await merchantAdminApi.getProducts()
-      const product = products.find((p: any) => p.id === opts.id)
-      if (product) {
-        form.value = {
-          images: ['1', '2'],
-          title: product.title || '',
-          subtitle: '',
-          description: '',
-          price: String(product.price || ''),
-          originalPrice: product.originalPrice ? String(product.originalPrice) : '',
-          stock: String(product.stock || ''),
-          category: product.category || '',
-          tags: [],
-          isVirtual: false,
-          allowRefund: true,
-          limitPerPerson: '',
-        }
-      }
-    } catch {
-      uni.showToast({ title: '加载商品信息失败', icon: 'none' })
-    } finally {
-      loading.value = false
-    }
+    form.value = { ...productEditPreset, images: [...productEditPreset.images], tags: [...productEditPreset.tags] }
   }
 })
 
@@ -361,7 +331,4 @@ function go(path: string) {
 .pe-sheet-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 4px; border-bottom: 1px solid #f3f4f6; font-size: 15px; color: #1a1a1a; }
 .pe-sheet-item.active { color: #c41e3a; }
 .pe-sheet-fee { font-size: 12px; color: #9ca3af; }
-
-.loading-state { padding: 60px 0; display: flex; align-items: center; justify-content: center; }
-.loading-state text { font-size: 14px; color: #9ca3af; }
 </style>

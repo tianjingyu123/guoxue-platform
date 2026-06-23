@@ -237,6 +237,21 @@ const ROUTE_MAP: Record<string, string> = {
   '/verification': '/pkg-settings/verification/index',
   // 兴趣引导（注册流 welcome→interests-guide→首页，选3-8个兴趣领域）
   '/interests-guide': '/pkg-auth/interests-guide/index',
+  // ===== V0 6.24 新增14条静态路由 =====
+  '/login/forgot-password': '/pkg-auth/forgot-password/index',
+  '/renew': '/pkg-profile/renew/index',
+  '/courses': '/pkg-course/market/index',
+  '/admin/user-audit': '/pkg-mine/user-audit/index',
+  '/admin/batch-coupon-send': '/pkg-mine/batch-coupon-send/index',
+  '/splash': '/pkg-common/splash/index',
+  '/poster': '/pkg-common/poster/index',
+  '/result': '/pkg-common/result/index',
+  '/publish/video': '/pkg-video/edit-publish/index',
+  '/teacher/dashboard': '/pkg-creator/teacher-dashboard/index',
+  '/teacher-certification': '/pkg-creator/teacher-certification/index',
+  '/my-circles': '/pkg-circle/my-circles/index',
+  '/rankings': '/pkg-circle/rankings/index',
+  '/articles': '/pkg-circle/articles/index',
   // 扫码结果（接 ?content= query，9种类型解析，从 offline/checkin 等扫码入口调起）
   '/common/scan': '/pkg-common/scan/index',
   // 全屏图片查看器（接 ?images=&index= query，缩放/旋转/切换/手势）
@@ -385,6 +400,8 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/courses\/([^/?]+)\/player$/, '/pkg-course/player/index', 'id'],
   [/^\/courses\/([^/?]+)\/purchase$/, '/pkg-course/purchase-confirm/index', 'id'],
   [/^\/courses\/([^/?]+)$/, '/pkg-course/detail/index', 'id'],
+  // 课程完成页 /course/:id/complete（须在 /course/:id 之前，否则 complete 段被当作课程 id）
+  [/^\/course\/([^/?]+)\/complete$/, '/pkg-course/complete/index', 'id'],
   // 课程卡片 /course/:id（单数）暂复用课程详情
   [/^\/course\/([^/?]+)$/, '/pkg-course/detail/index', 'id'],
   // ��章详情 /articles/:id（复数为真源，单数 /article/:id 原型为重定向，统一指向详情）
@@ -414,6 +431,8 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/booking\/([^/?]+)$/, '/pkg-expert/booking/index', 'expertId'],
   // 连麦通话 /call/:id（预约/reservations 页 href=`/call/${id}` 入口）
   [/^\/call\/([^/?]+)$/, '/pkg-expert/call/index', 'id'],
+  // 通用内容页 /content/:slug（静态如 /content/community-rules 优先命中）
+  [/^\/content\/([^/?]+)$/, '/pkg-common/content/index', 'slug'],
   // 举报结果详情 /report/result/:id（静态 /report、/report/result 已在 ROUTE_MAP 优先命中）
   [/^\/report\/result\/([^/?]+)$/, '/pkg-report/detail/index', 'id'],
   // 活动详情 /activity/:id（静态 /activity/calendar、/activity/landing 已在 ROUTE_MAP 优先命中）

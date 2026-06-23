@@ -290,17 +290,12 @@
       </view>
     </view>
   </view>
-
-  </view>
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, goBack } from '@/utils/router'
-import { merchantApi } from '@/lib/merchant-data'
 
 const categories = [
   { id: 'guoxue', name: '国学课程' },
@@ -448,25 +443,13 @@ async function handleSubmit() {
   }
   isSubmitting.value = true
   submitStep.value = 1
-  try {
-    const res = await merchantApi.apply({
-      shopName: formData.shopName,
-      shopLogo: formData.shopLogo,
-      shopDesc: formData.shopDesc,
-      contactName: formData.contactName,
-      contactPhone: formData.contactPhone,
-      verifyCode: formData.verifyCode,
-      idNumber: formData.idNumber,
-      categories: formData.categories,
-    })
-    submitStep.value = 2
-    submitStep.value = 3
-    navigateTo('/merchant/application-status')
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '提交失败，请重试', icon: 'none' })
-  } finally {
-    isSubmitting.value = false
-  }
+  await new Promise((r) => setTimeout(r, 1000))
+  submitStep.value = 2
+  await new Promise((r) => setTimeout(r, 1500))
+  submitStep.value = 3
+  await new Promise((r) => setTimeout(r, 1000))
+  isSubmitting.value = false
+  navigateTo('/merchant/application-status')
 }
 
 function go(url: string) {

@@ -99,11 +99,6 @@
       <view class="forgot" @click="go('/forgot-password')"><text class="forgot-txt">忘记原密码？</text></view>
     </view>
   </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">

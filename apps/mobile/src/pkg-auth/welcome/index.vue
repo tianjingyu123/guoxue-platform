@@ -49,11 +49,6 @@
       <text class="footer-text">{{ brandName }} · {{ tagline }}</text>
     </view>
   </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">

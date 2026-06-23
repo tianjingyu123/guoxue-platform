@@ -161,7 +161,8 @@ function openProduct(id: number) { navigateTo(`/mall/product/${id}`) }
           <text class="empty-text">暂无相关商品</text>
           <text class="empty-reset" @tap="resetAll">重置筛选条件</text>
         </view>
-        </template>
+      </view>
+      </template>
     </view>
 
     <!-- 筛选面板 -->
@@ -206,12 +207,6 @@ function openProduct(id: number) { navigateTo(`/mall/product/${id}`) }
         <view class="fp-btn-ok" hover-class="g-card-press" @tap="showFilter = false"><text class="fp-btn-ok-text">确定</text></view>
       </view>
     </view>
-  </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
   </view>
 </template>
 

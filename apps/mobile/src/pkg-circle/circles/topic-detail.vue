@@ -93,10 +93,6 @@
     <view class="fab" :style="{ bottom: '120rpx' }" @tap="onPost">
       <app-icon name="plus" :size="48" color="#FFFFFF" />
     </view>
-
-  </view>
-  </view>
-  </view>
   </view>
 </template>
 

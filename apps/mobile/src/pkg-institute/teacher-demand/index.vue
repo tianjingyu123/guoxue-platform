@@ -35,13 +35,6 @@
 
     <scroll-view scroll-y class="scroll" :style="{ height: scrollHeight + 'px' }">
       <view class="list">
-        <view v-if="loading" class="empty-state">
-          <text class="empty-state-text">加载中...</text>
-        </view>
-        <view v-else-if="filteredDemands.length === 0" class="empty-state">
-          <text class="empty-state-text">暂无课程需求</text>
-        </view>
-        <template v-else>
         <view
           v-for="demand in filteredDemands"
           :key="demand.id"
@@ -97,7 +90,6 @@
             <text class="apply-btn-text">申请授课</text>
           </view>
         </view>
-        </template>
       </view>
       <view :style="{ height: viewMode === 'station' ? '88px' : '24px' }" />
     </scroll-view>
@@ -110,21 +102,13 @@
       </view>
     </view>
   </view>
-
-  </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import {
-  instituteApi,
-  teacherDemands,
-  demandStatusConfig as statusConfig,
-  demandTabs as tabs,
-} from '@/lib/institute-data'
+import { teacherDemands, demandStatusConfig as statusConfig, demandTabs as tabs } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const scrollHeight = ref(600)
@@ -136,13 +120,6 @@ try {
 
 const activeTab = ref('all')
 const viewMode = ref<'teacher' | 'station'>('teacher')
-const loading = ref(false)
-
-onMounted(() => {
-  loading.value = true
-  // teacherDemands 从模块同步导入，暂无独立 API
-  loading.value = false
-})
 
 const filteredDemands = computed(() => teacherDemands.filter(d => {
   if (activeTab.value === 'all') return true
@@ -181,9 +158,6 @@ function applyDemand() {
 .scroll { width: 100%; }
 
 .list { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
-
-.empty-state { padding: 40px 0; display: flex; flex-direction: column; align-items: center; }
-.empty-state-text { font-size: 14px; color: #9ca3af; }
 .demand-card { background: #fff; border-radius: 12px; border: 1px solid #ededed; padding: 12px; }
 .station-row { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid #ededed; margin-bottom: 8px; }
 .station-icon { width: 32px; height: 32px; border-radius: 8px; background: #eff6ff; display: flex; align-items: center; justify-content: center; }

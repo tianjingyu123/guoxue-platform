@@ -12,64 +12,54 @@
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ paddingTop: navHeight + 'px' }">
-      <!-- Banner + 统计 (加载态) -->
-      <view v-if="infoLoading" class="loading-block">
-        <text class="loading-text">加载中...</text>
+      <!-- Banner -->
+      <view class="banner">
+        <view class="banner-mask" />
+        <view class="banner-content">
+          <text class="banner-title">{{ info.name }}</text>
+          <text class="banner-slogan">{{ info.slogan }}</text>
+        </view>
       </view>
-      <view v-else-if="infoError" class="error-block">
-        <text class="error-text">加载失败</text>
-        <view class="retry-btn" @tap="fetchInfo"><text class="retry-btn-text">重试</text></view>
+
+      <!-- 搜索栏 -->
+      <view class="search-wrap">
+        <view class="search-box">
+          <app-icon name="search" :size="16" color="#9ca3af" />
+          <input v-model="keyword" class="search-input" placeholder="搜索讲师、课程..." placeholder-class="search-ph" confirm-type="search" @confirm="handleSearch" />
+          <view class="search-btn" @tap="handleSearch"><text class="search-btn-text">搜索</text></view>
+        </view>
       </view>
-      <template v-else>
-        <!-- Banner -->
-        <view class="banner">
-          <view class="banner-mask" />
-          <view class="banner-content">
-            <text class="banner-title">{{ info.name }}</text>
-            <text class="banner-slogan">{{ info.slogan }}</text>
-          </view>
-        </view>
 
-        <!-- 搜索栏 -->
-        <view class="search-wrap">
-          <view class="search-box">
-            <app-icon name="search" :size="16" color="#9ca3af" />
-            <input v-model="keyword" class="search-input" placeholder="搜索讲师、课程..." placeholder-class="search-ph" confirm-type="search" @confirm="handleSearch" />
-            <view class="search-btn" @tap="handleSearch"><text class="search-btn-text">搜索</text></view>
-          </view>
+      <!-- 统计数据 -->
+      <view class="stats">
+        <view class="stat-item">
+          <text class="stat-num">{{ info.stats.instructorCount }}</text>
+          <text class="stat-label">讲师</text>
         </view>
+        <view class="stat-item">
+          <text class="stat-num">{{ (info.stats.studentCount / 10000).toFixed(1) }}万</text>
+          <text class="stat-label">学员</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num">{{ info.stats.courseCount }}</text>
+          <text class="stat-label">课程</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num">{{ info.stats.eventCount }}</text>
+          <text class="stat-label">活动</text>
+        </view>
+      </view>
 
-        <!-- 统计数据 -->
-        <view class="stats">
-          <view class="stat-item">
-            <text class="stat-num">{{ info.stats.instructorCount }}</text>
-            <text class="stat-label">讲师</text>
-          </view>
-          <view class="stat-item">
-            <text class="stat-num">{{ (info.stats.studentCount / 10000).toFixed(1) }}万</text>
-            <text class="stat-label">学员</text>
-          </view>
-          <view class="stat-item">
-            <text class="stat-num">{{ info.stats.courseCount }}</text>
-            <text class="stat-label">课程</text>
-          </view>
-          <view class="stat-item">
-            <text class="stat-num">{{ info.stats.eventCount }}</text>
-            <text class="stat-label">活动</text>
+      <!-- 关于我们 -->
+      <view class="section">
+        <view class="card about-card">
+          <text class="about-title">关于我们</text>
+          <text class="about-desc">{{ info.description }}</text>
+          <view class="mission">
+            <text class="mission-text">使命：{{ info.mission }}</text>
           </view>
         </view>
-
-        <!-- 关于我们 -->
-        <view class="section">
-          <view class="card about-card">
-            <text class="about-title">关于我们</text>
-            <text class="about-desc">{{ info.description }}</text>
-            <view class="mission">
-              <text class="mission-text">使命：{{ info.mission }}</text>
-            </view>
-          </view>
-        </view>
-      </template>
+      </view>
 
       <!-- 金牌讲师 -->
       <view class="section">
@@ -128,17 +118,7 @@
           </view>
         </view>
 
-        <view v-if="eventsLoading" class="loading-block">
-          <text class="loading-text">加载中...</text>
-        </view>
-        <view v-else-if="eventsError" class="error-block">
-          <text class="error-text">加载失败</text>
-          <view class="retry-btn" @tap="fetchEvents"><text class="retry-btn-text">重试</text></view>
-        </view>
-        <view v-else-if="enrollingEvents.length === 0" class="empty-block">
-          <text class="empty-text">暂无近期活动</text>
-        </view>
-        <view v-else class="event-list">
+        <view class="event-list">
           <view v-for="e in enrollingEvents" :key="e.id" class="event-card" @tap="goEvent(e.id)">
             <view class="event-cover">
               <app-icon name="calendar" :size="28" color="#d1d5db" />
@@ -187,20 +167,13 @@
       <view class="bottom-safe" />
     </scroll-view>
   </view>
-
-  </view>
-  </view>
-  </view>
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onMounted } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { instituteApi, instructors as allInstructors, type InstituteInfo, type InstituteEvent, eventStatusLabel, eventStatusColor, eventTypeLabel } from '@/lib/institute-data'
+import { instituteInfo, instructors as allInstructors, instituteEvents, eventStatusLabel, eventStatusColor, eventTypeLabel } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -208,46 +181,10 @@ const sys = uni.getSystemInfoSync()
 statusBarHeight.value = sys.statusBarHeight || 0
 navHeight.value = (sys.statusBarHeight || 0) + 44
 
-const info = ref<InstituteInfo>({ name: '', slogan: '', mission: '', description: '', bannerUrl: '', stats: { instructorCount: 0, studentCount: 0, courseCount: 0, eventCount: 0 } })
-const infoLoading = ref(true)
-const infoError = ref(false)
-
+const info = instituteInfo
 const instructors = allInstructors
 const keyword = ref('')
-const events = ref<InstituteEvent[]>([])
-const eventsLoading = ref(true)
-const eventsError = ref(false)
-
-const enrollingEvents = computed(() => events.value.filter((e) => e.status === 'enrolling').slice(0, 3))
-
-async function fetchInfo() {
-  infoLoading.value = true
-  infoError.value = false
-  try {
-    info.value = await instituteApi.getIntro()
-  } catch {
-    infoError.value = true
-  } finally {
-    infoLoading.value = false
-  }
-}
-
-async function fetchEvents() {
-  eventsLoading.value = true
-  eventsError.value = false
-  try {
-    events.value = await instituteApi.getEvents()
-  } catch {
-    eventsError.value = true
-  } finally {
-    eventsLoading.value = false
-  }
-}
-
-onMounted(() => {
-  fetchInfo()
-  fetchEvents()
-})
+const enrollingEvents = computed(() => instituteEvents.filter((e) => e.status === 'enrolling').slice(0, 3))
 
 function handleSearch() {
   if (keyword.value.trim()) {
@@ -351,13 +288,4 @@ function goApply() {
 .apply-circle-1 { right: -40px; bottom: -40px; width: 128px; height: 128px; }
 .apply-circle-2 { right: 32px; top: -40px; width: 80px; height: 80px; }
 .bottom-safe { height: 24px; }
-
-.loading-block { padding: 40px 16px; display: flex; align-items: center; justify-content: center; }
-.loading-text { font-size: 14px; color: #9ca3af; }
-.error-block { padding: 40px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.error-text { font-size: 14px; color: #ef4444; }
-.retry-btn { padding: 6px 16px; background: #c41e3a; border-radius: 8px; }
-.retry-btn-text { font-size: 13px; color: #fff; }
-.empty-block { padding: 40px 16px; display: flex; align-items: center; justify-content: center; }
-.empty-text { font-size: 14px; color: #9ca3af; }
 </style>

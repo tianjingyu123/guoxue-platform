@@ -136,10 +136,6 @@ onMounted(() => {
     </view>
     <view class="safe-bottom" />
   </view>
-
-  </view>
-  </view>
-  </view>
 </template>
 
 <style scoped>

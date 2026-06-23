@@ -123,8 +123,6 @@ onUnmounted(() => {
         <text class="btn-txt">结束通话</text>
       </view>
     </view>
-
-  </view>
   </view>
 </template>
 

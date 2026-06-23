@@ -12,9 +12,6 @@
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ paddingTop: navHeight + 'px' }">
-      <view v-if="loading" class="state-loading"><text class="state-loading-text">加载中...</text></view>
-      <view v-if="error" class="state-error"><text class="state-error-text">加载失败</text><view class="state-retry" @tap="retry"><text class="state-retry-text">重试</text></view></view>
-      <template v-if="!loading && !error">
       <!-- 详情视图 -->
       <template v-if="selected">
         <view class="detail-card" :style="{ background: noticeTypeConfig[selected.type].bg, borderColor: noticeTypeConfig[selected.type].border }">
@@ -79,21 +76,17 @@
           </view>
         </view>
       </template>
-      </template>
     </scroll-view>
-  </view>
-
-  </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { merchantAdminApi, noticeTypeConfig, noticeCategoryBadge } from '@/lib/merchant-data'
+import { merchantNotices, noticeTypeConfig, noticeCategoryBadge } from '@/lib/merchant-data'
 
-type Notice = { id: string; type: string; title: string; content: string; category: string; time: string; read: boolean }
+type Notice = (typeof merchantNotices)[number]
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -102,9 +95,7 @@ const sys = uni.getSystemInfoSync()
 statusBarHeight.value = sys.statusBarHeight || 0
 navHeight.value = (sys.statusBarHeight || 0) + 44
 
-const notices = ref<Notice[]>([])
-const loading = ref(true)
-const error = ref(false)
+const notices = ref<Notice[]>(merchantNotices.map((n) => ({ ...n })))
 const selected = ref<Notice | null>(null)
 
 const unreadCount = computed(() => notices.value.filter((n) => !n.read).length)
@@ -128,24 +119,6 @@ function onNavBack() {
 }
 function onAction() {
   uni.showToast({ title: '功能开发中', icon: 'none' })
-}
-
-onMounted(async () => {
-  try {
-    notices.value = await merchantAdminApi.getNotices()
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-})
-
-async function retry() {
-  error.value = false
-  loading.value = true
-  try { notices.value = await merchantAdminApi.getNotices() }
-  catch { error.value = true }
-  finally { loading.value = false }
 }
 </script>
 
@@ -192,11 +165,4 @@ async function retry() {
 .op-primary-text { font-size: 15px; font-weight: 500; color: #c41e3a; }
 .op-muted { background: #f3f4f6; }
 .op-muted-text { font-size: 15px; font-weight: 500; color: #1a1a1a; }
-/* 三态 */
-.state-loading { padding: 80px 0; text-align: center; }
-.state-loading-text { font-size: 14px; color: #9ca3af; }
-.state-error { padding: 80px 0; text-align: center; }
-.state-error-text { font-size: 14px; color: #ef4444; display: block; margin-bottom: 12px; }
-.state-retry { display: inline-block; padding: 8px 20px; background: #c41e3a; border-radius: 8px; }
-.state-retry-text { font-size: 14px; color: #fff; }
 </style>

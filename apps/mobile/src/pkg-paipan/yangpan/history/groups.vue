@@ -96,8 +96,6 @@ function saveRename(id: string) {
       </view>
     </view>
   </view>
-
-  </view>
 </template>
 
 <style scoped lang="scss">

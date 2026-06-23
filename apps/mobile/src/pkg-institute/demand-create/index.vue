@@ -102,16 +102,13 @@
       </view>
     </template>
   </view>
-
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { instituteApi, demandSpecialtyOptions as specialties, demandTeachTypes as teachTypes, demandSalaries as salaries } from '@/lib/institute-data'
+import { demandSpecialtyOptions as specialties, demandTeachTypes as teachTypes, demandSalaries as salaries } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const scrollHeight = ref(600)

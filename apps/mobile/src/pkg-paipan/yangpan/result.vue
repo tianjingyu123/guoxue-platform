@@ -316,9 +316,6 @@ function goToBazi() {
     <!-- 笔记面板 -->
     <notes-panel :open="showNotes" @close="showNotes = false" />
   </view>
-
-  </view>
-  </view>
 </template>
 
 <style scoped lang="scss">

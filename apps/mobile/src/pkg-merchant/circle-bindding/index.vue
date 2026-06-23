@@ -12,12 +12,6 @@
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ top: navH + 'px' }">
-      <view v-if="loading" class="loading-state"><text>加载中...</text></view>
-      <view v-if="error" class="error-state">
-        <text>加载失败</text>
-        <view @tap="retry"><text>重试</text></view>
-      </view>
-      <view v-if="!loading && !error">
       <!-- 说明 -->
       <view class="intro">
         <text class="intro-title">圈子绑定说明</text>
@@ -83,7 +77,6 @@
         </view>
       </view>
       <view style="height: 100px" />
-      </view>
     </scroll-view>
 
     <!-- 底部操作按钮 -->
@@ -100,23 +93,16 @@
       </view>
     </view>
   </view>
-
-  </view>
-  </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { merchantAdminApi } from '@/lib/merchant-data'
+import { merchantCircles } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(20)
 const navH = ref(64)
-const loading = ref(true)
-const error = ref(false)
-const circles = ref<any[]>([])
-
 uni.getSystemInfo({
   success: (r) => {
     statusBarHeight.value = r.statusBarHeight || 20
@@ -124,35 +110,19 @@ uni.getSystemInfo({
   },
 })
 
-onMounted(async () => {
-  try {
-    await merchantAdminApi.getDashboard()
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-})
-
-function retry() {
-  error.value = false
-  loading.value = true
-  onMounted()
-}
-
 const searchText = ref('')
-const selected = ref<string[]>([])
+const selected = ref<string[]>(merchantCircles.filter((c) => c.bound).map((c) => c.id))
 const submitting = ref(false)
 
 const filteredCircles = computed(() =>
-  circles.value.filter(
+  merchantCircles.filter(
     (c) =>
       c.name.toLowerCase().includes(searchText.value.toLowerCase()) ||
       c.category.toLowerCase().includes(searchText.value.toLowerCase()),
   ),
 )
 
-const selectedCircles = computed(() => circles.value.filter((c) => selected.value.includes(c.id)))
+const selectedCircles = computed(() => merchantCircles.filter((c) => selected.value.includes(c.id)))
 
 function toggle(id: string) {
   if (selected.value.includes(id)) {
@@ -162,18 +132,14 @@ function toggle(id: string) {
   }
 }
 
-async function submit() {
+function submit() {
   if (submitting.value || selected.value.length === 0) return
   submitting.value = true
-  try {
-    await merchantAdminApi.getDashboard()
+  setTimeout(() => {
+    submitting.value = false
     uni.showToast({ title: '绑定成功', icon: 'success' })
     setTimeout(() => navigateTo('/merchant/dashboard'), 800)
-  } catch {
-    uni.showToast({ title: '绑定失败，请重试', icon: 'none' })
-  } finally {
-    submitting.value = false
-  }
+  }, 1500)
 }
 </script>
 
@@ -226,11 +192,4 @@ async function submit() {
 .btn-primary { background: #c41e3a; }
 .btn-primary-text { font-size: 15px; color: #fff; }
 .btn-disabled { opacity: 0.5; }
-
-.loading-state { padding: 60px 0; display: flex; align-items: center; justify-content: center; }
-.loading-state text { font-size: 14px; color: #9ca3af; }
-.error-state { padding: 60px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.error-state text { font-size: 14px; color: #ef4444; }
-.error-state view { padding: 8px 20px; background: #c41e3a; border-radius: 8px; }
-.error-state view text { font-size: 14px; color: #fff; }
 </style>

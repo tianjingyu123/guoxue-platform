@@ -313,7 +313,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onMounted } from '@dcloudio/uni-app'
+import { onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { videoApi, publishHotTags, type PublishProduct } from '@/lib/video-data'

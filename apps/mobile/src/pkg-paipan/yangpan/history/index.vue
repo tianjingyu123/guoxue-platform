@@ -212,8 +212,6 @@ const zhiList = (p: Rec['pillars']) => [{ c: p.yearZhi }, { c: p.monthZhi }, { c
       </view>
     </view>
   </view>
-
-  </view>
 </template>
 
 <style scoped lang="scss">

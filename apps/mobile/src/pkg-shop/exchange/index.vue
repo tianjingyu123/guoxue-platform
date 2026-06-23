@@ -182,6 +182,7 @@
           <text class="notice-item">• 新商品将在收到退回商品后3个工作日内发出</text>
         </view>
       </view>
+      </template>
     </view>
 
     <!-- 提交按钮 -->
@@ -240,10 +241,6 @@
         </view>
       </view>
     </view>
-    </template>
-  </view>
-
-  </view>
   </view>
 </template>
 

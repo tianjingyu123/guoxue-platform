@@ -203,8 +203,6 @@ function backToCircle() { goBack() }
       </view>
     </view>
   </view>
-
-  </view>
 </template>
 
 <style scoped lang="scss">

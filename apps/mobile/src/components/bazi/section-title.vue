@@ -6,8 +6,6 @@ defineProps<{ title: string }>()
   <view class="st">
     <view class="st-l"><view class="st-bar" /><text class="st-text">{{ title }}</text></view>
     <slot name="extra" />
-
-  </view>
   </view>
 </template>
 <style scoped lang="scss">
