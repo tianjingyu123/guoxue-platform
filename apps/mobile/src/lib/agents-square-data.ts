@@ -2,6 +2,7 @@
  * AI 智能体广场数据（1:1 还原原型 proto-ref-app/agents/page.tsx）
  * 入口：排盘首页「AI 智能体」区块「更多」
  */
+import { apiGet, useMock } from '@/utils/request'
 
 export interface SquareBot {
   id: string
@@ -225,3 +226,37 @@ export const agentsRanking: RankingAgent[] = [
   { id: '4', name: '塔罗牌占卜', description: '塔罗解读、抽签分析、运势预测', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=tarot&backgroundColor=7c3aed', category: '占卜', users: 7240, sessions: 21850, rating: 4.6, verified: true },
   { id: '5', name: '中医养生顾问', description: '健康咨询、养生建议、体质分析', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=zhongyi&backgroundColor=ea580c', category: '健康', users: 5850, sessions: 18520, rating: 4.5, verified: false },
 ]
+
+// ============ API 层 ============
+
+export const agentsSquareApi = {
+  /** 获取广场智能体列表 */
+  async getHotBots(): Promise<SquareBot[]> {
+    if (useMock()) return hotBots
+    try { return await apiGet<SquareBot[]>('/agents/square') } catch { return hotBots }
+  },
+
+  /** 获取热门问答 */
+  async getHotQuestions(): Promise<SquareQuestion[]> {
+    if (useMock()) return hotQuestions
+    try { return await apiGet<SquareQuestion[]>('/agents/questions') } catch { return hotQuestions }
+  },
+
+  /** 获取对话历史 */
+  async getConversations(): Promise<AgentConversation[]> {
+    if (useMock()) return agentConversations
+    try { return await apiGet<AgentConversation[]>('/agents/conversations') } catch { return agentConversations }
+  },
+
+  /** 获取常见问题 */
+  async getFaqs(): Promise<AgentFAQ[]> {
+    if (useMock()) return agentFaqs
+    try { return await apiGet<AgentFAQ[]>('/agents/faqs') } catch { return agentFaqs }
+  },
+
+  /** 获取排行榜 */
+  async getRanking(): Promise<RankingAgent[]> {
+    if (useMock()) return agentsRanking
+    try { return await apiGet<RankingAgent[]>('/agents/ranking') } catch { return agentsRanking }
+  },
+}

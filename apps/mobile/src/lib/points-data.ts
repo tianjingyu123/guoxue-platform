@@ -1,4 +1,5 @@
 // 积分中心数据与类型（迁移自原型 /points 体系，1:1 还原 lib/api/points.ts 的 mock 数据）
+import { apiGet, apiPost, useMock } from '@/utils/request'
 
 // 积分信息
 export interface PointsInfo {
@@ -80,4 +81,38 @@ export const exchangeTypeLabels: Record<ExchangeType, string> = {
   coin: '国学币',
   vip: '会员',
   gift: '实物',
+}
+
+// ============ API 层 ============
+
+export const pointsApi = {
+  /** 获取积分信息 */
+  async getInfo(): Promise<PointsInfo> {
+    if (useMock()) return pointsInfo
+    try { return await apiGet<PointsInfo>('/points') } catch { return pointsInfo }
+  },
+
+  /** 获取积分任务列表 */
+  async getTasks(): Promise<PointsTask[]> {
+    if (useMock()) return pointsTasks
+    try { return await apiGet<PointsTask[]>('/points/tasks') } catch { return pointsTasks }
+  },
+
+  /** 获取积分历史 */
+  async getHistory(): Promise<PointsHistoryItem[]> {
+    if (useMock()) return pointsHistory
+    try { return await apiGet<PointsHistoryItem[]>('/points/history') } catch { return pointsHistory }
+  },
+
+  /** 获取积分兑换商品 */
+  async getExchangeItems(): Promise<PointsExchangeItem[]> {
+    if (useMock()) return pointsExchangeItems
+    try { return await apiGet<PointsExchangeItem[]>('/points/exchange') } catch { return pointsExchangeItems }
+  },
+
+  /** 执行积分兑换 */
+  async exchange(_itemId: number): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '兑换成功' }
+    try { await apiPost(`/points/exchange/${_itemId}`, {}); return { success: true, message: '兑换成功' } } catch (e: any) { return { success: false, message: e?.message || '兑换失败' } }
+  },
 }

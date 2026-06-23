@@ -3,22 +3,29 @@
  * 智能体对话核心页（原型 app/agent/[id]/page.tsx 迁移）
  * 文字流式对话 + 推荐卡片(课程/圈子/商品/排盘) + 语音通话模拟 + 断连重连 + 对话总结
  */
-import { ref, computed, nextTick, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onUnmounted, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import ReconnectingOverlay from '@/components/agent/reconnecting-overlay.vue'
 import {
-  agentDetail, quickQuestions, chatWelcome, generateResponse, nowTime, formatDuration,
-  recommendedCourses, recommendedCircles,
+  agentApi, chatWelcome, nowTime, formatDuration,
   type ChatMessage, type RecommendItem,
 } from '@/lib/agent-data'
+
+const loading = ref(true)
+const error = ref('')
+const agentId = ref('')
+const agentDetail = ref<any>({ name: '', freeQuota: 0, pricePerChat: 0, callPrice: 0 })
+const quickQuestions = ref<string[]>([])
+const recommendedCourses = ref<any[]>([])
+const recommendedCircles = ref<any[]>([])
 
 const messages = ref<ChatMessage[]>([
   { id: 0, role: 'assistant', content: chatWelcome, time: nowTime(), recommendations: [{ type: 'paipan', data: null }] },
 ])
 const inputValue = ref('')
 const isTyping = ref(false)
-const freeRemaining = ref(agentDetail.freeQuota)
+const freeRemaining = ref(0)
 const showMenu = ref(false)
 const isMuted = ref(false)
 const isInCall = ref(false)
@@ -33,8 +40,36 @@ let callTimer: ReturnType<typeof setInterval> | null = null
 
 const showQuick = computed(() => messages.value.length <= 1)
 const userCount = computed(() => messages.value.filter((m) => m.role === 'user').length)
-const callCost = computed(() => ((callDuration.value / 60) * agentDetail.callPrice).toFixed(2))
+const callCost = computed(() => ((callDuration.value / 60) * (agentDetail.value.callPrice || 0)).toFixed(2))
 const soundbars = Array.from({ length: 12 }, (_, i) => 20 + ((i * 7) % 30))
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const pages = getCurrentPages()
+    const currentPage = pages[pages.length - 1] as any
+    const id = currentPage?.options?.id || currentPage?.$page?.options?.id || '1'
+    agentId.value = id
+
+    const [detail, questions, recs] = await Promise.all([
+      agentApi.getDetail(id),
+      agentApi.getQuickQuestions(),
+      agentApi.getRecommendations(),
+    ])
+    agentDetail.value = detail || { name: '', freeQuota: 0, pricePerChat: 0, callPrice: 0 }
+    quickQuestions.value = questions || []
+    recommendedCourses.value = recs?.courses || []
+    recommendedCircles.value = recs?.circles || []
+    freeRemaining.value = detail?.freeQuota || 0
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { loadData() })
 
 function scrollToBottom() {
   nextTick(() => { scrollId.value = 'anchor-' + Date.now() })
@@ -59,7 +94,7 @@ function simulateStreaming(fullText: string, messageId: number, recommendations?
   }, 25)
 }
 
-function handleSend() {
+async function handleSend() {
   const text = inputValue.value.trim()
   if (!text || isTyping.value) return
   messages.value.push({ id: messages.value.length, role: 'user', content: text, time: nowTime() })
@@ -67,11 +102,15 @@ function handleSend() {
   isTyping.value = true
   if (freeRemaining.value > 0) freeRemaining.value -= 1
   scrollToBottom()
-  setTimeout(() => {
-    const { text: reply, recommendations } = generateResponse(text)
-    const id = messages.value.length + 1
-    messages.value.push({ id, role: 'assistant', content: '', time: nowTime(), isStreaming: true })
-    simulateStreaming(reply, id, recommendations)
+  setTimeout(async () => {
+    try {
+      const { text: reply, recommendations } = await agentApi.sendMessage(agentId.value, text)
+      const id = messages.value.length + 1
+      messages.value.push({ id, role: 'assistant', content: '', time: nowTime(), isStreaming: true })
+      simulateStreaming(reply, id, recommendations)
+    } catch (_e) {
+      isTyping.value = false
+    }
   }, 600)
 }
 
@@ -80,7 +119,7 @@ function handleQuick(q: string) {
 }
 
 function handleClearContext() {
-  messages.value = [{ id: 0, role: 'assistant', content: `对话已重置。您好！我是${agentDetail.name}，有什么可以帮您的？`, time: nowTime() }]
+  messages.value = [{ id: 0, role: 'assistant', content: `对话已重置。您好！我是${agentDetail.value.name}，有什么可以帮您的？`, time: nowTime() }]
   showMenu.value = false
   showSummary.value = false
 }
@@ -108,10 +147,10 @@ function toggleCall() {
       id: messages.value.length,
       role: 'assistant',
       time: nowTime(),
-      content: `通话已结束，本次通话时长 ${formatDuration(dur)}，消费 ¥${((dur / 60) * agentDetail.callPrice).toFixed(2)}。\n\n感谢您的咨询！如果您还有疑问，可以继续文字沟通，或者查看以下学习资源：`,
+      content: `通话已结束，本次通话时长 ${formatDuration(dur)}，消费 ¥${((dur / 60) * (agentDetail.value.callPrice || 0)).toFixed(2)}。\n\n感谢您的咨询！如果您还有疑问，可以继续文字沟通，或者查看以下学习资源：`,
       recommendations: [
-        { type: 'course', data: recommendedCourses[dur % recommendedCourses.length] },
-        { type: 'circle', data: recommendedCircles[0] },
+        { type: 'course', data: recommendedCourses.value[dur % (recommendedCourses.value.length || 1)] },
+        { type: 'circle', data: recommendedCircles.value[0] },
       ],
     })
     callDuration.value = 0
@@ -152,7 +191,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="loading" class="load-state"><text class="load-state-text">加载中...</text></view>
+  <view v-else-if="error" class="load-state">
+    <text class="load-state-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="header safe-pt">
       <view class="head-bar">
@@ -323,6 +367,12 @@ onUnmounted(() => {
 </template>
 
 <style scoped lang="scss">
+/* 加载/错误状态 */
+.load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.load-state-text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
+
 .page { display: flex; flex-direction: column; height: 100vh; background: #f7f5f0; }
 .safe-pt { padding-top: var(--status-bar-height, 0); }
 .safe-pb { padding-bottom: constant(safe-area-inset-bottom); padding-bottom: env(safe-area-inset-bottom); }

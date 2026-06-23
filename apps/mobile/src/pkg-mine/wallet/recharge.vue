@@ -16,7 +16,12 @@ const options = ref<RechargeOption[]>([])
 const retry = () => { error.value = ''; loadData() }
 async function loadData() {
   loading.value = true; error.value = ''
-  try { options.value = await mineApi.getRechargeOptions() }
+  try {
+    options.value = await mineApi.getRechargeOptions()
+    if (!selectedCoins.value) {
+      selectedCoins.value = options.value.find((o) => o.popular)?.coins ?? options.value[0]?.coins ?? null
+    }
+  }
   catch (e: any) { error.value = e?.message || '加载失败' }
   finally { loading.value = false }
 }
@@ -25,9 +30,8 @@ onMounted(loadData)
 const payMethods = rechargePayMethods
 
 // UI 状态
-const selectedCoins = ref<number | null>(
-  options.find((o) => o.popular)?.coins ?? options[0]?.coins ?? null,
-)
+const selectedCoins = ref<number | null>(null)
+// 初始值在 loadData 后设置
 const customAmount = ref('')
 const payMethod = ref<string>('wechat')
 const isSubmitting = ref(false)
@@ -47,13 +51,13 @@ function onCustomInput(e: { detail: { value: string } }) {
 
 const selectedAmount = computed(() => {
   if (customAmount.value) return parseInt(customAmount.value) || 0
-  const o = options.find((x) => x.coins === selectedCoins.value)
+  const o = options.value.find((x) => x.coins === selectedCoins.value)
   return o?.price || 0
 })
 
 const totalCoins = computed(() => {
   if (customAmount.value) return (parseInt(customAmount.value) || 0) * 10
-  const o = options.find((x) => x.coins === selectedCoins.value)
+  const o = options.value.find((x) => x.coins === selectedCoins.value)
   return o ? o.coins + o.bonus : 0
 })
 

@@ -56,7 +56,7 @@ function fillAccount(acc: WithdrawAccount) {
 
 function switchMethod(m: WithdrawMethod) {
   method.value = m
-  const saved = info.savedAccounts.find((a) => a.method === m)
+  const saved = info.value.savedAccounts.find((a: WithdrawAccount) => a.method === m)
   if (saved) {
     fillAccount(saved)
   } else if (m === 'alipay') {
@@ -70,14 +70,14 @@ function switchMethod(m: WithdrawMethod) {
 }
 
 const amountNum = computed(() => parseFloat(amount.value) || 0)
-const fee = computed(() => Math.max(amountNum.value * info.feeRate, info.minFee))
+const fee = computed(() => Math.max(amountNum.value * info.value.feeRate, info.value.minFee))
 const actualAmount = computed(() => Math.max(amountNum.value - fee.value, 0))
 
 const isValidAmount = computed(
   () =>
-    amountNum.value >= info.minWithdraw &&
-    amountNum.value <= info.availableBalance &&
-    amountNum.value <= info.maxWithdraw,
+    amountNum.value >= info.value.minWithdraw &&
+    amountNum.value <= info.value.availableBalance &&
+    amountNum.value <= info.value.maxWithdraw,
 )
 const isValidAccount = computed(() =>
   method.value === 'alipay'
@@ -87,7 +87,7 @@ const isValidAccount = computed(() =>
 const canSubmit = computed(() => isValidAmount.value && isValidAccount.value)
 
 function withdrawAll() {
-  amount.value = String(Math.min(info.availableBalance, info.maxWithdraw))
+  amount.value = String(Math.min(info.value.availableBalance, info.value.maxWithdraw))
 }
 
 // 支付密码弹窗

@@ -2,11 +2,25 @@
 /** 古籍参考（书封网格 + 原文/译文/对照切换）——对应原型 ClassicsSection */
 import { ref } from 'vue'
 import SectionTitle from './section-title.vue'
-import { classics, classicsContent } from '@/lib/bazi-result-data'
+import { classics, baziApi } from '@/lib/bazi-result-data'
 
 const selected = ref<string | null>(null)
 const mode = ref<'原文' | '译文' | '对照'>('原文')
-function toggle(id: string) { selected.value = selected.value === id ? null : id }
+const contentLoading = ref(false)
+const currentContent = ref<{ title: string; original: string; translation: string } | null>(null)
+
+async function toggle(id: string) {
+  if (selected.value === id) { selected.value = null; currentContent.value = null; return }
+  selected.value = id
+  contentLoading.value = true
+  try {
+    currentContent.value = await baziApi.classicsRef(id)
+  } catch {
+    currentContent.value = null
+  } finally {
+    contentLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -24,17 +38,20 @@ function toggle(id: string) { selected.value = selected.value === id ? null : id
         <text class="cs-label" :class="{ 'cs-label-on': selected === b.id }">{{ b.name }}</text>
       </view>
     </view>
-    <view v-if="selected && classicsContent[selected]" class="cs-detail">
+    <view v-if="selected && contentLoading" class="cs-detail">
+      <view class="cs-card"><text class="cs-body" style="color:#999;text-align:center">加载中...</text></view>
+    </view>
+    <view v-else-if="selected && currentContent" class="cs-detail">
       <view class="cs-modes">
         <view v-for="m in (['原文','译文','对照'] as const)" :key="m" class="cs-mode" :class="{ 'cs-mode-on': mode === m }" @tap="mode = m">
           <text class="cs-mode-text" :class="{ 'cs-mode-text-on': mode === m }">{{ m }}</text>
         </view>
       </view>
       <view class="cs-card">
-        <text class="cs-title">{{ classicsContent[selected].title }}</text>
-        <text v-if="mode === '原文'" class="cs-body">{{ classicsContent[selected].original }}</text>
-        <text v-else-if="mode === '译文'" class="cs-body">{{ classicsContent[selected].translation }}</text>
-        <text v-else class="cs-body"><text class="cs-tag-ink">【原文】</text>{{ classicsContent[selected].original }}{{ '\n\n' }}<text class="cs-tag-brand">【译文】</text>{{ classicsContent[selected].translation }}</text>
+        <text class="cs-title">{{ currentContent.title }}</text>
+        <text v-if="mode === '原文'" class="cs-body">{{ currentContent.original }}</text>
+        <text v-else-if="mode === '译文'" class="cs-body">{{ currentContent.translation }}</text>
+        <text v-else class="cs-body"><text class="cs-tag-ink">【原文】</text>{{ currentContent.original }}{{ '\n\n' }}<text class="cs-tag-brand">【译文】</text>{{ currentContent.translation }}</text>
       </view>
     </view>
   </view>

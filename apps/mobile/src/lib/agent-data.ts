@@ -2,6 +2,7 @@
  * 智能体模块数据层
  * 从原型 app/agent/[id]/page.tsx、main、customer-service、history 迁移
  */
+import { apiGet, apiPost, useMock } from '@/utils/request'
 
 export interface ChatMessage {
   id: number
@@ -248,3 +249,61 @@ export const initialHistory: HistoryItem[] = [
 ]
 
 export const historyGroups = ['今天', '昨天', '本周', '更早']
+
+// ============ API 层 ============
+
+export const agentApi = {
+  /** 获取智能体详情 */
+  async getDetail(_id: string): Promise<typeof agentDetail> {
+    if (useMock()) return agentDetail
+    try { return await apiGet(`/agent/${_id}`) } catch { return agentDetail }
+  },
+
+  /** 获取快捷提问 */
+  async getQuickQuestions(): Promise<string[]> {
+    if (useMock()) return quickQuestions
+    try { return await apiGet('/agent/quick-questions') } catch { return quickQuestions }
+  },
+
+  /** 发送消息到智能体 */
+  async sendMessage(_agentId: string, _content: string): Promise<{ text: string; recommendations?: RecommendItem[] }> {
+    if (useMock()) return generateResponse(_content)
+    try { return await apiPost(`/agent/${_agentId}/chat`, { content: _content }) } catch { return generateResponse(_content) }
+  },
+
+  /** 获取智玄助手欢迎语 */
+  async getZhixuanWelcome(): Promise<{ welcome: string; quickPrompts: string[] }> {
+    if (useMock()) return { welcome: zhixuanWelcome, quickPrompts: zhixuanQuickPrompts }
+    try { return await apiGet('/agent/zhixuan/welcome') } catch { return { welcome: zhixuanWelcome, quickPrompts: zhixuanQuickPrompts } }
+  },
+
+  /** 发送消息给智玄助手 */
+  async sendZhixuanMessage(_content: string): Promise<string> {
+    if (useMock()) return zhixuanReply
+    try { const data = await apiPost<any>('/agent/zhixuan/chat', { content: _content }); return data?.reply || zhixuanReply } catch { return zhixuanReply }
+  },
+
+  /** 获取客服欢迎语 */
+  async getCsWelcome(): Promise<{ welcome: string; quick: string[] }> {
+    if (useMock()) return { welcome: csWelcome, quick: csQuick }
+    try { return await apiGet('/agent/cs/welcome') } catch { return { welcome: csWelcome, quick: csQuick } }
+  },
+
+  /** 发送客服消息 */
+  async sendCsMessage(_content: string): Promise<string> {
+    if (useMock()) return csReplies[_content] || csDefaultReply
+    try { const data = await apiPost<any>('/agent/cs/chat', { content: _content }); return data?.reply || csDefaultReply } catch { return csDefaultReply }
+  },
+
+  /** 获取对话历史 */
+  async getHistory(): Promise<HistoryItem[]> {
+    if (useMock()) return initialHistory
+    try { return await apiGet<HistoryItem[]>('/agent/history') } catch { return initialHistory }
+  },
+
+  /** 获取推荐内容 */
+  async getRecommendations(): Promise<{ courses: any[]; circles: any[]; products: any[] }> {
+    if (useMock()) return { courses: recommendedCourses, circles: recommendedCircles, products: recommendedProducts }
+    try { return await apiGet('/agent/recommendations') } catch { return { courses: recommendedCourses, circles: recommendedCircles, products: recommendedProducts } }
+  },
+}

@@ -1,5 +1,10 @@
 <template>
-  <view class="page">
+  <view v-if="loading" class="load-state"><text class="load-state-text">加载中...</text></view>
+  <view v-else-if="error" class="load-state">
+    <text class="load-state-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <view v-else class="page">
     <!-- 顶栏 -->
     <view class="topbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="tb-inner">
@@ -81,23 +86,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { agentsRanking } from '@/lib/agents-square-data'
+import { agentsSquareApi, type RankingAgent } from '@/lib/agents-square-data'
 
+const loading = ref(true)
+const error = ref('')
 const statusBarHeight = ref(0)
+const ranking = ref<RankingAgent[]>([])
+const selectedCategory = ref<string | null>(null)
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await agentsSquareApi.getRanking()
+    ranking.value = data || []
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { loadData() })
+
 uni.getSystemInfo({
   success: (e) => {
     statusBarHeight.value = e.statusBarHeight || 0
   },
 })
 
-const selectedCategory = ref<string | null>(null)
-
-const categories = computed(() => Array.from(new Set(agentsRanking.map((a) => a.category))))
+const categories = computed(() => Array.from(new Set(ranking.value.map((a) => a.category))))
 const filteredAgents = computed(() =>
-  selectedCategory.value ? agentsRanking.filter((a) => a.category === selectedCategory.value) : agentsRanking,
+  selectedCategory.value ? ranking.value.filter((a) => a.category === selectedCategory.value) : ranking.value,
 )
 
 function goChat(id: string) {
@@ -118,6 +141,11 @@ function goBack() {
 </script>
 
 <style scoped>
+.load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.load-state-text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
+
 .page {
   min-height: 100vh;
   background: #f5f5f5;

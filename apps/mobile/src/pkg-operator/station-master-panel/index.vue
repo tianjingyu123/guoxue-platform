@@ -218,7 +218,7 @@ async function retry() { await loadData() }
 
 const trendIndex = ref(0)
 const trendPeriod = ref<'week' | 'month'>('week')
-const activeTrend = computed(() => stationPanelTrends.value[trendIndex.value] || ({} as StationPanelTrend))
+const activeTrend = computed(() => stationPanelTrends.value[trendIndex.value] || ({} as StationTrendData))
 function trendTypeLabel(type: string) { return type === 'revenue' ? '收益' : '订单' }
 const unreadNotices = computed(() => stationPanelNotices.value.filter((n) => n.type === 'warning').length)
 

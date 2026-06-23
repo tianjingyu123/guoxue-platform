@@ -2,13 +2,13 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { mineApi, type WalletInfo, type WalletTxType, type RechargeOption, type WalletTransaction } from '@/lib/mine-data'
+import { mineApi, type WalletInfo, type RechargeOption, type WalletTxRecord, type WalletTxCategory } from '@/lib/mine-data'
 
 const loading = ref(false)
 const error = ref('')
 const info = ref<WalletInfo>({ balance: 0, rmb: 0, level: 0, growthValue: 0, nextLevelGrowth: 1, points: 0, totalRecharge: 0, totalSpent: 0 })
 const options = ref<RechargeOption[]>([])
-const transactions = ref<WalletTransaction[]>([])
+const transactions = ref<WalletTxRecord[]>([])
 
 const retry = () => { error.value = ''; loadData() }
 async function loadData() {
@@ -31,11 +31,14 @@ const levelProgress = computed(() =>
   Math.round((info.value.growthValue / info.value.nextLevelGrowth) * 100),
 )
 
-const txIcon: Record<WalletTxType, { icon: string; color: string }> = {
-  recharge: { icon: 'plus', color: '#16a34a' },
-  spend: { icon: 'shopping-bag', color: '#dc2626' },
-  bonus: { icon: 'gift', color: '#2563eb' },
+const txIcon: Record<WalletTxCategory, { icon: string; color: string }> = {
+  purchase: { icon: 'shopping-bag', color: '#dc2626' },
   refund: { icon: 'arrow-up-right', color: '#9333ea' },
+  reward: { icon: 'gift', color: '#2563eb' },
+  recharge: { icon: 'plus', color: '#16a34a' },
+  withdraw: { icon: 'arrow-up-right', color: '#9333ea' },
+  transfer: { icon: 'send', color: '#f97316' },
+  other: { icon: 'help-circle', color: '#6B7280' },
 }
 
 function notReady() {
@@ -146,14 +149,14 @@ function notReady() {
         <view class="tx-list">
           <view v-for="t in transactions" :key="t.id" class="tx-item">
             <view class="tx-icon">
-              <AppIcon :name="txIcon[t.type].icon" :size="18" :color="txIcon[t.type].color" />
+              <AppIcon :name="txIcon[t.category]?.icon || 'help-circle'" :size="18" :color="txIcon[t.category]?.color || '#6B7280'" />
             </view>
             <view class="tx-body">
               <text class="tx-title">{{ t.title }}</text>
-              <text class="tx-time">{{ t.time }}</text>
+              <text class="tx-time">{{ t.createdAt }}</text>
             </view>
-            <text class="tx-amount" :class="{ income: t.amount > 0 }">
-              {{ t.amount > 0 ? '+' : '' }}{{ t.amount }}
+            <text class="tx-amount" :class="{ income: t.type === 'income' }">
+              {{ t.type === 'income' ? '+' : '' }}{{ t.amount }}
             </text>
           </view>
         </view>

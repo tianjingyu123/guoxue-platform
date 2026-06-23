@@ -75,7 +75,7 @@ const submitting = ref(false)
 onMounted(async () => {
   try {
     const dm = await operatorApi.getDormantMembers()
-    members.value = dm.map((m) => ({ ...m }))
+    members.value = dm.map((m: DormantMember) => ({ ...m }))
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
@@ -88,7 +88,7 @@ async function retry() {
   error.value = ''
   try {
     const dm = await operatorApi.getDormantMembers()
-    members.value = dm.map((m) => ({ ...m }))
+    members.value = dm.map((m: DormantMember) => ({ ...m }))
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {

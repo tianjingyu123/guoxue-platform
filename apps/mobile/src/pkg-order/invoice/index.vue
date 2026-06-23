@@ -171,8 +171,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { onLoad, onMounted } from '@dcloudio/uni-app'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { orderApi, invoiceStatusConfig } from '@/lib/order-data'
 
 const safeBottom = ref(0)

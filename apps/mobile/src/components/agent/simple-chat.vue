@@ -16,7 +16,7 @@ const props = defineProps<{
   welcome: string
   quickPrompts: string[]
   /** 自定义回复解析；返回字符串 */
-  resolveReply: (text: string) => string
+  resolveReply: (text: string) => string | Promise<string>
   /** 回复延迟毫秒 */
   delay?: number
 }>()
@@ -39,7 +39,12 @@ async function send(text: string) {
   loading.value = true
   scrollToBottom()
   await new Promise((r) => setTimeout(r, props.delay ?? 1000))
-  messages.value.push({ id: Date.now() + 1, role: 'assistant', content: props.resolveReply(t), time: nowTime() })
+  try {
+    const reply = await props.resolveReply(t)
+    messages.value.push({ id: Date.now() + 1, role: 'assistant', content: reply, time: nowTime() })
+  } catch (_e) {
+    messages.value.push({ id: Date.now() + 1, role: 'assistant', content: '抱歉，回复生成失败，请稍后再试。', time: nowTime() })
+  }
   loading.value = false
   scrollToBottom()
 }

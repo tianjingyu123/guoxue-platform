@@ -10,18 +10,42 @@ import TraditionalMode from '@/components/bazi/traditional-mode.vue'
 import AnalysisMode from '@/components/bazi/analysis-mode.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
-import { baziData } from '@/lib/bazi-result-data'
+import { baziApi } from '@/lib/bazi-result-data'
 import { navigateBack } from '@/utils/router'
 
 const activeMode = ref<'traditional' | 'analysis'>('traditional')
 const showEditModal = ref(false)
 const showNotes = ref(false)
+const loading = ref(true)
+const error = ref('')
+const baziResult = ref<any>(null)
 
 const userInput = reactive({
-  name: baziData.name, gender: baziData.gender,
+  name: '', gender: '男',
   year: 1983, month: 6, day: 18, hour: 14, minute: 31,
   province: '', city: '北京', district: '房山区',
 })
+
+async function loadResult(q: Record<string, string> = {}) {
+  loading.value = true
+  error.value = ''
+  try {
+    const result = await baziApi.calculate({
+      name: q.name || undefined,
+      gender: q.gender || '男',
+      year: q.year ? Number(q.year) : 1983,
+      month: q.month ? Number(q.month) : 6,
+      day: q.day ? Number(q.day) : 18,
+      hour: q.hour ? Number(q.hour) : 14,
+      minute: q.minute ? Number(q.minute) : 31,
+    })
+    baziResult.value = result
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 onLoad((q: Record<string, string> = {}) => {
   if (q.name) userInput.name = decodeURIComponent(q.name)
@@ -34,16 +58,20 @@ onLoad((q: Record<string, string> = {}) => {
   if (q.province) userInput.province = decodeURIComponent(q.province)
   if (q.city) userInput.city = decodeURIComponent(q.city)
   if (q.district) userInput.district = decodeURIComponent(q.district)
+  loadResult(q)
 })
 
-const data = computed(() => ({
-  ...baziData,
-  name: userInput.name,
-  gender: userInput.gender,
-  qianKun: userInput.gender === '女' ? '坤造' : '乾造',
-  solarDate: `${userInput.year}年${userInput.month}月${userInput.day}日 ${String(userInput.hour).padStart(2, '0')}时${String(userInput.minute).padStart(2, '0')}分`,
-  birthYear: userInput.year,
-}))
+const data = computed(() => {
+  const base = baziResult.value || {}
+  return {
+    ...base,
+    name: userInput.name || base.name || '未知',
+    gender: userInput.gender || base.gender || '男',
+    qianKun: userInput.gender === '女' ? '坤造' : '乾造',
+    solarDate: `${userInput.year}年${userInput.month}月${userInput.day}日 ${String(userInput.hour).padStart(2, '0')}时${String(userInput.minute).padStart(2, '0')}分`,
+    birthYear: userInput.year || base.birthYear || 1983,
+  }
+})
 
 // 编辑弹窗草稿
 const draft = reactive({ ...userInput })
@@ -87,9 +115,18 @@ function onShare() {
 
     <!-- 主体 -->
     <scroll-view scroll-y class="body">
-      <traditional-mode v-if="activeMode === 'traditional'" :data="data" @edit="openEdit" />
-      <analysis-mode v-else :data="data" @edit="openEdit" />
-      <view class="disc-wrap"><disclaimer variant="fortune" tone="card" /></view>
+      <view v-if="loading" class="loading-wrap">
+        <text class="loading-text">排盘计算中...</text>
+      </view>
+      <view v-else-if="error" class="error-wrap">
+        <text class="error-text">{{ error }}</text>
+        <view class="retry-btn" @tap="loadResult({})"><text class="retry-text">重试</text></view>
+      </view>
+      <template v-else>
+        <traditional-mode v-if="activeMode === 'traditional'" :data="data" @edit="openEdit" />
+        <analysis-mode v-else :data="data" @edit="openEdit" />
+        <view class="disc-wrap"><disclaimer variant="fortune" tone="card" /></view>
+      </template>
     </scroll-view>
 
     <!-- 悬浮笔记按钮 -->
@@ -209,4 +246,11 @@ function onShare() {
 .opt-text { font-size: 28rpx; color: var(--text-ink); }
 .confirm { width: 100%; padding: 28rpx 0; background: var(--brand); border-radius: 24rpx; text-align: center; }
 .confirm-text { font-size: 32rpx; font-weight: 600; color: #fff; }
+/* 加载/错误态 */
+.loading-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 48rpx; }
+.loading-text { font-size: 28rpx; color: #999; }
+.error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 48rpx; gap: 24rpx; }
+.error-text { font-size: 28rpx; color: #e74c3c; text-align: center; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 24rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

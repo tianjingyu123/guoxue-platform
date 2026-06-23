@@ -57,7 +57,7 @@ async function submit() {
   try {
     const result = await mineApi.requestExport(selectedTypes.value)
     records.value = [
-      { id: result.id || String(Date.now()), types: [...selectedTypes.value], status: 'processing', createdAt: new Date().toISOString() },
+      { id: String(Date.now()), types: [...selectedTypes.value], status: 'processing' as const, createdAt: new Date().toISOString() },
       ...records.value,
     ]
     selectedTypes.value = []

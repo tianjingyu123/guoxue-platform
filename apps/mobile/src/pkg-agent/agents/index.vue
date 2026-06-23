@@ -1,5 +1,10 @@
 <template>
-  <view class="square">
+  <view v-if="loading" class="load-state"><text class="load-state-text">加载中...</text></view>
+  <view v-else-if="error" class="load-state">
+    <text class="load-state-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <view v-else class="square">
     <!-- 顶部搜索区（红色，sticky） -->
     <view class="topbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="topbar-inner">
@@ -171,20 +176,42 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import {
-  hotBots,
-  hotQuestions,
+  agentsSquareApi,
   formatCount,
   type SquareQuestion,
 } from '@/lib/agents-square-data'
 
+const loading = ref(true)
+const error = ref('')
 const statusBarHeight = ref(0)
 const searchQuery = ref('')
 const isListening = ref(false)
 const showAllBots = ref(false)
+const hotBots = ref<any[]>([])
+const hotQuestions = ref<any[]>([])
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [bots, questions] = await Promise.all([
+      agentsSquareApi.getHotBots(),
+      agentsSquareApi.getHotQuestions(),
+    ])
+    hotBots.value = bots || []
+    hotQuestions.value = questions || []
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { loadData() })
 
 uni.getSystemInfo({
   success: (res) => {
@@ -192,7 +219,7 @@ uni.getSystemInfo({
   },
 })
 
-const displayBots = computed(() => (showAllBots.value ? hotBots : hotBots.slice(0, 4)))
+const displayBots = computed(() => (showAllBots.value ? hotBots.value : hotBots.value.slice(0, 4)))
 
 function handleVoiceSearch() {
   if (isListening.value) return
@@ -221,6 +248,11 @@ function goBack() {
 </script>
 
 <style scoped>
+.load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.load-state-text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
+
 .square {
   min-height: 100vh;
   background: var(--bg-paper, #faf8f5);

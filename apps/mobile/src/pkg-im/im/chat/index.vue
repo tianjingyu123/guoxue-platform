@@ -1,5 +1,10 @@
 <template>
-  <view class="page">
+  <view v-if="loading" class="load-state"><text class="load-state-text">加载中...</text></view>
+  <view v-else-if="error" class="load-state">
+    <text class="load-state-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <view v-else class="page">
     <!-- 导航栏 -->
     <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-left">
@@ -115,7 +120,7 @@
             @input="onInput"
           />
         </view>
-        <view v-if="inputText.trim()" class="send-btn" @tap="handleSendText">
+        <view v-if="inputText.trim()" class="send-btn" :class="{ 'send-btn-disabled': submitting }" @tap="handleSendText">
           <AppIcon name="send" :size="20" color="#ffffff" />
         </view>
         <view v-else class="icon-btn">
@@ -147,12 +152,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
-  mockChatTarget,
-  mockChatHistory,
+  imApi,
   formatMessageTime,
   shouldShowTimeLabel,
   getChatPermission,
@@ -160,16 +164,42 @@ import {
   type ChatMessage,
 } from '@/lib/im-data'
 
+const props = defineProps<{ targetId: string }>()
+
 const statusBarHeight = ref(0)
 
-// 渲染数据（保留 mock 通过像素验收）
-const target = ref({ ...mockChatTarget })
-const messages = ref<ChatMessage[]>([...mockChatHistory])
+// 数据状态
+const target = ref<any>({})
+const messages = ref<ChatMessage[]>([])
+const loading = ref(true)
+const error = ref('')
+const submitting = ref(false)
 
 // UI 临时状态
 const inputText = ref('')
 const showMorePanel = ref(false)
 const showHeaderMenu = ref(false)
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [chatTarget, chatHistory] = await Promise.all([
+      imApi.getChatTarget(Number(props.targetId)),
+      imApi.getChatHistory(Number(props.targetId)),
+    ])
+    target.value = chatTarget
+    messages.value = chatHistory.messages
+  } catch (e: any) {
+    error.value = e?.message || '加载聊天数据失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadData()
+})
 
 function isMine(m: ChatMessage) {
   return m.senderId === CURRENT_USER_ID
@@ -216,22 +246,19 @@ function toggleMorePanel() {
 }
 
 // @data-needs: 发送文字消息, 参数 {targetId, type:'text', content}, 返回 {messageId}
-function handleSendText() {
-  if (!inputText.value.trim() || !permission.value.canSend) return
+async function handleSendText() {
+  if (!inputText.value.trim() || !permission.value.canSend || submitting.value) return
   const content = inputText.value.trim()
   inputText.value = ''
-  messages.value.push({
-    id: 'temp_' + Date.now(),
-    senderId: CURRENT_USER_ID,
-    senderName: '我',
-    senderAvatar: target.value.avatar,
-    type: 'text',
-    content,
-    status: 'sending',
-    isWithdrawn: false,
-    createdAt: new Date().toLocaleString('zh-CN'),
-    timestamp: Date.now(),
-  })
+  submitting.value = true
+  try {
+    const msg = await imApi.sendMessage(Number(props.targetId), content, 'text')
+    if (msg) {
+      messages.value.push(msg)
+    }
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -602,4 +629,13 @@ function handleSendText() {
   font-size: 22rpx;
   color: #2c2c2c;
 }
+
+/* 加载/错误状态 */
+.load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.load-state-text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
+
+/* 发送按钮禁用态 */
+.send-btn-disabled { opacity: 0.5; pointer-events: none; }
 </style>

@@ -155,7 +155,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
-import { mineApi, feedbackStatusConfig, type FeedbackType, type FeedbackItem } from '@/lib/mine-data'
+import { mineApi, feedbackStatusConfig, type FeedbackType, type HistoryFeedbackItem } from '@/lib/mine-data'
 
 // UI 临时状态
 const activeTab = ref<'submit' | 'history'>('submit')
@@ -166,7 +166,7 @@ const images = ref<string[]>([])
 const isSubmitting = ref(false)
 const submitted = ref(false)
 const feedbackTypes = ref<FeedbackType[]>([])
-const historyFeedbacks = ref<FeedbackItem[]>([])
+const historyFeedbacks = ref<HistoryFeedbackItem[]>([])
 const loading = ref(true)
 const error = ref('')
 
@@ -220,12 +220,7 @@ async function handleSubmit() {
   if (!canSubmit.value || isSubmitting.value) return
   isSubmitting.value = true
   try {
-    await mineApi.submitFeedback({
-      type: selectedType.value!,
-      content: content.value,
-      contact: contact.value,
-      images: images.value,
-    })
+    await mineApi.submitFeedback(selectedType.value!, content.value, content.value, images.value)
     submitted.value = true
   } catch (e: any) {
     uni.showToast({ title: e?.message || '提交失败', icon: 'none' })

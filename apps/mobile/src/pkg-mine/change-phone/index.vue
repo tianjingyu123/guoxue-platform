@@ -84,7 +84,7 @@ async function verifyCurrentPhone() {
   loading.value = true
   error.value = ''
   try {
-    await mineApi.changePhone({ step: 'verify', code: verifyCode.value })
+    await mineApi.changePhone('', verifyCode.value)
     step.value = 2
   } catch (e: any) {
     error.value = e?.message || '验证失败'
@@ -105,7 +105,7 @@ async function submitNewPhone() {
   loading.value = true
   error.value = ''
   try {
-    await mineApi.changePhone({ step: 'bind', phone: newPhone.value, code: newCode.value })
+    await mineApi.changePhone(newPhone.value, newCode.value)
     step.value = 3
     setTimeout(() => goBack(), 2000)
   } catch (e: any) {

@@ -1,6 +1,6 @@
 <template>
   <view class="cd-page">
-    <classics-header :title="book.title" right-type="share" @back="goBack" @right="onShare" />
+    <classics-header v-if="book" :title="book.title" right-type="share" @back="goBack" @right="onShare" />
 
     <view class="cd-main">
       <!-- 加载态 -->
@@ -199,7 +199,7 @@ import FlatCover from '@/components/classics/flat-cover.vue'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
 import { classicsApi, _mockAI_FEATURES, type BookInfo, type BookDiscussion } from '@/lib/classics-data'
-import type { DiscussionConfig, DiscussionItem } from '@/lib/discussion-types'
+import type { AuthorBadge, DiscussionConfig, DiscussionItem } from '@/lib/discussion-types'
 
 const bookId = ref('1')
 const book = ref<BookInfo | null>(null)
@@ -238,7 +238,7 @@ async function fetchData(id: string) {
     // Map BookDiscussion to DiscussionItem
     BOOK_DISCUSSIONS.value = (data.discussions || []).map((d: BookDiscussion): DiscussionItem => ({
       id: d.id,
-      author: { id: 0, name: d.authorName, badge: d.badge },
+      author: { id: 0, name: d.authorName, badge: d.badge as AuthorBadge | undefined },
       content: d.content,
       time: d.time,
       likeCount: d.likeCount,

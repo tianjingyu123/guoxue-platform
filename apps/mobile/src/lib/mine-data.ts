@@ -3,6 +3,7 @@
  * 对应原型 app/mine/{settings,security,change-password,change-phone,payment-password,bind-accounts}
  * 主题色沿用原型 #C41E3A
  */
+import { apiGet, apiPost, apiPut, useMock } from '@/utils/request'
 
 /* —— 头像生成辅助（沿用工程 dicebear 约定） —— */
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
@@ -748,3 +749,235 @@ export const walletTxRecords: WalletTxRecord[] = [
   { id: '5', type: 'income', category: 'reward', title: '签到奖励', description: '连续签到7天奖励', amount: 50, balance: 2348, createdAt: '2024-01-11 08:00' },
   { id: '6', type: 'expense', category: 'transfer', title: '打赏作者', description: '打赏文章《八字命理基础》', amount: -20, balance: 2298, createdAt: '2024-01-10 20:30' },
 ]
+
+// ============ API 层 ============
+
+export const mineApi = {
+  /** 获取用户资料 */
+  async getProfile() {
+    if (useMock()) return mineProfile
+    try { return await apiGet<typeof mineProfile>('/user/profile') } catch { return mineProfile }
+  },
+
+  /** 更新用户资料 */
+  async updateProfile(_data: Partial<EditProfileData>): Promise<boolean> {
+    if (useMock()) return true
+    try { await apiPut('/user/profile', _data); return true } catch { return false }
+  },
+
+  /** 获取设置通知项 */
+  async getNotifySettings(): Promise<SettingNotifyItem[]> {
+    if (useMock()) return settingNotifyItems
+    try { return await apiGet<SettingNotifyItem[]>('/user/settings/notify') } catch { return settingNotifyItems }
+  },
+
+  /** 获取账号安全项 */
+  async getSecurityItems(): Promise<{ login: SecurityItem[]; payment: SecurityItem[]; device: SecurityItem[]; score: { label: string; done: boolean }[] }> {
+    if (useMock()) return { login: securityLoginItems, payment: securityPaymentItems, device: securityDeviceItems, score: securityScoreItems }
+    try { return await apiGet('/user/security') } catch { return { login: securityLoginItems, payment: securityPaymentItems, device: securityDeviceItems, score: securityScoreItems } }
+  },
+
+  /** 修改密码 */
+  async changePassword(_oldPwd: string, _newPwd: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '密码修改成功' }
+    try { await apiPut('/user/password', { oldPassword: _oldPwd, newPassword: _newPwd }); return { success: true, message: '密码修改成功' } } catch (e: any) { return { success: false, message: e?.message || '修改失败' } }
+  },
+
+  /** 修改手机号 */
+  async changePhone(_phone: string, _code: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '手机号修改成功' }
+    try { await apiPut('/user/phone', { phone: _phone, code: _code }); return { success: true, message: '手机号修改成功' } } catch (e: any) { return { success: false, message: e?.message || '修改失败' } }
+  },
+
+  /** 获取绑定账号列表 */
+  async getBoundAccounts(): Promise<BoundAccount[]> {
+    if (useMock()) return boundAccounts
+    try { return await apiGet<BoundAccount[]>('/user/bind-accounts') } catch { return boundAccounts }
+  },
+
+  /** 绑定/解绑账号 */
+  async toggleBind(_provider: string, _bind: boolean): Promise<boolean> {
+    if (useMock()) return true
+    try { await apiPost(`/user/bind-accounts/${_provider}`, { bind: _bind }); return true } catch { return false }
+  },
+
+  /** 获取黑名单 */
+  async getBlacklist(): Promise<BlacklistItem[]> {
+    if (useMock()) return blacklistUsers
+    try { return await apiGet<BlacklistItem[]>('/user/blacklist') } catch { return blacklistUsers }
+  },
+
+  /** 移出黑名单 */
+  async unblockUser(_userId: number): Promise<boolean> {
+    if (useMock()) return true
+    try { await apiPost(`/user/blacklist/${_userId}/unblock`, {}); return true } catch { return false }
+  },
+
+  /** 搜索用户（拉黑用） */
+  async searchUsers(_keyword: string): Promise<SearchUserItem[]> {
+    if (useMock()) return blacklistSearchPool.filter(u => u.nickname.includes(_keyword))
+    try { return await apiGet<SearchUserItem[]>(`/user/search?keyword=${_keyword}`) } catch { return [] }
+  },
+
+  /** 拉黑用户 */
+  async blockUser(_userId: number, _reason?: string): Promise<boolean> {
+    if (useMock()) return true
+    try { await apiPost('/user/blacklist', { userId: _userId, reason: _reason }); return true } catch { return false }
+  },
+
+  /** 获取青少年模式设置 */
+  async getTeenMode(): Promise<TeenModeSettings> {
+    if (useMock()) return defaultTeenModeSettings
+    try { return await apiGet<TeenModeSettings>('/user/teen-mode') } catch { return defaultTeenModeSettings }
+  },
+
+  /** 更新青少年模式 */
+  async updateTeenMode(_settings: Partial<TeenModeSettings>): Promise<boolean> {
+    if (useMock()) return true
+    try { await apiPut('/user/teen-mode', _settings); return true } catch { return false }
+  },
+
+  /** 获取数据导出类型 */
+  async getExportTypes(): Promise<typeof exportDataTypes> {
+    if (useMock()) return exportDataTypes
+    try { return await apiGet('/user/data-export/types') } catch { return exportDataTypes }
+  },
+
+  /** 获取导出记录 */
+  async getExportRecords(): Promise<ExportRecord[]> {
+    if (useMock()) return exportRecords
+    try { return await apiGet<ExportRecord[]>('/user/data-export/records') } catch { return exportRecords }
+  },
+
+  /** 申请数据导出 */
+  async requestExport(_typeIds: string[]): Promise<boolean> {
+    if (useMock()) return true
+    try { await apiPost('/user/data-export', { types: _typeIds }); return true } catch { return false }
+  },
+
+  /** 申请注销账号 */
+  async deleteAccount(_reason: string, _detail?: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '注销申请已提交' }
+    try { await apiPost('/user/delete-account', { reason: _reason, detail: _detail }); return { success: true, message: '注销申请已提交' } } catch (e: any) { return { success: false, message: e?.message || '注销失败' } }
+  },
+
+  /** 获取钱包信息 */
+  async getWallet(): Promise<WalletInfo> {
+    if (useMock()) return walletInfo
+    try { return await apiGet<WalletInfo>('/wallet') } catch { return walletInfo }
+  },
+
+  /** 获取充值选项 */
+  async getRechargeOptions(): Promise<RechargeOption[]> {
+    if (useMock()) return rechargeOptions
+    try { return await apiGet<RechargeOption[]>('/wallet/recharge-options') } catch { return rechargeOptions }
+  },
+
+  /** 充值 */
+  async recharge(_optionId: number, _payMethod: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '充值成功' }
+    try { await apiPost('/wallet/recharge', { optionId: _optionId, payMethod: _payMethod }); return { success: true, message: '充值成功' } } catch (e: any) { return { success: false, message: e?.message || '充值失败' } }
+  },
+
+  /** 获取交易记录 */
+  async getTransactions(_type?: string): Promise<WalletTxRecord[]> {
+    if (useMock()) return walletTxRecords
+    try { return await apiGet<WalletTxRecord[]>(`/wallet/transactions${_type ? `?type=${_type}` : ''}`) } catch { return walletTxRecords }
+  },
+
+  /** 获取提现信息 */
+  async getWithdrawInfo(): Promise<WithdrawBalanceInfo> {
+    if (useMock()) return withdrawBalanceInfo
+    try { return await apiGet<WithdrawBalanceInfo>('/wallet/withdraw-info') } catch { return withdrawBalanceInfo }
+  },
+
+  /** 申请提现 */
+  async withdraw(_amount: number, _method: string, _account: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '提现申请已提交' }
+    try { await apiPost('/wallet/withdraw', { amount: _amount, method: _method, account: _account }); return { success: true, message: '提现申请已提交' } } catch (e: any) { return { success: false, message: e?.message || '提现失败' } }
+  },
+
+  /** 获取积分信息 */
+  async getPoints(): Promise<PointsInfo> {
+    if (useMock()) return pointsInfo
+    try { return await apiGet<PointsInfo>('/user/points') } catch { return pointsInfo }
+  },
+
+  /** 获取成长值 */
+  async getGrowth(): Promise<GrowthInfo> {
+    if (useMock()) return growthInfo
+    try { return await apiGet<GrowthInfo>('/user/growth') } catch { return growthInfo }
+  },
+
+  /** 获取积分记录 */
+  async getPointsRecords(): Promise<PointsRecord[]> {
+    if (useMock()) return pointsRecords
+    try { return await apiGet<PointsRecord[]>('/user/points/records') } catch { return pointsRecords }
+  },
+
+  /** 获取浏览历史 */
+  async getHistory(): Promise<HistoryGroup[]> {
+    if (useMock()) return historyGroups
+    try { return await apiGet<HistoryGroup[]>('/user/history') } catch { return historyGroups }
+  },
+
+  /** 清除浏览历史 */
+  async clearHistory(): Promise<boolean> {
+    if (useMock()) return true
+    try { await apiPost('/user/history/clear', {}); return true } catch { return false }
+  },
+
+  /** 获取我的点赞 */
+  async getMyLikes(_filter?: string): Promise<LikeItem[]> {
+    if (useMock()) return myLikes
+    try { return await apiGet<LikeItem[]>(`/user/likes${_filter ? `?filter=${_filter}` : ''}`) } catch { return myLikes }
+  },
+
+  /** 获取我的评论 */
+  async getMyComments(): Promise<MyCommentItem[]> {
+    if (useMock()) return myComments
+    try { return await apiGet<MyCommentItem[]>('/user/comments') } catch { return myComments }
+  },
+
+  /** 获取收到的评论 */
+  async getReceivedComments(): Promise<ReceivedCommentItem[]> {
+    if (useMock()) return receivedComments
+    try { return await apiGet<ReceivedCommentItem[]>('/user/received-comments') } catch { return receivedComments }
+  },
+
+  /** 获取反馈类型 */
+  async getFeedbackTypes(): Promise<typeof feedbackTypes> {
+    if (useMock()) return feedbackTypes
+    try { return await apiGet('/user/feedback/types') } catch { return feedbackTypes }
+  },
+
+  /** 获取历史反馈 */
+  async getFeedbackHistory(): Promise<HistoryFeedbackItem[]> {
+    if (useMock()) return historyFeedbacks
+    try { return await apiGet<HistoryFeedbackItem[]>('/user/feedback') } catch { return historyFeedbacks }
+  },
+
+  /** 提交反馈 */
+  async submitFeedback(_type: string, _title: string, _content: string, _images?: string[]): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '反馈已提交' }
+    try { await apiPost('/user/feedback', { type: _type, title: _title, content: _content, images: _images }); return { success: true, message: '反馈已提交' } } catch (e: any) { return { success: false, message: e?.message || '提交失败' } }
+  },
+
+  /** 获取关于页数据 */
+  async getAbout(): Promise<{ stats: typeof aboutStats; features: typeof aboutFeatures }> {
+    if (useMock()) return { stats: aboutStats, features: aboutFeatures }
+    try { return await apiGet('/about') } catch { return { stats: aboutStats, features: aboutFeatures } }
+  },
+
+  /** 获取隐私授权列表 */
+  async getPermissions(): Promise<AppPermission[]> {
+    if (useMock()) return appPermissions
+    try { return await apiGet<AppPermission[]>('/user/permissions') } catch { return appPermissions }
+  },
+
+  /** 更新隐私授权 */
+  async updatePermission(_permissionId: string, _status: PermissionStatus): Promise<boolean> {
+    if (useMock()) return true
+    try { await apiPut(`/user/permissions/${_permissionId}`, { status: _status }); return true } catch { return false }
+  },
+}

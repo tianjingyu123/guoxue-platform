@@ -294,20 +294,20 @@ function onShare() {
   uni.showToast({ title: '分享功能即将上线', icon: 'none' })
 }
 function goChapter(ch: EbookChapter) {
-  const canRead = ch.isFree || book.isPurchased
+  const canRead = ch.isFree || book.value.isPurchased
   if (canRead) {
-    uni.navigateTo({ url: `/pkg-ebook/reader/index?id=${book.id}&chapter=${ch.id}` })
+    uni.navigateTo({ url: `/pkg-ebook/reader/index?id=${book.value.id}&chapter=${ch.id}` })
   } else {
     goCheckout()
   }
 }
 function goReader(preview = false) {
   const q = preview ? '&preview=true' : ''
-  uni.navigateTo({ url: `/pkg-ebook/reader/index?id=${book.id}${q}` })
+  uni.navigateTo({ url: `/pkg-ebook/reader/index?id=${book.value.id}${q}` })
 }
 function goCheckout(type?: string) {
   const q = type ? `&type=${type}` : ''
-  uni.navigateTo({ url: `/pkg-ebook/checkout/index?id=${book.id}${q}` })
+  uni.navigateTo({ url: `/pkg-ebook/checkout/index?id=${book.value.id}${q}` })
 }
 function goDetail(id: string) {
   uni.navigateTo({ url: `/pkg-ebook/detail/index?id=${id}` })

@@ -79,14 +79,8 @@ async function doDelete() {
   if (confirmText.value !== '确认注销' || loading.value) return
   loading.value = true
   try {
-    const result = await mineApi.deleteAccount({
-      reason: selectedReason.value,
-      otherReason: otherReason.value,
-      verifyMethod: verifyMethod.value,
-      password: verifyMethod.value === 'password' ? password.value : undefined,
-      code: verifyMethod.value === 'code' ? code.value : undefined,
-    })
-    redirectTo(`/mine/delete-account-result?status=pending&expire=${encodeURIComponent(result.expire || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())}`)
+    await mineApi.deleteAccount(selectedReason.value, otherReason.value)
+    redirectTo(`/mine/delete-account-result?status=pending&expire=${encodeURIComponent(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())}`)
   } catch (e: any) {
     loading.value = false
     uni.showToast({ title: e?.message || '注销失败', icon: 'none' })

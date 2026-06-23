@@ -111,8 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { onMounted } from '@dcloudio/uni-app'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import {
   orderApi, orderCategories, unifiedStatusConfig, categoryColorMap,

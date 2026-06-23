@@ -357,6 +357,8 @@ export const courseApi = {
       flashSale: flashSaleCourses,
       free: freeCourses,
       newCourses,
+      allCourses,
+      feedFilters,
     }
     try {
       return await apiGet<any>('/course')
@@ -369,6 +371,8 @@ export const courseApi = {
         flashSale: flashSaleCourses,
         free: freeCourses,
         newCourses,
+        allCourses,
+        feedFilters,
       }
     }
   },
@@ -393,5 +397,158 @@ export const courseApi = {
     } catch {
       return courseChapters
     }
+  },
+
+  /** 获取课程评价 — GET /course/:id/reviews */
+  async getReviews(id: string): Promise<CourseReview[]> {
+    if (useMock()) return courseReviews
+    try {
+      const data = await apiGet<any>(`/course/${id}/reviews`)
+      return (data?.items || data) as CourseReview[]
+    } catch {
+      return courseReviews
+    }
+  },
+
+  /** 获取课程学习进度概览 — GET /course/:id/progress */
+  async getProgress(id: string): Promise<CourseProgress> {
+    if (useMock()) return courseProgress
+    try { return await apiGet<CourseProgress>(`/course/${id}/progress`) } catch { return courseProgress }
+  },
+
+  /** 获取带学习状态的章节列表 — GET /course/:id/progress-chapters */
+  async getProgressChapters(id: string): Promise<ProgressChapter[]> {
+    if (useMock()) return progressChapters
+    try {
+      const data = await apiGet<any>(`/course/${id}/progress-chapters`)
+      return (data?.items || data) as ProgressChapter[]
+    } catch {
+      return progressChapters
+    }
+  },
+
+  /** 获取学习中心聚合数据 — GET /course/:id/learn */
+  async getLearnData(id: string): Promise<{
+    course: LearnCourse
+    progress: LearnProgress
+    chapters: LearnChapter[]
+    notes: LearnNote[]
+    questions: LearnQuestion[]
+  }> {
+    if (useMock()) return {
+      course: learnCourse,
+      progress: learnProgress,
+      chapters: learnChapters,
+      notes: learnNotes,
+      questions: learnQuestions,
+    }
+    try {
+      return await apiGet<any>(`/course/${id}/learn`)
+    } catch {
+      return {
+        course: learnCourse,
+        progress: learnProgress,
+        chapters: learnChapters,
+        notes: learnNotes,
+        questions: learnQuestions,
+      }
+    }
+  },
+
+  /** 获取课时播放内容 — GET /course/lesson/:lessonId */
+  async getPlayerContent(lessonId: string): Promise<ChapterContent> {
+    if (useMock()) return playerContent
+    try { return await apiGet<ChapterContent>(`/course/lesson/${lessonId}`) } catch { return playerContent }
+  },
+
+  /** 获取播放页章节目录 — GET /course/:id/player-chapters */
+  async getPlayerChapters(id: string): Promise<PlayerChapter[]> {
+    if (useMock()) return playerChapters
+    try {
+      const data = await apiGet<any>(`/course/${id}/player-chapters`)
+      return (data?.items || data) as PlayerChapter[]
+    } catch {
+      return playerChapters
+    }
+  },
+
+  /** 获取限时特惠场次 — GET /course/flash-sale/sessions */
+  async getSaleSessions(): Promise<SaleSession[]> {
+    if (useMock()) return saleSessions
+    try { return await apiGet<SaleSession[]>('/course/flash-sale/sessions') } catch { return saleSessions }
+  },
+
+  /** 获取特惠课程 — GET /course/flash-sale/courses */
+  async getSaleCourses(sessionId?: string): Promise<SaleCourse[]> {
+    let data = saleCourses
+    if (sessionId) data = data.filter((c) => c.sessionId === sessionId)
+    if (useMock()) return data
+    try { return await apiGet<SaleCourse[]>(`/course/flash-sale/courses?sessionId=${sessionId || ''}`) } catch { return data }
+  },
+
+  /** 获取待购课程信息 — GET /course/:id/purchase */
+  async getPurchaseCourse(id: string): Promise<PurchaseCourse> {
+    if (useMock()) return purchaseCourse
+    try { return await apiGet<PurchaseCourse>(`/course/${id}/purchase`) } catch { return purchaseCourse }
+  },
+
+  /** 获取可用优惠券 — GET /course/coupons */
+  async getPurchaseCoupons(): Promise<PurchaseCoupon[]> {
+    if (useMock()) return purchaseCoupons
+    try { return await apiGet<PurchaseCoupon[]>('/course/coupons') } catch { return purchaseCoupons }
+  },
+
+  /** 获取结业证书 — GET /course/:id/certificate */
+  async getCertificate(id: string): Promise<Certificate> {
+    if (useMock()) return courseCertificate
+    try { return await apiGet<Certificate>(`/course/${id}/certificate`) } catch { return courseCertificate }
+  },
+
+  /** 获取学习计划 — GET /study-plan */
+  async getStudyPlan(): Promise<{
+    goal: StudyGoal
+    courses: PlannedCourse[]
+    streak: number
+    checkInLevels: number[]
+  }> {
+    if (useMock()) return {
+      goal: studyGoal,
+      courses: plannedCourses,
+      streak: studyStreak,
+      checkInLevels,
+    }
+    try {
+      return await apiGet<any>('/study-plan')
+    } catch {
+      return {
+        goal: studyGoal,
+        courses: plannedCourses,
+        streak: studyStreak,
+        checkInLevels,
+      }
+    }
+  },
+
+  /** 获取作业要求 — GET /course/work-requirement/:chapterId */
+  async getWorkRequirement(chapterId: string): Promise<WorkRequirement> {
+    if (useMock()) return workRequirement
+    try { return await apiGet<WorkRequirement>(`/course/work-requirement/${chapterId}`) } catch { return workRequirement }
+  },
+
+  /** 获取作业提交列表 — GET /course/:id/work-submissions */
+  async getWorkSubmissions(id: string): Promise<WorkSubmission[]> {
+    if (useMock()) return workSubmissions
+    try {
+      const data = await apiGet<any>(`/course/${id}/work-submissions`)
+      return (data?.items || data) as WorkSubmission[]
+    } catch {
+      return workSubmissions
+    }
+  },
+
+  /** 获取作业批改结果 — GET /course/work-result/:workId */
+  async getWorkResult(workId: string): Promise<WorkResult> {
+    if (useMock()) return workResult
+    try { return await apiGet<WorkResult>(`/course/work-result/${workId}`) } catch { return workResult }
   },
 }

@@ -1,14 +1,31 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { initialHistory, historyGroups, type HistoryItem } from '@/lib/agent-data'
+import { agentApi, historyGroups, type HistoryItem } from '@/lib/agent-data'
 
-const history = ref<HistoryItem[]>([...initialHistory])
+const loading = ref(true)
+const error = ref('')
+const history = ref<HistoryItem[]>([])
 const searchQuery = ref('')
 const showClearConfirm = ref(false)
 const swipedId = ref<number | null>(null)
 const showMenu = ref(false)
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await agentApi.getHistory()
+    history.value = data || []
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { loadData() })
 
 const filteredHistory = computed(() =>
   history.value.filter(
@@ -45,7 +62,12 @@ function openChat(item: HistoryItem) {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="loading" class="load-state"><text class="load-state-text">加载中...</text></view>
+  <view v-else-if="error" class="load-state">
+    <text class="load-state-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="header safe-pt">
       <view class="head-bar">
@@ -140,6 +162,11 @@ function openChat(item: HistoryItem) {
 </template>
 
 <style scoped lang="scss">
+.load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.load-state-text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
+
 .page { min-height: 100vh; background: #f7f5f0; }
 .safe-pt { padding-top: var(--status-bar-height, 0); }
 

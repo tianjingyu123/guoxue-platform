@@ -1,5 +1,9 @@
 <template>
-  <view class="page">
+  <view v-if="error" class="load-state">
+    <text class="load-state-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <view v-else class="page">
     <!-- 导航栏 -->
     <view class="nav">
       <view class="nav-btn" @tap="goBack">
@@ -124,20 +128,38 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, goBack as routerBack } from '@/utils/router'
 import {
-  getFriendRequestsData,
+  imApi,
   getRequestStatusText,
   type FriendRequestItem,
   type FriendRequestStatus,
 } from '@/lib/im-data'
 
-const loading = ref(false)
-const initial = getFriendRequestsData()
-const pending = ref<FriendRequestItem[]>(initial.pending)
-const processed = ref<FriendRequestItem[]>(initial.processed)
+const loading = ref(true)
+const error = ref('')
+const pending = ref<FriendRequestItem[]>([])
+const processed = ref<FriendRequestItem[]>([])
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await imApi.getFriendRequests()
+    pending.value = res.pending
+    processed.value = res.processed
+  } catch (e: any) {
+    error.value = e?.message || '加载好友请求失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadData()
+})
 
 const showProcessed = ref(false)
 const processingIds = ref<number[]>([])
@@ -170,15 +192,17 @@ function nowStr() {
 }
 
 // 同意请求
-function handleApprove(req: FriendRequestItem) {
-  // @data-needs: 调用 approveFriendRequest 接口
+async function handleApprove(req: FriendRequestItem) {
+  if (processingIds.value.includes(req.id)) return
   processingIds.value.push(req.id)
-  setTimeout(() => {
+  try {
+    await imApi.handleFriendRequest(req.id, 'approve')
     pending.value = pending.value.filter((r) => r.id !== req.id)
     processed.value = [{ ...req, status: 'approved', processedAt: nowStr() }, ...processed.value]
-    processingIds.value = processingIds.value.filter((id) => id !== req.id)
     uni.showToast({ title: `已添加 ${req.fromUser.nickname} 为好友`, icon: 'none' })
-  }, 300)
+  } finally {
+    processingIds.value = processingIds.value.filter((id) => id !== req.id)
+  }
 }
 
 // 打开拒绝弹窗
@@ -191,33 +215,40 @@ function closeReject() {
 }
 
 // 确认拒绝
-function handleReject() {
-  // @data-needs: 调用 rejectFriendRequest 接口
+async function handleReject() {
   const id = rejectDialog.value.requestId
   if (id == null) return
   const req = pending.value.find((r) => r.id === id)
   rejectDialog.value = { ...rejectDialog.value, open: false }
   if (!req) return
-  const reason = rejectReason.value || undefined
-  pending.value = pending.value.filter((r) => r.id !== id)
-  processed.value = [{ ...req, status: 'rejected', processedAt: nowStr(), rejectReason: reason }, ...processed.value]
-  uni.showToast({ title: '已拒绝请求', icon: 'none' })
+  try {
+    await imApi.handleFriendRequest(id, 'reject')
+    const reason = rejectReason.value || undefined
+    pending.value = pending.value.filter((r) => r.id !== id)
+    processed.value = [{ ...req, status: 'rejected', processedAt: nowStr(), rejectReason: reason }, ...processed.value]
+    uni.showToast({ title: '已拒绝请求', icon: 'none' })
+  } catch {
+    // 忽略错误，UI 已关闭
+  }
 }
 
 // 全部同意
-function handleApproveAll() {
-  // @data-needs: 调用 approveAllFriendRequests 接口
-  if (pending.value.length === 0) return
+async function handleApproveAll() {
+  if (pending.value.length === 0 || approveAllLoading.value) return
   approveAllLoading.value = true
-  setTimeout(() => {
+  try {
+    for (const req of [...pending.value]) {
+      await imApi.handleFriendRequest(req.id, 'approve')
+    }
     const now = nowStr()
     const approved = pending.value.map((r) => ({ ...r, status: 'approved' as FriendRequestStatus, processedAt: now }))
     const count = approved.length
     processed.value = [...approved, ...processed.value]
     pending.value = []
-    approveAllLoading.value = false
     uni.showToast({ title: `已添加${count}位好友`, icon: 'none' })
-  }, 500)
+  } finally {
+    approveAllLoading.value = false
+  }
 }
 </script>
 
@@ -295,4 +326,10 @@ function handleApproveAll() {
 .dialog-btn { flex: 1; height: 80rpx; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; font-size: 30rpx; }
 .dialog-btn.cancel { background: #f3f4f6; color: #374151; }
 .dialog-btn.confirm { background: #dc2626; color: #ffffff; }
+
+/* 加载/错误状态 */
+.load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.load-state-text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

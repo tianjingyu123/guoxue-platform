@@ -525,7 +525,7 @@ const showAiPanel = ref(false)
 const showSharePanel = ref(false)
 const showComments = ref(false)
 
-const reversedContent = computed(() => [...poem.content].reverse())
+const reversedContent = computed(() => [...poem.value.content].reverse())
 const firstComment = POEM_DISCUSSIONS[0]
 const commentCount = POEM_DISCUSSIONS.reduce((n, c) => n + 1 + c.replies.length, 0)
 
@@ -545,7 +545,7 @@ function generateAi() {
   aiStatus.value = 'loading'
   displayed.value = ''
   if (aiTimer) clearInterval(aiTimer)
-  const full = poem.aiAppreciation
+  const full = poem.value.aiAppreciation
   let i = 0
   aiTimer = setInterval(() => {
     i += 3
@@ -571,8 +571,8 @@ function generateImg() {
 }
 
 function handleCopy() {
-  const text = poem.content.map((c) => c.line).join('\n')
-  const full = `${poem.title}\n【${poem.dynasty}】${poem.author}\n\n${text}`
+  const text = poem.value.content.map((c) => c.line).join('\n')
+  const full = `${poem.value.title}\n【${poem.value.dynasty}】${poem.value.author}\n\n${text}`
   // #ifdef H5
   if (typeof navigator !== 'undefined' && navigator.clipboard) {
     navigator.clipboard.writeText(full)

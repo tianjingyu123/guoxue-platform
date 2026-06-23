@@ -127,8 +127,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { onLoad, onMounted } from '@dcloudio/uni-app'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
 import { orderApi } from '@/lib/order-data'
 

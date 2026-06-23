@@ -1,5 +1,9 @@
 <template>
-  <view class="page">
+  <view v-if="error" class="load-state">
+    <text class="load-state-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <view v-else class="page">
     <!-- 导航栏 -->
     <view class="navbar">
       <view class="nav-btn nav-btn-left" @tap="onBack">
@@ -188,7 +192,7 @@ import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
-  mockFriendsWithPinyin,
+  imApi,
   groupFriendsByLetter,
   searchFriends,
   getLetterIndexList,
@@ -197,6 +201,7 @@ import {
 } from '@/lib/im-data'
 
 const loading = ref(true)
+const error = ref('')
 const groups = ref<FriendGroup[]>([])
 const letterList = ref<string[]>([])
 const searchKeyword = ref('')
@@ -207,14 +212,24 @@ const selectedFriend = ref<FriendItem | null>(null)
 const activeLetterIndex = ref(0)
 const scrollTarget = ref('')
 
-// @data-needs: 加载好友列表(带拼音), 返回 FriendItem[]
-onMounted(() => {
-  setTimeout(() => {
-    const grouped = groupFriendsByLetter(mockFriendsWithPinyin)
+// @data-needs: 加载好友列表, 返回 FriendItem[]
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const friends = await imApi.getFriends()
+    const grouped = groupFriendsByLetter(friends)
     groups.value = grouped
     letterList.value = getLetterIndexList(grouped)
+  } catch (e: any) {
+    error.value = e?.message || '加载好友列表失败，请重试'
+  } finally {
     loading.value = false
-  }, 400)
+  }
+}
+
+onMounted(() => {
+  loadData()
 })
 
 function onBack() {
@@ -695,4 +710,10 @@ function friendAction(action: 'chat' | 'profile') {
 .action-btn-text-primary {
   color: #ffffff;
 }
+
+/* 加载/错误状态 */
+.load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.load-state-text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

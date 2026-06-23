@@ -178,12 +178,13 @@ onLoad((q) => { if (q?.id) { orderId.value = q.id } })
 onMounted(loadData)
 
 function copyNo() {
+  if (!order.value) return
   uni.setClipboardData({ data: order.value.orderNo, success: () => { copied.value = true; setTimeout(() => (copied.value = false), 1500) } })
 }
-function goLogistics() { navigateTo(`/orders/logistics?orderId=${order.value.id}`) }
-function goReview() { navigateTo(`/orders/${order.value.id}/review`) }
-function goAfterSale() { navigateTo(`/shop/after-sale?orderId=${order.value.id}`) }
-function goPay() { navigateTo(`/shop/paying?orderId=${order.value.id}`) }
+function goLogistics() { if (!order.value) return; navigateTo(`/orders/logistics?orderId=${order.value.id}`) }
+function goReview() { if (!order.value) return; navigateTo(`/orders/${order.value.id}/review`) }
+function goAfterSale() { if (!order.value) return; navigateTo(`/shop/after-sale?orderId=${order.value.id}`) }
+function goPay() { if (!order.value) return; navigateTo(`/shop/paying?orderId=${order.value.id}`) }
 function goShop() { navigateTo('/shop') }
 function toService() { navigateTo('/customer-service') }
 async function confirmReceive() {

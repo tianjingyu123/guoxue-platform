@@ -1,6 +1,6 @@
 <template>
   <view class="cat-page">
-    <classics-header :title="config.name" right-type="search" @back="goBack" />
+    <classics-header v-if="config" :title="config.name" right-type="search" @back="goBack" />
 
     <view class="cat-main">
       <!-- 加载态 -->

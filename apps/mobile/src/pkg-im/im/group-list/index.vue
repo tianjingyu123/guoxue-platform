@@ -1,5 +1,9 @@
 <template>
-  <view class="page">
+  <view v-if="error" class="load-state">
+    <text class="load-state-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="nav">
       <view class="nav-btn" @tap="goBack">
@@ -134,20 +138,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, goBack as routerBack } from '@/utils/router'
 import {
-  getSortedGroupList,
-  searchGroupList,
+  imApi,
   type GroupListItem,
 } from '@/lib/im-data'
 
-const loading = ref(false)
+const loading = ref(true)
+const error = ref('')
 const isSearching = ref(false)
 const searchKeyword = ref('')
-const groupList = ref<GroupListItem[]>(getSortedGroupList())
+const groupList = ref<GroupListItem[]>([])
 const searchResults = ref<GroupListItem[] | null>(null)
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const list = await imApi.getGroupList()
+    groupList.value = [...list].sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1
+      if (!a.isPinned && b.isPinned) return 1
+      return 0
+    })
+  } catch (e: any) {
+    error.value = e?.message || '加载群列表失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadData()
+})
 
 const menuGroup = ref<GroupListItem | null>(null)
 const quitConfirm = ref<GroupListItem | null>(null)
@@ -166,7 +191,7 @@ function onSearchInput() {
   if (searchTimer) clearTimeout(searchTimer)
   // @data-needs: 接入真实 searchGroups 接口；此处用本地 mock 过滤
   searchTimer = setTimeout(() => {
-    searchResults.value = searchGroupList(kw)
+    searchResults.value = groupList.value.filter((g) => g.name.includes(kw))
     isSearching.value = false
   }, 300)
 }
@@ -314,4 +339,10 @@ function onQuitConfirm() {
 .dialog-btn { flex: 1; height: 80rpx; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; font-size: 30rpx; }
 .dialog-btn.cancel { background: #f3f4f6; color: #374151; }
 .dialog-btn.confirm { background: #dc2626; color: #ffffff; }
+
+/* 加载/错误状态 */
+.load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.load-state-text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

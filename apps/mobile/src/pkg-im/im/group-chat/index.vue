@@ -1,5 +1,10 @@
 <template>
-  <view class="page">
+  <view v-if="loading" class="load-state"><text class="load-state-text">加载中...</text></view>
+  <view v-else-if="error" class="load-state">
+    <text class="load-state-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <view v-else class="page">
     <!-- 导航栏 -->
     <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-left">
@@ -116,7 +121,7 @@
             @confirm="handleSend"
           />
         </view>
-        <view v-if="inputText.trim()" class="send-btn" @tap="handleSend">
+        <view v-if="inputText.trim()" class="send-btn" :class="{ 'send-btn-disabled': submitting }" @tap="handleSend">
           <AppIcon name="send" :size="20" color="#ffffff" />
         </view>
         <view v-else class="icon-btn">
@@ -235,13 +240,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
-  mockGroupDetail,
-  mockGroupMembers,
-  mockGroupChatHistory,
+  imApi,
   searchGroupMembersForAt,
   getGroupRoleName,
   getGroupOnlineCount,
@@ -253,12 +256,17 @@ import {
   type GroupMember,
 } from '@/lib/im-data'
 
+const props = defineProps<{ groupId: string }>()
+
 const statusBarHeight = ref(0)
 
-// 渲染数据（保留 mock 通过像素验收）
-const groupDetail = ref({ ...mockGroupDetail })
-const members = ref<GroupMember[]>([...mockGroupMembers])
-const messages = ref<GroupChatMessage[]>([...mockGroupChatHistory])
+// 数据状态
+const groupDetail = ref<any>({})
+const members = ref<GroupMember[]>([])
+const messages = ref<GroupChatMessage[]>([])
+const loading = ref(true)
+const error = ref('')
+const submitting = ref(false)
 
 // UI 临时状态
 const inputText = ref('')
@@ -269,6 +277,29 @@ const showAtList = ref(false)
 const atSearchKeyword = ref('')
 const selectedAtMembers = ref<number[]>([])
 const selectedMessage = ref<GroupChatMessage | null>(null)
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [detail, chatHistory] = await Promise.all([
+      imApi.getGroupDetail(Number(props.groupId)),
+      imApi.getGroupChatHistory(Number(props.groupId)),
+    ])
+    groupDetail.value = detail
+    messages.value = chatHistory
+    const memberList = await imApi.getGroupMembers(Number(props.groupId))
+    members.value = memberList
+  } catch (e: any) {
+    error.value = e?.message || '加载群聊数据失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadData()
+})
 
 const onlineCount = computed(() => getGroupOnlineCount(members.value))
 const canAtAll = computed(() => groupDetail.value.myRole === 'owner' || groupDetail.value.myRole === 'admin')
@@ -337,24 +368,20 @@ function toast(title: string) {
 }
 
 // @data-needs: 发送群消息, 参数 {groupId, type:'text', content, atMembers?}, 返回 {messageId}
-function handleSend() {
+async function handleSend() {
+  if (submitting.value) return
   if (!inputText.value.trim() && selectedAtMembers.value.length === 0) return
   const content = inputText.value.trim()
-  messages.value.push({
-    id: 'temp_' + Date.now(),
-    senderId: CURRENT_USER_ID,
-    senderName: '我',
-    senderAvatar: '/static/images/circles/circle-6.jpg',
-    senderRole: groupDetail.value.myRole,
-    type: 'text',
-    content,
-    atMembers: selectedAtMembers.value.length > 0 ? [...selectedAtMembers.value] : undefined,
-    status: 'sending',
-    isWithdrawn: false,
-    createdAt: new Date().toLocaleString('zh-CN'),
-    timestamp: Date.now(),
-  })
   inputText.value = ''
+  submitting.value = true
+  try {
+    const msg = await imApi.sendGroupMessage(Number(props.groupId), content)
+    if (msg) {
+      messages.value.push(msg)
+    }
+  } finally {
+    submitting.value = false
+  }
   selectedAtMembers.value = []
   showMorePanel.value = false
 }
@@ -876,4 +903,13 @@ function handleSend() {
   font-size: 26rpx;
   color: #8a8178;
 }
+
+/* 加载/错误状态 */
+.load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.load-state-text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
+
+/* 发送按钮禁用态 */
+.send-btn-disabled { opacity: 0.5; pointer-events: none; }
 </style>

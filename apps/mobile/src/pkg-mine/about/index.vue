@@ -74,13 +74,13 @@ import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import { navigateTo } from '@/utils/router'
-import { mineApi, type AboutStat, type AboutFeature } from '@/lib/mine-data'
+import { mineApi } from '@/lib/mine-data'
 
 // 热卜 logo（根 public 与 vue3 共享，:src 动态绑定避免 Vite 静态解析报错）
 const logoSrc = ref('/images/logo.jpg')
 
-const aboutStats = ref<AboutStat[]>([])
-const aboutFeatures = ref<AboutFeature[]>([])
+const aboutStats = ref<{ value: string; label: string; color: string }[]>([])
+const aboutFeatures = ref<{ icon: string; title: string; desc: string }[]>([])
 const loading = ref(true)
 const error = ref('')
 
@@ -88,9 +88,9 @@ async function fetchData() {
   loading.value = true
   error.value = ''
   try {
-    const data = await mineApi.getAbout()
-    aboutStats.value = data.stats
-    aboutFeatures.value = data.features
+    const data: any = await mineApi.getAbout()
+    aboutStats.value = data.stats || []
+    aboutFeatures.value = data.features || []
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {

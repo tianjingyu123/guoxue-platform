@@ -1,5 +1,10 @@
 <template>
-  <view class="page">
+  <view v-if="loading" class="load-state"><text class="load-state-text">加载中...</text></view>
+  <view v-else-if="error" class="load-state">
+    <text class="load-state-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-left">
@@ -145,11 +150,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
-  mockConversations,
+  imApi,
   getMessageSummary,
   convTypeIcon,
   type ConversationItem,
@@ -159,8 +164,10 @@ import {
 
 const statusBarHeight = ref(0)
 
-// 列表数据（保留 mock 渲染以通过像素验收）
-const conversations = ref<ConversationItem[]>([...mockConversations])
+// 列表数据
+const conversations = ref<ConversationItem[]>([])
+const loading = ref(true)
+const error = ref('')
 
 // UI 临时状态
 const showSearch = ref(false)
@@ -168,6 +175,22 @@ const searchKeyword = ref('')
 const showActions = ref(false)
 const showDeleteConfirm = ref(false)
 const activeConv = ref<ConversationItem | null>(null)
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    conversations.value = await imApi.getConversations()
+  } catch (e: any) {
+    error.value = e?.message || '加载会话列表失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadData()
+})
 
 const totalUnread = computed(() => conversations.value.reduce((s, c) => s + c.unreadCount, 0))
 
@@ -611,4 +634,10 @@ function handleDelete() {
   font-size: 28rpx;
   color: #ffffff;
 }
+
+/* 加载/错误状态 */
+.load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.load-state-text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

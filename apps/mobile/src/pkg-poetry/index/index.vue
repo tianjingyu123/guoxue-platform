@@ -222,8 +222,8 @@ const isLiked = ref(false)
 const isBookmarked = ref(false)
 
 const filtered = computed(() =>
-  poems.filter(
-    (p) =>
+  (poems.value as PoemItem[]).filter(
+    (p: PoemItem) =>
       (activeDynasty.value === '全部' || p.dynasty === activeDynasty.value) &&
       (!searchQuery.value || p.title.includes(searchQuery.value) || p.author.includes(searchQuery.value)),
   ),

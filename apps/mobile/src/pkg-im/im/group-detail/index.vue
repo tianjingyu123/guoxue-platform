@@ -4,9 +4,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
-  mockGroupDetail,
-  mockGroupDetailMembers,
-  mockGroupSettings,
+  imApi,
   getGroupPermissions,
   getGroupRoleName,
   CURRENT_USER_ID,
@@ -18,15 +16,39 @@ import {
 const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
 
-const groupId = ref<number>(mockGroupDetail.id)
+const groupId = ref<number>(0)
+const group = ref<any>({})
+const members = ref<GroupMember[]>([])
+const settings = ref<GroupSettings>({} as GroupSettings)
+const loading = ref(true)
+const error = ref('')
+
+const permissions = computed(() => getGroupPermissions(group.value.myRole))
+
+async function loadData() {
+  if (!groupId.value) return
+  loading.value = true
+  error.value = ''
+  try {
+    const [detail, memberList, groupSettings] = await Promise.all([
+      imApi.getGroupDetail(Number(groupId.value)),
+      imApi.getGroupMembers(Number(groupId.value)),
+      imApi.getGroupSettings(Number(groupId.value)),
+    ])
+    group.value = detail
+    members.value = memberList
+    settings.value = groupSettings
+  } catch (e: any) {
+    error.value = e?.message || '加载群详情失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
 onLoad((options) => {
   if (options && options.id) groupId.value = Number(options.id)
+  loadData()
 })
-
-const group = ref({ ...mockGroupDetail })
-const members = ref<GroupMember[]>([...mockGroupDetailMembers])
-const settings = ref<GroupSettings>({ ...mockGroupSettings })
-const permissions = computed(() => getGroupPermissions(group.value.myRole))
 
 // 编辑昵称
 const editingNickname = ref(false)
@@ -145,7 +167,12 @@ function goInvite() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="loading" class="load-state"><text class="load-state-text">加载中...</text></view>
+  <view v-else-if="error" class="load-state">
+    <text class="load-state-text">{{ error }}</text>
+    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+  </view>
+  <view v-else class="page">
     <!-- 导航栏 -->
     <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-inner">
@@ -929,4 +956,10 @@ function goInvite() {
 .dialog-btn-text.light {
   color: #ffffff;
 }
+
+/* 加载/错误状态 */
+.load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.load-state-text { font-size: 28rpx; color: #8a8178; }
+.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #fff; }
 </style>

@@ -204,8 +204,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
-import { onLoad, onMounted } from '@dcloudio/uni-app'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import {
   orderApi,
