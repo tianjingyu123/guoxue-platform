@@ -1,6 +1,7 @@
 /** 讲师详情数据 - 从原型 institute/instructors/[id]/page.tsx 迁移 */
 // @data-needs: 讲师详情聚合, 参数 instructorId, 返回 InstructorDetail
 // mock 数据，交付时由 Claude Code 替换为真实接口
+import { apiGet, useMock } from '@/utils/request'
 
 export interface InstructorCertificate { name: string; issuer: string; year: string }
 export interface InstructorFeaturedCourse {
@@ -128,4 +129,18 @@ export const instructorDetail: InstructorDetail = {
       time: '2026-04-15',
     },
   ],
+}
+
+// ── API ──
+export const instructorApi = {
+  /** 获取讲师列表 GET /instructors */
+  async getList(params?: Record<string, any>): Promise<InstructorDetail[]> {
+    if (useMock()) return [instructorDetail]
+    try { return await apiGet<InstructorDetail[]>('/instructors', params) } catch { return [instructorDetail] }
+  },
+  /** 获取讲师详情 GET /instructors/:id */
+  async getDetail(id: string): Promise<InstructorDetail> {
+    if (useMock()) return instructorDetail
+    try { return await apiGet<InstructorDetail>(`/instructors/${id}`) } catch { return instructorDetail }
+  },
 }
