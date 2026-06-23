@@ -33,7 +33,7 @@ async function calcPaipan() {
   loading.value = true
   loadError.value = ''
   try {
-    baziResult.value = await baziApi.calculate({
+    baziResult.value = await baziApi.preview({
       name: userInput.name || undefined,
       gender: userInput.gender,
       year: userInput.year,

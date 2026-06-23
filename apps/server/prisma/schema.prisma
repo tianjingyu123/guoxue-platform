@@ -347,6 +347,7 @@ model Circle {
   categoryLevel2 String? // 二级品类
   status         CircleStatus @default(PENDING)
   stationId      String? // 分站数据隔离（null = 平台级）
+  deletedAt      DateTime? // 软删除
   createdAt      DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
   recommendedEbookIds  Json?
@@ -534,6 +535,7 @@ model Content {
   auditReason    String? // 审核驳回原因
   scheduledAt    DateTime? // 定时发布时间
   stationId      String? // 分站数据隔离（null = 平台级）
+  deletedAt      DateTime? // 软删除
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -574,6 +576,7 @@ model Article {
   categoryLevel1 String? // 一级品类
   categoryLevel2 String? // 二级品类
   stationId      String? // 分站数据隔离（null = 平台级）
+  deletedAt      DateTime? // 软删除
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -645,6 +648,7 @@ model ContentAuditRecord {
   rejectReason String? // 最终驳回原因（圈主可见）
   finishedAt   DateTime?
 
+  deletedAt DateTime? // 软删除
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -689,6 +693,7 @@ model Course {
   validityDays   Int        @default(0) // 购买后有效期（天），0=永久
   scheduledAt    DateTime? // 定时发布时间
   stationId      String? // 分站数据隔离（null = 平台级）
+  deletedAt      DateTime? // 软删除
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
@@ -893,6 +898,7 @@ model Product {
   categoryLevel2 String? // 二级品类
   status         String       @default("PENDING") // PENDING, ON_SALE, OFF_SHELF
   stationId      String? // 分站数据隔离（null = 平台级）
+  deletedAt      DateTime? // 软删除
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -2360,6 +2366,7 @@ model Comment {
   content    String
   likeCount  Int      @default(0)
   status     String   @default("PUBLISHED") // PUBLISHED, HIDDEN
+  deletedAt  DateTime? // 软删除
   createdAt  DateTime @default(now())
 
   user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2544,6 +2551,7 @@ model ClassicBook {
   chapterCount   Int      @default(0)
   viewCount      Int      @default(0)
   status         String   @default("PUBLISHED") // DRAFT, PUBLISHED
+  deletedAt      DateTime? // 软删除
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -2573,6 +2581,7 @@ model ClassicChapter {
   annotation    String? // 注释
   tags          Json? // 八字命理标签 ["格局:正官格","十神:伤官","神煞:天乙贵人"]
   sortOrder     Int      @default(0)
+  deletedAt     DateTime? // 软删除
   createdAt     DateTime @default(now())
 
   book               ClassicBook          @relation(fields: [bookId], references: [id], onDelete: Cascade)
