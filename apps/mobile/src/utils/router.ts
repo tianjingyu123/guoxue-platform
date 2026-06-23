@@ -270,9 +270,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/points/tasks': '/pkg-mine/points/tasks/index',
   // 找回账号（设置-手机页「找回原账号」指向；本轮新迁 pkg-auth/recover）
   '/auth/recover': '/pkg-auth/recover/index',
-  // 智能客服（页早已迁好在 pkg-agent/agent/customer-service，但 app-header/售后详情用无前缀的 /customer-service 调用导致断链）
-  '/customer-service': '/pkg-agent/agent/customer-service',
-  // 智能客服带 /agent 前缀的调用方（帮助中心 pkg-help 用 /agent/customer-service）
+  // 智能客服（/customer-service 已在前面映射；这里仅补 /agent 前缀的调用方）
   '/agent/customer-service': '/pkg-agent/agent/customer-service',
   // 秒杀首页（活动详情页"秒杀"入口；页已迁好仅缺映射。注：/seckill/rules 上面已有）
   '/seckill': '/pkg-shop/seckill/index',

@@ -20,7 +20,7 @@ export function getCanvas(selector: string, width: number, height: number, comp?
     const query = comp ? uni.createSelectorQuery().in(comp) : uni.createSelectorQuery()
     query
       .select(selector)
-      .fields({ node: true, size: true } as any)
+      .fields({ node: true, size: true })
       .exec((res: any[]) => {
         const node = res?.[0]?.node
         if (!node) { reject(new Error(`canvas node 未找到: ${selector}`)); return }

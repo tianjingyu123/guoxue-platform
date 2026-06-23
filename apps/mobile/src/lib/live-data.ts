@@ -484,7 +484,6 @@ export const liveEndRecommendCourses = [
 // ============ 回放详情(live/replay/[id]) ============
 // @data-needs: 回放详情, 参数 id, 返回 ReplayDetail
 export interface ReplayChapter { id: number; title: string; startTime: number; timeDisplay: string; description: string }
-export interface ReplaySlide { id: number; time: number; timeDisplay: string; title: string }
 export interface ReplayDiscussion { id: number; timeDisplay: string; userName: string; content: string; isHost: boolean }
 export interface ReplayProduct { id: number; name: string; price: number; originalPrice: number; sales: number; mentionTimeDisplay: string }
 export interface ReplayQA { id: number; timeDisplay: string; question: string; questionerName: string; answer: string; answererName: string }

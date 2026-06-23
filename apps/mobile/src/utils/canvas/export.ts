@@ -9,8 +9,8 @@ export function toTempFilePath(handle: CanvasHandle, comp?: any): Promise<string
     uni.canvasToTempFilePath(
       {
         canvas: handle.canvas,
-        success: (res) => resolve(res.tempFilePath),
-        fail: (err) => reject(new Error(err.errMsg || '导出失败')),
+        success: (res: any) => resolve(res.tempFilePath),
+        fail: (err: any) => reject(new Error(err.errMsg || '导出失败')),
       } as any,
       comp,
     )
