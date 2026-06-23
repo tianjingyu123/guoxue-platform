@@ -36,10 +36,10 @@ export default defineConfig(({ command }) => ({
     },
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ["vue", "vue-router", "pinia"],
-          element: ["element-plus"],
-          echarts: ["echarts"],
+        manualChunks: (id) => {
+          if (id.includes('node_modules/vue') || id.includes('node_modules/vue-router') || id.includes('node_modules/pinia')) return 'vendor';
+          if (id.includes('node_modules/element-plus')) return 'element';
+          if (id.includes('node_modules/echarts') || id.includes('node_modules/zrender')) return 'echarts';
         },
       },
     },

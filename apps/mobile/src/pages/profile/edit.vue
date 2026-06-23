@@ -287,6 +287,13 @@ function chooseAvatar() {
   </view>
 
   </view>
+
+            </image>
+            </view>
+            </view>
+            </view>
+            </view>
+            </view>
 </template>
 
 <style scoped lang="scss">
