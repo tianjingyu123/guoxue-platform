@@ -283,20 +283,6 @@
 
       <view class="op-bottom-pad" />
     </scroll-view>
-
-    <!-- Loading 骨架 -->
-    <view
-      v-else
-      class="op-loading"
-    >
-      <view class="op-skeleton-grid">
-        <view
-          v-for="i in 6"
-          :key="i"
-          class="op-skeleton-card"
-        />
-      </view>
-    </view>
   </view>
 </template>
 
