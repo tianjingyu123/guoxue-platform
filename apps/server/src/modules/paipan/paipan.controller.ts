@@ -46,6 +46,26 @@ export class PaipanController {
     return this.paipan.calcBaziPreview(dto);
   }
 
+  /** 八字排盘 GET 接口（兼容前端 /paipan/bazi/calculate 调用） */
+  @Get("bazi/calculate")
+  @UseGuards(StrictRedisThrottleGuard)
+  @Header("Cache-Control", "public, max-age=600")
+  @ApiOperation({ summary: "八字排盘计算（GET，兼容前端）" })
+  baziCalculate(
+    @Query("year") year?: number,
+    @Query("month") month?: number,
+    @Query("day") day?: number,
+    @Query("hour") hour?: number,
+    @Query("minute") minute?: number,
+    @Query("gender") gender?: string,
+  ) {
+    return this.paipan.calcBaziPreview({
+      year: +(year || 1983), month: +(month || 6), day: +(day || 18),
+      hour: +(hour || 14), minute: +(minute || 0),
+      gender: (gender === "女" ? "女" : "男"),
+    } as BaziInputDto);
+  }
+
   /** 八字排盘 CDN 静态化 GET 接口（不敏感部分，公开可缓存） */
   @Get("bazi/public")
   @UseGuards(StrictRedisThrottleGuard)
