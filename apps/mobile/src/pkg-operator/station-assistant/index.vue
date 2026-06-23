@@ -23,6 +23,18 @@
 
     <!-- 对话区域 -->
     <scroll-view class="asst-body" scroll-y :scroll-top="scrollTop" :scroll-with-animation="true">
+      <!-- 三态：加载中 -->
+      <view v-if="loading" class="state-loading"><text class="state-loading-text">加载中...</text></view>
+      <!-- 三态：错误 -->
+      <view v-else-if="error" class="state-error">
+        <text class="state-error-text">{{ error }}</text>
+        <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
+      </view>
+      <!-- 三态：空数据 -->
+      <view v-else-if="isEmpty" class="state-empty">
+        <text class="state-empty-text">暂无数据</text>
+      </view>
+      <template v-else>
       <!-- 欢迎区 -->
       <view v-if="messages.length === 0 && !sending" class="asst-welcome">
         <view class="asst-msg-row">
@@ -135,6 +147,7 @@
         </view>
       </view>
 
+      </template>
       <view style="height: 24rpx" />
     </scroll-view>
 
@@ -147,11 +160,11 @@
         v-model="inputText"
         class="asst-input"
         placeholder="输入您的问题..."
-        :disabled="sending"
+        :disabled="submitting || sending"
         confirm-type="send"
         @confirm="send()"
       />
-      <view class="asst-send-btn" :class="{ 'asst-send-off': !inputText.trim() || sending }" @tap="send()">
+      <view class="asst-send-btn" :class="{ 'asst-send-off': !inputText.trim() || submitting || sending }" @tap="send()">
         <app-icon name="send" :size="38" color="#ffffff" />
       </view>
     </view>
@@ -175,15 +188,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { assistantConfig, buildAssistantReply, type AssistantMessage, type ActionSuggestion, type ChartData } from '@/lib/station-assistant-data'
+import { stationAssistantApi, type AssistantMessage, type ActionSuggestion, type ChartData } from '@/lib/station-assistant-data'
 
 const statusBarHeight = ref(20)
-const config = assistantConfig
+const loading = ref(true)
+const error = ref('')
+const isEmpty = ref(false)
+const config = ref<any>({})
 const messages = ref<AssistantMessage[]>([])
 const inputText = ref('')
 const sending = ref(false)
+const submitting = ref(false)
 const recording = ref(false)
 const showClear = ref(false)
 const scrollTop = ref(0)
@@ -195,6 +212,26 @@ onLoad(() => {
   } catch (e) {}
 })
 
+onMounted(async () => {
+  await loadConfig()
+})
+
+async function loadConfig() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await stationAssistantApi.getConfig()
+    config.value = res || {}
+    isEmpty.value = !res || Object.keys(res).length === 0
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function retry() { await loadConfig() }
+
 function goBack() {
   uni.navigateBack({ delta: 1 })
 }
@@ -205,15 +242,16 @@ function scrollToBottom() {
   })
 }
 
-function send(text?: string) {
+async function send(text?: string) {
   const content = (text || inputText.value).trim()
-  if (!content || sending.value) return
+  if (!content || sending.value || submitting.value) return
   messages.value.push({ id: 'user_' + Date.now(), role: 'user', content })
   inputText.value = ''
   sending.value = true
+  submitting.value = true
   scrollToBottom()
-  setTimeout(() => {
-    const reply = buildAssistantReply(content)
+  try {
+    const reply = await stationAssistantApi.sendMessage(content)
     messages.value.push({
       id: 'ai_' + Date.now(),
       role: 'assistant',
@@ -222,9 +260,17 @@ function send(text?: string) {
       table: reply.table,
       actions: reply.actions,
     })
+  } catch (e: any) {
+    messages.value.push({
+      id: 'ai_' + Date.now(),
+      role: 'assistant',
+      content: '抱歉，我暂时无法回复，请稍后再试。',
+    })
+  } finally {
     sending.value = false
+    submitting.value = false
     scrollToBottom()
-  }, 900)
+  }
 }
 
 function clearSession() {
@@ -750,4 +796,12 @@ function piePct(chart: ChartData, value: number) {
   font-size: 28rpx;
   color: #ffffff;
 }
+
+/* 三态 */
+.state-loading, .state-error, .state-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 32rpx; }
+.state-loading-text { font-size: 28rpx; color: #999; }
+.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; margin-bottom: 24rpx; }
+.state-empty-text { font-size: 28rpx; color: #999; }
+.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
+.state-retry-btn text { font-size: 26rpx; color: #fff; }
 </style>

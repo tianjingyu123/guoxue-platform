@@ -1,5 +1,10 @@
 <template>
-  <view class="quota-page">
+  <view v-if="loading" class="state-loading"><text>加载中...</text></view>
+  <view v-else-if="error" class="state-error">
+    <text class="state-error-text">{{ error }}</text>
+    <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
+  </view>
+  <view v-else class="quota-page">
     <app-nav-bar title="名额管理" :show-back="true" background="#7c3aed" color="#ffffff" :no-border="true" />
 
     <!-- 名额概览 -->
@@ -156,9 +161,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { quotaData as data, quotaRecords as records, quotaSaleLink as saleLink } from '@/lib/operator-data'
+import { ref, onMounted } from 'vue'
+import { operatorApi, type QuotaRecord } from '@/lib/operator-data'
 
+const loading = ref(true)
+const error = ref('')
+const data = ref({ total: 0, used: 0, sold: 0, gifted: 0, available: 0, price: 0 })
+const records = ref<QuotaRecord[]>([])
+const saleLink = ref('')
 const activeTab = ref<'manage' | 'rules'>('manage')
 const copied = ref(false)
 const showQrDialog = ref(false)
@@ -167,6 +177,43 @@ const giftPhone = ref('')
 const giftName = ref('')
 const isSearching = ref(false)
 const searchResult = ref<{ name: string; phone: string } | null>(null)
+const submitting = ref(false)
+
+onMounted(async () => {
+  try {
+    const [d, r, sl] = await Promise.all([
+      operatorApi.getQuotaData(),
+      operatorApi.getQuotaRecords(),
+      operatorApi.getQuotaSaleLink(),
+    ])
+    data.value = d
+    records.value = r
+    saleLink.value = sl
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+})
+
+async function retry() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [d, r, sl] = await Promise.all([
+      operatorApi.getQuotaData(),
+      operatorApi.getQuotaRecords(),
+      operatorApi.getQuotaSaleLink(),
+    ])
+    data.value = d
+    records.value = r
+    saleLink.value = sl
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 function recordIcon(type: string) { return type === 'self' ? 'award' : type === 'sold' ? 'user' : 'gift' }
 function recordIconColor(type: string) { return type === 'self' ? '#7c3aed' : type === 'sold' ? '#16a34a' : '#C9A96E' }
@@ -175,7 +222,7 @@ function recordTypeLabel(type: string) { return type === 'self' ? '自用' : typ
 function recordBadgeClass(type: string) { return type === 'self' ? 'badge-operator' : type === 'sold' ? 'badge-success' : 'badge-gold' }
 
 function onGiftClick() {
-  if (data.available > 0) showGiftDialog.value = true
+  if (data.value.available > 0) showGiftDialog.value = true
 }
 function closeGift() {
   showGiftDialog.value = false
@@ -183,7 +230,9 @@ function closeGift() {
   searchResult.value = null
 }
 function copyLink() {
-  uni.setClipboardData({ data: saleLink, success: () => { copied.value = true; setTimeout(() => (copied.value = false), 2000) } })
+  if (submitting.value) return
+  submitting.value = true
+  uni.setClipboardData({ data: saleLink.value, success: () => { copied.value = true; setTimeout(() => (copied.value = false), 2000) }, complete: () => { submitting.value = false } })
 }
 function toastShare() { uni.showToast({ title: '功能开发中', icon: 'none' }) }
 function doSearch() {
@@ -195,9 +244,11 @@ function doSearch() {
   }, 1000)
 }
 function doGift() {
-  if (!searchResult.value) return
+  if (!searchResult.value || submitting.value) return
+  submitting.value = true
   uni.showToast({ title: '赠送成功', icon: 'success' })
   closeGift()
+  submitting.value = false
 }
 </script>
 
@@ -321,4 +372,10 @@ function doGift() {
 .quota-result-info { flex: 1; }
 .quota-result-name { display: block; font-size: 28rpx; font-weight: 500; color: #1a1a1a; }
 .quota-result-phone { font-size: 22rpx; color: #999; }
+/* 三态 */
+.state-loading, .state-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 32rpx; }
+.state-loading text { font-size: 28rpx; color: #999; }
+.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; margin-bottom: 24rpx; }
+.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
+.state-retry-btn text { font-size: 26rpx; color: #fff; }
 </style>

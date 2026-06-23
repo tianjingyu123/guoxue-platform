@@ -1,7 +1,17 @@
 <template>
   <view class="ag-page">
     <app-nav-bar title="运营商协议" :border="true" />
-    <scroll-view scroll-y class="ag-scroll">
+    <!-- 加载中 -->
+    <view v-if="loading" class="state-loading">
+      <text class="state-loading-text">加载中...</text>
+    </view>
+    <!-- 错误 -->
+    <view v-else-if="error" class="state-error">
+      <text class="state-error-text">{{ error }}</text>
+      <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
+    </view>
+    <!-- 正常内容 -->
+    <scroll-view v-else scroll-y class="ag-scroll">
       <!-- 重要提示 -->
       <view class="ag-tip">
         <text class="ag-tip-title">重要提示</text>
@@ -27,8 +37,34 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
-import { operatorAgreementSections, operatorAgreementTip } from '@/lib/operator-data'
+import { operatorApi, type AgreementSection } from '@/lib/operator-data'
+
+const loading = ref(true)
+const error = ref('')
+const operatorAgreementSections = ref<AgreementSection[]>([])
+const operatorAgreementTip = ref('')
+
+async function fetchData() {
+  try {
+    const res = await operatorApi.getOperatorAgreement()
+    operatorAgreementSections.value = res.sections
+    operatorAgreementTip.value = res.tip
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function retry() {
+  loading.value = true
+  error.value = ''
+  await fetchData()
+}
+
+onMounted(fetchData)
 </script>
 
 <style scoped>
@@ -44,4 +80,12 @@ import { operatorAgreementSections, operatorAgreementTip } from '@/lib/operator-
 .ag-footer { margin: 48rpx 32rpx 0; padding: 32rpx; background: rgba(138,129,120,0.1); border-radius: 16rpx; display: flex; flex-direction: column; align-items: center; gap: 16rpx; }
 .ag-footer-text { font-size: 22rpx; color: #8a8178; }
 .ag-bottom-pad { height: 48rpx; }
+
+/* 三态 */
+.state-loading { flex: 1; display: flex; align-items: center; justify-content: center; }
+.state-loading-text { font-size: 28rpx; color: #8a8178; }
+.state-error { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx; }
+.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; }
+.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 16rpx; }
+.state-retry-btn text { font-size: 28rpx; color: #fff; }
 </style>

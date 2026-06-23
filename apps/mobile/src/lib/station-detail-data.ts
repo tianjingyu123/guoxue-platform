@@ -1,6 +1,8 @@
 // 分站版首页配置（对齐原型 components/station/station-context defaultStationConfig）
 // 主题色忠实保留原型演示分站的紫色 #8B5CF6；图片复用项目既有素材
 
+import { apiGet, useMock } from '@/utils/request'
+
 export interface StationFeaturedItem {
   id: string
   type: 'article' | 'course' | 'circle'
@@ -51,4 +53,19 @@ export const featuredTypeConfig: Record<StationFeaturedItem['type'], { icon: str
   article: { icon: 'file-text', label: '文章' },
   course: { icon: 'book-open', label: '课程' },
   circle: { icon: 'users', label: '圈子' },
+}
+
+// ===== stationDetailApi — 分站详情页数据 API 层 =====
+export const stationDetailApi = {
+  async getStationConfig(stationId?: string) {
+    if (useMock()) return defaultStationConfig
+    const path = stationId ? `/station/${stationId}/config` : '/station/config'
+    try { return await apiGet<any>(path) }
+    catch { return defaultStationConfig }
+  },
+  async getFeaturedTypeConfig() {
+    if (useMock()) return featuredTypeConfig
+    try { return await apiGet<any>('/station/featured-type-config') }
+    catch { return featuredTypeConfig }
+  },
 }

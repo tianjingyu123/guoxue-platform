@@ -1,5 +1,10 @@
 <template>
-  <view class="team-page">
+  <view v-if="loading" class="state-loading"><text>加载中...</text></view>
+  <view v-else-if="error" class="state-error">
+    <text class="state-error-text">{{ error }}</text>
+    <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
+  </view>
+  <view v-else class="team-page">
     <!-- 顶部导航 -->
     <app-nav-bar title="团队管理" :show-back="true">
       <template #right>
@@ -229,20 +234,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import {
-  teamMgmtOverview as overview,
-  teamMgmtMembers,
-  teamLeaderboard as leaderboard,
-  teamMyRank as myRank,
-  teamActivities as activities,
-  teamSuccessCases as successCases,
-  teamMemberRecentOrders as recentOrders,
-  teamMemberInvitedMembers as invitedMembers,
-  teamActivityIconMap,
-  teamInviteLink as inviteLink,
-  type TeamMgmtMember,
-} from '@/lib/operator-data'
+import { ref, computed, onMounted } from 'vue'
+import { operatorApi, type TeamMgmtOverview, type TeamMgmtMember, type TeamLeaderboardItem, type TeamActivityItem, type TeamSuccessCaseItem, type TeamMemberOrder, type TeamMemberInvited } from '@/lib/operator-data'
 
 const tabs = [
   { key: 'members', label: '成员' },
@@ -252,8 +245,78 @@ const tabs = [
 ] as const
 const activeTab = ref<'members' | 'leaderboard' | 'activities' | 'cases'>('members')
 
+const loading = ref(true)
+const error = ref('')
+const overview = ref<TeamMgmtOverview>({} as TeamMgmtOverview)
+const teamMgmtMembers = ref<TeamMgmtMember[]>([])
+const leaderboard = ref<TeamLeaderboardItem[]>([])
+const myRank = ref(0)
+const activities = ref<TeamActivityItem[]>([])
+const successCases = ref<TeamSuccessCaseItem[]>([])
+const recentOrders = ref<TeamMemberOrder[]>([])
+const invitedMembers = ref<TeamMemberInvited[]>([])
+const activityIconMap = ref<Record<string, string>>({})
+const inviteLink = ref('')
+const submitting = ref(false)
+
+onMounted(async () => {
+  try {
+    const [ov, tmm, lb, mr, act, sc, aim, il] = await Promise.all([
+      operatorApi.getTeamOverview(),
+      operatorApi.getTeamMemberList(),
+      operatorApi.getTeamLeaderboard(),
+      operatorApi.getTeamMyRank(),
+      operatorApi.getTeamActivities(),
+      operatorApi.getTeamSuccessCases(),
+      operatorApi.getActivityIconMap(),
+      operatorApi.getTeamInviteLink(),
+    ])
+    overview.value = ov
+    teamMgmtMembers.value = tmm
+    leaderboard.value = lb
+    myRank.value = mr
+    activities.value = act
+    successCases.value = sc
+    activityIconMap.value = aim
+    inviteLink.value = il
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+})
+
+async function retry() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [ov, tmm, lb, mr, act, sc, aim, il] = await Promise.all([
+      operatorApi.getTeamOverview(),
+      operatorApi.getTeamMemberList(),
+      operatorApi.getTeamLeaderboard(),
+      operatorApi.getTeamMyRank(),
+      operatorApi.getTeamActivities(),
+      operatorApi.getTeamSuccessCases(),
+      operatorApi.getActivityIconMap(),
+      operatorApi.getTeamInviteLink(),
+    ])
+    overview.value = ov
+    teamMgmtMembers.value = tmm
+    leaderboard.value = lb
+    myRank.value = mr
+    activities.value = act
+    successCases.value = sc
+    activityIconMap.value = aim
+    inviteLink.value = il
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 const upgradePercent = computed(() =>
-  Math.min((overview.totalCommission / overview.nextLevelRequirement) * 100, 100),
+  Math.min((overview.value.totalCommission / overview.value.nextLevelRequirement) * 100, 100),
 )
 
 // 成员筛选/排序
@@ -280,7 +343,7 @@ function selectFilter(v: 'all' | 'active' | 'inactive') { memberFilter.value = v
 function selectSort(v: 'commission' | 'inviteCount' | 'joinDate') { memberSort.value = v; dropdown.value = null }
 
 const sortedMembers = computed(() => {
-  let list = [...teamMgmtMembers]
+  let list = [...teamMgmtMembers.value]
   if (memberFilter.value === 'active') list = list.filter(m => m.status === 'active')
   if (memberFilter.value === 'inactive') list = list.filter(m => m.status === 'inactive')
   if (memberSort.value === 'commission') list.sort((a, b) => b.totalCommission - a.totalCommission)
@@ -302,16 +365,29 @@ function rankClass(rank: number) {
   return 'rank-default'
 }
 
-function activityIcon(type: string) { return teamActivityIconMap[type] || '📢' }
+function activityIcon(type: string) { return activityIconMap.value[type] || '📢' }
 
 // 弹窗
 const showInvite = ref(false)
 const showMemberDetail = ref(false)
 const selectedMember = ref<TeamMgmtMember | null>(null)
 function openInvite() { showInvite.value = true }
-function openMemberDetail(m: TeamMgmtMember) { selectedMember.value = m; showMemberDetail.value = true }
+async function openMemberDetail(m: TeamMgmtMember) {
+  selectedMember.value = m
+  showMemberDetail.value = true
+  try {
+    const detail = await operatorApi.getMemberDetailOrders(m.id)
+    recentOrders.value = detail.orders
+    invitedMembers.value = detail.invited
+  } catch (e: any) {
+    recentOrders.value = []
+    invitedMembers.value = []
+  }
+}
 function copyLink() {
-  uni.setClipboardData({ data: inviteLink, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
+  if (submitting.value) return
+  submitting.value = true
+  uni.setClipboardData({ data: inviteLink.value, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }), complete: () => { submitting.value = false } })
 }
 </script>
 
@@ -471,4 +547,10 @@ function copyLink() {
 .team-invited-wrap { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .team-invited-chip { display: flex; align-items: center; gap: 10rpx; padding: 10rpx 20rpx 10rpx 10rpx; background: #f5f5f5; border-radius: 999rpx; }
 .team-invited-name { font-size: 24rpx; color: #333; }
+/* 三态 */
+.state-loading, .state-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 32rpx; }
+.state-loading text { font-size: 28rpx; color: #999; }
+.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; margin-bottom: 24rpx; }
+.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
+.state-retry-btn text { font-size: 26rpx; color: #fff; }
 </style>

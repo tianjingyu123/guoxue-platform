@@ -1,5 +1,7 @@
 // 分站运营商 - 加入运营商页数据（对齐原型 app/join/operator）
 
+import { apiGet, apiPost, useMock } from '@/utils/request'
+
 export interface PlanCompareRow {
   feature: string
   station: string | boolean
@@ -636,3 +638,253 @@ export const analysisMembers: MemberPerf[] = [
   { id: 'm3', name: '吴芳', level: '普通站长', visits: 480, clicks: 156, orders: 38, commission: 2280, trend: 8, diagnosis: { type: 'warn', text: '转化率高但流量不足，建议加大推广曝光' } },
   { id: 'm4', name: '郑浩', level: '普通站长', visits: 1900, clicks: 620, orders: 8, commission: 480, trend: -15, diagnosis: { type: 'warn', text: '点击多成交少，建议推荐高性价比内容' } },
 ]
+
+// ===== operatorApi — 运营商/站长数据 API 层 =====
+export const operatorApi = {
+  // === 运营商入驻 (用于 join-operator 页) ===
+  async getOperatorPricing() {
+    if (useMock()) return operatorPricing
+    try { return await apiGet<any>('/operator/pricing') }
+    catch { return operatorPricing }
+  },
+  async getPlanComparison() {
+    if (useMock()) return planComparison
+    try { return await apiGet<any>('/operator/plan-comparison') }
+    catch { return planComparison }
+  },
+  async getOperatorBenefits() {
+    if (useMock()) return operatorBenefits
+    try { return await apiGet<any>('/operator/benefits') }
+    catch { return operatorBenefits }
+  },
+  async getOperatorEarningCases() {
+    if (useMock()) return operatorEarningCases
+    try { return await apiGet<any>('/operator/earning-cases') }
+    catch { return operatorEarningCases }
+  },
+  async getOperatorFaqs() {
+    if (useMock()) return operatorFaqs
+    try { return await apiGet<any>('/operator/faqs') }
+    catch { return operatorFaqs }
+  },
+
+  // === 站长入驻 (用于 join-station 页) ===
+  async getStationPricing() {
+    if (useMock()) return stationPricing
+    try { return await apiGet<any>('/station/pricing') }
+    catch { return stationPricing }
+  },
+  async getStationBenefits() {
+    if (useMock()) return stationBenefits
+    try { return await apiGet<any>('/station/benefits') }
+    catch { return stationBenefits }
+  },
+  async getStationEarningCases() {
+    if (useMock()) return stationEarningCases
+    try { return await apiGet<any>('/station/earning-cases') }
+    catch { return stationEarningCases }
+  },
+  async getStationFaqs() {
+    if (useMock()) return stationFaqs
+    try { return await apiGet<any>('/station/faqs') }
+    catch { return stationFaqs }
+  },
+
+  // === 协议 (用于 agreement-operator, agreement-station 页) ===
+  async getOperatorAgreement() {
+    if (useMock()) return { sections: operatorAgreementSections, tip: operatorAgreementTip }
+    try { return await apiGet<any>('/operator/agreement') }
+    catch { return { sections: operatorAgreementSections, tip: operatorAgreementTip } }
+  },
+  async getStationAgreement() {
+    if (useMock()) return { sections: stationAgreementSections, tip: stationAgreementTip }
+    try { return await apiGet<any>('/station/agreement') }
+    catch { return { sections: stationAgreementSections, tip: stationAgreementTip } }
+  },
+
+  // === 运营商面板 (用于 operator-panel 页) ===
+  async getPanelInfo() {
+    if (useMock()) return operatorPanelInfo
+    try { return await apiGet<any>('/operator/panel-info') }
+    catch { return operatorPanelInfo }
+  },
+  async getOverview() {
+    if (useMock()) return operatorOverview
+    try { return await apiGet<any>('/operator/overview') }
+    catch { return operatorOverview }
+  },
+  async getTeamRanking() {
+    if (useMock()) return operatorTeamRanking
+    try { return await apiGet<any>('/operator/team-ranking') }
+    catch { return operatorTeamRanking }
+  },
+  async getQuotaUsage() {
+    if (useMock()) return operatorQuotaUsage
+    try { return await apiGet<any>('/operator/quota-usage') }
+    catch { return operatorQuotaUsage }
+  },
+  async getQuickActions() {
+    if (useMock()) return operatorQuickActions
+    try { return await apiGet<any>('/operator/quick-actions') }
+    catch { return operatorQuickActions }
+  },
+
+  // === 站长面板 (用于 station-master-panel 页) ===
+  async getStationPanelInfo() {
+    if (useMock()) return stationPanelInfo
+    try { return await apiGet<any>('/station/panel-info') }
+    catch { return stationPanelInfo }
+  },
+  async getStationPanelOverview() {
+    if (useMock()) return stationPanelOverview
+    try { return await apiGet<any>('/station/panel-overview') }
+    catch { return stationPanelOverview }
+  },
+  async getStationOverviewIconMap() {
+    if (useMock()) return stationOverviewIconMap
+    try { return await apiGet<any>('/station/overview-icon-map') }
+    catch { return stationOverviewIconMap }
+  },
+  async getStationPanelTrends() {
+    if (useMock()) return stationPanelTrends
+    try { return await apiGet<any>('/station/panel-trends') }
+    catch { return stationPanelTrends }
+  },
+  async getStationPanelBalance() {
+    if (useMock()) return stationPanelBalance
+    try { return await apiGet<any>('/station/panel-balance') }
+    catch { return stationPanelBalance }
+  },
+  async getStationPanelQuickActions() {
+    if (useMock()) return stationPanelQuickActions
+    try { return await apiGet<any>('/station/panel-quick-actions') }
+    catch { return stationPanelQuickActions }
+  },
+  async getStationActionIconMap() {
+    if (useMock()) return stationActionIconMap
+    try { return await apiGet<any>('/station/action-icon-map') }
+    catch { return stationActionIconMap }
+  },
+  async getStationPanelNotices() {
+    if (useMock()) return stationPanelNotices
+    try { return await apiGet<any>('/station/panel-notices') }
+    catch { return stationPanelNotices }
+  },
+
+  // === 运营商 Dashboard (用于 dashboard 页) ===
+  async getDashboardData() {
+    if (useMock()) return operatorDashboardData
+    try { return await apiGet<any>('/operator/dashboard') }
+    catch { return operatorDashboardData }
+  },
+  async getDashboardTeamMembers() {
+    if (useMock()) return dashboardTeamMembers
+    try { return await apiGet<any>('/operator/dashboard/team-members') }
+    catch { return dashboardTeamMembers }
+  },
+  async getDashboardQuotaRecords() {
+    if (useMock()) return dashboardQuotaRecords
+    try { return await apiGet<any>('/operator/dashboard/quota-records') }
+    catch { return dashboardQuotaRecords }
+  },
+  async getDashboardInviteLink() {
+    if (useMock()) return operatorInviteLink
+    try { return await apiGet<any>('/operator/invite-link') }
+    catch { return operatorInviteLink }
+  },
+
+  // === 团队管理 (用于 team 页) ===
+  async getTeamOverview() {
+    if (useMock()) return teamMgmtOverview
+    try { return await apiGet<any>('/operator/team/overview') }
+    catch { return teamMgmtOverview }
+  },
+  async getTeamMemberList() {
+    if (useMock()) return teamMgmtMembers
+    try { return await apiGet<any>('/operator/team/members') }
+    catch { return teamMgmtMembers }
+  },
+  async getTeamLeaderboard() {
+    if (useMock()) return teamLeaderboard
+    try { return await apiGet<any>('/operator/team/leaderboard') }
+    catch { return teamLeaderboard }
+  },
+  async getTeamMyRank() {
+    if (useMock()) return teamMyRank
+    try { return await apiGet<any>('/operator/team/my-rank') }
+    catch { return teamMyRank }
+  },
+  async getTeamActivities() {
+    if (useMock()) return teamActivities
+    try { return await apiGet<any>('/operator/team/activities') }
+    catch { return teamActivities }
+  },
+  async getTeamSuccessCases() {
+    if (useMock()) return teamSuccessCases
+    try { return await apiGet<any>('/operator/team/success-cases') }
+    catch { return teamSuccessCases }
+  },
+  async getMemberDetailOrders(_memberId: number) {
+    if (useMock()) return { orders: teamMemberRecentOrders, invited: teamMemberInvitedMembers }
+    try { return await apiGet<any>(`/operator/team/member/${_memberId}/detail`) }
+    catch { return { orders: teamMemberRecentOrders, invited: teamMemberInvitedMembers } }
+  },
+  async getActivityIconMap() {
+    if (useMock()) return teamActivityIconMap
+    try { return await apiGet<any>('/operator/team/activity-icon-map') }
+    catch { return teamActivityIconMap }
+  },
+  async getTeamInviteLink() {
+    if (useMock()) return teamInviteLink
+    try { return await apiGet<any>('/operator/team/invite-link') }
+    catch { return teamInviteLink }
+  },
+
+  // === 名额管理 (用于 quota 页) ===
+  async getQuotaData() {
+    if (useMock()) return quotaData
+    try { return await apiGet<any>('/operator/quota') }
+    catch { return quotaData }
+  },
+  async getQuotaRecords() {
+    if (useMock()) return quotaRecords
+    try { return await apiGet<any>('/operator/quota/records') }
+    catch { return quotaRecords }
+  },
+  async getQuotaSaleLink() {
+    if (useMock()) return quotaSaleLink
+    try { return await apiGet<any>('/operator/quota/sale-link') }
+    catch { return quotaSaleLink }
+  },
+
+  // === 邀请站长 (用于 invite 页) ===
+  async getInvitedStations() {
+    if (useMock()) return invitedStations
+    try { return await apiGet<any>('/operator/invited-stations') }
+    catch { return invitedStations }
+  },
+  async getInviteLinkFull() {
+    if (useMock()) return operatorInviteLinkFull
+    try { return await apiGet<any>('/operator/invite-link-full') }
+    catch { return operatorInviteLinkFull }
+  },
+  async getInviteCode() {
+    if (useMock()) return operatorInviteCode
+    try { return await apiGet<any>('/operator/invite-code') }
+    catch { return operatorInviteCode }
+  },
+
+  // === 沉寂预警 (用于 dormant 页) ===
+  async getDormantMembers() {
+    if (useMock()) return dormantMembers
+    try { return await apiGet<any>('/operator/dormant-members') }
+    catch { return dormantMembers }
+  },
+
+  // === 业绩分析 (用于 analysis 页) ===
+  async getAnalysisMembers() {
+    if (useMock()) return analysisMembers
+    try { return await apiGet<any>('/operator/analysis-members') }
+    catch { return analysisMembers }
+  },
+}

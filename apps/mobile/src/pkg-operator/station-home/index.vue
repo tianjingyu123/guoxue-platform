@@ -3,21 +3,30 @@
  *  自定义品牌导航 + Banner轮播 + 特色入口 + 站长推荐 + 内容Feed流 + 分享海报弹层 */
 import { ref, computed, onMounted } from 'vue'
 import {
-  stationBrand,
-  stationBanners,
-  stationFeatures,
-  stationRecommends,
-  stationFeedList,
-  stationPosterImage,
+  stationHomeApi,
   feedTypeLabel,
   feedTypeIcon,
   formatStatNumber,
   type StationFeedItem,
+  type StationBrand,
+  type StationBanner,
+  type StationFeature,
+  type StationRecommend,
 } from '@/lib/station-home-data'
 
-const brand = stationBrand
-const primary = brand.theme.primaryColor
-const headerColor = brand.theme.headerStyle === 'dark' ? '#ffffff' : '#000000'
+const loading = ref(true)
+const error = ref('')
+const isEmpty = ref(false)
+
+const brand = ref<StationBrand>({} as StationBrand)
+const banners = ref<StationBanner[]>([])
+const features = ref<StationFeature[]>([])
+const recommends = ref<StationRecommend[]>([])
+const feedList = ref<StationFeedItem[]>([])
+const posterImage = ref('')
+
+const primary = computed(() => brand.value.theme?.primaryColor || '#C41E3A')
+const headerColor = computed(() => brand.value.theme?.headerStyle === 'dark' ? '#ffffff' : '#000000')
 
 const currentBanner = ref(0)
 function onBannerChange(e: any) {
@@ -25,7 +34,6 @@ function onBannerChange(e: any) {
 }
 
 // Feed 列表（模拟分页加载更多）
-const feedList = ref<StationFeedItem[]>([...stationFeedList])
 const hasMore = ref(true)
 const feedLoading = ref(false)
 const feedPage = ref(1)
@@ -33,7 +41,8 @@ function loadMoreFeed() {
   if (feedLoading.value || !hasMore.value) return
   feedLoading.value = true
   setTimeout(() => {
-    const more = stationFeedList.map((item) => ({ ...item, id: item.id + feedPage.value * 10 }))
+    const source = feedList.value.length > 0 ? feedList.value : []
+    const more = source.map((item) => ({ ...item, id: item.id + feedPage.value * 1000 }))
     feedList.value = [...feedList.value, ...more]
     feedPage.value += 1
     hasMore.value = feedPage.value < 3
@@ -60,10 +69,37 @@ function toastSoon() {
   uni.showToast({ title: '敬请期待', icon: 'none' })
 }
 
-const recommends = computed(() => stationRecommends)
-const features = computed(() => stationFeatures)
+onMounted(async () => {
+  await loadData()
+})
 
-onMounted(() => {})
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [b, bnrs, fts, recs, feeds, poster] = await Promise.all([
+      stationHomeApi.getStationBrand(),
+      stationHomeApi.getBanners(),
+      stationHomeApi.getFeatures(),
+      stationHomeApi.getRecommends(),
+      stationHomeApi.getFeedList(),
+      stationHomeApi.getPosterImage(),
+    ])
+    brand.value = b
+    banners.value = Array.isArray(bnrs) ? bnrs : []
+    features.value = Array.isArray(fts) ? fts : []
+    recommends.value = Array.isArray(recs) ? recs : []
+    feedList.value = Array.isArray(feeds) ? feeds : []
+    posterImage.value = poster || ''
+    isEmpty.value = !b || Object.keys(b).length === 0
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function retry() { await loadData() }
 </script>
 
 <template>
@@ -84,6 +120,16 @@ onMounted(() => {})
     </view>
 
     <scroll-view scroll-y class="sh-scroll">
+      <!-- 三态 -->
+      <view v-if="loading" class="state-loading"><text class="state-loading-text">加载中...</text></view>
+      <view v-else-if="error" class="state-error">
+        <text class="state-error-text">{{ error }}</text>
+        <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
+      </view>
+      <view v-else-if="isEmpty" class="state-empty">
+        <text class="state-empty-text">暂无数据</text>
+      </view>
+      <template v-else>
       <!-- Banner 轮播 -->
       <swiper
         class="sh-banner"
@@ -93,13 +139,13 @@ onMounted(() => {})
         :duration="500"
         @change="onBannerChange"
       >
-        <swiper-item v-for="b in stationBanners" :key="b.id" @tap="toastSoon">
+        <swiper-item v-for="b in banners" :key="b.id" @tap="toastSoon">
           <image class="sh-banner-img" :src="b.image" mode="aspectFill" />
         </swiper-item>
       </swiper>
       <view class="sh-banner-dots">
         <view
-          v-for="(b, i) in stationBanners"
+          v-for="(b, i) in banners"
           :key="b.id"
           class="sh-dot"
           :class="{ active: i === currentBanner }"
@@ -202,6 +248,7 @@ onMounted(() => {})
         </view>
         <text v-else-if="feedList.length > 0" class="sh-feed-end">已经到底啦</text>
       </view>
+      </template>
     </scroll-view>
 
     <!-- 分享海报弹层 -->
@@ -217,7 +264,7 @@ onMounted(() => {})
             <text class="sh-poster-loading-txt">正在生成海报...</text>
           </view>
           <template v-else>
-            <image class="sh-poster-img" :src="stationPosterImage" mode="aspectFit" />
+            <image class="sh-poster-img" :src="posterImage" mode="aspectFit" />
             <view class="sh-poster-actions">
               <view class="sh-poster-btn outline" @tap="toastSoon"><text class="sh-poster-btn-txt">保存图片</text></view>
               <view class="sh-poster-btn primary" :style="{ background: primary }" @tap="toastSoon"><text class="sh-poster-btn-txt primary">分享给好友</text></view>
@@ -329,4 +376,12 @@ onMounted(() => {})
 
 .sh-spin { animation: sh-rotate 0.9s linear infinite; }
 @keyframes sh-rotate { to { transform: rotate(360deg); } }
+
+/* 三态 */
+.state-loading, .state-error, .state-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 32rpx; }
+.state-loading-text { font-size: 28rpx; color: #999; }
+.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; margin-bottom: 24rpx; }
+.state-empty-text { font-size: 28rpx; color: #999; }
+.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
+.state-retry-btn text { font-size: 26rpx; color: #fff; }
 </style>

@@ -1,5 +1,7 @@
 // 分站首页数据（对齐原型 lib/api/station-home mock；图片复用项目既有素材）
 
+import { apiGet, useMock } from '@/utils/request'
+
 export interface StationBrand {
   id: number
   code: string
@@ -107,4 +109,38 @@ export function formatStatNumber(num: number): string {
   if (num >= 10000) return (num / 10000).toFixed(1) + 'w'
   if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
   return String(num)
+}
+
+// ===== stationHomeApi — 分站首页数据 API 层 =====
+export const stationHomeApi = {
+  async getStationBrand() {
+    if (useMock()) return stationBrand
+    try { return await apiGet<any>('/station/home/brand') }
+    catch { return stationBrand }
+  },
+  async getBanners() {
+    if (useMock()) return stationBanners
+    try { return await apiGet<any>('/station/home/banners') }
+    catch { return stationBanners }
+  },
+  async getFeatures() {
+    if (useMock()) return stationFeatures
+    try { return await apiGet<any>('/station/home/features') }
+    catch { return stationFeatures }
+  },
+  async getRecommends() {
+    if (useMock()) return stationRecommends
+    try { return await apiGet<any>('/station/home/recommends') }
+    catch { return stationRecommends }
+  },
+  async getFeedList() {
+    if (useMock()) return stationFeedList
+    try { return await apiGet<any>('/station/home/feed') }
+    catch { return stationFeedList }
+  },
+  async getPosterImage() {
+    if (useMock()) return stationPosterImage
+    try { return await apiGet<any>('/station/home/poster') }
+    catch { return stationPosterImage }
+  },
 }

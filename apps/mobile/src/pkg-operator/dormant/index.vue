@@ -1,5 +1,10 @@
 <template>
-  <view class="dormant-page">
+  <view v-if="loading" class="state-loading"><text>加载中...</text></view>
+  <view v-else-if="error" class="state-error">
+    <text class="state-error-text">{{ error }}</text>
+    <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
+  </view>
+  <view v-else class="dormant-page">
     <app-nav-bar title="沉寂站长预警" :show-back="true" background="#ffffff" color="#1f2937" />
 
     <!-- 统计卡 -->
@@ -58,27 +63,59 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { dormantMembers } from '@/lib/operator-data'
+import { ref, computed, onMounted } from 'vue'
+import { operatorApi, type DormantMember } from '@/lib/operator-data'
 
-const members = ref(dormantMembers.map((m) => ({ ...m })))
+const loading = ref(true)
+const error = ref('')
+const members = ref<DormantMember[]>([])
 const batchReminded = ref(false)
+const submitting = ref(false)
+
+onMounted(async () => {
+  try {
+    const dm = await operatorApi.getDormantMembers()
+    members.value = dm.map((m) => ({ ...m }))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+})
+
+async function retry() {
+  loading.value = true
+  error.value = ''
+  try {
+    const dm = await operatorApi.getDormantMembers()
+    members.value = dm.map((m) => ({ ...m }))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 const pendingCount = computed(() => members.value.filter((m) => !m.reminded).length)
 
 function remindOne(id: string) {
+  if (submitting.value) return
   const m = members.value.find((x) => x.id === id)
   if (m && !m.reminded) {
+    submitting.value = true
     m.reminded = true
     uni.showToast({ title: '已发送提醒', icon: 'none' })
+    submitting.value = false
   }
 }
 
 function remindAll() {
+  if (submitting.value) return
+  submitting.value = true
   members.value.forEach((m) => (m.reminded = true))
   batchReminded.value = true
   uni.showToast({ title: '已全部推送', icon: 'none' })
-  setTimeout(() => (batchReminded.value = false), 2000)
+  setTimeout(() => { batchReminded.value = false; submitting.value = false }, 2000)
 }
 </script>
 
@@ -270,4 +307,10 @@ function remindAll() {
   font-weight: 500;
   color: #ffffff;
 }
+/* 三态 */
+.state-loading, .state-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 32rpx; }
+.state-loading text { font-size: 28rpx; color: #999; }
+.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; margin-bottom: 24rpx; }
+.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
+.state-retry-btn text { font-size: 26rpx; color: #fff; }
 </style>

@@ -3,60 +3,98 @@
     <app-nav-bar title="下线业绩分析" :show-back="true" background="#ffffff" color="#1f2937" />
 
     <view class="an-body">
-      <text class="an-intro">系统自动分析每位下线的推广漏斗（曝光→点击→成交），诊断转化瓶颈。</text>
-
-      <view v-for="m in members" :key="m.id" class="an-card">
-        <!-- 头部 -->
-        <view class="an-head">
-          <view class="an-avatar">
-            <text class="an-avatar-txt">{{ m.name.charAt(0) }}</text>
-          </view>
-          <view class="an-head-info">
-            <view class="an-head-name-row">
-              <text class="an-name">{{ m.name }}</text>
-              <text class="an-level">{{ m.level }}</text>
-            </view>
-            <text class="an-commission">佣金 ¥{{ m.commission }}</text>
-          </view>
-          <view class="an-trend" :class="m.trend >= 0 ? 'up' : 'down'">
-            <app-icon :name="m.trend >= 0 ? 'trending-up' : 'trending-down'" :size="28" :color="m.trend >= 0 ? '#16a34a' : '#ef4444'" />
-            <text class="an-trend-txt" :class="m.trend >= 0 ? 'up' : 'down'">{{ Math.abs(m.trend) }}%</text>
-          </view>
-        </view>
-
-        <!-- 漏斗数据 -->
-        <view class="an-funnel">
-          <view class="an-funnel-item">
-            <app-icon name="eye" :size="28" color="#9ca3af" />
-            <text class="an-funnel-val">{{ m.visits }}</text>
-            <text class="an-funnel-label">曝光</text>
-          </view>
-          <view class="an-funnel-item">
-            <app-icon name="mouse-pointer-click" :size="28" color="#9ca3af" />
-            <text class="an-funnel-val">{{ m.clicks }}</text>
-            <text class="an-funnel-label">点击 {{ ctr(m) }}%</text>
-          </view>
-          <view class="an-funnel-item">
-            <app-icon name="shopping-cart" :size="28" color="#9ca3af" />
-            <text class="an-funnel-val">{{ m.orders }}</text>
-            <text class="an-funnel-label">成交 {{ cvr(m) }}%</text>
-          </view>
-        </view>
-
-        <!-- 自动诊断 -->
-        <view class="an-diag" :class="m.diagnosis.type">
-          <app-icon name="alert-circle" :size="26" :color="m.diagnosis.type === 'good' ? '#16a34a' : '#b45309'" />
-          <text class="an-diag-txt" :class="m.diagnosis.type">{{ m.diagnosis.text }}</text>
-        </view>
+      <!-- 三态：加载中 -->
+      <view v-if="loading" class="state-loading"><text class="state-loading-text">加载中...</text></view>
+      <!-- 三态：错误 -->
+      <view v-else-if="error" class="state-error">
+        <text class="state-error-text">{{ error }}</text>
+        <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
       </view>
+      <!-- 三态：空数据 -->
+      <view v-else-if="isEmpty" class="state-empty">
+        <text class="state-empty-text">暂无数据</text>
+      </view>
+      <!-- 数据渲染 -->
+      <template v-else>
+        <text class="an-intro">系统自动分析每位下线的推广漏斗（曝光→点击→成交），诊断转化瓶颈。</text>
+
+        <view v-for="m in members" :key="m.id" class="an-card">
+          <!-- 头部 -->
+          <view class="an-head">
+            <view class="an-avatar">
+              <text class="an-avatar-txt">{{ m.name.charAt(0) }}</text>
+            </view>
+            <view class="an-head-info">
+              <view class="an-head-name-row">
+                <text class="an-name">{{ m.name }}</text>
+                <text class="an-level">{{ m.level }}</text>
+              </view>
+              <text class="an-commission">佣金 ¥{{ m.commission }}</text>
+            </view>
+            <view class="an-trend" :class="m.trend >= 0 ? 'up' : 'down'">
+              <app-icon :name="m.trend >= 0 ? 'trending-up' : 'trending-down'" :size="28" :color="m.trend >= 0 ? '#16a34a' : '#ef4444'" />
+              <text class="an-trend-txt" :class="m.trend >= 0 ? 'up' : 'down'">{{ Math.abs(m.trend) }}%</text>
+            </view>
+          </view>
+
+          <!-- 漏斗数据 -->
+          <view class="an-funnel">
+            <view class="an-funnel-item">
+              <app-icon name="eye" :size="28" color="#9ca3af" />
+              <text class="an-funnel-val">{{ m.visits }}</text>
+              <text class="an-funnel-label">曝光</text>
+            </view>
+            <view class="an-funnel-item">
+              <app-icon name="mouse-pointer-click" :size="28" color="#9ca3af" />
+              <text class="an-funnel-val">{{ m.clicks }}</text>
+              <text class="an-funnel-label">点击 {{ ctr(m) }}%</text>
+            </view>
+            <view class="an-funnel-item">
+              <app-icon name="shopping-cart" :size="28" color="#9ca3af" />
+              <text class="an-funnel-val">{{ m.orders }}</text>
+              <text class="an-funnel-label">成交 {{ cvr(m) }}%</text>
+            </view>
+          </view>
+
+          <!-- 自动诊断 -->
+          <view class="an-diag" :class="m.diagnosis.type">
+            <app-icon name="alert-circle" :size="26" :color="m.diagnosis.type === 'good' ? '#16a34a' : '#b45309'" />
+            <text class="an-diag-txt" :class="m.diagnosis.type">{{ m.diagnosis.text }}</text>
+          </view>
+        </view>
+      </template>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { analysisMembers, type MemberPerf } from '@/lib/operator-data'
+import { ref, onMounted } from 'vue'
+import { operatorApi, type MemberPerf } from '@/lib/operator-data'
 
-const members = analysisMembers
+const loading = ref(true)
+const error = ref('')
+const isEmpty = ref(false)
+const members = ref<MemberPerf[]>([])
+
+onMounted(async () => {
+  await loadData()
+})
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await operatorApi.getAnalysisMembers()
+    members.value = Array.isArray(res) ? res : []
+    isEmpty.value = members.value.length === 0
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function retry() { await loadData() }
 
 function ctr(m: MemberPerf) {
   return ((m.clicks / m.visits) * 100).toFixed(1)
@@ -207,4 +245,12 @@ function cvr(m: MemberPerf) {
 .an-diag-txt.warn {
   color: #b45309;
 }
+
+/* 三态 */
+.state-loading, .state-error, .state-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 32rpx; }
+.state-loading-text { font-size: 28rpx; color: #999; }
+.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; margin-bottom: 24rpx; }
+.state-empty-text { font-size: 28rpx; color: #999; }
+.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
+.state-retry-btn text { font-size: 26rpx; color: #fff; }
 </style>

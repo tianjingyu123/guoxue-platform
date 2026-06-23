@@ -16,7 +16,19 @@
       </view>
     </view>
 
-    <scroll-view scroll-y class="op-scroll" v-if="!loading">
+    <!-- 加载中 -->
+    <view v-if="loading" class="op-loading">
+      <view class="op-skeleton-grid">
+        <view v-for="i in 6" :key="i" class="op-skeleton-card" />
+      </view>
+    </view>
+    <!-- 错误 -->
+    <view v-else-if="error" class="state-error">
+      <text class="state-error-text">{{ error }}</text>
+      <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
+    </view>
+    <!-- 正常内容 -->
+    <scroll-view v-else scroll-y class="op-scroll">
       <!-- 数据概览 -->
       <view class="op-sec">
         <view class="op-overview">
@@ -142,13 +154,6 @@
 
       <view class="op-bottom-pad" />
     </scroll-view>
-
-    <!-- Loading 骨架 -->
-    <view v-else class="op-loading">
-      <view class="op-skeleton-grid">
-        <view v-for="i in 6" :key="i" class="op-skeleton-card" />
-      </view>
-    </view>
   </view>
 </template>
 
@@ -157,15 +162,28 @@ import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import {
-  operatorPanelInfo as info,
-  operatorOverview as overview,
-  operatorTeamRanking as teamRanking,
-  operatorQuotaUsage as quotaUsage,
-  operatorQuickActions as quickActions,
+  operatorApi,
+  type OperatorOverviewItem,
+  type TeamMemberRanking,
+  type QuotaUsageItem,
+  type OperatorQuickAction,
 } from '@/lib/operator-data'
+
+interface PanelInfo {
+  id: number
+  name: string
+  level: string
+  joinDate: string
+}
 
 const statusBarHeight = ref(0)
 const loading = ref(true)
+const error = ref('')
+const info = ref<PanelInfo>({ id: 0, name: '', level: '', joinDate: '' })
+const overview = ref<OperatorOverviewItem[]>([])
+const teamRanking = ref<TeamMemberRanking[]>([])
+const quotaUsage = ref<QuotaUsageItem[]>([])
+const quickActions = ref<OperatorQuickAction[]>([])
 const rankingPeriod = ref<'day' | 'week' | 'month'>('month')
 
 const periodTabs = [
@@ -174,12 +192,36 @@ const periodTabs = [
   { key: 'month' as const, label: '月' },
 ]
 
-onMounted(() => {
-  const sys = uni.getSystemInfoSync()
-  statusBarHeight.value = sys.statusBarHeight || 0
-  // 模拟原型 600ms loading
-  setTimeout(() => { loading.value = false }, 600)
-})
+async function fetchData() {
+  try {
+    const sys = uni.getSystemInfoSync()
+    statusBarHeight.value = sys.statusBarHeight || 0
+    const [infoRes, overviewRes, rankingRes, quotaRes, actionsRes] = await Promise.all([
+      operatorApi.getPanelInfo(),
+      operatorApi.getOverview(),
+      operatorApi.getTeamRanking(),
+      operatorApi.getQuotaUsage(),
+      operatorApi.getQuickActions(),
+    ])
+    info.value = infoRes
+    overview.value = overviewRes
+    teamRanking.value = rankingRes
+    quotaUsage.value = quotaRes
+    quickActions.value = actionsRes
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function retry() {
+  loading.value = true
+  error.value = ''
+  await fetchData()
+}
+
+onMounted(fetchData)
 
 function goBack() {
   uni.navigateBack({ delta: 1 })
@@ -299,4 +341,10 @@ function pct(q: { used: number; total: number }) {
 .op-loading { flex: 1; padding: 32rpx; }
 .op-skeleton-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx; }
 .op-skeleton-card { height: 140rpx; background: #EDE7DC; border-radius: 16rpx; opacity: 0.6; }
+
+/* 三态错误 */
+.state-error { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx; }
+.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; }
+.state-retry-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 16rpx; }
+.state-retry-btn text { font-size: 28rpx; color: #fff; }
 </style>

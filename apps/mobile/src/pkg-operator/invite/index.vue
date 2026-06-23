@@ -1,5 +1,10 @@
 <template>
-  <view class="invite-page">
+  <view v-if="loading" class="state-loading"><text>加载中...</text></view>
+  <view v-else-if="error" class="state-error">
+    <text class="state-error-text">{{ error }}</text>
+    <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
+  </view>
+  <view v-else class="invite-page">
     <app-nav-bar title="邀请站长" :show-back="true" />
 
     <!-- 数据统计 -->
@@ -91,25 +96,63 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { invitedStations, operatorInviteLinkFull, operatorInviteCode } from '@/lib/operator-data'
+import { ref, computed, onMounted } from 'vue'
+import { operatorApi, type InvitedStation } from '@/lib/operator-data'
 
-const invited = invitedStations
-const inviteLink = operatorInviteLinkFull
-const inviteCode = operatorInviteCode
-
+const loading = ref(true)
+const error = ref('')
+const invited = ref<InvitedStation[]>([])
+const inviteLink = ref('')
+const inviteCode = ref('')
 const copied = ref(false)
 const email = ref('')
 const sent = ref(false)
+const submitting = ref(false)
+
+onMounted(async () => {
+  try {
+    const [is, il, ic] = await Promise.all([
+      operatorApi.getInvitedStations(),
+      operatorApi.getInviteLinkFull(),
+      operatorApi.getInviteCode(),
+    ])
+    invited.value = is
+    inviteLink.value = il
+    inviteCode.value = ic
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+})
+
+async function retry() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [is, il, ic] = await Promise.all([
+      operatorApi.getInvitedStations(),
+      operatorApi.getInviteLinkFull(),
+      operatorApi.getInviteCode(),
+    ])
+    invited.value = is
+    inviteLink.value = il
+    inviteCode.value = ic
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 const statItems = computed(() => [
-  { label: '已邀请', value: invited.length, icon: 'users' },
-  { label: '已激活', value: invited.filter((s) => s.status === 'active').length, icon: 'check-circle-2' },
+  { label: '已邀请', value: invited.value.length, icon: 'users' },
+  { label: '已激活', value: invited.value.filter((s) => s.status === 'active').length, icon: 'check-circle-2' },
   { label: '累计佣金', value: `¥${totalCommission.value.toLocaleString()}`, icon: 'gift' },
 ])
 
 const totalCommission = computed(() =>
-  invited
+  invited.value
     .filter((s) => s.status === 'active')
     .reduce((sum, s) => sum + parseFloat(s.commission.replace(/[¥,]/g, '')), 0),
 )
@@ -118,21 +161,25 @@ const rewardDesc =
   '每成功邀请一位站长，可获得其首月收益的 <span style="color:#C41E3A;font-weight:600">10%</span> 作为佣金奖励。站长持续运营期间，每月额外享受 <span style="color:#C41E3A;font-weight:600">2%</span> 的持续佣金。'
 
 function copy(text: string) {
+  if (submitting.value) return
+  submitting.value = true
   uni.setClipboardData({
     data: text,
     success: () => {
       copied.value = true
       setTimeout(() => (copied.value = false), 2000)
     },
+    complete: () => { submitting.value = false },
   })
 }
 
 function sendInvite() {
-  if (!email.value || sent.value) return
+  if (!email.value || sent.value || submitting.value) return
+  submitting.value = true
   sent.value = true
   email.value = ''
   uni.showToast({ title: '邀请已发送', icon: 'none' })
-  setTimeout(() => (sent.value = false), 3000)
+  setTimeout(() => { sent.value = false; submitting.value = false }, 3000)
 }
 </script>
 
@@ -380,4 +427,10 @@ function sendInvite() {
 .inv-bottom-space {
   height: 80rpx;
 }
+/* 三态 */
+.state-loading, .state-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 32rpx; }
+.state-loading text { font-size: 28rpx; color: #999; }
+.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; margin-bottom: 24rpx; }
+.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
+.state-retry-btn text { font-size: 26rpx; color: #fff; }
 </style>

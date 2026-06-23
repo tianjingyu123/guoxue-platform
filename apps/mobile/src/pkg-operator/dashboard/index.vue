@@ -1,5 +1,10 @@
 <template>
-  <view class="dash-page">
+  <view v-if="loading" class="state-loading"><text>加载中...</text></view>
+  <view v-else-if="error" class="state-error">
+    <text class="state-error-text">{{ error }}</text>
+    <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
+  </view>
+  <view v-else class="dash-page">
     <!-- 顶部导航 -->
     <app-nav-bar title="运营商中心" :show-back="true" background="#7c3aed" color="#ffffff" :no-border="true">
       <template #right>
@@ -133,25 +138,70 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { navigateTo } from '@/utils/router'
-import {
-  operatorDashboardData as data,
-  dashboardTeamMembers as teamMembers,
-  dashboardQuotaRecords as quotaRecords,
-  operatorInviteLink as inviteLink,
-} from '@/lib/operator-data'
+import { operatorApi, type OperatorDashboardData, type DashboardTeamMember, type DashboardQuotaRecord } from '@/lib/operator-data'
 
+const loading = ref(true)
+const error = ref('')
+const data = ref<OperatorDashboardData>({} as OperatorDashboardData)
+const teamMembers = ref<DashboardTeamMember[]>([])
+const quotaRecords = ref<DashboardQuotaRecord[]>([])
+const inviteLink = ref('')
 const activeTab = ref<'team' | 'quota'>('team')
 const copied = ref(false)
+const submitting = ref(false)
+
+onMounted(async () => {
+  try {
+    const [d, tm, qr, il] = await Promise.all([
+      operatorApi.getDashboardData(),
+      operatorApi.getDashboardTeamMembers(),
+      operatorApi.getDashboardQuotaRecords(),
+      operatorApi.getDashboardInviteLink(),
+    ])
+    data.value = d
+    teamMembers.value = tm
+    quotaRecords.value = qr
+    inviteLink.value = il
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+})
+
+async function retry() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [d, tm, qr, il] = await Promise.all([
+      operatorApi.getDashboardData(),
+      operatorApi.getDashboardTeamMembers(),
+      operatorApi.getDashboardQuotaRecords(),
+      operatorApi.getDashboardInviteLink(),
+    ])
+    data.value = d
+    teamMembers.value = tm
+    quotaRecords.value = qr
+    inviteLink.value = il
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 function copyLink() {
+  if (submitting.value) return
+  submitting.value = true
   uni.setClipboardData({
-    data: inviteLink,
+    data: inviteLink.value,
     success: () => {
       copied.value = true
       setTimeout(() => (copied.value = false), 2000)
     },
+    complete: () => { submitting.value = false },
   })
 }
 function toastSoon() { uni.showToast({ title: '功能开发中', icon: 'none' }) }
@@ -257,4 +307,10 @@ function goInvite() { navigateTo('/pkg-operator/invite/index') }
 .icon-gold { background: rgba(201,169,110,0.1); }
 .dash-record-info { flex: 1; min-width: 0; }
 .dash-record-price { font-size: 28rpx; font-weight: 700; color: #C9A96E; flex-shrink: 0; }
+/* 三态 */
+.state-loading, .state-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 32rpx; }
+.state-loading text { font-size: 28rpx; color: #999; }
+.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; margin-bottom: 24rpx; }
+.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
+.state-retry-btn text { font-size: 26rpx; color: #fff; }
 </style>

@@ -11,6 +11,16 @@
     </app-nav-bar>
 
     <scroll-view scroll-y class="smp-scroll">
+      <!-- 三态 -->
+      <view v-if="loading" class="state-loading"><text class="state-loading-text">加载中...</text></view>
+      <view v-else-if="error" class="state-error">
+        <text class="state-error-text">{{ error }}</text>
+        <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
+      </view>
+      <view v-else-if="isEmpty" class="state-empty">
+        <text class="state-empty-text">暂无数据</text>
+      </view>
+      <template v-else>
       <!-- 分站信息卡 -->
       <view class="smp-info">
         <view class="smp-info-top">
@@ -138,39 +148,89 @@
       </view>
 
       <view class="smp-bottom-pad" />
+      </template>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import {
-  stationPanelInfo,
-  stationPanelOverview,
-  stationOverviewIconMap,
-  stationPanelTrends,
-  stationPanelBalance,
-  stationPanelQuickActions,
-  stationActionIconMap,
-  stationPanelNotices,
+  operatorApi,
+  type StationOverviewItem,
+  type StationTrendData,
+  type StationNotice,
   type StationPanelQuickAction,
 } from '@/lib/operator-data'
 
+const loading = ref(true)
+const error = ref('')
+const isEmpty = ref(false)
+
+// 各个数据 ref
+const stationPanelInfo = ref<any>({})
+const stationPanelOverview = ref<StationOverviewItem[]>([])
+const stationOverviewIconMap = ref<Record<string, string>>({})
+const stationPanelTrends = ref<StationTrendData[]>([])
+const stationPanelBalance = ref<any>({})
+const stationPanelQuickActions = ref<StationPanelQuickAction[]>([])
+const stationActionIconMap = ref<Record<string, string>>({})
+const stationPanelNotices = ref<StationNotice[]>([])
+
+onMounted(async () => {
+  await loadData()
+})
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [info, overview, iconMap, trends, balance, quickActions, actionIcons, notices] = await Promise.all([
+      operatorApi.getStationPanelInfo(),
+      operatorApi.getStationPanelOverview(),
+      operatorApi.getStationOverviewIconMap(),
+      operatorApi.getStationPanelTrends(),
+      operatorApi.getStationPanelBalance(),
+      operatorApi.getStationPanelQuickActions(),
+      operatorApi.getStationActionIconMap(),
+      operatorApi.getStationPanelNotices(),
+    ])
+    stationPanelInfo.value = info
+    stationPanelOverview.value = Array.isArray(overview) ? overview : []
+    stationOverviewIconMap.value = iconMap || {}
+    stationPanelTrends.value = Array.isArray(trends) ? trends : []
+    stationPanelBalance.value = balance
+    stationPanelQuickActions.value = Array.isArray(quickActions) ? quickActions : []
+    stationActionIconMap.value = actionIcons || {}
+    stationPanelNotices.value = Array.isArray(notices) ? notices : []
+    isEmpty.value = !info || Object.keys(info).length === 0
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function retry() { await loadData() }
+
 const trendIndex = ref(0)
 const trendPeriod = ref<'week' | 'month'>('week')
-const activeTrend = computed(() => stationPanelTrends[trendIndex.value])
+const activeTrend = computed(() => stationPanelTrends.value[trendIndex.value] || ({} as StationPanelTrend))
 function trendTypeLabel(type: string) { return type === 'revenue' ? '收益' : '订单' }
-const unreadNotices = computed(() => stationPanelNotices.filter((n) => n.type === 'warning').length)
+const unreadNotices = computed(() => stationPanelNotices.value.filter((n) => n.type === 'warning').length)
 
 const statusLabel = computed(() => {
   const map: Record<string, string> = { active: '运营中', expired: '已过期', paused: '已暂停' }
-  return map[stationPanelInfo.status] || '运营中'
+  return map[stationPanelInfo.value.status] || '运营中'
 })
 
-const maxTrendValue = computed(() => Math.max(...activeTrend.value.data.map((p) => p.value)))
+const maxTrendValue = computed(() => {
+  if (!activeTrend.value.data) return 0
+  return Math.max(...activeTrend.value.data.map((p) => p.value))
+})
 function barHeight(v: number) {
   if (maxTrendValue.value === 0) return 4
   return Math.max(8, Math.round((v / maxTrendValue.value) * 100))
@@ -291,4 +351,12 @@ function goWithdraw() { navigateTo('/wallet/withdraw') }
 .smp-notice-title { display: block; font-size: 26rpx; color: #1a1a1a; }
 .smp-notice-time { display: block; margin-top: 6rpx; font-size: 22rpx; color: #999; }
 .smp-bottom-pad { height: 40rpx; }
+
+/* 三态 */
+.state-loading, .state-error, .state-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 32rpx; }
+.state-loading-text { font-size: 28rpx; color: #999; }
+.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; margin-bottom: 24rpx; }
+.state-empty-text { font-size: 28rpx; color: #999; }
+.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
+.state-retry-btn text { font-size: 26rpx; color: #fff; }
 </style>

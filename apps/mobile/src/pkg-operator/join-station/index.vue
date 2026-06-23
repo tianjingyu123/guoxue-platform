@@ -2,6 +2,17 @@
   <view class="js-page">
     <app-nav-bar title="成为分站站长" :border="true" />
 
+    <!-- 加载中 -->
+    <view v-if="loading" class="state-loading">
+      <text class="state-loading-text">加载中...</text>
+    </view>
+    <!-- 错误 -->
+    <view v-else-if="error" class="state-error">
+      <text class="state-error-text">{{ error }}</text>
+      <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
+    </view>
+    <!-- 正常内容 -->
+    <template v-else>
     <scroll-view scroll-y class="js-scroll">
       <!-- Hero -->
       <view class="js-hero">
@@ -165,24 +176,59 @@
         </view>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import {
-  stationPricing,
-  stationBenefits,
-  stationEarningCases,
-  stationFaqs,
+  operatorApi,
+  type OperatorBenefit,
+  type StationEarningCase,
+  type FaqItem,
 } from '@/lib/operator-data'
 
+const loading = ref(true)
+const error = ref('')
+const stationPricing = ref({ price: 0, originalPrice: 0 })
+const stationBenefits = ref<OperatorBenefit[]>([])
+const stationEarningCases = ref<StationEarningCase[]>([])
+const stationFaqs = ref<FaqItem[]>([])
 const inviteCode = ref('')
 const expandedFaq = ref<number | null>(null)
 const agreed = ref(false)
+const submitting = ref(false)
+
+async function fetchData() {
+  try {
+    const [p, b, ec, f] = await Promise.all([
+      operatorApi.getStationPricing(),
+      operatorApi.getStationBenefits(),
+      operatorApi.getStationEarningCases(),
+      operatorApi.getStationFaqs(),
+    ])
+    stationPricing.value = p
+    stationBenefits.value = b
+    stationEarningCases.value = ec
+    stationFaqs.value = f
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function retry() {
+  loading.value = true
+  error.value = ''
+  await fetchData()
+}
+
+onMounted(fetchData)
 
 function toggleFaq(i: number) {
   expandedFaq.value = expandedFaq.value === i ? null : i
@@ -192,12 +238,17 @@ function openAgreement() {
   navigateTo('/pkg-operator/agreement-station/index')
 }
 
-function handleBuy() {
-  if (!agreed.value) {
+async function handleBuy() {
+  if (submitting.value || !agreed.value) {
     uni.showToast({ title: '请先阅读并同意服务协议', icon: 'none' })
     return
   }
-  uni.showToast({ title: '开通功能开发中', icon: 'none' })
+  submitting.value = true
+  try {
+    uni.showToast({ title: '开通功能开发中', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -295,4 +346,12 @@ function handleBuy() {
 .js-buybar-btn { flex: 1; height: 96rpx; background: #16a34a; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
 .js-buybar-btn.disabled { opacity: 0.5; }
 .js-buybar-btn-text { font-size: 30rpx; color: #fff; font-weight: 500; }
+
+/* 三态 */
+.state-loading { flex: 1; display: flex; align-items: center; justify-content: center; }
+.state-loading-text { font-size: 28rpx; color: #8a8178; }
+.state-error { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx; }
+.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; }
+.state-retry-btn { padding: 16rpx 48rpx; background: #16a34a; border-radius: 16rpx; }
+.state-retry-btn text { font-size: 28rpx; color: #fff; }
 </style>

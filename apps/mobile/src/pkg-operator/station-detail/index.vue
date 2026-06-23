@@ -2,16 +2,21 @@
 /** 分站版首页（A类逐像素，对齐原型 app/station/[id]/page.tsx）
  *  分站品牌栏 + 搜索Header + Hero轮播(站长信息) + 站长寄语 + 十宫格 +
  *  站长精选 + 为你推荐Feed流 + 回到顶部 + 底部导航 */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import QuickEntryGrid from '@/components/home/quick-entry-grid.vue'
 import FeedCard from '@/components/home/feed-card.vue'
 import BackTop from '@/components/home/back-top.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
-import { buildFeedItems, type RenderItem } from '@/lib/home-data'
-import { defaultStationConfig, featuredTypeConfig } from '@/lib/station-detail-data'
+import { homeApi, type RenderItem } from '@/lib/home-data'
+import { stationDetailApi } from '@/lib/station-detail-data'
 
-const station = defaultStationConfig
-const theme = station.themeColor
+const loading = ref(true)
+const error = ref('')
+const isEmpty = ref(false)
+
+const station = ref<any>({})
+const featuredTypeConfig = ref<Record<string, { icon: string; label: string }>>({})
+const theme = computed(() => station.value.themeColor || '#C41E3A')
 
 // Hero 轮播
 const heroIndex = ref(0)
@@ -19,10 +24,58 @@ function onHeroChange(e: any) {
   heroIndex.value = e.detail.current
 }
 
-// 为你推荐 Feed（复用主首页瀑布流）
-const renderItems = buildFeedItems()
-const leftCol = computed<RenderItem[]>(() => renderItems.filter((_, i) => i % 2 === 0))
-const rightCol = computed<RenderItem[]>(() => renderItems.filter((_, i) => i % 2 === 1))
+// 为你推荐 Feed（复用主首页瀑布流，通过API异步获取）
+const feedLoading = ref(true)
+const feedError = ref('')
+const renderItems = ref<RenderItem[]>([])
+
+async function fetchFeed() {
+  feedLoading.value = true
+  feedError.value = ''
+  try {
+    const res = await homeApi.getHome()
+    renderItems.value = res.feed
+  } catch (e) {
+    feedError.value = '加载失败，请检查网络后重试'
+  } finally {
+    feedLoading.value = false
+  }
+}
+
+function retryFeed() {
+  fetchFeed()
+}
+
+onMounted(async () => {
+  await loadStationData()
+  fetchFeed()
+})
+
+async function loadStationData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [config, typeConfig] = await Promise.all([
+      stationDetailApi.getStationConfig(),
+      stationDetailApi.getFeaturedTypeConfig(),
+    ])
+    station.value = config || {}
+    featuredTypeConfig.value = typeConfig || {}
+    isEmpty.value = !config || Object.keys(config).length === 0
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function retry() {
+  await loadStationData()
+  if (!renderItems.value.length) fetchFeed()
+}
+
+const leftCol = computed<RenderItem[]>(() => renderItems.value.filter((_, i) => i % 2 === 0))
+const rightCol = computed<RenderItem[]>(() => renderItems.value.filter((_, i) => i % 2 === 1))
 
 // 回到顶部
 const showBackTop = ref(false)
@@ -73,6 +126,18 @@ function toastSoon() {
       :scroll-with-animation="true"
       @scroll="onScroll"
     >
+      <!-- 三态：加载中 -->
+      <view v-if="loading" class="state-loading"><text class="state-loading-text">加载中...</text></view>
+      <!-- 三态：错误 -->
+      <view v-else-if="error" class="state-error">
+        <text class="state-error-text">{{ error }}</text>
+        <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
+      </view>
+      <!-- 三态：空数据 -->
+      <view v-else-if="isEmpty" class="state-empty">
+        <text class="state-empty-text">暂无数据</text>
+      </view>
+      <template v-else>
       <!-- Hero Banner -->
       <view class="sd-hero">
         <view class="sd-hero-card">
@@ -173,12 +238,29 @@ function toastSoon() {
           </view>
         </view>
       </view>
+      </template>
 
       <!-- 为你推荐 -->
       <view class="sd-recommend-head">
         <text class="sd-recommend-title">为你推荐</text>
       </view>
-      <view class="sd-feed">
+
+      <!-- Feed 加载骨架 -->
+      <view v-if="feedLoading" class="sd-feed skeleton">
+        <view class="sk-block" style="height: 400rpx; width: 50%; flex-shrink: 0; border-radius: 16rpx;" />
+        <view class="sk-block" style="height: 300rpx; width: 50%; flex-shrink: 0; border-radius: 16rpx; margin-top: 40rpx;" />
+      </view>
+
+      <!-- Feed 错误 -->
+      <view v-else-if="feedError" class="error-state" style="margin: 32rpx; padding: 48rpx 0;">
+        <text class="error-text">{{ feedError }}</text>
+        <view class="retry-btn" @tap="retryFeed">
+          <text class="retry-text">点击重试</text>
+        </view>
+      </view>
+
+      <!-- Feed 正常 -->
+      <view v-else class="sd-feed">
         <view class="sd-feed-col">
           <feed-card v-for="ri in leftCol" :key="ri.key" :data="ri" />
         </view>
@@ -277,4 +359,39 @@ function toastSoon() {
 .sd-end { display: flex; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx 0 64rpx; }
 .sd-end-line { width: 60rpx; height: 1rpx; background: var(--line, #e8e0d5); }
 .sd-end-text { font-size: 24rpx; color: var(--text-soft, #999); }
+
+/* 骨架屏 */
+.skeleton { gap: 12rpx; }
+.sk-block {
+  background: linear-gradient(90deg, #e8e0d5 25%, #f0ebe3 50%, #e8e0d5 75%);
+  background-size: 200% 100%;
+  animation: sk-shimmer 1.5s infinite;
+}
+@keyframes sk-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* 错误状态 */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+}
+.error-text { font-size: 28rpx; color: var(--text-soft, #999); }
+.retry-btn {
+  padding: 16rpx 48rpx; border-radius: 999rpx;
+  background: var(--brand-brown, #8B6B4A);
+}
+.retry-text { font-size: 28rpx; color: #ffffff; }
+
+/* 三态 */
+.state-loading, .state-error, .state-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 32rpx; }
+.state-loading-text { font-size: 28rpx; color: #999; }
+.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; margin-bottom: 24rpx; }
+.state-empty-text { font-size: 28rpx; color: #999; }
+.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
+.state-retry-btn text { font-size: 26rpx; color: #fff; }
 </style>
