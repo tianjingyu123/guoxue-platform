@@ -475,16 +475,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
 import {
-  ebookReaderChapter,
-  ebookReaderChapters,
-  ebookReaderDiscussions,
+  ebookApi,
   ebookReaderThemes,
+  type EbookReaderChapter,
 } from '@/lib/ebook-data'
-import type { DiscussionConfig } from '@/lib/discussion-types'
+import type { DiscussionConfig, DiscussionItemType } from '@/lib/discussion-types'
+
+/** 阅读器章节完整数据的类型（匹配 ebookReaderChapter 结构） */
+interface ReaderChapterData {
+  id: string
+  bookId: string
+  title: string
+  totalChapters: number
+  currentChapter: number
+  content: string
+}
 
 type Theme = 'light' | 'sepia' | 'dark'
 
@@ -492,9 +501,22 @@ const sys = uni.getSystemInfoSync()
 const statusBarHeight = sys.statusBarHeight || 20
 const safeBottom = (sys.safeAreaInsets?.bottom ?? 0)
 
-const chapter = ebookReaderChapter
-const chapters = ebookReaderChapters
-const discussions = reactive([...ebookReaderDiscussions])
+const chapter = ref<ReaderChapterData>({
+  id: '', bookId: '', title: '', totalChapters: 0, currentChapter: 0, content: '',
+})
+const chapters = ref<EbookReaderChapter[]>([])
+const discussions = ref<DiscussionItemType[]>([])
+
+onMounted(async () => {
+  const [ch, chs, dcs] = await Promise.all([
+    ebookApi.getReaderChapter('1'),
+    ebookApi.getReaderChapters('1'),
+    ebookApi.getDiscussions('1'),
+  ])
+  chapter.value = ch
+  chapters.value = chs
+  discussions.value = dcs
+})
 
 const showControls = ref(true)
 const showMenu = ref(false)
@@ -520,13 +542,13 @@ const themeOptions: { id: Theme; label: string; bg: string; icon: string; iconCo
   { id: 'dark', label: '夜间', bg: '#1a1815', icon: 'moon', iconColor: '#9ca3af', textColor: '#d1d5db' },
 ]
 
-const discussionConfig: DiscussionConfig = {
+const discussionConfig = computed<DiscussionConfig>(() => ({
   scene: 'classic',
   mode: 'comment',
-  title: chapter.title,
+  title: chapter.value.title,
   accentColor: '#2563eb',
   placeholder: '分享你对本章的理解…',
-}
+}))
 
 function toggleControls() {
   showControls.value = !showControls.value

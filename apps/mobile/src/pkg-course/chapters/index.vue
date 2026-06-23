@@ -8,11 +8,16 @@ import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 章节学习进度, 参数 courseId, 返回 { progress:CourseProgress, chapters:ProgressChapter[] }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { courseProgress as _course, progressChapters as _chapters } from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { course: _course, chapters: _chapters }
+  // TODO: 从路由参数获取 courseId，当前使用默认值
+  const courseId = '1'
+  const [course, chapters] = await Promise.all([
+    courseApi.getProgress(courseId),
+    courseApi.getProgressChapters(courseId),
+  ])
+  return { course, chapters }
 })
 
 const course = computed(() => pageData.value?.course ?? {} as any)

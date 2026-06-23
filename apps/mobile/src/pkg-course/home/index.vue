@@ -10,23 +10,31 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
-import {
-  courseBanners as _courseBanners, categoryNav as _categoryNav, allCourses as _allCourses,
-  featured as _featured, ranking as _ranking, flashSaleCourses as _flashSaleCourses, freeCourses as _freeCourses, newCourses as _newCourses, feedFilters as _feedFilters,
-} from '@/lib/course-data'
+import { courseApi, type Course } from '@/lib/course-data'
+
+function deriveFeatured(courses: Course[]) { return courses.filter((c) => c.tag === '热销').slice(0, 6) }
+function deriveRanking(courses: Course[]) { return [...courses].sort((a, b) => (b.students ?? 0) - (a.students ?? 0)).slice(0, 5) }
+function deriveFlashSale(courses: Course[]) { return courses.filter((c) => c.flashSale) }
+function deriveFree(courses: Course[]) { return courses.filter((c) => c.free) }
+function deriveNewest(courses: Course[]) { return courses.filter((c) => c.isNew) }
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  // 模拟异步获取数据，上线后替换为真实API
+  const [banners, all, categories, filters] = await Promise.all([
+    courseApi.getBanners(),
+    courseApi.getList(),
+    courseApi.getCategoryNav(),
+    courseApi.getFeedFilters(),
+  ])
   return {
-    banners: _courseBanners,
-    categories: _categoryNav,
-    all: _allCourses,
-    featured: _featured,
-    ranking: _ranking,
-    flashSale: _flashSaleCourses,
-    free: _freeCourses,
-    newest: _newCourses,
-    filters: _feedFilters,
+    banners,
+    categories,
+    all,
+    featured: deriveFeatured(all),
+    ranking: deriveRanking(all),
+    flashSale: deriveFlashSale(all),
+    free: deriveFree(all),
+    newest: deriveNewest(all),
+    filters,
   }
 })
 

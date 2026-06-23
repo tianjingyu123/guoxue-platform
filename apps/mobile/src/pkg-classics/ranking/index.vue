@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -7,18 +7,44 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import { rankingPageBooks, rankTabs } from '@/lib/classics-data'
+import { rankTabs, classicsApi } from '@/lib/classics-data'
+import type { RankBook } from '@/lib/classics-data'
 
-const isLoading = ref(false)
+const isLoading = ref(true)
 const loadError = ref<string | null>(null)
-const isEmpty = computed(() => !rankingPageBooks || rankingPageBooks.length === 0)
+const rankingBooks = ref<RankBook[]>([])
+
+const isEmpty = computed(() => !rankingBooks.value || rankingBooks.value.length === 0)
+
+onMounted(async () => {
+  isLoading.value = true
+  try {
+    const data = await classicsApi.getRankingBooks()
+    if (data && data.length > 0) {
+      rankingBooks.value = data
+    }
+  } catch {
+    loadError.value = '加载失败'
+  } finally {
+    isLoading.value = false
+  }
+})
+
 function reload() {
   loadError.value = null
+  isLoading.value = true
+  classicsApi.getRankingBooks().then((data) => {
+    if (data && data.length > 0) rankingBooks.value = data
+  }).catch(() => {
+    loadError.value = '加载失败'
+  }).finally(() => {
+    isLoading.value = false
+  })
 }
 
 const rankType = ref<'hot' | 'new' | 'rating'>('hot')
-const top3 = rankingPageBooks.slice(0, 3)
-const rest = rankingPageBooks.slice(3)
+const top3 = computed(() => rankingBooks.value.slice(0, 3))
+const rest = computed(() => rankingBooks.value.slice(3))
 
 function rankBg(rank: number): string {
   if (rank === 1) return '#c41e3a'

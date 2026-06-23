@@ -1,22 +1,57 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
 import {
-  libraryStats, categories, todayFeature, lastReading, weeklyMinutes,
-  bookLists, rankingData, audioBooks, featuredBooks, filterTypes, fmtReads,
+  libraryStats, filterTypes, fmtReads, classicsApi,
 } from '@/lib/classics-data'
+import type { CategoryTile, BookListItem, RankItem, AudioItem, FeaturedItem } from '@/lib/classics-data'
 
-const isLoading = ref(false)
+const isLoading = ref(true)
 const loadError = ref<string | null>(null)
+
+const categories = ref<CategoryTile[]>([])
+const todayFeature = ref<any>({})
+const lastReading = ref<any>({})
+const weeklyMinutes = ref(0)
+const bookLists = ref<BookListItem[]>([])
+const rankingData = ref<RankItem[]>([])
+const audioBooks = ref<AudioItem[]>([])
+const featuredBooks = ref<FeaturedItem[]>([])
+
 const isEmpty = computed(() =>
-  !categories || categories.length === 0
+  !categories.value || categories.value.length === 0
 )
-function reload() {
+
+async function fetchData() {
+  isLoading.value = true
   loadError.value = null
+  try {
+    const data = await classicsApi.getHomeData()
+    if (data) {
+      categories.value = data.categories || []
+      todayFeature.value = data.todayFeature || {}
+      lastReading.value = data.lastReading || {}
+      weeklyMinutes.value = data.weeklyMinutes ?? 0
+      bookLists.value = data.bookLists || []
+      rankingData.value = data.rankingData || []
+      audioBooks.value = data.audioBooks || []
+      featuredBooks.value = data.featuredBooks || []
+    }
+  } catch {
+    loadError.value = '加载失败'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => { fetchData() })
+
+function reload() {
+  fetchData()
 }
 
 const activeType = ref('all')

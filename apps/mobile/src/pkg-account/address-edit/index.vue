@@ -306,7 +306,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
-import { REGIONS, PROVINCES, addressEditSample } from '@/lib/account-data'
+import { accountApi, REGIONS, PROVINCES } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
@@ -343,7 +343,7 @@ const pickerDistricts = computed(() =>
   tempProvince.value && tempCity.value ? REGIONS[tempProvince.value]?.[tempCity.value] || [] : [],
 )
 
-onLoad((query) => {
+onLoad(async (query) => {
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 20
@@ -355,13 +355,16 @@ onLoad((query) => {
   }
   if (query && query.id) {
     isEdit.value = true
-    name.value = addressEditSample.name
-    phone.value = addressEditSample.phone
-    province.value = addressEditSample.province
-    city.value = addressEditSample.city
-    district.value = addressEditSample.district
-    address.value = addressEditSample.address
-    isDefault.value = addressEditSample.isDefault
+    const addr = await accountApi.getAddress(query.id)
+    if (addr) {
+      name.value = addr.name
+      phone.value = addr.phone
+      province.value = addr.province
+      city.value = addr.city
+      district.value = addr.district
+      address.value = addr.address
+      isDefault.value = addr.isDefault
+    }
   }
 })
 
@@ -378,15 +381,28 @@ function validate() {
   return Object.keys(e).length === 0
 }
 
-function handleSave() {
+async function handleSave() {
   if (saving.value) return
   if (!validate()) return
   saving.value = true
-  setTimeout(() => {
-    saving.value = false
+  try {
+    await accountApi.saveAddress({
+      id: isEdit.value ? '' : undefined,
+      name: name.value,
+      phone: phone.value,
+      province: province.value,
+      city: city.value,
+      district: district.value,
+      address: address.value,
+      isDefault: isDefault.value,
+    })
     uni.showToast({ title: '保存成功', icon: 'success' })
     setTimeout(() => goBack(), 600)
-  }, 500)
+  } catch {
+    uni.showToast({ title: '保存失败', icon: 'error' })
+  } finally {
+    saving.value = false
+  }
 }
 
 function openPicker() {

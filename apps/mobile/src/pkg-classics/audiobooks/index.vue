@@ -1,24 +1,50 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import { mockAudioBooks, fmtPlays } from '@/lib/classics-data'
+import { fmtPlays, classicsApi } from '@/lib/classics-data'
+import type { AudioBookFull } from '@/lib/classics-data'
 
-const isLoading = ref(false)
+const isLoading = ref(true)
 const loadError = ref<string | null>(null)
-const isEmpty = computed(() => !mockAudioBooks || mockAudioBooks.length === 0)
-function reload() {
-  loadError.value = null
-}
+const audioBookList = ref<AudioBookFull[]>([])
+
+const isEmpty = computed(() => !audioBookList.value || audioBookList.value.length === 0)
 
 const favorites = ref<string[]>([])
 
-const feature = computed(() => mockAudioBooks[0])
-const rest = computed(() => mockAudioBooks.slice(1))
+const feature = computed(() => audioBookList.value[0])
+const rest = computed(() => audioBookList.value.slice(1))
+
+onMounted(async () => {
+  isLoading.value = true
+  try {
+    const data = await classicsApi.getAudioBookList()
+    if (data && data.length > 0) {
+      audioBookList.value = data
+    }
+  } catch {
+    loadError.value = '加载失败'
+  } finally {
+    isLoading.value = false
+  }
+})
+
+function reload() {
+  loadError.value = null
+  isLoading.value = true
+  classicsApi.getAudioBookList().then((data) => {
+    if (data && data.length > 0) audioBookList.value = data
+  }).catch(() => {
+    loadError.value = '加载失败'
+  }).finally(() => {
+    isLoading.value = false
+  })
+}
 
 function toggleFavorite(id: string) {
   favorites.value = favorites.value.includes(id)

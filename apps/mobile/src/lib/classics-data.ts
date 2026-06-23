@@ -606,4 +606,43 @@ export const classicsApi = {
     if (useMock()) return null
     try { return await apiGet<any>(`/classic/${id}`) } catch { return null }
   },
+
+  /** 首页聚合数据 GET /classic/home */
+  async getHomeData() {
+    if (useMock()) return {
+      categories: [...categories],
+      todayFeature: { ...todayFeature },
+      lastReading: { ...lastReading },
+      weeklyMinutes,
+      bookLists: [...bookLists],
+      rankingData: [...rankingData],
+      audioBooks: [...audioBooks],
+      featuredBooks: [...featuredBooks],
+    }
+    try { return await apiGet<any>('/classic/home') } catch { return null }
+  },
+
+  /** 有声书列表 GET /classic/audiobooks */
+  async getAudioBookList() {
+    if (useMock()) return [...mockAudioBooks]
+    try { return await apiGet<any[]>('/classic/audiobooks') } catch { return null }
+  },
+
+  /** 有声书播放详情 GET /classic/audiobooks/:id */
+  async getAudioBookPlayerData(id: string) {
+    if (useMock()) return audioBookPlayerData[id] || audioBookPlayerData.default
+    try { return await apiGet<any>(`/classic/audiobooks/${id}`) } catch { return null }
+  },
+
+  /** 合集详情 GET /classic/collections/:id */
+  async getCollectionDetail(id: string) {
+    if (useMock()) return collectionsDetailData[id] || collectionsDetailData['1']
+    try { return await apiGet<any>(`/classic/collections/${id}`) } catch { return null }
+  },
+
+  /** 推荐榜 GET /classic/ranking */
+  async getRankingBooks() {
+    if (useMock()) return [...rankingPageBooks]
+    try { return await apiGet<any[]>('/classic/ranking') } catch { return null }
+  },
 }

@@ -366,29 +366,38 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import FlatBookCover from '@/components/ebook/flat-book-cover.vue'
 import {
-  ebookShelfBooks,
+  ebookApi,
   ebookShelfFilters,
   type EbookFilterType,
   type EbookShelfBook,
 } from '@/lib/ebook-data'
 
-const isLoading = ref(false)
+const isLoading = ref(true)
 const loadError = ref<string | null>(null)
-const isEmpty = computed(() => sortedBooks.value.length === 0)
-function reload() {
+const books = ref<EbookShelfBook[]>([])
+const isEmpty = computed(() => !isLoading.value && sortedBooks.value.length === 0)
+async function reload() {
   loadError.value = null
+  isLoading.value = true
+  try {
+    books.value = await ebookApi.getBookshelf()
+  } catch (e: any) {
+    loadError.value = e?.message || '加载失败'
+  } finally {
+    isLoading.value = false
+  }
 }
+onMounted(() => { reload() })
 
 const filter = ref<EbookFilterType>('all')
 const viewMode = ref<'grid' | 'list'>('grid')
 const activeMenu = ref<string | null>(null)
-const books = ref<EbookShelfBook[]>([...ebookShelfBooks])
 const filters = ebookShelfFilters
 
 const filteredBooks = computed(() =>

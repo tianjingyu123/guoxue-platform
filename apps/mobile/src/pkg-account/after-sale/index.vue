@@ -314,27 +314,27 @@
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, redirectTo } from '@/utils/router'
-import { afterSaleReasons, afterSaleApplyContext } from '@/lib/account-data'
+import { accountApi, afterSaleReasons, type AfterSaleProduct } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
 const safeBottom = ref(0)
 
 const reasons = afterSaleReasons
-const maxAmount = ref(afterSaleApplyContext.maxAmount)
-const orderId = ref(afterSaleApplyContext.orderId)
+const maxAmount = ref(0)
+const orderId = ref('')
 
 const type = ref<'refund_only' | 'refund_with_return'>('refund_only')
 const reason = ref('')
 const showReasonPicker = ref(false)
-const amount = ref(String(afterSaleApplyContext.maxAmount))
+const amount = ref('0')
 const description = ref('')
 const images = ref<string[]>([])
 const uploadingCount = ref(0)
 const submitting = ref(false)
 const errors = reactive<{ reason?: string; amount?: string }>({})
 
-onLoad((q) => {
+onLoad(async (q) => {
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 20
@@ -348,6 +348,15 @@ onLoad((q) => {
   if (q && q.maxAmount) {
     maxAmount.value = parseFloat(q.maxAmount)
     amount.value = q.maxAmount
+  } else {
+    // 从API获取默认售后上下文
+    try {
+      const list = await accountApi.getAfterSaleList()
+      if (list.length > 0) {
+        maxAmount.value = list[0].amount
+        amount.value = String(list[0].amount)
+      }
+    } catch { /* 使用默认值 */ }
   }
 })
 
@@ -396,15 +405,26 @@ function validate() {
   return ok
 }
 
-function submit() {
+async function submit() {
   if (submitting.value) return
   if (!validate()) return
   submitting.value = true
-  setTimeout(() => {
-    submitting.value = false
+  try {
+    await accountApi.createAfterSale({
+      orderId: orderId.value,
+      type: type.value,
+      reason: reason.value,
+      amount: parseFloat(amount.value),
+      description: description.value,
+      images: images.value,
+    })
     uni.showToast({ title: '申请已提交', icon: 'success' })
     setTimeout(() => redirectTo('/shop/my-after-sales'), 1200)
-  }, 1000)
+  } catch {
+    uni.showToast({ title: '提交失败，请重试', icon: 'error' })
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 

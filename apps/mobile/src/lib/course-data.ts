@@ -381,4 +381,40 @@ export const courseApi = {
     if (useMock()) return courseBanners
     try { return await apiGet<BannerItem[]>('/courses/banners') } catch { return courseBanners }
   },
+
+  /** 获取课程结业证书 GET /courses/:id/certificate */
+  async getCertificate(id: string): Promise<Certificate> {
+    if (useMock()) return courseCertificate
+    try { return await apiGet<Certificate>(`/courses/${id}/certificate`) } catch { return courseCertificate }
+  },
+
+  /** 获取限时特惠聚合 GET /courses/flash-sale */
+  async getFlashSale(): Promise<{ sessions: SaleSession[]; courses: SaleCourse[] }> {
+    if (useMock()) return { sessions: saleSessions, courses: saleCourses }
+    try { return await apiGet<{ sessions: SaleSession[]; courses: SaleCourse[] }>('/courses/flash-sale') } catch { return { sessions: saleSessions, courses: saleCourses } }
+  },
+
+  /** 获取学习计划聚合 GET /courses/study-plan */
+  async getStudyPlan(): Promise<{ goal: StudyGoal; courses: PlannedCourse[]; streak: number; checkInLevels: number[] }> {
+    if (useMock()) return { goal: studyGoal, courses: plannedCourses, streak: studyStreak, checkInLevels }
+    try { return await apiGet('/courses/study-plan') } catch { return { goal: studyGoal, courses: plannedCourses, streak: studyStreak, checkInLevels } }
+  },
+
+  /** 获取课程章节学习进度（含状态） GET /courses/:id/progress-chapters */
+  async getProgressChapters(id: string): Promise<ProgressChapter[]> {
+    if (useMock()) return progressChapters
+    try { return await apiGet<ProgressChapter[]>(`/courses/${id}/progress-chapters`) } catch { return progressChapters }
+  },
+
+  /** 获取课程分类导航 GET /courses/categories */
+  async getCategoryNav(): Promise<CourseCategory[]> {
+    if (useMock()) return categoryNav
+    try { return await apiGet<CourseCategory[]>('/courses/categories') } catch { return categoryNav }
+  },
+
+  /** 获取精选筛选项 GET /courses/feed-filters */
+  async getFeedFilters(): Promise<{ id: string; label: string }[]> {
+    if (useMock()) return feedFilters
+    try { return await apiGet<{ id: string; label: string }[]>('/courses/feed-filters') } catch { return feedFilters }
+  },
 }

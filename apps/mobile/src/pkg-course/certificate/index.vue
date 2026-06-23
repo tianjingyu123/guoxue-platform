@@ -8,11 +8,13 @@ import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 结业证书, 参数 courseId, 返回 Certificate。证书图建议由后端或 canvas 生成 imageUrl 填充 .cert-img
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { courseCertificate as _cert } from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { cert: _cert }
+  // TODO: 从路由参数获取 courseId，当前使用默认值
+  const courseId = '1'
+  const cert = await courseApi.getCertificate(courseId)
+  return { cert }
 })
 
 const cert = computed(() => pageData.value?.cert ?? {} as any)

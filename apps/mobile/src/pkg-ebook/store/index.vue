@@ -110,6 +110,7 @@
           </text>
         </view>
         <view
+          v-if="featured"
           class="es-feat"
           @tap="goDetail(featured.id)"
         >
@@ -287,26 +288,37 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import FlatBookCover from '@/components/ebook/flat-book-cover.vue'
 import {
-  ebookStoreBooks,
+  ebookApi,
   ebookStoreCategories,
   ebookStoreSorts,
   EBOOK_COVER,
   type EbookCoverColor,
+  type EbookStoreBook,
 } from '@/lib/ebook-data'
 
-const isLoading = ref(false)
+const isLoading = ref(true)
 const loadError = ref<string | null>(null)
-const isEmpty = computed(() => filteredBooks.value.length === 0)
-function reload() {
+const books = ref<EbookStoreBook[]>([])
+const isEmpty = computed(() => !isLoading.value && filteredBooks.value.length === 0)
+async function reload() {
   loadError.value = null
+  isLoading.value = true
+  try {
+    books.value = await ebookApi.list()
+  } catch (e: any) {
+    loadError.value = e?.message || '加载失败'
+  } finally {
+    isLoading.value = false
+  }
 }
+onMounted(() => { reload() })
 
 const searchQuery = ref('')
 const activeCategory = ref('all')
@@ -314,7 +326,7 @@ const activeSort = ref('hot')
 
 const categories = ebookStoreCategories
 const sorts = ebookStoreSorts
-const featured = ebookStoreBooks[1]
+const featured = computed(() => books.value[1] || books.value[0])
 
 function coverFrom(c: EbookCoverColor) {
   return EBOOK_COVER[c].from
@@ -324,7 +336,7 @@ function coverTo(c: EbookCoverColor) {
 }
 
 const filteredBooks = computed(() =>
-  ebookStoreBooks.filter((b) => {
+  books.value.filter((b) => {
     const matchCat =
       activeCategory.value === 'all' ||
       (activeCategory.value === 'mingli' && b.category === '命理') ||

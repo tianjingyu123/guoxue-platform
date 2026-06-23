@@ -259,34 +259,78 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
-import { collectionsDetailData } from '@/lib/classics-data'
+import { classicsApi } from '@/lib/classics-data'
+import type { CollectionDetail } from '@/lib/classics-data'
 
-const isLoading = ref(false)
+const isLoading = ref(true)
 const loadError = ref<string | null>(null)
-const isEmpty = computed(() => !collection.value || !collection.value.books || collection.value.books.length === 0)
-function reload() {
-  loadError.value = null
-}
 
 const collectionId = ref('1')
 const isAddedToShelf = ref(false)
+const collection = ref<CollectionDetail>({
+  id: '1',
+  title: '',
+  description: '',
+  cover: 'amber',
+  curator: '',
+  bookCount: 0,
+  viewCount: 0,
+  tags: [],
+  books: [],
+})
+const relatedCollections = ref<CollectionDetail[]>([])
+
+const isEmpty = computed(() => !collection.value || !collection.value.books || collection.value.books.length === 0)
 
 onLoad((options) => {
-  if (options?.id && collectionsDetailData[options.id]) {
+  if (options?.id) {
     collectionId.value = options.id
   }
 })
 
-const collection = computed(() => collectionsDetailData[collectionId.value] || collectionsDetailData['1'])
-const relatedCollections = computed(() =>
-  Object.values(collectionsDetailData).filter((c) => c.id !== collectionId.value),
-)
+onMounted(async () => {
+  isLoading.value = true
+  try {
+    const data = await classicsApi.getCollectionDetail(collectionId.value)
+    if (data) {
+      collection.value = data
+    }
+    // 加载相关合集
+    const allData = [data]
+    // 尝试加载其他合集作为推荐
+    for (const id of ['1', '2']) {
+      if (id !== collectionId.value) {
+        try {
+          const related = await classicsApi.getCollectionDetail(id)
+          if (related) allData.push(related)
+        } catch { /* skip */ }
+      }
+    }
+    relatedCollections.value = allData.filter((c): c is CollectionDetail => !!c && c.id !== collectionId.value)
+  } catch {
+    loadError.value = '加载失败'
+  } finally {
+    isLoading.value = false
+  }
+})
+
+function reload() {
+  loadError.value = null
+  isLoading.value = true
+  classicsApi.getCollectionDetail(collectionId.value).then((data) => {
+    if (data) collection.value = data
+  }).catch(() => {
+    loadError.value = '加载失败'
+  }).finally(() => {
+    isLoading.value = false
+  })
+}
 
 function goBack() {
   uni.navigateBack({ delta: 1, fail: () => uni.navigateTo({ url: '/pkg-classics/home/index' }) })

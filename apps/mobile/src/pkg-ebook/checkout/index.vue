@@ -253,23 +253,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { ebookCheckoutBook, ebookPayMethods } from '@/lib/ebook-data'
+import { ebookApi, ebookPayMethods, type EbookCheckoutBook } from '@/lib/ebook-data'
 
 const C = {
   text: '#1e293b', textSoft: '#64748b', member: '#7c3aed', price: '#dc2626', free: '#16a34a',
 }
 
-const book = ebookCheckoutBook
+const book = ref<EbookCheckoutBook>({
+  id: '', title: '', author: '', coverColor: '', price: 0, originalPrice: 0, isMemberFree: false,
+})
 const payMethods = ebookPayMethods
+
+onMounted(async () => {
+  const result = await ebookApi.getCheckoutBook('1')
+  if (result) book.value = result
+})
 const payMethod = ref('wechat')
 const couponCode = ref('')
 const couponApplied = ref(false)
 const showCoupon = ref(false)
 const isProcessing = ref(false)
 
-const finalPrice = computed(() => (couponApplied.value ? book.price - 10 : book.price))
+const finalPrice = computed(() => (couponApplied.value ? book.value.price - 10 : book.value.price))
 
 function applyCoupon() {
   if (couponCode.value) couponApplied.value = true
@@ -282,7 +289,7 @@ function handlePay() {
   isProcessing.value = true
   setTimeout(() => {
     isProcessing.value = false
-    uni.redirectTo({ url: `/pkg-ebook/checkout/success?id=${book.id}` })
+    uni.redirectTo({ url: `/pkg-ebook/checkout/success?id=${book.value.id}` })
   }, 1200)
 }
 </script>

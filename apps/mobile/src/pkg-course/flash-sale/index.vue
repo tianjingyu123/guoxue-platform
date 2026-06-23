@@ -8,11 +8,11 @@ import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 限时特惠聚合, 参数 无, 返回 { sessions:SaleSession[], courses:SaleCourse[] }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { saleSessions as _sessions, saleCourses as _courses } from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { sessions: _sessions, courses: _courses }
+  const { sessions, courses } = await courseApi.getFlashSale()
+  return { sessions, courses }
 })
 
 const sessions = computed(() => pageData.value?.sessions ?? [])

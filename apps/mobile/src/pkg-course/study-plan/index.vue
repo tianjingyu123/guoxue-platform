@@ -8,11 +8,11 @@ import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 学习计划聚合, 参数 无, 返回 { goal, courses, streak, checkInLevels }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { studyGoal as _studyGoal, plannedCourses as _plannedCourses, studyStreak as _studyStreak, checkInLevels as _checkInLevels } from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { goal: _studyGoal, courses: _plannedCourses, streak: _studyStreak, checkInLevels: _checkInLevels }
+  const { goal, courses, streak, checkInLevels } = await courseApi.getStudyPlan()
+  return { goal, courses, streak, checkInLevels }
 })
 
 const studyGoal = computed(() => pageData.value?.goal ?? {} as any)

@@ -1,10 +1,25 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { audioBookPlayerData } from '@/lib/classics-data'
+import { classicsApi } from '@/lib/classics-data'
+import type { AudioBookDetail } from '@/lib/classics-data'
 
 const bookId = ref('default')
-const book = computed(() => audioBookPlayerData[bookId.value] || audioBookPlayerData.default)
+const book = ref<AudioBookDetail>({
+  title: '',
+  author: '',
+  narrator: '',
+  dynasty: '',
+  chapters: [],
+})
+
+onLoad(async (q) => {
+  if (q && q.id) bookId.value = q.id
+  try {
+    const data = await classicsApi.getAudioBookPlayerData(bookId.value)
+    if (data) book.value = data
+  } catch { /* 保持 mock 默认值 */ }
+})
 
 const isPlaying = ref(false)
 const progress = ref(0)

@@ -431,30 +431,39 @@ import FlatBookCover from '@/components/ebook/flat-book-cover.vue'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
 import type { DiscussionConfig } from '@/lib/discussion-types'
 import {
-  ebookDetailData,
+  ebookApi,
   ebookDiscussions,
   ebookColorFromHex,
   EBOOK_COVER,
   type EbookChapter,
+  type EbookDetail,
 } from '@/lib/ebook-data'
 
-const isLoading = ref(false)
+const isLoading = ref(true)
 const loadError = ref<string | null>(null)
-const isEmpty = computed(() => false)
-function reload() {
+const book = ref<EbookDetail | null>(null)
+const isEmpty = computed(() => !isLoading.value && !book.value)
+async function reload(id: string) {
+  isLoading.value = true
   loadError.value = null
+  try {
+    book.value = await ebookApi.detail(id)
+  } catch (e: any) {
+    loadError.value = e?.message || '加载失败'
+  } finally {
+    isLoading.value = false
+  }
 }
 
-const book = ebookDetailData
 const isFavorite = ref(false)
 const showComments = ref(false)
 const descExpanded = ref(false)
 
-const firstDiscussion = ebookDiscussions[0]
-const commentCount = ebookDiscussions.reduce((n, c) => n + 1 + c.replies.length, 0)
+const firstDiscussion = computed(() => ebookDiscussions[0])
+const commentCount = computed(() => ebookDiscussions.reduce((n, c) => n + 1 + c.replies.length, 0))
 
-const coverFromHex = computed(() => EBOOK_COVER[ebookColorFromHex(book.coverColor)].from)
-const coverToHex = computed(() => EBOOK_COVER[ebookColorFromHex(book.coverColor)].to)
+const coverFromHex = computed(() => book.value ? EBOOK_COVER[ebookColorFromHex(book.value.coverColor)].from : '#3b6fd4')
+const coverToHex = computed(() => book.value ? EBOOK_COVER[ebookColorFromHex(book.value.coverColor)].to : '#27488f')
 function hexFrom(hex: string) {
   return EBOOK_COVER[ebookColorFromHex(hex)].from
 }
@@ -462,12 +471,12 @@ function hexTo(hex: string) {
   return EBOOK_COVER[ebookColorFromHex(hex)].to
 }
 
-const stats = [
-  { v: `${(book.wordCount / 10000).toFixed(1)}万`, l: '字数' },
-  { v: String(book.pageCount), l: '页数' },
-  { v: `${(book.salesCount / 1000).toFixed(1)}k`, l: '已购' },
-  { v: String(book.chapters.length), l: '章节' },
-]
+const stats = computed(() => book.value ? [
+  { v: `${(book.value.wordCount / 10000).toFixed(1)}万`, l: '字数' },
+  { v: String(book.value.pageCount), l: '页数' },
+  { v: `${(book.value.salesCount / 1000).toFixed(1)}k`, l: '已购' },
+  { v: String(book.value.chapters.length), l: '章节' },
+] : [])
 
 const discussionConfig: DiscussionConfig = {
   scene: 'classic',
@@ -477,7 +486,9 @@ const discussionConfig: DiscussionConfig = {
   placeholder: '分享你的读书心得…',
 }
 
-onLoad(() => {})
+onLoad((query?: { id?: string }) => {
+  if (query?.id) reload(query.id)
+})
 
 function goBack() {
   uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/index/index', fail: () => {} }) })
@@ -486,20 +497,20 @@ function onShare() {
   uni.showToast({ title: '分享功能即将上线', icon: 'none' })
 }
 function goChapter(ch: EbookChapter) {
-  const canRead = ch.isFree || book.isPurchased
+  const canRead = ch.isFree || book.value?.isPurchased
   if (canRead) {
-    uni.navigateTo({ url: `/pkg-ebook/reader/index?id=${book.id}&chapter=${ch.id}` })
+    uni.navigateTo({ url: `/pkg-ebook/reader/index?id=${book.value?.id}&chapter=${ch.id}` })
   } else {
     goCheckout()
   }
 }
 function goReader(preview = false) {
   const q = preview ? '&preview=true' : ''
-  uni.navigateTo({ url: `/pkg-ebook/reader/index?id=${book.id}${q}` })
+  uni.navigateTo({ url: `/pkg-ebook/reader/index?id=${book.value?.id}${q}` })
 }
 function goCheckout(type?: string) {
   const q = type ? `&type=${type}` : ''
-  uni.navigateTo({ url: `/pkg-ebook/checkout/index?id=${book.id}${q}` })
+  uni.navigateTo({ url: `/pkg-ebook/checkout/index?id=${book.value?.id}${q}` })
 }
 function goDetail(id: string) {
   uni.navigateTo({ url: `/pkg-ebook/detail/index?id=${id}` })

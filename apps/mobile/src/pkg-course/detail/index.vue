@@ -8,11 +8,17 @@ import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
 // @data-needs: 课程详情聚合, 参数 courseId, 返回 { detail:CourseDetail, chapters:CourseChapter[], reviews:CourseReview[], hasAccess:boolean }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { courseDetail as _course, courseChapters as _chapters, courseReviews as _reviews } from '@/lib/course-data'
+import { courseApi } from '@/lib/course-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { course: _course, chapters: _chapters, reviews: _reviews }
+  // TODO: 从路由参数获取 courseId，当前使用默认值
+  const courseId = '1'
+  const [course, chapters, reviews] = await Promise.all([
+    courseApi.getDetail(courseId),
+    courseApi.getChapters(courseId),
+    courseApi.getReviews(courseId),
+  ])
+  return { course, chapters, reviews }
 })
 
 const course = computed(() => pageData.value?.course ?? {} as any)

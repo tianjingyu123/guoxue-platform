@@ -233,14 +233,14 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { afterSaleList, afterSaleTabs, afterSaleStatusConfig } from '@/lib/account-data'
+import { accountApi, afterSaleTabs, afterSaleStatusConfig, type AfterSaleListItem } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(108)
 
 const tabs = afterSaleTabs
 const activeTab = ref('')
-const list = ref([...afterSaleList])
+const list = ref<AfterSaleListItem[]>([])
 const cancelId = ref('')
 
 const filtered = computed(() => {
@@ -255,7 +255,7 @@ function sCfg(status: string) {
   return afterSaleStatusConfig[status] || { label: status, color: '#999', bg: '#F5F5F5', icon: 'clock' }
 }
 
-onLoad(() => {
+onLoad(async () => {
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 20
@@ -264,17 +264,24 @@ onLoad(() => {
     statusBarHeight.value = 20
     navHeight.value = 108
   }
+  try {
+    list.value = await accountApi.getAfterSaleList()
+  } catch { /* 使用空列表 */ }
 })
 
 function confirmCancel(id: string) {
   cancelId.value = id
 }
-function doCancel() {
-  list.value = list.value.map((i) =>
-    i.id === cancelId.value ? { ...i, status: 'cancelled' as const, canCancel: false } : i,
-  )
+async function doCancel() {
+  try {
+    await accountApi.cancelAfterSale(cancelId.value)
+    list.value = list.value.map((i) =>
+      i.id === cancelId.value ? { ...i, status: 'cancelled' as const, canCancel: false } : i,
+    )
+  } catch {
+    uni.showToast({ title: '取消失败', icon: 'error' })
+  }
   cancelId.value = ''
-  uni.showToast({ title: '已取消', icon: 'none' })
 }
 </script>
 
