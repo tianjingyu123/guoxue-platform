@@ -377,14 +377,18 @@ import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
 import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  hotBots as _hotBots,
-  hotQuestions as _hotQuestions,
+  agentsSquareApi,
   formatCount,
+  type SquareBot,
   type SquareQuestion,
 } from '@/lib/agents-square-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { bots: _hotBots, questions: _hotQuestions }
+  const [bots, questions] = await Promise.all([
+    agentsSquareApi.getList(),
+    agentsSquareApi.getQuestions(),
+  ])
+  return { bots, questions }
 })
 
 const isEmpty = computed(() => {

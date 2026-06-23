@@ -159,10 +159,11 @@ import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { navigateTo } from '@/utils/router'
 import { useAsyncData } from '@/composables/useAsyncData'
-import { agentsRanking as _agentsRanking } from '@/lib/agents-square-data'
+import { agentsSquareApi } from '@/lib/agents-square-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { ranking: _agentsRanking }
+  const ranking = await agentsSquareApi.getRanking()
+  return { ranking }
 })
 
 const isEmpty = computed(() => {

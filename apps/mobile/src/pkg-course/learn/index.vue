@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** 课程学习中心页 - 从原型 app/courses/[id]/learn/page.tsx 迁移 */
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
@@ -9,19 +10,29 @@ import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
 import { useSubmitLock } from '@/composables/use-submit-lock'
 // @data-needs: 学习中心聚合, 参数 courseId, 返回 { course, progress, chapters, notes, questions }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
+// 通过 courseApi.getLearnCenter(id) 获取，mock/真实由 useMock() 控制
 import {
-  learnCourse as _course, learnProgress as _progress, learnChapters as _chapters,
-  learnNotes as _notes, learnQuestions as _questions, type LearnChapter, type LearnLesson,
+  courseApi, type LearnChapter, type LearnLesson,
 } from '@/lib/course-data'
 
+const courseId = ref('')
+
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  const id = courseId.value || '1'
+  const res = await courseApi.getLearnCenter(id)
   return {
-    course: _course,
-    progress: _progress,
-    chapters: _chapters,
-    notes: _notes,
-    questions: _questions,
+    course: res.course,
+    progress: res.progress,
+    chapters: res.chapters,
+    notes: res.notes,
+    questions: res.questions,
+  }
+})
+
+onLoad((opts?: Record<string, string>) => {
+  if (opts?.id && opts.id !== courseId.value) {
+    courseId.value = opts.id
+    reload()
   }
 })
 

@@ -11,21 +11,25 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import {
-  mockArticle, mockComments,
+  articleApi,
+  type ArticleData,
   type ContentBlock, type ArticleComment,
 } from '@/lib/article-data'
 
 const articleId = ref('1')
-const article = reactive({ ...mockArticle })
-const comments = reactive<ArticleComment[]>(JSON.parse(JSON.stringify(mockComments)))
+const article = reactive<ArticleData>({} as ArticleData)
+const comments = reactive<ArticleComment[]>([])
 
 // 互动状态
-const isFollowed = ref(article.author.isFollowed)
-const isLiked = ref(article.isLiked)
-const isCollected = ref(article.isCollected)
-const likeCount = ref(article.likes)
-const collectCount = ref(article.collects)
-const joinedCircle = ref(article.sourceCircle.isJoined)
+const isFollowed = ref(false)
+const isLiked = ref(false)
+const isCollected = ref(false)
+const likeCount = ref(0)
+const collectCount = ref(0)
+const joinedCircle = ref(false)
+
+// 加载状态
+const isLoading = ref(true)
 
 // AI 摘要展开
 const summaryExpanded = ref(false)
@@ -43,8 +47,25 @@ let audioCtx: any = null
 
 const showJoinGuide = computed(() => !joinedCircle.value)
 
-onLoad((q) => {
+onLoad(async (q) => {
   if (q && q.id) articleId.value = String(q.id)
+  try {
+    const [a, c] = await Promise.all([
+      articleApi.getDetail(articleId.value),
+      articleApi.getComments(articleId.value),
+    ])
+    Object.assign(article, a)
+    comments.splice(0, comments.length, ...c)
+    isFollowed.value = a.author.isFollowed
+    isLiked.value = a.isLiked
+    isCollected.value = a.isCollected
+    likeCount.value = a.likes
+    collectCount.value = a.collects
+    joinedCircle.value = a.sourceCircle.isJoined
+  } catch { /* 使用空数据 */ }
+  } finally {
+    isLoading.value = false
+  }
 })
 
 function toggleFollow() {
@@ -140,7 +161,17 @@ function toggleEmbedCircle(i: number, init: boolean) {
       </view>
     </view>
 
+    <view
+      v-if="isLoading"
+      class="scroll"
+      style="display:flex;align-items:center;justify-content:center;"
+    >
+      <text style="color:#999;font-size:28rpx;">
+        加载中…
+      </text>
+    </view>
     <scroll-view
+      v-else
       scroll-y
       class="scroll"
       :style="{ paddingBottom: showJoinGuide ? '264rpx' : '144rpx' }"

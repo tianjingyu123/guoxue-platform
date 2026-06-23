@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** 讲师详情页 - 从原型 institute/instructors/[id]/page.tsx 迁移 */
 import { ref, computed, watch } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
@@ -8,13 +9,24 @@ import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  instructorDetail as _detail,
+  instructorApi,
   getInstructorLevelLabel,
   getInstructorLevelStyle,
 } from '@/lib/instructor-data'
 
+const instructorId = ref('')
+
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { detail: _detail }
+  const id = instructorId.value || '1'
+  const res = await instructorApi.getDetail(id)
+  return { detail: res }
+})
+
+onLoad((opts?: Record<string, string>) => {
+  if (opts?.id && opts.id !== instructorId.value) {
+    instructorId.value = opts.id
+    reload()
+  }
 })
 
 const detail = computed(() => pageData.value?.detail ?? {} as any)

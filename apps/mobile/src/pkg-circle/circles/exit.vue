@@ -5,22 +5,32 @@
  * 退款计算复用 lib/circle-exit。
  */
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
-import { calcRefund, mockMembership } from '@/lib/circle-exit'
+import { calcRefund, circleExitApi } from '@/lib/circle-exit'
 
 const reason = ref('')
 const showConfirm = ref(false)
 const submitted = ref(false)
+const circleId = ref('1')
 
-const membership = mockMembership
+const membership = ref({ circleName: '', joinDate: '', paidAmount: 0, totalDays: 365, circleId: '1', joinMethod: 'paid' as const, allowRefund: true })
 const today = new Date().toISOString().slice(0, 10)
 const breakdown = computed(() => calcRefund({
-  paidAmount: membership.paidAmount,
-  joinDate: membership.joinDate,
+  paidAmount: membership.value.paidAmount,
+  joinDate: membership.value.joinDate,
   applyDate: today,
-  totalDays: membership.totalDays,
+  totalDays: membership.value.totalDays,
 }))
+
+onLoad(async (q) => {
+  if (q?.id) circleId.value = String(q.id)
+  try {
+    const data = await circleExitApi.getMembership(circleId.value)
+    if (data) Object.assign(membership.value, data)
+  } catch { /* 使用默认值 */ }
+})
 
 function handleSubmit() {
   showConfirm.value = false

@@ -1,18 +1,34 @@
 <script setup lang="ts">
 /** 课程购买确认页 - 从原型 app/courses/purchase-confirm/page.tsx 迁移 */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import { useSubmitLock } from '@/composables/use-submit-lock'
 // @data-needs: 购买确认聚合, 参数 courseId, 返回 { course:PurchaseCourse, coupons:PurchaseCoupon[] }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口
-import { purchaseCourse as course, purchaseCoupons as coupons } from '@/lib/course-data'
+// 通过 courseApi.getPurchaseData(id) 获取，mock/真实由 useMock() 控制
+import { courseApi, type PurchaseCourse, type PurchaseCoupon } from '@/lib/course-data'
 
 const selectedCoupon = ref<string | null>(null)
 const payMethod = ref('wechat')
 const agreed = ref(false)
 const showCouponList = ref(false)
 const { submitting, withLock } = useSubmitLock()
+
+// 异步获取购买数据
+const purchaseCourseId = ref('')
+const course = ref<PurchaseCourse>({} as PurchaseCourse)
+const coupons = ref<PurchaseCoupon[]>([])
+
+onLoad((opts?: Record<string, string>) => {
+  if (opts?.id) purchaseCourseId.value = opts.id
+})
+
+onMounted(async () => {
+  const res = await courseApi.getPurchaseData(purchaseCourseId.value || '1')
+  course.value = res.course
+  coupons.value = res.coupons
+})
 
 const payMethods = [
   { id: 'wechat', name: '微信支付', icon: 'smartphone', color: '#22c55e' },
@@ -21,22 +37,22 @@ const payMethods = [
   { id: 'huifu', name: '汇付天下', icon: 'building-2', color: '#f97316' },
 ]
 
-const availableCoupons = computed(() => coupons.filter((c) => c.isAvailable && c.minAmount <= course.price))
-const selectedCouponData = computed(() => (selectedCoupon.value ? coupons.find((c) => c.id === selectedCoupon.value) : null))
+const availableCoupons = computed(() => coupons.value.filter((c) => c.isAvailable && c.minAmount <= course.value.price))
+const selectedCouponData = computed(() => (selectedCoupon.value ? coupons.value.find((c) => c.id === selectedCoupon.value) : null))
 const discount = computed(() => {
   const c = selectedCouponData.value
   if (!c) return 0
   if (c.type === 'amount') return c.value
-  return Math.min(course.price * (c.value / 100), c.maxDiscount || Infinity)
+  return Math.min(course.value.price * (c.value / 100), c.maxDiscount || Infinity)
 })
-const finalPrice = computed(() => course.price - discount.value)
+const finalPrice = computed(() => course.value.price - discount.value)
 
 function selectCoupon(id: string | null) {
   selectedCoupon.value = id
   showCouponList.value = false
 }
-function isCouponAvailable(c: typeof coupons[number]) {
-  return c.isAvailable && c.minAmount <= course.price
+function isCouponAvailable(c: PurchaseCoupon) {
+  return c.isAvailable && c.minAmount <= course.value.price
 }
 async function submitPay() {
   if (!agreed.value) return

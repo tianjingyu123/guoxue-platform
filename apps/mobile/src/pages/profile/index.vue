@@ -1,26 +1,49 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
 import {
-  userData, getGreeting, roleConfig, quickFunctions, recommendations,
-  allRoleTypes, roleHref, totalMessages, type UserRole,
+  profileApi, getGreeting, roleConfig, quickFunctions, recommendations,
+  allRoleTypes, roleHref, type UserRole,
 } from '@/lib/profile-data'
 
 const greeting = getGreeting()
 
+// 用户数据（异步从 API 获取）
+const userData = ref<any>({
+  name: '', avatar: '', isVerified: false, isVip: false, vipLevel: '', vipDaysLeft: 0,
+  roles: [], stats: { following: 0, followers: 0, likes: 0 },
+  coins: 0, coupons: 0, points: 0,
+  orders: { pending: 0, shipped: 0, received: 0, refund: 0 },
+  checkIn: { todayChecked: false, continuousDays: 0, totalPoints: 0 },
+  continueLearning: null, messages: { system: 0, interaction: 0, transaction: 0 },
+})
+
+onMounted(async () => {
+  try {
+    const data = await profileApi.getProfile()
+    userData.value = data
+  } catch {
+    // 使用默认值
+  }
+})
+
+const totalMessages = computed(() =>
+  (userData.value.messages?.system ?? 0) + (userData.value.messages?.interaction ?? 0) + (userData.value.messages?.transaction ?? 0),
+)
+
 // 未开通角色（申请开通引导）
-const ownedTypes = new Set(userData.roles.map((r) => r.type))
-const availableToApply = allRoleTypes.filter((r) => !ownedTypes.has(r.type))
+const ownedTypes = computed(() => new Set((userData.value.roles ?? []).map((r: any) => r.type)))
+const availableToApply = computed(() => allRoleTypes.filter((r) => !ownedTypes.value.has(r.type)))
 
 // 订单状态
-const orderStatus = [
-  { key: 'pending', label: '待付款', icon: 'wallet', count: userData.orders.pending },
-  { key: 'shipped', label: '待发货', icon: 'package', count: userData.orders.shipped },
-  { key: 'received', label: '待收货', icon: 'truck', count: userData.orders.received },
-  { key: 'refund', label: '售后', icon: 'refresh-cw', count: userData.orders.refund },
-]
+const orderStatus = computed(() => [
+  { key: 'pending', label: '待付款', icon: 'wallet', count: userData.value.orders?.pending ?? 0 },
+  { key: 'shipped', label: '待发货', icon: 'package', count: userData.value.orders?.shipped ?? 0 },
+  { key: 'received', label: '待收货', icon: 'truck', count: userData.value.orders?.received ?? 0 },
+  { key: 'refund', label: '售后', icon: 'refresh-cw', count: userData.value.orders?.refund ?? 0 },
+])
 
 // 身份切换确认弹窗
 const pendingRole = ref<{ type: UserRole; name: string; href: string } | null>(null)

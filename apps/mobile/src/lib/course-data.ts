@@ -417,4 +417,29 @@ export const courseApi = {
     if (useMock()) return feedFilters
     try { return await apiGet<{ id: string; label: string }[]>('/courses/feed-filters') } catch { return feedFilters }
   },
+
+  /** 获取学习中心聚合数据 GET /courses/:id/learn */
+  async getLearnCenter(id: string): Promise<{
+    course: LearnCourse; progress: LearnProgress; chapters: LearnChapter[];
+    notes: LearnNote[]; questions: LearnQuestion[];
+  }> {
+    if (useMock()) return { course: learnCourse, progress: learnProgress, chapters: learnChapters, notes: learnNotes, questions: learnQuestions }
+    try { return await apiGet(`/courses/${id}/learn`) } catch { return { course: learnCourse, progress: learnProgress, chapters: learnChapters, notes: learnNotes, questions: learnQuestions } }
+  },
+
+  /** 获取播放器数据 GET /courses/:courseId/player */
+  async getPlayerData(courseId: string, lessonId?: string): Promise<{
+    content: ChapterContent; chapters: PlayerChapter[];
+  }> {
+    if (useMock()) return { content: playerContent, chapters: playerChapters }
+    try { return await apiGet(`/courses/${courseId}/player${lessonId ? `?lesson=${lessonId}` : ''}`) } catch { return { content: playerContent, chapters: playerChapters } }
+  },
+
+  /** 获取购买确认数据 GET /courses/:id/purchase */
+  async getPurchaseData(id: string): Promise<{
+    course: PurchaseCourse; coupons: PurchaseCoupon[];
+  }> {
+    if (useMock()) return { course: purchaseCourse, coupons: purchaseCoupons }
+    try { return await apiGet(`/courses/${id}/purchase`) } catch { return { course: purchaseCourse, coupons: purchaseCoupons } }
+  },
 }

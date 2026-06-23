@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import SimpleChat from '@/components/agent/simple-chat.vue'
-import { zhixuanWelcome, zhixuanQuickPrompts, zhixuanReply } from '@/lib/agent-data'
+import { zhixuanWelcome, zhixuanQuickPrompts } from '@/lib/agent-data'
 
 function resolveReply() {
-  return zhixuanReply
+  return '感谢您的提问，我将为您详细分析。'
 }
 </script>
 
@@ -16,6 +16,6 @@ function resolveReply() {
     :welcome="zhixuanWelcome"
     :quick-prompts="zhixuanQuickPrompts"
     :resolve-reply="resolveReply"
-    :delay="1200"
+    bot-id="zhixuan"
   />
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** 课程视频播放页 - 从原型 app/courses/[id]/player/page.tsx 迁移 */
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
@@ -9,13 +10,24 @@ import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
 import { useSubmitLock } from '@/composables/use-submit-lock'
 // @data-needs: 课时播放内容+目录, 参数 lessonId/courseId, 返回 { content:ChapterContent, chapters:PlayerChapter[] }
-// mock 见 @/lib/course-data.ts，交付时由 Claude Code 替换为真实接口(含视频流地址/播放进度)
+// 通过 courseApi.getPlayerData(courseId, lessonId) 获取，mock/真实由 useMock() 控制
 import {
-  playerContent as _content, playerChapters as _chapters,
+  courseApi,
 } from '@/lib/course-data'
 
+const routeCourseId = ref('')
+const routeLessonId = ref('')
+
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { content: _content, chapters: _chapters }
+  const res = await courseApi.getPlayerData(routeCourseId.value || '1', routeLessonId.value || undefined)
+  return { content: res.content, chapters: res.chapters }
+})
+
+onLoad((opts?: Record<string, string>) => {
+  let changed = false
+  if (opts?.id && opts.id !== routeCourseId.value) { routeCourseId.value = opts.id; changed = true }
+  if (opts?.lesson && opts.lesson !== routeLessonId.value) { routeLessonId.value = opts.lesson; changed = true }
+  if (changed) reload()
 })
 
 const content = computed(() => pageData.value?.content ?? {} as any)

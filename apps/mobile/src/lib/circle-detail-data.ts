@@ -181,4 +181,20 @@ export const circleDetailApi = {
       return { success: false, message: e?.message || '保存失败' }
     }
   },
+
+  /** 获取圈子专栏 GET /circles/:id/columns */
+  getColumns: async (_circleId: string): Promise<CircleColumn[]> => {
+    if (useMock()) return mockColumns
+    try { return await apiGet<CircleColumn[]>(`/circles/${_circleId}/columns`) } catch { return mockColumns }
+  },
+  /** 获取圈子文章 GET /circles/:id/articles */
+  getArticles: async (_circleId: string): Promise<CircleArticle[]> => {
+    if (useMock()) return mockCircleArticles
+    try { return await apiGet<CircleArticle[]>(`/circles/${_circleId}/articles`) } catch { return mockCircleArticles }
+  },
+  /** 获取圈子活动 GET /circles/:id/activities */
+  getActivities: async (_circleId: string): Promise<CircleActivity[]> => {
+    if (useMock()) return mockActivities
+    try { return await apiGet<CircleActivity[]>(`/circles/${_circleId}/activities`) } catch { return mockActivities }
+  },
 }

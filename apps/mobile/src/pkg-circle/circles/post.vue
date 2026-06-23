@@ -11,36 +11,57 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import { useSubmitLock } from '@/composables/use-submit-lock'
 import {
-  postDetail, comments as rawComments, parseMarkdown,
+  postDetailApi, parseMarkdown,
   REWARD_QUICK, REWARD_ALL,
+  type PostDetail,
   type Comment,
 } from '@/lib/post-detail-data'
 
 const circleId = ref('1')
-const post = reactive({ ...postDetail })
-const mdBlocks = parseMarkdown(post.content)
+const postId = ref('1')
+const post = reactive<PostDetail>({} as PostDetail)
+const mdBlocks = ref<ReturnType<typeof parseMarkdown>>([])
 const { submitting, withLock } = useSubmitLock()
 
 // 互动状态
-const isLiked = ref(post.isLiked)
-const isCollected = ref(post.isCollected)
-const likes = ref(post.likes)
-const collects = ref(post.collects)
-const isFollowed = ref(post.author.isFollowed ?? false)
+const isLiked = ref(false)
+const isCollected = ref(false)
+const likes = ref(0)
+const collects = ref(0)
+const isFollowed = ref(false)
 
 // 评论
-const comments = reactive<Comment[]>(JSON.parse(JSON.stringify(rawComments)))
+const comments = reactive<Comment[]>([])
 const expandedReplies = reactive<Record<string, boolean>>({})
 const commentText = ref('')
 const replyTo = ref<Comment | null>(null)
 const commentSort = ref<'hot' | 'new'>('hot')
+const isLoading = ref(true)
 
 // 弹窗
 const showRewardModal = ref(false)
 const previewImage = ref<string | null>(null)
 
-onLoad((q) => {
+onLoad(async (q) => {
   if (q?.circleId) circleId.value = q.circleId
+  if (q?.id) postId.value = String(q.id)
+  try {
+    const [detail, cmts] = await Promise.all([
+      postDetailApi.getDetail(postId.value),
+      postDetailApi.getComments(postId.value),
+    ])
+    Object.assign(post, detail)
+    mdBlocks.value = parseMarkdown(detail.content)
+    isLiked.value = detail.isLiked
+    isCollected.value = detail.isCollected
+    likes.value = detail.likes
+    collects.value = detail.collects
+    isFollowed.value = detail.author.isFollowed ?? false
+    comments.splice(0, comments.length, ...cmts)
+  } catch { /* 使用空数据 */ }
+  } finally {
+    isLoading.value = false
+  }
 })
 
 // ─── 音频播放器（跨端） ───
@@ -130,7 +151,17 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
       </view>
     </view>
 
+    <view
+      v-if="isLoading"
+      class="pd-body"
+      style="display:flex;align-items:center;justify-content:center;"
+    >
+      <text style="color:#999;font-size:28rpx;">
+        加载中…
+      </text>
+    </view>
     <scroll-view
+      v-else
       scroll-y
       class="pd-body"
     >

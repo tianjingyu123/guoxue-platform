@@ -249,4 +249,9 @@ export const agentsSquareApi = {
     if (useMock()) return agentsRanking
     try { return await apiGet<RankingAgent[]>('/agents/ranking') } catch { return agentsRanking }
   },
+  /** 获取常见问题 GET /agents/faqs */
+  async getFaqs(): Promise<AgentFAQ[]> {
+    if (useMock()) return agentFaqs
+    try { return await apiGet<AgentFAQ[]>('/agents/faqs') } catch { return agentFaqs }
+  },
 }

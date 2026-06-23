@@ -9,8 +9,9 @@ import AppIcon from '@/components/common/app-icon.vue'
 import PostCard from '@/components/circle/post-card.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import {
-  circleDetailApi, memberBenefits, mockColumns, mockCircleArticles, mockActivities,
+  circleDetailApi, memberBenefits,
   type CircleDetail, type CirclePost, type CircleMember,
+  type CircleColumn, type CircleArticle, type CircleActivity,
 } from '@/lib/circle-detail-data'
 
 const circleId = ref('1')
@@ -25,9 +26,9 @@ const isOwner = ref(true) // mock：当前用户是圈主
 const likedPosts = ref<Set<string>>(new Set())
 const showBenefits = ref(false)
 
-const columns = mockColumns
-const circleArticles = mockCircleArticles
-const activities = mockActivities
+const columns = ref<CircleColumn[]>([])
+const circleArticles = ref<CircleArticle[]>([])
+const activities = ref<CircleActivity[]>([])
 
 const tabs = [
   { id: 'home', label: '首页' },
@@ -49,14 +50,20 @@ onLoad((q) => {
 async function loadData() {
   isLoading.value = true
   try {
-    const [c, p, m] = await Promise.all([
+    const [c, p, m, cols, arts, acts] = await Promise.all([
       circleDetailApi.detail(circleId.value),
       circleDetailApi.posts(circleId.value),
       circleDetailApi.listMembers(circleId.value),
+      circleDetailApi.getColumns(circleId.value),
+      circleDetailApi.getArticles(circleId.value),
+      circleDetailApi.getActivities(circleId.value),
     ])
     circle.value = c
     posts.value = p.data
     members.value = m.data
+    columns.value = cols
+    circleArticles.value = arts
+    activities.value = acts
     isJoined.value = c.isJoined
     likedPosts.value = new Set(p.data.filter(x => x.isLiked).map(x => x.id))
   } finally {

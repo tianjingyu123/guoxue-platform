@@ -8,8 +8,9 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import ReconnectingOverlay from '@/components/agent/reconnecting-overlay.vue'
 import {
-  agentDetail, quickQuestions, chatWelcome, generateResponse, nowTime, formatDuration,
+  agentDetail, quickQuestions, chatWelcome, nowTime, formatDuration,
   recommendedCourses, recommendedCircles,
+  agentChatApi,
   type ChatMessage, type RecommendItem,
 } from '@/lib/agent-data'
 
@@ -27,6 +28,8 @@ const isReconnecting = ref(false)
 const isMicMuted = ref(false)
 const showSummary = ref(false)
 const scrollId = ref('')
+const conversationId = ref<string>()
+const botId = ref('1')
 
 let streamTimer: ReturnType<typeof setInterval> | null = null
 let callTimer: ReturnType<typeof setInterval> | null = null
@@ -59,7 +62,7 @@ function simulateStreaming(fullText: string, messageId: number, recommendations?
   }, 25)
 }
 
-function handleSend() {
+async function handleSend() {
   const text = inputValue.value.trim()
   if (!text || isTyping.value) return
   messages.value.push({ id: messages.value.length, role: 'user', content: text, time: nowTime() })
@@ -67,12 +70,19 @@ function handleSend() {
   isTyping.value = true
   if (freeRemaining.value > 0) freeRemaining.value -= 1
   scrollToBottom()
-  setTimeout(() => {
-    const { text: reply, recommendations } = generateResponse(text)
-    const id = messages.value.length + 1
+
+  const result = await agentChatApi.send(botId.value, text, conversationId.value)
+  if (result.conversationId) conversationId.value = result.conversationId
+
+  if (result.success && result.reply) {
+    const id = messages.value.length
     messages.value.push({ id, role: 'assistant', content: '', time: nowTime(), isStreaming: true })
-    simulateStreaming(reply, id, recommendations)
-  }, 600)
+    simulateStreaming(result.reply, id)
+  } else {
+    messages.value.push({ id: messages.value.length, role: 'assistant', content: result.message || '抱歉，回复生成失败，请重试。', time: nowTime() })
+    isTyping.value = false
+    scrollToBottom()
+  }
 }
 
 function handleQuick(q: string) {

@@ -135,10 +135,11 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import AppError from '@/components/common/app-error.vue'
 import AppEmpty from '@/components/common/app-empty.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
-import { agentFaqs as _agentFaqs } from '@/lib/agents-square-data'
+import { agentsSquareApi } from '@/lib/agents-square-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
-  return { faqs: _agentFaqs }
+  const faqs = await agentsSquareApi.getFaqs()
+  return { faqs }
 })
 
 const isEmpty = computed(() => {

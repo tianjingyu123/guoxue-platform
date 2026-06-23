@@ -11,17 +11,17 @@ import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { useAsyncData } from '@/composables/useAsyncData'
 import {
-  courseListCategories as _courseListCategories, courseSortOptions as _courseSortOptions, recommendedCourses as _recommendedCourses,
-  flashSaleCourses as _flashSaleCourses, courseListMock as _courseListMock,
+  coursesListApi,
 } from '@/lib/courses-list-data'
 
 const { data: pageData, isLoading, loadError, reload } = useAsyncData(async () => {
+  const res = await coursesListApi.getList()
   return {
-    categories: _courseListCategories,
-    sortOptions: _courseSortOptions,
-    recommended: _recommendedCourses,
-    flashSale: _flashSaleCourses,
-    list: _courseListMock,
+    categories: res.categories,
+    sortOptions: res.sortOptions,
+    recommended: res.recommended,
+    flashSale: res.flashSale,
+    list: res.courses,
   }
 })
 
