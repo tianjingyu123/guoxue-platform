@@ -3,16 +3,27 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { marketingBanners } from '@/lib/home-data'
+import { homeApi } from '@/lib/home-data'
 
 const idx = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
-const banner = computed(() => marketingBanners[idx.value])
+const banners = ref<any[]>([])
+const banner = computed(() => banners.value[idx.value] || banners.value[0])
 
-onMounted(() => {
-  timer = setInterval(() => {
-    idx.value = (idx.value + 1) % marketingBanners.length
-  }, 5000)
+onMounted(async () => {
+  try {
+    const data = await homeApi.getHome()
+    banners.value = data.banners || []
+  } catch { /* fallback below */ }
+  if (!banners.value.length) {
+    const mod = await import('@/lib/home-data')
+    banners.value = mod.marketingBanners
+  }
+  if (banners.value.length) {
+    timer = setInterval(() => {
+      idx.value = (idx.value + 1) % banners.value.length
+    }, 5000)
+  }
 })
 onUnmounted(() => {
   if (timer) clearInterval(timer)
@@ -38,8 +49,8 @@ onUnmounted(() => {
       <app-icon name="chevron-right" :size="26" :color="banner.bgTo" />
     </view>
 
-    <view v-if="marketingBanners.length > 1" class="dots">
-      <view v-for="(_, i) in marketingBanners" :key="i" class="dot" :class="{ active: i === idx }" />
+    <view v-if="banners.length > 1" class="dots">
+      <view v-for="(_, i) in banners" :key="i" class="dot" :class="{ active: i === idx }" />
     </view>
   </view>
 </template>

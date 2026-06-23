@@ -3,7 +3,10 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { seckillItems, groupItems } from '@/lib/shop-data'
+import { shopApi } from '@/lib/shop-data'
+
+const seckillItems = ref<any[]>([])
+const groupItems = ref<any[]>([])
 
 // 秒杀倒计时：到今晚 22:00 结束，过点则顺延到次日
 const h = ref('00')
@@ -22,7 +25,18 @@ function tick() {
   s.value = String(remain % 60).padStart(2, '0')
 }
 
-onMounted(() => { tick(); timer = setInterval(tick, 1000) })
+onMounted(async () => {
+  tick(); timer = setInterval(tick, 1000)
+  try {
+    const data = await shopApi.getFlashSale()
+    seckillItems.value = data?.seckill || []
+    groupItems.value = data?.group || []
+  } catch {
+    const mod = await import('@/lib/shop-data')
+    seckillItems.value = mod.seckillItems
+    groupItems.value = mod.groupItems
+  }
+})
 onUnmounted(() => { if (timer) clearInterval(timer) })
 
 function off(price: number, original: number) {
