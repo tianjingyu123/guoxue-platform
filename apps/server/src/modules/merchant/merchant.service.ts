@@ -587,4 +587,78 @@ export class MerchantService {
 
     return { list: result, total: countResult[0]?.cnt || 0, page, pageSize };
   }
+
+  /** 平台通知 — 返回活跃站点公告 */
+  async getNotices(_userId: string) {
+    const notices = await this.prisma.siteNotice.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    });
+
+    return notices.map((n) => ({
+      id: n.id,
+      title: n.title,
+      content: n.content,
+      type: n.type.toLowerCase(),
+      category: n.type,
+      time: n.createdAt.toISOString().slice(0, 16).replace("T", " "),
+      read: false,
+    }));
+  }
+
+  /** 客户咨询列表 — 查询该商家订单相关的售后 */
+  async listInquiries(merchantId: string, paging: { page: number; pageSize: number }) {
+    const { page, pageSize } = paging;
+    // 先查该商家的订单ID
+    const orderIds = await this.prisma.order.findMany({
+      where: { merchantId },
+      select: { id: true },
+      take: 100,
+    });
+    const ids = orderIds.map((o) => o.id);
+
+    const list = ids.length > 0 ? await this.prisma.afterSale.findMany({
+      where: { orderId: { in: ids } },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }) : [];
+
+    return {
+      items: list.map((item) => ({
+        id: item.id,
+        productName: "",
+        customer: "",
+        status: item.status === "PENDING" ? "unanswered" : "answered",
+        question: item.reason ?? "",
+        answer: "",
+        time: item.createdAt.toISOString().slice(0, 16).replace("T", " "),
+        replies: 0,
+      })),
+      total: list.length,
+      page,
+      pageSize,
+    };
+  }
+
+  /** 内容统计 — 商品/文章数量聚合 */
+  async getContentStats(merchantId: string) {
+    const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId }, select: { userId: true } });
+    const userId = merchant?.userId;
+
+    const [productCount, publishedCount] = userId ? await Promise.all([
+      this.prisma.product.count({ where: { userId, deletedAt: null } }),
+      this.prisma.product.count({ where: { userId, status: "ON_SALE", deletedAt: null } }),
+    ]) : [0, 0];
+
+    return {
+      totalProducts: productCount,
+      publishedProducts: publishedCount,
+      draftProducts: productCount - publishedCount,
+      publishedArticles: 0,
+      totalViews: 0,
+      totalLikes: 0,
+    };
+  }
 }

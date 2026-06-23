@@ -275,4 +275,108 @@ export class VideoService {
       }
     }
   }
+
+  // ───────── 瀑布流列表 / 搜索 / 商品库 ─────────
+
+  /** 视频瀑布流列表 — 返回 VideoListItem 格式 */
+  async listItems(page: number, pageSize: number) {
+    const videos = await this.prisma.video.findMany({
+      where: { status: "PUBLISHED" },
+      orderBy: { viewCount: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        user: { select: { nickname: true, avatar: true } },
+        _count: { select: { products: true } },
+      },
+    });
+
+    return videos.map((v) => ({
+      id: v.id,
+      title: v.title,
+      coverUrl: v.coverUrl,
+      duration: v.duration ?? 0,
+      author: { name: v.user.nickname, avatar: v.user.avatar ?? "" },
+      likes: v.likeCount,
+      plays: v.viewCount,
+      hasProduct: v._count.products > 0,
+      isHot: v.viewCount > 10000,
+    }));
+  }
+
+  /** 搜索视频 — 标题/标签模糊匹配 */
+  async searchVideos(params: { keyword?: string; category?: string; page: number; pageSize: number }) {
+    const { keyword, category, page, pageSize } = params;
+    const where: any = { status: "PUBLISHED" };
+
+    if (keyword) {
+      where.OR = [
+        { title: { contains: keyword } },
+        { tags: { has: keyword } },
+      ];
+    }
+    if (category) {
+      where.categoryLevel1 = category;
+    }
+
+    const [videos, total] = await Promise.all([
+      this.prisma.video.findMany({
+        where,
+        orderBy: { viewCount: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          user: { select: { nickname: true, avatar: true } },
+        },
+      }),
+      this.prisma.video.count({ where }),
+    ]);
+
+    return {
+      items: videos.map((v) => ({
+        id: v.id,
+        title: v.title,
+        author: v.user.nickname,
+        authorAvatar: v.user.avatar ?? "",
+        cover: v.coverUrl,
+        duration: `${Math.floor((v.duration ?? 0) / 60)}:${String((v.duration ?? 0) % 60).padStart(2, "0")}`,
+        views: v.viewCount,
+        publishedAt: this.timeAgo(v.createdAt),
+        category: v.categoryLevel1 ?? "",
+      })),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  /** 可带货商品库 */
+  async listProducts(page: number, pageSize: number) {
+    const products = await this.prisma.product.findMany({
+      where: { status: "ON_SALE", deletedAt: null },
+      orderBy: { salesCount: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: { id: true, title: true, images: true, price: true, salesCount: true, stock: true },
+    });
+
+    return products.map((p) => ({
+      id: p.id,
+      name: p.title,
+      cover: p.images?.[0] ?? "",
+      price: Number(p.price),
+      commission: Math.round(Number(p.price) * 0.1),
+      stock: p.stock,
+    }));
+  }
+
+  private timeAgo(date: Date): string {
+    const diff = Date.now() - date.getTime();
+    const days = Math.floor(diff / 86400000);
+    if (days < 1) return "今天";
+    if (days < 2) return "昨天";
+    if (days < 7) return `${days}天前`;
+    if (days < 30) return `${Math.floor(days / 7)}周前`;
+    return `${Math.floor(days / 30)}月前`;
+  }
 }

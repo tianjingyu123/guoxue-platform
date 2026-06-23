@@ -259,4 +259,34 @@ export class MerchantBackendController {
       pageSize: Number(pageSize) || 20,
     });
   }
+
+  // ── 平台通知 / 客户咨询 / 内容统计 ──
+
+  @Get("notices")
+  @ApiOperation({ summary: "平台通知列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  getNotices(@Req() req: AuthRequest) {
+    return this.merchantService.getNotices(req.user.id);
+  }
+
+  @Get("inquiries")
+  @ApiOperation({ summary: "客户咨询列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  listInquiries(
+    @Req() req: AuthRequest,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+  ) {
+    return this.merchantService.listInquiries(this.getMerchant(req).id, {
+      page: Number(page) || 1,
+      pageSize: Number(pageSize) || 20,
+    });
+  }
+
+  @Get("content-stats")
+  @ApiOperation({ summary: "内容统计（商品/文章数量与浏览点赞）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  getContentStats(@Req() req: AuthRequest) {
+    return this.merchantService.getContentStats(this.getMerchant(req).id);
+  }
 }

@@ -36,6 +36,29 @@ export class VideoController {
     return this.svc.list({ circleId: q.circleId, status: q.status, page: +(q.page || 1), pageSize: +(q.pageSize || 20), stationId });
   }
 
+  // ───────── 瀑布流列表/搜索/商品库（公开，必须在 :id 之前）─────────
+
+  @Get("items")
+  @ApiOperation({ summary: "视频瀑布流列表（含作者/播放量/热度标记）" })
+  @ApiResponse({ status: 200, description: "返回瀑布流格式视频列表" })
+  listItems(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.listItems(+page, +pageSize);
+  }
+
+  @Get("search")
+  @ApiOperation({ summary: "搜索视频（标题/标签/作者）" })
+  @ApiResponse({ status: 200, description: "返回搜索结果" })
+  searchVideos(@Query("keyword") keyword?: string, @Query("category") category?: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.searchVideos({ keyword, category, page: +page, pageSize: +pageSize });
+  }
+
+  @Get("products")
+  @ApiOperation({ summary: "可关联商品库（带货商品列表）" })
+  @ApiResponse({ status: 200, description: "返回商品列表" })
+  listProducts(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.listProducts(+page, +pageSize);
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "获取视频详情" })
   @ApiResponse({ status: 200, description: "成功返回视频详情" })
@@ -278,4 +301,5 @@ export class VideoController {
   removeProduct(@Param("id") id: string, @Param("productId") productId: string) {
     return this.svc.removeProduct(id, productId);
   }
+
 }
