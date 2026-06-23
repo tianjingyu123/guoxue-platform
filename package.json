@@ -58,6 +58,7 @@
     "libsodium-wrappers": "^0.8.4",
     "prettier": "^3.8.3",
     "pretty-quick": "^4.2.2",
+    "puppeteer": "^25.2.0",
     "vue-eslint-parser": "^9.4.3"
   },
   "dependencies": {
