@@ -18,7 +18,12 @@
         <input v-model="search" class="pl-search-input" placeholder="搜索诗词" />
       </view>
 
-      <view v-if="!filtered.length" class="pl-empty">
+      <view v-if="loading" class="pl-loading"><text class="pl-loading-text">收藏加载中...</text></view>
+      <view v-else-if="error" class="pl-error">
+        <text class="pl-error-text">{{ error }}</text>
+        <view class="pl-retry" @tap="fetchCollections"><text class="pl-retry-text">重试</text></view>
+      </view>
+      <view v-else-if="!filtered.length" class="pl-empty">
         <text class="pl-empty-text">暂无收藏</text>
       </view>
       <view v-else class="pl-list">
@@ -48,8 +53,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { navigateBack } from '@/utils/router'
+import { poetryApi, type CollectionItem } from '@/lib/poetry-data'
 
 const statusBarHeight = ref(0)
 try {
@@ -57,26 +63,23 @@ try {
   statusBarHeight.value = info.statusBarHeight || 0
 } catch (e) {}
 
-interface PoetryItem {
-  id: string
-  title: string
-  author: string
-  authorAvatar: string
-  dynasty: string
-  excerpt: string
-  category: string
-  likes: number
-  liked: boolean
-  collectedAt: string
+const loading = ref(true)
+const error = ref('')
+const items = ref<CollectionItem[]>([])
+
+async function fetchCollections() {
+  loading.value = true
+  error.value = ''
+  try {
+    items.value = await poetryApi.collections()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 
-const items = ref<PoetryItem[]>([
-  { id: '1', title: '乾卦·象辞', author: '文王', authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40', dynasty: '西周', excerpt: '天行健，君子以自强不息。', category: '易经', likes: 8640, liked: true, collectedAt: '2024-01-20' },
-  { id: '2', title: '测字诗', author: '邵雍', authorAvatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=40', dynasty: '宋', excerpt: '一阴一阳之谓道，继之者善也，成之者性也。', category: '易理', likes: 5280, liked: true, collectedAt: '2024-01-18' },
-  { id: '3', title: '清平乐·命理感怀', author: '陈抟', authorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=40', dynasty: '五代', excerpt: '无极生太极，太极动而生阳，静而生阴…', category: '道学', likes: 3960, liked: false, collectedAt: '2024-01-15' },
-  { id: '4', title: '堪舆赋', author: '郭璞', authorAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40', dynasty: '晋', excerpt: '气乘风则散，界水则止。古人聚之使不散，行之使有止，故谓之风水。', category: '风水', likes: 2840, liked: true, collectedAt: '2024-01-12' },
-  { id: '5', title: '八字论命赋', author: '徐子平', authorAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=40', dynasty: '宋', excerpt: '五行者，金木水火土是也，各有生克制化之理。', category: '八字', likes: 2160, liked: false, collectedAt: '2024-01-10' },
-])
+onMounted(() => { fetchCollections() })
 
 const search = ref('')
 
@@ -271,4 +274,11 @@ function goBack() {
   color: var(--muted-foreground);
   margin-top: 16rpx;
 }
+/* 加载/错误态 */
+.pl-loading { display: flex; align-items: center; justify-content: center; padding: 120rpx 48rpx; }
+.pl-loading-text { font-size: 28rpx; color: var(--muted-foreground); }
+.pl-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 48rpx; gap: 24rpx; }
+.pl-error-text { font-size: 28rpx; color: #ef4444; text-align: center; }
+.pl-retry { padding: 16rpx 48rpx; background: var(--primary); border-radius: 24rpx; }
+.pl-retry-text { font-size: 28rpx; color: #fff; font-weight: 600; }
 </style>

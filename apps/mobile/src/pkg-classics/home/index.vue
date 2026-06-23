@@ -1,13 +1,47 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import {
-  libraryStats, categories, todayFeature, lastReading, weeklyMinutes,
-  bookLists, rankingData, audioBooks, featuredBooks, filterTypes, fmtReads,
-} from '@/lib/classics-data'
+import { classicsApi, _mockFilterTypes, fmtReads, type CategoryTile, type BookListItem, type RankItem, type AudioItem, type FeaturedItem } from '@/lib/classics-data'
 
+// 从 API 获取的数据
+const libraryStats = ref<{ value: string; label: string }[]>([])
+const categories = ref<CategoryTile[]>([])
+const todayFeature = ref<any>(null)
+const lastReading = ref<any>(null)
+const weeklyMinutes = ref(0)
+const bookLists = ref<BookListItem[]>([])
+const rankingData = ref<RankItem[]>([])
+const audioBooks = ref<AudioItem[]>([])
+const featuredBooks = ref<FeaturedItem[]>([])
+const filterTypes = _mockFilterTypes
+
+const loading = ref(true)
+const error = ref('')
 const activeType = ref('all')
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await classicsApi.home()
+    libraryStats.value = data.libraryStats
+    categories.value = data.categories
+    todayFeature.value = data.todayFeature
+    lastReading.value = data.lastReading
+    weeklyMinutes.value = data.weeklyMinutes
+    bookLists.value = data.bookLists
+    rankingData.value = data.rankingData
+    audioBooks.value = data.audioBooks
+    featuredBooks.value = data.featuredBooks
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { fetchData() })
 
 function goSearch() {
   uni.navigateTo({ url: '/pkg-classics/search/index' })
@@ -61,6 +95,16 @@ function onRefreshRanking() {}
     </view>
 
     <view class="ch-main">
+      <view v-if="loading" style="text-align:center;padding:128rpx 0;">
+        <text style="color:var(--muted-foreground);font-size:28rpx;">加载中...</text>
+      </view>
+      <view v-else-if="error" style="text-align:center;padding:128rpx 0;">
+        <text style="color:#c41e3a;font-size:28rpx;">{{ error }}</text>
+        <view style="margin-top:24rpx;" @tap="fetchData()">
+          <text style="color:var(--muted-foreground);">重试</text>
+        </view>
+      </view>
+      <template v-else>
       <!-- Hero 大标题 -->
       <view class="ch-hero">
         <text class="ch-hero-kicker">中华典籍 · 经史子集</text>
@@ -350,6 +394,7 @@ function onRefreshRanking() {}
           <app-icon name="chevron-right" :size="36" color="rgba(0,0,0,0.2)" />
         </view>
       </view>
+      </template>
     </view>
   </view>
 </template>

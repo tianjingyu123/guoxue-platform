@@ -10,6 +10,19 @@
     </view>
 
     <scroll-view scroll-y class="body">
+      <!-- 加载态 -->
+      <view v-if="loading" class="secure">
+        <text class="secure-tx">加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="secure">
+        <text class="secure-tx">{{ error }}</text>
+        <view class="pay-btn" style="margin-top:16rpx" @tap="fetchData(bookId)">
+          <text class="pay-btn-tx">重试</text>
+        </view>
+      </view>
+      <!-- 正常内容 -->
+      <template v-else>
       <!-- 书籍信息 -->
       <view class="card book-card">
         <view class="book-cover" :style="{ background: book.coverColor }">
@@ -94,6 +107,7 @@
         <AppIcon name="shield" :size="28" :color="C.free" />
         <text class="secure-tx">安全支付由平台保障 · 购买即同意服务协议</text>
       </view>
+      </template><!-- v-else end -->
     </scroll-view>
 
     <!-- 底部支付栏 -->
@@ -118,14 +132,22 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { ebookCheckoutBook, ebookPayMethods } from '@/lib/ebook-data'
+import {
+  ebookApi,
+  ebookPayMethods,
+  type EbookCheckoutBook,
+} from '@/lib/ebook-data'
 
 const C = {
   text: '#1e293b', textSoft: '#64748b', member: '#7c3aed', price: '#dc2626', free: '#16a34a',
 }
 
-const book = ebookCheckoutBook
+const loading = ref(true)
+const error = ref('')
+const book = ref<EbookCheckoutBook>({} as EbookCheckoutBook)
+const bookId = ref('1')
 const payMethods = ebookPayMethods
 const payMethod = ref('wechat')
 const couponCode = ref('')
@@ -133,7 +155,22 @@ const couponApplied = ref(false)
 const showCoupon = ref(false)
 const isProcessing = ref(false)
 
-const finalPrice = computed(() => (couponApplied.value ? book.price - 10 : book.price))
+async function fetchData(id: string) {
+  loading.value = true
+  error.value = ''
+  bookId.value = id || '1'
+  try {
+    book.value = await ebookApi.checkoutInfo(id)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((q: any = {}) => { fetchData(q?.id || '1') })
+
+const finalPrice = computed(() => (couponApplied.value ? (book.value.price || 0) - 10 : book.value.price || 0))
 
 function applyCoupon() {
   if (couponCode.value) couponApplied.value = true
@@ -146,7 +183,7 @@ function handlePay() {
   isProcessing.value = true
   setTimeout(() => {
     isProcessing.value = false
-    uni.redirectTo({ url: `/pkg-ebook/checkout/success?id=${book.id}` })
+    uni.redirectTo({ url: `/pkg-ebook/checkout/success?id=${bookId.value}` })
   }, 1200)
 }
 </script>

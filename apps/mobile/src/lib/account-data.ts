@@ -3,6 +3,8 @@
    主题色统一为商城 #9A2D2D。
    ============================================================ */
 
+import { apiGet, apiPost, useMock } from '@/utils/request'
+
 const P = '/static/images/products'
 
 /* —— 售后申请 —— */
@@ -25,7 +27,7 @@ export interface AfterSaleProduct {
 }
 
 /** 申请页默认商品与最大可退金额（来自订单） */
-export const afterSaleApplyContext = {
+const _mockAfterSaleApplyContext = {
   orderId: 'order001',
   orderNo: '202401150001',
   maxAmount: 256,
@@ -81,7 +83,7 @@ export const afterSaleStatusConfig: Record<
   cancelled: { label: '已取消', color: '#999999', bg: 'rgba(153,153,153,0.1)', icon: 'x' },
 }
 
-export const afterSaleList: AfterSaleListItem[] = [
+const _mockAfterSaleList: AfterSaleListItem[] = [
   {
     id: '1', orderId: 'o1', orderNo: 'AS202401150001', type: 'refund_only', status: 'pending',
     amount: 168, reason: '商品质量问题',
@@ -134,7 +136,7 @@ export interface AfterSaleDetailData {
   canCancel: boolean
 }
 
-export const afterSaleDetail: AfterSaleDetailData = {
+const _mockAfterSaleDetail: AfterSaleDetailData = {
   id: 'as001', orderId: 'order001', orderNo: '202401150001',
   type: 'refund_with_return', status: 'approved', reason: '商品与描述不符', amount: 168,
   description: '收到商品后发现颜色与图片差异较大，希望退货退款。',
@@ -151,7 +153,7 @@ export const afterSaleDetail: AfterSaleDetailData = {
   createdAt: '2024-01-15 10:30', canCancel: true,
 }
 
-export const afterSaleRejectedDetail: AfterSaleDetailData = {
+const _mockAfterSaleRejectedDetail: AfterSaleDetailData = {
   id: 'as001', orderId: 'order001', orderNo: '202401150001',
   type: 'refund_only', status: 'rejected', reason: '商品质量问题', amount: 168,
   description: '收到商品后发现印刷模糊，影响阅读体验',
@@ -178,7 +180,7 @@ export interface ShippingAddressItem {
   isDefault: boolean
 }
 
-export const shippingAddressList: ShippingAddressItem[] = [
+const _mockShippingAddressList: ShippingAddressItem[] = [
   { id: '1', name: '张三', phone: '138****8888', province: '北京市', city: '北京市', district: '朝阳区', address: '建国路88号SOHO现代城A座1201室', isDefault: true },
   { id: '2', name: '李四', phone: '139****9999', province: '上海市', city: '上海市', district: '浦东新区', address: '张江高科技园区博云路2号浦软大厦8楼', isDefault: false },
   { id: '3', name: '王五', phone: '137****7777', province: '广东省', city: '深圳市', district: '南山区', address: '科技园南区高新南一道飞亚达大厦5层', isDefault: false },
@@ -208,7 +210,72 @@ export const REGIONS: Record<string, Record<string, string[]>> = {
 export const PROVINCES = Object.keys(REGIONS)
 
 /** 编辑页：用于回填的示例地址 */
-export const addressEditSample: ShippingAddressItem = {
+const _mockAddressEditSample: ShippingAddressItem = {
   id: '1', name: '张三', phone: '13812345678', province: '北京市', city: '北京市', district: '朝阳区',
   address: '建国路88号SOHO现代城A座1201室', isDefault: true,
+}
+
+export const accountApi = {
+  /** 售后列表 */
+  async afterSales() {
+    if (useMock()) return _mockAfterSaleList
+    try { const data = await apiGet<any>('/account/after-sales'); return data?.length ? data : _mockAfterSaleList }
+    catch { return _mockAfterSaleList }
+  },
+
+  /** 售后详情 */
+  async afterSaleDetail(id: string) {
+    if (useMock()) return _mockAfterSaleDetail
+    try { const data = await apiGet<any>(`/account/after-sales/${id}`); return data || _mockAfterSaleDetail }
+    catch { return _mockAfterSaleDetail }
+  },
+
+  /** 驳回售后详情 */
+  async afterSaleRejected(id: string) {
+    if (useMock()) return _mockAfterSaleRejectedDetail
+    try { const data = await apiGet<any>(`/account/after-sales/${id}/rejected`); return data || _mockAfterSaleRejectedDetail }
+    catch { return _mockAfterSaleRejectedDetail }
+  },
+
+  /** 售后申请上下文 */
+  async afterSaleApplyContext(orderId: string) {
+    if (useMock()) return _mockAfterSaleApplyContext
+    try { const data = await apiGet<any>(`/account/after-sales/apply?orderId=${orderId}`); return data || _mockAfterSaleApplyContext }
+    catch { return _mockAfterSaleApplyContext }
+  },
+
+  /** 提交售后申请 */
+  async submitAfterSale(data: any) {
+    if (useMock()) return { success: true, id: 'mock-as-id' }
+    try { return await apiPost<any>('/account/after-sales', data) }
+    catch (e: any) { throw e }
+  },
+
+  /** 地址列表 */
+  async addresses() {
+    if (useMock()) return _mockShippingAddressList
+    try { const data = await apiGet<any>('/account/addresses'); return data?.length ? data : _mockShippingAddressList }
+    catch { return _mockShippingAddressList }
+  },
+
+  /** 地址详情（编辑回填） */
+  async addressDetail(id: string) {
+    if (useMock()) return _mockAddressEditSample
+    try { const data = await apiGet<any>(`/account/addresses/${id}`); return data || _mockAddressEditSample }
+    catch { return _mockAddressEditSample }
+  },
+
+  /** 保存地址 */
+  async saveAddress(data: any) {
+    if (useMock()) return { success: true }
+    try { return await apiPost<any>('/account/addresses', data) }
+    catch (e: any) { throw e }
+  },
+
+  /** 删除地址 */
+  async deleteAddress(id: string) {
+    if (useMock()) return { success: true }
+    try { return await apiGet<any>(`/account/addresses/${id}/delete`) }
+    catch (e: any) { throw e }
+  },
 }

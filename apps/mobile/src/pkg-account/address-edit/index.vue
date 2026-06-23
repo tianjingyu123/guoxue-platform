@@ -12,6 +12,12 @@
     </view>
 
     <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
+      <view v-if="loading" class="loading-state">加载中...</view>
+      <view v-else-if="error" class="error-state">
+        <text>{{ error }}</text>
+        <view @tap="goBack">返回</view>
+      </view>
+      <template v-else>
       <!-- 表单卡片 -->
       <view class="form-card">
         <!-- 收货人 -->
@@ -94,6 +100,7 @@
           <view class="switch-dot" />
         </view>
       </view>
+      </template>
     </scroll-view>
 
     <!-- 保存按钮 -->
@@ -163,7 +170,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
-import { REGIONS, PROVINCES, addressEditSample } from '@/lib/account-data'
+import { accountApi, REGIONS, PROVINCES } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
@@ -178,6 +185,8 @@ const district = ref('')
 const address = ref('')
 const isDefault = ref(false)
 const saving = ref(false)
+const loading = ref(false)
+const error = ref('')
 const errors = ref<Record<string, string>>({})
 
 const provinces = PROVINCES
@@ -200,7 +209,7 @@ const pickerDistricts = computed(() =>
   tempProvince.value && tempCity.value ? REGIONS[tempProvince.value]?.[tempCity.value] || [] : [],
 )
 
-onLoad((query) => {
+onLoad(async (query) => {
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 20
@@ -212,13 +221,21 @@ onLoad((query) => {
   }
   if (query && query.id) {
     isEdit.value = true
-    name.value = addressEditSample.name
-    phone.value = addressEditSample.phone
-    province.value = addressEditSample.province
-    city.value = addressEditSample.city
-    district.value = addressEditSample.district
-    address.value = addressEditSample.address
-    isDefault.value = addressEditSample.isDefault
+    loading.value = true
+    try {
+      const detail = await accountApi.addressDetail(query.id)
+      name.value = detail.name
+      phone.value = detail.phone
+      province.value = detail.province
+      city.value = detail.city
+      district.value = detail.district
+      address.value = detail.address
+      isDefault.value = detail.isDefault
+    } catch (e: any) {
+      error.value = e?.message || '加载地址信息失败'
+    } finally {
+      loading.value = false
+    }
   }
 })
 
@@ -235,15 +252,28 @@ function validate() {
   return Object.keys(e).length === 0
 }
 
-function handleSave() {
+async function handleSave() {
   if (saving.value) return
   if (!validate()) return
   saving.value = true
-  setTimeout(() => {
-    saving.value = false
+  try {
+    await accountApi.saveAddress({
+      id: isEdit.value ? undefined : undefined, // 新增时不传 id
+      name: name.value.trim(),
+      phone: phone.value.trim(),
+      province: province.value,
+      city: city.value,
+      district: district.value,
+      address: address.value.trim(),
+      isDefault: isDefault.value,
+    })
     uni.showToast({ title: '保存成功', icon: 'success' })
     setTimeout(() => goBack(), 600)
-  }, 500)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } finally {
+    saving.value = false
+  }
 }
 
 function openPicker() {

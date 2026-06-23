@@ -12,6 +12,12 @@
     </view>
 
     <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
+      <view v-if="loading" class="loading-state">加载中...</view>
+      <view v-else-if="error" class="error-state">
+        <text>{{ error }}</text>
+        <view @tap="fetchData">重试</view>
+      </view>
+      <template v-else>
       <!-- 状态卡 -->
       <view class="status-card" :style="{ background: sCfg.bg }">
         <view class="status-icon">
@@ -117,6 +123,7 @@
       </view>
 
       <view class="bottom-gap" />
+      </template>
     </scroll-view>
 
     <!-- 底部操作 -->
@@ -156,15 +163,19 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { afterSaleDetail } from '@/lib/account-data'
+import { accountApi } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
 const safeBottom = ref(0)
 
-const detail = ref({ ...afterSaleDetail })
+const detail = ref<any>({})
 const copied = ref(false)
 const showCancel = ref(false)
+const loading = ref(false)
+const error = ref('')
+
+let currentId = ''
 
 const statusTextMap: Record<string, { icon: string; color: string; bg: string; text: string }> = {
   pending: { icon: 'clock', color: '#E8820C', bg: 'rgba(232,130,12,0.08)', text: '审核中' },
@@ -175,9 +186,26 @@ const statusTextMap: Record<string, { icon: string; color: string; bg: string; t
   cancelled: { icon: 'x-circle', color: '#999999', bg: 'rgba(153,153,153,0.08)', text: '已取消' },
 }
 const sCfg = computed(() => statusTextMap[detail.value.status] || statusTextMap.pending)
-const currentIdx = computed(() => detail.value.timeline.findIndex((n) => n.isCurrent))
+const currentIdx = computed(() => detail.value.timeline?.findIndex((n: any) => n.isCurrent) ?? -1)
 
-onLoad(() => {
+async function fetchData() {
+  if (!currentId) {
+    error.value = '缺少售后ID参数'
+    return
+  }
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await accountApi.afterSaleDetail(currentId)
+    detail.value = data || {}
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((q: any) => {
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 20
@@ -187,6 +215,10 @@ onLoad(() => {
     statusBarHeight.value = 20
     navHeight.value = 64
   }
+  if (q && q.id) {
+    currentId = q.id
+  }
+  fetchData()
 })
 
 function copyId() {

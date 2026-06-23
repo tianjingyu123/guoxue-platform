@@ -1,4 +1,5 @@
 import type { DiscussionItem as DiscussionItemType } from './discussion-types'
+import { apiGet, useMock } from '@/utils/request'
 
 export interface EbookShelfBook {
   id: string
@@ -14,7 +15,7 @@ export interface EbookShelfBook {
 }
 
 /** 电子书书架数据（与原型 app/ebook/bookshelf 一致） */
-export const ebookShelfBooks: EbookShelfBook[] = [
+const _mockEbookShelfBooks: EbookShelfBook[] = [
   {
     id: '1',
     title: '八字命理精解',
@@ -125,7 +126,7 @@ export interface EbookStoreBook {
   isMemberFree: boolean
   isFree: boolean
 }
-export const ebookStoreBooks: EbookStoreBook[] = [
+const _mockEbookStoreBooks: EbookStoreBook[] = [
   { id: '1', title: '八字命理精解', author: '李明华', color: 'brown', price: 68, originalPrice: 128, rating: 4.8, reviewCount: 2340, salesCount: 12800, category: '命理', isHot: true, isNew: false, isMemberFree: false, isFree: false },
   { id: '2', title: '易经入门与实践', author: '王道玄', color: 'blue', price: 0, originalPrice: 0, rating: 4.9, reviewCount: 5680, salesCount: 45000, category: '经典', isHot: true, isNew: false, isMemberFree: false, isFree: true },
   { id: '3', title: '风水学基础教程', author: '张天师', color: 'green', price: 88, originalPrice: 168, rating: 4.7, reviewCount: 1890, salesCount: 8900, category: '风水', isHot: false, isNew: true, isMemberFree: true, isFree: false },
@@ -185,7 +186,7 @@ export interface EbookDetail {
   chapters: EbookChapter[]
   relatedBooks: EbookRelated[]
 }
-export const ebookDetailData: EbookDetail = {
+const _mockEbookDetailData: EbookDetail = {
   id: '1',
   title: '八字命理精解',
   subtitle: '从入门到精通的命理学习指南',
@@ -229,7 +230,7 @@ export const ebookDetailData: EbookDetail = {
     { id: '4', title: '风水学基础', author: '张天师', price: 88, coverColor: '#3d1f00' },
   ],
 }
-export const ebookDiscussions: DiscussionItemType[] = [
+const _mockEbookDiscussions: DiscussionItemType[] = [
   {
     id: 'e1', author: { id: 'u1', name: '易学爱好者' }, time: '3天前', likeCount: 128, liked: false,
     content: '这本书讲解得非常清晰，案例丰富，对于入门者来说是非常好的学习资料。尤其是天干地支那章，配图很到位。',
@@ -264,7 +265,7 @@ export interface EbookBookmark {
   pageNum: number
   createdAt: string
 }
-export const ebookBookmarks: EbookBookmark[] = [
+const _mockEbookBookmarks: EbookBookmark[] = [
   { id: 'bm1', bookId: '1', bookTitle: '八字命理精解', bookCoverColor: '#1e3a5f', chapterId: '2', chapterTitle: '第二章 天干地支详解', text: '天干共有十个，分别是：甲、乙、丙、丁、戊、己、庚、辛、壬、癸。', pageNum: 45, createdAt: '今天 14:32' },
   { id: 'bm2', bookId: '1', bookTitle: '八字命理精解', bookCoverColor: '#1e3a5f', chapterId: '3', chapterTitle: '第三章 五行生克制化', text: '五行之间存在着相生相克的关系，理解这一原理是学习八字命理的第一步。', pageNum: 78, createdAt: '昨天 09:15' },
   { id: 'bm3', bookId: '3', bookTitle: '风水学基础教程', bookCoverColor: '#4a1942', chapterId: '1', chapterTitle: '第一章 风水学概论', text: '风水学是中国传统文化中的重要组成部分，讲究天地人三才合一。', pageNum: 12, createdAt: '3天前' },
@@ -286,7 +287,7 @@ export interface EbookNote {
   highlightColor?: string
   createdAt: string
 }
-export const ebookNotes: EbookNote[] = [
+const _mockEbookNotes: EbookNote[] = [
   { id: 'n1', type: 'note', bookId: '1', bookTitle: '八字命理精解', bookCoverColor: '#1e3a5f', chapterId: '2', chapterTitle: '第二章 天干地支详解', selectedText: '天干共有十个，分别是：甲、乙、丙、丁、戊、己、庚、辛、壬、癸。', noteContent: '这十个天干需要熟记，并对应五行属性：甲乙木、丙丁火、戊己土、庚辛金、壬癸水', createdAt: '今天 14:32' },
   { id: 'n2', type: 'highlight', bookId: '1', bookTitle: '八字命理精解', bookCoverColor: '#1e3a5f', chapterId: '3', chapterTitle: '第三章 五行生克制化', selectedText: '五行之间存在着相生相克的关系：相生：木生火，火生土，土生金，金生水，水生木', highlightColor: '#fef08a', createdAt: '昨天 09:15' },
   { id: 'n3', type: 'highlight', bookId: '1', bookTitle: '八字命理精解', bookCoverColor: '#1e3a5f', chapterId: '3', chapterTitle: '第三章 五行生克制化', selectedText: '相克：木克土，土克水，水克火，火克金，金克木', highlightColor: '#bbf7d0', createdAt: '昨天 09:18' },
@@ -303,7 +304,7 @@ export interface EbookCheckoutBook {
   originalPrice: number
   isMemberFree: boolean
 }
-export const ebookCheckoutBook: EbookCheckoutBook = {
+const _mockEbookCheckoutBook: EbookCheckoutBook = {
   id: '1', title: '八字命理精解', author: '李明华', coverColor: '#1e3a5f', price: 68, originalPrice: 128, isMemberFree: true,
 }
 export interface EbookPayMethod { id: string; label: string; iconColor: string; icon: string }
@@ -314,11 +315,11 @@ export const ebookPayMethods: EbookPayMethod[] = [
   { id: 'huifu', label: '汇付天下', icon: 'building-2', iconColor: '#f97316' },
   { id: 'apple', label: 'Apple Pay', icon: 'credit-card', iconColor: '#374151' },
 ]
-export const ebookOrderInfo = {
+const _mockEbookOrderInfo = {
   orderNo: '#EB2024031501', payLabel: '微信支付', amount: 68, payTime: '2024-03-15 14:32',
   successBookTitle: '八字命理精解',
 }
-export const ebookRelatedBuy: EbookRelated[] = [
+const _mockEbookRelatedBuy: EbookRelated[] = [
   { id: '2', title: '紫微斗数入门', author: '紫微居士', price: 58, coverColor: '#1a4731' },
   { id: '3', title: '六爻预测实战', author: '陈易卦', price: 68, coverColor: '#4a1942' },
   { id: '4', title: '风水学基础', author: '张天师', price: 88, coverColor: '#3d1f00' },
@@ -326,7 +327,7 @@ export const ebookRelatedBuy: EbookRelated[] = [
 
 // ===================== 电子书阅读器 ebook/reader =====================
 export interface EbookReaderChapter { id: string; title: string; current: boolean }
-export const ebookReaderChapter = {
+const _mockEbookReaderChapter = {
   id: '1',
   bookId: '1',
   title: '第一章 八字基础概论',
@@ -388,7 +389,7 @@ export const ebookReaderChapter = {
 
 只有打好基础，才能在命理学的道路上走得更远。`,
 }
-export const ebookReaderChapters: EbookReaderChapter[] = [
+const _mockEbookReaderChapters: EbookReaderChapter[] = [
   { id: '1', title: '第一章 八字基础概论', current: true },
   { id: '2', title: '第二章 天干地支详解', current: false },
   { id: '3', title: '第三章 五行生克制化', current: false },
@@ -397,7 +398,7 @@ export const ebookReaderChapters: EbookReaderChapter[] = [
   { id: '6', title: '第六章 大运流年断法', current: false },
   { id: '7', title: '第七章 实例精解', current: false },
 ]
-export const ebookReaderDiscussions: DiscussionItemType[] = [
+const _mockEbookReaderDiscussions: DiscussionItemType[] = [
   {
     id: 'rc1', author: { id: 'ru1', name: '问道者' }, time: '1天前', likeCount: 42, liked: false,
     content: '天干地支这段讲得太清楚了，六十甲子循环的图配上文字一下就理解了。基础打牢很重要。',
@@ -423,4 +424,88 @@ export const ebookReaderThemes = {
   light: { bg: '#ffffff', text: '#1f2937', secondary: '#6b7280', surface: '#ffffff', border: '#e5e7eb' },
   sepia: { bg: '#f5f0e5', text: '#5c4a3a', secondary: '#8b7355', surface: '#f5f0e5', border: '#d4c4a8' },
   dark: { bg: '#1a1815', text: '#c5c0b8', secondary: '#7a756d', surface: '#242220', border: '#3d3a37' },
+}
+
+// ===================== API 层 =====================
+export const ebookApi = {
+  /** 电子书书架 */
+  async bookshelf() {
+    if (useMock()) return _mockEbookShelfBooks
+    try {
+      const data = await apiGet<any>('/ebook/bookshelf')
+      return data?.length ? data : _mockEbookShelfBooks
+    } catch { return _mockEbookShelfBooks }
+  },
+
+  /** 电子书城 */
+  async store() {
+    if (useMock()) return _mockEbookStoreBooks
+    try {
+      const data = await apiGet<any>('/ebook/store')
+      return data?.length ? data : _mockEbookStoreBooks
+    } catch { return _mockEbookStoreBooks }
+  },
+
+  /** 电子书详情 */
+  async detail(id: string) {
+    if (useMock()) return { book: _mockEbookDetailData, discussions: _mockEbookDiscussions }
+    try {
+      const data = await apiGet<any>(`/ebook/${id}`)
+      return { book: data.book || _mockEbookDetailData, discussions: data.discussions || _mockEbookDiscussions }
+    } catch { return { book: _mockEbookDetailData, discussions: _mockEbookDiscussions } }
+  },
+
+  /** 电子书书签 */
+  async bookmarks() {
+    if (useMock()) return _mockEbookBookmarks
+    try {
+      const data = await apiGet<any>('/ebook/bookmarks')
+      return data?.length ? data : _mockEbookBookmarks
+    } catch { return _mockEbookBookmarks }
+  },
+
+  /** 电子书笔记 */
+  async notes() {
+    if (useMock()) return _mockEbookNotes
+    try {
+      const data = await apiGet<any>('/ebook/notes')
+      return data?.length ? data : _mockEbookNotes
+    } catch { return _mockEbookNotes }
+  },
+
+  /** 下单结算信息 */
+  async checkoutInfo(id: string) {
+    if (useMock()) return _mockEbookCheckoutBook
+    try {
+      const data = await apiGet<any>(`/ebook/checkout/${id}`)
+      return data || _mockEbookCheckoutBook
+    } catch { return _mockEbookCheckoutBook }
+  },
+
+  /** 订单信息 */
+  async orderInfo(id: string) {
+    if (useMock()) return _mockEbookOrderInfo
+    try {
+      const data = await apiGet<any>(`/ebook/order/${id}`)
+      return data || _mockEbookOrderInfo
+    } catch { return _mockEbookOrderInfo }
+  },
+
+  /** 阅读器章节内容 */
+  async readerChapter(bookId: string, chapterId: string) {
+    if (useMock()) return _mockEbookReaderChapter
+    try {
+      const data = await apiGet<any>(`/ebook/reader/${bookId}/chapter/${chapterId}`)
+      return data || _mockEbookReaderChapter
+    } catch { return _mockEbookReaderChapter }
+  },
+
+  /** 阅读器章节列表 */
+  async readerChapters(bookId: string) {
+    if (useMock()) return _mockEbookReaderChapters
+    try {
+      const data = await apiGet<any>(`/ebook/reader/${bookId}/chapters`)
+      return data?.length ? data : _mockEbookReaderChapters
+    } catch { return _mockEbookReaderChapters }
+  },
 }

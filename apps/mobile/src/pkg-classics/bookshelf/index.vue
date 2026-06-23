@@ -41,6 +41,14 @@
       </view>
     </view>
 
+    <!-- 加载/错误态 -->
+    <view v-if="loading" class="bs-loading"><text class="bs-loading-text">书房加载中...</text></view>
+    <view v-else-if="error" class="bs-error-wrap">
+      <text class="bs-error-text">{{ error }}</text>
+      <view class="bs-retry-btn" @tap="fetchBookshelf()"><text class="bs-retry-text">重试</text></view>
+    </view>
+    <template v-else>
+
     <!-- 标签页头 -->
     <view class="bs-tabs">
       <view class="bs-tablist">
@@ -209,13 +217,15 @@
       </view>
       <view v-if="readingHistory.length > 0" class="bs-clear-history" @tap="onClearHistory">清空历史记录</view>
     </view>
+  </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
+import { classicsApi, type ShelfBook, type ShelfGroup, type HistoryItem } from '@/lib/classics-data'
 
 const statusBarH = ref(0)
 try {
@@ -223,35 +233,28 @@ try {
   statusBarH.value = info.statusBarHeight || 0
 } catch (e) {}
 
-interface ShelfBook {
-  id: string
-  title: string
-  author: string
-  dynasty: string
-  progress: number
-  hasAI: boolean
+const loading = ref(true)
+const error = ref('')
+const books = ref<ShelfBook[]>([])
+const readingHistory = ref<HistoryItem[]>([])
+const groups = ref<ShelfGroup[]>([])
+
+async function fetchBookshelf() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await classicsApi.bookshelf()
+    books.value = data.books || []
+    groups.value = data.groups || []
+    readingHistory.value = data.history || []
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 
-const books = ref<ShelfBook[]>([
-  { id: '1', title: '周易', author: '伏羲', dynasty: '周', progress: 32, hasAI: true },
-  { id: '2', title: '道德经', author: '老子', dynasty: '春秋', progress: 68, hasAI: true },
-  { id: '3', title: '黄帝内经', author: '佚名', dynasty: '战国', progress: 15, hasAI: true },
-  { id: '4', title: '论语', author: '孔子门人', dynasty: '春秋', progress: 45, hasAI: true },
-  { id: '5', title: '滴天髓', author: '刘基', dynasty: '明', progress: 8, hasAI: true },
-  { id: '6', title: '大学', author: '曾子', dynasty: '战国', progress: 100, hasAI: true },
-])
-
-const readingHistory = ref([
-  { id: '1', title: '周易', author: '伏羲', dynasty: '周', chapter: '乾卦', readAt: '今天 14:30' },
-  { id: '2', title: '道德经', author: '老子', dynasty: '春秋', chapter: '第四十二章', readAt: '昨天 20:15' },
-  { id: '3', title: '论语', author: '孔子门人', dynasty: '春秋', chapter: '学而篇', readAt: '3天前' },
-])
-
-const groups = ref([
-  { id: '1', name: '命理研究', count: 5, color: 'amber' },
-  { id: '2', name: '道家经典', count: 3, color: 'emerald' },
-  { id: '3', name: '养生必读', count: 4, color: 'blue' },
-])
+onMounted(() => { fetchBookshelf() })
 
 const activeTab = ref<'shelf' | 'history'>('shelf')
 const viewMode = ref<'grid' | 'list'>('grid')
@@ -859,4 +862,11 @@ function onClearHistory() {
   font-size: 22rpx;
   color: var(--muted-foreground);
 }
+/* 加载/错误态 */
+.bs-loading { display: flex; align-items: center; justify-content: center; padding: 120rpx 48rpx; }
+.bs-loading-text { font-size: 28rpx; color: #999; }
+.bs-error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 48rpx; gap: 24rpx; }
+.bs-error-text { font-size: 28rpx; color: #e74c3c; text-align: center; }
+.bs-retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 24rpx; }
+.bs-retry-text { font-size: 28rpx; color: #fff; }
 </style>

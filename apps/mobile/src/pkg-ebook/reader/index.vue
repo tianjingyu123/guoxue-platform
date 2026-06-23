@@ -28,7 +28,19 @@
 
     <!-- 正文 -->
     <scroll-view scroll-y class="r-scroll" @tap="toggleControls">
-      <view class="r-content">
+      <!-- 加载态 -->
+      <view v-if="loading" class="r-content">
+        <text class="r-chapter-title" :style="{ color: cfg.text }">加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="r-content">
+        <text class="r-chapter-title" :style="{ color: cfg.text }">{{ error }}</text>
+        <view class="r-nav-btn r-nav-btn--primary" style="margin:32rpx auto;display:inline-flex" @tap="fetchData(bookId, chapter.id || '1')">
+          <text class="r-nav-btn-primary-text">重试</text>
+        </view>
+      </view>
+      <!-- 正常内容 -->
+      <view v-else class="r-content">
         <text class="r-chapter-title" :style="{ color: cfg.text }">{{ chapter.title }}</text>
         <text
           class="r-body"
@@ -195,16 +207,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
 import {
-  ebookReaderChapter,
-  ebookReaderChapters,
-  ebookReaderDiscussions,
+  ebookApi,
   ebookReaderThemes,
+  type EbookReaderChapter,
 } from '@/lib/ebook-data'
 import type { DiscussionConfig } from '@/lib/discussion-types'
+import type { DiscussionItem as DiscussionItemType } from '@/lib/discussion-types'
 
 type Theme = 'light' | 'sepia' | 'dark'
 
@@ -212,9 +225,42 @@ const sys = uni.getSystemInfoSync()
 const statusBarHeight = sys.statusBarHeight || 20
 const safeBottom = (sys.safeAreaInsets?.bottom ?? 0)
 
-const chapter = ebookReaderChapter
-const chapters = ebookReaderChapters
-const discussions = reactive([...ebookReaderDiscussions])
+const loading = ref(true)
+const error = ref('')
+const bookId = ref('1')
+const chapter = ref<any>({})
+const chapters = ref<EbookReaderChapter[]>([])
+const discussions = ref<DiscussionItemType[]>([])
+
+async function fetchChapter(chapterId: string) {
+  try {
+    chapter.value = await ebookApi.readerChapter(bookId.value, chapterId)
+    // 更新章节列表中的 current 状态
+    chapters.value = chapters.value.map((ch) => ({ ...ch, current: ch.id === chapterId }))
+  } catch (e: any) {
+    error.value = e?.message || '加载章节失败'
+  }
+}
+
+async function fetchData(bkId: string, chId?: string) {
+  loading.value = true
+  error.value = ''
+  bookId.value = bkId || '1'
+  try {
+    const [chapData, chapsData] = await Promise.all([
+      ebookApi.readerChapter(bookId.value, chId || '1'),
+      ebookApi.readerChapters(bookId.value),
+    ])
+    chapter.value = chapData
+    chapters.value = chapsData
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((q: any = {}) => { fetchData(q?.id || '1', q?.chapter) })
 
 const showControls = ref(true)
 const showMenu = ref(false)
@@ -240,13 +286,13 @@ const themeOptions: { id: Theme; label: string; bg: string; icon: string; iconCo
   { id: 'dark', label: '夜间', bg: '#1a1815', icon: 'moon', iconColor: '#9ca3af', textColor: '#d1d5db' },
 ]
 
-const discussionConfig: DiscussionConfig = {
-  scene: 'classic',
-  mode: 'comment',
-  title: chapter.title,
+const discussionConfig = computed<DiscussionConfig>(() => ({
+  scene: 'classic' as const,
+  mode: 'comment' as const,
+  title: chapter.value?.title || '章节讨论',
   accentColor: '#2563eb',
   placeholder: '分享你对本章的理解…',
-}
+}))
 
 function toggleControls() {
   showControls.value = !showControls.value
@@ -294,9 +340,9 @@ function decFont() {
 function incFont() {
   fontSize.value = Math.min(28, fontSize.value + 2)
 }
-function selectChapter(ch: { id: string; title: string }) {
+function selectChapter(ch: EbookReaderChapter) {
   closeAll()
-  uni.showToast({ title: `跳转：${ch.title}`, icon: 'none' })
+  fetchChapter(ch.id)
 }
 function onTrackTap() {
   // 进度条静态展示，点击不改变（与原型一致：原型为只读展示）

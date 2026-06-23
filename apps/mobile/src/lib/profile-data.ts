@@ -1,4 +1,6 @@
 // 我的主页数据层（1:1 迁移自原型 app/profile/page.tsx）
+import { apiGet, useMock } from '@/utils/request'
+
 export type UserRole = 'user' | 'circle_owner' | 'teacher' | 'station_owner' | 'streamer' | 'creator'
 
 export interface RoleEntry {
@@ -7,7 +9,7 @@ export interface RoleEntry {
   id: number
 }
 
-export const userData = {
+const _mockUserData = {
   name: '张三丰',
   avatar: '',
   bio: '易学爱好者 | 八字研习中',
@@ -69,7 +71,7 @@ export const quickFunctions: { icon: string; label: string; href: string; color:
 ]
 
 // 猜你喜欢
-export const recommendations: { id: number; type: 'course' | 'product'; title: string; price: number; originalPrice: number; tag: string }[] = [
+const _mockRecommendations: { id: number; type: 'course' | 'product'; title: string; price: number; originalPrice: number; tag: string }[] = [
   { id: 1, type: 'course', title: '紫微斗数入门精讲', price: 199, originalPrice: 399, tag: '热门' },
   { id: 2, type: 'product', title: '专业罗盘套装', price: 298, originalPrice: 598, tag: '特惠' },
   { id: 3, type: 'course', title: '六爻预测实战班', price: 299, originalPrice: 499, tag: '新课' },
@@ -97,4 +99,33 @@ export function roleHref(type: UserRole, id: number): string {
 }
 
 export const totalMessages =
-  userData.messages.system + userData.messages.interaction + userData.messages.transaction
+  _mockUserData.messages.system + _mockUserData.messages.interaction + _mockUserData.messages.transaction
+
+// ============ API 层 ============
+
+export const profileApi = {
+  /** 获取用户主页数据 */
+  async getProfile() {
+    if (useMock()) return _mockUserData
+    try {
+      const data = await apiGet<any>('/user/profile')
+      return { ..._mockUserData, ...data }
+    } catch { return _mockUserData }
+  },
+
+  /** 猜你喜欢推荐 */
+  async recommendations() {
+    if (useMock()) return _mockRecommendations
+    try {
+      const data = await apiGet<any>('/user/recommendations')
+      return data?.length ? data : _mockRecommendations
+    } catch { return _mockRecommendations }
+  },
+
+  /** 签到 */
+  async checkIn() {
+    if (useMock()) return { success: true, points: 10 }
+    try { return await apiGet<any>('/user/checkin') }
+    catch { return { success: true, points: 10 } }
+  },
+}

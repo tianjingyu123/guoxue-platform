@@ -10,10 +10,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import {
-  getUserProfile,
-  getUserPosts,
-  followUser,
-  unfollowUser,
+  userProfileApi,
   formatCount,
   getContentUrl,
   type UserProfileResponse,
@@ -24,7 +21,9 @@ const userId = ref(1)
 const profile = ref<UserProfileResponse | null>(null)
 const posts = ref<UserPostItem[]>([])
 const loading = ref(true)
+const error = ref('')
 const postsLoading = ref(false)
+const postsError = ref('')
 const activeTab = ref<'all' | 'posts' | 'articles' | 'videos'>('all')
 const followLoading = ref(false)
 const showMoreMenu = ref(false)
@@ -50,12 +49,17 @@ onLoad((q) => {
 
 async function loadProfile() {
   loading.value = true
+  error.value = ''
   try {
-    const res = await getUserProfile(userId.value)
+    const res = await userProfileApi.getProfile(userId.value)
     if (res.code === 200 && res.data) {
       profile.value = res.data
       loadPosts()
+    } else {
+      error.value = res.message || '获取用户信息失败'
     }
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -63,11 +67,16 @@ async function loadProfile() {
 
 async function loadPosts() {
   postsLoading.value = true
+  postsError.value = ''
   try {
-    const res = await getUserPosts(userId.value, 'all')
+    const res = await userProfileApi.getPosts(userId.value, 'all')
     if (res.code === 200 && res.data) {
       posts.value = res.data.list
+    } else {
+      postsError.value = res.message || '加载内容失败'
     }
+  } catch (e: any) {
+    postsError.value = e?.message || '加载内容失败，请重试'
   } finally {
     postsLoading.value = false
   }
@@ -88,8 +97,8 @@ async function handleFollow() {
   }
   try {
     const res = wasFollowing
-      ? await unfollowUser(userId.value)
-      : await followUser(userId.value)
+      ? await userProfileApi.unfollow(userId.value)
+      : await userProfileApi.follow(userId.value)
     if (res.code === 200) {
       uni.showToast({ title: wasFollowing ? '已取消关注' : '关注成功', icon: 'none' })
       if (!wasFollowing && 'isMutualFollow' in res.data && res.data.isMutualFollow && profile.value) {
@@ -134,6 +143,24 @@ function avatarInitial(name?: string): string {
 
 <template>
   <view class="up-page">
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="up-skeleton">
+      <view class="up-skeleton-cover" />
+      <view class="up-skeleton-avatar" />
+      <view class="up-skeleton-lines">
+        <view class="up-skeleton-line up-skeleton-line--short" />
+        <view class="up-skeleton-line up-skeleton-line--long" />
+        <view class="up-skeleton-line up-skeleton-line--med" />
+      </view>
+    </view>
+    <!-- 错误态 -->
+    <view v-else-if="error" class="up-error">
+      <text class="up-error-text">{{ error }}</text>
+      <view class="up-retry-btn" @tap="loadProfile">
+        <text>重试</text>
+      </view>
+    </view>
+    <template v-else>
     <!-- 顶部背景区 -->
     <view class="up-hero">
       <view
@@ -256,6 +283,12 @@ function avatarInitial(name?: string): string {
       <view v-if="postsLoading" class="up-empty">
         <text class="up-empty-txt">加载中…</text>
       </view>
+      <view v-else-if="postsError" class="up-empty">
+        <text class="up-empty-txt">{{ postsError }}</text>
+        <view class="up-retry-btn" @tap="loadPosts">
+          <text>重试</text>
+        </view>
+      </view>
       <view v-else-if="filteredPosts.length === 0" class="up-empty">
         <text class="up-empty-txt">暂无内容</text>
       </view>
@@ -363,6 +396,7 @@ function avatarInitial(name?: string): string {
         </template>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
@@ -845,4 +879,20 @@ function avatarInitial(name?: string): string {
   font-size: 20rpx;
   color: #999188;
 }
+
+/* 三态：骨架屏 / 错误态 */
+.up-skeleton { padding-top: 32rpx; }
+.up-skeleton-cover { height: 320rpx; background: linear-gradient(90deg, #e8e0d5 25%, #ddd6c8 50%, #e8e0d5 75%); background-size: 200% 100%; animation: up-shimmer 1.5s infinite; }
+.up-skeleton-avatar { width: 176rpx; height: 176rpx; border-radius: 50%; background: linear-gradient(90deg, #e8e0d5 25%, #ddd6c8 50%, #e8e0d5 75%); background-size: 200% 100%; animation: up-shimmer 1.5s infinite; margin: -44rpx 0 0 32rpx; }
+.up-skeleton-lines { padding: 48rpx 32rpx 0; display: flex; flex-direction: column; gap: 24rpx; }
+.up-skeleton-line { height: 32rpx; border-radius: 8rpx; background: linear-gradient(90deg, #e8e0d5 25%, #ddd6c8 50%, #e8e0d5 75%); background-size: 200% 100%; animation: up-shimmer 1.5s infinite; }
+.up-skeleton-line--short { width: 40%; }
+.up-skeleton-line--long { width: 80%; }
+.up-skeleton-line--med { width: 60%; }
+@keyframes up-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+.up-error { padding: 200rpx 64rpx 0; display: flex; flex-direction: column; align-items: center; gap: 32rpx; }
+.up-error-text { font-size: 28rpx; color: #8a8178; text-align: center; }
+.up-retry-btn { padding: 16rpx 48rpx; border-radius: 999rpx; border: 2rpx solid #c41e3a; margin-top: 8rpx; }
+.up-retry-btn text { font-size: 28rpx; color: #c41e3a; }
 </style>

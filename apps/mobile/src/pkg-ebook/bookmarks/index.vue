@@ -16,8 +16,17 @@
     </view>
 
     <scroll-view scroll-y class="body">
+      <!-- 加载态 -->
+      <view v-if="loading" class="empty">
+        <text class="empty-title">加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="empty">
+        <text class="empty-title">{{ error }}</text>
+        <text class="empty-sub" @tap="fetchData()" style="text-decoration:underline">点击重试</text>
+      </view>
       <!-- 空状态 -->
-      <view v-if="groupedKeys.length === 0" class="empty">
+      <view v-else-if="groupedKeys.length === 0" class="empty">
         <AppIcon name="bookmark" :size="96" :color="C.slate200" />
         <text class="empty-title">暂无书签</text>
         <text class="empty-sub">在阅读时点击书签按钮保存位置</text>
@@ -58,15 +67,32 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { ebookBookmarks, type EbookBookmark } from '@/lib/ebook-data'
+import { ebookApi, type EbookBookmark } from '@/lib/ebook-data'
 
 const C = {
   text: '#1e293b', primary: '#2563eb', slate400: '#94a3b8', slate200: '#e2e8f0',
 }
 
+const loading = ref(true)
+const error = ref('')
 const search = ref('')
-const items = ref<EbookBookmark[]>([...ebookBookmarks])
+const items = ref<EbookBookmark[]>([])
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    items.value = await ebookApi.bookmarks()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad(() => { fetchData() })
 
 const filtered = computed(() =>
   items.value.filter(

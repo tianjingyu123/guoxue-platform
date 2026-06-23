@@ -1,14 +1,31 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import { mockAudioBooks, fmtPlays } from '@/lib/classics-data'
+import { classicsApi, fmtPlays, type AudioBookFull } from '@/lib/classics-data'
 
 const favorites = ref<string[]>([])
+const audioBooks = ref<AudioBookFull[]>([])
+const loading = ref(true)
+const error = ref('')
 
-const feature = computed(() => mockAudioBooks[0])
-const rest = computed(() => mockAudioBooks.slice(1))
+const feature = computed(() => audioBooks.value[0] || null)
+const rest = computed(() => audioBooks.value.slice(1))
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    audioBooks.value = await classicsApi.audiobooks()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchData)
 
 function toggleFavorite(id: string) {
   favorites.value = favorites.value.includes(id)
@@ -26,6 +43,17 @@ function goPlayer(id: string) {
     <classics-header title="听书" />
 
     <view class="ab-main">
+      <!-- 加载/错误态 -->
+      <view v-if="loading" class="ab-hero">
+        <text class="ab-hero-kicker">加载中...</text>
+      </view>
+      <view v-else-if="error" class="ab-hero">
+        <text class="ab-hero-kicker" style="color:#c41e3a;">{{ error }}</text>
+        <view class="ab-feature-btn" @tap="fetchData" style="margin-top:16rpx;">
+          <text class="ab-feature-btn-txt">重试</text>
+        </view>
+      </view>
+      <template v-else>
       <!-- Hero -->
       <view class="ab-hero">
         <text class="ab-hero-kicker">名家播讲</text>
@@ -109,6 +137,7 @@ function goPlayer(id: string) {
           </view>
         </view>
       </view>
+      </template>
     </view>
   </view>
 </template>

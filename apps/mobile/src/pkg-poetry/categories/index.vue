@@ -11,7 +11,12 @@
     </view>
 
     <view class="pc-main">
-      <view v-for="cat in categories" :key="cat.id" class="pc-item" @tap="toCategory(cat.id)">
+      <view v-if="loading" class="pc-loading"><text class="pc-loading-text">分类加载中...</text></view>
+      <view v-else-if="error" class="pc-error">
+        <text class="pc-error-text">{{ error }}</text>
+        <view class="pc-retry" @tap="fetchCategories"><text class="pc-retry-text">重试</text></view>
+      </view>
+      <view v-else v-for="cat in categories" :key="cat.id" class="pc-item" @tap="toCategory(cat.id)">
         <text class="pc-emoji">{{ cat.icon }}</text>
         <view class="pc-body">
           <view class="pc-head">
@@ -30,8 +35,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { poetryApi, type PoemCategory } from '@/lib/poetry-data'
 
 const statusBarHeight = ref(0)
 try {
@@ -39,25 +45,23 @@ try {
   statusBarHeight.value = info.statusBarHeight || 0
 } catch (e) {}
 
-interface Category {
-  id: string
-  name: string
-  icon: string
-  desc: string
-  count: number
-  subCategories: string[]
+const loading = ref(true)
+const error = ref('')
+const categories = ref<PoemCategory[]>([])
+
+async function fetchCategories() {
+  loading.value = true
+  error.value = ''
+  try {
+    categories.value = await poetryApi.categories()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 
-const categories: Category[] = [
-  { id: '1', name: '古典诗词', icon: '📜', desc: '唐诗宋词元曲，品读千年文学之美', count: 12840, subCategories: ['唐诗', '宋词', '元曲', '明清诗词'] },
-  { id: '2', name: '易经诗歌', icon: '☯️', desc: '以易经为题材的古今诗词创作', count: 3260, subCategories: ['六十四卦吟', '易理诗', '现代易诗'] },
-  { id: '3', name: '命理赋文', icon: '✨', desc: '命理学经典赋文，文字优美意蕴深远', count: 1480, subCategories: ['命赋', '星赋', '格局赋'] },
-  { id: '4', name: '风水诗歌', icon: '🏔️', desc: '以山川地理为题材的风水诗词', count: 980, subCategories: ['山水诗', '地理赋', '堪舆歌诀'] },
-  { id: '5', name: '节气民俗', icon: '🌸', desc: '二十四节气及民俗文化相关诗词', count: 2160, subCategories: ['节气诗', '民俗词', '时令歌'] },
-  { id: '6', name: '星象天文', icon: '🌟', desc: '古代天文星象相关诗词', count: 760, subCategories: ['星宿诗', '天象赋', '历法歌'] },
-  { id: '7', name: '道家玄学', icon: '🌀', desc: '道家哲学与玄学思想诗词', count: 1840, subCategories: ['老庄诗', '玄学词', '丹道诗'] },
-  { id: '8', name: '现代创作', icon: '✍️', desc: '当代作者以传统文化为题的现代诗词', count: 5680, subCategories: ['现代诗', '新古风', '仿古词'] },
-]
+onMounted(() => { fetchCategories() })
 
 function goBack() {
   navigateBack()
@@ -153,4 +157,11 @@ function toCategory(id: string) {
   background: var(--muted);
   color: var(--muted-foreground);
 }
+/* 加载/错误态 */
+.pc-loading { display: flex; align-items: center; justify-content: center; padding: 120rpx 48rpx; }
+.pc-loading-text { font-size: 28rpx; color: var(--muted-foreground); }
+.pc-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 48rpx; gap: 24rpx; }
+.pc-error-text { font-size: 28rpx; color: #e74c3c; text-align: center; }
+.pc-retry { padding: 16rpx 48rpx; background: var(--primary); border-radius: 24rpx; }
+.pc-retry-text { font-size: 28rpx; color: #fff; font-weight: 600; }
 </style>

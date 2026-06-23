@@ -14,6 +14,17 @@
     </view>
 
     <view class="pd-main">
+      <!-- 加载态 -->
+      <view v-if="loading" class="pd-loading">
+        <text class="pd-loading-text">诗词加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="pd-error">
+        <text class="pd-error-text">{{ error }}</text>
+        <view class="pd-retry" @tap="fetchDetail(poem.id || '1')"><text class="pd-retry-text">重试</text></view>
+      </view>
+      <!-- 正常内容 -->
+      <template v-else>
       <!-- 诗题与作者 -->
       <view class="pd-titlesec">
         <text class="pd-poem-title">{{ poem.title }}</text>
@@ -393,6 +404,7 @@
           </view>
         </view>
       </view>
+      </template>
     </view>
 
     <!-- 诗词品评抽屉 -->
@@ -412,6 +424,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, navigateBack } from '@/utils/router'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
 import type { DiscussionConfig, DiscussionItem } from '@/lib/discussion-types'
+import { poetryApi, type PoemDetail } from '@/lib/poetry-data'
 
 const statusBarHeight = ref(0)
 const safeBottom = ref(0)
@@ -423,64 +436,33 @@ try {
 
 type TabKey = 'poem' | 'appreciation' | 'translation' | 'notes'
 
-const poem = {
-  id: '1',
-  title: '静夜思',
-  author: '李白',
-  authorId: '1',
-  dynasty: '唐',
-  form: '五言绝句',
-  content: [
-    { line: '床前明月光，', pinyin: 'chuáng qián míng yuè guāng，' },
-    { line: '疑是地上霜。', pinyin: 'yí shì dì shàng shuāng。' },
-    { line: '举头望明月，', pinyin: 'jǔ tóu wàng míng yuè，' },
-    { line: '低头思故乡。', pinyin: 'dī tóu sī gù xiāng。' },
-  ],
-  appreciation: `这首诗写的是在寂静的月夜思念家乡的感受。
+const loading = ref(true)
+const error = ref('')
+const poem = ref<PoemDetail>({
+  id: '', title: '', author: '', authorId: '', dynasty: '', form: '',
+  content: [], appreciation: '', aiAppreciation: '', notes: [],
+  authorInfo: { name: '', dynasty: '', years: '', title: '', intro: '', poemCount: 0 },
+  relatedPoems: [], tags: [], likes: 0, collections: 0,
+})
+const translations = ref<string[]>([])
 
-诗的前两句，是写诗人在作客他乡的特定环境中一刹那间所产生的错觉。一个独处他乡的人，白天奔波忙碌，倒还能冲淡离愁，然而一到夜深人静的时候，心头就难免泛起阵阵思念故乡的波澜。何况是在月明之夜，更何况是月色如霜的秋夜。
-
-"疑"字生动地表达了诗人睡梦初醒，迷离恍惚中将照射在床前的清冷月光误作铺在地面的浓霜。"霜"字用得更妙，既形容了月光的皎洁，又表达了季节的寒冷，还烘托出诗人飘泊他乡的孤寂凄凉之情。
-
-后两句通过动作神态的刻画，深化思乡之情。"举头望明月"把诗人的思绪由地上引向天上，由近处引向远处。"低头思故乡"是诗人完成从疑到望再到思这一系列心理活动的终点。`,
-  aiAppreciation: `**创作背景**
-
-此诗当作于唐玄宗开元十四年（726年），李白二十六岁时。是年秋，诗人离故乡赴长安求仕途，旅宿扬州旅舍，月夜难眠，感怀乡愁而作。
-
-**意象分析**
-
-- **月光如霜**：以"疑"字将月光与白霜并置，形成触觉（冷）与视觉（白）的通感，将静夜的凄清具象化
-- **举头 / 低头**：两组对仗动作构成完整的心理弧线——由外物（月）引发内情（乡愁），以行为外化情感
-- **故乡**：全诗至此才点出主旨，是蓄势后的情感爆发，留白与克制是李白绝句的典型风格
-
-**情感解读**
-
-全诗20字，无一字言"愁"，却字字含愁。李白用最简洁的笔墨完成了从"疑"到"望"再到"思"的完整情感旅程，是唐诗中"以少总多"手法的极致体现。`,
-  notes: [
-    { word: '床', note: '此指井栏，或作井边的围栏解。一说为窗的通假字。' },
-    { word: '疑', note: '好像、似乎。' },
-    { word: '举头', note: '抬头。' },
-    { word: '思', note: '思念。' },
-  ],
-  authorInfo: {
-    name: '李白',
-    dynasty: '唐',
-    years: '701-762',
-    title: '诗仙',
-    intro: '李白（701年—762年），字太白，号青莲居士，唐代伟大的浪漫主义诗人，被后人誉为"诗仙"。',
-    poemCount: 1184,
-  },
-  relatedPoems: [
-    { id: '2', title: '月下独酌', author: '李白', preview: '花间一壶酒，独酌无相亲...' },
-    { id: '3', title: '望庐山瀑布', author: '李白', preview: '日照香炉生紫烟...' },
-    { id: '4', title: '早发白帝城', author: '李白', preview: '朝辞白帝彩云间...' },
-  ],
-  tags: ['思乡', '月亮', '夜晚', '五言绝句'],
-  likes: 12800,
-  collections: 8900,
+async function fetchDetail(poemId: string) {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await poetryApi.detail(poemId)
+    poem.value = data.poem
+    translations.value = data.translations
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 
-const translations = ['明亮的月光洒在床前，', '好像地上泛起了一层霜。', '抬头望着天上的明月，', '低下头思念起远方的故乡。']
+onLoad((q: Record<string, string> = {}) => {
+  fetchDetail(q.id || '1')
+})
 
 const POEM_DISCUSSIONS: DiscussionItem[] = [
   {
@@ -1586,4 +1568,11 @@ onLoad(() => {
   font-size: 28rpx;
   color: #1c1208;
 }
+/* 加载/错误态 */
+.pd-loading { display: flex; align-items: center; justify-content: center; padding: 160rpx 48rpx; }
+.pd-loading-text { font-size: 28rpx; color: var(--poem-text-muted); }
+.pd-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 48rpx; gap: 24rpx; }
+.pd-error-text { font-size: 28rpx; color: #e74c3c; text-align: center; }
+.pd-retry { padding: 16rpx 48rpx; background: var(--poem-gold); border-radius: 24rpx; }
+.pd-retry-text { font-size: 28rpx; color: #1c1208; font-weight: 600; }
 </style>

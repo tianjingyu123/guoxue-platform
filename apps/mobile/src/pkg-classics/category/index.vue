@@ -3,6 +3,18 @@
     <classics-header :title="config.name" right-type="search" @back="goBack" />
 
     <view class="cat-main">
+      <!-- 加载态 -->
+      <view v-if="loading" class="cat-hero-wrap" style="text-align:center;padding:128rpx 0;">
+        <text style="color:rgba(255,255,255,0.8);font-size:28rpx;">加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" style="text-align:center;padding:128rpx 0;">
+        <text style="color:#c41e3a;font-size:28rpx;">{{ error }}</text>
+        <view style="margin-top:24rpx;" @tap="fetchData(catId)">
+          <text style="color:var(--muted-foreground);">重试</text>
+        </view>
+      </view>
+      <template v-else-if="config">
       <!-- 分类 Hero -->
       <view class="cat-hero-wrap">
         <view class="cat-hero" :style="{ background: `linear-gradient(150deg, ${config.from}, ${config.to})` }">
@@ -78,16 +90,17 @@
           </view>
         </view>
       </view>
+      </template>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
-import { CAT_CONFIG, CAT_BOOKS, fmtReads, type CatId } from '@/lib/classics-data'
+import { classicsApi, fmtReads, type CatId, type CatConfig, type CatBook } from '@/lib/classics-data'
 
 const catId = ref<CatId>('jing')
 const activeSub = ref('全部')
@@ -97,14 +110,31 @@ const sortOptions = [
   { key: 'new' as const, label: '最新' },
 ]
 
-const config = computed(() => CAT_CONFIG[catId.value])
-const books = computed(() => CAT_BOOKS[catId.value])
+const config = ref<CatConfig | null>(null)
+const books = ref<CatBook[]>([])
+const loading = ref(true)
+const error = ref('')
+
+async function fetchData(cat: CatId) {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await classicsApi.category(cat)
+    config.value = data.config
+    books.value = data.books
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 onLoad((query) => {
   const cat = query?.cat
   if (cat && ['jing', 'shi', 'zi', 'ji'].includes(cat)) {
     catId.value = cat as CatId
   }
+  fetchData(catId.value)
 })
 
 function goBack() {

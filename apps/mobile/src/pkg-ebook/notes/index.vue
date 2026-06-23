@@ -43,8 +43,17 @@
     </view>
 
     <scroll-view scroll-y class="body">
+      <!-- 加载态 -->
+      <view v-if="loading" class="empty">
+        <text class="empty-title">加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="empty">
+        <text class="empty-title">{{ error }}</text>
+        <text class="empty-sub" @tap="fetchData()" style="text-decoration:underline">点击重试</text>
+      </view>
       <!-- 空状态 -->
-      <view v-if="groupedKeys.length === 0" class="empty">
+      <view v-else-if="groupedKeys.length === 0" class="empty">
         <AppIcon name="message-square" :size="96" :color="C.slate200" />
         <text class="empty-title">暂无笔记</text>
         <text class="empty-sub">在阅读时选中文字，可以划线或添加笔记</text>
@@ -110,8 +119,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { ebookNotes, type EbookNote, type EbookNoteType } from '@/lib/ebook-data'
+import { ebookApi, type EbookNote, type EbookNoteType } from '@/lib/ebook-data'
 
 const C = {
   text: '#1e293b', textSoft: '#64748b', primary: '#2563eb', amber: '#f59e0b',
@@ -125,9 +135,25 @@ const filterTabs: { id: FilterType; label: string }[] = [
   { id: 'highlight', label: '划线' },
 ]
 
+const loading = ref(true)
+const error = ref('')
 const search = ref('')
 const filter = ref<FilterType>('all')
-const items = ref<EbookNote[]>([...ebookNotes])
+const items = ref<EbookNote[]>([])
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    items.value = await ebookApi.notes()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad(() => { fetchData() })
 
 const filtered = computed(() =>
   items.value.filter((n) => {

@@ -17,6 +17,17 @@
       </view>
     </view>
 
+    <!-- 加载/错误态 -->
+    <view v-if="loading" style="text-align:center;padding:128rpx 0;">
+      <text style="color:var(--muted-foreground);font-size:28rpx;">加载中...</text>
+    </view>
+    <view v-else-if="error" style="text-align:center;padding:128rpx 0;">
+      <text style="color:#c41e3a;font-size:28rpx;">{{ error }}</text>
+      <view style="margin-top:24rpx;" @tap="fetchData(collectionId)">
+        <text style="color:var(--muted-foreground);">重试</text>
+      </view>
+    </view>
+    <template v-else-if="collection">
     <!-- 封面区域 -->
     <view class="cd-cover" :class="`cd-cover--${collection.cover}`">
       <view class="cd-cover-badge">
@@ -121,6 +132,7 @@
         </view>
       </scroll-view>
     </view>
+      </template>
   </view>
 </template>
 
@@ -128,21 +140,36 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { collectionsDetailData } from '@/lib/classics-data'
+import { classicsApi, type CollectionDetail } from '@/lib/classics-data'
 
 const collectionId = ref('1')
 const isAddedToShelf = ref(false)
+const collection = ref<CollectionDetail | null>(null)
+const relatedCollections = ref<CollectionDetail[]>([])
+const loading = ref(true)
+const error = ref('')
+
+async function fetchData(id: string) {
+  loading.value = true
+  error.value = ''
+  try {
+    const detail = await classicsApi.collectionDetail(id)
+    collection.value = detail
+    // related not directly available from API, use empty for now
+    relatedCollections.value = []
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 onLoad((options) => {
-  if (options?.id && collectionsDetailData[options.id]) {
+  if (options?.id) {
     collectionId.value = options.id
   }
+  fetchData(collectionId.value)
 })
-
-const collection = computed(() => collectionsDetailData[collectionId.value] || collectionsDetailData['1'])
-const relatedCollections = computed(() =>
-  Object.values(collectionsDetailData).filter((c) => c.id !== collectionId.value),
-)
 
 function goBack() {
   uni.navigateBack({ delta: 1, fail: () => uni.navigateTo({ url: '/pkg-classics/home/index' }) })

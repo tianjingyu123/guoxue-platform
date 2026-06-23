@@ -9,6 +9,12 @@
     </view>
 
     <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
+      <view v-if="loading" class="loading-state">加载中...</view>
+      <view v-else-if="error" class="error-state">
+        <text>{{ error }}</text>
+        <view @tap="fetchData">重试</view>
+      </view>
+      <template v-else>
       <!-- 售后类型 -->
       <view class="card">
         <text class="card-title">售后类型</text>
@@ -106,6 +112,7 @@
       </view>
 
       <view class="bottom-gap" />
+      </template>
     </scroll-view>
 
     <!-- 底部提交 -->
@@ -144,25 +151,42 @@
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, redirectTo } from '@/utils/router'
-import { afterSaleReasons, afterSaleApplyContext } from '@/lib/account-data'
+import { accountApi, afterSaleReasons } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
 const safeBottom = ref(0)
 
 const reasons = afterSaleReasons
-const maxAmount = ref(afterSaleApplyContext.maxAmount)
-const orderId = ref(afterSaleApplyContext.orderId)
+const maxAmount = ref(0)
+const orderId = ref('')
 
 const type = ref<'refund_only' | 'refund_with_return'>('refund_only')
 const reason = ref('')
 const showReasonPicker = ref(false)
-const amount = ref(String(afterSaleApplyContext.maxAmount))
+const amount = ref('0')
 const description = ref('')
 const images = ref<string[]>([])
 const uploadingCount = ref(0)
 const submitting = ref(false)
+const loading = ref(false)
+const error = ref('')
 const errors = reactive<{ reason?: string; amount?: string }>({})
+
+async function fetchData() {
+  if (!orderId.value) return
+  loading.value = true
+  error.value = ''
+  try {
+    const ctx = await accountApi.afterSaleApplyContext(orderId.value)
+    maxAmount.value = ctx.maxAmount
+    amount.value = String(ctx.maxAmount)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
 
 onLoad((q) => {
   try {
@@ -178,6 +202,8 @@ onLoad((q) => {
   if (q && q.maxAmount) {
     maxAmount.value = parseFloat(q.maxAmount)
     amount.value = q.maxAmount
+  } else {
+    fetchData()
   }
 })
 
@@ -226,15 +252,26 @@ function validate() {
   return ok
 }
 
-function submit() {
+async function submit() {
   if (submitting.value) return
   if (!validate()) return
   submitting.value = true
-  setTimeout(() => {
-    submitting.value = false
+  try {
+    await accountApi.submitAfterSale({
+      orderId: orderId.value,
+      type: type.value,
+      reason: reason.value,
+      amount: parseFloat(amount.value),
+      description: description.value,
+      images: images.value,
+    })
     uni.showToast({ title: '申请已提交', icon: 'success' })
     setTimeout(() => redirectTo('/shop/my-after-sales'), 1200)
-  }, 1000)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 

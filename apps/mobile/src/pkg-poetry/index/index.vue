@@ -22,6 +22,17 @@
     </view>
 
     <view class="pm-main">
+      <!-- 加载态 -->
+      <view v-if="loading" class="pm-loading">
+        <text class="pm-loading-text">诗词加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="pm-error">
+        <text class="pm-error-text">{{ error }}</text>
+        <view class="pm-retry" @tap="fetchData"><text class="pm-retry-text">重试</text></view>
+      </view>
+      <!-- 正常内容 -->
+      <template v-else>
       <!-- 编辑式大标题 -->
       <view class="pm-hero">
         <text class="pm-hero-title">诗词雅集</text>
@@ -161,13 +172,15 @@
           <app-icon name="chevron-right" :size="28" color="#9b7ec8" />
         </view>
       </view>
+      </template>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { poetryApi, type PoemItem, type PoetItem, type TodayPoem } from '@/lib/poetry-data'
 
 const statusBarHeight = ref(0)
 try {
@@ -175,35 +188,33 @@ try {
   statusBarHeight.value = info.statusBarHeight || 0
 } catch (e) {}
 
-const todayPoem = {
-  id: '1',
-  title: '静夜思',
-  author: '李白',
-  dynasty: '唐',
-  lines: ['床前明月光，', '疑是地上霜。', '举头望明月，', '低头思故乡。'],
-  tags: ['思乡', '月亮'],
-  likes: 12800,
-}
-
-const poems = [
-  { id: '2', title: '登鹳雀楼', author: '王之涣', dynasty: '唐', form: '五言绝句', preview: '白日依山尽，黄河入海流', likes: 8900 },
-  { id: '3', title: '春晓', author: '孟浩然', dynasty: '唐', form: '五言绝句', preview: '春眠不觉晓，处处闻啼鸟', likes: 7600 },
-  { id: '4', title: '相思', author: '王维', dynasty: '唐', form: '五言绝句', preview: '红豆生南国，春来发几枝', likes: 9200 },
-  { id: '5', title: '悯农', author: '李绅', dynasty: '唐', form: '五言绝句', preview: '锄禾日当午，汗滴禾下土', likes: 6800 },
-  { id: '6', title: '江雪', author: '柳宗元', dynasty: '唐', form: '五言绝句', preview: '千山鸟飞绝，万径人踪灭', likes: 5400 },
-  { id: '7', title: '水调歌头', author: '苏轼', dynasty: '宋', form: '词', preview: '明月几时有，把酒问青天', likes: 11200 },
-  { id: '8', title: '声声慢', author: '李清照', dynasty: '宋', form: '词', preview: '寻寻觅觅，冷冷清清', likes: 8300 },
-]
-
+const loading = ref(true)
+const error = ref('')
+const todayPoem = ref<TodayPoem>({
+  id: '',
+  title: '', author: '', dynasty: '',
+  lines: [], tags: [], likes: 0,
+})
+const poems = ref<PoemItem[]>([])
+const poets = ref<PoetItem[]>([])
 const dynastyTabs = ['全部', '唐', '宋', '元', '明', '清', '先秦']
 
-const poets = [
-  { id: '1', name: '李白', dynasty: '唐', poemCount: 1184, avatar: '李' },
-  { id: '2', name: '杜甫', dynasty: '唐', poemCount: 1455, avatar: '杜' },
-  { id: '3', name: '白居易', dynasty: '唐', poemCount: 3840, avatar: '白' },
-  { id: '4', name: '苏轼', dynasty: '宋', poemCount: 3459, avatar: '苏' },
-  { id: '5', name: '李清照', dynasty: '宋', poemCount: 84, avatar: '李' },
-]
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await poetryApi.home()
+    todayPoem.value = data.todayPoem
+    poems.value = data.poems
+    poets.value = data.poets
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { fetchData() })
 
 const searchQuery = ref('')
 const activeDynasty = ref('全部')
@@ -665,4 +676,11 @@ function toPublish() {
   margin-top: 4rpx;
   color: var(--poem-text-muted);
 }
+/* 加载/错误态 */
+.pm-loading { display: flex; align-items: center; justify-content: center; padding: 120rpx 48rpx; }
+.pm-loading-text { font-size: 28rpx; color: var(--poem-text-muted); }
+.pm-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 48rpx; gap: 24rpx; }
+.pm-error-text { font-size: 28rpx; color: #e74c3c; text-align: center; }
+.pm-retry { padding: 16rpx 48rpx; background: var(--poem-gold); border-radius: 24rpx; }
+.pm-retry-text { font-size: 28rpx; color: var(--poem-bg); font-weight: 600; }
 </style>

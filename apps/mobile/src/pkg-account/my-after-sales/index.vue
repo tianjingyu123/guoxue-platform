@@ -22,66 +22,73 @@
     </view>
 
     <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
-      <view v-if="filtered.length === 0" class="empty">
-        <view class="empty-icon">
-          <app-icon name="package" :size="80" color="#999999" />
-        </view>
-        <text class="empty-text">暂无售后记录</text>
-        <view class="empty-btn" @tap="navigateTo('/orders')">
-          <text class="empty-btn-text">查看订单</text>
-        </view>
+      <view v-if="loading" class="loading-state">加载中...</view>
+      <view v-else-if="error" class="error-state">
+        <text>{{ error }}</text>
+        <view @tap="fetchData">重试</view>
       </view>
-
-      <view
-        v-for="item in filtered"
-        :key="item.id"
-        class="as-card"
-      >
-        <view class="as-head">
-          <view class="as-head-left">
-            <view class="as-status" :style="{ color: sCfg(item.status).color, background: sCfg(item.status).bg }">
-              <app-icon :name="sCfg(item.status).icon" :size="22" :color="sCfg(item.status).color" />
-              <text class="as-status-text" :style="{ color: sCfg(item.status).color }">{{ sCfg(item.status).label }}</text>
-            </view>
-            <text class="as-type">{{ item.type === 'refund_only' ? '仅退款' : '退货退款' }}</text>
+      <template v-else>
+        <view v-if="filtered.length === 0" class="empty">
+          <view class="empty-icon">
+            <app-icon name="package" :size="80" color="#999999" />
           </view>
-          <text class="as-time">{{ item.createdAt }}</text>
+          <text class="empty-text">暂无售后记录</text>
+          <view class="empty-btn" @tap="navigateTo('/orders')">
+            <text class="empty-btn-text">查看订单</text>
+          </view>
         </view>
 
-        <view class="as-body" @tap="navigateTo(`/shop/after-sale/${item.id}`)">
-          <image class="as-cover" :src="item.product.cover" mode="aspectFill" />
-          <view class="as-info">
-            <text class="as-name">{{ item.product.name }}</text>
-            <text class="as-sku">{{ item.product.skuName }}</text>
-            <view class="as-foot">
-              <view class="as-amount">
-                <text class="amount-label">退款金额：</text>
-                <text class="amount-value">¥{{ item.amount }}</text>
+        <view
+          v-for="item in filtered"
+          :key="item.id"
+          class="as-card"
+        >
+          <view class="as-head">
+            <view class="as-head-left">
+              <view class="as-status" :style="{ color: sCfg(item.status).color, background: sCfg(item.status).bg }">
+                <app-icon :name="sCfg(item.status).icon" :size="22" :color="sCfg(item.status).color" />
+                <text class="as-status-text" :style="{ color: sCfg(item.status).color }">{{ sCfg(item.status).label }}</text>
               </view>
-              <app-icon name="chevron-right" :size="28" color="#999999" />
+              <text class="as-type">{{ item.type === 'refund_only' ? '仅退款' : '退货退款' }}</text>
+            </view>
+            <text class="as-time">{{ item.createdAt }}</text>
+          </view>
+
+          <view class="as-body" @tap="navigateTo(`/shop/after-sale/${item.id}`)">
+            <image class="as-cover" :src="item.product.cover" mode="aspectFill" />
+            <view class="as-info">
+              <text class="as-name">{{ item.product.name }}</text>
+              <text class="as-sku">{{ item.product.skuName }}</text>
+              <view class="as-foot">
+                <view class="as-amount">
+                  <text class="amount-label">退款金额：</text>
+                  <text class="amount-value">¥{{ item.amount }}</text>
+                </view>
+                <app-icon name="chevron-right" :size="28" color="#999999" />
+              </view>
+            </view>
+          </view>
+
+          <view v-if="item.canCancel" class="as-actions">
+            <view class="act-btn ghost" @tap="confirmCancel(item.id)">
+              <text class="act-text">取消售后</text>
+            </view>
+            <view class="act-btn primary" @tap="navigateTo(`/shop/after-sale/${item.id}`)">
+              <text class="act-text-primary">查看进度</text>
+            </view>
+          </view>
+          <view v-else-if="item.status === 'rejected'" class="as-actions">
+            <view class="act-btn outline" @tap="navigateTo(`/shop/after-sale-rejected?id=${item.id}`)">
+              <text class="act-text-outline">查看原因</text>
+            </view>
+            <view class="act-btn primary" @tap="navigateTo(`/shop/after-sale?orderId=${item.orderId}`)">
+              <text class="act-text-primary">重新申请</text>
             </view>
           </view>
         </view>
 
-        <view v-if="item.canCancel" class="as-actions">
-          <view class="act-btn ghost" @tap="confirmCancel(item.id)">
-            <text class="act-text">取消售后</text>
-          </view>
-          <view class="act-btn primary" @tap="navigateTo(`/shop/after-sale/${item.id}`)">
-            <text class="act-text-primary">查看进度</text>
-          </view>
-        </view>
-        <view v-else-if="item.status === 'rejected'" class="as-actions">
-          <view class="act-btn outline" @tap="navigateTo(`/shop/after-sale-rejected?id=${item.id}`)">
-            <text class="act-text-outline">查看原因</text>
-          </view>
-          <view class="act-btn primary" @tap="navigateTo(`/shop/after-sale?orderId=${item.orderId}`)">
-            <text class="act-text-primary">重新申请</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="bottom-gap" />
+        <view class="bottom-gap" />
+      </template>
     </scroll-view>
 
     <!-- 取消确认弹窗 -->
@@ -109,15 +116,17 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { afterSaleList, afterSaleTabs, afterSaleStatusConfig } from '@/lib/account-data'
+import { accountApi, afterSaleTabs, afterSaleStatusConfig, type AfterSaleListItem } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(108)
 
 const tabs = afterSaleTabs
 const activeTab = ref('')
-const list = ref([...afterSaleList])
+const list = ref<AfterSaleListItem[]>([])
 const cancelId = ref('')
+const loading = ref(false)
+const error = ref('')
 
 const filtered = computed(() => {
   if (!activeTab.value) return list.value
@@ -131,6 +140,19 @@ function sCfg(status: string) {
   return afterSaleStatusConfig[status] || { label: status, color: '#999', bg: '#F5F5F5', icon: 'clock' }
 }
 
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await accountApi.afterSales()
+    list.value = data || []
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
 onLoad(() => {
   try {
     const info = uni.getSystemInfoSync()
@@ -140,6 +162,7 @@ onLoad(() => {
     statusBarHeight.value = 20
     navHeight.value = 108
   }
+  fetchData()
 })
 
 function confirmCancel(id: string) {

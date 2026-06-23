@@ -1,14 +1,34 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import { rankingPageBooks, rankTabs } from '@/lib/classics-data'
+import { classicsApi, _mockRankTabs, type RankBook } from '@/lib/classics-data'
 
 const rankType = ref<'hot' | 'new' | 'rating'>('hot')
-const top3 = rankingPageBooks.slice(0, 3)
-const rest = rankingPageBooks.slice(3)
+const rankTabs = _mockRankTabs
+const books = ref<RankBook[]>([])
+const loading = ref(true)
+const error = ref('')
+
+const top3 = computed(() => books.value.slice(0, 3))
+const rest = computed(() => books.value.slice(3))
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await classicsApi.ranking()
+    books.value = data.books
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchData)
 
 function rankBg(rank: number): string {
   if (rank === 1) return '#c41e3a'
@@ -26,6 +46,20 @@ function goDetail(id: string) {
     <ClassicsHeader title="推荐榜" />
 
     <view class="rk-main">
+      <!-- 加载态 -->
+      <view v-if="loading" class="rk-hero">
+        <text class="rk-kicker">加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="rk-hero">
+        <text class="rk-kicker">{{ error }}</text>
+        <view class="rk-list-wrap" style="padding: 0 40rpx;">
+          <view class="rk-list" style="text-align:center;padding:24rpx;" @tap="fetchData">
+            <text style="color:#c41e3a;">重试</text>
+          </view>
+        </view>
+      </view>
+      <template v-else>
       <!-- Hero -->
       <view class="rk-hero">
         <text class="rk-kicker">读者公认</text>
@@ -105,6 +139,7 @@ function goDetail(id: string) {
           </view>
         </view>
       </view>
+      </template>
     </view>
   </view>
 </template>

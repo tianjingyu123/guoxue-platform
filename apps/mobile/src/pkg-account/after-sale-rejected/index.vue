@@ -12,6 +12,12 @@
     </view>
 
     <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
+      <view v-if="loading" class="loading-state">加载中...</view>
+      <view v-else-if="error" class="error-state">
+        <text>{{ error }}</text>
+        <view @tap="fetchData">重试</view>
+      </view>
+      <template v-else>
       <!-- 结果横幅 -->
       <view class="result-banner">
         <view class="result-icon">
@@ -125,6 +131,7 @@
       </view>
 
       <view class="bottom-gap" />
+      </template>
     </scroll-view>
 
     <!-- 底部按钮 -->
@@ -150,21 +157,42 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { afterSaleRejectedDetail } from '@/lib/account-data'
+import { accountApi } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
 const safeBottom = ref(0)
 const copied = ref(false)
+const loading = ref(false)
+const error = ref('')
 
-const detail = ref({ ...afterSaleRejectedDetail })
+const detail = ref<any>({})
 
 const rejectedTime = computed(() => {
-  const node = detail.value.timeline.find((t) => t.status === 'rejected')
-  return node?.time || detail.value.createdAt
+  const node = detail.value.timeline?.find((t: any) => t.status === 'rejected')
+  return node?.time || detail.value.createdAt || ''
 })
 
-onLoad(() => {
+let currentId = ''
+
+async function fetchData() {
+  if (!currentId) {
+    error.value = '缺少售后ID参数'
+    return
+  }
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await accountApi.afterSaleRejected(currentId)
+    detail.value = data || {}
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((q: any) => {
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 20
@@ -174,6 +202,10 @@ onLoad(() => {
     statusBarHeight.value = 20
     navHeight.value = 64
   }
+  if (q && q.id) {
+    currentId = q.id
+  }
+  fetchData()
 })
 
 function copyId() {

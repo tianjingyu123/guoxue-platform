@@ -3,6 +3,18 @@
     <classics-header :title="book.title" right-type="share" @back="goBack" @right="onShare" />
 
     <view class="cd-main">
+      <!-- 加载态 -->
+      <view v-if="loading" class="cd-sec" style="text-align:center;padding:128rpx 0;">
+        <text style="color:var(--muted-foreground);font-size:28rpx;">加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="cd-sec" style="text-align:center;padding:128rpx 0;">
+        <text style="color:#c41e3a;font-size:28rpx;">{{ error }}</text>
+        <view style="margin-top:24rpx;" @tap="fetchData(bookId)">
+          <text style="color:var(--muted-foreground);">重试</text>
+        </view>
+      </view>
+      <template v-else-if="book">
       <!-- 封面区 -->
       <view class="cd-cover-sec">
         <view class="cd-cover-row">
@@ -119,7 +131,7 @@
           <text class="cd-sec-title">书友讨论</text>
           <text class="cd-sec-meta">{{ commentCount }} 条</text>
         </view>
-        <view class="cd-card cd-disc" @tap="showComments = true">
+        <view v-if="firstDiscussion" class="cd-card cd-disc" @tap="showComments = true">
           <view class="cd-disc-preview">
             <view class="cd-disc-avatar" :style="{ background: '#a06a38' }">{{ firstDiscussion.author.name.charAt(0) }}</view>
             <view class="cd-disc-body">
@@ -153,6 +165,7 @@
       </view>
     </view>
 
+      </template>
     <!-- 底部固定操作栏 -->
     <view class="cd-bottom">
       <view class="cd-bottom-row">
@@ -185,133 +198,26 @@ import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
+import { classicsApi, _mockAI_FEATURES, type BookInfo, type BookDiscussion } from '@/lib/classics-data'
 import type { DiscussionConfig, DiscussionItem } from '@/lib/discussion-types'
-import type { CoverColor } from '@/lib/classics-cover'
-
-interface Chapter {
-  id: string
-  title: string
-  hasChildren?: boolean
-  children?: { id: string; title: string }[]
-}
-interface BookInfo {
-  id: string
-  title: string
-  author: string
-  dynasty: string
-  version: string
-  description: string
-  aiSummary: string
-  reads: number
-  rating: number
-  totalChapters: number
-  hasAI: boolean
-  hasAudio: boolean
-  hasTranslation: boolean
-  isFree: boolean
-  isInBookshelf: boolean
-  color: CoverColor
-  chapters: Chapter[]
-  relatedBooks: { id: string; title: string; author: string; dynasty: string; color: CoverColor }[]
-}
-
-const bookData: Record<string, BookInfo> = {
-  '1': {
-    id: '1', title: '周易', author: '伏羲/周文王/孔子', dynasty: '周', version: '通行本', color: 'cream',
-    description: '《周易》即《易经》，是传统经典之一，相传系周文王姬昌所作，内容包括《经》和《传》两个部分。',
-    aiSummary: '群经之首，大道之源。《周易》以六十四卦推演天地万物的变化之理，既是占筮之书，更是一部蕴含宇宙观与处世智慧的哲学经典，读懂它便读懂了中国人的思维底层。',
-    reads: 128600, rating: 4.9, totalChapters: 64, hasAI: true, hasAudio: true, hasTranslation: true, isFree: true, isInBookshelf: false,
-    chapters: [
-      { id: 'c1', title: '扉页' },
-      { id: 'c2', title: '序跋', hasChildren: true, children: [{ id: 'c2-1', title: '周易序' }, { id: 'c2-2', title: '周易正义序' }] },
-      { id: 'c3', title: '周易卷首目次' },
-      { id: 'c4', title: '周易卷首', hasChildren: true },
-      { id: 'c5', title: '周易上经', hasChildren: true, children: [{ id: 'c5-1', title: '乾卦第一' }, { id: 'c5-2', title: '坤卦第二' }, { id: 'c5-3', title: '屯卦第三' }] },
-      { id: 'c6', title: '周易下经', hasChildren: true },
-      { id: 'c7', title: '系辞上传' },
-      { id: 'c8', title: '系辞下传' },
-      { id: 'c9', title: '说卦传' },
-      { id: 'c10', title: '序卦传' },
-      { id: 'c11', title: '杂卦传' },
-      { id: 'c12', title: '结束页' },
-    ],
-    relatedBooks: [
-      { id: '2', title: '道德经', author: '老子', dynasty: '春秋', color: 'brown' },
-      { id: '6', title: '论语', author: '孔子门人', dynasty: '春秋', color: 'red' },
-      { id: '4', title: '易传', author: '孔子', dynasty: '春秋', color: 'green' },
-    ],
-  },
-  '2': {
-    id: '2', title: '道德经', author: '老子', dynasty: '春秋', version: '王弼注本', color: 'brown',
-    description: '《道德经》又称《老子》，是道家学派的经典著作，分《道经》和《德经》上下两篇，共八十一章。',
-    aiSummary: '道法自然，无为而治。老子用五千字道出宇宙至理，引领人们探寻生命本真，是道家思想的源头活水。',
-    reads: 145600, rating: 4.9, totalChapters: 81, hasAI: true, hasAudio: true, hasTranslation: true, isFree: true, isInBookshelf: true,
-    chapters: [
-      { id: 'c1', title: '扉页' },
-      { id: 'c2', title: '序跋' },
-      { id: 'c3', title: '道经（第一至第三十七章）', hasChildren: true },
-      { id: 'c4', title: '德经（第三十八至第八十一章）', hasChildren: true },
-      { id: 'c5', title: '结束页' },
-    ],
-    relatedBooks: [
-      { id: '1', title: '周易', author: '伏羲', dynasty: '周', color: 'cream' },
-      { id: '30', title: '庄子', author: '庄周', dynasty: '战国', color: 'green' },
-    ],
-  },
-}
-
-const AI_FEATURES = [
-  { icon: 'file-text', label: '文白翻译' },
-  { icon: 'sparkles', label: '智能查词' },
-  { icon: 'headphones', label: 'AI 听书' },
-  { icon: 'network', label: '知识图谱' },
-]
-
-const BOOK_DISCUSSIONS: DiscussionItem[] = [
-  {
-    id: 'b1',
-    author: { id: 1, name: '山间煮茶', badge: 'master' },
-    content: '读了三遍才慢慢咂摸出味道。古人讲『书读百遍其义自见』，诚不我欺。建议配合注疏一起看，单读原文容易囫囵吞枣。',
-    time: '3天前', likeCount: 128, featured: true,
-    quote: { text: '书读百遍，其义自见。', source: '读后总评' },
-    replies: [
-      { id: 'b1r1', author: { id: 11, name: '知秋' }, content: '同感，第一遍真的看不懂，坚持下来豁然开朗。', time: '2天前', likeCount: 12, replyToName: '山间煮茶' },
-      { id: 'b1r2', author: { id: 12, name: '未名' }, content: '请问您看的是哪个注本？', time: '2天前', likeCount: 3, replyToName: '山间煮茶' },
-    ],
-    replyCount: 2,
-  },
-  {
-    id: 'b2',
-    author: { id: 2, name: '竹影清风', badge: 'teacher' },
-    content: '这个版本的排版和句读做得很用心，AI 译文也比较克制，没有过度发挥，对初学者很友好。',
-    time: '5天前', likeCount: 86, replies: [],
-  },
-  {
-    id: 'b3',
-    author: { id: 3, name: '归园田居', level: 5 },
-    content: '开篇即是高峰。能把如此深奥的道理用这般简练的文字道出，足见先贤功力。每读一次都有新的体会。',
-    time: '1周前', likeCount: 54,
-    quote: { text: '大道至简。', source: '卷首' },
-    replies: [
-      { id: 'b3r1', author: { id: 31, name: '听雨轩主' }, content: '『大道至简』四个字概括得好。', time: '6天前', likeCount: 8, replyToName: '归园田居' },
-    ],
-    replyCount: 1,
-  },
-]
 
 const bookId = ref('1')
-const book = computed(() => bookData[bookId.value] || bookData['1'])
+const book = ref<BookInfo | null>(null)
+const AI_FEATURES = _mockAI_FEATURES
+const BOOK_DISCUSSIONS = ref<DiscussionItem[]>([])
+const loading = ref(true)
+const error = ref('')
 
 const isInBookshelf = ref(false)
 const expandedChapters = ref<Set<string>>(new Set())
 const showAllChapters = ref(false)
 const showComments = ref(false)
 
-const firstDiscussion = BOOK_DISCUSSIONS[0]
-const commentCount = BOOK_DISCUSSIONS.reduce((n, c) => n + 1 + c.replies.length, 0)
+const firstDiscussion = computed(() => BOOK_DISCUSSIONS.value[0] || null)
+const commentCount = computed(() => BOOK_DISCUSSIONS.value.reduce((n, c) => n + 1 + (c.replies?.length || 0), 0))
 
 const displayedChapters = computed(() =>
-  showAllChapters.value ? book.value.chapters : book.value.chapters.slice(0, 6),
+  book.value ? (showAllChapters.value ? book.value.chapters : book.value.chapters.slice(0, 6)) : [],
 )
 
 const discussionConfig: DiscussionConfig = {
@@ -322,9 +228,34 @@ const discussionConfig: DiscussionConfig = {
   placeholder: '各抒己见，友善交流…',
 }
 
+async function fetchData(id: string) {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await classicsApi.detail(id)
+    book.value = data.book
+    isInBookshelf.value = data.book?.isInBookshelf ?? false
+    // Map BookDiscussion to DiscussionItem
+    BOOK_DISCUSSIONS.value = (data.discussions || []).map((d: BookDiscussion): DiscussionItem => ({
+      id: d.id,
+      author: { id: 0, name: d.authorName, badge: d.badge },
+      content: d.content,
+      time: d.time,
+      likeCount: d.likeCount,
+      featured: d.featured,
+      replies: [],
+      replyCount: 0,
+    }))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 onLoad((q) => {
   if (q && q.id) bookId.value = String(q.id)
-  isInBookshelf.value = book.value.isInBookshelf
+  fetchData(bookId.value)
 })
 
 function toggleChapter(id: string) {
@@ -342,11 +273,11 @@ function onShare() {
 function toReader(_chapter?: string) {
   uni.showToast({ title: '阅读器即将上线', icon: 'none' })
 }
-function toBook(id: string) {
+async function toBook(id: string) {
   bookId.value = id
-  isInBookshelf.value = book.value.isInBookshelf
   showAllChapters.value = false
   expandedChapters.value = new Set()
+  await fetchData(id)
   uni.pageScrollTo({ scrollTop: 0, duration: 0 })
 }
 </script>

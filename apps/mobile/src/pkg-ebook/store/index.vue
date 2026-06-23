@@ -23,6 +23,19 @@
     </view>
 
     <scroll-view scroll-y class="es-main">
+      <!-- 加载态 -->
+      <view v-if="loading" class="es-empty">
+        <text class="es-empty-txt">加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="es-empty">
+        <text class="es-empty-txt">{{ error }}</text>
+        <view class="es-feat-cta" @tap="fetchData()">
+          <text class="es-feat-cta-txt">重试</text>
+        </view>
+      </view>
+      <!-- 正常内容 -->
+      <view v-else>
       <!-- 大标题 -->
       <view class="es-hero">
         <text class="es-hero-title">电子书馆</text>
@@ -137,29 +150,49 @@
           </view>
         </view>
       </view>
+      </view><!-- v-else end -->
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import FlatBookCover from '@/components/ebook/flat-book-cover.vue'
 import {
-  ebookStoreBooks,
+  ebookApi,
   ebookStoreCategories,
   ebookStoreSorts,
   EBOOK_COVER,
   type EbookCoverColor,
+  type EbookStoreBook,
 } from '@/lib/ebook-data'
 
 const searchQuery = ref('')
 const activeCategory = ref('all')
 const activeSort = ref('hot')
+const loading = ref(true)
+const error = ref('')
+const storeBooks = ref<EbookStoreBook[]>([])
 
 const categories = ebookStoreCategories
 const sorts = ebookStoreSorts
-const featured = ebookStoreBooks[1]
+const featured = computed(() => storeBooks.value.find(b => b.isHot && b.isFree) || storeBooks.value[1] || storeBooks.value[0])
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    storeBooks.value = await ebookApi.store()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad(() => { fetchData() })
 
 function coverFrom(c: EbookCoverColor) {
   return EBOOK_COVER[c].from
@@ -169,7 +202,7 @@ function coverTo(c: EbookCoverColor) {
 }
 
 const filteredBooks = computed(() =>
-  ebookStoreBooks.filter((b) => {
+  storeBooks.value.filter((b) => {
     const matchCat =
       activeCategory.value === 'all' ||
       (activeCategory.value === 'mingli' && b.category === '命理') ||

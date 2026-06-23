@@ -29,8 +29,19 @@
     </view>
 
     <view class="cs-main">
+      <!-- 加载态 -->
+      <view v-if="loading" class="cs-loading">
+        <view class="cs-spinner" />
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="cs-empty">
+        <text class="cs-empty-title">{{ error }}</text>
+        <view class="cs-empty-btn" @tap="fetchInitData">
+          <text>重试</text>
+        </view>
+      </view>
       <!-- 初始态 -->
-      <view v-if="searchState === 'initial'" class="cs-initial">
+      <view v-else-if="searchState === 'initial'" class="cs-initial">
         <!-- 搜索历史 -->
         <view v-if="searchHistory.length > 0" class="cs-section">
           <view class="cs-sec-head">
@@ -173,85 +184,76 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
-import type { CoverColor } from '@/lib/classics-cover'
+import { classicsApi, fmtReads, type SearchResultItem } from '@/lib/classics-data'
 
-interface SearchResult {
-  id: string
-  title: string
-  author: string
-  dynasty: string
-  description: string
-  reads: number
-  rating: number
-  isFree: boolean
-  color: CoverColor
-}
-
-const hotSearchData = [
-  { keyword: '周易', isHot: true },
-  { keyword: '道德经', isHot: true },
-  { keyword: '滴天髓', isHot: false },
-  { keyword: '子平真诠', isHot: false },
-  { keyword: '黄帝内经', isHot: true },
-  { keyword: '伤寒论', isHot: false },
-  { keyword: '论语', isHot: true },
-  { keyword: '庄子', isHot: false },
-]
-
-const searchResultsData: SearchResult[] = [
-  { id: '1', title: '周易', author: '伏羲', dynasty: '周', description: '群经之首，大道之源', reads: 128600, rating: 4.9, isFree: true, color: 'cream' },
-  { id: '2', title: '周易正义', author: '孔颖达', dynasty: '唐', description: '疏解周易，阐明义理', reads: 45600, rating: 4.8, isFree: false, color: 'brown' },
-  { id: '3', title: '周易集解', author: '李鼎祚', dynasty: '唐', description: '汇集汉魏诸家易说', reads: 32100, rating: 4.7, isFree: false, color: 'blue' },
-  { id: '4', title: '周易本义', author: '朱熹', dynasty: '宋', description: '理学大师注解周易', reads: 58900, rating: 4.9, isFree: true, color: 'green' },
-  { id: '5', title: '周易参同契', author: '魏伯阳', dynasty: '汉', description: '丹道修炼之祖书', reads: 28700, rating: 4.6, isFree: false, color: 'red' },
-]
-
-const searchSuggestionsData = [
-  { text: '周易' }, { text: '周易正义' }, { text: '周易本义' }, { text: '周易集解' }, { text: '周易参同契' },
-]
+interface SuggestionItem { text: string }
+interface HotSearchItem { keyword: string; isHot: boolean }
 
 type SearchState = 'initial' | 'suggesting' | 'results' | 'empty'
 
 const searchValue = ref('')
 const searchState = ref<SearchState>('initial')
-const searchHistory = ref<string[]>(['周易', '道德经', '黄帝内经', '论语', '孙子兵法'])
-const suggestions = ref<typeof searchSuggestionsData>([])
-const results = ref<SearchResult[]>([])
+const searchHistory = ref<string[]>([])
+const hotSearchData = ref<HotSearchItem[]>([])
+const suggestions = ref<SuggestionItem[]>([])
+const results = ref<SearchResultItem[]>([])
 const isSearching = ref(false)
 const autoFocus = ref(true)
+const loading = ref(true)
+const error = ref('')
 
-const recommendBooks = searchResultsData.slice(0, 3)
+const recommendBooks = ref<SearchResultItem[]>([])
 
-function fmtReads(n: number) {
-  return n >= 10000 ? `${(n / 10000).toFixed(1)}万` : `${n}`
+async function fetchInitData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await classicsApi.search('')
+    hotSearchData.value = data.hotSearch
+    searchHistory.value = data.history || []
+    recommendBooks.value = data.results?.slice(0, 3) || []
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 
-function onInput(e: any) {
+fetchInitData()
+
+async function onInput(e: any) {
   const value = e.detail.value
   searchValue.value = value
   if (value.trim()) {
-    suggestions.value = searchSuggestionsData.filter((s) => s.text.includes(value))
-    searchState.value = 'suggesting'
+    try {
+      const data = await classicsApi.search(value)
+      suggestions.value = (data.suggestions || []).map((s: string) => ({ text: s }))
+      searchState.value = 'suggesting'
+    } catch {
+      searchState.value = 'suggesting'
+    }
   } else {
     suggestions.value = []
     searchState.value = 'initial'
   }
 }
 
-function handleSearch(keyword?: string) {
+async function handleSearch(keyword?: string) {
   const kw = (keyword || searchValue.value).trim()
   if (!kw) return
   isSearching.value = true
   searchValue.value = kw
   searchHistory.value = [kw, ...searchHistory.value.filter((h) => h !== kw)].slice(0, 10)
-  setTimeout(() => {
-    const filtered = searchResultsData.filter(
-      (r) => r.title.includes(kw) || r.author.includes(kw) || r.description.includes(kw),
-    )
-    results.value = filtered
-    searchState.value = filtered.length > 0 ? 'results' : 'empty'
+  try {
+    const data = await classicsApi.search(kw)
+    results.value = data.results
+    searchState.value = data.results.length > 0 ? 'results' : 'empty'
+  } catch (e: any) {
+    results.value = []
+    searchState.value = 'empty'
+  } finally {
     isSearching.value = false
-  }, 400)
+  }
 }
 
 function handleClear() {

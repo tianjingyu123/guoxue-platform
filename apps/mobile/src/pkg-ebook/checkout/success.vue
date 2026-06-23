@@ -1,5 +1,20 @@
 <template>
   <view class="page">
+    <!-- 加载态 -->
+    <view v-if="loading" class="hero">
+      <text class="hero-title">加载中...</text>
+    </view>
+    <!-- 错误态 -->
+    <view v-else-if="error" class="hero">
+      <text class="hero-title">{{ error }}</text>
+      <view class="hero-actions">
+        <view class="btn-primary" @tap="fetchData(order?.orderNo || '1')">
+          <text class="btn-primary-tx">重试</text>
+        </view>
+      </view>
+    </view>
+    <!-- 正常内容 -->
+    <template v-else>
     <!-- 成功 Hero -->
     <view class="hero">
       <view class="check-circle">
@@ -62,16 +77,47 @@
         </view>
       </scroll-view>
     </view>
+    </template><!-- v-else end -->
   </view>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { ebookOrderInfo, ebookRelatedBuy } from '@/lib/ebook-data'
+import { ebookApi, EBOOK_COVER, type EbookRelated } from '@/lib/ebook-data'
 
 const C = { primary: '#2563eb' }
-const order = ebookOrderInfo
-const related = ebookRelatedBuy
+const loading = ref(true)
+const error = ref('')
+const order = ref<any>({})
+const related = ref<EbookRelated[]>([])
+
+async function fetchData(id: string) {
+  loading.value = true
+  error.value = ''
+  try {
+    const [orderData, storeData] = await Promise.all([
+      ebookApi.orderInfo(id),
+      ebookApi.store(),
+    ])
+    order.value = orderData
+    // 取 store 前3本作为相关推荐
+    related.value = (storeData || []).slice(0, 3).map((b: any) => ({
+      id: b.id,
+      title: b.title,
+      author: b.author,
+      price: b.price,
+      coverColor: (EBOOK_COVER as any)[b.color]?.from || '#3b6fd4',
+    }))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((q: any = {}) => { fetchData(q?.id || '1') })
 
 function goReader() {
   uni.redirectTo({ url: '/pkg-ebook/reader/index?id=1' })

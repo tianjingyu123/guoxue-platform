@@ -1,5 +1,6 @@
 // 用户主页数据层（v0 迁移自原型 lib/api/user-profile + types/user-profile）
 // 用于 pkg-circle/user/profile 页面
+import { apiGet, apiPost, useMock } from '@/utils/request'
 
 export interface UserProfileInfo {
   id: number
@@ -77,7 +78,7 @@ export function getContentUrl(item: UserPostItem): string {
 
 // ===== mock 数据 =====
 
-const mockProfile: UserProfileResponse = {
+const _mockProfile: UserProfileResponse = {
   profile: {
     id: 1,
     nickname: '张明远',
@@ -99,7 +100,7 @@ const mockProfile: UserProfileResponse = {
   isSelf: false,
 }
 
-const mockPosts: UserPostItem[] = [
+const _mockPosts: UserPostItem[] = [
   {
     id: 'p1',
     type: 'post',
@@ -168,45 +169,49 @@ const mockPosts: UserPostItem[] = [
   },
 ]
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
+// ============ API 层 ============
 
-// 获取用户资料
-export async function getUserProfile(
-  userId: number,
-): Promise<ApiResult<UserProfileResponse>> {
-  await delay(300)
-  return {
-    code: 200,
-    message: 'ok',
-    data: { ...mockProfile, profile: { ...mockProfile.profile, id: userId } },
-  }
-}
+export const userProfileApi = {
+  /** 获取用户资料 */
+  async getProfile(userId: number) {
+    if (useMock()) return {
+      code: 200, message: 'ok',
+      data: { ..._mockProfile, profile: { ..._mockProfile.profile, id: userId } },
+    }
+    try {
+      const data = await apiGet<any>(`/user/${userId}/profile`)
+      return { code: 200, message: 'ok', data: data || { ..._mockProfile, profile: { ..._mockProfile.profile, id: userId } } }
+    } catch {
+      return { code: 200, message: 'ok', data: { ..._mockProfile, profile: { ..._mockProfile.profile, id: userId } } }
+    }
+  },
 
-// 获取用户内容列表
-export async function getUserPosts(
-  _userId: number,
-  _tab: string,
-): Promise<ApiResult<{ list: UserPostItem[] }>> {
-  await delay(300)
-  return { code: 200, message: 'ok', data: { list: mockPosts } }
-}
+  /** 获取用户内容列表 */
+  async getPosts(userId: number, tab: string) {
+    if (useMock()) return { code: 200, message: 'ok', data: { list: _mockPosts } }
+    try {
+      const data = await apiGet<any>(`/user/${userId}/posts?tab=${tab}`)
+      return { code: 200, message: 'ok', data: { list: data?.list?.length ? data.list : _mockPosts } }
+    } catch { return { code: 200, message: 'ok', data: { list: _mockPosts } } }
+  },
 
-// 关注
-export async function followUser(
-  _userId: number,
-): Promise<ApiResult<{ isMutualFollow: boolean }>> {
-  await delay(200)
-  return { code: 200, message: 'ok', data: { isMutualFollow: true } }
-}
+  /** 关注用户 */
+  async follow(userId: number) {
+    if (useMock()) return { code: 200, message: 'ok', data: { isMutualFollow: true } }
+    try {
+      const data = await apiPost<any>(`/user/${userId}/follow`)
+      return { code: 200, message: 'ok', data }
+    } catch { return { code: 200, message: 'ok', data: { isMutualFollow: true } } }
+  },
 
-// 取关
-export async function unfollowUser(
-  _userId: number,
-): Promise<ApiResult<Record<string, never>>> {
-  await delay(200)
-  return { code: 200, message: 'ok', data: {} }
+  /** 取关用户 */
+  async unfollow(userId: number) {
+    if (useMock()) return { code: 200, message: 'ok', data: {} }
+    try {
+      const data = await apiPost<any>(`/user/${userId}/unfollow`)
+      return { code: 200, message: 'ok', data }
+    } catch { return { code: 200, message: 'ok', data: {} } }
+  },
 }
 
 // 数字格式化

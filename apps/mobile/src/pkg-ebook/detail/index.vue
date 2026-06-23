@@ -14,6 +14,19 @@
     </view>
 
     <scroll-view scroll-y class="ed-main">
+      <!-- 加载态 -->
+      <view v-if="loading" class="ed-platform">
+        <text class="ed-platform-txt">加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="ed-platform">
+        <text class="ed-platform-txt">{{ error }}</text>
+        <view class="ed-author-follow" style="margin-top:24rpx" @tap="fetchData(book.id || '1')">
+          <text class="ed-author-follow-txt">重试</text>
+        </view>
+      </view>
+      <!-- 正常内容 -->
+      <template v-else>
       <!-- Hero -->
       <view class="ed-hero">
         <view class="ed-hero-top">
@@ -155,6 +168,7 @@
         <text class="ed-platform-txt">本书由平台官方提供，内容经专业审核</text>
       </view>
       <view class="ed-bottom-space" />
+      </template><!-- v-else end -->
     </scroll-view>
 
     <!-- 底部操作栏 -->
@@ -212,24 +226,45 @@ import AppIcon from '@/components/common/app-icon.vue'
 import FlatBookCover from '@/components/ebook/flat-book-cover.vue'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
 import type { DiscussionConfig } from '@/lib/discussion-types'
+import type { DiscussionItem as DiscussionItemType } from '@/lib/discussion-types'
 import {
-  ebookDetailData,
-  ebookDiscussions,
+  ebookApi,
   ebookColorFromHex,
   EBOOK_COVER,
   type EbookChapter,
+  type EbookDetail,
 } from '@/lib/ebook-data'
 
-const book = ebookDetailData
+const loading = ref(true)
+const error = ref('')
+const book = ref<EbookDetail>({} as EbookDetail)
+const ebookDiscussions = ref<DiscussionItemType[]>([])
+
+async function fetchData(id: string) {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await ebookApi.detail(id)
+    book.value = res.book
+    ebookDiscussions.value = res.discussions
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((q: any = {}) => { fetchData(q?.id || '1') })
+
 const isFavorite = ref(false)
 const showComments = ref(false)
 const descExpanded = ref(false)
 
-const firstDiscussion = ebookDiscussions[0]
-const commentCount = ebookDiscussions.reduce((n, c) => n + 1 + c.replies.length, 0)
+const firstDiscussion = computed(() => ebookDiscussions.value[0])
+const commentCount = computed(() => ebookDiscussions.value.reduce((n, c) => n + 1 + c.replies.length, 0))
 
-const coverFromHex = computed(() => EBOOK_COVER[ebookColorFromHex(book.coverColor)].from)
-const coverToHex = computed(() => EBOOK_COVER[ebookColorFromHex(book.coverColor)].to)
+const coverFromHex = computed(() => EBOOK_COVER[ebookColorFromHex(book.value.coverColor)].from)
+const coverToHex = computed(() => EBOOK_COVER[ebookColorFromHex(book.value.coverColor)].to)
 function hexFrom(hex: string) {
   return EBOOK_COVER[ebookColorFromHex(hex)].from
 }
@@ -237,12 +272,12 @@ function hexTo(hex: string) {
   return EBOOK_COVER[ebookColorFromHex(hex)].to
 }
 
-const stats = [
-  { v: `${(book.wordCount / 10000).toFixed(1)}万`, l: '字数' },
-  { v: String(book.pageCount), l: '页数' },
-  { v: `${(book.salesCount / 1000).toFixed(1)}k`, l: '已购' },
-  { v: String(book.chapters.length), l: '章节' },
-]
+const stats = computed(() => [
+  { v: `${(book.value.wordCount / 10000).toFixed(1)}万`, l: '字数' },
+  { v: String(book.value.pageCount), l: '页数' },
+  { v: `${(book.value.salesCount / 1000).toFixed(1)}k`, l: '已购' },
+  { v: String(book.value.chapters.length), l: '章节' },
+])
 
 const discussionConfig: DiscussionConfig = {
   scene: 'classic',
@@ -251,8 +286,6 @@ const discussionConfig: DiscussionConfig = {
   accentColor: '#2563eb',
   placeholder: '分享你的读书心得…',
 }
-
-onLoad(() => {})
 
 function goBack() {
   uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/index/index', fail: () => {} }) })

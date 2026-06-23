@@ -15,68 +15,75 @@
 
     <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
       <!-- 空态 -->
-      <view v-if="addresses.length === 0" class="empty">
-        <view class="empty-icon">
-          <app-icon name="map-pin" :size="80" color="#999999" />
-        </view>
-        <text class="empty-text">暂无收货地址</text>
-        <view class="empty-btn" @tap="goEdit()">
-          <text class="empty-btn-text">添加地址</text>
-        </view>
+      <view v-if="loading" class="loading-state">加载中...</view>
+      <view v-else-if="error" class="error-state">
+        <text>{{ error }}</text>
+        <view @tap="fetchAddresses">重试</view>
       </view>
-
-      <!-- 地址列表 -->
-      <view class="list">
-        <view
-          v-for="addr in addresses"
-          :key="addr.id"
-          class="addr-wrap"
-        >
-          <!-- 删除按钮 -->
-          <view class="delete-zone" @tap="confirmDelete(addr.id)">
-            <app-icon name="trash-2" :size="44" color="#FFFFFF" />
+      <template v-else>
+        <view v-if="addresses.length === 0" class="empty">
+          <view class="empty-icon">
+            <app-icon name="map-pin" :size="80" color="#999999" />
           </view>
-          <!-- 地址卡片 -->
+          <text class="empty-text">暂无收货地址</text>
+          <view class="empty-btn" @tap="goEdit()">
+            <text class="empty-btn-text">添加地址</text>
+          </view>
+        </view>
+
+        <!-- 地址列表 -->
+        <view class="list">
           <view
-            class="addr-card"
-            :class="{ swiped: swipedId === addr.id }"
-            @touchstart="onTouchStart"
-            @touchmove="onTouchMove($event, addr.id)"
-            @touchend="onTouchEnd"
-            @tap="goEdit(addr.id)"
+            v-for="addr in addresses"
+            :key="addr.id"
+            class="addr-wrap"
           >
-            <view class="addr-top">
-              <view class="addr-pin" :class="{ active: addr.isDefault }">
-                <app-icon name="map-pin" :size="32" :color="addr.isDefault ? '#C41E3A' : '#999999'" />
-              </view>
-              <view class="addr-main">
-                <view class="addr-line1">
-                  <text class="addr-name">{{ addr.name }}</text>
-                  <text class="addr-phone">{{ addr.phone }}</text>
-                  <view v-if="addr.isDefault" class="addr-tag">
-                    <text class="addr-tag-text">默认</text>
-                  </view>
-                </view>
-                <text class="addr-detail">{{ addr.province }}{{ addr.city }}{{ addr.district }}{{ addr.address }}</text>
-              </view>
+            <!-- 删除按钮 -->
+            <view class="delete-zone" @tap="confirmDelete(addr.id)">
+              <app-icon name="trash-2" :size="44" color="#FFFFFF" />
             </view>
-
-            <view class="addr-foot">
-              <view class="foot-default" @tap.stop="setDefault(addr)">
-                <view class="radio" :class="{ checked: addr.isDefault }">
-                  <app-icon v-if="addr.isDefault" name="check" :size="18" color="#FFFFFF" />
+            <!-- 地址卡片 -->
+            <view
+              class="addr-card"
+              :class="{ swiped: swipedId === addr.id }"
+              @touchstart="onTouchStart"
+              @touchmove="onTouchMove($event, addr.id)"
+              @touchend="onTouchEnd"
+              @tap="goEdit(addr.id)"
+            >
+              <view class="addr-top">
+                <view class="addr-pin" :class="{ active: addr.isDefault }">
+                  <app-icon name="map-pin" :size="32" :color="addr.isDefault ? '#C41E3A' : '#999999'" />
                 </view>
-                <text class="foot-default-text" :class="{ active: addr.isDefault }">设为默认</text>
+                <view class="addr-main">
+                  <view class="addr-line1">
+                    <text class="addr-name">{{ addr.name }}</text>
+                    <text class="addr-phone">{{ addr.phone }}</text>
+                    <view v-if="addr.isDefault" class="addr-tag">
+                      <text class="addr-tag-text">默认</text>
+                    </view>
+                  </view>
+                  <text class="addr-detail">{{ addr.province }}{{ addr.city }}{{ addr.district }}{{ addr.address }}</text>
+                </view>
               </view>
-              <view class="foot-edit" @tap.stop="goEdit(addr.id)">
-                <text class="foot-edit-text">编辑</text>
+
+              <view class="addr-foot">
+                <view class="foot-default" @tap.stop="setDefault(addr)">
+                  <view class="radio" :class="{ checked: addr.isDefault }">
+                    <app-icon v-if="addr.isDefault" name="check" :size="18" color="#FFFFFF" />
+                  </view>
+                  <text class="foot-default-text" :class="{ active: addr.isDefault }">设为默认</text>
+                </view>
+                <view class="foot-edit" @tap.stop="goEdit(addr.id)">
+                  <text class="foot-edit-text">编辑</text>
+                </view>
               </view>
             </view>
           </view>
         </view>
-      </view>
 
-      <view class="bottom-gap" />
+        <view class="bottom-gap" />
+      </template>
     </scroll-view>
 
     <!-- 底部新增 -->
@@ -109,17 +116,33 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { shippingAddressList, type ShippingAddressItem } from '@/lib/account-data'
+import { accountApi, type ShippingAddressItem } from '@/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
 const safeBottom = ref(0)
 
-const addresses = ref<ShippingAddressItem[]>([...shippingAddressList])
+const addresses = ref<ShippingAddressItem[]>([])
 const swipedId = ref('')
 const deleteId = ref('')
+const loading = ref(false)
+const error = ref('')
+const deleting = ref(false)
 
 let touchStartX = 0
+
+async function fetchAddresses() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await accountApi.addresses()
+    addresses.value = data || []
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
 
 onLoad(() => {
   try {
@@ -131,6 +154,7 @@ onLoad(() => {
     statusBarHeight.value = 20
     navHeight.value = 64
   }
+  fetchAddresses()
 })
 
 function onTouchStart(e: any) {
@@ -161,11 +185,21 @@ function cancelDelete() {
   deleteId.value = ''
   swipedId.value = ''
 }
-function doDelete() {
-  addresses.value = addresses.value.filter((a) => a.id !== deleteId.value)
-  deleteId.value = ''
-  swipedId.value = ''
-  uni.showToast({ title: '已删除', icon: 'none' })
+async function doDelete() {
+  if (deleting.value) return
+  const idToDelete = deleteId.value
+  deleting.value = true
+  try {
+    await accountApi.deleteAddress(idToDelete)
+    addresses.value = addresses.value.filter((a) => a.id !== idToDelete)
+    deleteId.value = ''
+    swipedId.value = ''
+    uni.showToast({ title: '已删除', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } finally {
+    deleting.value = false
+  }
 }
 
 function goEdit(id?: string) {

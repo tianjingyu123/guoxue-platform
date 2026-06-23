@@ -1,26 +1,74 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
 import {
-  userData, getGreeting, roleConfig, quickFunctions, recommendations,
-  allRoleTypes, roleHref, totalMessages, type UserRole,
+  profileApi, getGreeting, roleConfig, quickFunctions,
+  allRoleTypes, roleHref, type UserRole,
 } from '@/lib/profile-data'
 
+const loading = ref(true)
+const error = ref('')
 const greeting = getGreeting()
 
+// 从 API 获取的数据（响应式）
+const userData = ref({
+  name: '',
+  avatar: '',
+  bio: '',
+  isVip: false,
+  vipLevel: '',
+  vipExpiry: '',
+  vipDaysLeft: 0,
+  isVerified: false,
+  roles: [] as import('@/lib/profile-data').RoleEntry[],
+  messages: { system: 0, interaction: 0, transaction: 0 },
+  checkIn: { todayChecked: false, continuousDays: 0, totalPoints: 0 },
+  stats: { following: 0, followers: 0, likes: 0 },
+  coins: 0,
+  coupons: 0,
+  points: 0,
+  orders: { pending: 0, shipped: 0, received: 0, refund: 0 },
+  continueLearning: null as { id: number; title: string; progress: number; lastLesson: string } | null,
+})
+const recList = ref<{ id: number; type: 'course' | 'product'; title: string; price: number; originalPrice: number; tag: string }[]>([])
+
+// totalMessages 基于 API 返回的用户数据动态计算
+const totalMessages = computed(() => {
+  const m = userData.value.messages
+  return m.system + m.interaction + m.transaction
+})
+
 // 未开通角色（申请开通引导）
-const ownedTypes = new Set(userData.roles.map((r) => r.type))
-const availableToApply = allRoleTypes.filter((r) => !ownedTypes.has(r.type))
+const ownedTypes = computed(() => new Set(userData.value.roles.map((r) => r.type)))
+const availableToApply = computed(() => allRoleTypes.filter((r) => !ownedTypes.value.has(r.type)))
 
 // 订单状态
-const orderStatus = [
-  { key: 'pending', label: '待付款', icon: 'wallet', count: userData.orders.pending },
-  { key: 'shipped', label: '待发货', icon: 'package', count: userData.orders.shipped },
-  { key: 'received', label: '待收货', icon: 'truck', count: userData.orders.received },
-  { key: 'refund', label: '售后', icon: 'refresh-cw', count: userData.orders.refund },
-]
+const orderStatus = computed(() => [
+  { key: 'pending' as const, label: '待付款', icon: 'wallet', count: userData.value.orders.pending },
+  { key: 'shipped' as const, label: '待发货', icon: 'package', count: userData.value.orders.shipped },
+  { key: 'received' as const, label: '待收货', icon: 'truck', count: userData.value.orders.received },
+  { key: 'refund' as const, label: '售后', icon: 'refresh-cw', count: userData.value.orders.refund },
+])
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await profileApi.getProfile()
+    userData.value = data
+    recList.value = await profileApi.recommendations()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchData()
+})
 
 // 身份切换确认弹窗
 const pendingRole = ref<{ type: UserRole; name: string; href: string } | null>(null)
@@ -40,10 +88,49 @@ function confirmRole() {
 function applyRole(type: UserRole) {
   toastComingSoon()
 }
+
+// 签到（防重复提交）
+const checkInSubmitting = ref(false)
+async function handleCheckIn() {
+  if (checkInSubmitting.value) return
+  checkInSubmitting.value = true
+  try {
+    const res = await profileApi.checkIn()
+    if (res.success) {
+      userData.value.checkIn = {
+        ...userData.value.checkIn,
+        todayChecked: true,
+        continuousDays: userData.value.checkIn.continuousDays + 1,
+        totalPoints: userData.value.checkIn.totalPoints + res.points,
+      }
+      uni.showToast({ title: `签到成功 +${res.points}积分`, icon: 'none' })
+    }
+  } catch {
+    uni.showToast({ title: '签到失败，请重试', icon: 'none' })
+  } finally {
+    checkInSubmitting.value = false
+  }
+}
 </script>
 
 <template>
   <view class="page">
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="skeleton">
+      <view class="skeleton-hero" />
+      <view class="skeleton-sec" />
+      <view class="skeleton-sec" />
+      <view class="skeleton-sec" />
+      <text class="skeleton-text">加载中...</text>
+    </view>
+    <!-- 错误态 -->
+    <view v-else-if="error" class="error-state">
+      <text class="error-text">{{ error }}</text>
+      <view class="retry-btn" @tap="fetchData">
+        <text>重试</text>
+      </view>
+    </view>
+    <template v-else>
     <!-- ===== 第一层：个人信息区 ===== -->
     <view class="hero">
       <view class="hero-bg" />
@@ -187,7 +274,7 @@ function applyRole(type: UserRole) {
 
     <!-- ===== 签到入口 ===== -->
     <view class="sec">
-      <view class="checkin-card" @tap="toastComingSoon">
+      <view class="checkin-card" :class="{ 'checkin-submitting': checkInSubmitting }" @tap="handleCheckIn">
         <view class="checkin-left">
           <view class="checkin-icon"><AppIcon name="calendar-check" :size="36" color="#ffffff" /></view>
           <view>
@@ -227,7 +314,7 @@ function applyRole(type: UserRole) {
       </view>
       <scroll-view scroll-x class="rec-scroll" :show-scrollbar="false">
         <view class="rec-row">
-          <view v-for="item in recommendations" :key="item.id" class="rec-item" @tap="toastComingSoon">
+          <view v-for="item in recList" :key="item.id" class="rec-item" @tap="toastComingSoon">
             <view class="rec-cover">
               <AppIcon :name="item.type === 'course' ? 'book-open' : 'package'" :size="56" :color="item.type === 'course' ? 'rgba(196,30,58,0.3)' : 'rgba(201,169,110,0.3)'" />
               <text v-if="item.tag" class="rec-tag">{{ item.tag }}</text>
@@ -268,6 +355,7 @@ function applyRole(type: UserRole) {
       </view>
     </view>
 
+    </template>
     <bottom-nav active="profile" />
   </view>
 </template>
@@ -406,4 +494,19 @@ function applyRole(type: UserRole) {
 .modal-cancel-txt { font-size: 28rpx; color: #999; }
 .modal-confirm { flex: 1; padding: 28rpx 0; text-align: center; background: #C41E3A; border-left: 2rpx solid #f0ece4; }
 .modal-confirm-txt { font-size: 28rpx; font-weight: 500; color: #fff; }
+
+/* 三态：骨架屏 / 错误态 */
+.skeleton { padding-top: 120rpx; display: flex; flex-direction: column; align-items: center; gap: 32rpx; }
+.skeleton-hero { width: 686rpx; height: 320rpx; border-radius: 24rpx; background: linear-gradient(90deg, #f0ece4 25%, #e8e0d5 50%, #f0ece4 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+.skeleton-sec { width: 686rpx; height: 160rpx; border-radius: 24rpx; background: linear-gradient(90deg, #f0ece4 25%, #e8e0d5 50%, #f0ece4 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+.skeleton-text { font-size: 28rpx; color: #999; margin-top: 16rpx; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+.error-state { padding: 200rpx 64rpx 0; display: flex; flex-direction: column; align-items: center; gap: 32rpx; }
+.error-text { font-size: 28rpx; color: #999; text-align: center; }
+.retry-btn { padding: 16rpx 48rpx; border-radius: 999rpx; border: 2rpx solid #C41E3A; }
+.retry-btn text { font-size: 28rpx; color: #C41E3A; }
+
+/* 签到提交中 */
+.checkin-submitting { opacity: 0.6; pointer-events: none; }
 </style>

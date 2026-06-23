@@ -1,10 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { audioBookPlayerData } from '@/lib/classics-data'
+import { classicsApi, type AudioBookDetail } from '@/lib/classics-data'
 
 const bookId = ref('default')
-const book = computed(() => audioBookPlayerData[bookId.value] || audioBookPlayerData.default)
+const book = ref<AudioBookDetail | null>(null)
+const loading = ref(true)
+const error = ref('')
+
+async function fetchData(id: string) {
+  loading.value = true
+  error.value = ''
+  try {
+    book.value = await classicsApi.audiobookPlayer(id)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 const isPlaying = ref(false)
 const progress = ref(0)
@@ -13,7 +27,7 @@ const speed = ref(1)
 const liked = ref(false)
 const showChapters = ref(false)
 
-const chapter = computed(() => book.value.chapters[currentChapter.value])
+const chapter = computed(() => book.value?.chapters?.[currentChapter.value] ?? { id: 0, title: '', duration: '' })
 
 const curMin = computed(() => Math.floor((progress.value / 100) * 8))
 const curSec = computed(() =>
@@ -33,6 +47,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 
 onLoad((q) => {
   if (q && q.id) bookId.value = q.id
+  fetchData(bookId.value)
 })
 
 function goBack() {
@@ -56,7 +71,7 @@ function prevChapter() {
   playChapter(Math.max(0, currentChapter.value - 1))
 }
 function nextChapter() {
-  playChapter(Math.min(book.value.chapters.length - 1, currentChapter.value + 1))
+  playChapter(Math.min((book.value?.chapters.length ?? 1) - 1, currentChapter.value + 1))
 }
 </script>
 
@@ -77,6 +92,18 @@ function nextChapter() {
     </view>
 
     <view class="ap-main">
+      <!-- 加载态 -->
+      <view v-if="loading" style="text-align:center;padding-top:128rpx;">
+        <text style="color:var(--muted-foreground);font-size:28rpx;">加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" style="text-align:center;padding-top:128rpx;">
+        <text style="color:#c41e3a;font-size:28rpx;">{{ error }}</text>
+        <view style="margin-top:24rpx;" @tap="fetchData(bookId)">
+          <text style="color:var(--muted-foreground);">重试</text>
+        </view>
+      </view>
+      <template v-else-if="book">
       <!-- 旋转唱片封面 -->
       <view class="ap-disc" :class="{ 'ap-disc--spin': isPlaying }">
         <view class="ap-disc-ring ap-disc-ring1" />
@@ -141,11 +168,12 @@ function nextChapter() {
       </view>
     </view>
 
+      </template>
     <!-- 章节目录抽屉 -->
     <view v-if="showChapters" class="ap-mask" @tap="showChapters = false">
       <view class="ap-sheet" @tap.stop>
         <view class="ap-sheet-head">
-          <text class="ap-sheet-title">目录 · 共{{ book.chapters.length }}章</text>
+          <text class="ap-sheet-title">目录 · 共{{ book?.chapters?.length ?? 0 }}章</text>
           <text class="ap-sheet-close" @tap="showChapters = false">关闭</text>
         </view>
         <scroll-view scroll-y class="ap-sheet-list">

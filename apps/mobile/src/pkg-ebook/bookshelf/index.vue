@@ -41,8 +41,19 @@
 
     <!-- 内容 -->
     <view class="ebs-main">
+      <!-- 加载态 -->
+      <view v-if="loading" class="ebs-empty">
+        <text class="ebs-empty-title">加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="ebs-empty">
+        <text class="ebs-empty-title">{{ error }}</text>
+        <view class="ebs-empty-btn" @tap="fetchData()">
+          <text class="ebs-empty-btn-txt">重试</text>
+        </view>
+      </view>
       <!-- 空态 -->
-      <view v-if="sortedBooks.length === 0" class="ebs-empty">
+      <view v-else-if="sortedBooks.length === 0" class="ebs-empty">
         <app-icon name="bookmark" :size="112" color="#e2e8f0" />
         <text class="ebs-empty-title">书架空空如也</text>
         <text class="ebs-empty-sub">去买几本好书吧</text>
@@ -157,9 +168,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import FlatBookCover from '@/components/ebook/flat-book-cover.vue'
 import {
-  ebookShelfBooks,
+  ebookApi,
   ebookShelfFilters,
   type EbookFilterType,
   type EbookShelfBook,
@@ -168,8 +180,24 @@ import {
 const filter = ref<EbookFilterType>('all')
 const viewMode = ref<'grid' | 'list'>('grid')
 const activeMenu = ref<string | null>(null)
-const books = ref<EbookShelfBook[]>([...ebookShelfBooks])
+const books = ref<EbookShelfBook[]>([])
 const filters = ebookShelfFilters
+const loading = ref(true)
+const error = ref('')
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    books.value = await ebookApi.bookshelf()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad(() => { fetchData() })
 
 const filteredBooks = computed(() =>
   books.value.filter((b) => {

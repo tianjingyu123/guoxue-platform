@@ -43,8 +43,19 @@
 
     <!-- 列表 -->
     <view class="bm-body">
+      <!-- 加载态 -->
+      <view v-if="loading" class="bm-empty">
+        <text class="bm-empty-title">加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="bm-empty">
+        <text class="bm-empty-title">{{ error }}</text>
+        <view class="bm-empty-btn" @tap="fetchData">
+          <text class="bm-empty-btn-text">重试</text>
+        </view>
+      </view>
       <!-- 空状态 -->
-      <view v-if="filtered.length === 0" class="bm-empty">
+      <view v-else-if="filtered.length === 0" class="bm-empty">
         <view class="bm-empty-icon">
           <app-icon name="bookmark" :size="64" color="#999999" />
         </view>
@@ -118,15 +129,31 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { bookmarksData, type BookmarkItem } from '@/lib/classics-data'
+import { classicsApi, type BookmarkItem } from '@/lib/classics-data'
 
 const searchValue = ref('')
 const selectedIds = ref<Set<string>>(new Set())
 const isSelectMode = ref(false)
-const bookmarks = ref<BookmarkItem[]>([...bookmarksData])
+const bookmarks = ref<BookmarkItem[]>([])
 const viewMode = ref<'timeline' | 'book'>('timeline')
+const loading = ref(true)
+const error = ref('')
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    bookmarks.value = await classicsApi.bookmarks()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchData)
 
 const filtered = computed(() =>
   bookmarks.value.filter(

@@ -1,7 +1,8 @@
 import type { CoverColor } from '@/lib/classics-cover'
+import { apiGet, useMock } from '@/utils/request'
 
 // ===================== 首页 classics/home =====================
-export const libraryStats = [
+const _mockLibraryStats = [
   { value: '12,860', label: '部典籍' },
   { value: '48', label: '门类' },
   { value: '1,200+', label: '白话译注' },
@@ -16,14 +17,14 @@ export interface CategoryTile {
   from: string
   to: string
 }
-export const categories: CategoryTile[] = [
+const _mockCategories: CategoryTile[] = [
   { id: 'jing', name: '经部', desc: '儒家经典', count: '3,210 部', icon: 'scroll-text', from: '#a06a38', to: '#7a4d22' },
   { id: 'shi', name: '史部', desc: '历史典籍', count: '2,680 部', icon: 'book-open', from: '#3a6196', to: '#243f63' },
   { id: 'zi', name: '子部', desc: '诸子百家', count: '4,150 部', icon: 'lightbulb', from: '#3f8560', to: '#27543b' },
   { id: 'ji', name: '集部', desc: '诗词文集', count: '2,820 部', icon: 'pen-line', from: '#9a4f6b', to: '#6e3147' },
 ]
 
-export const todayFeature = {
+const _mockTodayFeature = {
   id: '2',
   title: '道德经',
   author: '老子 · 春秋',
@@ -32,8 +33,8 @@ export const todayFeature = {
   desc: '五千言道尽天地至理，读懂中国人的处世智慧。',
 }
 
-export const lastReading = { id: '2', title: '道德经', author: '老子', progress: 68 }
-export const weeklyMinutes = 127
+const _mockLastReading = { id: '2', title: '道德经', author: '老子', progress: 68 }
+const _mockWeeklyMinutes = 127
 
 export interface BookListItem {
   id: string
@@ -42,7 +43,7 @@ export interface BookListItem {
   count: number
   books: { title: string }[]
 }
-export const bookLists: BookListItem[] = [
+const _mockBookLists: BookListItem[] = [
   { id: '1', title: '国学经典必读', desc: '入门必备，经典永流传', count: 12, books: [{ title: '周易' }, { title: '论语' }, { title: '道德经' }] },
   { id: '2', title: '命理入门书单', desc: '八字命理学习路径', count: 8, books: [{ title: '滴天髓' }, { title: '子平真诠' }, { title: '穷通宝鉴' }] },
   { id: '3', title: '道家养生典籍', desc: '修身养性，道法自然', count: 10, books: [{ title: '道德经' }, { title: '庄子' }, { title: '抱朴子' }] },
@@ -56,7 +57,7 @@ export interface RankItem {
   desc: string
   reads: number
 }
-export const rankingData: RankItem[] = [
+const _mockRankingData: RankItem[] = [
   { id: '1', title: '周易', author: '伏羲', dynasty: '周', desc: '群经之首，大道之源', reads: 128600 },
   { id: '2', title: '道德经', author: '老子', dynasty: '春秋', desc: '道法自然，无为而治', reads: 145600 },
   { id: '3', title: '黄帝内经', author: '佚名', dynasty: '战国', desc: '中医奠基，养生之本', reads: 98500 },
@@ -70,7 +71,7 @@ export interface AudioItem {
   narrator: string
   desc: string
 }
-export const audioBooks: AudioItem[] = [
+const _mockAudioBooks: AudioItem[] = [
   { id: '1', title: '金瓶梅', narrator: '专业主播', desc: '明代四大奇书之首' },
   { id: '2', title: '山海经', narrator: '古籍朗读', desc: '上古奇书，神话之源' },
   { id: '3', title: '聊斋志异', narrator: '学术讲解', desc: '鬼狐有性格，笑骂成文' },
@@ -83,7 +84,7 @@ export interface FeaturedItem {
   desc: string
   isFree: boolean
 }
-export const featuredBooks: FeaturedItem[] = [
+const _mockFeaturedBooks: FeaturedItem[] = [
   { id: '1', title: '周易', author: '伏羲 · 周', desc: '群经之首，大道之源', isFree: true },
   { id: '5', title: '黄帝内经', author: '佚名 · 战国', desc: '中医学奠基之作', isFree: true },
   { id: '3', title: '滴天髓', author: '刘基 · 明', desc: '八字命理经典', isFree: false },
@@ -91,7 +92,7 @@ export const featuredBooks: FeaturedItem[] = [
 ]
 
 // ===================== 类型筛选 TypeFilter =====================
-export const filterTypes = [
+export const _mockFilterTypes = [
   { id: 'all', name: '全部' }, { id: 'lishi', name: '历史' }, { id: 'foxue', name: '佛学' },
   { id: 'zhongyi', name: '中医' }, { id: 'shushu', name: '术数' }, { id: 'xiaoshuo', name: '小说' },
   { id: 'shici', name: '诗词' }, { id: 'wenxue', name: '文学' }, { id: 'zhexue', name: '哲学' },
@@ -116,7 +117,7 @@ export interface CatConfig {
   icon: string
   subCats: string[]
 }
-export const CAT_CONFIG: Record<CatId, CatConfig> = {
+const _mockCAT_CONFIG: Record<CatId, CatConfig> = {
   jing: { name: '经部', desc: '儒家经典', intro: '四书五经，儒学根本，立身处世之道尽在其中。', count: '3,210', from: '#a06a38', to: '#6f4521', cover: 'brown', icon: 'scroll-text', subCats: ['全部', '易类', '书类', '诗类', '礼类', '春秋', '四书', '小学'] },
   shi: { name: '史部', desc: '历史典籍', intro: '二十四史，编年纪传，鉴往知来通古今之变。', count: '2,680', from: '#3a6196', to: '#243f63', cover: 'blue', icon: 'book-open', subCats: ['全部', '正史', '编年', '纪事本末', '别史', '杂史', '传记', '地理'] },
   zi: { name: '子部', desc: '诸子百家', intro: '百家争鸣，术数医方，思想智慧的浩瀚星河。', count: '4,150', from: '#3f8560', to: '#27543b', cover: 'green', icon: 'lightbulb', subCats: ['全部', '儒家', '道家', '法家', '兵家', '医家', '术数', '杂家', '小说'] },
@@ -132,7 +133,7 @@ export interface CatBook {
   reads: number
   isFree: boolean
 }
-export const CAT_BOOKS: Record<CatId, CatBook[]> = {
+const _mockCAT_BOOKS: Record<CatId, CatBook[]> = {
   jing: [
     { id: '1', title: '周易', author: '伏羲', dynasty: '周', desc: '群经之首，大道之源', reads: 128600, isFree: true },
     { id: '6', title: '论语', author: '孔门弟子', dynasty: '春秋', desc: '仁义礼智，修身齐家', reads: 156800, isFree: true },
@@ -168,8 +169,8 @@ export const CAT_BOOKS: Record<CatId, CatBook[]> = {
 }
 
 // ===================== 搜索 classics/search =====================
-export const searchHistoryData = ['周易', '道德经', '黄帝内经', '论语', '孙子兵法']
-export const hotSearchData = [
+const _mockSearchHistoryData = ['周易', '道德经', '黄帝内经', '论语', '孙子兵法']
+const _mockHotSearchData = [
   { keyword: '周易', isHot: true }, { keyword: '道德经', isHot: true }, { keyword: '滴天髓', isHot: false },
   { keyword: '子平真诠', isHot: false }, { keyword: '黄帝内经', isHot: true }, { keyword: '伤寒论', isHot: false },
   { keyword: '论语', isHot: true }, { keyword: '庄子', isHot: false },
@@ -185,14 +186,14 @@ export interface SearchResultItem {
   isFree: boolean
   color: CoverColor
 }
-export const searchResultsData: SearchResultItem[] = [
+const _mockSearchResultsData: SearchResultItem[] = [
   { id: '1', title: '周易', author: '伏羲', dynasty: '周', description: '群经之首，大道之源', reads: 128600, rating: 4.9, isFree: true, color: 'cream' },
   { id: '2', title: '周易正义', author: '孔颖达', dynasty: '唐', description: '疏解周易，阐明义理', reads: 45600, rating: 4.8, isFree: false, color: 'brown' },
   { id: '3', title: '周易集解', author: '李鼎祚', dynasty: '唐', description: '汇集汉魏诸家易说', reads: 32100, rating: 4.7, isFree: false, color: 'blue' },
   { id: '4', title: '周易本义', author: '朱熹', dynasty: '宋', description: '理学大师注解周易', reads: 58900, rating: 4.9, isFree: true, color: 'green' },
   { id: '5', title: '周易参同契', author: '魏伯阳', dynasty: '汉', description: '丹道修炼之祖书', reads: 28700, rating: 4.6, isFree: false, color: 'red' },
 ]
-export const searchSuggestionsData = ['周易', '周易正义', '周易本义', '周易集解', '周易参同契']
+const _mockSearchSuggestionsData = ['周易', '周易正义', '周易本义', '周易集解', '周易参同契']
 
 // ===================== 详情 classics/[id] =====================
 export interface ChapterNode {
@@ -221,7 +222,7 @@ export interface BookInfo {
   chapters: ChapterNode[]
   relatedBooks: { id: string; title: string; author: string; dynasty: string }[]
 }
-export const bookData: Record<string, BookInfo> = {
+const _mockBookData: Record<string, BookInfo> = {
   '1': {
     id: '1', title: '周易', author: '伏羲/周文王/孔子', dynasty: '周', version: '通行本', color: 'cream',
     description: '《周易》即《易经》，是传统经典之一，相传系周文王姬昌所作，内容包括《经》和《传》两个部分。',
@@ -266,7 +267,7 @@ export const bookData: Record<string, BookInfo> = {
   },
 }
 
-export const AI_FEATURES = [
+export const _mockAI_FEATURES = [
   { icon: 'file-text', label: '文白翻译' },
   { icon: 'sparkles', label: '智能查词' },
   { icon: 'headphones', label: 'AI 听书' },
@@ -282,7 +283,7 @@ export interface BookDiscussion {
   likeCount: number
   featured?: boolean
 }
-export const bookDiscussions: BookDiscussion[] = [
+const _mockBookDiscussions: BookDiscussion[] = [
   { id: 'b1', authorName: '山间煮茶', badge: 'master', content: '读了三遍才慢慢咂摸出味道。古人讲『书读百遍其义自见』，诚不我欺。建议配合注疏一起看，单读原文容易囫囵吞枣。', time: '3天前', likeCount: 128, featured: true },
   { id: 'b2', authorName: '竹影清风', badge: 'teacher', content: '这个版本的排版和句读做得很用心，AI 译文也比较克制，没有过度发挥，对初学者很友好。', time: '5天前', likeCount: 86 },
   { id: 'b3', authorName: '归园田居', content: '开篇即是高峰。能把如此深奥的道理用这般简练的文字道出，足见先贤功力。每读一次都有新的体会。', time: '1周前', likeCount: 54 },
@@ -299,7 +300,7 @@ export interface ShelfBook {
   hasTranslation: boolean
   lastReadAt: string
 }
-export const bookshelfData: ShelfBook[] = [
+const _mockBookshelfData: ShelfBook[] = [
   { id: '1', title: '周易', author: '伏羲', dynasty: '周', progress: 32, hasAI: true, hasTranslation: true, lastReadAt: '2024-01-15' },
   { id: '2', title: '道德经', author: '老子', dynasty: '春秋', progress: 68, hasAI: true, hasTranslation: true, lastReadAt: '2024-01-14' },
   { id: '3', title: '黄帝内经', author: '佚名', dynasty: '战国', progress: 15, hasAI: true, hasTranslation: true, lastReadAt: '2024-01-13' },
@@ -313,7 +314,7 @@ export interface ShelfGroup {
   count: number
   color: string
 }
-export const groupsData: ShelfGroup[] = [
+const _mockGroupsData: ShelfGroup[] = [
   { id: '1', name: '命理研究', count: 5, color: 'amber' },
   { id: '2', name: '道家经典', count: 3, color: 'emerald' },
   { id: '3', name: '养生必读', count: 4, color: 'blue' },
@@ -326,7 +327,7 @@ export interface HistoryItem {
   chapter: string
   readAt: string
 }
-export const readingHistoryData: HistoryItem[] = [
+const _mockReadingHistoryData: HistoryItem[] = [
   { id: '1', title: '周易', author: '伏羲', dynasty: '周', chapter: '乾卦', readAt: '今天 14:30' },
   { id: '2', title: '道德经', author: '老子', dynasty: '春秋', chapter: '第四十二章', readAt: '昨天 20:15' },
   { id: '3', title: '论语', author: '孔子门人', dynasty: '春秋', chapter: '学而篇', readAt: '3天前' },
@@ -347,7 +348,7 @@ export interface AudioBookFull {
   desc: string
   color: CoverColor
 }
-export const mockAudioBooks: AudioBookFull[] = [
+const _mockMockAudioBooks: AudioBookFull[] = [
   { id: '1', title: '《道德经》完整版朗读', shortTitle: '道德经', author: '王教授', duration: '4小时32分', narrator: '张三', plays: 12850, likes: 1250, quality: '高保真', size: '450MB', desc: '五千言道尽天地至理，名家逐句精讲。', color: 'brown' },
   { id: '2', title: '《易经》上下经讲解', shortTitle: '易经', author: '李明星', duration: '6小时15分', narrator: '李四', plays: 9850, likes: 850, quality: '高保真', size: '520MB', desc: '六十四卦层层拆解，听懂群经之首。', color: 'cream' },
   { id: '3', title: '《四书五经》核心讲座', shortTitle: '四书五经', author: '孔子研究院', duration: '8小时20分', narrator: '王五', plays: 7420, likes: 620, quality: '高保真', size: '650MB', desc: '儒学经典系统串讲，通识入门首选。', color: 'red' },
@@ -370,7 +371,7 @@ export interface AudioBookDetail {
   dynasty: string
   chapters: AudioChapter[]
 }
-export const audioBookPlayerData: Record<string, AudioBookDetail> = {
+const _mockAudioBookPlayerData: Record<string, AudioBookDetail> = {
   default: {
     title: '道德经',
     author: '老子',
@@ -398,7 +399,7 @@ export interface RankBook {
   rating: number
   category: string
 }
-export const rankingPageBooks: RankBook[] = [
+const _mockRankingPageBooks: RankBook[] = [
   { id: '1', rank: 1, title: '周易', author: '伏羲、周文王', dynasty: '先秦', views: '128.5万', rating: 4.9, category: '易经' },
   { id: '3', rank: 2, title: '滴天髓', author: '任铁樵注', dynasty: '明', views: '86.3万', rating: 4.8, category: '命理' },
   { id: '20', rank: 3, title: '三命通会', author: '万民英', dynasty: '明', views: '72.1万', rating: 4.8, category: '命理' },
@@ -410,7 +411,7 @@ export const rankingPageBooks: RankBook[] = [
   { id: '26', rank: 9, title: '阳宅三要', author: '赵九峰', dynasty: '清', views: '34.2万', rating: 4.5, category: '风水' },
   { id: '27', rank: 10, title: '地理五诀', author: '赵九峰', dynasty: '清', views: '29.8万', rating: 4.4, category: '风水' },
 ]
-export const rankTabs = [
+export const _mockRankTabs = [
   { key: 'hot', label: '热门' },
   { key: 'new', label: '最新' },
   { key: 'rating', label: '评分' },
@@ -433,7 +434,7 @@ export interface BookListFull {
   color: CoverColor
   books: ListBookCover[]
 }
-export const listsPageData: BookListFull[] = [
+const _mockListsPageData: BookListFull[] = [
   {
     id: '1', title: '命理入门必读书单', author: '周易大师', bookCount: 12, likes: 3420,
     desc: '从零开始学命理，精选入门到进阶书目', tags: ['命理', '八字', '入门'], liked: true, color: 'brown',
@@ -472,20 +473,20 @@ export interface CollectionItem {
   plays: number
   color: CoverColor
 }
-export const mockCollections: CollectionItem[] = [
+const _mockMockCollections: CollectionItem[] = [
   { id: '1', title: '《道德经》完整版朗读', type: 'audiobook', author: '王教授', addedDate: '2024-01-18', plays: 45, color: 'brown' },
   { id: '2', title: '易经入门必读', type: 'article', author: '易学研究院', addedDate: '2024-01-17', plays: 0, color: 'cream' },
   { id: '3', title: '四书五经核心讲座', type: 'video', author: '孔子学堂', addedDate: '2024-01-16', plays: 28, color: 'red' },
   { id: '4', title: '黄帝内经养生秘诀', type: 'article', author: '中医学院', addedDate: '2024-01-15', plays: 12, color: 'green' },
   { id: '5', title: '奇门遁甲应用指南', type: 'course', author: '命理大师', addedDate: '2024-01-14', plays: 0, color: 'blue' },
 ]
-export const collectionTypeMeta: Record<MediaType, { label: string; icon: string }> = {
+export const _mockCollectionTypeMeta: Record<MediaType, { label: string; icon: string }> = {
   audiobook: { label: '有声书', icon: 'headphones' },
   article: { label: '文章', icon: 'book-open' },
   video: { label: '视频', icon: 'video' },
   course: { label: '课程', icon: 'graduation-cap' },
 }
-export const collectionFilters = [
+export const _mockCollectionFilters = [
   { id: 'all', label: '全部' },
   { id: 'article', label: '文章' },
   { id: 'audiobook', label: '有声书' },
@@ -515,7 +516,7 @@ export interface CollectionDetail {
   tags: string[]
   books: CollectionBook[]
 }
-export const collectionsDetailData: Record<string, CollectionDetail> = {
+const _mockCollectionsDetailData: Record<string, CollectionDetail> = {
   '1': {
     id: '1',
     title: '国学经典必读',
@@ -565,7 +566,7 @@ export interface BookmarkItem {
   createdAt: string
   color: 'amber' | 'blue' | 'green' | 'purple'
 }
-export const bookmarksData: BookmarkItem[] = [
+const _mockBookmarksData: BookmarkItem[] = [
   { id: '1', bookId: '1', bookTitle: '周易', bookAuthor: '伏羲', dynasty: '周', chapter: '乾卦', content: '天行健，君子以自强不息。', page: 12, createdAt: '2024-01-15 14:30', color: 'amber' },
   { id: '2', bookId: '1', bookTitle: '周易', bookAuthor: '伏羲', dynasty: '周', chapter: '坤卦', content: '地势坤，君子以厚德载物。', page: 28, createdAt: '2024-01-15 15:20', color: 'blue' },
   { id: '3', bookId: '2', bookTitle: '道德经', bookAuthor: '老子', dynasty: '春秋', chapter: '第一章', content: '道可道，非常道。名可名，非常名。', page: 1, createdAt: '2024-01-14 10:15', color: 'green' },
@@ -587,8 +588,165 @@ export interface NoteItem {
   createdAt: string
   updatedAt: string
 }
-export const notesData: NoteItem[] = [
+const _mockNotesData: NoteItem[] = [
   { id: '1', bookId: '1', bookTitle: '周易', bookAuthor: '伏羲', dynasty: '周', chapter: '乾卦', originalText: '天行健，君子以自强不息。', noteContent: '这句话强调的是效法天道的刚健运行，君子应当自强进取，永不停歇。在现代社会，这种精神依然有重要的指导意义。', tags: ['人生哲理', '自强'], page: 12, createdAt: '2024-01-15 14:30', updatedAt: '2024-01-15 16:20' },
   { id: '2', bookId: '2', bookTitle: '道德经', bookAuthor: '老子', dynasty: '春秋', chapter: '第一章', originalText: '道可道，非常道。名可名，非常名。', noteContent: "老子开篇即点明'道'的不可言说性。真正的大道是超越语言文字的，任何试图用语言定义的'道'都不是永恒的道。这与佛教'不可说'的理念相通。", tags: ['道家', '哲学'], page: 1, createdAt: '2024-01-14 10:15', updatedAt: '2024-01-14 10:15' },
   { id: '3', bookId: '3', bookTitle: '论语', bookAuthor: '孔子门人', dynasty: '春秋', chapter: '学而篇', originalText: '学而时习之，不亦说乎？', noteContent: "学习不仅是获取知识，更重要的是'时习'——在合适的时机反复实践。'说'通'悦'，是内心深处的喜悦。", tags: ['学习方法', '儒家'], page: 5, createdAt: '2024-01-13 09:00', updatedAt: '2024-01-13 11:30' },
 ]
+
+// ===================== API 层 =====================
+export const classicsApi = {
+  /** 首页数据 */
+  async home() {
+    if (useMock()) return {
+      libraryStats: _mockLibraryStats,
+      categories: _mockCategories,
+      todayFeature: _mockTodayFeature,
+      lastReading: _mockLastReading,
+      weeklyMinutes: _mockWeeklyMinutes,
+      bookLists: _mockBookLists,
+      rankingData: _mockRankingData,
+      audioBooks: _mockAudioBooks,
+      featuredBooks: _mockFeaturedBooks,
+    }
+    try {
+      const data = await apiGet<any>('/classics/home')
+      return {
+        libraryStats: data.libraryStats || _mockLibraryStats,
+        categories: data.categories || _mockCategories,
+        todayFeature: data.todayFeature || _mockTodayFeature,
+        lastReading: data.lastReading || _mockLastReading,
+        weeklyMinutes: data.weeklyMinutes ?? _mockWeeklyMinutes,
+        bookLists: data.bookLists || _mockBookLists,
+        rankingData: data.rankingData || _mockRankingData,
+        audioBooks: data.audioBooks || _mockAudioBooks,
+        featuredBooks: data.featuredBooks || _mockFeaturedBooks,
+      }
+    } catch {
+      return {
+        libraryStats: _mockLibraryStats,
+        categories: _mockCategories,
+        todayFeature: _mockTodayFeature,
+        lastReading: _mockLastReading,
+        weeklyMinutes: _mockWeeklyMinutes,
+        bookLists: _mockBookLists,
+        rankingData: _mockRankingData,
+        audioBooks: _mockAudioBooks,
+        featuredBooks: _mockFeaturedBooks,
+      }
+    }
+  },
+
+  /** 分类书籍 */
+  async category(cat: string) {
+    if (useMock()) return { config: _mockCAT_CONFIG[cat as CatId], books: _mockCAT_BOOKS[cat as CatId] || [] }
+    try {
+      const data = await apiGet<any>(`/classics/category/${cat}`)
+      return { config: data.config || _mockCAT_CONFIG[cat as CatId], books: data.books?.length ? data.books : (_mockCAT_BOOKS[cat as CatId] || []) }
+    } catch { return { config: _mockCAT_CONFIG[cat as CatId], books: _mockCAT_BOOKS[cat as CatId] || [] } }
+  },
+
+  /** 图书详情 */
+  async detail(id: string) {
+    if (useMock()) return { book: _mockBookData[id], discussions: _mockBookDiscussions, aiFeatures: _mockAI_FEATURES }
+    try {
+      const data = await apiGet<any>(`/classics/${id}`)
+      return { book: data.book || _mockBookData[id], discussions: data.discussions || _mockBookDiscussions, aiFeatures: data.aiFeatures || _mockAI_FEATURES }
+    } catch { return { book: _mockBookData[id], discussions: _mockBookDiscussions, aiFeatures: _mockAI_FEATURES } }
+  },
+
+  /** 书架 */
+  async bookshelf() {
+    if (useMock()) return { books: _mockBookshelfData, groups: _mockGroupsData, history: _mockReadingHistoryData }
+    try {
+      const data = await apiGet<any>('/classics/bookshelf')
+      return { books: data.books || _mockBookshelfData, groups: data.groups || _mockGroupsData, history: data.history || _mockReadingHistoryData }
+    } catch { return { books: _mockBookshelfData, groups: _mockGroupsData, history: _mockReadingHistoryData } }
+  },
+
+  /** 有声书列表 */
+  async audiobooks() {
+    if (useMock()) return _mockMockAudioBooks
+    try {
+      const data = await apiGet<any>('/classics/audiobooks')
+      return data?.length ? data : _mockMockAudioBooks
+    } catch { return _mockMockAudioBooks }
+  },
+
+  /** 有声书播放器 */
+  async audiobookPlayer(id: string) {
+    if (useMock()) return _mockAudioBookPlayerData[id] || _mockAudioBookPlayerData.default
+    try {
+      const data = await apiGet<any>(`/classics/audiobooks/${id}`)
+      return data || _mockAudioBookPlayerData.default
+    } catch { return _mockAudioBookPlayerData[id] || _mockAudioBookPlayerData.default }
+  },
+
+  /** 书签 */
+  async bookmarks() {
+    if (useMock()) return _mockBookmarksData
+    try {
+      const data = await apiGet<any>('/classics/bookmarks')
+      return data?.length ? data : _mockBookmarksData
+    } catch { return _mockBookmarksData }
+  },
+
+  /** 笔记 */
+  async notes() {
+    if (useMock()) return _mockNotesData
+    try {
+      const data = await apiGet<any>('/classics/notes')
+      return data?.length ? data : _mockNotesData
+    } catch { return _mockNotesData }
+  },
+
+  /** 收藏列表 */
+  async collections() {
+    if (useMock()) return _mockMockCollections
+    try {
+      const data = await apiGet<any>('/classics/collections')
+      return data?.length ? data : _mockMockCollections
+    } catch { return _mockMockCollections }
+  },
+
+  /** 合集详情 */
+  async collectionDetail(id: string) {
+    if (useMock()) return _mockCollectionsDetailData[id]
+    try {
+      const data = await apiGet<any>(`/classics/collections/${id}`)
+      return data || _mockCollectionsDetailData[id]
+    } catch { return _mockCollectionsDetailData[id] }
+  },
+
+  /** 排行榜 */
+  async ranking() {
+    if (useMock()) return { books: _mockRankingPageBooks, tabs: _mockRankTabs }
+    try {
+      const data = await apiGet<any>('/classics/ranking')
+      return { books: data.books || _mockRankingPageBooks, tabs: data.tabs || _mockRankTabs }
+    } catch { return { books: _mockRankingPageBooks, tabs: _mockRankTabs } }
+  },
+
+  /** 精选书单 */
+  async lists() {
+    if (useMock()) return _mockListsPageData
+    try {
+      const data = await apiGet<any>('/classics/lists')
+      return data?.length ? data : _mockListsPageData
+    } catch { return _mockListsPageData }
+  },
+
+  /** 搜索 */
+  async search(query: string) {
+    if (useMock()) return { results: _mockSearchResultsData, suggestions: _mockSearchSuggestionsData, hotSearch: _mockHotSearchData, history: _mockSearchHistoryData }
+    try {
+      const data = await apiGet<any>(`/classics/search?q=${encodeURIComponent(query)}`)
+      return {
+        results: data.results || _mockSearchResultsData,
+        suggestions: data.suggestions || _mockSearchSuggestionsData,
+        hotSearch: data.hotSearch || _mockHotSearchData,
+        history: data.history || _mockSearchHistoryData,
+      }
+    } catch { return { results: _mockSearchResultsData, suggestions: _mockSearchSuggestionsData, hotSearch: _mockHotSearchData, history: _mockSearchHistoryData } }
+  },
+}

@@ -43,8 +43,19 @@
 
     <!-- 列表 -->
     <view class="nt-body">
+      <!-- 加载态 -->
+      <view v-if="loading" class="nt-empty">
+        <text class="nt-empty-title">加载中...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="nt-empty">
+        <text class="nt-empty-title">{{ error }}</text>
+        <view class="nt-empty-btn" @tap="fetchData">
+          <text class="nt-empty-btn-text">重试</text>
+        </view>
+      </view>
       <!-- 空状态 -->
-      <view v-if="filtered.length === 0" class="nt-empty">
+      <view v-else-if="filtered.length === 0" class="nt-empty">
         <view class="nt-empty-icon">
           <app-icon name="file-text" :size="64" color="#999999" />
         </view>
@@ -136,15 +147,31 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { notesData, type NoteItem } from '@/lib/classics-data'
+import { classicsApi, type NoteItem } from '@/lib/classics-data'
 
 const searchValue = ref('')
 const selectedIds = ref<Set<string>>(new Set())
 const isSelectMode = ref(false)
-const notes = ref<NoteItem[]>([...notesData])
+const notes = ref<NoteItem[]>([])
 const viewMode = ref<'timeline' | 'book'>('timeline')
+const loading = ref(true)
+const error = ref('')
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    notes.value = await classicsApi.notes()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchData)
 
 const filtered = computed(() =>
   notes.value.filter(

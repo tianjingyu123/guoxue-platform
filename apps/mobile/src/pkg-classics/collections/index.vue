@@ -39,7 +39,18 @@
 
       <!-- 收藏列表 -->
       <view class="cl-list-wrap">
-        <view v-if="filtered.length > 0" class="cl-list">
+        <!-- 加载态 -->
+        <view v-if="loading" class="cl-empty">
+          <text class="cl-empty-title">加载中...</text>
+        </view>
+        <!-- 错误态 -->
+        <view v-else-if="error" class="cl-empty">
+          <text class="cl-empty-title" style="color:#c41e3a;">{{ error }}</text>
+          <view class="cl-empty-btn" @tap="fetchData">
+            <text class="cl-empty-btn-text">重试</text>
+          </view>
+        </view>
+        <view v-else-if="filtered.length > 0" class="cl-list">
           <view v-for="item in filtered" :key="item.id" class="cl-card">
             <view class="cl-card-main" @tap="openItem(item)">
               <view class="cl-cover">
@@ -80,18 +91,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import { mockCollections, collectionTypeMeta, collectionFilters, type CollectionItem } from '@/lib/classics-data'
+import { classicsApi, _mockCollectionTypeMeta, _mockCollectionFilters, type CollectionItem } from '@/lib/classics-data'
 
 const searchText = ref('')
 const filter = ref<string>('all')
-const collections = ref<CollectionItem[]>([...mockCollections])
-const typeMeta = collectionTypeMeta
-const filters = collectionFilters
+const collections = ref<CollectionItem[]>([])
+const typeMeta = _mockCollectionTypeMeta
+const filters = _mockCollectionFilters
+const loading = ref(true)
+const error = ref('')
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    collections.value = await classicsApi.collections()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchData)
 
 const filtered = computed(() =>
   collections.value.filter(

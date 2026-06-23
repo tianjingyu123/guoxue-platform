@@ -1,12 +1,29 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { listsPageData, type BookListFull } from '@/lib/classics-data'
+import { classicsApi, type BookListFull } from '@/lib/classics-data'
 import { coverColorForBook } from '@/lib/classics-cover'
 
-const lists = ref<BookListFull[]>(listsPageData.map((l) => ({ ...l })))
+const lists = ref<BookListFull[]>([])
+const loading = ref(true)
+const error = ref('')
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await classicsApi.lists()
+    lists.value = data.map((l: BookListFull) => ({ ...l }))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchData)
 
 function toggleLike(id: string) {
   const item = lists.value.find((l) => l.id === id)
@@ -51,7 +68,16 @@ function fmtLikes(n: number): string {
 
     <!-- 书单列表 -->
     <view class="lp-list">
-      <view v-for="list in lists" :key="list.id" class="lp-card">
+      <view v-if="loading" class="lp-card" style="text-align:center;padding:64rpx;">
+        <text style="color:var(--muted-foreground);">加载中...</text>
+      </view>
+      <view v-else-if="error" class="lp-card" style="text-align:center;padding:64rpx;">
+        <text style="color:#c41e3a;">{{ error }}</text>
+        <view style="margin-top:16rpx;" @tap="fetchData">
+          <text style="color:var(--muted-foreground);">重试</text>
+        </view>
+      </view>
+      <view v-else v-for="list in lists" :key="list.id" class="lp-card">
         <!-- 卡片主体（可点击进入详情） -->
         <view class="lp-card-body" @tap="goDetail(list.id)">
           <text class="lp-card-title">{{ list.title }}</text>
