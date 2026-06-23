@@ -3,6 +3,8 @@
  * @data-needs: 视频流，参数 id(来自 onLoad 定位起始视频)，GET 返回 VideoItem[]
  */
 
+import { apiGet, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
+
 export interface VideoProduct {
   id: string
   name: string
@@ -281,3 +283,73 @@ export const videoSearchResults: VideoSearchResult[] = [
   { id: '3', title: '奇门遁甲九宫布局实战课', author: '林奇门', authorAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=40', cover: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=300&h=160&fit=crop', duration: '32:48', views: 76400, publishedAt: '2周前', category: '奇门' },
   { id: '4', title: '风水布局：阳宅财位实操讲解', author: '王德华', authorAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40', cover: 'https://images.unsplash.com/photo-1502943693086-33b5b1cfdf2f?w=300&h=160&fit=crop', duration: '22:16', views: 62300, publishedAt: '3周前', category: '风水' },
 ]
+
+// ============ API 层 ============
+
+export const videoApi = {
+  /** 发布视频 — POST /video */
+  async publish(data: Record<string, any>): Promise<any> {
+    if (useMock()) return { id: String(Date.now()), ...data, createdAt: new Date().toISOString() }
+    try {
+      return await apiPost('/video', data)
+    } catch {
+      return { id: String(Date.now()), ...data, createdAt: new Date().toISOString() }
+    }
+  },
+
+  /** 视频列表 — GET /video */
+  async list(params?: Record<string, any>): Promise<VideoItem[]> {
+    if (useMock()) return mockVideos
+    try {
+      return await apiGet('/video', params)
+    } catch {
+      return mockVideos
+    }
+  },
+
+  /** 视频详情 — GET /video/:id */
+  async getById(id: string): Promise<VideoItem | null> {
+    if (useMock()) return mockVideos.find((v) => v.id === id) || null
+    try {
+      return await apiGet(`/video/${id}`)
+    } catch {
+      return mockVideos.find((v) => v.id === id) || null
+    }
+  },
+
+  /** 编辑视频 — PUT /video/:id */
+  async update(id: string, data: Record<string, any>): Promise<any> {
+    if (useMock()) return { id, ...data, updatedAt: new Date().toISOString() }
+    try {
+      return await apiPut(`/video/${id}`, data)
+    } catch {
+      return { id, ...data, updatedAt: new Date().toISOString() }
+    }
+  },
+
+  /** 删除视频 — DELETE /video/:id */
+  async delete(id: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '删除成功' }
+    try {
+      await apiDelete(`/video/${id}`)
+      return { success: true, message: '删除成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '删除失败' }
+    }
+  },
+
+  /** 点赞 — POST /video/:id/like */
+  async like(id: string): Promise<{ success: boolean; isLiked: boolean; likes: number }> {
+    if (useMock()) {
+      const video = mockVideos.find((v) => v.id === id)
+      const newLiked = !video?.isLiked
+      const newLikes = (video?.likes || 0) + (newLiked ? 1 : -1)
+      return { success: true, isLiked: newLiked, likes: newLikes }
+    }
+    try {
+      return await apiPost(`/video/${id}/like`)
+    } catch (e: any) {
+      return { success: false, isLiked: false, likes: 0 }
+    }
+  },
+}

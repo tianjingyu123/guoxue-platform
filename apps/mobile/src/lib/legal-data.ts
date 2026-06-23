@@ -3,6 +3,8 @@
 // 且 child-privacy 不在 mockDocContents 中 → 正文空白/加载失败。
 // 迁移修正：统一结构化为 sections 原生渲染，正文正常显示。
 
+import { apiGet, useMock } from '@/utils/request'
+
 // 行内片段（支持加粗）
 export interface LegalInline {
   text: string
@@ -275,4 +277,41 @@ export interface LegalTocItem {
 // 从文档提取目录
 export function extractToc(doc: LegalDoc): LegalTocItem[] {
   return doc.sections.map(s => ({ id: s.id, title: s.title, level: s.level }))
+}
+
+// ============ API 层 ============
+
+export const legalApi = {
+  /** 获取法律文档 — GET /system/legal/:type */
+  async getDoc(type: string): Promise<LegalDoc | null> {
+    if (useMock()) return legalDocs[type] || null
+    try {
+      const data = await apiGet<any>(`/system/legal/${type}`)
+      return (data as LegalDoc) || legalDocs[type] || null
+    } catch {
+      return legalDocs[type] || null
+    }
+  },
+
+  /** 确认协议 — POST /system/legal/:type/confirm */
+  async confirm(type: string): Promise<{ success: boolean }> {
+    if (useMock()) return { success: true }
+    try {
+      await apiGet<any>(`/system/legal/${type}/confirm`)
+      return { success: true }
+    } catch {
+      return { success: true }
+    }
+  },
+
+  /** 获取需要确认的协议列表 */
+  async getPendingConfirms(): Promise<LegalDoc[]> {
+    if (useMock()) return Object.values(legalDocs).filter(d => d.requireConfirm && !d.hasConfirmed)
+    try {
+      const data = await apiGet<any[]>('/system/legal/pending')
+      return (data as LegalDoc[]) || []
+    } catch {
+      return Object.values(legalDocs).filter(d => d.requireConfirm && !d.hasConfirmed)
+    }
+  },
 }

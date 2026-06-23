@@ -1,4 +1,5 @@
 // 线下驿站板块数据（1:1 复刻原型 lib/api/offline.ts mock 与辅助函数）
+import { apiGet, apiPost, apiPut, useMock } from '@/utils/request'
 
 export type StationType = 'center' | 'academy' | 'studio' | 'partner'
 export type StationStatus = 'open' | 'closed' | 'renovating'
@@ -38,7 +39,7 @@ export interface StationDetail extends Station {
   reviews: StationReview[]
 }
 
-export const stations: Station[] = [
+export const _mockStations: Station[] = [
   {
     id: 1,
     name: '热卜国学中心·北京旗舰店',
@@ -116,7 +117,7 @@ export const stations: Station[] = [
 ]
 
 export function getStationDetail(id: number): StationDetail {
-  const station = stations.find((s) => s.id === id) || stations[0]
+  const station = _mockStations.find((s) => s.id === id) || _mockStations[0]
   return {
     ...station,
     manager: { id: 101, name: '张道长', avatar: '', title: '驿站主理人' },
@@ -211,7 +212,7 @@ export interface OfflineCourseDetail extends OfflineCourse {
   enrolledUsers: EnrolledUser[]
 }
 
-export const offlineCourses: OfflineCourse[] = [
+export const _mockOfflineCourses: OfflineCourse[] = [
   { id: 1, title: '八字命理入门实���班', cover: '', instructor: { id: 1, name: '李明德', avatar: '', title: '资深命理师' }, stationId: 1, stationName: '热卜国学中心·北京旗舰店', startTime: '2026-06-10 09:00', endTime: '2026-06-10 17:00', address: '北京市朝阳区建国路88号SOHO现代城A座1层', price: 599, originalPrice: 899, maxParticipants: 30, currentParticipants: 23, status: 'enrolling', tags: ['八字', '入门'], description: '系统学习八字命理基础知识，掌握排盘、看盘技巧。' },
   { id: 2, title: '紫微斗数高级研修班', cover: '', instructor: { id: 2, name: '王玄机', avatar: '', title: '紫微斗数专家' }, stationId: 1, stationName: '热卜国学中心·北京旗舰店', startTime: '2026-06-15 09:00', endTime: '2026-06-16 17:00', address: '北京市朝阳区建国路88号SOHO现代城A座1层', price: 1299, originalPrice: 1599, maxParticipants: 20, currentParticipants: 18, status: 'enrolling', tags: ['紫微斗数', '进阶'], description: '深入解析紫微斗数命盘，掌握高级推断技巧。' },
   { id: 3, title: '风水堪舆实地考察班', cover: '', instructor: { id: 3, name: '赵风水', avatar: '', title: '风水大师' }, stationId: 2, stationName: '易学书院·上海分院', startTime: '2026-06-20 08:00', endTime: '2026-06-21 18:00', address: '上海市静安区南京西路1266号恒隆广场3层', price: 1999, originalPrice: 2599, maxParticipants: 15, currentParticipants: 12, status: 'enrolling', tags: ['风水', '实地'], description: '实地考察学习风水布局，理论与实践结合。' },
@@ -245,7 +246,7 @@ export function getCourseStatusStyle(status: OfflineCourseStatus): { color: stri
 }
 
 export function getOfflineCourseDetail(id: number): OfflineCourseDetail {
-  const course = offlineCourses.find((c) => c.id === id) || offlineCourses[0]
+  const course = _mockOfflineCourses.find((c) => c.id === id) || _mockOfflineCourses[0]
   return {
     ...course,
     content:
@@ -321,7 +322,7 @@ export interface TeacherBooking {
   createdAt: string
 }
 
-export const bookingTeachers: BookingTeacher[] = [
+export const _mockBookingTeachers: BookingTeacher[] = [
   { id: 1, name: '李明德', avatar: '', title: '资深命理师', specialties: ['八字命理', '紫微斗数', '姓名学'], introduction: '从事命理研究20余年，师从多位名家。擅长八字命理分析，为数千人提供过咨询服务。', rating: 4.9, reviewCount: 328, bookingCount: 1256, hourlyRate: 299, isAvailable: true },
   { id: 2, name: '王玄机', avatar: '', title: '紫微斗数专家', specialties: ['紫微斗数', '流年运势', '事业规划'], introduction: '紫微斗数研究15年，精通命盘分析与流年推断，帮助学员找到人生方向。', rating: 4.8, reviewCount: 256, bookingCount: 890, hourlyRate: 399, isAvailable: true },
   { id: 3, name: '赵风水', avatar: '', title: '风水大师', specialties: ['风水堪舆', '家居布局', '商业选址'], introduction: '风水堪舆实战派大师，为多家企业和个人提供风水调理服务。', rating: 4.7, reviewCount: 189, bookingCount: 567, hourlyRate: 499, isAvailable: false },
@@ -334,7 +335,7 @@ function seededAvailable(seed: number): boolean {
 }
 const slotBaseHours = [9, 10, 11, 14, 15, 16, 17, 19, 20]
 function genTimeSlots(date: string, teacherId: number): TimeSlot[] {
-  const teacher = bookingTeachers.find((t) => t.id === teacherId)
+  const teacher = _mockBookingTeachers.find((t) => t.id === teacherId)
   const hourlyRate = teacher?.hourlyRate || 299
   return slotBaseHours.map((hour, index) => ({
     id: `${date}_${hour}`,
@@ -361,7 +362,7 @@ export function getTeacherAvailability(teacherId: number, month: string): DateAv
   return result
 }
 
-export const myTeacherBookings: TeacherBooking[] = [
+export const _mockMyTeacherBookings: TeacherBooking[] = [
   { id: 1, teacher: { id: 1, name: '李明德', avatar: '', title: '资深命理师' }, stationId: 1, stationName: '热卜国学中心·北京旗舰店', date: '2026-06-10', startTime: '14:00', endTime: '15:00', topic: '八字命理咨询', description: '想了解事业发展方向', price: 299, status: 'confirmed', createdAt: '2026-06-03 10:30' },
   { id: 2, teacher: { id: 2, name: '王玄机', avatar: '', title: '紫微斗数专家' }, stationId: 1, stationName: '热卜国学中心·北京旗舰店', date: '2026-06-15', startTime: '10:00', endTime: '11:00', topic: '流年运势分析', price: 399, status: 'pending', createdAt: '2026-06-02 16:20' },
 ]
@@ -413,7 +414,7 @@ export interface CourseCheckinDetail {
   checkinCode: string
 }
 
-export const checkinCourse: CheckinCourse = {
+export const _mockCheckinCourse: CheckinCourse = {
   id: 1,
   title: '八字命理实战研修班（第3期）',
   cover: '',
@@ -428,7 +429,7 @@ export const checkinCourse: CheckinCourse = {
   checkinEnd: '2026-06-05 09:30',
 }
 export function getCourseCheckinDetail(_courseId: number): CourseCheckinDetail {
-  return { course: checkinCourse, myRecord: undefined, stats: { total: 28, checkedIn: 15, checkedOut: 0 }, checkinCode: 'RB2026' }
+  return { course: _mockCheckinCourse, myRecord: undefined, stats: { total: 28, checkedIn: 15, checkedOut: 0 }, checkinCode: 'RB2026' }
 }
 export function getCheckinStatusLabel(status: CheckinStatus): string {
   const labels: Record<CheckinStatus, string> = { not_started: '未开始', checking_in: '签到中', checked_in: '已签到', checked_out: '已签退', missed: '缺勤' }
@@ -445,3 +446,157 @@ export function formatCheckinMethod(method: CheckinMethod): string {
   const methods: Record<CheckinMethod, string> = { qrcode: '扫码签到', code: '签到码', location: '位置签到', manual: '手动签到' }
   return methods[method]
 }
+
+// ============ API 层 ============
+
+export const offlineApi = {
+  /** 创建驿站 — POST /offline/stations */
+  async createStation(data: any): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '驿站创建成功' }
+    try {
+      await apiPost('/offline/stations', data)
+      return { success: true, message: '驿站创建成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '创建失败' }
+    }
+  },
+
+  /** 驿站列表 — GET /offline/stations */
+  async getStations(params?: any): Promise<Station[]> {
+    if (useMock()) return _mockStations
+    try {
+      const data = await apiGet<any[]>('/offline/stations', params)
+      return data || _mockStations
+    } catch {
+      return _mockStations
+    }
+  },
+
+  /** 发现驿站 — GET /offline/stations/discover */
+  async discoverStations(params?: any): Promise<Station[]> {
+    if (useMock()) return _mockStations
+    try {
+      const data = await apiGet<any[]>('/offline/stations/discover', params)
+      return data || _mockStations
+    } catch {
+      return _mockStations
+    }
+  },
+
+  /** 驿站详情 — GET /offline/stations/:id */
+  async getStation(id: number): Promise<StationDetail> {
+    if (useMock()) return getStationDetail(id)
+    try {
+      const data = await apiGet<any>(`/offline/stations/${id}`)
+      return data || getStationDetail(id)
+    } catch {
+      return getStationDetail(id)
+    }
+  },
+
+  /** 审核驿站 — PUT /offline/stations/:id/audit */
+  async auditStation(id: number, data: { approved: boolean; reason?: string }): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: data.approved ? '审核通过' : '审核拒绝' }
+    try {
+      await apiPut(`/offline/stations/${id}/audit`, data)
+      return { success: true, message: data.approved ? '审核通过' : '审核拒绝' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '操作失败' }
+    }
+  },
+
+  /** 收益看板 — GET /offline/stations/:id/revenue-dashboard */
+  async getStationRevenue(id: number): Promise<any> {
+    if (useMock()) return { totalRevenue: 128000, monthlyRevenue: 15000, orderCount: 256, trend: [10, 15, 12, 18, 20, 16] }
+    try {
+      const data = await apiGet<any>(`/offline/stations/${id}/revenue-dashboard`)
+      return data || { totalRevenue: 128000, monthlyRevenue: 15000, orderCount: 256, trend: [10, 15, 12, 18, 20, 16] }
+    } catch {
+      return { totalRevenue: 128000, monthlyRevenue: 15000, orderCount: 256, trend: [10, 15, 12, 18, 20, 16] }
+    }
+  },
+
+  /** 创建线下课程 — POST /offline/courses */
+  async createCourse(data: any): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '课程创建成功' }
+    try {
+      await apiPost('/offline/courses', data)
+      return { success: true, message: '课程创建成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '创建失败' }
+    }
+  },
+
+  /** 课程列表 — GET /offline/courses */
+  async getCourses(params?: any): Promise<OfflineCourse[]> {
+    if (useMock()) return _mockOfflineCourses
+    try {
+      const data = await apiGet<any[]>('/offline/courses', params)
+      return data || _mockOfflineCourses
+    } catch {
+      return _mockOfflineCourses
+    }
+  },
+
+  /** 课程详情 — GET /offline/courses/:id */
+  async getCourse(id: number): Promise<OfflineCourseDetail> {
+    if (useMock()) return getOfflineCourseDetail(id)
+    try {
+      const data = await apiGet<any>(`/offline/courses/${id}`)
+      return data || getOfflineCourseDetail(id)
+    } catch {
+      return getOfflineCourseDetail(id)
+    }
+  },
+
+  /** 报名 — POST /offline/courses/:id/register */
+  async register(id: number): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '报名成功' }
+    try {
+      await apiPost(`/offline/courses/${id}/register`)
+      return { success: true, message: '报名成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '报名失败' }
+    }
+  },
+
+  /** 取消报名 — POST /offline/courses/:id/cancel */
+  async cancelRegistration(id: number): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '已取消报名' }
+    try {
+      await apiPost(`/offline/courses/${id}/cancel`)
+      return { success: true, message: '已取消报名' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '取消失败' }
+    }
+  },
+
+  /** 待审核课程 — GET /offline/admin/courses/pending */
+  async getPendingCourses(): Promise<OfflineCourse[]> {
+    if (useMock()) return _mockOfflineCourses.filter(c => c.status === 'upcoming').slice(0, 2)
+    try {
+      const data = await apiGet<any[]>('/offline/admin/courses/pending')
+      return data || _mockOfflineCourses.filter(c => c.status === 'upcoming').slice(0, 2)
+    } catch {
+      return _mockOfflineCourses.filter(c => c.status === 'upcoming').slice(0, 2)
+    }
+  },
+
+  /** 审核课程 — PUT /offline/admin/courses/:id/audit */
+  async auditCourse(id: number, data: { approved: boolean; reason?: string }): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: data.approved ? '审核通过' : '审核拒绝' }
+    try {
+      await apiPut(`/offline/admin/courses/${id}/audit`, data)
+      return { success: true, message: data.approved ? '审核通过' : '审核拒绝' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '操作失败' }
+    }
+  },
+}
+
+// 向后兼容导出（页面仍使用旧名称，后续统一升级到API模式后移除）
+export const stations = _mockStations
+export const offlineCourses = _mockOfflineCourses
+export const bookingTeachers = _mockBookingTeachers
+export const myTeacherBookings = _mockMyTeacherBookings
+export const checkinCourse = _mockCheckinCourse

@@ -4,6 +4,8 @@
  * ⚠️ 接后端时替换 mockFeedItems/mockHotCities，保留类型与 helper
  */
 
+import { apiGet, useMock } from '@/utils/request'
+
 export type SameCityContentType = 'activity' | 'course' | 'circle' | 'station' | 'article' | 'video'
 
 export interface SameCityItem {
@@ -135,3 +137,19 @@ export const filterTabs: { key: SameCityContentType | 'all'; label: string }[] =
   { key: 'circle', label: '圈子' },
   { key: 'station', label: '驿站' },
 ]
+
+// ============ API 层 ============
+// 注意：服务端暂无独立同城控制器，所有方法仅返回 mock 数据
+
+export const sameCityApi = {
+  /** 获取同城信息流 — 暂用 mock fallback（服务端无对应端点） */
+  async getFeed(params?: Record<string, any>): Promise<SameCityItem[]> {
+    // 服务端暂无同城控制器，始终返回 mock
+    return mockFeedItems
+  },
+
+  /** 获取热门城市 — 暂用 mock fallback（服务端无对应端点） */
+  async getHotCities(): Promise<HotCity[]> {
+    return mockHotCities
+  },
+}

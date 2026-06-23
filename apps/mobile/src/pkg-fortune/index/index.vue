@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import {
-  buildDailyFortune, getFortuneLevelInfo, formatFortuneDate,
+  fortuneApi, getFortuneLevelInfo, formatFortuneDate,
   todayISO, shiftDate, CATEGORY_STYLE,
+  type DailyFortune,
 } from '@/lib/fortune-data'
 
 const statusBarHeight = ref(0)
@@ -14,15 +16,32 @@ try {
 }
 
 const currentDate = ref(todayISO())
-const fortune = computed(() => buildDailyFortune(currentDate.value))
+const loading = ref(true)
+const error = ref('')
+const fortune = ref<DailyFortune | null>(null)
 
-const levelInfo = computed(() => getFortuneLevelInfo(fortune.value.overallLevel))
+async function fetchFortune() {
+  loading.value = true
+  error.value = ''
+  try {
+    fortune.value = await fortuneApi.getByDate(currentDate.value)
+  } catch {
+    error.value = '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad(() => { fetchFortune() })
+
+const levelInfo = computed(() => fortune.value ? getFortuneLevelInfo(fortune.value.overallLevel) : { label: '', color: '' })
 const dateLabel = computed(() => formatFortuneDate(currentDate.value))
 // 圆环进度：周长 283（r=45），按分数填充
-const dashArray = computed(() => `${fortune.value.overallScore * 2.83} 283`)
+const dashArray = computed(() => `${(fortune.value?.overallScore || 0) * 2.83} 283`)
 
-function changeDate(days: number) {
+async function changeDate(days: number) {
   currentDate.value = shiftDate(currentDate.value, days)
+  await fetchFortune()
 }
 function goBack() {
   if (getCurrentPages().length > 1) uni.navigateBack()
@@ -33,6 +52,9 @@ function comingSoon() {
 }
 function catLevelColor(level: string) {
   return getFortuneLevelInfo(level as never).color
+}
+function retry() {
+  fetchFortune()
 }
 </script>
 
@@ -51,7 +73,19 @@ function catLevelColor(level: string) {
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ height: 'calc(100vh - ' + (statusBarHeight + 56) + 'px)' }">
-      <view class="body">
+      <!-- 加载态 -->
+      <view v-if="loading" class="state-wrap">
+        <view class="loading-spinner" />
+        <text class="state-text">正在解读运势...</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="error" class="state-wrap">
+        <app-icon name="alert-circle" :size="80" color="#c41e3a" />
+        <text class="state-text">{{ error }}</text>
+        <view class="retry-btn" @tap="retry"><text class="retry-text">重新加载</text></view>
+      </view>
+      <!-- 正常内容 -->
+      <view v-else-if="fortune" class="body">
         <!-- 日期选择器 -->
         <view class="date-picker">
           <view class="date-arrow" @tap="changeDate(-1)">
@@ -482,5 +516,39 @@ function catLevelColor(level: string) {
 }
 .bottom-safe {
   height: 48rpx;
+}
+
+/* 加载/错误态 */
+.state-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 200rpx;
+  gap: 24rpx;
+}
+.loading-spinner {
+  width: 80rpx;
+  height: 80rpx;
+  border: 6rpx solid #f0e6e6;
+  border-top-color: #c41e3a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.state-text {
+  font-size: 26rpx;
+  color: #999;
+}
+.retry-btn {
+  padding: 16rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 12rpx;
+}
+.retry-text {
+  color: #fff;
+  font-size: 26rpx;
 }
 </style>

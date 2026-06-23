@@ -1,5 +1,7 @@
 // 视频创作者中心数据 —— 照搬原型 app/videos/creator/**
 
+import { apiGet, useMock } from '@/utils/request'
+
 /** 格式化数字：>=10000 显示「万」 —— 照搬原型 formatNumber */
 export function formatCreatorNumber(num: number): string {
   if (num >= 10000) {
@@ -191,4 +193,28 @@ export const creatorEarningsHistory = {
     { id: '5', month: '2023年9月', earnings: 15010, orders: 310, trend: 'up', change: 2 },
     { id: '6', month: '2023年8月', earnings: 14720, orders: 305, trend: 'down', change: -1 },
   ],
+}
+
+// ============ API 层 ============
+
+export const creatorApi = {
+  /** 播放统计 — GET /video/vod/playback-stats/:fileId */
+  async getPlaybackStats(fileId: string): Promise<any> {
+    if (useMock()) return creatorAnalytics
+    try {
+      return await apiGet(`/video/vod/playback-stats/${fileId}`)
+    } catch {
+      return creatorAnalytics
+    }
+  },
+
+  /** VOD搜索 — GET /video/vod/search */
+  async searchVod(params?: Record<string, any>): Promise<any[]> {
+    if (useMock()) return []
+    try {
+      return await apiGet('/video/vod/search', params)
+    } catch {
+      return []
+    }
+  },
 }

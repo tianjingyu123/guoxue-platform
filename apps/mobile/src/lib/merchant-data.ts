@@ -1,5 +1,7 @@
 // ===== 商家经营管理板块 mock 数据 —— 严格照搬原型 /merchant/* =====
 
+import { apiGet, apiPost, apiPut, useMock } from '@/utils/request'
+
 // ---- 工作台 dashboard ----
 export const merchantDashboard = {
   shopName: '墨香阁文化',
@@ -363,4 +365,171 @@ export const violationStatusConfig: Record<string, { label: string; color: strin
   pending: { label: '待处理', color: '#b91c1c', bg: '#fee2e2' },
   appealing: { label: '申诉中', color: '#1d4ed8', bg: '#dbeafe' },
   processed: { label: '已处理', color: '#374151', bg: '#f3f4f6' },
+}
+
+// ============ API 层 ============
+
+const mockApplyData = {
+  applicationId: 'MA20240001',
+  shopName: '',
+  category: '',
+  phone: '',
+  status: 'draft',
+}
+
+export const merchantApi = {
+  /** 申请入驻 — POST /merchant/apply */
+  async apply(data: Record<string, any>): Promise<any> {
+    if (useMock()) return { ...mockApplyData, ...data, applicationId: 'MA20240001', status: 'draft' }
+    try {
+      return await apiPost('/merchant/apply', data)
+    } catch {
+      return { ...mockApplyData, ...data, applicationId: 'MA20240001', status: 'draft' }
+    }
+  },
+
+  /** 获取申请 — GET /merchant/application */
+  async getApplication(): Promise<any> {
+    if (useMock()) return mockApplyData
+    try {
+      return await apiGet('/merchant/application')
+    } catch {
+      return mockApplyData
+    }
+  },
+
+  /** 修改申请 — PUT /merchant/application */
+  async updateApplication(data: Record<string, any>): Promise<any> {
+    if (useMock()) return { ...mockApplyData, ...data }
+    try {
+      return await apiPut('/merchant/application', data)
+    } catch {
+      return { ...mockApplyData, ...data }
+    }
+  },
+
+  /** 提交审核 — POST /merchant/submit */
+  async submit(): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '提交成功，请等待审核' }
+    try {
+      await apiPost('/merchant/submit', {})
+      return { success: true, message: '提交成功，请等待审核' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '提交失败' }
+    }
+  },
+
+  /** 保证金信息 — GET /merchant/deposit-info */
+  async getDepositInfo(): Promise<any> {
+    if (useMock()) return { amount: 5000, paid: false, deadline: '2024-06-30', status: 'unpaid' }
+    try {
+      return await apiGet('/merchant/deposit-info')
+    } catch {
+      return { amount: 5000, paid: false, deadline: '2024-06-30', status: 'unpaid' }
+    }
+  },
+
+  /** 缴纳保证金 — POST /merchant/pay-deposit */
+  async payDeposit(): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '保证金缴纳成功' }
+    try {
+      await apiPost('/merchant/pay-deposit', {})
+      return { success: true, message: '保证金缴纳成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '缴纳失败' }
+    }
+  },
+
+  /** 协议预览 — GET /merchant/agreement-preview */
+  async getAgreementPreview(): Promise<any> {
+    if (useMock()) return { title: '商家入驻协议', content: '协议内容...', version: 'v2.1', updatedAt: '2024-01-01' }
+    try {
+      return await apiGet('/merchant/agreement-preview')
+    } catch {
+      return { title: '商家入驻协议', content: '协议内容...', version: 'v2.1', updatedAt: '2024-01-01' }
+    }
+  },
+
+  /** 签署协议 — POST /merchant/sign-agreement */
+  async signAgreement(): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '签署成功' }
+    try {
+      await apiPost('/merchant/sign-agreement', {})
+      return { success: true, message: '签署成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '签署失败' }
+    }
+  },
+}
+
+export const merchantAdminApi = {
+  /** 商家后台仪表盘 — GET /merchant-admin/dashboard */
+  async getDashboard(): Promise<any> {
+    if (useMock()) return merchantDashboard
+    try {
+      return await apiGet('/merchant-admin/dashboard')
+    } catch {
+      return merchantDashboard
+    }
+  },
+
+  /** 订单列表 — GET /merchant-admin/orders */
+  async getOrders(params?: Record<string, any>): Promise<any[]> {
+    if (useMock()) return merchantOrders
+    try {
+      return await apiGet('/merchant-admin/orders', params)
+    } catch {
+      return merchantOrders
+    }
+  },
+
+  /** 商品管理 — GET /merchant-admin/products */
+  async getProducts(params?: Record<string, any>): Promise<MerchantProduct[]> {
+    if (useMock()) return merchantProducts
+    try {
+      return await apiGet('/merchant-admin/products', params)
+    } catch {
+      return merchantProducts
+    }
+  },
+
+  /** 收益概览 — GET /merchant-admin/revenue */
+  async getRevenue(): Promise<any> {
+    if (useMock()) return { ...merchantRevenue, transactions: revenueTransactions }
+    try {
+      return await apiGet('/merchant-admin/revenue')
+    } catch {
+      return { ...merchantRevenue, transactions: revenueTransactions }
+    }
+  },
+
+  /** 评价管理 — GET /merchant-admin/reviews */
+  async getReviews(params?: Record<string, any>): Promise<any[]> {
+    if (useMock()) return merchantReviews
+    try {
+      return await apiGet('/merchant-admin/reviews', params)
+    } catch {
+      return merchantReviews
+    }
+  },
+
+  /** 违规记录 — GET /merchant-admin/violations */
+  async getViolations(): Promise<any> {
+    if (useMock()) return { stats: merchantViolationStats, items: merchantViolations }
+    try {
+      return await apiGet('/merchant-admin/violations')
+    } catch {
+      return { stats: merchantViolationStats, items: merchantViolations }
+    }
+  },
+
+  /** 平台通知 — GET /merchant-admin/notices */
+  async getNotices(): Promise<any[]> {
+    if (useMock()) return merchantNotices
+    try {
+      return await apiGet('/merchant-admin/notices')
+    } catch {
+      return merchantNotices
+    }
+  },
 }

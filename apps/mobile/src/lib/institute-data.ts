@@ -1,4 +1,5 @@
 // 研究院（书院）相关 mock 数据 —— 1:1 复刻原型 lib/api/institute.ts
+import { apiGet, apiPost, apiPut, useMock } from '@/utils/request'
 
 export type InstructorLevel = 'junior' | 'senior' | 'expert' | 'master'
 export type InstructorStatus = 'active' | 'inactive' | 'pending'
@@ -54,7 +55,7 @@ export interface InstituteInfo {
 }
 
 // ===== 讲师 =====
-export const instructors: Instructor[] = [
+export const _mockInstructors: Instructor[] = [
   { id: 1, name: '李明德', avatar: '/placeholder.svg', title: '资深命理师', level: 'master', verified: true, specialties: ['八字命理', '紫微斗数', '姓名学'], bio: '从事命理研究20余年，培养学员超过3000人', studentCount: 3256, courseCount: 12, rating: 4.9, reviewCount: 856, status: 'active', isFollowing: false },
   { id: 2, name: '王玄机', avatar: '/placeholder.svg', title: '紫微斗数专家', level: 'expert', verified: true, specialties: ['紫微斗数', '流年运势', '事业规划'], bio: '紫微斗数研究15年，精通命盘分析与流年推断', studentCount: 2189, courseCount: 8, rating: 4.8, reviewCount: 567, status: 'active', isFollowing: true },
   { id: 3, name: '赵风水', avatar: '/placeholder.svg', title: '风水堪舆大师', level: 'master', verified: true, specialties: ['风水堪舆', '家居布局', '商业选址'], bio: '风水堪舆实战派大师，服务企业500+', studentCount: 1567, courseCount: 6, rating: 4.9, reviewCount: 423, status: 'active', isFollowing: false },
@@ -63,14 +64,14 @@ export const instructors: Instructor[] = [
 ]
 
 // ===== 活动 =====
-export const instituteEvents: InstituteEvent[] = [
+export const _mockInstituteEvents: InstituteEvent[] = [
   { id: 1, title: '八字命理高峰论坛', cover: '/placeholder.svg', type: 'conference', status: 'upcoming', startTime: '2026-06-15 09:00', endTime: '2026-06-15 17:00', location: '北京国际会议中心', isOnline: false, speakers: [{ id: 1, name: '李明德', avatar: '/placeholder.svg', title: '资深命理师' }, { id: 2, name: '王玄机', avatar: '/placeholder.svg', title: '紫微斗数专家' }], maxParticipants: 200, currentParticipants: 156, price: 299, originalPrice: 399, description: '汇聚业内顶尖专家，探讨八字命理前沿研究', tags: ['高峰论坛', '八字', '行业盛会'] },
   { id: 2, title: '风水堪舆实战研讨会', cover: '/placeholder.svg', type: 'seminar', status: 'enrolling', startTime: '2026-06-20 14:00', endTime: '2026-06-20 18:00', location: '上海易学书院', isOnline: false, speakers: [{ id: 3, name: '赵风水', avatar: '/placeholder.svg', title: '风水堪舆大师' }], maxParticipants: 50, currentParticipants: 38, price: 199, description: '风水实战案例分享，现场互动答疑', tags: ['研讨会', '风水', '实战'] },
   { id: 3, title: '周易入门线上公开课', cover: '/placeholder.svg', type: 'online', status: 'enrolling', startTime: '2026-06-10 20:00', endTime: '2026-06-10 21:30', isOnline: true, speakers: [{ id: 4, name: '孙易道', avatar: '/placeholder.svg', title: '周易研究学者' }], currentParticipants: 1256, price: 0, description: '免费公开课，带你走进周易的奥秘世界', tags: ['公开课', '免费', '周易'] },
 ]
 
 // ===== 研究院信息 =====
-export const instituteInfo: InstituteInfo = {
+export const _mockInstituteInfo: InstituteInfo = {
   name: '热卜国学研究院',
   slogan: '传承国学智慧，点亮人生方向',
   mission: '致力于国学文化的传承与创新，培养专业人才，推动国学智慧服务现代生活',
@@ -81,7 +82,7 @@ export const instituteInfo: InstituteInfo = {
 
 // ===== 讲师详情（扩展信息，复刻 getInstructorDetail 拼装逻辑）=====
 export function getInstructorDetail(id: number) {
-  const instructor = instructors.find((i) => i.id === id) || instructors[0]
+  const instructor = _mockInstructors.find((i) => i.id === id) || _mockInstructors[0]
   return {
     ...instructor,
     introduction: `${instructor.name}老师，${instructor.bio}。长期致力于${instructor.specialties.join('、')}等领域的研究与教学工作，积累了丰富的理论知识和实战经验。教学风格深入浅出，善于将复杂的理论知识以通俗易懂的方式传授给学员。`,
@@ -184,7 +185,7 @@ export interface InstructorTask {
   createdAt: string
 }
 
-export const instructorTasks: InstructorTask[] = [
+export const _mockInstructorTasks: InstructorTask[] = [
   { id: 1, title: '录制八字入门视频课程', description: '录制一套完整的八字命理入门视频课程，包含基础理论、排盘方法、实例解析等内容，时长不少于3小时。', type: 'course', status: 'available', reward: { points: 500, bonus: 2000 }, deadline: '2026-06-30', requirements: ['视频清晰度1080P以上', '配套PPT讲义', '至少10个实例分析'], createdAt: '2026-06-01' },
   { id: 2, title: '撰写紫微斗数专栏文章', description: '撰写5篇紫微斗数相关的专栏文章，每篇不少于2000字，需原创且具有专业深度。', type: 'article', status: 'in_progress', reward: { points: 200, bonus: 500 }, deadline: '2026-06-20', acceptedAt: '2026-06-05', requirements: ['原创内容', '每篇2000字以上', '配图3张以上'], createdAt: '2026-06-01' },
   { id: 3, title: '回答学员问题（20题）', description: '在问答区回答学员提出的命理相关问题，需认真详细解答，帮助学员理解。', type: 'qa', status: 'completed', reward: { points: 100 }, deadline: '2026-06-10', acceptedAt: '2026-06-03', completedAt: '2026-06-08', createdAt: '2026-05-28' },
@@ -239,7 +240,7 @@ export const offlineTeacherLevelConfig: Record<OfflineTeacherLevel, { label: str
   intermediate: { label: '中级讲师', color: '#2563eb', bg: '#eff6ff' },
   junior: { label: '初级讲师', color: '#16a34a', bg: '#f0fdf4' },
 }
-export const offlineTeachers: OfflineTeacher[] = [
+export const _mockOfflineTeachers: OfflineTeacher[] = [
   { id: 1, name: '张道玄', level: 'senior', specialty: ['八字命理', '六爻预测'], location: '北京', rating: 4.9, coursesCount: 128, studentsCount: 3680, price: { min: 3000, max: 8000 }, available: true, intro: '从事命理研究30余年，师承多位名家，擅长八字格局分析和六爻实战预测。', tags: ['理论扎实', '案例丰富', '通俗易懂'] },
   { id: 2, name: '李易安', level: 'senior', specialty: ['紫微斗数', '星象占卜'], location: '上海', rating: 4.8, coursesCount: 96, studentsCount: 2850, price: { min: 2500, max: 6000 }, available: true, intro: '紫微斗数传承人，深耕斗数研究20年，独创「易安飞星派」。', tags: ['体系完整', '实战派', '答疑耐心'] },
   { id: 3, name: '王明德', level: 'senior', specialty: ['风水堪舆', '阳宅布局'], location: '广州', rating: 4.9, coursesCount: 86, studentsCount: 2160, price: { min: 5000, max: 15000 }, available: false, nextAvailable: '2024-04-15', intro: '玄空风水第四代传人，实地考察案例超过500例。', tags: ['实地教学', '案例真实', '经验丰富'] },
@@ -275,7 +276,7 @@ export const demandStatusConfig: Record<DemandStatus, { label: string; color: st
   completed: { label: '已完成', color: '#6b7280', bg: '#f3f4f6' },
   cancelled: { label: '已取消', color: '#dc2626', bg: 'rgba(220,38,38,0.1)' },
 }
-export const teacherDemands: TeacherDemand[] = [
+export const _mockTeacherDemands: TeacherDemand[] = [
   { id: 1, stationName: '北京国学驿站', stationLocation: '北京·朝阳区', title: '八字命理高级班授课老师', specialty: '八字命理', date: '2024-04-15 至 2024-04-17', duration: '3天/18课时', studentCount: 30, budget: { min: 15000, max: 25000 }, status: 'recruiting', applicants: 5, description: '招募资深八字命理老师，为高级班学员授课，要求有丰富的实战经验和教学经验。', requirements: ['5年以上授课经验', '研究院成员优先', '可提供往期课程录像'], createdAt: '2024-03-18' },
   { id: 2, stationName: '上海易学馆', stationLocation: '上海·静安区', title: '紫微斗数入门班讲师', specialty: '紫微斗数', date: '2024-04-20 至 2024-04-21', duration: '2天/12课时', studentCount: 25, budget: { min: 8000, max: 12000 }, status: 'recruiting', applicants: 3, description: '招募紫微斗数讲师，负责入门班教学，需要有系统的教学大纲。', requirements: ['3年以上授课经验', '有完整教学体系', '善于与学员互动'], createdAt: '2024-03-20' },
   { id: 3, stationName: '广州玄学堂', stationLocation: '广州·天河区', title: '风水堪舆实地教学', specialty: '风水堪舆', date: '2024-05-01 至 2024-05-03', duration: '3天实地考察', studentCount: 15, budget: { min: 20000, max: 35000 }, status: 'matched', applicants: 8, description: '组织风水实地考察教学，需要老师带队讲解真实案例。', requirements: ['高级讲师', '本地有多个可考察案例', '配合度高'], createdAt: '2024-03-15' },
@@ -313,7 +314,7 @@ export const memberRoleConfig: Record<MemberRole, { label: string; color: string
   secretary: { label: '秘书长', color: '#2563eb', bg: '#eff6ff', order: 3 },
   member: { label: '成员', color: '#9ca3af', bg: '#f3f4f6', order: 4 },
 }
-export const instituteMembers: InstituteMember[] = [
+export const _mockInstituteMembers: InstituteMember[] = [
   { id: 1, name: '张道玄', role: 'dean', title: '八字命理', circleName: '玄学命理研习社', circleMembers: 3280, joinDate: '2022-01-01', contributions: 48, isOnlineTeacher: true, location: '北京' },
   { id: 2, name: '李易安', role: 'secretary', title: '紫微斗数', circleName: '紫微斗数研究会', circleMembers: 2150, joinDate: '2022-03-15', contributions: 36, isOnlineTeacher: true, location: '上海' },
   { id: 3, name: '王明德', role: 'secretary', title: '风水堪舆', circleName: '风水地理学社', circleMembers: 1860, joinDate: '2022-02-20', contributions: 32, isOnlineTeacher: true, location: '广州' },
@@ -343,7 +344,7 @@ export const memberApplyTasks = [
   { icon: 'map-pin', label: '每季度至少1次线下小范围交流分享', period: '季度任务' },
   { icon: 'mic', label: '每年至少1次大范围交流分享', period: '年度任务' },
 ]
-export const memberApplyUserCircles = [
+export const _mockMemberApplyUserCircles = [
   { id: '1', name: '八字命理研习社', members: 1280, days: 365 },
   { id: '2', name: '紫微斗数学习班', members: 560, days: 120 },
 ]
@@ -352,3 +353,185 @@ export const memberApplySteps = ['资格检查', '填写资料', '支付保证�
 // ===== 发布需求 demands/create（与师资需求不同，通用合作需求）=====
 export const demandCreateCategories = ['课程合作', '内容创作', '讲师邀约', '联合运营', '品牌推广', '其他']
 export const demandCreateBudgets = ['面议', '1万以内', '1-5万', '5-10万', '10万以上']
+
+// ============ API 层 ============
+
+export const instituteApi = {
+  /** 获取书院介绍 — GET /institute/intro */
+  async getIntro(): Promise<InstituteInfo> {
+    if (useMock()) return _mockInstituteInfo
+    try {
+      const data = await apiGet<any>('/institute/intro')
+      return data as InstituteInfo
+    } catch {
+      return _mockInstituteInfo
+    }
+  },
+
+  /** 获取成员列表 — GET /institute/members */
+  async getMembers(): Promise<InstituteMember[]> {
+    if (useMock()) return _mockInstituteMembers
+    try {
+      const data = await apiGet<any[]>('/institute/members')
+      return data || _mockInstituteMembers
+    } catch {
+      return _mockInstituteMembers
+    }
+  },
+
+  /** 获取成员详情 — GET /institute/members/:id */
+  async getMember(id: number): Promise<any> {
+    if (useMock()) {
+      const member = _mockInstituteMembers.find(m => m.id === id) || _mockInstituteMembers[0]
+      return member
+    }
+    try {
+      const data = await apiGet<any>(`/institute/members/${id}`)
+      return data || (_mockInstituteMembers.find(m => m.id === id) || _mockInstituteMembers[0])
+    } catch {
+      return _mockInstituteMembers.find(m => m.id === id) || _mockInstituteMembers[0]
+    }
+  },
+
+  /** 获取活动列表 — GET /institute/events */
+  async getEvents(): Promise<InstituteEvent[]> {
+    if (useMock()) return _mockInstituteEvents
+    try {
+      const data = await apiGet<any[]>('/institute/events')
+      return data || _mockInstituteEvents
+    } catch {
+      return _mockInstituteEvents
+    }
+  },
+
+  /** 获取人才库 — GET /institute/talent-pool */
+  async getTalentPool(): Promise<OfflineTeacher[]> {
+    if (useMock()) return _mockOfflineTeachers
+    try {
+      const data = await apiGet<any[]>('/institute/talent-pool')
+      return data || _mockOfflineTeachers
+    } catch {
+      return _mockOfflineTeachers
+    }
+  },
+
+  /** 申请加入 — POST /institute/members */
+  async applyMember(data: InstituteApplication): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '申请已提交' }
+    try {
+      await apiPost('/institute/members', data)
+      return { success: true, message: '申请已提交' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '申请失败' }
+    }
+  },
+
+  /** 我的书院 — GET /institute/my */
+  async getMy(): Promise<any> {
+    if (useMock()) return { name: _mockInstituteInfo.name, role: 'member', joinDate: '2024-01-15' }
+    try {
+      const data = await apiGet<any>('/institute/my')
+      return data || { name: _mockInstituteInfo.name, role: 'member', joinDate: '2024-01-15' }
+    } catch {
+      return { name: _mockInstituteInfo.name, role: 'member', joinDate: '2024-01-15' }
+    }
+  },
+
+  /** 获取我的任务 — GET /institute/my/tasks */
+  async getMyTasks(): Promise<InstructorTask[]> {
+    if (useMock()) return _mockInstructorTasks
+    try {
+      const data = await apiGet<any[]>('/institute/my/tasks')
+      return data || _mockInstructorTasks
+    } catch {
+      return _mockInstructorTasks
+    }
+  },
+
+  /** 完成任务 — POST /institute/my/tasks/:id/complete */
+  async completeTask(id: number): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '任务已完成' }
+    try {
+      await apiPost(`/institute/my/tasks/${id}/complete`)
+      return { success: true, message: '任务已完成' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '操作失败' }
+    }
+  },
+
+  /** 押金退还 — POST /institute/my/deposit-refund */
+  async depositRefund(): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '押金退还申请已提交' }
+    try {
+      await apiPost('/institute/my/deposit-refund')
+      return { success: true, message: '押金退还申请已提交' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '申请失败' }
+    }
+  },
+
+  /** 分红记录 — GET /institute/my/dividends */
+  async getDividends(): Promise<any[]> {
+    if (useMock()) return []
+    try {
+      const data = await apiGet<any[]>('/institute/my/dividends')
+      return data || []
+    } catch {
+      return []
+    }
+  },
+
+  /** 管理概览 — GET /institute/manage/overview */
+  async getManageOverview(): Promise<any> {
+    if (useMock()) return { totalMembers: 10, pendingApprovals: 3, activeTasks: 5, monthlyRevenue: 50000 }
+    try {
+      const data = await apiGet<any>('/institute/manage/overview')
+      return data || { totalMembers: 10, pendingApprovals: 3, activeTasks: 5, monthlyRevenue: 50000 }
+    } catch {
+      return { totalMembers: 10, pendingApprovals: 3, activeTasks: 5, monthlyRevenue: 50000 }
+    }
+  },
+
+  /** 待审核成员 — GET /institute/manage/pending-members */
+  async getPendingMembers(): Promise<InstituteMember[]> {
+    if (useMock()) return _mockInstituteMembers.filter(m => m.role === 'member').slice(0, 3)
+    try {
+      const data = await apiGet<any[]>('/institute/manage/pending-members')
+      return data || _mockInstituteMembers.filter(m => m.role === 'member').slice(0, 3)
+    } catch {
+      return _mockInstituteMembers.filter(m => m.role === 'member').slice(0, 3)
+    }
+  },
+
+  /** 审核成员 — PUT /institute/manage/members/:id/approve */
+  async approveMember(id: number, approved: boolean): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: approved ? '已通过' : '已拒绝' }
+    try {
+      await apiPut(`/institute/manage/members/${id}/approve`, { approved })
+      return { success: true, message: approved ? '已通过' : '已拒绝' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '操作失败' }
+    }
+  },
+
+  /** 角色变更 — PUT /institute/manage/members/:id/role */
+  async changeRole(id: number, role: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '角色已更新' }
+    try {
+      await apiPut(`/institute/manage/members/${id}/role`, { role })
+      return { success: true, message: '角色已更新' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '操作失败' }
+    }
+  },
+}
+
+// 向后兼容导出（页面仍使用旧名称，后续统一升级到API模式后移除）
+export const instructors = _mockInstructors
+export const instituteEvents = _mockInstituteEvents
+export const instituteInfo = _mockInstituteInfo
+export const instructorTasks = _mockInstructorTasks
+export const offlineTeachers = _mockOfflineTeachers
+export const teacherDemands = _mockTeacherDemands
+export const instituteMembers = _mockInstituteMembers
+export const memberApplyUserCircles = _mockMemberApplyUserCircles

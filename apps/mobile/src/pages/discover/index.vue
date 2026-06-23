@@ -10,21 +10,36 @@ import ClassicCard from '@/components/cards/classic-card.vue'
 import VideoCard from '@/components/cards/video-card.vue'
 import { toastComingSoon } from '@/utils/router'
 import {
-  coreEntries, allCategory, categories, columns, hotWords, feedItems,
+  discoverApi, coreEntries, allCategory, categories, columns, hotWords,
+  type FeedItem,
 } from '@/lib/discover-data'
 
 const activeCategory = ref('all')
 const isLoading = ref(true)
+const error = ref('')
+const feedItems = ref<FeedItem[]>([])
 
 const allCats = computed(() => [allCategory, ...categories])
 
-// 瀑布流：按索引奇偶分两列（与 react-masonry-css 顺序填充一致）
-const colLeft = computed(() => feedItems.filter((_, i) => i % 2 === 0))
-const colRight = computed(() => feedItems.filter((_, i) => i % 2 === 1))
+// 瀑布流：按索引奇偶分两列
+const colLeft = computed(() => feedItems.value.filter((_, i) => i % 2 === 0))
+const colRight = computed(() => feedItems.value.filter((_, i) => i % 2 === 1))
 
-onMounted(() => {
-  setTimeout(() => { isLoading.value = false }, 600)
-})
+async function fetchFeed() {
+  isLoading.value = true
+  error.value = ''
+  try {
+    feedItems.value = await discoverApi.getFeed()
+  } catch {
+    error.value = '加载失败'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => { fetchFeed() })
+
+function retry() { fetchFeed() }
 
 function goEntry(href: string) {
   if (href.startsWith('/pages/')) {

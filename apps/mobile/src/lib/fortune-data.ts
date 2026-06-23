@@ -1,5 +1,7 @@
 // 运势板块数据（迁移自原型 lib/api/fortune.ts + lib/types/fortune.ts）
-// 联调：把 buildDailyFortune 换成后端 /fortune/daily 拉取，保留返回结构
+// 联调：API 对象 fortuneApi 已对接后端 /fortune/* 端点
+
+import { apiGet, apiPost, apiDelete, useMock } from '@/utils/request'
 
 export type FortuneLevel = 'excellent' | 'good' | 'normal' | 'bad' | 'poor'
 
@@ -128,4 +130,61 @@ export function shiftDate(dateStr: string, days: number): string {
   const d = new Date(dateStr)
   d.setDate(d.getDate() + days)
   return d.toISOString().split('T')[0]
+}
+
+// ============ API 层 ============
+
+export const fortuneApi = {
+  /** 获取今日运势 — GET /fortune/today */
+  async getToday(): Promise<DailyFortune> {
+    if (useMock()) return buildDailyFortune(todayISO())
+    try {
+      const data = await apiGet<any>('/fortune/today')
+      return data as DailyFortune
+    } catch {
+      return buildDailyFortune(todayISO())
+    }
+  },
+
+  /** 获取指定日期运势 — GET /fortune/:type/:period (type=daily, period=日期) */
+  async getByDate(dateStr: string): Promise<DailyFortune> {
+    if (useMock()) return buildDailyFortune(dateStr)
+    try {
+      const data = await apiGet<any>(`/fortune/daily/${dateStr}`)
+      return data as DailyFortune
+    } catch {
+      return buildDailyFortune(dateStr)
+    }
+  },
+
+  /** 订阅运势推送 — POST /fortune/subscribe */
+  async subscribe(channel: string, type: string): Promise<{ success: boolean; message: string }> {
+    if (useMock()) return { success: true, message: '订阅成功' }
+    try {
+      await apiPost('/fortune/subscribe', { channel, type })
+      return { success: true, message: '订阅成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '订阅失败' }
+    }
+  },
+
+  /** 获取运势工具列表 — GET /fortune/tools */
+  async getTools(): Promise<any[]> {
+    if (useMock()) return []
+    try {
+      return await apiGet<any[]>('/fortune/tools') || []
+    } catch {
+      return []
+    }
+  },
+
+  /** 获取引导卡 — GET /fortune/guide-card */
+  async getGuideCard(): Promise<any | null> {
+    if (useMock()) return null
+    try {
+      return await apiGet<any>('/fortune/guide-card')
+    } catch {
+      return null
+    }
+  },
 }

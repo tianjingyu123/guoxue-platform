@@ -1,3 +1,4 @@
+import { apiGet, useMock } from '@/utils/request'
 import type {
   ProductCardData, CourseCardData, LiveCardData,
   AgentCardData, ClassicCardData, VideoCardData,
@@ -66,3 +67,51 @@ export const feedItems: FeedItem[] = [
   { kind: 'product', data: { id: 'p3', title: '开光五帝钱挂件 镇宅化煞', cover: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&q=80', coverRatio: '1:1', price: 58, originalPrice: 128, sales: 4500, tag: '新品' } },
   { kind: 'course', data: { id: 'c3', title: '六爻预测从零开始', cover: 'https://images.unsplash.com/photo-1519791883288-dc8bd696e667?w=400&q=80', coverRatio: '3:4', teacher: '陈老师', teacherAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80', price: 128, originalPrice: 299, students: 1300, lessons: 24 } },
 ]
+
+// ============ API 层 ============
+
+export const discoverApi = {
+  /** 获取推荐流 — GET /discover */
+  async getFeed(): Promise<FeedItem[]> {
+    if (useMock()) return feedItems
+    try {
+      const data = await apiGet<any[]>('/discover')
+      return (data || []) as FeedItem[]
+    } catch {
+      return feedItems
+    }
+  },
+
+  /** 获取分类列表 — GET /discover/categories */
+  async getCategories(): Promise<{ id: string; label: string }[]> {
+    if (useMock()) return [allCategory, ...categories]
+    try {
+      const data = await apiGet<any[]>('/discover/categories')
+      return (data && data.length > 0) ? data as any[] : [allCategory, ...categories]
+    } catch {
+      return [allCategory, ...categories]
+    }
+  },
+
+  /** 获取热搜词 — GET /discover/hot */
+  async getHotWords(): Promise<string[]> {
+    if (useMock()) return hotWords
+    try {
+      const data = await apiGet<string[]>('/discover/hot')
+      return (data && data.length > 0) ? data : hotWords
+    } catch {
+      return hotWords
+    }
+  },
+
+  /** 获取推荐 — GET /discover/recommendations */
+  async getRecommendations(): Promise<FeedItem[]> {
+    if (useMock()) return feedItems.slice(0, 6)
+    try {
+      const data = await apiGet<any[]>('/discover/recommendations')
+      return (data || []) as FeedItem[]
+    } catch {
+      return feedItems.slice(0, 6)
+    }
+  },
+}
