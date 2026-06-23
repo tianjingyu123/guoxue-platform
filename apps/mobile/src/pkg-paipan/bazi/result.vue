@@ -11,17 +11,45 @@ import AnalysisMode from '@/components/bazi/analysis-mode.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
 import { baziData } from '@/lib/bazi-result-data'
+import { baziApi } from '@/lib/bazi-result-data'
 import { navigateBack } from '@/utils/router'
 
 const activeMode = ref<'traditional' | 'analysis'>('traditional')
 const showEditModal = ref(false)
 const showNotes = ref(false)
+const loading = ref(false)
+const loadError = ref('')
 
 const userInput = reactive({
-  name: baziData.name, gender: baziData.gender,
-  year: 1983, month: 6, day: 18, hour: 14, minute: 31,
-  province: '', city: '北京', district: '房山区',
+  name: '', gender: '男',
+  year: 2000, month: 1, day: 1, hour: 12, minute: 0,
+  province: '', city: '', district: '',
 })
+
+// 八字结果——从 API 实时计算
+const baziResult = ref<any>(null)
+
+async function calcPaipan() {
+  loading.value = true
+  loadError.value = ''
+  try {
+    baziResult.value = await baziApi.calculate({
+      name: userInput.name || undefined,
+      gender: userInput.gender,
+      year: userInput.year,
+      month: userInput.month,
+      day: userInput.day,
+      hour: userInput.hour,
+      minute: userInput.minute,
+      city: userInput.city || undefined,
+    })
+  } catch (e: any) {
+    loadError.value = e?.message || '排盘计算失败'
+    baziResult.value = null
+  } finally {
+    loading.value = false
+  }
+}
 
 onLoad((q: Record<string, string> = {}) => {
   if (q.name) userInput.name = decodeURIComponent(q.name)
@@ -34,16 +62,41 @@ onLoad((q: Record<string, string> = {}) => {
   if (q.province) userInput.province = decodeURIComponent(q.province)
   if (q.city) userInput.city = decodeURIComponent(q.city)
   if (q.district) userInput.district = decodeURIComponent(q.district)
+  calcPaipan()
 })
 
-const data = computed(() => ({
-  ...baziData,
-  name: userInput.name,
-  gender: userInput.gender,
-  qianKun: userInput.gender === '女' ? '坤造' : '乾造',
-  solarDate: `${userInput.year}年${userInput.month}月${userInput.day}日 ${String(userInput.hour).padStart(2, '0')}时${String(userInput.minute).padStart(2, '0')}分`,
-  birthYear: userInput.year,
-}))
+const data = computed(() => {
+  const api = baziResult.value
+  if (!api) {
+    // API 未返回时降级 mock（包含默认四柱/神煞/大运结构）
+    return {
+      ...baziData,
+      name: userInput.name || baziData.name,
+      gender: userInput.gender || baziData.gender,
+      qianKun: userInput.gender === '女' ? '坤造' : '乾造',
+      solarDate: `${userInput.year}年${userInput.month}月${userInput.day}日 ${String(userInput.hour).padStart(2, '0')}时${String(userInput.minute).padStart(2, '0')}分`,
+      birthYear: userInput.year,
+    }
+  }
+  // API 成功返回：使用真实排盘数据
+  return {
+    ...baziData, // 保留模板结构兜底
+    name: api.name || userInput.name,
+    gender: api.gender || userInput.gender,
+    qianKun: (api.gender || userInput.gender) === '女' ? '坤造' : '乾造',
+    zodiac: api.shengXiao || api.zodiac,
+    solarDate: api.solarDate || `${userInput.year}年${userInput.month}月${userInput.day}日 ${String(userInput.hour).padStart(2, '0')}时${String(userInput.minute).padStart(2, '0')}分`,
+    birthYear: userInput.year,
+    siZhu: api.siZhu || baziData.siZhu,
+    shenSha: api.shenSha || baziData.shenSha,
+    taiYuan: api.taiYuan || baziData.taiYuan,
+    mingGong: api.mingGong || baziData.mingGong,
+    shenGong: api.shenGong || baziData.shenGong,
+    qiYun: api.qiYun || baziData.qiYun,
+    daYun: api.daYun || baziData.daYun,
+    liuNian: api.liuNian || baziData.liuNian,
+  }
+})
 
 // 编辑弹窗草稿
 const draft = reactive({ ...userInput })
@@ -55,6 +108,7 @@ function openEdit() {
 function confirmEdit() {
   Object.assign(userInput, draft)
   showEditModal.value = false
+  calcPaipan() // 重新计算八字
 }
 
 function openNotes() {
