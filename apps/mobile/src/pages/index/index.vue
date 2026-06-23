@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** 首页（1:1 迁移自原型 app/page.tsx）：今日小语 + Header + Banner + 十宫格 +
  *  排盘引导卡 + 营销卡 + AI推荐瀑布流Feed + 回到顶部 + 底部导航 */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppHeader from '@/components/app-header/app-header.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import QuickEntryGrid from '@/components/home/quick-entry-grid.vue'
@@ -11,16 +11,42 @@ import PaipanGuideCard from '@/components/home/paipan-guide-card.vue'
 import MarketingCard from '@/components/home/marketing-card.vue'
 import FeedCard from '@/components/home/feed-card.vue'
 import BackTop from '@/components/home/back-top.vue'
-import { defaultBanners, buildFeedItems, type RenderItem } from '@/lib/home-data'
+import { homeApi, type BannerItem, type RenderItem } from '@/lib/home-data'
 
 // 后台可控显隐（原型同名常量）
 const SHOW_PAIPAN_CARD = true
 const SHOW_MARKETING_CARD = true
 
-const renderItems = buildFeedItems()
+const loading = ref(true)
+const error = ref('')
+const banners = ref<BannerItem[]>([])
+const renderItems = ref<RenderItem[]>([])
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await homeApi.getHome()
+    banners.value = res.banners
+    renderItems.value = res.feed
+  } catch (e) {
+    error.value = '加载失败，请检查网络后重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+})
+
 // 等效 react-masonry-css 轮询分列：偶数索引→左列，奇数索引→右列
-const leftCol = computed<RenderItem[]>(() => renderItems.filter((_, i) => i % 2 === 0))
-const rightCol = computed<RenderItem[]>(() => renderItems.filter((_, i) => i % 2 === 1))
+const leftCol = computed<RenderItem[]>(() => renderItems.value.filter((_, i) => i % 2 === 0))
+const rightCol = computed<RenderItem[]>(() => renderItems.value.filter((_, i) => i % 2 === 1))
 
 // 回到顶部
 const showBackTop = ref(false)
@@ -42,7 +68,25 @@ function backToTop() {
 
     <app-header />
 
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="content skeleton">
+      <view class="sk-block" style="height: 320rpx; margin: 0 32rpx 24rpx; border-radius: 24rpx;" />
+      <view class="sk-block" style="height: 280rpx; margin: 0 32rpx 24rpx; border-radius: 24rpx;" />
+      <view class="sk-block" style="height: 400rpx; margin: 0 32rpx 24rpx; border-radius: 24rpx;" />
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="error" class="content error-state">
+      <view class="error-icon">!</view>
+      <text class="error-text">{{ error }}</text>
+      <view class="retry-btn" @tap="retry">
+        <text class="retry-text">点击重试</text>
+      </view>
+    </view>
+
+    <!-- 正常内容 -->
     <scroll-view
+      v-else
       scroll-y
       class="content"
       :scroll-top="scrollTopVal"
@@ -50,7 +94,7 @@ function backToTop() {
       @scroll="onScroll"
     >
       <!-- Banner 轮播 -->
-      <home-banner :banners="defaultBanners" />
+      <home-banner :banners="banners" />
 
       <!-- 十宫格功能入口 -->
       <quick-entry-grid />
@@ -96,4 +140,38 @@ function backToTop() {
 }
 .end-line { width: 60rpx; height: 1rpx; background: var(--line, #e8e0d5); }
 .end-text { font-size: 24rpx; color: var(--text-soft, #999); }
+
+/* 骨架屏 */
+.skeleton { padding-top: 24rpx; }
+.sk-block {
+  background: linear-gradient(90deg, #e8e0d5 25%, #f0ebe3 50%, #e8e0d5 75%);
+  background-size: 200% 100%;
+  animation: sk-shimmer 1.5s infinite;
+}
+@keyframes sk-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* 错误状态 */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  padding-top: 200rpx;
+}
+.error-icon {
+  width: 96rpx; height: 96rpx; border-radius: 999rpx;
+  background: var(--bg-soft, #f0ebe3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 48rpx; color: var(--text-soft, #999); font-weight: 700;
+}
+.error-text { font-size: 28rpx; color: var(--text-soft, #999); }
+.retry-btn {
+  padding: 16rpx 48rpx; border-radius: 999rpx;
+  background: var(--brand-brown, #8B6B4A);
+}
+.retry-text { font-size: 28rpx; color: #ffffff; }
 </style>

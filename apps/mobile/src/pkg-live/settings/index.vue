@@ -8,7 +8,38 @@
       <text class="nav-title">直播设置</text>
     </view>
 
-    <view class="page-body">
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="page-body">
+      <view class="skeleton-section" v-for="s in 3" :key="s">
+        <view class="skeleton-label" />
+        <view class="card card-pad">
+          <view v-if="s === 1">
+            <view class="skeleton-cover-row">
+              <view class="skeleton-cover-img" />
+              <view class="skeleton-cover-text">
+                <view class="skeleton-line w-50" />
+                <view class="skeleton-line w-30" />
+              </view>
+            </view>
+            <view class="skeleton-line w-80" style="margin-top: 32rpx;" />
+            <view class="skeleton-line w-90" style="margin-top: 32rpx; height: 132rpx;" />
+          </view>
+          <view v-else class="skeleton-toggle-row" v-for="i in 3" :key="i">
+            <view class="skeleton-line w-70" />
+            <view class="skeleton-toggle" />
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 错误 -->
+    <view v-else-if="error" class="error-state">
+      <app-icon name="alert-circle" :size="96" color="#cbb8a8" />
+      <text class="error-text">{{ error }}</text>
+      <view class="error-btn" @tap="fetchData">重试</view>
+    </view>
+
+    <view v-else class="page-body">
       <!-- 直播间信息 -->
       <view class="section">
         <text class="section-label">直播间信息</text>
@@ -118,7 +149,7 @@
     </view>
 
     <!-- 固定保存按钮 -->
-    <view class="save-bar">
+    <view v-if="!loading && !error" class="save-bar">
       <view
         class="save-btn"
         :class="{ 'save-btn-saved': saved }"
@@ -133,22 +164,38 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { goBack } from '@/utils/router'
 import {
+  liveApi,
   liveNotifyKeys,
   livePrivacyKeys,
-  liveSettingProfile,
-  liveSettingNotifyDefault,
-  liveSettingPrivacyDefault,
 } from '@/lib/live-data'
 
 const notifyKeys = liveNotifyKeys
 const privacyKeys = livePrivacyKeys
 
-const profile = reactive({ ...liveSettingProfile })
-const notify = reactive<Record<string, boolean>>({ ...liveSettingNotifyDefault })
-const privacy = reactive<Record<string, boolean>>({ ...liveSettingPrivacyDefault })
+const profile = reactive({ cover: '', name: '', desc: '' })
+const notify = reactive<Record<string, boolean>>({})
+const privacy = reactive<Record<string, boolean>>({})
+
+const loading = ref(true)
+const error = ref('')
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await liveApi.getSettings()
+    Object.assign(profile, res.profile)
+    Object.assign(notify, res.notify)
+    Object.assign(privacy, res.privacy)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
 
 const saving = ref(false)
 const saved = ref(false)
@@ -169,6 +216,8 @@ function goTeam() {
 function goEarnings() {
   uni.navigateTo({ url: '/pkg-live/earnings/index' })
 }
+
+onMounted(() => { fetchData() })
 </script>
 
 <style scoped>
@@ -444,4 +493,25 @@ function goEarnings() {
 .bottom-spacer {
   height: 160rpx;
 }
+
+/* 骨架屏 */
+.skeleton-section { margin-bottom: 40rpx; }
+.skeleton-label { width: 128rpx; height: 32rpx; background: #e8e4dc; border-radius: 8rpx; margin-bottom: 24rpx; }
+.skeleton-cover-row { display: flex; align-items: center; gap: 24rpx; }
+.skeleton-cover-img { width: 128rpx; height: 128rpx; background: #e8e4dc; border-radius: 24rpx; flex-shrink: 0; }
+.skeleton-cover-text { flex: 1; display: flex; flex-direction: column; gap: 12rpx; }
+.skeleton-line { height: 24rpx; background: #e8e4dc; border-radius: 8rpx; }
+.skeleton-line.w-80 { width: 80%; }
+.skeleton-line.w-90 { width: 90%; }
+.skeleton-line.w-70 { width: 70%; }
+.skeleton-line.w-50 { width: 50%; }
+.skeleton-line.w-30 { width: 30%; }
+.skeleton-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 32rpx 0; border-bottom: 1px solid #f0ece5; }
+.skeleton-toggle-row:last-child { border-bottom: none; }
+.skeleton-toggle { width: 88rpx; height: 48rpx; background: #e8e4dc; border-radius: 999rpx; flex-shrink: 0; }
+
+/* 错误态 */
+.error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 128rpx 0; }
+.error-text { font-size: 26rpx; color: #999; margin-top: 24rpx; }
+.error-btn { margin-top: 32rpx; padding: 16rpx 48rpx; font-size: 26rpx; color: #fff; background: #C41E3A; border-radius: 999rpx; }
 </style>

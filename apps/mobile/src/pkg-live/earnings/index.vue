@@ -121,13 +121,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { goBack } from '@/utils/router'
-import {
-  liveEarningRanges,
-  liveEarningStatsByRange,
-  liveEarningRecords,
-} from '@/lib/live-data'
+import { liveApi, liveEarningRanges } from '@/lib/live-data'
 
 const ranges = liveEarningRanges
 const typeFilters = [
@@ -136,13 +132,32 @@ const typeFilters = [
   { key: 'goods', label: '带货' },
 ]
 
+const loading = ref(true)
+const error = ref('')
 const range = ref('30d')
 const typeFilter = ref('all')
+const stats = ref<any>({ total: 0, reward: 0, goods: 0, trend: 0 })
+const records = ref<any[]>([])
 
-const stats = computed(() => liveEarningStatsByRange[range.value])
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await liveApi.getEarnings(range.value)
+    stats.value = res.stats
+    records.value = res.records
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
 const filtered = computed(() =>
-  liveEarningRecords.filter((r) => typeFilter.value === 'all' || r.type === typeFilter.value),
+  records.value.filter((r) => typeFilter.value === 'all' || r.type === typeFilter.value),
 )
+
+watch(range, () => { fetchData() })
 
 function goWithdraw() {
   uni.navigateTo({
@@ -150,6 +165,8 @@ function goWithdraw() {
     fail: () => uni.showToast({ title: '功能开发中', icon: 'none' }),
   })
 }
+
+onMounted(() => { fetchData() })
 </script>
 
 <style scoped>

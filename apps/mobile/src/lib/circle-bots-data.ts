@@ -80,3 +80,19 @@ export function formatUsageCount(count: number): string {
   if (count >= 1000) return (count / 1000).toFixed(1) + 'k'
   return count.toString()
 }
+
+// ============ API 层 ============
+import { apiGet, useMock } from '@/utils/request'
+
+export const botsApi = {
+  /** 获取圈子智能体数据 — GET /circles/:circleId/bots */
+  async getCircleBots(circleId: number): Promise<{ summary: CircleSummary; bots: CircleBotItem[] }> {
+    if (useMock()) return { summary: circleSummary, bots: circleBots }
+    try {
+      const data = await apiGet<any>(`/circles/${circleId}/bots`)
+      return data as any
+    } catch {
+      return { summary: circleSummary, bots: circleBots }
+    }
+  },
+}

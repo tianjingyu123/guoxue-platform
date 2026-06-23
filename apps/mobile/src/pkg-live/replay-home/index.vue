@@ -14,6 +14,18 @@
     </view>
 
     <view class="body">
+      <!-- 加载骨架 -->
+      <view v-if="loading" class="skeleton">
+        <view v-for="i in 3" :key="i" class="sk-card" />
+      </view>
+
+      <!-- 错误状态 -->
+      <view v-else-if="error" class="error-state">
+        <text class="error-txt">{{ error }}</text>
+        <view class="retry-btn" @tap="fetchData"><text class="retry-btn-txt">重新加载</text></view>
+      </view>
+
+      <template v-else>
       <!-- 分类横滚 -->
       <scroll-view class="cat-scroll" scroll-x :show-scrollbar="false">
         <view class="cat-row">
@@ -141,18 +153,16 @@
         </view>
       </view>
     </view>
+      </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
-  replayCategories,
-  replayHotItems,
-  replayHomeList,
-  replayHotSearches,
+  liveApi,
   formatLiveDuration,
   formatLiveViews,
   type ReplayHomeItem,
@@ -160,10 +170,13 @@ import {
 
 const statusBarHeight = ref(20)
 
-// UI 临时状态
-const categories = ref(replayCategories)
-const hotReplays = ref(replayHotItems)
-const hotSearches = ref(replayHotSearches)
+// 数据状态
+const loading = ref(true)
+const error = ref('')
+const categories = ref<any[]>([])
+const hotReplays = ref<ReplayHomeItem[]>([])
+const replayList = ref<ReplayHomeItem[]>([])
+const hotSearches = ref<string[]>([])
 const selectedCategory = ref<string | null>(null)
 const showSearch = ref(false)
 const searchQuery = ref('')
@@ -171,10 +184,28 @@ const searchQuery = ref('')
 const filteredReplays = computed(() => {
   if (selectedCategory.value && selectedCategory.value !== 'all') {
     const name = categories.value.find((c) => c.id === selectedCategory.value)?.name
-    return replayHomeList.filter((r) => r.category === name)
+    return replayList.value.filter((r) => r.category === name)
   }
-  return replayHomeList
+  return replayList.value
 })
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await liveApi.getReplayHome()
+    categories.value = data.categories
+    hotReplays.value = data.hotItems
+    replayList.value = data.list
+    hotSearches.value = data.hotSearches
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { fetchData() })
 
 const listTitle = computed(() => {
   if (selectedCategory.value && selectedCategory.value !== 'all') {
@@ -625,4 +656,15 @@ function openReplay(_item: ReplayHomeItem) {}
   font-size: 28rpx;
   color: #666;
 }
+
+/* 骨架屏 */
+.skeleton { display: flex; flex-direction: column; gap: 24rpx; }
+.sk-card { height: 320rpx; border-radius: 24rpx; background: linear-gradient(90deg, #e8e4dc 25%, #f0ece5 50%, #e8e4dc 75%); animation: shimmer 1.5s infinite; background-size: 200% 100%; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* 错误状态 */
+.error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; }
+.error-txt { font-size: 28rpx; color: #999; margin-bottom: 32rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.retry-btn-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 </style>

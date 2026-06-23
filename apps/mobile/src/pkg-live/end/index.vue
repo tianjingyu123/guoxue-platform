@@ -1,5 +1,18 @@
 <template>
   <view class="page">
+    <!-- 加载骨架 -->
+    <view v-if="loading" class="state-skeleton">
+      <view class="state-skeleton__cover" />
+      <view v-for="i in 3" :key="i" class="state-skeleton__row" />
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="error" class="state-error">
+      <text class="state-error__txt">{{ error }}</text>
+      <view class="state-error__retry" @tap="fetchData('1')"><text class="state-error__retry-txt">重试</text></view>
+    </view>
+
+    <template v-else>
     <!-- 封面区域 -->
     <view class="cover">
       <image class="cover-img" :src="room.cover" mode="aspectFill" />
@@ -136,22 +149,45 @@
         <text class="bottom-btn-txt-primary">查看回放</text>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { liveEndRoom, liveEndRecommendLives, liveEndRecommendCourses } from '@/lib/live-data'
+import { liveApi } from '@/lib/live-data'
 
 const statusBarHeight = ref(0)
 
-// UI 临时状态
-const room = ref(liveEndRoom)
-const recommendLives = ref(liveEndRecommendLives)
-const recommendCourses = ref(liveEndRecommendCourses)
+// 数据状态
+const loading = ref(true)
+const error = ref('')
+const room = ref<any>({})
+const recommendLives = ref<any[]>([])
+const recommendCourses = ref<any[]>([])
 const isFollowing = ref(false)
+
+async function fetchData(endId: string) {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await liveApi.getEndRoom(endId)
+    room.value = data.room
+    recommendLives.value = data.recommendLives
+    recommendCourses.value = data.recommendCourses
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((opts: any) => {
+  fetchData(opts?.id || '1')
+})
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600)
@@ -171,6 +207,17 @@ function formatNumber(num: number): string {
   background: #FAF8F5;
   padding-bottom: 192rpx;
 }
+
+/* 加载骨架 */
+.state-skeleton__cover { width: 100%; height: 512rpx; background: linear-gradient(90deg, #e8e4dc 25%, #f0ece5 50%, #e8e4dc 75%); animation: shimmer 1.5s infinite; background-size: 200% 100%; }
+.state-skeleton__row { height: 64rpx; margin: 16rpx 32rpx; border-radius: 12rpx; background: linear-gradient(90deg, #e8e4dc 25%, #f0ece5 50%, #e8e4dc 75%); animation: shimmer 1.5s infinite; background-size: 200% 100%; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* 错误状态 */
+.state-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 320rpx 0; }
+.state-error__txt { font-size: 28rpx; color: #999; margin-bottom: 32rpx; }
+.state-error__retry { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.state-error__retry-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 
 /* 封面区域 */
 .cover {

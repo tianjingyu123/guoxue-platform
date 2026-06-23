@@ -1,5 +1,18 @@
 <template>
   <view class="page">
+    <!-- 加载骨架 -->
+    <view v-if="loading" class="state-skeleton">
+      <view class="state-skeleton__cover" />
+      <view v-for="i in 3" :key="i" class="state-skeleton__row" />
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="error" class="state-error">
+      <text class="state-error__txt">{{ error }}</text>
+      <view class="state-error__retry" @tap="fetchData('1')"><text class="state-error__retry-txt">重试</text></view>
+    </view>
+
+    <template v-else>
     <!-- 封面区域 -->
     <view class="cover-area">
       <image class="cover-img" :src="room.cover" mode="aspectFill" />
@@ -130,16 +143,36 @@
         <text class="book-txt">立即预约</text>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { livePreviewRoom } from '@/lib/live-data'
+import { liveApi } from '@/lib/live-data'
 
-const room = ref(livePreviewRoom)
+const loading = ref(true)
+const error = ref('')
+const room = ref<any>({})
+
+async function fetchData(previewId: string) {
+  loading.value = true
+  error.value = ''
+  try {
+    room.value = await liveApi.getPreview(previewId)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((opts: any) => {
+  fetchData(opts?.id || '1')
+})
 
 // 开播时间 = 当前时间 + 2 小时（与原型一致：动态计算 + 实时倒计时）
 const startTime = Date.now() + 2 * 60 * 60 * 1000
@@ -181,7 +214,8 @@ function pad(n: number) {
 
 // markdown 行解析(纯UI渲染)
 const descLines = computed(() => {
-  return room.value.descriptionLines.map((line) => {
+  const lines = room.value.descriptionLines || []
+  return lines.map((line: string) => {
     if (line.startsWith('### ')) return { type: 'h3', text: line.replace('### ', '') }
     if (line.startsWith('**') && line.endsWith('**')) return { type: 'bold', text: line.replace(/\*\*/g, '') }
     if (line.startsWith('- ')) return { type: 'bullet', text: line.replace('- ', '') }
@@ -198,6 +232,17 @@ const descLines = computed(() => {
   background: #FAF8F5;
   padding-bottom: 192rpx;
 }
+
+/* 加载骨架 */
+.state-skeleton__cover { width: 100%; height: 50vh; min-height: 640rpx; background: linear-gradient(90deg, #e8e4dc 25%, #f0ece5 50%, #e8e4dc 75%); animation: shimmer 1.5s infinite; background-size: 200% 100%; }
+.state-skeleton__row { height: 48rpx; margin: 16rpx 32rpx; border-radius: 12rpx; background: linear-gradient(90deg, #e8e4dc 25%, #f0ece5 50%, #e8e4dc 75%); animation: shimmer 1.5s infinite; background-size: 200% 100%; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* 错误状态 */
+.state-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 320rpx 0; }
+.state-error__txt { font-size: 28rpx; color: #999; margin-bottom: 32rpx; }
+.state-error__retry { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.state-error__retry-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 
 /* 封面 */
 .cover-area {

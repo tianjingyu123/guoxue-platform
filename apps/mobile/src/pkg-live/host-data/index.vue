@@ -15,6 +15,45 @@
       </view>
     </view>
 
+    <!-- 骨架屏 -->
+    <view v-if="loading">
+      <view class="overview">
+        <view class="stat-card skeleton-pulse" v-for="i in 4" :key="i">
+          <view class="skeleton-stat-head">
+            <view class="skeleton-icon" />
+            <view class="skeleton-line w-40" />
+          </view>
+          <view class="skeleton-line w-60" style="height: 48rpx; margin-top: 16rpx;" />
+          <view class="skeleton-line w-30" style="margin-top: 8rpx;" />
+        </view>
+      </view>
+      <view class="trend-wrap">
+        <view class="trend-card">
+          <view class="skeleton-line w-50" style="margin-bottom: 32rpx;" />
+          <view class="skeleton-chart" />
+        </view>
+      </view>
+      <view class="records">
+        <view class="skeleton-line w-40" style="margin-bottom: 24rpx;" />
+        <view class="skeleton-record-card" v-for="i in 3" :key="i">
+          <view class="skeleton-record-cover" />
+          <view class="skeleton-record-info">
+            <view class="skeleton-line w-80" />
+            <view class="skeleton-line w-40" />
+            <view class="skeleton-line w-60" />
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 错误 -->
+    <view v-else-if="error" class="error-state">
+      <AppIcon name="alert-circle" :size="96" color="#cbb8a8" />
+      <text class="error-text">{{ error }}</text>
+      <view class="error-btn" @tap="fetchData">重试</view>
+    </view>
+
+    <template v-else>
     <!-- 概览卡片 2x2 -->
     <view class="overview">
       <view class="stat-card">
@@ -121,17 +160,16 @@
         </view>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
-  hostLiveStats,
-  hostLiveRooms,
-  hostLiveTrend,
+  liveApi,
   formatHostNumber,
   formatHostDuration,
   type HostLiveRoom,
@@ -139,15 +177,31 @@ import {
 } from '@/lib/live-data'
 
 const statusBarHeight = ref(20)
+const loading = ref(true)
+const error = ref('')
 
-// UI 临时状态
-const stats = ref(hostLiveStats)
-const rooms = ref(hostLiveRooms)
-const trend = ref(hostLiveTrend)
+const stats = ref<any>({})
+const rooms = ref<HostLiveRoom[]>([])
+const trend = ref<HostLiveTrend[]>([])
 const trendType = ref<'views' | 'revenue'>('views')
 
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await liveApi.getHostData()
+    stats.value = res.stats
+    rooms.value = res.rooms
+    trend.value = res.trend
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
 const maxTrendValue = computed(() =>
-  Math.max(...trend.value.map((t) => (trendType.value === 'views' ? t.views : t.revenue))),
+  trend.value.length > 0 ? Math.max(...trend.value.map((t) => (trendType.value === 'views' ? t.views : t.revenue))) : 0,
 )
 
 function barHeight(t: HostLiveTrend) {
@@ -156,8 +210,10 @@ function barHeight(t: HostLiveTrend) {
   return Math.max(h, 4)
 }
 
-function handleRefresh() {}
+function handleRefresh() { fetchData() }
 function openRoom(_room: HostLiveRoom) {}
+
+onMounted(() => { fetchData() })
 </script>
 
 <style scoped>
@@ -431,4 +487,28 @@ function openRoom(_room: HostLiveRoom) {}
   font-weight: 500;
   color: #C9A96E;
 }
+
+/* 骨架屏 */
+.skeleton-pulse { animation: skeleton-pulse 1.5s ease-in-out infinite; }
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.skeleton-stat-head { display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx; }
+.skeleton-icon { width: 32rpx; height: 32rpx; background: #e8e4dc; border-radius: 8rpx; }
+.skeleton-line { height: 24rpx; background: #e8e4dc; border-radius: 8rpx; }
+.skeleton-line.w-80 { width: 80%; }
+.skeleton-line.w-60 { width: 60%; }
+.skeleton-line.w-40 { width: 40%; }
+.skeleton-line.w-50 { width: 50%; }
+.skeleton-line.w-30 { width: 30%; }
+.skeleton-chart { height: 256rpx; background: #e8e4dc; border-radius: 16rpx; }
+.skeleton-record-card { background: #fff; border-radius: 24rpx; padding: 32rpx; display: flex; gap: 24rpx; margin-bottom: 24rpx; }
+.skeleton-record-cover { width: 192rpx; height: 128rpx; background: #e8e4dc; border-radius: 12rpx; flex-shrink: 0; }
+.skeleton-record-info { flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
+
+/* 错误态 */
+.error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 128rpx 0; }
+.error-text { font-size: 26rpx; color: #999; margin-top: 24rpx; }
+.error-btn { margin-top: 32rpx; padding: 16rpx 48rpx; font-size: 26rpx; color: #fff; background: #C41E3A; border-radius: 999rpx; }
 </style>

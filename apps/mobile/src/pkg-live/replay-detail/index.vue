@@ -1,5 +1,18 @@
 <template>
   <view class="page">
+    <!-- 加载骨架 -->
+    <view v-if="loading" class="state-skeleton">
+      <view class="state-skeleton__player" />
+      <view v-for="i in 3" :key="i" class="state-skeleton__row" />
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="error" class="state-error">
+      <text class="state-error__txt">{{ error }}</text>
+      <view class="state-error__retry" @tap="fetchData('1')"><text class="state-error__retry-txt">重试</text></view>
+    </view>
+
+    <template v-else>
     <!-- 播放器区域 -->
     <view class="player">
       <!-- 返回按钮 -->
@@ -218,31 +231,54 @@
         </view>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { replayDetail } from '@/lib/live-data'
+import { liveApi } from '@/lib/live-data'
 
 const statusBarHeight = ref(0)
 
-// UI 临时状态
-const replay = ref(replayDetail)
+// 数据状态
+const loading = ref(true)
+const error = ref('')
+const replay = ref<any>({})
 const isPlaying = ref(false)
 const speed = ref(1)
 const activeTab = ref<'chapters' | 'discussion' | 'qa' | 'products'>('chapters')
 const isCollected = ref(false)
-const currentChapter = ref(replayDetail.chapters[0])
+const currentChapter = ref<any>({})
 
-const tabs = ref([
-  { key: 'chapters' as const, label: '章节', icon: 'list', count: replayDetail.chapters.length },
-  { key: 'discussion' as const, label: '讨论', icon: 'message-circle', count: replayDetail.discussions.length },
-  { key: 'qa' as const, label: '问答', icon: 'help-circle', count: replayDetail.qaList.length },
-  { key: 'products' as const, label: '商品', icon: 'shopping-bag', count: replayDetail.products.length },
-])
+const tabs = ref<any[]>([])
+
+async function fetchData(replayId: string) {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await liveApi.getReplayDetail(replayId)
+    replay.value = data
+    currentChapter.value = data.chapters?.[0] || {}
+    tabs.value = [
+      { key: 'chapters' as const, label: '章节', icon: 'list', count: data.chapters?.length || 0 },
+      { key: 'discussion' as const, label: '讨论', icon: 'message-circle', count: data.discussions?.length || 0 },
+      { key: 'qa' as const, label: '问答', icon: 'help-circle', count: data.qaList?.length || 0 },
+      { key: 'products' as const, label: '商品', icon: 'shopping-bag', count: data.products?.length || 0 },
+    ]
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((opts: any) => {
+  fetchData(opts?.id || '1')
+})
 </script>
 
 <style scoped>
@@ -251,6 +287,18 @@ const tabs = ref([
   background: #FAF8F5;
   padding-bottom: 128rpx;
 }
+
+/* 加载骨架 */
+.state-skeleton { padding: 0; }
+.state-skeleton__player { width: 100%; aspect-ratio: 16/9; background: linear-gradient(90deg, #e8e4dc 25%, #f0ece5 50%, #e8e4dc 75%); animation: shimmer 1.5s infinite; background-size: 200% 100%; }
+.state-skeleton__row { height: 64rpx; margin: 16rpx 32rpx; border-radius: 12rpx; background: linear-gradient(90deg, #e8e4dc 25%, #f0ece5 50%, #e8e4dc 75%); animation: shimmer 1.5s infinite; background-size: 200% 100%; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* 错误状态 */
+.state-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 320rpx 0; }
+.state-error__txt { font-size: 28rpx; color: #999; margin-bottom: 32rpx; }
+.state-error__retry { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.state-error__retry-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 
 /* 播放器 */
 .player {

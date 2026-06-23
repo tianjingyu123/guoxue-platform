@@ -1,5 +1,18 @@
 <template>
-  <view class="manage-page">
+  <!-- 加载骨架屏 -->
+  <view v-if="loading" class="skeleton-page">
+    <view class="skeleton-nav" />
+    <view class="skeleton-stats" />
+    <view class="skeleton-card" />
+    <view class="skeleton-card skeleton-card-sm" />
+  </view>
+  <!-- 错误状态 -->
+  <view v-else-if="error" class="error-state">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="fetchData">重试</view>
+  </view>
+  <!-- 正常内容 -->
+  <view v-else class="manage-page">
     <!-- 顶部导航 -->
     <view class="nav-bar">
       <view class="nav-left">
@@ -213,21 +226,24 @@
 
     <view class="bottom-pad" />
   </view>
-</template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { goBack } from '@/utils/router'
 import {
-  liveManageStats,
-  liveManageList,
+  liveApi,
   liveManageTabs,
   liveManageStatusConfig,
   type LiveManageItem,
+  type LiveManageStat,
 } from '@/lib/live-data'
 
-const stats = liveManageStats
-const list = liveManageList
+// 三态UI
+const loading = ref(true)
+const error = ref('')
+
+const stats = ref<LiveManageStat[]>([])
+const list = ref<LiveManageItem[]>([])
 const tabs = liveManageTabs
 const statusConfig = liveManageStatusConfig
 
@@ -235,17 +251,33 @@ const activeTab = ref('all')
 const showActions = ref<number | null>(null)
 
 const filteredList = computed(() =>
-  activeTab.value === 'all' ? list : list.filter((i) => i.status === activeTab.value),
+  activeTab.value === 'all' ? list.value : list.value.filter((i) => i.status === activeTab.value),
 )
 
 function tabCount(key: string): number {
-  return key === 'all' ? list.length : list.filter((i) => i.status === key).length
+  return key === 'all' ? list.value.length : list.value.filter((i) => i.status === key).length
 }
 
 function formatNum(num: number): string {
   if (num >= 10000) return (num / 10000).toFixed(1) + '万'
   return num.toLocaleString()
 }
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await liveApi.getManageList()
+    stats.value = res.stats
+    list.value = res.list
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { fetchData() })
 
 function toggleActions(id: number) {
   showActions.value = showActions.value === id ? null : id
@@ -265,6 +297,57 @@ function viewData(item: LiveManageItem) {
 </script>
 
 <style scoped>
+/* 骨架屏 */
+.skeleton-page {
+  min-height: 100vh;
+  background: #faf8f5;
+  padding: 24rpx;
+}
+.skeleton-nav {
+  height: 88rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  margin-bottom: 24rpx;
+}
+.skeleton-stats {
+  height: 160rpx;
+  background: #fff;
+  border-radius: 24rpx;
+  margin-bottom: 24rpx;
+}
+.skeleton-card {
+  height: 200rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  margin-bottom: 20rpx;
+}
+.skeleton-card-sm {
+  height: 120rpx;
+}
+
+/* 错误状态 */
+.error-state {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #faf8f5;
+  padding: 48rpx;
+}
+.error-text {
+  font-size: 28rpx;
+  color: #999;
+  margin-bottom: 32rpx;
+}
+.retry-btn {
+  padding: 20rpx 64rpx;
+  background: #C41E3A;
+  color: #fff;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+}
+
 .manage-page {
   min-height: 100vh;
   background: #faf8f5;

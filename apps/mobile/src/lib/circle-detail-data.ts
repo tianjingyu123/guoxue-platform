@@ -133,6 +133,30 @@ export const circleDetailApi = {
     if (useMock()) return { data: mockMembers, total: mockMembers.length }
     return apiGet(`/circles/${id}/members`)
   },
+  /** 圈子专栏列表 — GET /circles/:id/columns */
+  columns: async (id: string): Promise<CircleColumn[]> => {
+    if (useMock()) return mockColumns
+    try {
+      const data = await apiGet<any>(`/circles/${id}/columns`)
+      return (data?.items || data) as CircleColumn[]
+    } catch { return mockColumns }
+  },
+  /** 圈子精选文章 — GET /circles/:id/articles */
+  articles: async (id: string): Promise<CircleArticle[]> => {
+    if (useMock()) return mockCircleArticles
+    try {
+      const data = await apiGet<any>(`/circles/${id}/articles`)
+      return (data?.items || data) as CircleArticle[]
+    } catch { return mockCircleArticles }
+  },
+  /** 圈子活动列表 — GET /circles/:id/activities */
+  activities: async (id: string): Promise<CircleActivity[]> => {
+    if (useMock()) return mockActivities
+    try {
+      const data = await apiGet<any>(`/circles/${id}/activities`)
+      return (data?.items || data) as CircleActivity[]
+    } catch { return mockActivities }
+  },
   join: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/join`),
   leave: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/leave`),
 }

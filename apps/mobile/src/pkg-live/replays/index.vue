@@ -22,8 +22,19 @@
       </view>
     </view>
 
+    <!-- 加载骨架 -->
+    <view v-if="loading" class="skeleton">
+      <view v-for="i in 3" :key="i" class="sk-card" />
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="error" class="error-state">
+      <text class="error-txt">{{ error }}</text>
+      <view class="retry-btn" @tap="fetchData"><text class="retry-btn-txt">重新加载</text></view>
+    </view>
+
     <!-- 回放列表(单列横向卡) -->
-    <view class="list">
+    <view v-else class="list">
       <view v-for="item in replays" :key="item.id" class="card" @tap="openReplay(item)">
         <view class="card-inner">
           <!-- 封面 -->
@@ -84,15 +95,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { liveReplays, replaySortOptions, formatLiveDuration, formatLiveViews } from '@/lib/live-data'
+import { liveApi, replaySortOptions, formatLiveDuration, formatLiveViews } from '@/lib/live-data'
 
 const statusBarHeight = ref(20)
 
-// UI 临时状态
-const replays = ref(liveReplays)
+// 数据状态
+const loading = ref(true)
+const error = ref('')
+const replays = ref<any[]>([])
 const sortBy = ref<string>('latest')
 const showSort = ref(false)
 
@@ -100,10 +113,25 @@ const currentSortLabel = computed(
   () => replaySortOptions.find((o) => o.value === sortBy.value)?.label || '最新发布',
 )
 
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    replays.value = await liveApi.getReplays(sortBy.value)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
 function selectSort(v: string) {
   sortBy.value = v
   showSort.value = false
+  fetchData()
 }
+
+onMounted(() => { fetchData() })
 
 function onSearch() {}
 function openReplay(_item: { id: string }) {}
@@ -300,6 +328,17 @@ function openReplay(_item: { id: string }) {}
   color: #ccc;
   padding: 16rpx 0;
 }
+
+/* 骨架屏 */
+.skeleton { display: flex; flex-direction: column; gap: 24rpx; padding: 0 24rpx; }
+.sk-card { height: 208rpx; border-radius: 24rpx; background: linear-gradient(90deg, #e8e4dc 25%, #f0ece5 50%, #e8e4dc 75%); animation: shimmer 1.5s infinite; background-size: 200% 100%; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* 错误状态 */
+.error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; }
+.error-txt { font-size: 28rpx; color: #999; margin-bottom: 32rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.retry-btn-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 
 /* 排序弹层 */
 .sheet-mask {

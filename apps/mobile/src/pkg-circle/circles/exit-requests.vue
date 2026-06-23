@@ -3,13 +3,16 @@
  * 退出申请审核页（从原型 app/circles/[id]/exit-requests/page.tsx 269行高保真迁移）
  * 统计栏 + 待审核/已处理双Tab + 圈主审核说明 + 卡片(退款核算/驳回原因/流转说明) + 同意/拒绝 + 拒绝弹窗
  * 数据/退款计算复用 lib/circle-exit.ts
+ * @data-needs 退出申请列表通过 exitApi.getExitRequests(circleId) 获取
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { mockExitRequests, getExitStageDisplay, type ExitApplication } from '@/lib/circle-exit'
+import { exitApi, getExitStageDisplay, type ExitApplication } from '@/lib/circle-exit'
 
-const requests = ref<ExitApplication[]>(mockExitRequests)
+const requests = ref<ExitApplication[]>([])
+const loading = ref(true)
+const error = ref('')
 const filter = ref<'pending' | 'processed'>('pending')
 const rejectingId = ref<string | null>(null)
 const rejectReason = ref('')
@@ -23,6 +26,22 @@ function toneCls(tone: string) {
   if (tone === 'rejected') return 'er-tone-no'
   return 'er-tone-pending'
 }
+
+async function fetchRequests() {
+  loading.value = true
+  error.value = ''
+  try {
+    requests.value = await exitApi.getExitRequests('1')
+  } catch {
+    error.value = '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() { fetchRequests() }
+
+onMounted(() => { fetchRequests() })
 
 function approve(id: string) {
   requests.value = requests.value.map((r) =>
@@ -75,12 +94,35 @@ function confirmReject() {
     </view>
 
     <!-- 圈主审核说明 -->
-    <view v-if="filter === 'pending' && pending.length > 0" class="er-note">
+    <view v-if="!loading && !error && filter === 'pending' && pending.length > 0" class="er-note">
       <text class="er-note-text">请核对成员身份与圈内行为记录后审核。同意后将进入平台审核与退款处理；退款金额由系统按使用天数自动核算。</text>
     </view>
 
+    <!-- 加载骨架 -->
+    <view v-if="loading" class="er-list">
+      <view v-for="i in 3" :key="'sk-'+i" class="er-card er-card-done">
+        <view class="er-card-body">
+          <view class="er-card-head">
+            <view class="er-skel-avatar" />
+            <view class="er-skel-info">
+              <view class="er-skel-line w32" />
+              <view class="er-skel-line wfull" />
+            </view>
+          </view>
+          <view class="er-skel-block" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 错误态 -->
+    <view v-else-if="error" class="er-empty">
+      <view class="er-empty-icon"><app-icon name="log-out" :size="56" color="#CCCCCC" /></view>
+      <text class="er-empty-text">{{ error }}</text>
+      <view class="er-empty-retry" @tap="retry"><text class="er-empty-retry-t">重试</text></view>
+    </view>
+
     <!-- 空态 -->
-    <view v-if="display.length === 0" class="er-empty">
+    <view v-else-if="display.length === 0" class="er-empty">
       <view class="er-empty-icon"><app-icon name="log-out" :size="56" color="#CCCCCC" /></view>
       <text class="er-empty-text">{{ filter === 'pending' ? '暂无待审核申请' : '暂无已处理记录' }}</text>
     </view>
@@ -202,4 +244,12 @@ function confirmReject() {
 .er-modal-btns { display: flex; gap: 20rpx; margin-top: 28rpx; }
 .er-modal-cancel { flex: 1; padding: 20rpx 0; text-align: center; border: 1rpx solid #E8E3DB; border-radius: 14rpx; color: #666666; font-size: 28rpx; }
 .er-modal-ok { flex: 1; padding: 20rpx 0; text-align: center; background: #C41E3A; color: #fff; border-radius: 14rpx; font-size: 28rpx; }
+/* 骨架 */
+.er-skel-avatar { width: 88rpx; height: 88rpx; border-radius: 999rpx; background: #e8e0d5; flex-shrink: 0; }
+.er-skel-info { flex: 1; }
+.er-skel-line { height: 22rpx; background: #e8e0d5; border-radius: 6rpx; margin-bottom: 10rpx; }
+.er-skel-line.w32 { width: 240rpx; } .er-skel-line.wfull { width: 100%; }
+.er-skel-block { height: 100rpx; background: #e8e0d5; border-radius: 16rpx; margin-top: 18rpx; }
+.er-empty-retry { margin-top: 24rpx; padding: 14rpx 40rpx; border-radius: 999rpx; background: #C41E3A; }
+.er-empty-retry-t { font-size: 24rpx; color: #fff; }
 </style>

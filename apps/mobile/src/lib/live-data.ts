@@ -1205,4 +1205,272 @@ export const liveApi = {
       return replayDetail
     }
   },
+
+  /** 获取回放首页数据 — GET /live/replay-home */
+  async getReplayHome(): Promise<{
+    categories: ReplayCategory[]; hotItems: ReplayHomeItem[]; list: ReplayHomeItem[]; hotSearches: string[]
+  }> {
+    if (useMock()) return { categories: replayCategories, hotItems: replayHotItems, list: replayHomeList, hotSearches: replayHotSearches }
+    try {
+      const data = await apiGet<any>('/live/replay-home')
+      return data as any
+    } catch {
+      return { categories: replayCategories, hotItems: replayHotItems, list: replayHomeList, hotSearches: replayHotSearches }
+    }
+  },
+
+  /** 获取直播预告 — GET /live/preview/:id */
+  async getPreview(id: string): Promise<LivePreviewRoom> {
+    if (useMock()) return livePreviewRoom
+    try {
+      const data = await apiGet<any>(`/live/preview/${id}`)
+      return data as LivePreviewRoom
+    } catch {
+      return livePreviewRoom
+    }
+  },
+
+  /** 获取直播结束数据 — GET /live/end/:id */
+  async getEndRoom(id: string): Promise<{
+    room: LiveEndRoom; recommendLives: LiveEndRecommendLive[]; recommendCourses: typeof liveEndRecommendCourses
+  }> {
+    if (useMock()) return { room: liveEndRoom, recommendLives: liveEndRecommendLives, recommendCourses: liveEndRecommendCourses }
+    try {
+      const data = await apiGet<any>(`/live/end/${id}`)
+      return data as any
+    } catch {
+      return { room: liveEndRoom, recommendLives: liveEndRecommendLives, recommendCourses: liveEndRecommendCourses }
+    }
+  },
+
+  /** 获取创建直播分类 — GET /live/categories */
+  async getCategories(): Promise<LiveCategory[]> {
+    if (useMock()) return liveCreateCategories
+    try {
+      const data = await apiGet<any>('/live/categories')
+      return (data?.items || data) as LiveCategory[]
+    } catch {
+      return liveCreateCategories
+    }
+  },
+
+  /** 获取直播管理列表 — GET /live/manage */
+  async getManageList(tab?: string): Promise<{ stats: LiveManageStat[]; list: LiveManageItem[] }> {
+    if (useMock()) {
+      let list = liveManageList
+      if (tab && tab !== 'all') list = liveManageList.filter(item => item.status === tab)
+      return { stats: liveManageStats, list }
+    }
+    try {
+      const url = tab ? `/live/manage?tab=${encodeURIComponent(tab)}` : '/live/manage'
+      const data = await apiGet<any>(url)
+      return data as any
+    } catch {
+      return { stats: liveManageStats, list: liveManageList }
+    }
+  },
+
+  /** 获取直播控制台数据 — GET /live/console/:id */
+  async getConsoleData(id: string): Promise<{
+    stats: typeof consoleLiveStats; danmaku: ConsoleDanmaku[]; requests: ConsoleConnectRequest[]
+    products: ConsoleProduct[]; script: ConsoleScript[]
+  }> {
+    if (useMock()) return { stats: consoleLiveStats, danmaku: consoleDanmaku, requests: consoleConnectRequests, products: consoleProducts, script: consoleScript }
+    try {
+      const data = await apiGet<any>(`/live/console/${id}`)
+      return data as any
+    } catch {
+      return { stats: consoleLiveStats, danmaku: consoleDanmaku, requests: consoleConnectRequests, products: consoleProducts, script: consoleScript }
+    }
+  },
+
+  /** 获取OBS推流数据 — GET /live/obs-stream */
+  async getObsStream(): Promise<typeof obsStreamData> {
+    if (useMock()) return obsStreamData
+    try {
+      const data = await apiGet<any>('/live/obs-stream')
+      return data as typeof obsStreamData
+    } catch {
+      return obsStreamData
+    }
+  },
+
+  /** 获取排期列表 — GET /live/schedule */
+  async getScheduleList(): Promise<ScheduleItem[]> {
+    if (useMock()) return scheduleList
+    try {
+      const data = await apiGet<any>('/live/schedule')
+      return (data?.items || data) as ScheduleItem[]
+    } catch {
+      return scheduleList
+    }
+  },
+
+  /** 获取团队成员 — GET /live/team */
+  async getTeam(): Promise<{ members: TeamMember[]; available: AvailableMember[] }> {
+    if (useMock()) return { members: teamMembers, available: teamAvailableMembers }
+    try {
+      const data = await apiGet<any>('/live/team')
+      return data as any
+    } catch {
+      return { members: teamMembers, available: teamAvailableMembers }
+    }
+  },
+
+  /** 获取直播分析数据 — GET /live/analytics/:id */
+  async getAnalytics(id: string): Promise<{
+    info: typeof analyticsLiveInfo; coreStats: CoreStat[]; trafficData: typeof analyticsTrafficData
+    keyMoments: typeof analyticsKeyMoments; audience: typeof analyticsAudience
+    interaction: typeof analyticsInteraction; wordCloud: typeof analyticsWordCloud
+    productStats: typeof analyticsProductStats; replay: typeof analyticsReplay
+  }> {
+    if (useMock()) return {
+      info: analyticsLiveInfo, coreStats: analyticsCoreStats, trafficData: analyticsTrafficData,
+      keyMoments: analyticsKeyMoments, audience: analyticsAudience, interaction: analyticsInteraction,
+      wordCloud: analyticsWordCloud, productStats: analyticsProductStats, replay: analyticsReplay,
+    }
+    try {
+      const data = await apiGet<any>(`/live/analytics/${id}`)
+      return data as any
+    } catch {
+      return {
+        info: analyticsLiveInfo, coreStats: analyticsCoreStats, trafficData: analyticsTrafficData,
+        keyMoments: analyticsKeyMoments, audience: analyticsAudience, interaction: analyticsInteraction,
+        wordCloud: analyticsWordCloud, productStats: analyticsProductStats, replay: analyticsReplay,
+      }
+    }
+  },
+
+  /** 获取收益数据 — GET /live/earnings */
+  async getEarnings(range?: string): Promise<{
+    ranges: LiveEarningRange[]; stats: LiveEarningStats; records: LiveEarningRecord[]
+  }> {
+    if (useMock()) {
+      const key = range || '7d'
+      return { ranges: liveEarningRanges, stats: liveEarningStatsByRange[key] || liveEarningStatsByRange['7d'], records: liveEarningRecords }
+    }
+    try {
+      const url = range ? `/live/earnings?range=${encodeURIComponent(range)}` : '/live/earnings'
+      const data = await apiGet<any>(url)
+      return data as any
+    } catch {
+      const key = range || '7d'
+      return { ranges: liveEarningRanges, stats: liveEarningStatsByRange[key] || liveEarningStatsByRange['7d'], records: liveEarningRecords }
+    }
+  },
+
+  /** 获取带货商品列表 — GET /live/products */
+  async getProducts(filter?: string): Promise<LiveProductItem[]> {
+    if (useMock()) {
+      if (!filter || filter === 'all') return liveProducts
+      return liveProducts.filter(p => p.status === filter)
+    }
+    try {
+      const url = filter ? `/live/products?filter=${encodeURIComponent(filter)}` : '/live/products'
+      const data = await apiGet<any>(url)
+      return (data?.items || data) as LiveProductItem[]
+    } catch {
+      return liveProducts
+    }
+  },
+
+  /** 获取评价列表 — GET /live/reviews */
+  async getReviews(filter?: string): Promise<{ dist: LiveReviewDist[]; reviews: LiveReview[] }> {
+    if (useMock()) return { dist: liveReviewDist, reviews: liveReviews }
+    try {
+      const url = filter ? `/live/reviews?filter=${encodeURIComponent(filter)}` : '/live/reviews'
+      const data = await apiGet<any>(url)
+      return data as any
+    } catch {
+      return { dist: liveReviewDist, reviews: liveReviews }
+    }
+  },
+
+  /** 获取直播设置 — GET /live/settings */
+  async getSettings(): Promise<{
+    profile: typeof liveSettingProfile; notify: typeof liveSettingNotifyDefault; privacy: typeof liveSettingPrivacyDefault
+  }> {
+    if (useMock()) return { profile: liveSettingProfile, notify: liveSettingNotifyDefault, privacy: liveSettingPrivacyDefault }
+    try {
+      const data = await apiGet<any>('/live/settings')
+      return data as any
+    } catch {
+      return { profile: liveSettingProfile, notify: liveSettingNotifyDefault, privacy: liveSettingPrivacyDefault }
+    }
+  },
+
+  /** 获取竖屏直播间数据 — GET /live/vertical/:id */
+  async getVerticalRoom(id: string): Promise<{
+    room: typeof verticalLiveRoom; comments: VerticalLiveComment[]; products: VerticalLiveProduct[]
+  }> {
+    if (useMock()) return { room: verticalLiveRoom, comments: verticalLiveComments, products: verticalLiveProducts }
+    try {
+      const data = await apiGet<any>(`/live/vertical/${id}`)
+      return data as any
+    } catch {
+      return { room: verticalLiveRoom, comments: verticalLiveComments, products: verticalLiveProducts }
+    }
+  },
+
+  /** 获取横屏直播间数据 — GET /live/horizontal/:id */
+  async getHorizontalRoom(id: string): Promise<{
+    room: HorizontalLiveRoom; slides: HorizontalSlide[]; questions: HorizontalQuestion[]
+    messages: HorizontalMessage[]; files: HorizontalFile[]
+  }> {
+    if (useMock()) return { room: horizontalLiveRoom, slides: horizontalSlides, questions: horizontalQuestions, messages: horizontalMessages, files: horizontalFiles }
+    try {
+      const data = await apiGet<any>(`/live/horizontal/${id}`)
+      return data as any
+    } catch {
+      return { room: horizontalLiveRoom, slides: horizontalSlides, questions: horizontalQuestions, messages: horizontalMessages, files: horizontalFiles }
+    }
+  },
+
+  /** 获取主播数据中心 — GET /live/host-data */
+  async getHostData(): Promise<{
+    stats: HostLiveStats; rooms: HostLiveRoom[]; trend: HostLiveTrend[]
+  }> {
+    if (useMock()) return { stats: hostLiveStats, rooms: hostLiveRooms, trend: hostLiveTrend }
+    try {
+      const data = await apiGet<any>('/live/host-data')
+      return data as any
+    } catch {
+      return { stats: hostLiveStats, rooms: hostLiveRooms, trend: hostLiveTrend }
+    }
+  },
+
+  /** 获取直播间观看页数据 — GET /live/watch-room/:id */
+  async getWatchRoom(id: string): Promise<{
+    room: typeof liveWatchRoom; comments: VerticalLiveComment[]; products: VerticalLiveProduct[]
+  }> {
+    if (useMock()) return { room: liveWatchRoom, comments: liveWatchComments, products: liveWatchProducts }
+    try {
+      const data = await apiGet<any>(`/live/watch-room/${id}`)
+      return data as any
+    } catch {
+      return { room: liveWatchRoom, comments: liveWatchComments, products: liveWatchProducts }
+    }
+  },
+
+  /** 获取礼物列表 — GET /live/gifts */
+  async getGifts(): Promise<{ gifts: LiveGift[]; balance: number }> {
+    if (useMock()) return { gifts: liveGifts, balance: liveCoinBalance }
+    try {
+      const data = await apiGet<any>('/live/gifts')
+      return data as any
+    } catch {
+      return { gifts: liveGifts, balance: liveCoinBalance }
+    }
+  },
+
+  /** 获取推流配置 — GET /live/stream-config */
+  async getStreamConfig(): Promise<StreamConfig> {
+    if (useMock()) return streamConfig
+    try {
+      const data = await apiGet<any>('/live/stream-config')
+      return data as StreamConfig
+    } catch {
+      return streamConfig
+    }
+  },
 }

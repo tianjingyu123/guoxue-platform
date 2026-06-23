@@ -1,5 +1,18 @@
 <template>
-  <view class="page">
+  <!-- 加载骨架屏 -->
+  <view v-if="loading" class="skeleton-page">
+    <view class="skeleton-nav" />
+    <view class="skeleton-card" />
+    <view class="skeleton-card skeleton-card-sm" />
+    <view class="skeleton-card skeleton-card-sm" />
+  </view>
+  <!-- 错误状态 -->
+  <view v-else-if="error" class="error-state">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="fetchData">重试</view>
+  </view>
+  <!-- 正常内容 -->
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
@@ -267,15 +280,29 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
-  obsStreamData,
+  liveApi,
   obsQualityPresets,
   obsPageSteps,
   obsOutputSettings,
   obsPageFaq,
 } from '@/lib/live-data'
 
+// 三态UI
+const loading = ref(true)
+const error = ref('')
+
 const statusBarHeight = ref(0)
-const stream = ref(obsStreamData)
+const stream = ref({
+  serverUrl: '',
+  streamKey: '',
+  status: 'offline' as 'online' | 'offline' | 'connecting',
+  duration: 0,
+  fps: 0,
+  bitrate: 0,
+  resolution: '',
+  droppedFrames: 0,
+  totalFrames: 0,
+})
 const obsSteps = ref(obsPageSteps)
 const qualityPresets = ref(obsQualityPresets)
 const outputSettings = ref(obsOutputSettings)
@@ -286,17 +313,50 @@ const copiedField = ref<string | null>(null)
 const showResetDialog = ref(false)
 const isResetting = ref(false)
 const selectedQuality = ref('high')
-const streamStatus = ref(obsStreamData.status)
-const duration = ref(obsStreamData.duration)
+const streamStatus = ref<'online' | 'offline' | 'connecting'>('offline')
+const duration = ref(0)
 const openFaq = ref<number | null>(null)
 
 let timer: ReturnType<typeof setInterval> | null = null
 
-onLoad(() => {
+const statusText = computed(() =>
+  streamStatus.value === 'online' ? '推流中' : streamStatus.value === 'connecting' ? '连接中' : '离线',
+)
+const statusClass = computed(() => `s-${streamStatus.value}`)
+const dropRate = computed(() =>
+  stream.value.totalFrames > 0 ? stream.value.droppedFrames / stream.value.totalFrames : 0,
+)
+const maskedKey = computed(() => '•'.repeat(stream.value.streamKey.length))
+
+function formatDuration(seconds: number) {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${pad(h)}:${pad(m)}:${pad(s)}`
+}
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await liveApi.getObsStream()
+    stream.value = { ...data, status: data.status as 'online' | 'offline' | 'connecting' }
+    streamStatus.value = data.status as 'online' | 'offline' | 'connecting'
+    duration.value = data.duration
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad(async () => {
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 0
   } catch (e) {}
+  await fetchData()
   if (streamStatus.value === 'online') {
     timer = setInterval(() => {
       duration.value += 1
@@ -307,21 +367,6 @@ onLoad(() => {
 onUnmounted(() => {
   if (timer) clearInterval(timer)
 })
-
-const statusText = computed(() =>
-  streamStatus.value === 'online' ? '推流中' : streamStatus.value === 'connecting' ? '连接中' : '离线',
-)
-const statusClass = computed(() => `s-${streamStatus.value}`)
-const dropRate = computed(() => stream.value.droppedFrames / stream.value.totalFrames)
-const maskedKey = computed(() => '•'.repeat(stream.value.streamKey.length))
-
-function formatDuration(seconds: number) {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = seconds % 60
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  return `${pad(h)}:${pad(m)}:${pad(s)}`
-}
 
 function copyField(text: string, field: string) {
   uni.setClipboardData({
@@ -357,6 +402,51 @@ function onBack() {
 </script>
 
 <style scoped>
+/* 骨架屏 */
+.skeleton-page {
+  min-height: 100vh;
+  background: #FAF8F5;
+  padding: 32rpx;
+}
+.skeleton-nav {
+  height: 88rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  margin-bottom: 32rpx;
+}
+.skeleton-card {
+  height: 360rpx;
+  background: #fff;
+  border-radius: 24rpx;
+  margin-bottom: 32rpx;
+}
+.skeleton-card-sm {
+  height: 240rpx;
+}
+
+/* 错误状态 */
+.error-state {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #FAF8F5;
+  padding: 48rpx;
+}
+.error-text {
+  font-size: 28rpx;
+  color: #999;
+  margin-bottom: 32rpx;
+}
+.retry-btn {
+  padding: 20rpx 64rpx;
+  background: #C41E3A;
+  color: #fff;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+}
+
 .page {
   min-height: 100vh;
   background: #FAF8F5;

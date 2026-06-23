@@ -8,7 +8,38 @@
       <text class="nav-title">直播评价</text>
     </view>
 
-    <view class="page-body">
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="page-body">
+      <view class="skeleton-stat-card">
+        <view class="skeleton-avg-circle" />
+        <view class="skeleton-dist-bars">
+          <view class="skeleton-dist-bar" v-for="i in 5" :key="i" />
+        </view>
+      </view>
+      <view class="skeleton-filter-row">
+        <view class="skeleton-chip" v-for="i in 4" :key="i" />
+      </view>
+      <view class="skeleton-review-card" v-for="i in 3" :key="i">
+        <view class="skeleton-review-head">
+          <view class="skeleton-avatar" />
+          <view class="skeleton-review-info">
+            <view class="skeleton-line w-60" />
+            <view class="skeleton-line w-30" />
+          </view>
+        </view>
+        <view class="skeleton-line w-90" />
+        <view class="skeleton-line w-70" />
+      </view>
+    </view>
+
+    <!-- 错误 -->
+    <view v-else-if="error" class="error-state">
+      <app-icon name="alert-circle" :size="96" color="#cbb8a8" />
+      <text class="error-text">{{ error }}</text>
+      <view class="error-btn" @tap="fetchData">重试</view>
+    </view>
+
+    <view v-else class="page-body">
       <!-- 统计卡片 -->
       <view class="stat-card">
         <view class="stat-row">
@@ -124,31 +155,52 @@
         </view>
       </view>
     </view>
-    <view class="bottom-pad" />
+    <view v-if="!loading && !error" class="bottom-pad" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { goBack } from '@/utils/router'
-import { liveReviewFilters, liveReviewDist, liveReviews } from '@/lib/live-data'
+import { liveApi, liveReviewFilters } from '@/lib/live-data'
 
 const filters = liveReviewFilters
-const dist = liveReviewDist
-const reviews = liveReviews
+const dist = ref<Array<{ star: number; count: number; pct: number }>>([])
+const reviews = ref<any[]>([])
+const loading = ref(true)
+const error = ref('')
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await liveApi.getReviews(filter.value)
+    dist.value = res.dist
+    reviews.value = res.reviews
+    // 初始化已回复的记录
+    replies.value = Object.fromEntries(
+      res.reviews.filter((r: any) => r.reply).map((r: any) => [r.id, r.reply as string]),
+    )
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
 
 const filter = ref('all')
 const replyId = ref<string | null>(null)
 const replyText = ref('')
-const replies = ref<Record<string, string>>(
-  Object.fromEntries(reviews.filter((r) => r.reply).map((r) => [r.id, r.reply as string])),
-)
+const replies = ref<Record<string, string>>({})
 
-const totalCount = dist.reduce((s, d) => s + d.count, 0)
-const avgRating = (dist.reduce((s, d) => s + d.star * d.count, 0) / totalCount).toFixed(1)
+const totalCount = computed(() => dist.value.reduce((s, d) => s + d.count, 0))
+const avgRating = computed(() => {
+  const total = totalCount.value
+  return total > 0 ? (dist.value.reduce((s, d) => s + d.star * d.count, 0) / total).toFixed(1) : '0.0'
+})
 
 const filtered = computed(() =>
-  reviews.filter((r) => {
+  reviews.value.filter((r) => {
     if (filter.value === 'all') return true
     if (filter.value === 'pending') return !replies.value[r.id]
     if (filter.value === 'replied') return !!replies.value[r.id]
@@ -170,6 +222,9 @@ function submitReply(id: string) {
   replyId.value = null
   replyText.value = ''
 }
+
+watch(filter, () => { fetchData() })
+onMounted(() => { fetchData() })
 </script>
 
 <style scoped>
@@ -459,4 +514,83 @@ function submitReply(id: string) {
 .bottom-pad {
   height: 64rpx;
 }
+
+/* 骨架屏 */
+.skeleton-stat-card {
+  background: #fff;
+  border: 1px solid #ece8e1;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  display: flex;
+  gap: 32rpx;
+}
+.skeleton-avg-circle {
+  width: 120rpx;
+  height: 120rpx;
+  background: #e8e4dc;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.skeleton-dist-bars {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  justify-content: center;
+}
+.skeleton-dist-bar {
+  height: 24rpx;
+  background: #e8e4dc;
+  border-radius: 999rpx;
+}
+.skeleton-filter-row {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 32rpx;
+}
+.skeleton-chip {
+  width: 128rpx;
+  height: 48rpx;
+  background: #e8e4dc;
+  border-radius: 999rpx;
+}
+.skeleton-review-card {
+  background: #fff;
+  border: 1px solid #ece8e1;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin-top: 24rpx;
+}
+.skeleton-review-head {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+.skeleton-avatar {
+  width: 64rpx;
+  height: 64rpx;
+  background: #e8e4dc;
+  border-radius: 50%;
+}
+.skeleton-review-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.skeleton-line {
+  height: 24rpx;
+  background: #e8e4dc;
+  border-radius: 8rpx;
+}
+.skeleton-line.w-90 { width: 90%; margin-bottom: 12rpx; }
+.skeleton-line.w-70 { width: 70%; }
+.skeleton-line.w-60 { width: 60%; }
+.skeleton-line.w-30 { width: 30%; }
+
+/* 错误态 */
+.error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 128rpx 0; }
+.error-text { font-size: 26rpx; color: #999; margin-top: 24rpx; }
+.error-btn { margin-top: 32rpx; padding: 16rpx 48rpx; font-size: 26rpx; color: #fff; background: #C41E3A; border-radius: 999rpx; }
 </style>

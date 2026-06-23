@@ -353,25 +353,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import {
-  analyticsLiveInfo, analyticsCoreStats, analyticsTrafficData, analyticsKeyMoments,
-  analyticsAudience, analyticsInteraction, analyticsWordCloud, analyticsProductStats, analyticsReplay,
-} from '@/lib/live-data'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { liveApi } from '@/lib/live-data'
 
-const liveInfo = analyticsLiveInfo
-const coreStats = analyticsCoreStats
-const trafficData = analyticsTrafficData
-const keyMoments = analyticsKeyMoments
-const audience = analyticsAudience
-const interaction = analyticsInteraction
-const wordCloud = analyticsWordCloud
-const productStats = analyticsProductStats
-const replay = analyticsReplay
+const loading = ref(true)
+const error = ref('')
+const analyticsId = ref('1')
+
+const liveInfo = ref<any>({ title: '', startTime: '', duration: '' })
+const coreStats = ref<any[]>([])
+const trafficData = ref<any[]>([])
+const keyMoments = ref<any[]>([])
+const audience = ref<any>({ gender: [], age: [], region: [], source: [] })
+const interaction = ref<any>({ danmaku: 0, likes: 0, comments: 0, shares: 0, gifts: [] })
+const wordCloud = ref<any[]>([])
+const productStats = ref<any[]>([])
+const replay = ref<any>({ isPublic: false, isPaid: false, playCount: 0, playDuration: '', revenue: 0 })
 
 const activeTab = ref('overview')
-const replayPublic = ref(replay.isPublic)
-const replayPaid = ref(replay.isPaid)
+const replayPublic = ref(false)
+const replayPaid = ref(false)
 
 const tabs = [
   { key: 'overview', label: '数据总览' },
@@ -381,13 +383,39 @@ const tabs = [
   { key: 'replay', label: '回放管理' },
 ]
 
-const maxTraffic = computed(() => Math.max(...trafficData.map((d) => d.value)))
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await liveApi.getAnalytics(analyticsId.value)
+    liveInfo.value = res.info
+    coreStats.value = res.coreStats
+    trafficData.value = res.trafficData
+    keyMoments.value = res.keyMoments
+    audience.value = res.audience
+    interaction.value = res.interaction
+    wordCloud.value = res.wordCloud
+    productStats.value = res.productStats
+    replay.value = res.replay
+    replayPublic.value = res.replay?.isPublic ?? false
+    replayPaid.value = res.replay?.isPaid ?? false
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+const maxTraffic = computed(() => {
+  if (trafficData.value.length === 0) return 0
+  return Math.max(...trafficData.value.map((d: any) => d.value))
+})
 
 const interStats = computed(() => [
-  { label: '弹幕', value: interaction.danmaku, icon: 'message-circle' },
-  { label: '点赞', value: interaction.likes, icon: 'heart' },
-  { label: '评论', value: interaction.comments, icon: 'message-circle' },
-  { label: '分享', value: interaction.shares, icon: 'share-2' },
+  { label: '弹幕', value: interaction.value?.danmaku || 0, icon: 'message-circle' },
+  { label: '点赞', value: interaction.value?.likes || 0, icon: 'heart' },
+  { label: '评论', value: interaction.value?.comments || 0, icon: 'message-circle' },
+  { label: '分享', value: interaction.value?.shares || 0, icon: 'share-2' },
 ])
 
 function trendColor(trend: string) {
@@ -402,6 +430,11 @@ function rankClass(i: number) {
 function goBack() {
   uni.navigateBack()
 }
+
+onLoad((options: any) => {
+  if (options?.id) analyticsId.value = String(options.id)
+  fetchData()
+})
 </script>
 
 <style scoped>

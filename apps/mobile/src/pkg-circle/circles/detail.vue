@@ -9,25 +9,25 @@ import AppIcon from '@/components/common/app-icon.vue'
 import PostCard from '@/components/circle/post-card.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import {
-  circleDetailApi, memberBenefits, mockColumns, mockCircleArticles, mockActivities,
-  type CircleDetail, type CirclePost, type CircleMember,
+  circleDetailApi, memberBenefits,
+  type CircleDetail, type CirclePost, type CircleMember, type CircleColumn, type CircleArticle, type CircleActivity,
 } from '@/lib/circle-detail-data'
 
 const circleId = ref('1')
 const circle = ref<CircleDetail | null>(null)
 const posts = ref<CirclePost[]>([])
 const members = ref<CircleMember[]>([])
+const columns = ref<CircleColumn[]>([])
+const circleArticles = ref<CircleArticle[]>([])
+const activities = ref<CircleActivity[]>([])
 const isLoading = ref(true)
+const error = ref('')
 const activeTab = ref<'home' | 'posts' | 'articles' | 'essence' | 'columns' | 'members'>('home')
 const showAnnouncement = ref(true)
 const isJoined = ref(false)
 const isOwner = ref(true) // mock：当前用户是圈主
 const likedPosts = ref<Set<string>>(new Set())
 const showBenefits = ref(false)
-
-const columns = mockColumns
-const circleArticles = mockCircleArticles
-const activities = mockActivities
 
 const tabs = [
   { id: 'home', label: '首页' },
@@ -48,17 +48,26 @@ onLoad((q) => {
 
 async function loadData() {
   isLoading.value = true
+  error.value = ''
   try {
-    const [c, p, m] = await Promise.all([
+    const [c, p, m, cols, arts, acts] = await Promise.all([
       circleDetailApi.detail(circleId.value),
       circleDetailApi.posts(circleId.value),
       circleDetailApi.listMembers(circleId.value),
+      circleDetailApi.columns(circleId.value),
+      circleDetailApi.articles(circleId.value),
+      circleDetailApi.activities(circleId.value),
     ])
     circle.value = c
     posts.value = p.data
     members.value = m.data
+    columns.value = cols
+    circleArticles.value = arts
+    activities.value = acts
     isJoined.value = c.isJoined
     likedPosts.value = new Set(p.data.filter(x => x.isLiked).map(x => x.id))
+  } catch {
+    error.value = '加载失败，请重试'
   } finally {
     isLoading.value = false
   }
@@ -95,7 +104,7 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
 </script>
 
 <template>
-  <view class="cd" v-if="!isLoading && circle">
+  <view class="cd" v-if="!isLoading && !error && circle">
     <!-- 顶部封面 -->
     <view class="cd-cover">
       <image :src="circle.cover" class="cd-cover-img" mode="aspectFill" />
@@ -387,6 +396,18 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
   </view>
 
   <!-- 骨架屏 -->
+  <view v-else-if="isLoading" class="cd-skeleton">
+    <view class="sk-cover" />
+    <view class="sk-info"><view class="sk-card" /></view>
+  </view>
+
+  <!-- 错误态 -->
+  <view v-else-if="error" class="cd-skeleton cd-err">
+    <text class="cd-err-txt">{{ error }}</text>
+    <view class="cd-err-retry" @tap="loadData"><text class="cd-err-retry-t">重试</text></view>
+  </view>
+
+  <!-- 兜底骨架 -->
   <view v-else class="cd-skeleton">
     <view class="sk-cover" />
     <view class="sk-info"><view class="sk-card" /></view>
@@ -567,4 +588,9 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
 .sk-cover { height: 384rpx; background: #E8E3DB; }
 .sk-info { padding: 0 32rpx; margin-top: -96rpx; }
 .sk-card { height: 280rpx; background: #fff; border-radius: 32rpx; }
+/* 错误态 */
+.cd-err { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 128rpx 32rpx; }
+.cd-err-txt { font-size: 28rpx; color: #999; margin-bottom: 24rpx; }
+.cd-err-retry { padding: 16rpx 48rpx; border-radius: 999rpx; background: #C41E3A; }
+.cd-err-retry-t { font-size: 26rpx; color: #fff; }
 </style>

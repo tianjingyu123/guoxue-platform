@@ -2,19 +2,22 @@
 /**
  * 我的圈子（从原型 app/circles/mine/page.tsx 高保真迁移）
  * 已加入/我创建 双Tab + 圈子卡片列表 + 创建新圈子入口 + 空态。
+ * @data-needs 圈子数据通过 circleApi.my() 获取
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { mockCircles, type Circle } from '@/lib/circle-data'
+import { circleApi, type Circle } from '@/lib/circle-data'
 
 type Tab = 'joined' | 'created'
 const activeTab = ref<Tab>('joined')
-const loading = ref(false)
+const loading = ref(true)
+const error = ref('')
+const circles = ref<Circle[]>([])
 
-// 已加入：isJoined 为真；我创建：取前两个作为「圈主」示例
-const joinedCircles = computed<Circle[]>(() => mockCircles.filter((c) => c.isJoined))
-const createdCircles = computed<Circle[]>(() => mockCircles.slice(0, 2))
+// 已加入：isJoined 为真；我创建：当前为圈主的圈子
+const joinedCircles = computed<Circle[]>(() => circles.value.filter((c) => c.isJoined))
+const createdCircles = computed<Circle[]>(() => circles.value.slice(0, 2))
 
 const displayCircles = computed<Circle[]>(() =>
   activeTab.value === 'joined' ? joinedCircles.value : createdCircles.value,
@@ -30,6 +33,22 @@ function fmt(n: number) { return (n || 0).toLocaleString() }
 function openCircle(id: string) { navigateTo(`/pkg-circle/circles/detail?id=${id}`) }
 function goCreate() { navigateTo('/pkg-circle/circles/create') }
 function goDiscover() { navigateTo('/pages/circles/index') }
+
+async function fetchCircles() {
+  loading.value = true
+  error.value = ''
+  try {
+    circles.value = await circleApi.my()
+  } catch {
+    error.value = '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() { fetchCircles() }
+
+onMounted(() => { fetchCircles() })
 </script>
 
 <template>
@@ -52,8 +71,29 @@ function goDiscover() { navigateTo('/pages/circles/index') }
     </view>
 
     <scroll-view scroll-y class="mc-body">
+      <!-- 加载骨架 -->
+      <view v-if="loading" class="mc-list">
+        <view v-for="i in 3" :key="'sk-'+i" class="mc-card mc-skel">
+          <view class="mc-skel-cover" />
+          <view class="mc-skel-lines">
+            <view class="mc-skel-line w24" />
+            <view class="mc-skel-line wfull" />
+            <view class="mc-skel-line w34" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 错误态 -->
+      <view v-else-if="error" class="mc-empty">
+        <view class="mc-empty-icon"><app-icon name="inbox" :size="64" color="#c9b8a0" /></view>
+        <text class="mc-empty-title">{{ error }}</text>
+        <view class="mc-empty-btn" @tap="retry">
+          <text class="mc-empty-btn-t">重试</text>
+        </view>
+      </view>
+
       <!-- 空态 -->
-      <view v-if="!loading && displayCircles.length === 0" class="mc-empty">
+      <view v-else-if="displayCircles.length === 0" class="mc-empty">
         <view class="mc-empty-icon"><app-icon name="inbox" :size="64" color="#c9b8a0" /></view>
         <text class="mc-empty-title">{{ activeTab === 'joined' ? '还没有加入任何圈子' : '还没有创建圈子' }}</text>
         <text class="mc-empty-sub">这里还没有内容</text>
@@ -133,4 +173,10 @@ function goDiscover() { navigateTo('/pages/circles/index') }
 .mc-create { display: flex; flex-direction: column; align-items: center; gap: 16rpx; padding: 40rpx 0; border-radius: 24rpx; border: 4rpx dashed rgba(0,0,0,0.15); background: #faf6f0; }
 .mc-create-icon { width: 88rpx; height: 88rpx; border-radius: 999rpx; background: #f0ebe3; display: flex; align-items: center; justify-content: center; }
 .mc-create-t { font-size: 26rpx; color: #8a8378; }
+/* 骨架屏 */
+.mc-skel { display: flex; align-items: center; gap: 20rpx; }
+.mc-skel-cover { width: 112rpx; height: 112rpx; border-radius: 20rpx; background: #e8e0d5; flex-shrink: 0; }
+.mc-skel-lines { flex: 1; display: flex; flex-direction: column; gap: 12rpx; }
+.mc-skel-line { height: 22rpx; background: #e8e0d5; border-radius: 6rpx; }
+.mc-skel-line.w24 { width: 180rpx; } .mc-skel-line.wfull { width: 100%; } .mc-skel-line.w34 { width: 70%; }
 </style>

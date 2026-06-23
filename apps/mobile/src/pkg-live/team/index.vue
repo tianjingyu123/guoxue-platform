@@ -246,14 +246,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import {
-  teamMembers, teamAvailableMembers, teamRoleConfig, teamPermissions,
-  type TeamMember, type TeamRole,
-} from '@/lib/live-data'
+import { ref, computed, onMounted } from 'vue'
+import { liveApi, teamRoleConfig, teamPermissions, type TeamMember, type TeamRole, type AvailableMember } from '@/lib/live-data'
 
 const roleConfig = teamRoleConfig as Record<string, typeof teamRoleConfig[TeamRole]>
 const permissions = teamPermissions as Record<string, typeof teamPermissions[TeamRole]>
+
+const loading = ref(true)
+const error = ref('')
+const teamMembers = ref<TeamMember[]>([])
+const teamAvailableMembers = ref<AvailableMember[]>([])
 
 const activeTab = ref('all')
 const searchQuery = ref('')
@@ -273,13 +275,27 @@ const tabs = [
   { key: 'operator', label: '运营' },
 ]
 
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await liveApi.getTeam()
+    teamMembers.value = res.members
+    teamAvailableMembers.value = res.available
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
 function countRole(role: string) {
-  return teamMembers.filter((m) => m.role === role).length
+  return teamMembers.value.filter((m) => m.role === role).length
 }
 
 const filteredMembers = computed(() => {
   const q = searchQuery.value.toLowerCase()
-  return teamMembers.filter((member) => {
+  return teamMembers.value.filter((member) => {
     const matchTab = activeTab.value === 'all' || member.role === activeTab.value
     const matchSearch = member.name.toLowerCase().includes(q) || member.expertise.some((e) => e.includes(searchQuery.value))
     return matchTab && matchSearch
@@ -287,7 +303,7 @@ const filteredMembers = computed(() => {
 })
 
 const filteredAvailable = computed(() => {
-  return teamAvailableMembers.filter(
+  return teamAvailableMembers.value.filter(
     (m) => m.name.includes(addSearchQuery.value) || m.expertise.some((e) => e.includes(addSearchQuery.value)),
   )
 })
@@ -315,6 +331,8 @@ function confirmRemove() {
 function goBack() {
   uni.navigateBack()
 }
+
+onMounted(() => { fetchData() })
 </script>
 
 <style scoped>

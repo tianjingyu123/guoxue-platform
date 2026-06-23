@@ -3,23 +3,34 @@
  * 申请退出圈子（从原型 app/circles/[id]/exit/page.tsx 高保真迁移）
  * 圈子信息 + 退出规则 + 退款金额预览(自动计算) + 申请原因 + 二次确认弹窗 + 提交成功态。
  * 退款计算复用 lib/circle-exit。
+ * @data-needs 会员信息通过 exitApi.getMembership(circleId) 获取
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
-import { calcRefund, mockMembership } from '@/lib/circle-exit'
+import { calcRefund, exitApi } from '@/lib/circle-exit'
 
 const reason = ref('')
 const showConfirm = ref(false)
 const submitted = ref(false)
+const loading = ref(true)
+const error = ref('')
 
-const membership = mockMembership
+const membership = ref({
+  circleId: '1',
+  circleName: '',
+  joinMethod: 'paid' as 'free' | 'paid',
+  paidAmount: 365,
+  totalDays: 365,
+  joinDate: '',
+  allowRefund: true,
+})
 const today = new Date().toISOString().slice(0, 10)
 const breakdown = computed(() => calcRefund({
-  paidAmount: membership.paidAmount,
-  joinDate: membership.joinDate,
+  paidAmount: membership.value.paidAmount,
+  joinDate: membership.value.joinDate,
   applyDate: today,
-  totalDays: membership.totalDays,
+  totalDays: membership.value.totalDays,
 }))
 
 function handleSubmit() {
@@ -29,6 +40,22 @@ function handleSubmit() {
 function backToCircle() {
   goBack()
 }
+
+async function fetchMembership() {
+  loading.value = true
+  error.value = ''
+  try {
+    membership.value = await exitApi.getMembership('1')
+  } catch {
+    error.value = '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() { fetchMembership() }
+
+onMounted(() => { fetchMembership() })
 </script>
 
 <template>
@@ -40,6 +67,31 @@ function backToCircle() {
     <view class="ex-success-actions">
       <view class="ex-btn-primary" @tap="toastComingSoon"><text class="ex-btn-primary-t">查看申请进度</text></view>
       <view class="ex-btn-secondary" @tap="backToCircle"><text class="ex-btn-secondary-t">返回圈子</text></view>
+    </view>
+  </view>
+
+  <!-- 加载骨架 -->
+  <view v-else-if="loading" class="ex-page">
+    <view class="ex-nav">
+      <view class="ex-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
+      <text class="ex-nav-title">申请退出圈子</text>
+    </view>
+    <view class="ex-body">
+      <view class="ex-skel ex-skel-card" />
+      <view class="ex-skel ex-skel-rules" />
+      <view class="ex-skel ex-skel-refund" />
+    </view>
+  </view>
+
+  <!-- 错误态 -->
+  <view v-else-if="error" class="ex-page">
+    <view class="ex-nav">
+      <view class="ex-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
+      <text class="ex-nav-title">申请退出圈子</text>
+    </view>
+    <view class="ex-body ex-err-body">
+      <text class="ex-err-txt">{{ error }}</text>
+      <view class="ex-err-retry" @tap="retry"><text class="ex-err-retry-t">重试</text></view>
     </view>
   </view>
 
@@ -189,4 +241,14 @@ function backToCircle() {
 .ex-btn-primary-t { font-size: 28rpx; font-weight: 500; color: #fff; }
 .ex-btn-secondary { height: 88rpx; border-radius: 999rpx; background: #ECE6D8; display: flex; align-items: center; justify-content: center; }
 .ex-btn-secondary-t { font-size: 28rpx; color: #2C2C2C; }
+/* 骨架 */
+.ex-skel { background: #e8e0d5; border-radius: 24rpx; }
+.ex-skel-card { height: 136rpx; }
+.ex-skel-rules { height: 280rpx; }
+.ex-skel-refund { height: 360rpx; }
+/* 错误 */
+.ex-err-body { display: flex; flex-direction: column; align-items: center; padding-top: 160rpx; }
+.ex-err-txt { font-size: 28rpx; color: #999; margin-bottom: 24rpx; }
+.ex-err-retry { padding: 16rpx 48rpx; border-radius: 999rpx; background: #C41E3A; }
+.ex-err-retry-t { font-size: 26rpx; color: #fff; }
 </style>

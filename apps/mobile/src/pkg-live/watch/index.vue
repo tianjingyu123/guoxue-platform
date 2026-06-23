@@ -1,5 +1,19 @@
 <template>
   <view class="watch" :class="{ 'watch--commerce': room.type === 'commerce' }">
+    <!-- 加载骨架 -->
+    <view v-if="loading" class="watch-loading">
+      <view class="watch-loading__spinner" />
+      <text class="watch-loading__txt">加载中...</text>
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="error" class="watch-error">
+      <text class="watch-error__txt">{{ error }}</text>
+      <view class="watch-error__retry" @tap="retry"><text class="watch-error__retry-txt">重试</text></view>
+    </view>
+
+    <!-- 正常内容 -->
+    <template v-else>
     <!-- 直播画面背景（占位渐变，接入推流后替换） -->
     <view class="watch__stage">
       <view class="watch__stage-mask" />
@@ -253,6 +267,7 @@
         <view class="share-sheet__cancel" @tap="showShare = false"><text class="share-sheet__cancel-txt">取消</text></view>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
@@ -268,10 +283,8 @@ import { type LiveGift } from '@/lib/live-gifts'
 import { goBack } from '@/utils/router'
 import {
   liveWatchRoom,
-  liveWatchComments,
-  liveWatchProducts,
   liveWatchRankList,
-  liveCoinBalance,
+  liveApi,
   type VerticalLiveComment,
   type VerticalLiveProduct,
 } from '@/lib/live-data'
@@ -279,17 +292,45 @@ import {
 // ===== 系统信息（状态栏） =====
 const statusBarHeight = ref(0)
 
-// ===== 直播间数据（默认渲染真实 mock；@data-needs 由 Claude 接入） =====
-// @data-needs: 直播间详情, 参数 id(来自 onLoad), GET 返回 LiveWatchRoom
-const room = ref({ ...liveWatchRoom })
-const comments = ref<VerticalLiveComment[]>([...liveWatchComments])
-const products = ref<VerticalLiveProduct[]>([...liveWatchProducts])
+// ===== 直播间数据 =====
+const loading = ref(true)
+const error = ref('')
+const room = ref<any>({ ...liveWatchRoom })
+const comments = ref<VerticalLiveComment[]>([])
+const products = ref<VerticalLiveProduct[]>([])
 const rankList = ref([...liveWatchRankList])
-const coinBalance = ref(liveCoinBalance)
-const isFollowing = ref(room.value.isFollowing)
+const coinBalance = ref(0)
+const isFollowing = ref(false)
 
 // 讲解中的商品（电商直播浮卡）
 const explainingProduct = computed(() => products.value.find((p) => p.isExplaining) || null)
+
+async function fetchRoomData(roomId: string) {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await liveApi.getWatchRoom(roomId)
+    room.value = { ...liveWatchRoom, ...data.room }
+    comments.value = data.comments
+    products.value = data.products
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function fetchGifts() {
+  try {
+    const data = await liveApi.getGifts()
+    coinBalance.value = data.balance
+  } catch {}
+}
+
+function retry() {
+  fetchRoomData(room.value.id)
+  fetchGifts()
+}
 
 // ===== UI 状态（弹窗开关、临时输入，仅 UI 层） =====
 const showCommentInput = ref(false)
@@ -441,8 +482,10 @@ function startSimulators() {
 }
 
 onLoad((opts) => {
-  // @data-needs: 根据 opts.id / opts.type 拉取直播间；type=commerce 切换电商模式
+  const roomId = opts?.id || '1'
   if (opts?.type === 'commerce') room.value.type = 'commerce'
+  fetchRoomData(roomId)
+  fetchGifts()
 })
 
 onMounted(() => {
@@ -468,6 +511,15 @@ onUnmounted(() => {
   overflow: hidden;
   background: #000;
 }
+
+/* 加载/错误覆盖层 */
+.watch-loading, .watch-error { position: absolute; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; }
+.watch-loading__spinner { width: 64rpx; height: 64rpx; border-radius: 50%; border: 4rpx solid rgba(255,255,255,0.2); border-top-color: #C41E3A; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.watch-loading__txt { font-size: 26rpx; color: rgba(255,255,255,0.6); margin-top: 24rpx; }
+.watch-error__txt { font-size: 28rpx; color: rgba(255,255,255,0.8); margin-bottom: 32rpx; }
+.watch-error__retry { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.watch-error__retry-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 
 /* 视频画面占位 */
 .watch__stage {

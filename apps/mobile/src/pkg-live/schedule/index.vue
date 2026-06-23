@@ -62,6 +62,22 @@
       </scroll-view>
     </view>
 
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="schedule-skeleton">
+      <view class="skeleton-month"><view class="skeleton skeleton-month-bar" /></view>
+      <view class="skeleton-week"><view class="skeleton skeleton-day" v-for="i in 7" :key="i" /></view>
+      <view class="skeleton-cal"><view class="skeleton skeleton-cal-cell" v-for="i in 35" :key="i" /></view>
+      <view class="skeleton-section"><view class="skeleton skeleton-text" /><view class="skeleton skeleton-card" v-for="i in 2" :key="i" /></view>
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="error" class="schedule-error">
+      <text class="error-msg">{{ error }}</text>
+      <view class="retry-btn" @tap="fetchData"><text class="retry-btn-txt">重新加载</text></view>
+    </view>
+
+    <!-- 正常内容 -->
+    <template v-else>
     <!-- 日历视图 -->
     <view v-if="viewMode === 'calendar'" class="calendar-view">
       <view class="month-switch">
@@ -165,6 +181,7 @@
         />
       </view>
     </view>
+    </template>
 
     <!-- 导入对话框 -->
     <view v-if="showImportDialog" class="dialog-mask" @tap="showImportDialog = false">
@@ -208,9 +225,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { scheduleList, scheduleStatusConfig, type ScheduleItem } from '@/lib/live-data'
+import { ref, computed, onMounted } from 'vue'
+import { liveApi, scheduleStatusConfig, type ScheduleItem } from '@/lib/live-data'
 import ScheduleCard from './schedule-card.vue'
+
+const loading = ref(true)
+const error = ref('')
+const scheduleList = ref<ScheduleItem[]>([])
 
 const viewMode = ref<'calendar' | 'list'>('calendar')
 const currentYear = ref(2026)
@@ -252,7 +273,7 @@ function dateStrOf(day: number) {
 }
 function getSchedulesForDate(day: number) {
   const ds = dateStrOf(day)
-  return scheduleList.filter((s) => s.date === ds)
+  return scheduleList.value.filter((s) => s.date === ds)
 }
 function toggleDate(day: number) {
   const ds = dateStrOf(day)
@@ -269,11 +290,11 @@ function formatDate(dateStr: string) {
   return `${d.getMonth() + 1}月${d.getDate()}日`
 }
 function countByStatus(status: string) {
-  return scheduleList.filter((s) => s.status === status).length
+  return scheduleList.value.filter((s) => s.status === status).length
 }
 
 const filteredSchedules = computed(() => {
-  return scheduleList
+  return scheduleList.value
     .filter((s) => {
       if (filterStatus.value !== 'all' && s.status !== filterStatus.value) return false
       if (searchQuery.value && !s.title.toLowerCase().includes(searchQuery.value.toLowerCase())) return false
@@ -282,6 +303,19 @@ const filteredSchedules = computed(() => {
     })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 })
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await liveApi.getScheduleList()
+    scheduleList.value = res
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
 
 function goBack() {
   uni.navigateBack()
@@ -301,6 +335,8 @@ function confirmDelete() {
   console.log('[v0] 删除场次', selectedSchedule.value?.id)
   showDeleteDialog.value = false
 }
+
+onMounted(() => { fetchData() })
 </script>
 
 <style scoped>
@@ -737,4 +773,24 @@ function confirmDelete() {
   background: #dc2626;
   color: #fff;
 }
+
+/* 骨架屏 */
+.schedule-skeleton { padding: 32rpx 24rpx; }
+.skeleton { background: linear-gradient(90deg, #e8e3db 25%, #f0ede6 50%, #e8e3db 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 12rpx; }
+.skeleton-month { margin-bottom: 32rpx; }
+.skeleton-month-bar { height: 48rpx; width: 60%; margin: 0 auto; }
+.skeleton-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8rpx; margin-bottom: 16rpx; }
+.skeleton-day { height: 32rpx; }
+.skeleton-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8rpx; margin-bottom: 32rpx; }
+.skeleton-cal-cell { height: 100rpx; border-radius: 16rpx; }
+.skeleton-section { display: flex; flex-direction: column; gap: 24rpx; }
+.skeleton-text { height: 32rpx; width: 60%; }
+.skeleton-card { height: 160rpx; width: 100%; }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+/* 错误状态 */
+.schedule-error { display: flex; flex-direction: column; align-items: center; gap: 32rpx; padding: 120rpx 32rpx; }
+.error-msg { font-size: 28rpx; color: #999; text-align: center; }
+.retry-btn { padding: 16rpx 48rpx; border: 1rpx solid #C41E3A; border-radius: 999rpx; }
+.retry-btn-txt { font-size: 28rpx; color: #C41E3A; }
 </style>

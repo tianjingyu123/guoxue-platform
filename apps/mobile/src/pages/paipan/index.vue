@@ -2,18 +2,22 @@
 /**
  * 排盘工具入口页（从原型 app/paipan/page.tsx 1:1 高保真迁移）
  * 结构：顶栏 / AI智能解盘卡 / 排盘工具网格(展开收起) / 中医工具 / AI智能体横滚 / 合规提示 / 底部导航
+ * @data-needs tools 通过 toolsApi.getTools() 获取；medicalTools/agents 为纯静态工具列表配置保留直接导入
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolIcon from '@/components/paipan/tool-icon.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
-import { tools, medicalTools, agents, AGENT_AVATAR_GRADIENT } from '@/lib/tools-data'
+import { toolsApi, AGENT_AVATAR_GRADIENT, type Tool, medicalTools, agents } from '@/lib/tools-data'
 import { navigateTo } from '@/utils/router'
 
 const showAllTools = ref(false)
 const showMedical = ref(false)
+const tools = ref<Tool[]>([])
+const loading = ref(true)
+const error = ref('')
 
-const displayTools = computed(() => (showAllTools.value ? tools : tools.slice(0, 32)))
+const displayTools = computed(() => (showAllTools.value ? tools.value : tools.value.slice(0, 32)))
 const displayMedical = computed(() => (showMedical.value ? medicalTools : medicalTools.slice(0, 8)))
 const displayAgents = computed(() => agents.slice(0, 6))
 
@@ -21,6 +25,22 @@ function gradientStyle(avatar: string) {
   const g = AGENT_AVATAR_GRADIENT[avatar] || AGENT_AVATAR_GRADIENT.master
   return { background: `linear-gradient(135deg, ${g[0]}, ${g[1]})` }
 }
+
+async function fetchTools() {
+  loading.value = true
+  error.value = ''
+  try {
+    tools.value = await toolsApi.getTools()
+  } catch {
+    error.value = '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+function retry() { fetchTools() }
+
+onMounted(() => { fetchTools() })
 </script>
 
 <template>
@@ -55,8 +75,29 @@ function gradientStyle(avatar: string) {
         </view>
       </view>
 
+      <!-- 排盘工具加载骨架 -->
+      <view v-if="loading" class="section-px section-tools">
+        <view class="sec-head">
+          <text class="sec-title">排盘工具</text>
+        </view>
+        <view class="grid">
+          <view v-for="i in 8" :key="'sk-'+i" class="cell">
+            <view class="cell-icon"><view class="skel-icon" /></view>
+            <view class="skel-name" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 排盘工具加载失败 -->
+      <view v-else-if="error" class="section-px section-tools">
+        <view class="err-state">
+          <text class="err-txt">{{ error }}</text>
+          <view class="err-retry" @tap="retry"><text class="err-retry-t">重试</text></view>
+        </view>
+      </view>
+
       <!-- 排盘工具网格 -->
-      <view class="section-px section-tools">
+      <view v-else class="section-px section-tools">
         <view class="sec-head">
           <text class="sec-title">排盘工具</text>
           <view class="sec-link" @tap="navigateTo('/paipan/history?name=%E5%8E%86%E5%8F%B2%E8%AE%B0%E5%BD%95')">
@@ -214,6 +255,15 @@ function gradientStyle(avatar: string) {
 }
 .agent-name { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2c2c2c); margin-top: 16rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-desc { font-size: 24rpx; color: var(--text-soft, #999); margin-top: 4rpx; white-space: normal; line-height: 1.3; }
+
+/* 加载骨架 */
+.skel-icon { width: 88rpx; height: 88rpx; border-radius: 20rpx; background: #e8e0d5; }
+.skel-name { width: 72rpx; height: 20rpx; margin-top: 12rpx; background: #e8e0d5; border-radius: 6rpx; }
+/* 错误重试 */
+.err-state { display: flex; flex-direction: column; align-items: center; padding: 80rpx 0; }
+.err-txt { font-size: 28rpx; color: #999; margin-bottom: 24rpx; }
+.err-retry { padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); }
+.err-retry-t { font-size: 26rpx; color: #fff; }
 
 /* 合规提示 */
 .disclaimer { padding-top: 16rpx; padding-bottom: 32rpx; }

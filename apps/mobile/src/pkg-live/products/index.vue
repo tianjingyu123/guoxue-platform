@@ -14,7 +14,32 @@
       </view>
     </view>
 
-    <view class="page-body">
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="page-body">
+      <view class="skeleton-bar" />
+      <view class="skeleton-filter-row">
+        <view class="skeleton-chip" v-for="i in 3" :key="i" />
+      </view>
+      <view class="skeleton-count" />
+      <view class="skeleton-card" v-for="i in 4" :key="i">
+        <view class="skeleton-cover" />
+        <view class="skeleton-info">
+          <view class="skeleton-line w-80" />
+          <view class="skeleton-line w-40" />
+          <view class="skeleton-line w-60" />
+        </view>
+        <view class="skeleton-toggle" />
+      </view>
+    </view>
+
+    <!-- 错误 -->
+    <view v-else-if="error" class="error-state">
+      <app-icon name="alert-circle" :size="96" color="#cbb8a8" />
+      <text class="error-text">{{ error }}</text>
+      <view class="error-btn" @tap="fetchData">重试</view>
+    </view>
+
+    <view v-else class="page-body">
       <!-- 搜索栏 -->
       <view class="search-bar">
         <app-icon name="search" :size="32" color="#999" class="search-icon" />
@@ -99,25 +124,39 @@
         </view>
       </view>
     </view>
-    <view class="bottom-spacer" />
+    <view v-if="!loading && !error" class="bottom-spacer" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { goBack } from '@/utils/router'
-import { liveProductFilters, liveProducts, type LiveProductItem } from '@/lib/live-data'
+import { liveApi, liveProductFilters, type LiveProductItem } from '@/lib/live-data'
 
 const filters = liveProductFilters
 const filter = ref('all')
 const search = ref('')
-const products = ref<LiveProductItem[]>(liveProducts.map((p) => ({ ...p })))
+const products = ref<LiveProductItem[]>([])
+const loading = ref(true)
+const error = ref('')
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await liveApi.getProducts(filter.value)
+    products.value = res
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
 
 const filtered = computed(() =>
   products.value.filter((p) => {
-    const matchFilter = filter.value === 'all' || p.status === filter.value
     const matchSearch = !search.value || p.name.includes(search.value)
-    return matchFilter && matchSearch
+    return matchSearch
   }),
 )
 
@@ -135,6 +174,9 @@ function goAdd() {
     fail: () => uni.showToast({ title: '功能开发中', icon: 'none' }),
   })
 }
+
+watch(filter, () => { fetchData() })
+onMounted(() => { fetchData() })
 </script>
 
 <style scoped>
@@ -386,4 +428,23 @@ function goAdd() {
 .bottom-spacer {
   height: 64rpx;
 }
+
+/* 骨架屏 */
+.skeleton-bar { height: 72rpx; background: #e8e4dc; border-radius: 16rpx; }
+.skeleton-filter-row { display: flex; gap: 16rpx; margin-top: 24rpx; }
+.skeleton-chip { width: 120rpx; height: 48rpx; background: #e8e4dc; border-radius: 999rpx; }
+.skeleton-count { width: 160rpx; height: 32rpx; background: #e8e4dc; border-radius: 8rpx; margin-top: 24rpx; }
+.skeleton-card { background: #fff; border: 1px solid #ece8e1; border-radius: 24rpx; padding: 28rpx; display: flex; gap: 24rpx; margin-top: 24rpx; }
+.skeleton-cover { width: 128rpx; height: 128rpx; border-radius: 16rpx; background: #e8e4dc; flex-shrink: 0; }
+.skeleton-info { flex: 1; display: flex; flex-direction: column; gap: 12rpx; }
+.skeleton-line { height: 24rpx; background: #e8e4dc; border-radius: 8rpx; }
+.skeleton-line.w-80 { width: 80%; }
+.skeleton-line.w-40 { width: 40%; }
+.skeleton-line.w-60 { width: 60%; }
+.skeleton-toggle { width: 80rpx; height: 40rpx; background: #e8e4dc; border-radius: 999rpx; flex-shrink: 0; align-self: flex-end; }
+
+/* 错误态 */
+.error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 128rpx 0; }
+.error-text { font-size: 26rpx; color: #999; margin-top: 24rpx; }
+.error-btn { margin-top: 32rpx; padding: 16rpx 48rpx; font-size: 26rpx; color: #fff; background: #C41E3A; border-radius: 999rpx; }
 </style>

@@ -1,5 +1,18 @@
 <template>
-  <view class="page">
+  <!-- 加载骨架屏 -->
+  <view v-if="loading" class="skeleton-page">
+    <view class="skeleton-nav" />
+    <view class="skeleton-card" />
+    <view class="skeleton-card" />
+    <view class="skeleton-card skeleton-card-sm" />
+  </view>
+  <!-- 错误状态 -->
+  <view v-else-if="error" class="error-state">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="fetchData">重试</view>
+  </view>
+  <!-- 正常内容 -->
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="nav">
       <view class="nav-btn" @tap="goBack">
@@ -162,13 +175,16 @@
       </view>
     </view>
   </view>
-</template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { liveCreateCategories } from '@/lib/live-data'
+import { liveApi, type LiveCategory } from '@/lib/live-data'
+
+// 三态UI
+const loading = ref(true)
+const error = ref('')
 
 // UI 临时状态
 const liveMode = ref<'vertical' | 'horizontal'>('vertical')
@@ -180,7 +196,7 @@ const isPublic = ref(true)
 const categoryId = ref('')
 const showCategoryPicker = ref(false)
 const showDatePicker = ref(false)
-const categories = ref(liveCreateCategories)
+const categories = ref<LiveCategory[]>([])
 
 const typeOptions = [
   { value: 'knowledge' as const, label: '知识授课', desc: '适合课程讲解' },
@@ -188,6 +204,20 @@ const typeOptions = [
 ]
 
 const selectedCategoryName = computed(() => categories.value.find((c) => c.id === categoryId.value)?.name || '')
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    categories.value = await liveApi.getCategories()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { fetchData() })
 
 function selectCategory(id: string) {
   categoryId.value = id
@@ -197,6 +227,51 @@ function addTag() {}
 </script>
 
 <style scoped>
+/* 骨架屏 */
+.skeleton-page {
+  min-height: 100vh;
+  background: #FAF8F5;
+  padding: 32rpx;
+}
+.skeleton-nav {
+  height: 96rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  margin-bottom: 32rpx;
+}
+.skeleton-card {
+  height: 320rpx;
+  background: #fff;
+  border-radius: 32rpx;
+  margin-bottom: 32rpx;
+}
+.skeleton-card-sm {
+  height: 200rpx;
+}
+
+/* 错误状态 */
+.error-state {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #FAF8F5;
+  padding: 48rpx;
+}
+.error-text {
+  font-size: 28rpx;
+  color: #999;
+  margin-bottom: 32rpx;
+}
+.retry-btn {
+  padding: 20rpx 64rpx;
+  background: #C41E3A;
+  color: #fff;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+}
+
 .page {
   min-height: 100vh;
   background: #FAF8F5;

@@ -11,7 +11,28 @@
       </view>
     </view>
 
-    <view class="body">
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="body">
+      <view class="card skeleton-card">
+        <view class="skeleton-row"><view class="skeleton skeleton-icon" /><view class="skeleton skeleton-text skeleton-text-lg" /></view>
+      </view>
+      <view class="card skeleton-card"><view class="skeleton skeleton-text" /><view class="skeleton skeleton-text skeleton-text-sm" /></view>
+      <view class="card skeleton-card"><view class="skeleton skeleton-text" /><view class="skeleton skeleton-field" /><view class="skeleton skeleton-field" /></view>
+      <view class="card skeleton-card"><view class="skeleton skeleton-text" /><view class="skeleton-params"><view class="skeleton skeleton-param" v-for="i in 4" :key="i" /></view></view>
+      <view class="card skeleton-card"><view class="skeleton skeleton-text" /><view class="skeleton skeleton-step" /></view>
+      <view class="card skeleton-card"><view class="skeleton skeleton-text" /><view class="skeleton skeleton-faq" v-for="i in 3" :key="i" /></view>
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="error" class="body">
+      <view class="card error-card">
+        <text class="error-text">{{ error }}</text>
+        <view class="retry-btn" @tap="fetchData"><text class="retry-btn-txt">重新加载</text></view>
+      </view>
+    </view>
+
+    <!-- 正常内容 -->
+    <view v-else class="body">
       <!-- 直播间信息 -->
       <view class="card">
         <view class="room-row">
@@ -152,13 +173,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { streamConfig, obsConfigSteps, streamConfigFaq } from '@/lib/live-data'
+import { liveApi, obsConfigSteps, streamConfigFaq, type StreamConfig } from '@/lib/live-data'
 
 const statusBarHeight = ref(0)
-const config = ref(streamConfig)
+const loading = ref(true)
+const error = ref('')
+const config = ref<StreamConfig>({
+  roomId: '',
+  roomTitle: '',
+  streamUrl: '',
+  streamKey: '',
+  playUrl: '',
+  recommendedSettings: { resolution: '', bitrate: '', fps: '', encoder: '' },
+})
 const obsSteps = ref(obsConfigSteps)
 const faq = ref(streamConfigFaq)
 
@@ -168,6 +198,19 @@ const copiedUrl = ref(false)
 const copiedKey = ref(false)
 const checking = ref(false)
 const currentStep = ref(0)
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await liveApi.getStreamConfig()
+    config.value = res
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
 
 function copyUrl() {
   copiedUrl.value = true
@@ -184,6 +227,8 @@ function prevStep() {
 function nextStep() {
   if (currentStep.value < obsSteps.value.length - 1) currentStep.value++
 }
+
+onMounted(() => { fetchData() })
 </script>
 
 <style scoped>
@@ -528,4 +573,26 @@ function nextStep() {
   font-size: 24rpx;
   color: #666;
 }
+
+/* 骨架屏 */
+.skeleton-card { display: flex; flex-direction: column; gap: 24rpx; }
+.skeleton { background: linear-gradient(90deg, #e8e3db 25%, #f0ede6 50%, #e8e3db 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 12rpx; }
+.skeleton-row { display: flex; align-items: center; gap: 24rpx; }
+.skeleton-icon { width: 96rpx; height: 96rpx; border-radius: 24rpx; flex-shrink: 0; }
+.skeleton-text { height: 32rpx; width: 60%; }
+.skeleton-text-lg { height: 40rpx; width: 80%; }
+.skeleton-text-sm { height: 28rpx; width: 45%; }
+.skeleton-field { height: 80rpx; width: 100%; }
+.skeleton-params { display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx; }
+.skeleton-param { height: 100rpx; width: 100%; }
+.skeleton-step { height: 300rpx; width: 100%; }
+.skeleton-faq { height: 80rpx; width: 100%; margin-bottom: 24rpx; }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+/* 错误状态 */
+.error-card { display: flex; flex-direction: column; align-items: center; gap: 32rpx; padding: 80rpx 32rpx; }
+.error-text { font-size: 28rpx; color: #999; text-align: center; }
+.error-icon { width: 80rpx; height: 80rpx; }
+.retry-btn { padding: 16rpx 48rpx; border: 1rpx solid #C41E3A; border-radius: 999rpx; }
+.retry-btn-txt { font-size: 28rpx; color: #C41E3A; }
 </style>

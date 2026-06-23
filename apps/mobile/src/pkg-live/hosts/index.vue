@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /** 主播列表 - 从原型 app/live/hosts/page.tsx 迁移 */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { liveHosts, type LiveHost } from '@/lib/live-data'
+import { liveApi, type LiveHost } from '@/lib/live-data'
 
 type FilterKey = 'all' | 'live' | 'followed'
 const filters: { key: FilterKey; label: string }[] = [
@@ -14,15 +14,32 @@ const filters: { key: FilterKey; label: string }[] = [
 
 const search = ref('')
 const filter = ref<FilterKey>('all')
+const loading = ref(true)
+const error = ref('')
+const list = ref<LiveHost[]>([])
 
 const filtered = computed<LiveHost[]>(() =>
-  liveHosts.filter((h) => {
+  list.value.filter((h) => {
     const matchFilter = filter.value === 'all' ? true : filter.value === 'live' ? h.isLive : false
     const kw = search.value.trim()
     const matchSearch = !kw || h.name.includes(kw) || h.specialty.includes(kw) || h.tags.some((t) => t.includes(kw))
     return matchFilter && matchSearch
   }),
 )
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    list.value = await liveApi.getHosts(filter.value)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { fetchData() })
 
 function open(id: string) {
   navigateTo(`/live/${id}`)
@@ -44,6 +61,28 @@ function fmtLikes(n: number) {
     </view>
 
     <view class="body">
+      <!-- 加载骨架 -->
+      <view v-if="loading" class="skeleton">
+        <view v-for="i in 3" :key="i" class="sk-host">
+          <view class="sk-cover" />
+          <view class="sk-info">
+            <view class="sk-avatar" />
+            <view class="sk-lines">
+              <view class="sk-line sk-line--short" />
+              <view class="sk-line sk-line--long" />
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 错误状态 -->
+      <view v-else-if="error" class="error-state">
+        <text class="error-txt">{{ error }}</text>
+        <view class="retry-btn" @tap="fetchData"><text class="retry-btn-txt">重新加载</text></view>
+      </view>
+
+      <!-- 正常内容 -->
+      <template v-else>
       <!-- 搜索框 -->
       <view class="search-box">
         <AppIcon name="search" :size="32" color="#999999" />
@@ -96,6 +135,7 @@ function fmtLikes(n: number) {
           </view>
         </view>
       </view>
+      </template>
     </view>
   </view>
 </template>
@@ -143,4 +183,22 @@ function fmtLikes(n: number) {
 .stats { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .stat { display: flex; align-items: center; gap: 4rpx; }
 .stat-txt { font-size: 24rpx; color: #999999; white-space: nowrap; }
+
+/* 骨架屏 */
+.skeleton { display: flex; flex-direction: column; gap: 24rpx; }
+.sk-host { background: var(--surface); border-radius: 24rpx; overflow: hidden; }
+.sk-cover { height: 256rpx; background: linear-gradient(90deg, #e8e4dc 25%, #f0ece5 50%, #e8e4dc 75%); animation: shimmer 1.5s infinite; background-size: 200% 100%; }
+.sk-info { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; }
+.sk-avatar { width: 96rpx; height: 96rpx; border-radius: 50%; background: linear-gradient(90deg, #e8e4dc 25%, #f0ece5 50%, #e8e4dc 75%); animation: shimmer 1.5s infinite; background-size: 200% 100%; }
+.sk-lines { flex: 1; display: flex; flex-direction: column; gap: 16rpx; }
+.sk-line { height: 24rpx; border-radius: 8rpx; background: linear-gradient(90deg, #e8e4dc 25%, #f0ece5 50%, #e8e4dc 75%); animation: shimmer 1.5s infinite; background-size: 200% 100%; }
+.sk-line--short { width: 50%; }
+.sk-line--long { width: 80%; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* 错误状态 */
+.error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; }
+.error-txt { font-size: 28rpx; color: #999999; margin-bottom: 32rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-btn-txt { font-size: 28rpx; color: #ffffff; font-weight: 500; }
 </style>

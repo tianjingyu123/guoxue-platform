@@ -1,15 +1,18 @@
 <script setup lang="ts">
 /** 直播广场页 - 从原型 app/live/page.tsx 迁移 */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import LiveCard from '@/components/live/live-card.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { liveTabs, liveList, type LiveItem } from '@/lib/live-data'
+import { liveApi, liveTabs, type LiveItem } from '@/lib/live-data'
 
 const activeTab = ref<string>('全部')
+const loading = ref(true)
+const error = ref('')
+const list = ref<LiveItem[]>([])
 
 const filtered = computed<LiveItem[]>(() => {
-  return liveList.filter((live) => {
+  return list.value.filter((live) => {
     if (activeTab.value === '全部') return true
     if (activeTab.value === '知识授课') return live.type === 'knowledge'
     if (activeTab.value === '电商带货') return live.type === 'commerce'
@@ -17,6 +20,25 @@ const filtered = computed<LiveItem[]>(() => {
     return true
   })
 })
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    list.value = await liveApi.getPlaza(activeTab.value)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+function onTabChange(tab: string) {
+  activeTab.value = tab
+  fetchData()
+}
+
+onMounted(() => { fetchData() })
 
 const livesNow = computed(() => filtered.value.filter((l) => l.status === 'live'))
 const livesUpcoming = computed(() => filtered.value.filter((l) => l.status === 'upcoming'))
@@ -46,7 +68,7 @@ function onSearch() {
           :key="tab"
           class="tab"
           :class="activeTab === tab && 'tab-on'"
-          @tap="activeTab = tab"
+          @tap="onTabChange(tab)"
         >
           <text class="tab-txt">{{ tab }}</text>
           <view v-if="activeTab === tab" class="tab-line" />
@@ -56,6 +78,20 @@ function onSearch() {
 
     <!-- 内容区 -->
     <scroll-view scroll-y class="content">
+      <!-- 加载骨架 -->
+      <view v-if="loading" class="skeleton">
+        <view v-for="i in 4" :key="i" class="sk-card" />
+      </view>
+
+      <!-- 错误状态 -->
+      <view v-else-if="error" class="error-state">
+        <view class="error-icon"><AppIcon name="alert-circle" :size="96" color="#999999" /></view>
+        <text class="error-txt">{{ error }}</text>
+        <view class="retry-btn" @tap="fetchData"><text class="retry-btn-txt">重新加载</text></view>
+      </view>
+
+      <!-- 正常内容 -->
+      <template v-else>
       <!-- 正在直播 -->
       <view v-if="livesNow.length > 0" class="section">
         <view class="sec-head">
@@ -98,6 +134,7 @@ function onSearch() {
         <view class="empty-icon"><AppIcon name="radio" :size="128" color="#999999" /></view>
         <text class="empty-txt">暂无相关直播</text>
       </view>
+      </template>
     </scroll-view>
   </view>
 </template>
@@ -132,4 +169,16 @@ function onSearch() {
 .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; }
 .empty-icon { display: flex; align-items: center; justify-content: center; width: 160rpx; height: 160rpx; border-radius: 999rpx; background: #ffffff; margin-bottom: 32rpx; }
 .empty-txt { font-size: 28rpx; color: #999999; }
+
+/* 骨架屏 */
+.skeleton { display: flex; flex-direction: column; gap: 32rpx; padding: 32rpx 0; }
+.sk-card { height: 320rpx; border-radius: 16rpx; background: linear-gradient(90deg, #e8e4dc 25%, #f0ece5 50%, #e8e4dc 75%); animation: shimmer 1.5s infinite; background-size: 200% 100%; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* 错误状态 */
+.error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; }
+.error-icon { display: flex; align-items: center; justify-content: center; width: 160rpx; height: 160rpx; border-radius: 999rpx; background: #ffffff; margin-bottom: 32rpx; }
+.error-txt { font-size: 28rpx; color: #999999; margin-bottom: 32rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.retry-btn-txt { font-size: 28rpx; color: #ffffff; font-weight: 500; }
 </style>

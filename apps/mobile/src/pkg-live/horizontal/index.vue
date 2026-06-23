@@ -1,5 +1,15 @@
 <template>
   <view class="hlive">
+    <!-- 加载/错误覆盖层 -->
+    <view v-if="loading" class="hlive-state">
+      <view class="hlive-state__spinner" />
+      <text class="hlive-state__txt">加载中...</text>
+    </view>
+    <view v-else-if="error" class="hlive-state">
+      <text class="hlive-state__txt">{{ error }}</text>
+      <view class="hlive-state__retry" @tap="fetchData('1')"><text class="hlive-state__retry-txt">重试</text></view>
+    </view>
+    <template v-else>
     <!-- ============ 横屏主体（仅 ≥1024px 显示，照原型 lg:flex） ============ -->
     <view class="hlive-stage">
       <!-- 左：视频/课件主区 -->
@@ -308,6 +318,7 @@
         <text class="rotate-overlay__back-txt">返回直播列表</text>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
@@ -316,20 +327,33 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import {
-  horizontalLiveRoom,
-  horizontalSlides,
-  horizontalQuestions,
-  horizontalMessages,
-  horizontalFiles,
-} from '@/lib/live-data'
+import { liveApi } from '@/lib/live-data'
 
-// ===== 静态 mock（照抄原型，真实数据由后端注入）=====
-const room = ref(horizontalLiveRoom)
-const slides = ref(horizontalSlides)
-const questions = ref(horizontalQuestions)
-const messages = ref(horizontalMessages)
-const files = ref(horizontalFiles)
+// ===== 直播间数据 =====
+const loading = ref(true)
+const error = ref('')
+const room = ref<any>({})
+const slides = ref<any[]>([])
+const questions = ref<any[]>([])
+const messages = ref<any[]>([])
+const files = ref<any[]>([])
+
+async function fetchData(roomId: string) {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await liveApi.getHorizontalRoom(roomId)
+    room.value = data.room
+    slides.value = data.slides
+    questions.value = data.questions
+    messages.value = data.messages
+    files.value = data.files
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
 
 // ===== UI 状态（照原型 useState 初值）=====
 const currentSlideNum = ref(3)         // 原型 currentSlide 初值 3
@@ -344,7 +368,7 @@ const questionDraft = ref('')
 const isPublicQuestion = ref(true)
 const micStatus = ref<'none' | 'applying' | 'waiting' | 'connected'>('none')
 const liked = ref(false)
-const likeCount = ref(room.value.likes)
+const likeCount = ref(0)
 
 const tabs = [
   { key: 'chat', label: '聊天' },
@@ -383,8 +407,9 @@ function onShare() {}
 // @data-needs: 下载资料，入参 fileId 返回 URL
 function onDownloadFile(_id: string) {}
 
-onLoad(() => {
-  // @data-needs: 根据 options.id 拉取横屏直播间详情、课件、问答、聊天历史
+onLoad((opts: any) => {
+  const roomId = opts?.id || '1'
+  fetchData(roomId)
 })
 </script>
 
@@ -396,6 +421,14 @@ onLoad(() => {
   position: relative;
   overflow: hidden;
 }
+
+/* 加载/错误覆盖层 */
+.hlive-state { position: absolute; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0f0f0f; }
+.hlive-state__spinner { width: 48px; height: 48px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.2); border-top-color: #C41E3A; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.hlive-state__txt { font-size: 14px; color: rgba(255,255,255,0.6); margin-top: 16px; }
+.hlive-state__retry { margin-top: 24px; padding: 8px 32px; background: #C41E3A; border-radius: 999px; }
+.hlive-state__retry-txt { font-size: 14px; color: #fff; font-weight: 500; }
 
 /* ===== 横屏主体：仅 ≥1024px 显示 ===== */
 .hlive-stage {

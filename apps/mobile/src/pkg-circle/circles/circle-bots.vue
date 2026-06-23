@@ -39,6 +39,13 @@
         </view>
       </view>
 
+      <!-- error -->
+      <view v-else-if="error" class="cb-empty">
+        <view class="cb-empty-icon"><app-icon name="bot" :size="56" color="#999999" /></view>
+        <text class="cb-empty-t">{{ error }}</text>
+        <view class="cb-empty-btn" @tap="retry">重试</view>
+      </view>
+
       <!-- empty -->
       <view v-else-if="filteredBots.length === 0" class="cb-empty">
         <view class="cb-empty-icon"><app-icon name="bot" :size="56" color="#999999" /></view>
@@ -83,27 +90,19 @@
  * 单圈子智能体列表（从原型 app/circles/[id]/bots/page.tsx 高保真迁移）
  * 区别于 bots.vue（平台智能体市场）：此页为单个圈子内的智能体列表
  * 圈子信息卡 + 搜索 + 骨架屏 + 智能体卡片 + 管理员FAB
+ * @data-needs 通过 botsApi.getCircleBots(circleId) 获取圈子智能体数据
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
+import { botsApi } from '@/lib/circle-bots-data'
 
 interface Bot { id: string; name: string; avatar: string; description: string; category: string; chats: number; likes: number; isOfficial: boolean }
 
-const mockCircle = {
-  id: '1', name: '周易研习社', cover: 'https://api.dicebear.com/7.x/shapes/svg?seed=zhouyi',
-  description: '传承易学精髓，探索宇宙奥秘', members: 12800,
-}
-const mockBots: Bot[] = [
-  { id: '1', name: '周易解卦助手', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=1', description: '专业解读六十四卦，帮助您理解卦象含义与人生指引', category: '占卜解读', chats: 12580, likes: 3420, isOfficial: true },
-  { id: '2', name: '风水顾问', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=2', description: '提供家居风水布局建议，助您打造和谐居住环境', category: '风水堪舆', chats: 8960, likes: 2180, isOfficial: true },
-  { id: '3', name: '八字命理分析', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=3', description: '根据生辰八字分析命理运势，提供人生建议', category: '命理分析', chats: 15620, likes: 4890, isOfficial: false },
-  { id: '4', name: '易经学习导师', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=4', description: '系统讲解易经知识，从入门到精通的学习伴侣', category: '学习辅导', chats: 6780, likes: 1560, isOfficial: false },
-]
-
-const circle = ref<typeof mockCircle | null>(null)
+const circle = ref<{ cover: string; name: string; members: number } | null>(null)
 const bots = ref<Bot[]>([])
 const loading = ref(true)
+const error = ref('')
 const searchQuery = ref('')
 const isAdmin = ref(true)
 
@@ -119,14 +118,36 @@ function formatNumber(num: number) {
 }
 function toComingSoon() { toastComingSoon() }
 
-onMounted(() => {
-  // 无 API，直接用 mock（与原型 catch 兜底一致）
-  setTimeout(() => {
-    circle.value = mockCircle
-    bots.value = mockBots
+async function fetchBots() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await botsApi.getCircleBots(1)
+    circle.value = {
+      cover: data.summary.icon,
+      name: data.summary.name,
+      members: data.summary.memberCount,
+    }
+    bots.value = data.bots.map(b => ({
+      id: String(b.id),
+      name: b.name,
+      avatar: b.avatar,
+      description: b.description,
+      category: b.tags[0] || '',
+      chats: b.usageCount,
+      likes: Math.round(b.usageCount * 0.3),
+      isOfficial: b.isOfficial,
+    }))
+  } catch {
+    error.value = '加载失败，请重试'
+  } finally {
     loading.value = false
-  }, 400)
-})
+  }
+}
+
+function retry() { fetchBots() }
+
+onMounted(() => { fetchBots() })
 </script>
 
 <style scoped lang="scss">

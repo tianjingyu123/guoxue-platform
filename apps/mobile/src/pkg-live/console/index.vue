@@ -1,5 +1,22 @@
 <template>
-  <view class="page">
+  <!-- 加载骨架屏 -->
+  <view v-if="loading" class="skeleton-page">
+    <view class="skeleton-header" />
+    <view class="skeleton-main">
+      <view class="skeleton-left">
+        <view class="skeleton-stats" />
+        <view class="skeleton-tab" />
+      </view>
+      <view class="skeleton-right" />
+    </view>
+  </view>
+  <!-- 错误状态 -->
+  <view v-else-if="error" class="error-state">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="fetchData">重试</view>
+  </view>
+  <!-- 正常内容 -->
+  <view v-else class="page">
     <!-- 顶部控制栏 -->
     <view class="header">
       <view class="header-left">
@@ -398,21 +415,33 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
-  consoleLiveStats,
-  consoleDanmaku,
-  consoleConnectRequests,
-  consoleProducts,
-  consoleScript,
+  liveApi,
   consoleCoupons,
   type ConsoleDanmaku,
+  type ConsoleConnectRequest,
+  type ConsoleProduct,
+  type ConsoleScript,
 } from '@/lib/live-data'
 
-// ===== 静态 mock（照抄原型，真实数据由后端注入）=====
-const stats = ref(consoleLiveStats)
-const danmakuList = ref<ConsoleDanmaku[]>([...consoleDanmaku])
-const connectRequests = ref([...consoleConnectRequests])
-const products = ref([...consoleProducts])
-const script = ref(consoleScript)
+// ===== 三态UI =====
+const loading = ref(true)
+const error = ref('')
+
+// ===== 数据（由 API 异步获取）=====
+const stats = ref({
+  onlineCount: 0,
+  totalViews: 0,
+  newFollowers: 0,
+  totalGift: 0,
+  totalSales: 0,
+  peakOnline: 0,
+  avgWatchTime: '0:00',
+  interactionRate: '0%',
+})
+const danmakuList = ref<ConsoleDanmaku[]>([])
+const connectRequests = ref<ConsoleConnectRequest[]>([])
+const products = ref<ConsoleProduct[]>([])
+const script = ref<ConsoleScript[]>([])
 const coupons = ref(consoleCoupons)
 
 // ===== UI 状态 ref =====
@@ -446,6 +475,24 @@ function formatTime(seconds: number) {
   return `${pad(h)}:${pad(m)}:${pad(s)}`
 }
 
+// ===== API 数据获取 =====
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await liveApi.getConsoleData('1')
+    stats.value = res.stats
+    danmakuList.value = res.danmaku
+    connectRequests.value = res.requests
+    products.value = res.products
+    script.value = res.script
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
 // ===== 定时器：直播计时 + 模拟实时弹幕 + 自动滚动 =====
 const mockMessages = ['老师讲得太好了！', '学到了很多', '这个知识点很重要', '请问老师...', '感谢老师分享', '涨知识了', '求老师讲讲风水']
 const mockUsers = ['易学新人', '命理迷', '国学爱好者', '道友', '学习中', '小白一枚']
@@ -457,7 +504,8 @@ function scrollDanmakuToBottom() {
   danmakuScrollTop.value = danmakuList.value.length * 9999
 }
 
-onLoad(() => {
+onLoad(async () => {
+  await fetchData()
   liveTimer = setInterval(() => {
     if (isLive.value) liveTime.value += 1
   }, 1000)
@@ -521,6 +569,65 @@ function onConfirmEnd() {
 </script>
 
 <style scoped>
+/* 骨架屏 */
+.skeleton-page {
+  min-height: 100vh;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+}
+.skeleton-header {
+  height: 56px;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+}
+.skeleton-main {
+  flex: 1;
+  display: flex;
+}
+.skeleton-left {
+  flex: 1;
+  padding: 16px;
+}
+.skeleton-stats {
+  height: 160px;
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+.skeleton-tab {
+  flex: 1;
+  background: #fff;
+  border-radius: 8px;
+}
+.skeleton-right {
+  width: 300px;
+  background: #fff;
+}
+
+/* 错误状态 */
+.error-state {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  padding: 48rpx;
+}
+.error-text {
+  font-size: 28rpx;
+  color: #999;
+  margin-bottom: 32rpx;
+}
+.retry-btn {
+  padding: 20rpx 64rpx;
+  background: #C41E3A;
+  color: #fff;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+}
+
 .page {
   min-height: 100vh;
   background: #f5f5f5;

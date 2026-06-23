@@ -1,5 +1,15 @@
 <template>
   <view class="page" @dblclick="onDoubleTap">
+    <!-- 加载/错误覆盖层 -->
+    <view v-if="loading" class="state-overlay">
+      <view class="state-spinner" />
+      <text class="state-txt">加载中...</text>
+    </view>
+    <view v-else-if="error" class="state-overlay">
+      <text class="state-txt">{{ error }}</text>
+      <view class="state-retry" @tap="fetchData('1')"><text class="state-retry-txt">重试</text></view>
+    </view>
+    <template v-else>
     <!-- 视频背景 -->
     <view class="video-bg">
       <image class="video-img" :src="room.hostAvatar" mode="aspectFill" />
@@ -217,34 +227,64 @@
       @close="onCloseProductDetail"
       @paid="onPaid"
     />
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import QuickBuySheet, { type QuickBuyProduct } from '@/components/live/quick-buy-sheet.vue'
 import { goBack } from '@/utils/router'
 import {
-  verticalLiveRoom,
-  verticalLiveComments,
-  verticalLiveProducts,
-  liveGifts,
-  liveCoinBalance,
+  liveApi,
   type VerticalLiveProduct,
   type LiveGift,
 } from '@/lib/live-data'
 
-const room = ref(verticalLiveRoom)
-const comments = ref(verticalLiveComments)
-const products = ref(verticalLiveProducts)
-const gifts = ref(liveGifts)
-const coinBalance = ref(liveCoinBalance)
+const loading = ref(true)
+const error = ref('')
+const room = ref<any>({})
+const comments = ref<any[]>([])
+const products = ref<VerticalLiveProduct[]>([])
+const gifts = ref<LiveGift[]>([])
+const coinBalance = ref(0)
+
+async function fetchData(roomId: string) {
+  loading.value = true
+  error.value = ''
+  try {
+    const [roomData, giftsData] = await Promise.all([
+      liveApi.getVerticalRoom(roomId),
+      liveApi.getGifts(),
+    ])
+    room.value = roomData.room
+    comments.value = roomData.comments
+    products.value = roomData.products
+    gifts.value = giftsData.gifts
+    coinBalance.value = giftsData.balance
+    viewerCount.value = roomData.room.viewerCount || 0
+    likeCount.value = roomData.room.likeCount || 0
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
 
 // ===== UI 状态 ref =====
 const isFollowing = ref(false)
-const viewerCount = ref(verticalLiveRoom.viewerCount)
-const likeCount = ref(verticalLiveRoom.likeCount)
+const viewerCount = ref(0)
+const likeCount = ref(0)
+
+onLoad((opts: any) => {
+  fetchData(opts?.id || '1')
+})
+
+onMounted(() => {
+  // 初始值在 fetchData 后更新
+})
 const floatingHearts = ref<{ id: number; x: number; scale: number }[]>([])
 const giftAnimations = ref<{ id: number; gift: LiveGift; user: string }[]>([])
 const commentInput = ref('')
@@ -338,6 +378,14 @@ function onPaid() { showProductDetail.value = false }
   inset: 0;
   background: #000;
 }
+
+/* 加载/错误覆盖层 */
+.state-overlay { position: absolute; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; }
+.state-spinner { width: 64rpx; height: 64rpx; border-radius: 50%; border: 4rpx solid rgba(255,255,255,0.2); border-top-color: #C41E3A; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.state-txt { font-size: 26rpx; color: rgba(255,255,255,0.6); margin-top: 24rpx; }
+.state-retry { margin-top: 32rpx; padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.state-retry-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 
 /* 视频背景 */
 .video-bg {
