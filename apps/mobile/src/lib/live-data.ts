@@ -1,6 +1,8 @@
 // ============ 直播板块(live) mock 数据（从原型 app/live 迁移） ============
 // 说明：原型封面/头像为 mock 配图，dev 下回退占位；此处统一用 /marketing 占位路径，比对时会被中和
 
+import { apiGet, useMock } from '@/utils/request'
+
 export type LiveStatus = 'live' | 'upcoming' | 'replay'
 export type LiveType = 'knowledge' | 'commerce'
 export type LiveOrientation = 'vertical' | 'horizontal'
@@ -1134,4 +1136,73 @@ export const liveManageStatusConfig: Record<string, { label: string; color: stri
   live: { label: '直播中', color: '#ef4444' },
   ended: { label: '已结束', color: '#9ca3af' },
   draft: { label: '草稿', color: '#d99423' },
+}
+
+// ============ API 层 ============
+
+export const liveApi = {
+  /** 获取直播广场列表 — GET /live */
+  async getPlaza(tab?: string): Promise<LiveItem[]> {
+    if (useMock()) {
+      if (!tab || tab === '全部') return liveList
+      const typeMap: Record<string, string> = { '知识授课': 'knowledge', '电商带货': 'commerce' }
+      const filterType = typeMap[tab]
+      if (filterType) return liveList.filter(item => item.type === filterType)
+      if (tab === '关注的') return []
+      return liveList
+    }
+    try {
+      const url = tab && tab !== '全部' ? `/live?tab=${encodeURIComponent(tab)}` : '/live'
+      const data = await apiGet<any>(url)
+      return (data?.items || data) as LiveItem[]
+    } catch {
+      return liveList
+    }
+  },
+
+  /** 获取直播间详情 — GET /live/:id */
+  async getWatch(id: string): Promise<LiveItem | undefined> {
+    if (useMock()) return liveList.find(item => item.id === id)
+    try {
+      const data = await apiGet<any>(`/live/${id}`)
+      return data as LiveItem
+    } catch {
+      return liveList.find(item => item.id === id)
+    }
+  },
+
+  /** 获取主播列表 — GET /live/hosts */
+  async getHosts(filter?: string): Promise<LiveHost[]> {
+    if (useMock()) return liveHosts
+    try {
+      const url = filter ? `/live/hosts?filter=${encodeURIComponent(filter)}` : '/live/hosts'
+      const data = await apiGet<any>(url)
+      return (data?.items || data) as LiveHost[]
+    } catch {
+      return liveHosts
+    }
+  },
+
+  /** 获取回放列表 — GET /live/replays */
+  async getReplays(sort?: string): Promise<LiveReplay[]> {
+    if (useMock()) return liveReplays
+    try {
+      const url = sort ? `/live/replays?sort=${encodeURIComponent(sort)}` : '/live/replays'
+      const data = await apiGet<any>(url)
+      return (data?.items || data) as LiveReplay[]
+    } catch {
+      return liveReplays
+    }
+  },
+
+  /** 获取回放详情 — GET /live/replay/:id */
+  async getReplayDetail(id: string): Promise<ReplayDetail> {
+    if (useMock()) return replayDetail
+    try {
+      const data = await apiGet<any>(`/live/replay/${id}`)
+      return data as ReplayDetail
+    } catch {
+      return replayDetail
+    }
+  },
 }

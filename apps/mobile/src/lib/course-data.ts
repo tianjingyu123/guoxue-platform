@@ -1,6 +1,7 @@
 // 课程模块数据(从原型 app/courses/page.tsx 迁移)
 import type { CourseCardData } from '@/lib/card-utils'
 import type { BannerItem } from '@/lib/home-data'
+import { apiGet, useMock } from '@/utils/request'
 
 // 课程首页 Banner
 export const courseBanners: BannerItem[] = [
@@ -341,4 +342,56 @@ export const workResult: WorkResult = {
   gradedAt: '2024-01-16 09:15',
   suggestions: ['建议补充五行生克关系的说明', '可以尝试分析自己的八字加深理解'],
   canResubmit: true,
+}
+
+// ============ API 层 ============
+
+export const courseApi = {
+  /** 获取课程首页数据 — GET /course */
+  async getHome(): Promise<any> {
+    if (useMock()) return {
+      banners: courseBanners,
+      categories: categoryNav,
+      featured,
+      ranking,
+      flashSale: flashSaleCourses,
+      free: freeCourses,
+      newCourses,
+    }
+    try {
+      return await apiGet<any>('/course')
+    } catch {
+      return {
+        banners: courseBanners,
+        categories: categoryNav,
+        featured,
+        ranking,
+        flashSale: flashSaleCourses,
+        free: freeCourses,
+        newCourses,
+      }
+    }
+  },
+
+  /** 获取课程详情 — GET /course/:id */
+  async getDetail(id: string): Promise<CourseDetail> {
+    if (useMock()) return courseDetail
+    try {
+      const data = await apiGet<any>(`/course/${id}`)
+      return data as CourseDetail
+    } catch {
+      return courseDetail
+    }
+  },
+
+  /** 获取课程章节 — GET /course/:id/chapters */
+  async getChapters(id: string): Promise<CourseChapter[]> {
+    if (useMock()) return courseChapters
+    try {
+      const data = await apiGet<any>(`/course/${id}/chapters`)
+      return (data?.items || data) as CourseChapter[]
+    } catch {
+      return courseChapters
+    }
+  },
 }

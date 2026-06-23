@@ -3,6 +3,7 @@
  * mock 数据 + 类型 + 装配函数。图片走 /static（跨端约定）。
  */
 import type { ProductCardData } from '@/lib/card-utils'
+import { apiGet, useMock } from '@/utils/request'
 
 const P = '/static/images/products'
 
@@ -1384,3 +1385,63 @@ export interface ShopExchangeAddress {
 export const shopExchangeAddresses: ShopExchangeAddress[] = [
   { id: '1', name: '张三', phone: '138****8888', province: '北京市', city: '北京市', district: '朝阳区', address: '建国路88号SOHO现代城A座1201', isDefault: true },
 ]
+
+// ============ API 层 ============
+
+export const shopApi = {
+  /** 获取商城首页数据 — GET /shop */
+  async getHome(): Promise<any> {
+    if (useMock()) return {
+      banners: shopBanners,
+      quickActions: shopQuickActions,
+      categories: shopCategories,
+      flashSale: shopFlashSale,
+      groupBuy: shopGroupBuy,
+      recProducts: shopRecProducts,
+    }
+    try {
+      return await apiGet<any>('/shop')
+    } catch {
+      return {
+        banners: shopBanners,
+        quickActions: shopQuickActions,
+        categories: shopCategories,
+        flashSale: shopFlashSale,
+        groupBuy: shopGroupBuy,
+        recProducts: shopRecProducts,
+      }
+    }
+  },
+
+  /** 获取商品详情 — GET /shop/:id */
+  async getProduct(id: string): Promise<ProductDetail> {
+    if (useMock()) return getProductDetail(id)
+    try {
+      const data = await apiGet<any>(`/shop/${id}`)
+      return data as ProductDetail
+    } catch {
+      return getProductDetail(id)
+    }
+  },
+
+  /** 获取商品分类 — GET /shop/categories */
+  async getCategories(): Promise<ShopCategoryNode[]> {
+    if (useMock()) return shopCategoryTree
+    try {
+      const data = await apiGet<any>('/shop/categories')
+      return (data?.items || data) as ShopCategoryNode[]
+    } catch {
+      return shopCategoryTree
+    }
+  },
+
+  /** 获取限时秒杀 — GET /shop/flash-sale */
+  async getFlashSale(): Promise<any> {
+    if (useMock()) return shopFlashSale
+    try {
+      return await apiGet<any>('/shop/flash-sale')
+    } catch {
+      return shopFlashSale
+    }
+  },
+}

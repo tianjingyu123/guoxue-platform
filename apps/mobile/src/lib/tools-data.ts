@@ -3,6 +3,8 @@
  * href 保持原型路径风格，路由跳转时由 utils/router 统一处理（详见路由表）。
  * 未开发工具统一指向 coming-soon 占位页。
  */
+import { apiGet, useMock } from '@/utils/request'
+
 export interface Tool { id: string; name: string; iconId: string; href: string; badge?: boolean }
 export interface MedicalTool { id: string; name: string; iconId: string; href: string; badge?: boolean }
 export interface Agent { id: string; name: string; description: string; avatar: string; href: string }
@@ -89,4 +91,19 @@ export const AGENT_AVATAR_GRADIENT: Record<string, [string, string]> = {
   ziwei: ['#06b6d4', '#0284c7'],    // cyan-500 -> sky-600
   fengshui: ['#84cc16', '#16a34a'], // lime-500 -> green-600
   naming: ['#d946ef', '#9333ea'],   // fuchsia-500 -> purple-600
+}
+
+// ============ API 层 ============
+
+export const toolsApi = {
+  /** 获取排盘工具列表 — GET /paipan/tools */
+  async getTools(): Promise<Tool[]> {
+    if (useMock()) return tools
+    try {
+      const data = await apiGet<any>('/paipan/tools')
+      return (data?.items || data) as Tool[]
+    } catch {
+      return tools
+    }
+  },
 }
