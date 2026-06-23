@@ -291,7 +291,7 @@ export const videoApi = {
   async publish(data: Record<string, any>): Promise<any> {
     if (useMock()) return { id: String(Date.now()), ...data, createdAt: new Date().toISOString() }
     try {
-      return await apiPost('/video', data)
+      return await apiPost('/videos', data)
     } catch {
       return { id: String(Date.now()), ...data, createdAt: new Date().toISOString() }
     }
@@ -301,17 +301,17 @@ export const videoApi = {
   async list(params?: Record<string, any>): Promise<VideoItem[]> {
     if (useMock()) return mockVideos
     try {
-      return await apiGet('/video', params)
+      return await apiGet('/videos', params)
     } catch {
       return mockVideos
     }
   },
 
-  /** 视频详情 — GET /video/:id */
+  /** 视频详情 — GET /videos/:id */
   async getById(id: string): Promise<VideoItem | null> {
     if (useMock()) return mockVideos.find((v) => v.id === id) || null
     try {
-      return await apiGet(`/video/${id}`)
+      return await apiGet(`/videos/${id}`)
     } catch {
       return mockVideos.find((v) => v.id === id) || null
     }
@@ -321,7 +321,7 @@ export const videoApi = {
   async update(id: string, data: Record<string, any>): Promise<any> {
     if (useMock()) return { id, ...data, updatedAt: new Date().toISOString() }
     try {
-      return await apiPut(`/video/${id}`, data)
+      return await apiPut(`/videos/${id}`, data)
     } catch {
       return { id, ...data, updatedAt: new Date().toISOString() }
     }
@@ -331,7 +331,7 @@ export const videoApi = {
   async delete(id: string): Promise<{ success: boolean; message: string }> {
     if (useMock()) return { success: true, message: '删除成功' }
     try {
-      await apiDelete(`/video/${id}`)
+      await apiDelete(`/videos/${id}`)
       return { success: true, message: '删除成功' }
     } catch (e: any) {
       return { success: false, message: e?.message || '删除失败' }
@@ -347,7 +347,7 @@ export const videoApi = {
       return { success: true, isLiked: newLiked, likes: newLikes }
     }
     try {
-      return await apiPost(`/video/${id}/like`)
+      return await apiPost(`/videos/${id}/like`)
     } catch (e: any) {
       return { success: false, isLiked: false, likes: 0 }
     }
@@ -357,7 +357,7 @@ export const videoApi = {
   async listItems(params?: Record<string, any>): Promise<VideoListItem[]> {
     if (useMock()) return videoListItems
     try {
-      return await apiGet('/video/items', params)
+      return await apiGet('/videos/items', params)
     } catch {
       return videoListItems
     }
@@ -367,7 +367,7 @@ export const videoApi = {
   async search(params?: Record<string, any>): Promise<VideoSearchResult[]> {
     if (useMock()) return videoSearchResults
     try {
-      return await apiGet('/video/search', params)
+      return await apiGet('/videos/search', params)
     } catch {
       return videoSearchResults
     }
@@ -377,7 +377,7 @@ export const videoApi = {
   async getProductLibrary(params?: Record<string, any>): Promise<PublishProduct[]> {
     if (useMock()) return publishProductLibrary
     try {
-      return await apiGet('/video/products', params)
+      return await apiGet('/videos/products', params)
     } catch {
       return publishProductLibrary
     }

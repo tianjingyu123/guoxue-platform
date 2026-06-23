@@ -463,71 +463,71 @@ export const merchantApi = {
 }
 
 export const merchantAdminApi = {
-  /** 商家后台仪表盘 — GET /merchant-admin/dashboard */
+  /** 商家后台仪表盘 — GET /merchant-backend/dashboard */
   async getDashboard(): Promise<any> {
     if (useMock()) return merchantDashboard
     try {
-      return await apiGet('/merchant-admin/dashboard')
+      return await apiGet('/merchant-backend/dashboard')
     } catch {
       return merchantDashboard
     }
   },
 
-  /** 订单列表 — GET /merchant-admin/orders */
+  /** 订单列表 — GET /merchant-backend/orders */
   async getOrders(params?: Record<string, any>): Promise<any[]> {
     if (useMock()) return merchantOrders
     try {
-      return await apiGet('/merchant-admin/orders', params)
+      return await apiGet('/merchant-backend/orders', params)
     } catch {
       return merchantOrders
     }
   },
 
-  /** 商品管理 — GET /merchant-admin/products */
+  /** 商品管理 — GET /merchant-backend/products */
   async getProducts(params?: Record<string, any>): Promise<MerchantProduct[]> {
     if (useMock()) return merchantProducts
     try {
-      return await apiGet('/merchant-admin/products', params)
+      return await apiGet('/merchant-backend/products', params)
     } catch {
       return merchantProducts
     }
   },
 
-  /** 收益概览 — GET /merchant-admin/revenue */
+  /** 收益概览 — GET /merchant-backend/revenue */
   async getRevenue(): Promise<any> {
     if (useMock()) return { ...merchantRevenue, transactions: revenueTransactions }
     try {
-      return await apiGet('/merchant-admin/revenue')
+      return await apiGet('/merchant-backend/revenue')
     } catch {
       return { ...merchantRevenue, transactions: revenueTransactions }
     }
   },
 
-  /** 评价管理 — GET /merchant-admin/reviews */
+  /** 评价管理 — GET /merchant-backend/reviews */
   async getReviews(params?: Record<string, any>): Promise<any[]> {
     if (useMock()) return merchantReviews
     try {
-      return await apiGet('/merchant-admin/reviews', params)
+      return await apiGet('/merchant-backend/reviews', params)
     } catch {
       return merchantReviews
     }
   },
 
-  /** 违规记录 — GET /merchant-admin/violations */
+  /** 违规记录 — GET /merchant-backend/violations */
   async getViolations(): Promise<any> {
     if (useMock()) return { stats: merchantViolationStats, items: merchantViolations }
     try {
-      return await apiGet('/merchant-admin/violations')
+      return await apiGet('/merchant-backend/violations')
     } catch {
       return { stats: merchantViolationStats, items: merchantViolations }
     }
   },
 
-  /** 平台通知 — GET /merchant-admin/notices */
+  /** 平台通知 — GET /merchant-backend/notices */
   async getNotices(): Promise<any[]> {
     if (useMock()) return merchantNotices
     try {
-      return await apiGet('/merchant-admin/notices')
+      return await apiGet('/merchant-backend/notices')
     } catch {
       return merchantNotices
     }
