@@ -89,7 +89,14 @@ export const baziApi = {
   /** 八字排盘结果 */
   async calculate(input: { name?: string; gender: string; year: number; month: number; day: number; hour: number; minute?: number; place?: string }) {
     if (useMock()) return _mockBaziData
-    try { return await apiGet<any>('/paipan/bazi/calculate') }
+    try {
+      const params = new URLSearchParams({
+        year: String(input.year), month: String(input.month), day: String(input.day),
+        hour: String(input.hour), minute: String(input.minute ?? 0),
+        gender: input.gender
+      }).toString()
+      return await apiGet<any>('/paipan/bazi/calculate?' + params)
+    }
     catch { return _mockBaziData }
   },
 
