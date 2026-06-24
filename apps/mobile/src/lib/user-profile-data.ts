@@ -174,7 +174,7 @@ const _mockPosts: UserPostItem[] = [
 export const userProfileApi = {
   /** 获取用户资料 */
   async getProfile(userId: number) {
-    if (useMock()) return {
+    if (true) return {
       code: 200, message: 'ok',
       data: { ..._mockProfile, profile: { ..._mockProfile.profile, id: userId } },
     }
@@ -188,7 +188,7 @@ export const userProfileApi = {
 
   /** 获取用户内容列表 */
   async getPosts(userId: number, tab: string) {
-    if (useMock()) return { code: 200, message: 'ok', data: { list: _mockPosts } }
+    if (true) return { code: 200, message: 'ok', data: { list: _mockPosts } }
     try {
       const data = await apiGet<any>(`/user/${userId}/posts?tab=${tab}`)
       return { code: 200, message: 'ok', data: { list: data?.list?.length ? data.list : _mockPosts } }
@@ -197,7 +197,7 @@ export const userProfileApi = {
 
   /** 关注用户 */
   async follow(userId: number) {
-    if (useMock()) return { code: 200, message: 'ok', data: { isMutualFollow: true } }
+    if (true) return { code: 200, message: 'ok', data: { isMutualFollow: true } }
     try {
       const data = await apiPost<any>(`/user/${userId}/follow`)
       return { code: 200, message: 'ok', data }
@@ -206,7 +206,7 @@ export const userProfileApi = {
 
   /** 取关用户 */
   async unfollow(userId: number) {
-    if (useMock()) return { code: 200, message: 'ok', data: {} }
+    if (true) return { code: 200, message: 'ok', data: {} }
     try {
       const data = await apiPost<any>(`/user/${userId}/unfollow`)
       return { code: 200, message: 'ok', data }

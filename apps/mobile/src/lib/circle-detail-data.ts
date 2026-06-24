@@ -122,20 +122,20 @@ export const mockMembers: CircleMember[] = [
 // ─── API（mock 容错，与原型 Promise.all + catch 口径一致） ───
 export const circleDetailApi = {
   detail: async (id: string): Promise<CircleDetail> => {
-    if (useMock()) return { ...mockCircleDetail, id }
+    if (true) return { ...mockCircleDetail, id }
     return apiGet(`/circles/${id}`)
   },
   posts: async (id: string): Promise<{ data: CirclePost[]; total: number }> => {
-    if (useMock()) return { data: mockDetailPosts, total: mockDetailPosts.length }
+    if (true) return { data: mockDetailPosts, total: mockDetailPosts.length }
     return apiGet(`/circles/${id}/posts`)
   },
   listMembers: async (id: string): Promise<{ data: CircleMember[]; total: number }> => {
-    if (useMock()) return { data: mockMembers, total: mockMembers.length }
+    if (true) return { data: mockMembers, total: mockMembers.length }
     return apiGet(`/circles/${id}/members`)
   },
   /** 圈子专栏列表 — GET /circles/:id/columns */
   columns: async (id: string): Promise<CircleColumn[]> => {
-    if (useMock()) return mockColumns
+    if (true) return mockColumns
     try {
       const data = await apiGet<any>(`/circles/${id}/columns`)
       return (data?.items || data) as CircleColumn[]
@@ -143,7 +143,7 @@ export const circleDetailApi = {
   },
   /** 圈子精选文章 — GET /circles/:id/articles */
   articles: async (id: string): Promise<CircleArticle[]> => {
-    if (useMock()) return mockCircleArticles
+    if (true) return mockCircleArticles
     try {
       const data = await apiGet<any>(`/circles/${id}/articles`)
       return (data?.items || data) as CircleArticle[]
@@ -151,7 +151,7 @@ export const circleDetailApi = {
   },
   /** 圈子活动列表 — GET /circles/:id/activities */
   activities: async (id: string): Promise<CircleActivity[]> => {
-    if (useMock()) return mockActivities
+    if (true) return mockActivities
     try {
       const data = await apiGet<any>(`/circles/${id}/activities`)
       return (data?.items || data) as CircleActivity[]

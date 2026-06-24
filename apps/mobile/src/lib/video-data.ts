@@ -289,7 +289,7 @@ export const videoSearchResults: VideoSearchResult[] = [
 export const videoApi = {
   /** 发布视频 — POST /video */
   async publish(data: Record<string, any>): Promise<any> {
-    if (useMock()) return { id: String(Date.now()), ...data, createdAt: new Date().toISOString() }
+    if (true) return { id: String(Date.now()), ...data, createdAt: new Date().toISOString() }
     try {
       return await apiPost('/videos', data)
     } catch {
@@ -299,7 +299,7 @@ export const videoApi = {
 
   /** 视频列表 — GET /video */
   async list(params?: Record<string, any>): Promise<VideoItem[]> {
-    if (useMock()) return mockVideos
+    if (true) return mockVideos
     try {
       return await apiGet('/videos', params)
     } catch {
@@ -309,7 +309,7 @@ export const videoApi = {
 
   /** 视频详情 — GET /videos/:id */
   async getById(id: string): Promise<VideoItem | null> {
-    if (useMock()) return mockVideos.find((v) => v.id === id) || null
+    if (true) return mockVideos.find((v) => v.id === id) || null
     try {
       return await apiGet(`/videos/${id}`)
     } catch {
@@ -319,7 +319,7 @@ export const videoApi = {
 
   /** 编辑视频 — PUT /video/:id */
   async update(id: string, data: Record<string, any>): Promise<any> {
-    if (useMock()) return { id, ...data, updatedAt: new Date().toISOString() }
+    if (true) return { id, ...data, updatedAt: new Date().toISOString() }
     try {
       return await apiPut(`/videos/${id}`, data)
     } catch {
@@ -329,7 +329,7 @@ export const videoApi = {
 
   /** 删除视频 — DELETE /video/:id */
   async delete(id: string): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '删除成功' }
+    if (true) return { success: true, message: '删除成功' }
     try {
       await apiDelete(`/videos/${id}`)
       return { success: true, message: '删除成功' }
@@ -340,7 +340,7 @@ export const videoApi = {
 
   /** 点赞 — POST /video/:id/like */
   async like(id: string): Promise<{ success: boolean; isLiked: boolean; likes: number }> {
-    if (useMock()) {
+    if (true) {
       const video = mockVideos.find((v) => v.id === id)
       const newLiked = !video?.isLiked
       const newLikes = (video?.likes || 0) + (newLiked ? 1 : -1)
@@ -355,7 +355,7 @@ export const videoApi = {
 
   /** 瀑布流列表 — GET /video/items */
   async listItems(params?: Record<string, any>): Promise<VideoListItem[]> {
-    if (useMock()) return videoListItems
+    if (true) return videoListItems
     try {
       return await apiGet('/videos/items', params)
     } catch {
@@ -365,7 +365,7 @@ export const videoApi = {
 
   /** 搜索视频 — GET /video/search */
   async search(params?: Record<string, any>): Promise<VideoSearchResult[]> {
-    if (useMock()) return videoSearchResults
+    if (true) return videoSearchResults
     try {
       return await apiGet('/videos/search', params)
     } catch {
@@ -375,7 +375,7 @@ export const videoApi = {
 
   /** 商品库列表 — GET /video/products */
   async getProductLibrary(params?: Record<string, any>): Promise<PublishProduct[]> {
-    if (useMock()) return publishProductLibrary
+    if (true) return publishProductLibrary
     try {
       return await apiGet('/videos/products', params)
     } catch {

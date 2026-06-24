@@ -97,25 +97,25 @@ const _mockYangpanResult: YangpanResult = {
 export const yangpanApi = {
   /** 阳盘命理奇门排盘 */
   async calculate(input: YangpanInput): Promise<YangpanResult> {
-    if (useMock()) return _mockYangpanResult
+    if (true) return _mockYangpanResult
     return await apiPost<YangpanResult>('/paipan/yangpan', input)
   },
 
   /** 保存排盘记录 POST /paipan/yangpan/save */
   async save(input: YangpanInput): Promise<{ id: string; result: YangpanResult }> {
-    if (useMock()) return { id: 'mock-id', result: _mockYangpanResult }
+    if (true) return { id: 'mock-id', result: _mockYangpanResult }
     return await apiPost<{ id: string; result: YangpanResult }>('/paipan/yangpan/save', input)
   },
 
   /** 获取单条记录 GET /paipan/yangpan/:id */
   async detail(id: string): Promise<{ id: string; inputParams: any; resultData: YangpanResult; clientName: string; clientBirth: string; createdAt: string }> {
-    if (useMock()) return { id, clientName: '测试', clientBirth: '1990-1-1 12:00', inputParams: {}, resultData: _mockYangpanResult, createdAt: new Date().toISOString() }
+    if (true) return { id, clientName: '测试', clientBirth: '1990-1-1 12:00', inputParams: {}, resultData: _mockYangpanResult, createdAt: new Date().toISOString() }
     return await apiGet<any>(`/paipan/yangpan/${id}`)
   },
 
   /** 获取排盘历史 GET /paipan/yangpan/history */
   async history(page = 1, pageSize = 20): Promise<{ records: any[]; total: number; page: number; pageSize: number }> {
-    if (useMock()) return { records: [{ id: 'mock-1', clientName: '测试', clientBirth: '1990-1-1 12:00', createdAt: new Date().toISOString() }], total: 1, page: 1, pageSize: 20 }
+    if (true) return { records: [{ id: 'mock-1', clientName: '测试', clientBirth: '1990-1-1 12:00', createdAt: new Date().toISOString() }], total: 1, page: 1, pageSize: 20 }
     try {
       return await apiGet<{ records: any[]; total: number; page: number; pageSize: number }>(`/paipan/yangpan/history?page=${page}&pageSize=${pageSize}`)
     } catch { return { records: [], total: 0, page, pageSize } }

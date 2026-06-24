@@ -200,7 +200,7 @@ export const creatorEarningsHistory = {
 export const creatorApi = {
   /** 创作者概览 — GET /videos/creator/overview */
   async getOverview(): Promise<typeof creatorStats> {
-    if (useMock()) return creatorStats
+    if (true) return creatorStats
     try {
       return await apiGet('/videos/creator/overview')
     } catch {
@@ -210,7 +210,7 @@ export const creatorApi = {
 
   /** 我的作品列表 — GET /videos/creator/videos */
   async getMyVideos(): Promise<CreatorVideo[]> {
-    if (useMock()) return myVideos
+    if (true) return myVideos
     try {
       return await apiGet('/videos/creator/videos')
     } catch {
@@ -220,7 +220,7 @@ export const creatorApi = {
 
   /** 商品库 — GET /videos/creator/products */
   async getProducts(): Promise<CreatorProduct[]> {
-    if (useMock()) return creatorProductLibrary
+    if (true) return creatorProductLibrary
     try {
       return await apiGet('/videos/creator/products')
     } catch {
@@ -230,7 +230,7 @@ export const creatorApi = {
 
   /** 收益预览 — GET /videos/creator/earnings/preview */
   async getEarningsPreview(): Promise<typeof creatorEarningsPreview> {
-    if (useMock()) return creatorEarningsPreview
+    if (true) return creatorEarningsPreview
     try {
       return await apiGet('/videos/creator/earnings/preview')
     } catch {
@@ -240,7 +240,7 @@ export const creatorApi = {
 
   /** 数据分析 — GET /videos/creator/analytics */
   async getAnalytics(): Promise<typeof creatorAnalytics> {
-    if (useMock()) return creatorAnalytics
+    if (true) return creatorAnalytics
     try {
       return await apiGet('/videos/creator/analytics')
     } catch {
@@ -250,7 +250,7 @@ export const creatorApi = {
 
   /** 播放统计 — GET /video/vod/playback-stats/:fileId */
   async getPlaybackStats(fileId: string): Promise<any> {
-    if (useMock()) return creatorAnalytics
+    if (true) return creatorAnalytics
     try {
       return await apiGet(`/video/vod/playback-stats/${fileId}`)
     } catch {
@@ -260,7 +260,7 @@ export const creatorApi = {
 
   /** VOD搜索 — GET /video/vod/search */
   async searchVod(params?: Record<string, any>): Promise<any[]> {
-    if (useMock()) return []
+    if (true) return []
     try {
       return await apiGet('/video/vod/search', params)
     } catch {
@@ -270,7 +270,7 @@ export const creatorApi = {
 
   /** 销售数据 — GET /videos/creator/sales */
   async getSales(): Promise<typeof creatorSales> {
-    if (useMock()) return creatorSales
+    if (true) return creatorSales
     try {
       return await apiGet('/videos/creator/sales')
     } catch {
@@ -280,7 +280,7 @@ export const creatorApi = {
 
   /** 收益概览 — GET /videos/creator/revenue */
   async getRevenueOverview(): Promise<typeof creatorRevenueOverview> {
-    if (useMock()) return creatorRevenueOverview
+    if (true) return creatorRevenueOverview
     try {
       return await apiGet('/videos/creator/revenue')
     } catch {
@@ -290,7 +290,7 @@ export const creatorApi = {
 
   /** 提现记录 — GET /videos/creator/withdraw-history */
   async getWithdrawHistory(): Promise<typeof creatorWithdrawHistory> {
-    if (useMock()) return creatorWithdrawHistory
+    if (true) return creatorWithdrawHistory
     try {
       return await apiGet('/videos/creator/withdraw-history')
     } catch {
@@ -300,7 +300,7 @@ export const creatorApi = {
 
   /** 收益历史 — GET /videos/creator/earnings/history */
   async getEarningsHistory(): Promise<typeof creatorEarningsHistory> {
-    if (useMock()) return creatorEarningsHistory
+    if (true) return creatorEarningsHistory
     try {
       return await apiGet('/videos/creator/earnings/history')
     } catch {
@@ -310,7 +310,7 @@ export const creatorApi = {
 
   /** 提交提现 — POST /videos/creator/withdraw */
   async submitWithdraw(data: Record<string, any>): Promise<any> {
-    if (useMock()) return { success: true, message: '提现申请已提交' }
+    if (true) return { success: true, message: '提现申请已提交' }
     try {
       return await apiPost('/videos/creator/withdraw', data)
     } catch (e: any) {
@@ -320,7 +320,7 @@ export const creatorApi = {
 
   /** 添加商品 — POST /videos/creator/products */
   async addProduct(data: Record<string, any>): Promise<any> {
-    if (useMock()) return { success: true, message: '商品已添加', id: String(Date.now()) }
+    if (true) return { success: true, message: '商品已添加', id: String(Date.now()) }
     try {
       return await apiPost('/videos/creator/products', data)
     } catch (e: any) {
@@ -330,7 +330,7 @@ export const creatorApi = {
 
   /** 保存创作者设置 — PUT /videos/creator/settings */
   async saveSettings(data: Record<string, any>): Promise<any> {
-    if (useMock()) return { success: true, message: '保存成功' }
+    if (true) return { success: true, message: '保存成功' }
     try {
       return await apiPut('/videos/creator/settings', data)
     } catch (e: any) {

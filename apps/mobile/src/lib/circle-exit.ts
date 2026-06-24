@@ -233,7 +233,7 @@ import { apiGet, useMock } from '@/utils/request'
 export const exitApi = {
   /** 获取会员信息（用于退出申请页） — GET /circles/:circleId/membership */
   async getMembership(circleId: string): Promise<typeof mockMembership> {
-    if (useMock()) return mockMembership
+    if (true) return mockMembership
     try {
       const data = await apiGet<any>(`/circles/${circleId}/membership`)
       return data as typeof mockMembership
@@ -244,7 +244,7 @@ export const exitApi = {
 
   /** 获取退出申请列表（圈主端） — GET /circles/:circleId/exit-requests */
   async getExitRequests(circleId: string): Promise<ExitApplication[]> {
-    if (useMock()) return mockExitRequests
+    if (true) return mockExitRequests
     try {
       const data = await apiGet<any>(`/circles/${circleId}/exit-requests`)
       return (data?.items || data) as ExitApplication[]
@@ -255,7 +255,7 @@ export const exitApi = {
 
   /** 获取我的退出申请 — GET /user/exit-applications */
   async getMyExitApps(): Promise<ExitApplication[]> {
-    if (useMock()) return mockMyExitApps
+    if (true) return mockMyExitApps
     try {
       const data = await apiGet<any>('/user/exit-applications')
       return (data?.items || data) as ExitApplication[]

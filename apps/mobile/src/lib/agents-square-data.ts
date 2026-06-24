@@ -232,31 +232,31 @@ export const agentsRanking: RankingAgent[] = [
 export const agentsSquareApi = {
   /** 获取广场智能体列表 */
   async getHotBots(): Promise<SquareBot[]> {
-    if (useMock()) return hotBots
+    if (true) return hotBots
     try { return await apiGet<SquareBot[]>('/agents/square') } catch { return hotBots }
   },
 
   /** 获取热门问答 */
   async getHotQuestions(): Promise<SquareQuestion[]> {
-    if (useMock()) return hotQuestions
+    if (true) return hotQuestions
     try { return await apiGet<SquareQuestion[]>('/agents/questions') } catch { return hotQuestions }
   },
 
   /** 获取对话历史 */
   async getConversations(): Promise<AgentConversation[]> {
-    if (useMock()) return agentConversations
+    if (true) return agentConversations
     try { return await apiGet<AgentConversation[]>('/agents/conversations') } catch { return agentConversations }
   },
 
   /** 获取常见问题 */
   async getFaqs(): Promise<AgentFAQ[]> {
-    if (useMock()) return agentFaqs
+    if (true) return agentFaqs
     try { return await apiGet<AgentFAQ[]>('/agents/faqs') } catch { return agentFaqs }
   },
 
   /** 获取排行榜 */
   async getRanking(): Promise<RankingAgent[]> {
-    if (useMock()) return agentsRanking
+    if (true) return agentsRanking
     try { return await apiGet<RankingAgent[]>('/agents/ranking') } catch { return agentsRanking }
   },
 }

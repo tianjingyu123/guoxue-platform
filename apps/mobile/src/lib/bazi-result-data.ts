@@ -88,7 +88,7 @@ const _mockClassicsContent: Record<string, { title: string; original: string; tr
 export const baziApi = {
   /** 八字排盘结果 */
   async calculate(input: { name?: string; gender: string; year: number; month: number; day: number; hour: number; minute?: number; place?: string }) {
-    if (useMock()) return _mockBaziData
+    if (true) return _mockBaziData
     try {
       const params = new URLSearchParams({
         year: String(input.year), month: String(input.month), day: String(input.day),
@@ -102,7 +102,7 @@ export const baziApi = {
 
   /** 古籍参考内容 */
   async classicsRef(bookId: string) {
-    if (useMock()) return _mockClassicsContent[bookId] || null
+    if (true) return _mockClassicsContent[bookId] || null
     try {
       const data = await apiGet<any>(`/paipan/bazi/classics/${bookId}`)
       return data || _mockClassicsContent[bookId] || null
@@ -111,7 +111,7 @@ export const baziApi = {
 
   /** 保存排盘记录 */
   async save(input: any) {
-    if (useMock()) return { id: 'mock-bazi-id' }
+    if (true) return { id: 'mock-bazi-id' }
     try { return await apiGet<any>('/paipan/bazi/save') }
     catch { return { id: 'mock-bazi-id' } }
   },

@@ -1391,7 +1391,7 @@ export const shopExchangeAddresses: ShopExchangeAddress[] = [
 export const shopApi = {
   /** 获取商城首页数据 — GET /shop */
   async getHome(): Promise<any> {
-    if (useMock()) return {
+    if (true) return {
       banners: shopBanners,
       quickActions: shopQuickActions,
       categories: shopCategories,
@@ -1415,7 +1415,7 @@ export const shopApi = {
 
   /** 获取商品详情 — GET /shop/:id */
   async getProduct(id: string): Promise<ProductDetail> {
-    if (useMock()) return getProductDetail(id)
+    if (true) return getProductDetail(id)
     try {
       const data = await apiGet<any>(`/shop/${id}`)
       return data as ProductDetail
@@ -1426,7 +1426,7 @@ export const shopApi = {
 
   /** 获取商品分类 — GET /shop/categories */
   async getCategories(): Promise<ShopCategoryNode[]> {
-    if (useMock()) return shopCategoryTree
+    if (true) return shopCategoryTree
     try {
       const data = await apiGet<any>('/shop/categories')
       return (data?.items || data) as ShopCategoryNode[]
@@ -1437,7 +1437,7 @@ export const shopApi = {
 
   /** 获取限时秒杀 — GET /shop/flash-sale */
   async getFlashSale(): Promise<any> {
-    if (useMock()) return shopFlashSale
+    if (true) return shopFlashSale
     try {
       return await apiGet<any>('/shop/flash-sale')
     } catch {
@@ -1447,133 +1447,133 @@ export const shopApi = {
 
   /** 获取秒杀页完整数据 — GET /shop/flash-sale/full */
   async getFlashSaleFull(): Promise<any> {
-    if (useMock()) return { timeSlots: flashTimeSlots, products: flashProducts, notices: flashNotices, endOffsetMs: flashEndOffsetMs }
+    if (true) return { timeSlots: flashTimeSlots, products: flashProducts, notices: flashNotices, endOffsetMs: flashEndOffsetMs }
     try { return await apiGet<any>('/shop/flash-sale/full') }
     catch { return { timeSlots: flashTimeSlots, products: flashProducts, notices: flashNotices, endOffsetMs: flashEndOffsetMs } }
   },
 
   /** 获取购物车 — GET /shop/cart */
   async getCart(): Promise<{ items: FlatCartItem[]; groups: CartSellerGroup[]; invalidItems: InvalidCartItem[]; recommends: CartRecommendItem[] }> {
-    if (useMock()) return { items: cartFlatItems, groups: cartGroups, invalidItems: cartInvalidItems, recommends: cartRecommendProducts }
+    if (true) return { items: cartFlatItems, groups: cartGroups, invalidItems: cartInvalidItems, recommends: cartRecommendProducts }
     try { return await apiGet<any>('/shop/cart') }
     catch { return { items: cartFlatItems, groups: cartGroups, invalidItems: cartInvalidItems, recommends: cartRecommendProducts } }
   },
 
   /** 获取SKU维度购物车 — GET /shop/cart/sku */
   async getSkuCart(): Promise<SkuCartItem[]> {
-    if (useMock()) return skuCartItems
+    if (true) return skuCartItems
     try { return await apiGet<any>('/shop/cart/sku') }
     catch { return skuCartItems }
   },
 
   /** 获取结算数据 — GET /shop/checkout */
   async getCheckout(): Promise<any> {
-    if (useMock()) return { items: checkoutItems, addresses: checkoutAddresses, coupons: checkoutCoupons, payMethods, invoiceOptions }
+    if (true) return { items: checkoutItems, addresses: checkoutAddresses, coupons: checkoutCoupons, payMethods, invoiceOptions }
     try { return await apiGet<any>('/shop/checkout') }
     catch { return { items: checkoutItems, addresses: checkoutAddresses, coupons: checkoutCoupons, payMethods, invoiceOptions } }
   },
 
   /** 获取对比数据 — GET /shop/compare */
   async getCompare(): Promise<{ products: Record<string, CompareProduct>; pickList: string[] }> {
-    if (useMock()) return { products: compareProducts, pickList: comparePickList }
+    if (true) return { products: compareProducts, pickList: comparePickList }
     try { return await apiGet<any>('/shop/compare') }
     catch { return { products: compareProducts, pickList: comparePickList } }
   },
 
   /** 获取优惠券详情 — GET /shop/coupon/:id */
   async getCouponDetail(_id: string): Promise<any> {
-    if (useMock()) return couponDetail
+    if (true) return couponDetail
     try { return await apiGet<any>(`/shop/coupon/${_id}`) }
     catch { return couponDetail }
   },
 
   /** 获取我的优惠券 — GET /shop/coupons/my */
   async getMyCoupons(): Promise<any> {
-    if (useMock()) return { coupons: myCoupons, tabs: couponTabs }
+    if (true) return { coupons: myCoupons, tabs: couponTabs }
     try { return await apiGet<any>('/shop/coupons/my') }
     catch { return { coupons: myCoupons, tabs: couponTabs } }
   },
 
   /** 获取领券中心 — GET /shop/coupons/center */
   async getCenterCoupons(): Promise<CenterCoupon[]> {
-    if (useMock()) return centerCoupons
+    if (true) return centerCoupons
     try { return await apiGet<any>('/shop/coupons/center') }
     catch { return centerCoupons }
   },
 
   /** 获取换货数据 — GET /shop/exchange */
   async getExchange(): Promise<any> {
-    if (useMock()) return { reasons: shopExchangeReasons, products: shopExchangeProducts, addresses: shopExchangeAddresses }
+    if (true) return { reasons: shopExchangeReasons, products: shopExchangeProducts, addresses: shopExchangeAddresses }
     try { return await apiGet<any>('/shop/exchange') }
     catch { return { reasons: shopExchangeReasons, products: shopExchangeProducts, addresses: shopExchangeAddresses } }
   },
 
   /** 获取拼团列表 — GET /shop/group-buy */
   async getGroupBuyList(): Promise<{ list: GroupBuyItem[]; myList: MyGroupBuyItem[] }> {
-    if (useMock()) return { list: groupBuyList, myList: myGroupBuyList }
+    if (true) return { list: groupBuyList, myList: myGroupBuyList }
     try { return await apiGet<any>('/shop/group-buy') }
     catch { return { list: groupBuyList, myList: myGroupBuyList } }
   },
 
   /** 获取拼团详情 — GET /shop/group-buy/:id */
   async getGroupBuyDetail(_id: string): Promise<{ detail: GroupBuyDetailData; activeGroups: ActiveGroup[] }> {
-    if (useMock()) return { detail: groupBuyDetail, activeGroups }
+    if (true) return { detail: groupBuyDetail, activeGroups }
     try { return await apiGet<any>(`/shop/group-buy/${_id}`) }
     catch { return { detail: groupBuyDetail, activeGroups } }
   },
 
   /** 获取拼团失败数据 — GET /shop/group-buy/:id/fail */
   async getGroupBuyFail(_id: string): Promise<any> {
-    if (useMock()) return groupBuyFail
+    if (true) return groupBuyFail
     try { return await apiGet<any>(`/shop/group-buy/${_id}/fail`) }
     catch { return groupBuyFail }
   },
 
   /** 获取拼团成功数据 — GET /shop/group-buy/:id/success */
   async getGroupBuySuccess(_id: string): Promise<any> {
-    if (useMock()) return groupBuySuccess
+    if (true) return groupBuySuccess
     try { return await apiGet<any>(`/shop/group-buy/${_id}/success`) }
     catch { return groupBuySuccess }
   },
 
   /** 获取支付方式 — GET /shop/payment-methods */
   async getPaymentMethods(): Promise<any> {
-    if (useMock()) return { boundMethods: boundPaymentMethods, addOptions: addPaymentOptions }
+    if (true) return { boundMethods: boundPaymentMethods, addOptions: addPaymentOptions }
     try { return await apiGet<any>('/shop/payment-methods') }
     catch { return { boundMethods: boundPaymentMethods, addOptions: addPaymentOptions } }
   },
 
   /** 获取shop商品详情 — GET /shop/product/:id */
   async getShopProductDetail(_id: string): Promise<{ product: ShopProductDetail; reviews: ShopProductReview[] }> {
-    if (useMock()) return { product: shopProductDetail, reviews: shopProductReviews }
+    if (true) return { product: shopProductDetail, reviews: shopProductReviews }
     try { return await apiGet<any>(`/shop/product/${_id}`) }
     catch { return { product: shopProductDetail, reviews: shopProductReviews } }
   },
 
   /** 获取shop评价 — GET /shop/product/:id/reviews */
   async getShopReviews(_id: string): Promise<any> {
-    if (useMock()) return { stats: shopReviewStats, list: shopReviewList }
+    if (true) return { stats: shopReviewStats, list: shopReviewList }
     try { return await apiGet<any>(`/shop/product/${_id}/reviews`) }
     catch { return { stats: shopReviewStats, list: shopReviewList } }
   },
 
   /** 获取mall首页 — GET /mall */
   async getMallHome(): Promise<any> {
-    if (useMock()) return { quickEntries: mallQuickEntries, banners: mallBanners, lives: mallCommerceLives, categories: mallCategories, products: mallProducts, seckillItems, groupItems }
+    if (true) return { quickEntries: mallQuickEntries, banners: mallBanners, lives: mallCommerceLives, categories: mallCategories, products: mallProducts, seckillItems, groupItems }
     try { return await apiGet<any>('/mall') }
     catch { return { quickEntries: mallQuickEntries, banners: mallBanners, lives: mallCommerceLives, categories: mallCategories, products: mallProducts, seckillItems, groupItems } }
   },
 
   /** 获取mall分类 — GET /mall/categories */
   async getMallCategories(): Promise<any> {
-    if (useMock()) return { tabs: categoryTabs, sortOptions: categorySortOptions, products: categoryProducts }
+    if (true) return { tabs: categoryTabs, sortOptions: categorySortOptions, products: categoryProducts }
     try { return await apiGet<any>('/mall/categories') }
     catch { return { tabs: categoryTabs, sortOptions: categorySortOptions, products: categoryProducts } }
   },
 
   /** 获取mall评价 — GET /mall/product/:id/reviews */
   async getMallReviews(_id: string): Promise<any> {
-    if (useMock()) return { tags: reviewTags, sortOptions: reviewSortOptions, reviews: fullReviews, summary: reviewSummary }
+    if (true) return { tags: reviewTags, sortOptions: reviewSortOptions, reviews: fullReviews, summary: reviewSummary }
     try { return await apiGet<any>(`/mall/product/${_id}/reviews`) }
     catch { return { tags: reviewTags, sortOptions: reviewSortOptions, reviews: fullReviews, summary: reviewSummary } }
   },

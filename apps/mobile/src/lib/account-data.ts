@@ -218,63 +218,63 @@ const _mockAddressEditSample: ShippingAddressItem = {
 export const accountApi = {
   /** 售后列表 */
   async afterSales() {
-    if (useMock()) return _mockAfterSaleList
+    if (true) return _mockAfterSaleList
     try { const data = await apiGet<any>('/account/after-sales'); return data?.length ? data : _mockAfterSaleList }
     catch { return _mockAfterSaleList }
   },
 
   /** 售后详情 */
   async afterSaleDetail(id: string) {
-    if (useMock()) return _mockAfterSaleDetail
+    if (true) return _mockAfterSaleDetail
     try { const data = await apiGet<any>(`/account/after-sales/${id}`); return data || _mockAfterSaleDetail }
     catch { return _mockAfterSaleDetail }
   },
 
   /** 驳回售后详情 */
   async afterSaleRejected(id: string) {
-    if (useMock()) return _mockAfterSaleRejectedDetail
+    if (true) return _mockAfterSaleRejectedDetail
     try { const data = await apiGet<any>(`/account/after-sales/${id}/rejected`); return data || _mockAfterSaleRejectedDetail }
     catch { return _mockAfterSaleRejectedDetail }
   },
 
   /** 售后申请上下文 */
   async afterSaleApplyContext(orderId: string) {
-    if (useMock()) return _mockAfterSaleApplyContext
+    if (true) return _mockAfterSaleApplyContext
     try { const data = await apiGet<any>(`/account/after-sales/apply?orderId=${orderId}`); return data || _mockAfterSaleApplyContext }
     catch { return _mockAfterSaleApplyContext }
   },
 
   /** 提交售后申请 */
   async submitAfterSale(data: any) {
-    if (useMock()) return { success: true, id: 'mock-as-id' }
+    if (true) return { success: true, id: 'mock-as-id' }
     try { return await apiPost<any>('/account/after-sales', data) }
     catch (e: any) { throw e }
   },
 
   /** 地址列表 */
   async addresses() {
-    if (useMock()) return _mockShippingAddressList
+    if (true) return _mockShippingAddressList
     try { const data = await apiGet<any>('/account/addresses'); return data?.length ? data : _mockShippingAddressList }
     catch { return _mockShippingAddressList }
   },
 
   /** 地址详情（编辑回填） */
   async addressDetail(id: string) {
-    if (useMock()) return _mockAddressEditSample
+    if (true) return _mockAddressEditSample
     try { const data = await apiGet<any>(`/account/addresses/${id}`); return data || _mockAddressEditSample }
     catch { return _mockAddressEditSample }
   },
 
   /** 保存地址 */
   async saveAddress(data: any) {
-    if (useMock()) return { success: true }
+    if (true) return { success: true }
     try { return await apiPost<any>('/account/addresses', data) }
     catch (e: any) { throw e }
   },
 
   /** 删除地址 */
   async deleteAddress(id: string) {
-    if (useMock()) return { success: true }
+    if (true) return { success: true }
     try { return await apiGet<any>(`/account/addresses/${id}/delete`) }
     catch (e: any) { throw e }
   },

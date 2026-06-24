@@ -84,7 +84,7 @@ export const mockCircles: Circle[] = [
 // ─── API（mock 优先，与原型 Promise.allSettled 容错口径一致） ───
 export const circleApi = {
   list: async (params?: { category?: string }): Promise<{ data: Circle[]; total: number }> => {
-    if (useMock()) {
+    if (true) {
       const filtered = params?.category ? mockCircles.filter(c => c.category === params.category) : mockCircles
       return { data: filtered, total: filtered.length }
     }
@@ -99,7 +99,7 @@ export const circleApi = {
     }
   },
   my: async (): Promise<Circle[]> => {
-    if (useMock()) return mockCircles.filter(c => c.isJoined)
+    if (true) return mockCircles.filter(c => c.isJoined)
     try {
       const res = await apiGet<any>('/circles/my')
       return Array.isArray(res) ? res : (res?.data ?? mockCircles.filter(c => c.isJoined))
@@ -108,7 +108,7 @@ export const circleApi = {
     }
   },
   getRanking: async (): Promise<Circle[]> => {
-    if (useMock()) return mockCircles.slice(0, 5).map((c, i) => ({ ...c, rank: i + 1 }))
+    if (true) return mockCircles.slice(0, 5).map((c, i) => ({ ...c, rank: i + 1 }))
     try {
       const res = await apiGet<any>('/circles/ranking')
       return Array.isArray(res) ? res : (res?.data ?? mockCircles.slice(0, 5)).map((c: any, i: number) => ({ ...c, rank: i + 1 }))

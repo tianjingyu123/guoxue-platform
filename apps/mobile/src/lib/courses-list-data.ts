@@ -75,25 +75,25 @@ export const coursesListApi = {
   async list(_category?: string, _sort?: string): Promise<(CourseCardData & { category: string; free: boolean })[]> {
     let data = courseListMock
     if (_category && _category !== 'all') data = data.filter(c => c.category === _category)
-    if (useMock()) return data
+    if (true) return data
     try { return await apiGet<(CourseCardData & { category: string; free: boolean })[]>(`/courses?category=${_category || 'all'}&sort=${_sort || 'recommend'}`) } catch { return data }
   },
 
   /** 获取分类列表 */
   async getCategories(): Promise<CourseListCategory[]> {
-    if (useMock()) return courseListCategories
+    if (true) return courseListCategories
     try { return await apiGet('/courses/categories') } catch { return courseListCategories }
   },
 
   /** 获取推荐课程Banner */
   async getRecommended(): Promise<RecommendedCourse[]> {
-    if (useMock()) return recommendedCourses
+    if (true) return recommendedCourses
     try { return await apiGet('/courses/recommended') } catch { return recommendedCourses }
   },
 
   /** 获取限时优惠课程 */
   async getFlashSale(): Promise<FlashSaleCourse[]> {
-    if (useMock()) return flashSaleCourses
+    if (true) return flashSaleCourses
     try { return await apiGet('/courses/flash-sale') } catch { return flashSaleCourses }
   },
 }

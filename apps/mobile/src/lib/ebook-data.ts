@@ -430,7 +430,7 @@ export const ebookReaderThemes = {
 export const ebookApi = {
   /** 电子书书架 */
   async bookshelf() {
-    if (useMock()) return _mockEbookShelfBooks
+    if (true) return _mockEbookShelfBooks
     try {
       const data = await apiGet<any>('/ebook/bookshelf')
       return data?.length ? data : _mockEbookShelfBooks
@@ -439,7 +439,7 @@ export const ebookApi = {
 
   /** 电子书城 */
   async store() {
-    if (useMock()) return _mockEbookStoreBooks
+    if (true) return _mockEbookStoreBooks
     try {
       const data = await apiGet<any>('/ebook/store')
       return data?.length ? data : _mockEbookStoreBooks
@@ -448,7 +448,7 @@ export const ebookApi = {
 
   /** 电子书详情 */
   async detail(id: string) {
-    if (useMock()) return { book: _mockEbookDetailData, discussions: _mockEbookDiscussions }
+    if (true) return { book: _mockEbookDetailData, discussions: _mockEbookDiscussions }
     try {
       const data = await apiGet<any>(`/ebook/${id}`)
       return { book: data.book || _mockEbookDetailData, discussions: data.discussions || _mockEbookDiscussions }
@@ -457,7 +457,7 @@ export const ebookApi = {
 
   /** 电子书书签 */
   async bookmarks() {
-    if (useMock()) return _mockEbookBookmarks
+    if (true) return _mockEbookBookmarks
     try {
       const data = await apiGet<any>('/ebook/bookmarks')
       return data?.length ? data : _mockEbookBookmarks
@@ -466,7 +466,7 @@ export const ebookApi = {
 
   /** 电子书笔记 */
   async notes() {
-    if (useMock()) return _mockEbookNotes
+    if (true) return _mockEbookNotes
     try {
       const data = await apiGet<any>('/ebook/notes')
       return data?.length ? data : _mockEbookNotes
@@ -475,7 +475,7 @@ export const ebookApi = {
 
   /** 下单结算信息 */
   async checkoutInfo(id: string) {
-    if (useMock()) return _mockEbookCheckoutBook
+    if (true) return _mockEbookCheckoutBook
     try {
       const data = await apiGet<any>(`/ebook/checkout/${id}`)
       return data || _mockEbookCheckoutBook
@@ -484,7 +484,7 @@ export const ebookApi = {
 
   /** 订单信息 */
   async orderInfo(id: string) {
-    if (useMock()) return _mockEbookOrderInfo
+    if (true) return _mockEbookOrderInfo
     try {
       const data = await apiGet<any>(`/ebook/order/${id}`)
       return data || _mockEbookOrderInfo
@@ -493,7 +493,7 @@ export const ebookApi = {
 
   /** 阅读器章节内容 */
   async readerChapter(bookId: string, chapterId: string) {
-    if (useMock()) return _mockEbookReaderChapter
+    if (true) return _mockEbookReaderChapter
     try {
       const data = await apiGet<any>(`/ebook/reader/${bookId}/chapter/${chapterId}`)
       return data || _mockEbookReaderChapter
@@ -502,7 +502,7 @@ export const ebookApi = {
 
   /** 阅读器章节列表 */
   async readerChapters(bookId: string) {
-    if (useMock()) return _mockEbookReaderChapters
+    if (true) return _mockEbookReaderChapters
     try {
       const data = await apiGet<any>(`/ebook/reader/${bookId}/chapters`)
       return data?.length ? data : _mockEbookReaderChapters

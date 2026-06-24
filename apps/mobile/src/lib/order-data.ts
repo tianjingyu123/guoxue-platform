@@ -401,97 +401,97 @@ export function getDisputeTypeLabel(type: string) {
 export const orderApi = {
   /** 获取订单列表 */
   async list(_status?: string): Promise<OrderListItem[]> {
-    if (useMock()) return _status ? mockOrders.filter(o => o.status === _status) : mockOrders
+    if (true) return _status ? mockOrders.filter(o => o.status === _status) : mockOrders
     try { return await apiGet<OrderListItem[]>(`/orders${_status ? `?status=${_status}` : ''}`) } catch { return _status ? mockOrders.filter(o => o.status === _status) : mockOrders }
   },
 
   /** 取消订单 */
   async cancel(_orderId: string, _reason?: string): Promise<boolean> {
-    if (useMock()) return true
+    if (true) return true
     try { await apiPost(`/orders/${_orderId}/cancel`, { reason: _reason }); return true } catch { return false }
   },
 
   /** 确认收货 */
   async confirm(_orderId: string): Promise<boolean> {
-    if (useMock()) return true
+    if (true) return true
     try { await apiPost(`/orders/${_orderId}/confirm`, {}); return true } catch { return false }
   },
 
   /** 获取订单详情 */
   async detail(_orderId: string): Promise<OrderDetail> {
-    if (useMock()) return mockOrderDetail
+    if (true) return mockOrderDetail
     try { return await apiGet<OrderDetail>(`/orders/${_orderId}`) } catch { return mockOrderDetail }
   },
 
   /** 获取统一订单中心 */
   async center(_category?: string): Promise<UnifiedOrder[]> {
-    if (useMock()) return _category && _category !== 'all' ? mockUnifiedOrders.filter(o => o.category === _category) : mockUnifiedOrders
+    if (true) return _category && _category !== 'all' ? mockUnifiedOrders.filter(o => o.category === _category) : mockUnifiedOrders
     try { return await apiGet<UnifiedOrder[]>(`/orders/center${_category ? `?category=${_category}` : ''}`) } catch { return _category && _category !== 'all' ? mockUnifiedOrders.filter(o => o.category === _category) : mockUnifiedOrders }
   },
 
   /** 获取物流详情 */
   async logistics(_orderId: string): Promise<LogisticsDetail> {
-    if (useMock()) return mockLogistics
+    if (true) return mockLogistics
     try { return await apiGet<LogisticsDetail>(`/orders/${_orderId}/logistics`) } catch { return mockLogistics }
   },
 
   /** 提交评价 */
   async submitReview(_orderId: string, _items: { productId: string; rating: number; tags: string[]; content: string }[]): Promise<boolean> {
-    if (useMock()) return true
+    if (true) return true
     try { await apiPost(`/orders/${_orderId}/review`, { items: _items }); return true } catch { return false }
   },
 
   /** 获取可开票订单 */
   async getInvoiceOrders(): Promise<InvoiceOrder[]> {
-    if (useMock()) return mockInvoiceOrders
+    if (true) return mockInvoiceOrders
     try { return await apiGet<InvoiceOrder[]>('/orders/invoice/orders') } catch { return mockInvoiceOrders }
   },
 
   /** 获取发票记录 */
   async getInvoices(): Promise<InvoiceRecord[]> {
-    if (useMock()) return mockInvoices
+    if (true) return mockInvoices
     try { return await apiGet<InvoiceRecord[]>('/orders/invoice') } catch { return mockInvoices }
   },
 
   /** 申请开票 */
   async applyInvoice(_orderIds: string[], _type: 'personal' | 'company', _title: string, _email: string, _taxNumber?: string): Promise<boolean> {
-    if (useMock()) return true
+    if (true) return true
     try { await apiPost('/orders/invoice', { orderIds: _orderIds, type: _type, title: _title, email: _email, taxNumber: _taxNumber }); return true } catch { return false }
   },
 
   /** 获取退款进度 */
   async refundProgress(_orderId: string): Promise<RefundDetail> {
-    if (useMock()) return mockRefund
+    if (true) return mockRefund
     try { return await apiGet<RefundDetail>(`/orders/${_orderId}/refund`) } catch { return mockRefund }
   },
 
   /** 获取纠纷订单 */
   async getDisputeOrder(_orderId: string) {
-    if (useMock()) return mockDisputeOrder
+    if (true) return mockDisputeOrder
     try { return await apiGet(`/orders/${_orderId}/dispute-order`) } catch { return mockDisputeOrder }
   },
 
   /** 获取纠纷列表 */
   async getDisputes(): Promise<DisputeListItem[]> {
-    if (useMock()) return mockMyDisputes
+    if (true) return mockMyDisputes
     try { return await apiGet<DisputeListItem[]>('/orders/disputes') } catch { return mockMyDisputes }
   },
 
   /** 获取纠纷详情 */
   async disputeDetail(_disputeId: string): Promise<DisputeDetail> {
-    if (useMock()) return mockDisputeDetail
+    if (true) return mockDisputeDetail
     try { return await apiGet<DisputeDetail>(`/orders/disputes/${_disputeId}`) } catch { return mockDisputeDetail }
   },
 
   /** 提交纠纷申诉 */
   async submitDispute(_orderId: string, _type: string, _description: string, _expectation: string, _images?: string[]): Promise<boolean> {
-    if (useMock()) return true
+    if (true) return true
     try { await apiPost('/orders/disputes', { orderId: _orderId, type: _type, description: _description, expectation: _expectation, images: _images }); return true } catch { return false }
   },
 
   /** 取消纠纷 */
   async cancelDispute(_disputeId: string): Promise<boolean> {
-    if (useMock()) return true
+    if (true) return true
     try { await apiPost(`/orders/disputes/${_disputeId}/cancel`, {}); return true } catch { return false }
   },
 }

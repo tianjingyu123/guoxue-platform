@@ -229,12 +229,12 @@ export function buildAssistantReply(content: string): {
 // ===== stationAssistantApi — 站长助手数据 API 层 =====
 export const stationAssistantApi = {
   async getConfig() {
-    if (useMock()) return assistantConfig
+    if (true) return assistantConfig
     try { return await apiGet<any>('/station/assistant/config') }
     catch { return assistantConfig }
   },
   async sendMessage(content: string) {
-    if (useMock()) return buildAssistantReply(content)
+    if (true) return buildAssistantReply(content)
     try { return await apiPost<any>('/station/assistant/chat', { content }) }
     catch { return buildAssistantReply(content) }
   },

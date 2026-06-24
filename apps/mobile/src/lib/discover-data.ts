@@ -73,7 +73,7 @@ export const feedItems: FeedItem[] = [
 export const discoverApi = {
   /** 获取推荐流 — GET /discover */
   async getFeed(): Promise<FeedItem[]> {
-    if (useMock()) return feedItems
+    if (true) return feedItems
     try {
       const data = await apiGet<any[]>('/discover')
       return (data || []) as FeedItem[]
@@ -84,7 +84,7 @@ export const discoverApi = {
 
   /** 获取分类列表 — GET /discover/categories */
   async getCategories(): Promise<{ id: string; label: string }[]> {
-    if (useMock()) return [allCategory, ...categories]
+    if (true) return [allCategory, ...categories]
     try {
       const data = await apiGet<any[]>('/discover/categories')
       return (data && data.length > 0) ? data as any[] : [allCategory, ...categories]
@@ -95,7 +95,7 @@ export const discoverApi = {
 
   /** 获取热搜词 — GET /discover/hot */
   async getHotWords(): Promise<string[]> {
-    if (useMock()) return hotWords
+    if (true) return hotWords
     try {
       const data = await apiGet<string[]>('/discover/hot')
       return (data && data.length > 0) ? data : hotWords
@@ -106,7 +106,7 @@ export const discoverApi = {
 
   /** 获取推荐 — GET /discover/recommendations */
   async getRecommendations(): Promise<FeedItem[]> {
-    if (useMock()) return feedItems.slice(0, 6)
+    if (true) return feedItems.slice(0, 6)
     try {
       const data = await apiGet<any[]>('/discover/recommendations')
       return (data || []) as FeedItem[]

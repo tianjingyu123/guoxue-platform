@@ -137,7 +137,7 @@ export function shiftDate(dateStr: string, days: number): string {
 export const fortuneApi = {
   /** 获取今日运势 — GET /fortune/today */
   async getToday(): Promise<DailyFortune> {
-    if (useMock()) return buildDailyFortune(todayISO())
+    if (true) return buildDailyFortune(todayISO())
     try {
       const data = await apiGet<any>('/fortune/today')
       return data as DailyFortune
@@ -148,7 +148,7 @@ export const fortuneApi = {
 
   /** 获取指定日期运势 — GET /fortune/:type/:period (type=daily, period=日期) */
   async getByDate(dateStr: string): Promise<DailyFortune> {
-    if (useMock()) return buildDailyFortune(dateStr)
+    if (true) return buildDailyFortune(dateStr)
     try {
       const data = await apiGet<any>(`/fortune/daily/${dateStr}`)
       return data as DailyFortune
@@ -159,7 +159,7 @@ export const fortuneApi = {
 
   /** 订阅运势推送 — POST /fortune/subscribe */
   async subscribe(channel: string, type: string): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '订阅成功' }
+    if (true) return { success: true, message: '订阅成功' }
     try {
       await apiPost('/fortune/subscribe', { channel, type })
       return { success: true, message: '订阅成功' }
@@ -170,7 +170,7 @@ export const fortuneApi = {
 
   /** 获取运势工具列表 — GET /fortune/tools */
   async getTools(): Promise<any[]> {
-    if (useMock()) return []
+    if (true) return []
     try {
       return await apiGet<any[]>('/fortune/tools') || []
     } catch {
@@ -180,7 +180,7 @@ export const fortuneApi = {
 
   /** 获取引导卡 — GET /fortune/guide-card */
   async getGuideCard(): Promise<any | null> {
-    if (useMock()) return null
+    if (true) return null
     try {
       return await apiGet<any>('/fortune/guide-card')
     } catch {

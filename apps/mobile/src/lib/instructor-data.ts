@@ -136,7 +136,7 @@ export const instructorDetail: InstructorDetail = {
 export const instructorApi = {
   /** 获取讲师详情 */
   async getDetail(_id: string): Promise<InstructorDetail> {
-    if (useMock()) return instructorDetail
+    if (true) return instructorDetail
     try { return await apiGet<InstructorDetail>(`/instructor/${_id}`) } catch { return instructorDetail }
   },
 }

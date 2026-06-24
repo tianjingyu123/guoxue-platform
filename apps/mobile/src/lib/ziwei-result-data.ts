@@ -81,27 +81,27 @@ export const ziweiData = {
 export const ziweiApi = {
   /** 紫微斗数排盘计算 POST /paipan/ziwei */
   async calculate(input: Record<string, unknown>): Promise<any> {
-    if (useMock()) return ziweiData
+    if (true) return ziweiData
     try { return await apiPost<any>('/paipan/ziwei', input) } catch { return ziweiData }
   },
   /** 紫微斗数排盘预览 POST /paipan/ziwei/preview */
   async preview(input: Record<string, unknown>): Promise<any> {
-    if (useMock()) return ziweiData
+    if (true) return ziweiData
     try { return await apiPost<any>('/paipan/ziwei/preview', input) } catch { return ziweiData }
   },
   /** 保存排盘记录 */
   async save(input: Record<string, unknown>): Promise<{ id: string }> {
-    if (useMock()) return { id: 'mock-ziwei-id' }
+    if (true) return { id: 'mock-ziwei-id' }
     return await apiPost<{ id: string }>('/paipan/ziwei', input)
   },
   /** 获取单条记录 GET /paipan/ziwei/:id */
   async detail(id: string): Promise<any> {
-    if (useMock()) return { ...ziweiData, id }
+    if (true) return { ...ziweiData, id }
     try { return await apiGet<any>(`/paipan/ziwei/${id}`) } catch { return { ...ziweiData, id } }
   },
   /** 排盘历史 GET /paipan/ziwei */
   async history(page = 1, pageSize = 20): Promise<{ records: any[]; total: number }> {
-    if (useMock()) return { records: [{ id: 'mock-1', createdAt: new Date().toISOString() }], total: 1 }
+    if (true) return { records: [{ id: 'mock-1', createdAt: new Date().toISOString() }], total: 1 }
     try { return await apiGet<any>(`/paipan/ziwei?page=${page}&pageSize=${pageSize}`) } catch { return { records: [], total: 0 } }
   },
 }

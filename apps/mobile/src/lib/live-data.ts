@@ -1143,7 +1143,7 @@ export const liveManageStatusConfig: Record<string, { label: string; color: stri
 export const liveApi = {
   /** 获取直播广场列表 — GET /live */
   async getPlaza(tab?: string): Promise<LiveItem[]> {
-    if (useMock()) {
+    if (true) {
       if (!tab || tab === '全部') return liveList
       const typeMap: Record<string, string> = { '知识授课': 'knowledge', '电商带货': 'commerce' }
       const filterType = typeMap[tab]
@@ -1162,7 +1162,7 @@ export const liveApi = {
 
   /** 获取直播间详情 — GET /live/:id */
   async getWatch(id: string): Promise<LiveItem | undefined> {
-    if (useMock()) return liveList.find(item => item.id === id)
+    if (true) return liveList.find(item => item.id === id)
     try {
       const data = await apiGet<any>(`/live/${id}`)
       return data as LiveItem
@@ -1173,7 +1173,7 @@ export const liveApi = {
 
   /** 获取主播列表 — GET /live/hosts */
   async getHosts(filter?: string): Promise<LiveHost[]> {
-    if (useMock()) return liveHosts
+    if (true) return liveHosts
     try {
       const url = filter ? `/live/hosts?filter=${encodeURIComponent(filter)}` : '/live/hosts'
       const data = await apiGet<any>(url)
@@ -1185,7 +1185,7 @@ export const liveApi = {
 
   /** 获取回放列表 — GET /live/replays */
   async getReplays(sort?: string): Promise<LiveReplay[]> {
-    if (useMock()) return liveReplays
+    if (true) return liveReplays
     try {
       const url = sort ? `/live/replays?sort=${encodeURIComponent(sort)}` : '/live/replays'
       const data = await apiGet<any>(url)
@@ -1197,7 +1197,7 @@ export const liveApi = {
 
   /** 获取回放详情 — GET /live/replay/:id */
   async getReplayDetail(id: string): Promise<ReplayDetail> {
-    if (useMock()) return replayDetail
+    if (true) return replayDetail
     try {
       const data = await apiGet<any>(`/live/replay/${id}`)
       return data as ReplayDetail
@@ -1210,7 +1210,7 @@ export const liveApi = {
   async getReplayHome(): Promise<{
     categories: ReplayCategory[]; hotItems: ReplayHomeItem[]; list: ReplayHomeItem[]; hotSearches: string[]
   }> {
-    if (useMock()) return { categories: replayCategories, hotItems: replayHotItems, list: replayHomeList, hotSearches: replayHotSearches }
+    if (true) return { categories: replayCategories, hotItems: replayHotItems, list: replayHomeList, hotSearches: replayHotSearches }
     try {
       const data = await apiGet<any>('/live/replay-home')
       return data as any
@@ -1221,7 +1221,7 @@ export const liveApi = {
 
   /** 获取直播预告 — GET /live/preview/:id */
   async getPreview(id: string): Promise<LivePreviewRoom> {
-    if (useMock()) return livePreviewRoom
+    if (true) return livePreviewRoom
     try {
       const data = await apiGet<any>(`/live/preview/${id}`)
       return data as LivePreviewRoom
@@ -1234,7 +1234,7 @@ export const liveApi = {
   async getEndRoom(id: string): Promise<{
     room: LiveEndRoom; recommendLives: LiveEndRecommendLive[]; recommendCourses: typeof liveEndRecommendCourses
   }> {
-    if (useMock()) return { room: liveEndRoom, recommendLives: liveEndRecommendLives, recommendCourses: liveEndRecommendCourses }
+    if (true) return { room: liveEndRoom, recommendLives: liveEndRecommendLives, recommendCourses: liveEndRecommendCourses }
     try {
       const data = await apiGet<any>(`/live/end/${id}`)
       return data as any
@@ -1245,7 +1245,7 @@ export const liveApi = {
 
   /** 获取创建直播分类 — GET /live/categories */
   async getCategories(): Promise<LiveCategory[]> {
-    if (useMock()) return liveCreateCategories
+    if (true) return liveCreateCategories
     try {
       const data = await apiGet<any>('/live/categories')
       return (data?.items || data) as LiveCategory[]
@@ -1256,7 +1256,7 @@ export const liveApi = {
 
   /** 获取直播管理列表 — GET /live/manage */
   async getManageList(tab?: string): Promise<{ stats: LiveManageStat[]; list: LiveManageItem[] }> {
-    if (useMock()) {
+    if (true) {
       let list = liveManageList
       if (tab && tab !== 'all') list = liveManageList.filter(item => item.status === tab)
       return { stats: liveManageStats, list }
@@ -1275,7 +1275,7 @@ export const liveApi = {
     stats: typeof consoleLiveStats; danmaku: ConsoleDanmaku[]; requests: ConsoleConnectRequest[]
     products: ConsoleProduct[]; script: ConsoleScript[]
   }> {
-    if (useMock()) return { stats: consoleLiveStats, danmaku: consoleDanmaku, requests: consoleConnectRequests, products: consoleProducts, script: consoleScript }
+    if (true) return { stats: consoleLiveStats, danmaku: consoleDanmaku, requests: consoleConnectRequests, products: consoleProducts, script: consoleScript }
     try {
       const data = await apiGet<any>(`/live/console/${id}`)
       return data as any
@@ -1286,7 +1286,7 @@ export const liveApi = {
 
   /** 获取OBS推流数据 — GET /live/obs-stream */
   async getObsStream(): Promise<typeof obsStreamData> {
-    if (useMock()) return obsStreamData
+    if (true) return obsStreamData
     try {
       const data = await apiGet<any>('/live/obs-stream')
       return data as typeof obsStreamData
@@ -1297,7 +1297,7 @@ export const liveApi = {
 
   /** 获取排期列表 — GET /live/schedule */
   async getScheduleList(): Promise<ScheduleItem[]> {
-    if (useMock()) return scheduleList
+    if (true) return scheduleList
     try {
       const data = await apiGet<any>('/live/schedule')
       return (data?.items || data) as ScheduleItem[]
@@ -1308,7 +1308,7 @@ export const liveApi = {
 
   /** 获取团队成员 — GET /live/team */
   async getTeam(): Promise<{ members: TeamMember[]; available: AvailableMember[] }> {
-    if (useMock()) return { members: teamMembers, available: teamAvailableMembers }
+    if (true) return { members: teamMembers, available: teamAvailableMembers }
     try {
       const data = await apiGet<any>('/live/team')
       return data as any
@@ -1324,7 +1324,7 @@ export const liveApi = {
     interaction: typeof analyticsInteraction; wordCloud: typeof analyticsWordCloud
     productStats: typeof analyticsProductStats; replay: typeof analyticsReplay
   }> {
-    if (useMock()) return {
+    if (true) return {
       info: analyticsLiveInfo, coreStats: analyticsCoreStats, trafficData: analyticsTrafficData,
       keyMoments: analyticsKeyMoments, audience: analyticsAudience, interaction: analyticsInteraction,
       wordCloud: analyticsWordCloud, productStats: analyticsProductStats, replay: analyticsReplay,
@@ -1345,7 +1345,7 @@ export const liveApi = {
   async getEarnings(range?: string): Promise<{
     ranges: LiveEarningRange[]; stats: LiveEarningStats; records: LiveEarningRecord[]
   }> {
-    if (useMock()) {
+    if (true) {
       const key = range || '7d'
       return { ranges: liveEarningRanges, stats: liveEarningStatsByRange[key] || liveEarningStatsByRange['7d'], records: liveEarningRecords }
     }
@@ -1361,7 +1361,7 @@ export const liveApi = {
 
   /** 获取带货商品列表 — GET /live/products */
   async getProducts(filter?: string): Promise<LiveProductItem[]> {
-    if (useMock()) {
+    if (true) {
       if (!filter || filter === 'all') return liveProducts
       return liveProducts.filter(p => p.status === filter)
     }
@@ -1376,7 +1376,7 @@ export const liveApi = {
 
   /** 获取评价列表 — GET /live/reviews */
   async getReviews(filter?: string): Promise<{ dist: LiveReviewDist[]; reviews: LiveReview[] }> {
-    if (useMock()) return { dist: liveReviewDist, reviews: liveReviews }
+    if (true) return { dist: liveReviewDist, reviews: liveReviews }
     try {
       const url = filter ? `/live/reviews?filter=${encodeURIComponent(filter)}` : '/live/reviews'
       const data = await apiGet<any>(url)
@@ -1390,7 +1390,7 @@ export const liveApi = {
   async getSettings(): Promise<{
     profile: typeof liveSettingProfile; notify: typeof liveSettingNotifyDefault; privacy: typeof liveSettingPrivacyDefault
   }> {
-    if (useMock()) return { profile: liveSettingProfile, notify: liveSettingNotifyDefault, privacy: liveSettingPrivacyDefault }
+    if (true) return { profile: liveSettingProfile, notify: liveSettingNotifyDefault, privacy: liveSettingPrivacyDefault }
     try {
       const data = await apiGet<any>('/live/settings')
       return data as any
@@ -1403,7 +1403,7 @@ export const liveApi = {
   async getVerticalRoom(id: string): Promise<{
     room: typeof verticalLiveRoom; comments: VerticalLiveComment[]; products: VerticalLiveProduct[]
   }> {
-    if (useMock()) return { room: verticalLiveRoom, comments: verticalLiveComments, products: verticalLiveProducts }
+    if (true) return { room: verticalLiveRoom, comments: verticalLiveComments, products: verticalLiveProducts }
     try {
       const data = await apiGet<any>(`/live/vertical/${id}`)
       return data as any
@@ -1417,7 +1417,7 @@ export const liveApi = {
     room: HorizontalLiveRoom; slides: HorizontalSlide[]; questions: HorizontalQuestion[]
     messages: HorizontalMessage[]; files: HorizontalFile[]
   }> {
-    if (useMock()) return { room: horizontalLiveRoom, slides: horizontalSlides, questions: horizontalQuestions, messages: horizontalMessages, files: horizontalFiles }
+    if (true) return { room: horizontalLiveRoom, slides: horizontalSlides, questions: horizontalQuestions, messages: horizontalMessages, files: horizontalFiles }
     try {
       const data = await apiGet<any>(`/live/horizontal/${id}`)
       return data as any
@@ -1430,7 +1430,7 @@ export const liveApi = {
   async getHostData(): Promise<{
     stats: HostLiveStats; rooms: HostLiveRoom[]; trend: HostLiveTrend[]
   }> {
-    if (useMock()) return { stats: hostLiveStats, rooms: hostLiveRooms, trend: hostLiveTrend }
+    if (true) return { stats: hostLiveStats, rooms: hostLiveRooms, trend: hostLiveTrend }
     try {
       const data = await apiGet<any>('/live/host-data')
       return data as any
@@ -1443,7 +1443,7 @@ export const liveApi = {
   async getWatchRoom(id: string): Promise<{
     room: typeof liveWatchRoom; comments: VerticalLiveComment[]; products: VerticalLiveProduct[]
   }> {
-    if (useMock()) return { room: liveWatchRoom, comments: liveWatchComments, products: liveWatchProducts }
+    if (true) return { room: liveWatchRoom, comments: liveWatchComments, products: liveWatchProducts }
     try {
       const data = await apiGet<any>(`/live/watch-room/${id}`)
       return data as any
@@ -1454,7 +1454,7 @@ export const liveApi = {
 
   /** 获取礼物列表 — GET /live/gifts */
   async getGifts(): Promise<{ gifts: LiveGift[]; balance: number }> {
-    if (useMock()) return { gifts: liveGifts, balance: liveCoinBalance }
+    if (true) return { gifts: liveGifts, balance: liveCoinBalance }
     try {
       const data = await apiGet<any>('/live/gifts')
       return data as any
@@ -1465,7 +1465,7 @@ export const liveApi = {
 
   /** 获取推流配置 — GET /live/stream-config */
   async getStreamConfig(): Promise<StreamConfig> {
-    if (useMock()) return streamConfig
+    if (true) return streamConfig
     try {
       const data = await apiGet<any>('/live/stream-config')
       return data as StreamConfig

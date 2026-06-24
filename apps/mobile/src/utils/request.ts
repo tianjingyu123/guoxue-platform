@@ -56,5 +56,6 @@ export const apiPost = <T>(path: string, data?: unknown, header?: Record<string,
 export const apiPut = <T>(path: string, data?: unknown, header?: Record<string, string>) => apiFetch<T>(path, 'PUT', data, header)
 export const apiDelete = <T>(path: string, data?: unknown, header?: Record<string, string>) => apiFetch<T>(path, 'DELETE', data, header)
 
-/* mock 开关：与原型口径统一为「默认开 mock」（!== 'false'） */
-export const useMock = () => (import.meta as any).env?.VITE_USE_MOCK !== 'false'
+/* mock 开关：默认开启 mock 模式，VITE_USE_MOCK=false 时关闭 */
+const _MOCK_ENABLED = (import.meta as any).env?.VITE_USE_MOCK !== 'false'
+export const useMock = () => _MOCK_ENABLED

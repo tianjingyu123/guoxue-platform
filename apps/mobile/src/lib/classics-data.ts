@@ -598,7 +598,7 @@ const _mockNotesData: NoteItem[] = [
 export const classicsApi = {
   /** 首页数据 */
   async home() {
-    if (useMock()) return {
+    if (true) return {
       libraryStats: _mockLibraryStats,
       categories: _mockCategories,
       todayFeature: _mockTodayFeature,
@@ -639,7 +639,7 @@ export const classicsApi = {
 
   /** 分类书籍 */
   async category(cat: string) {
-    if (useMock()) return { config: _mockCAT_CONFIG[cat as CatId], books: _mockCAT_BOOKS[cat as CatId] || [] }
+    if (true) return { config: _mockCAT_CONFIG[cat as CatId], books: _mockCAT_BOOKS[cat as CatId] || [] }
     try {
       const data = await apiGet<any>(`/classics/category/${cat}`)
       return { config: data.config || _mockCAT_CONFIG[cat as CatId], books: data.books?.length ? data.books : (_mockCAT_BOOKS[cat as CatId] || []) }
@@ -648,7 +648,7 @@ export const classicsApi = {
 
   /** 图书详情 */
   async detail(id: string) {
-    if (useMock()) return { book: _mockBookData[id], discussions: _mockBookDiscussions, aiFeatures: _mockAI_FEATURES }
+    if (true) return { book: _mockBookData[id], discussions: _mockBookDiscussions, aiFeatures: _mockAI_FEATURES }
     try {
       const data = await apiGet<any>(`/classics/${id}`)
       return { book: data.book || _mockBookData[id], discussions: data.discussions || _mockBookDiscussions, aiFeatures: data.aiFeatures || _mockAI_FEATURES }
@@ -657,7 +657,7 @@ export const classicsApi = {
 
   /** 书架 */
   async bookshelf() {
-    if (useMock()) return { books: _mockBookshelfData, groups: _mockGroupsData, history: _mockReadingHistoryData }
+    if (true) return { books: _mockBookshelfData, groups: _mockGroupsData, history: _mockReadingHistoryData }
     try {
       const data = await apiGet<any>('/classics/bookshelf')
       return { books: data.books || _mockBookshelfData, groups: data.groups || _mockGroupsData, history: data.history || _mockReadingHistoryData }
@@ -666,7 +666,7 @@ export const classicsApi = {
 
   /** 有声书列表 */
   async audiobooks() {
-    if (useMock()) return _mockMockAudioBooks
+    if (true) return _mockMockAudioBooks
     try {
       const data = await apiGet<any>('/classics/audiobooks')
       return data?.length ? data : _mockMockAudioBooks
@@ -675,7 +675,7 @@ export const classicsApi = {
 
   /** 有声书播放器 */
   async audiobookPlayer(id: string) {
-    if (useMock()) return _mockAudioBookPlayerData[id] || _mockAudioBookPlayerData.default
+    if (true) return _mockAudioBookPlayerData[id] || _mockAudioBookPlayerData.default
     try {
       const data = await apiGet<any>(`/classics/audiobooks/${id}`)
       return data || _mockAudioBookPlayerData.default
@@ -684,7 +684,7 @@ export const classicsApi = {
 
   /** 书签 */
   async bookmarks() {
-    if (useMock()) return _mockBookmarksData
+    if (true) return _mockBookmarksData
     try {
       const data = await apiGet<any>('/classics/bookmarks')
       return data?.length ? data : _mockBookmarksData
@@ -693,7 +693,7 @@ export const classicsApi = {
 
   /** 笔记 */
   async notes() {
-    if (useMock()) return _mockNotesData
+    if (true) return _mockNotesData
     try {
       const data = await apiGet<any>('/classics/notes')
       return data?.length ? data : _mockNotesData
@@ -702,7 +702,7 @@ export const classicsApi = {
 
   /** 收藏列表 */
   async collections() {
-    if (useMock()) return _mockMockCollections
+    if (true) return _mockMockCollections
     try {
       const data = await apiGet<any>('/classics/collections')
       return data?.length ? data : _mockMockCollections
@@ -711,7 +711,7 @@ export const classicsApi = {
 
   /** 合集详情 */
   async collectionDetail(id: string) {
-    if (useMock()) return _mockCollectionsDetailData[id]
+    if (true) return _mockCollectionsDetailData[id]
     try {
       const data = await apiGet<any>(`/classics/collections/${id}`)
       return data || _mockCollectionsDetailData[id]
@@ -720,7 +720,7 @@ export const classicsApi = {
 
   /** 排行榜 */
   async ranking() {
-    if (useMock()) return { books: _mockRankingPageBooks, tabs: _mockRankTabs }
+    if (true) return { books: _mockRankingPageBooks, tabs: _mockRankTabs }
     try {
       const data = await apiGet<any>('/classics/ranking')
       return { books: data.books || _mockRankingPageBooks, tabs: data.tabs || _mockRankTabs }
@@ -729,7 +729,7 @@ export const classicsApi = {
 
   /** 精选书单 */
   async lists() {
-    if (useMock()) return _mockListsPageData
+    if (true) return _mockListsPageData
     try {
       const data = await apiGet<any>('/classics/lists')
       return data?.length ? data : _mockListsPageData
@@ -738,7 +738,7 @@ export const classicsApi = {
 
   /** 搜索 */
   async search(query: string) {
-    if (useMock()) return { results: _mockSearchResultsData, suggestions: _mockSearchSuggestionsData, hotSearch: _mockHotSearchData, history: _mockSearchHistoryData }
+    if (true) return { results: _mockSearchResultsData, suggestions: _mockSearchSuggestionsData, hotSearch: _mockHotSearchData, history: _mockSearchHistoryData }
     try {
       const data = await apiGet<any>(`/classics/search?q=${encodeURIComponent(query)}`)
       return {

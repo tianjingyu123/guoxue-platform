@@ -81,25 +81,25 @@ const _mockQimenResult: QimenResult = {
 export const qimenApi = {
   /** 奇门遁甲排盘 */
   async calculate(input: QimenInput): Promise<QimenResult> {
-    if (useMock()) return _mockQimenResult
+    if (true) return _mockQimenResult
     return await apiPost<QimenResult>('/paipan/qimen', input)
   },
 
   /** 保存排盘记录 POST /paipan/qimen/save */
   async save(input: QimenInput): Promise<{ id: string; result: QimenResult }> {
-    if (useMock()) return { id: 'mock-id', result: _mockQimenResult }
+    if (true) return { id: 'mock-id', result: _mockQimenResult }
     return await apiPost<{ id: string; result: QimenResult }>('/paipan/qimen/save', input)
   },
 
   /** 获取单条记录 GET /paipan/qimen/:id */
   async detail(id: string): Promise<{ id: string; inputParams: any; resultData: QimenResult; clientName: string; clientBirth: string; createdAt: string }> {
-    if (useMock()) return { id, clientName: '测试', clientBirth: '2026-5-17 13:38', inputParams: {}, resultData: _mockQimenResult, createdAt: new Date().toISOString() }
+    if (true) return { id, clientName: '测试', clientBirth: '2026-5-17 13:38', inputParams: {}, resultData: _mockQimenResult, createdAt: new Date().toISOString() }
     return await apiGet<any>(`/paipan/qimen/${id}`)
   },
 
   /** 获取排盘历史 GET /paipan/qimen/history */
   async history(page = 1, pageSize = 20): Promise<{ records: any[]; total: number; page: number; pageSize: number }> {
-    if (useMock()) return { records: [{ id: 'mock-1', clientName: '测试', clientBirth: '2026-5-17 13:38', createdAt: new Date().toISOString() }], total: 1, page: 1, pageSize: 20 }
+    if (true) return { records: [{ id: 'mock-1', clientName: '测试', clientBirth: '2026-5-17 13:38', createdAt: new Date().toISOString() }], total: 1, page: 1, pageSize: 20 }
     try {
       return await apiGet<{ records: any[]; total: number; page: number; pageSize: number }>(`/paipan/qimen/history?page=${page}&pageSize=${pageSize}`)
     } catch { return { records: [], total: 0, page, pageSize } }

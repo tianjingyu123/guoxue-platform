@@ -106,7 +106,7 @@ export const totalMessages =
 export const profileApi = {
   /** 获取用户主页数据 */
   async getProfile() {
-    if (useMock()) return _mockUserData
+    if (true) return _mockUserData
     try {
       const data = await apiGet<any>('/user/profile')
       return { ..._mockUserData, ...data }
@@ -115,7 +115,7 @@ export const profileApi = {
 
   /** 猜你喜欢推荐 */
   async recommendations() {
-    if (useMock()) return _mockRecommendations
+    if (true) return _mockRecommendations
     try {
       const data = await apiGet<any>('/user/recommendations')
       return data?.length ? data : _mockRecommendations
@@ -124,7 +124,7 @@ export const profileApi = {
 
   /** 签到 */
   async checkIn() {
-    if (useMock()) return { success: true, points: 10 }
+    if (true) return { success: true, points: 10 }
     try { return await apiGet<any>('/user/checkin') }
     catch { return { success: true, points: 10 } }
   },

@@ -489,7 +489,7 @@ export const _mockEvents: OfflineEvent[] = [
 export const offlineApi = {
   /** 创建驿站 — POST /offline/stations */
   async createStation(data: any): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '驿站创建成功' }
+    if (true) return { success: true, message: '驿站创建成功' }
     try {
       await apiPost('/offline/stations', data)
       return { success: true, message: '驿站创建成功' }
@@ -500,7 +500,7 @@ export const offlineApi = {
 
   /** 驿站列表 — GET /offline/stations */
   async getStations(params?: any): Promise<Station[]> {
-    if (useMock()) return _mockStations
+    if (true) return _mockStations
     try {
       const data = await apiGet<any[]>('/offline/stations', params)
       return data || _mockStations
@@ -511,7 +511,7 @@ export const offlineApi = {
 
   /** 发现驿站 — GET /offline/stations/discover */
   async discoverStations(params?: any): Promise<Station[]> {
-    if (useMock()) return _mockStations
+    if (true) return _mockStations
     try {
       const data = await apiGet<any[]>('/offline/stations/discover', params)
       return data || _mockStations
@@ -522,7 +522,7 @@ export const offlineApi = {
 
   /** 驿站详情 — GET /offline/stations/:id */
   async getStation(id: number): Promise<StationDetail> {
-    if (useMock()) return getStationDetail(id)
+    if (true) return getStationDetail(id)
     try {
       const data = await apiGet<any>(`/offline/stations/${id}`)
       return data || getStationDetail(id)
@@ -533,7 +533,7 @@ export const offlineApi = {
 
   /** 审核驿站 — PUT /offline/stations/:id/audit */
   async auditStation(id: number, data: { approved: boolean; reason?: string }): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: data.approved ? '审核通过' : '审核拒绝' }
+    if (true) return { success: true, message: data.approved ? '审核通过' : '审核拒绝' }
     try {
       await apiPut(`/offline/stations/${id}/audit`, data)
       return { success: true, message: data.approved ? '审核通过' : '审核拒绝' }
@@ -544,7 +544,7 @@ export const offlineApi = {
 
   /** 收益看板 — GET /offline/stations/:id/revenue-dashboard */
   async getStationRevenue(id: number): Promise<any> {
-    if (useMock()) return { totalRevenue: 128000, monthlyRevenue: 15000, orderCount: 256, trend: [10, 15, 12, 18, 20, 16] }
+    if (true) return { totalRevenue: 128000, monthlyRevenue: 15000, orderCount: 256, trend: [10, 15, 12, 18, 20, 16] }
     try {
       const data = await apiGet<any>(`/offline/stations/${id}/revenue-dashboard`)
       return data || { totalRevenue: 128000, monthlyRevenue: 15000, orderCount: 256, trend: [10, 15, 12, 18, 20, 16] }
@@ -555,7 +555,7 @@ export const offlineApi = {
 
   /** 创建线下课程 — POST /offline/courses */
   async createCourse(data: any): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '课程创建成功' }
+    if (true) return { success: true, message: '课程创建成功' }
     try {
       await apiPost('/offline/courses', data)
       return { success: true, message: '课程创建成功' }
@@ -566,7 +566,7 @@ export const offlineApi = {
 
   /** 课程列表 — GET /offline/courses */
   async getCourses(params?: any): Promise<OfflineCourse[]> {
-    if (useMock()) return _mockOfflineCourses
+    if (true) return _mockOfflineCourses
     try {
       const data = await apiGet<any[]>('/offline/courses', params)
       return data || _mockOfflineCourses
@@ -577,7 +577,7 @@ export const offlineApi = {
 
   /** 课程详情 — GET /offline/courses/:id */
   async getCourse(id: number): Promise<OfflineCourseDetail> {
-    if (useMock()) return getOfflineCourseDetail(id)
+    if (true) return getOfflineCourseDetail(id)
     try {
       const data = await apiGet<any>(`/offline/courses/${id}`)
       return data || getOfflineCourseDetail(id)
@@ -588,7 +588,7 @@ export const offlineApi = {
 
   /** 报名 — POST /offline/courses/:id/register */
   async register(id: number): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '报名成功' }
+    if (true) return { success: true, message: '报名成功' }
     try {
       await apiPost(`/offline/courses/${id}/register`)
       return { success: true, message: '报名成功' }
@@ -599,7 +599,7 @@ export const offlineApi = {
 
   /** 取消报名 — POST /offline/courses/:id/cancel */
   async cancelRegistration(id: number): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '已取消报名' }
+    if (true) return { success: true, message: '已取消报名' }
     try {
       await apiPost(`/offline/courses/${id}/cancel`)
       return { success: true, message: '已取消报名' }
@@ -610,7 +610,7 @@ export const offlineApi = {
 
   /** 待审核课程 — GET /offline/admin/courses/pending */
   async getPendingCourses(): Promise<OfflineCourse[]> {
-    if (useMock()) return _mockOfflineCourses.filter(c => c.status === 'upcoming').slice(0, 2)
+    if (true) return _mockOfflineCourses.filter(c => c.status === 'upcoming').slice(0, 2)
     try {
       const data = await apiGet<any[]>('/offline/admin/courses/pending')
       return data || _mockOfflineCourses.filter(c => c.status === 'upcoming').slice(0, 2)
@@ -621,7 +621,7 @@ export const offlineApi = {
 
   /** 审核课程 — PUT /offline/admin/courses/:id/audit */
   async auditCourse(id: number, data: { approved: boolean; reason?: string }): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: data.approved ? '审核通过' : '审核拒绝' }
+    if (true) return { success: true, message: data.approved ? '审核通过' : '审核拒绝' }
     try {
       await apiPut(`/offline/admin/courses/${id}/audit`, data)
       return { success: true, message: data.approved ? '审核通过' : '审核拒绝' }
@@ -632,7 +632,7 @@ export const offlineApi = {
 
   /** 活动列表 — GET /offline/events */
   async getEvents(params?: any): Promise<OfflineEvent[]> {
-    if (useMock()) return _mockEvents
+    if (true) return _mockEvents
     try {
       const data = await apiGet<any[]>('/offline/events', params)
       return data || _mockEvents
@@ -643,7 +643,7 @@ export const offlineApi = {
 
   /** 讲师列表 — GET /offline/teachers */
   async getBookingTeachers(params?: any): Promise<BookingTeacher[]> {
-    if (useMock()) return _mockBookingTeachers
+    if (true) return _mockBookingTeachers
     try {
       const data = await apiGet<any[]>('/offline/teachers', params)
       return data || _mockBookingTeachers
@@ -654,7 +654,7 @@ export const offlineApi = {
 
   /** 我的预约 — GET /offline/bookings/my */
   async getMyBookings(): Promise<TeacherBooking[]> {
-    if (useMock()) return _mockMyTeacherBookings
+    if (true) return _mockMyTeacherBookings
     try {
       const data = await apiGet<any[]>('/offline/bookings/my')
       return data || _mockMyTeacherBookings
@@ -665,7 +665,7 @@ export const offlineApi = {
 
   /** 预约讲师 — POST /offline/bookings */
   async createBooking(data: any): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '预约成功' }
+    if (true) return { success: true, message: '预约成功' }
     try {
       await apiPost('/offline/bookings', data)
       return { success: true, message: '预约成功' }
@@ -676,7 +676,7 @@ export const offlineApi = {
 
   /** 取消预约 — POST /offline/bookings/:id/cancel */
   async cancelBooking(id: number): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '已取消预约' }
+    if (true) return { success: true, message: '已取消预约' }
     try {
       await apiPost(`/offline/bookings/${id}/cancel`)
       return { success: true, message: '已取消预约' }

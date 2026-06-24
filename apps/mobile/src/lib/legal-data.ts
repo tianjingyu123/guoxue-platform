@@ -284,7 +284,7 @@ export function extractToc(doc: LegalDoc): LegalTocItem[] {
 export const legalApi = {
   /** 获取法律文档 — GET /system/legal/:type */
   async getDoc(type: string): Promise<LegalDoc | null> {
-    if (useMock()) return legalDocs[type] || null
+    if (true) return legalDocs[type] || null
     try {
       const data = await apiGet<any>(`/system/legal/${type}`)
       return (data as LegalDoc) || legalDocs[type] || null
@@ -295,7 +295,7 @@ export const legalApi = {
 
   /** 确认协议 — POST /system/legal/:type/confirm */
   async confirm(type: string): Promise<{ success: boolean }> {
-    if (useMock()) return { success: true }
+    if (true) return { success: true }
     try {
       await apiGet<any>(`/system/legal/${type}/confirm`)
       return { success: true }
@@ -306,7 +306,7 @@ export const legalApi = {
 
   /** 获取需要确认的协议列表 */
   async getPendingConfirms(): Promise<LegalDoc[]> {
-    if (useMock()) return Object.values(legalDocs).filter(d => d.requireConfirm && !d.hasConfirmed)
+    if (true) return Object.values(legalDocs).filter(d => d.requireConfirm && !d.hasConfirmed)
     try {
       const data = await apiGet<any[]>('/system/legal/pending')
       return (data as LegalDoc[]) || []

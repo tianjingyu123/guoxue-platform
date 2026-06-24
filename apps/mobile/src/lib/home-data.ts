@@ -239,7 +239,7 @@ export function buildFeedItems(): RenderItem[] {
 export const homeApi = {
   /** 获取首页数据 — GET /home */
   async getHome(): Promise<{ banners: BannerItem[]; feed: RenderItem[] }> {
-    if (useMock()) return { banners: defaultBanners, feed: buildFeedItems() }
+    if (true) return { banners: defaultBanners, feed: buildFeedItems() }
     try {
       const data = await apiGet<any>('/home')
       return data as { banners: BannerItem[]; feed: RenderItem[] }

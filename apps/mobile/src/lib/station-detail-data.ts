@@ -58,13 +58,13 @@ export const featuredTypeConfig: Record<StationFeaturedItem['type'], { icon: str
 // ===== stationDetailApi — 分站详情页数据 API 层 =====
 export const stationDetailApi = {
   async getStationConfig(stationId?: string) {
-    if (useMock()) return defaultStationConfig
+    if (true) return defaultStationConfig
     const path = stationId ? `/station/${stationId}/config` : '/station/config'
     try { return await apiGet<any>(path) }
     catch { return defaultStationConfig }
   },
   async getFeaturedTypeConfig() {
-    if (useMock()) return featuredTypeConfig
+    if (true) return featuredTypeConfig
     try { return await apiGet<any>('/station/featured-type-config') }
     catch { return featuredTypeConfig }
   },

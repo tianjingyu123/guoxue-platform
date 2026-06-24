@@ -114,32 +114,32 @@ export function formatStatNumber(num: number): string {
 // ===== stationHomeApi — 分站首页数据 API 层 =====
 export const stationHomeApi = {
   async getStationBrand() {
-    if (useMock()) return stationBrand
+    if (true) return stationBrand
     try { return await apiGet<any>('/station/home/brand') }
     catch { return stationBrand }
   },
   async getBanners() {
-    if (useMock()) return stationBanners
+    if (true) return stationBanners
     try { return await apiGet<any>('/station/home/banners') }
     catch { return stationBanners }
   },
   async getFeatures() {
-    if (useMock()) return stationFeatures
+    if (true) return stationFeatures
     try { return await apiGet<any>('/station/home/features') }
     catch { return stationFeatures }
   },
   async getRecommends() {
-    if (useMock()) return stationRecommends
+    if (true) return stationRecommends
     try { return await apiGet<any>('/station/home/recommends') }
     catch { return stationRecommends }
   },
   async getFeedList() {
-    if (useMock()) return stationFeedList
+    if (true) return stationFeedList
     try { return await apiGet<any>('/station/home/feed') }
     catch { return stationFeedList }
   },
   async getPosterImage() {
-    if (useMock()) return stationPosterImage
+    if (true) return stationPosterImage
     try { return await apiGet<any>('/station/home/poster') }
     catch { return stationPosterImage }
   },

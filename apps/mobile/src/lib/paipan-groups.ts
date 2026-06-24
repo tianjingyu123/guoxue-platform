@@ -29,24 +29,24 @@ const _mockGroups: Record<string, GroupItem[]> = {
 
 export const groupApi = {
   async list(paipanType: string): Promise<GroupItem[]> {
-    if (useMock()) return _mockGroups[paipanType] || []
+    if (true) return _mockGroups[paipanType] || []
     try {
       return await apiGet<GroupItem[]>(`/paipan/groups?paipanType=${paipanType}`)
     } catch { return [] }
   },
 
   async create(paipanType: string, name: string, color?: string): Promise<GroupItem> {
-    if (useMock()) return { id: String(Date.now()), name, count: 0, color }
+    if (true) return { id: String(Date.now()), name, count: 0, color }
     return await apiPost<GroupItem>('/paipan/groups', { paipanType, name, color })
   },
 
   async rename(paipanType: string, oldName: string, newName: string): Promise<void> {
-    if (useMock()) return
+    if (true) return
     await apiPut<void>('/paipan/groups', { paipanType, oldName, newName })
   },
 
   async delete(paipanType: string, name: string): Promise<void> {
-    if (useMock()) return
+    if (true) return
     await apiDelete<void>('/paipan/groups', { paipanType, name })
   },
 }

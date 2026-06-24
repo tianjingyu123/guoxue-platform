@@ -181,13 +181,13 @@ const _mockLiuyaoResult: LiuyaoResult = {
 export const liuyaoApi = {
   /** 六爻排盘计算 POST /paipan/liuyao */
   async calculate(input: Record<string, unknown>): Promise<LiuyaoResult> {
-    if (useMock()) return _mockLiuyaoResult
+    if (true) return _mockLiuyaoResult
     try { return await apiPost<LiuyaoResult>('/paipan/liuyao', input) } catch { return _mockLiuyaoResult }
   },
 
   /** 六爻排盘预览 POST /paipan/liuyao/preview */
   async preview(input: Record<string, unknown>): Promise<LiuyaoResult> {
-    if (useMock()) return { ..._mockLiuyaoResult, question: input.question as string || _mockLiuyaoResult.question }
+    if (true) return { ..._mockLiuyaoResult, question: input.question as string || _mockLiuyaoResult.question }
     try { return await apiPost<LiuyaoResult>('/paipan/liuyao/preview', input) } catch {
       return { ..._mockLiuyaoResult, question: input.question as string || _mockLiuyaoResult.question }
     }
@@ -195,19 +195,19 @@ export const liuyaoApi = {
 
   /** 保存排盘记录 */
   async save(input: Record<string, unknown>): Promise<{ id: string }> {
-    if (useMock()) return { id: 'mock-liuyao-id' }
+    if (true) return { id: 'mock-liuyao-id' }
     return await apiPost<{ id: string }>('/paipan/liuyao', input)
   },
 
   /** 获取单条记录 GET /paipan/liuyao/:id */
   async detail(id: string): Promise<LiuyaoResult> {
-    if (useMock()) return { ..._mockLiuyaoResult, question: '已保存排盘' }
+    if (true) return { ..._mockLiuyaoResult, question: '已保存排盘' }
     try { return await apiGet<LiuyaoResult>(`/paipan/liuyao/${id}`) } catch { return { ..._mockLiuyaoResult, question: '已保存排盘' } }
   },
 
   /** 排盘历史 GET /paipan/liuyao */
   async history(page = 1, pageSize = 20): Promise<{ records: any[]; total: number }> {
-    if (useMock()) return { records: [{ id: 'mock-1', createdAt: new Date().toISOString(), question: '问事业前程如何？' }], total: 1 }
+    if (true) return { records: [{ id: 'mock-1', createdAt: new Date().toISOString(), question: '问事业前程如何？' }], total: 1 }
     try { return await apiGet<any>(`/paipan/liuyao?page=${page}&pageSize=${pageSize}`) } catch { return { records: [], total: 0 } }
   },
 }

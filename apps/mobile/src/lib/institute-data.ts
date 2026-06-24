@@ -359,7 +359,7 @@ export const demandCreateBudgets = ['面议', '1万以内', '1-5万', '5-10万',
 export const instituteApi = {
   /** 获取书院介绍 — GET /institute/intro */
   async getIntro(): Promise<InstituteInfo> {
-    if (useMock()) return _mockInstituteInfo
+    if (true) return _mockInstituteInfo
     try {
       const data = await apiGet<any>('/institute/intro')
       return data as InstituteInfo
@@ -370,7 +370,7 @@ export const instituteApi = {
 
   /** 获取成员列表 — GET /institute/members */
   async getMembers(): Promise<InstituteMember[]> {
-    if (useMock()) return _mockInstituteMembers
+    if (true) return _mockInstituteMembers
     try {
       const data = await apiGet<any[]>('/institute/members')
       return data || _mockInstituteMembers
@@ -381,7 +381,7 @@ export const instituteApi = {
 
   /** 获取成员详情 — GET /institute/members/:id */
   async getMember(id: number): Promise<any> {
-    if (useMock()) {
+    if (true) {
       const member = _mockInstituteMembers.find(m => m.id === id) || _mockInstituteMembers[0]
       return member
     }
@@ -395,7 +395,7 @@ export const instituteApi = {
 
   /** 获取活动列表 — GET /institute/events */
   async getEvents(): Promise<InstituteEvent[]> {
-    if (useMock()) return _mockInstituteEvents
+    if (true) return _mockInstituteEvents
     try {
       const data = await apiGet<any[]>('/institute/events')
       return data || _mockInstituteEvents
@@ -406,7 +406,7 @@ export const instituteApi = {
 
   /** 获取人才库 — GET /institute/talent-pool */
   async getTalentPool(): Promise<OfflineTeacher[]> {
-    if (useMock()) return _mockOfflineTeachers
+    if (true) return _mockOfflineTeachers
     try {
       const data = await apiGet<any[]>('/institute/talent-pool')
       return data || _mockOfflineTeachers
@@ -417,7 +417,7 @@ export const instituteApi = {
 
   /** 申请加入 — POST /institute/members */
   async applyMember(data: InstituteApplication): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '申请已提交' }
+    if (true) return { success: true, message: '申请已提交' }
     try {
       await apiPost('/institute/members', data)
       return { success: true, message: '申请已提交' }
@@ -428,7 +428,7 @@ export const instituteApi = {
 
   /** 我的书院 — GET /institute/my */
   async getMy(): Promise<any> {
-    if (useMock()) return { name: _mockInstituteInfo.name, role: 'member', joinDate: '2024-01-15' }
+    if (true) return { name: _mockInstituteInfo.name, role: 'member', joinDate: '2024-01-15' }
     try {
       const data = await apiGet<any>('/institute/my')
       return data || { name: _mockInstituteInfo.name, role: 'member', joinDate: '2024-01-15' }
@@ -439,7 +439,7 @@ export const instituteApi = {
 
   /** 获取我的任务 — GET /institute/my/tasks */
   async getMyTasks(): Promise<InstructorTask[]> {
-    if (useMock()) return _mockInstructorTasks
+    if (true) return _mockInstructorTasks
     try {
       const data = await apiGet<any[]>('/institute/my/tasks')
       return data || _mockInstructorTasks
@@ -450,7 +450,7 @@ export const instituteApi = {
 
   /** 完成任务 — POST /institute/my/tasks/:id/complete */
   async completeTask(id: number): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '任务已完成' }
+    if (true) return { success: true, message: '任务已完成' }
     try {
       await apiPost(`/institute/my/tasks/${id}/complete`)
       return { success: true, message: '任务已完成' }
@@ -461,7 +461,7 @@ export const instituteApi = {
 
   /** 押金退还 — POST /institute/my/deposit-refund */
   async depositRefund(): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '押金退还申请已提交' }
+    if (true) return { success: true, message: '押金退还申请已提交' }
     try {
       await apiPost('/institute/my/deposit-refund')
       return { success: true, message: '押金退还申请已提交' }
@@ -472,7 +472,7 @@ export const instituteApi = {
 
   /** 分红记录 — GET /institute/my/dividends */
   async getDividends(): Promise<any[]> {
-    if (useMock()) return []
+    if (true) return []
     try {
       const data = await apiGet<any[]>('/institute/my/dividends')
       return data || []
@@ -483,7 +483,7 @@ export const instituteApi = {
 
   /** 管理概览 — GET /institute/manage/overview */
   async getManageOverview(): Promise<any> {
-    if (useMock()) return { totalMembers: 10, pendingApprovals: 3, activeTasks: 5, monthlyRevenue: 50000 }
+    if (true) return { totalMembers: 10, pendingApprovals: 3, activeTasks: 5, monthlyRevenue: 50000 }
     try {
       const data = await apiGet<any>('/institute/manage/overview')
       return data || { totalMembers: 10, pendingApprovals: 3, activeTasks: 5, monthlyRevenue: 50000 }
@@ -494,7 +494,7 @@ export const instituteApi = {
 
   /** 待审核成员 — GET /institute/manage/pending-members */
   async getPendingMembers(): Promise<InstituteMember[]> {
-    if (useMock()) return _mockInstituteMembers.filter(m => m.role === 'member').slice(0, 3)
+    if (true) return _mockInstituteMembers.filter(m => m.role === 'member').slice(0, 3)
     try {
       const data = await apiGet<any[]>('/institute/manage/pending-members')
       return data || _mockInstituteMembers.filter(m => m.role === 'member').slice(0, 3)
@@ -505,7 +505,7 @@ export const instituteApi = {
 
   /** 审核成员 — PUT /institute/manage/members/:id/approve */
   async approveMember(id: number, approved: boolean): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: approved ? '已通过' : '已拒绝' }
+    if (true) return { success: true, message: approved ? '已通过' : '已拒绝' }
     try {
       await apiPut(`/institute/manage/members/${id}/approve`, { approved })
       return { success: true, message: approved ? '已通过' : '已拒绝' }
@@ -516,7 +516,7 @@ export const instituteApi = {
 
   /** 角色变更 — PUT /institute/manage/members/:id/role */
   async changeRole(id: number, role: string): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '角色已更新' }
+    if (true) return { success: true, message: '角色已更新' }
     try {
       await apiPut(`/institute/manage/members/${id}/role`, { role })
       return { success: true, message: '角色已更新' }

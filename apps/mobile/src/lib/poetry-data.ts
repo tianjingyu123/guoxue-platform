@@ -214,7 +214,7 @@ const poemTranslations = ['明亮的月光洒在床前，', '好像地上泛起�
 export const poetryApi = {
   /** 首页 — 每日一首 + 热门列表 + 诗人列表 */
   async home() {
-    if (useMock()) return { todayPoem, poems, poets }
+    if (true) return { todayPoem, poems, poets }
     try {
       const data = await apiGet<any>('/poetry/home')
       return {
@@ -227,7 +227,7 @@ export const poetryApi = {
 
   /** 分类列表 */
   async categories() {
-    if (useMock()) return categories
+    if (true) return categories
     try {
       const data = await apiGet<PoemCategory[]>('/poetry/categories')
       return data?.length ? data : categories
@@ -236,7 +236,7 @@ export const poetryApi = {
 
   /** 收藏列表 */
   async collections() {
-    if (useMock()) return collections
+    if (true) return collections
     try {
       const data = await apiGet<CollectionItem[]>('/poetry/collections')
       return data?.length ? data : collections
@@ -245,7 +245,7 @@ export const poetryApi = {
 
   /** 诗词详情 */
   async detail(id: string) {
-    if (useMock()) return { poem: poemDetail, translations: poemTranslations }
+    if (true) return { poem: poemDetail, translations: poemTranslations }
     try {
       const data = await apiGet<any>(`/poetry/${id}`)
       return {

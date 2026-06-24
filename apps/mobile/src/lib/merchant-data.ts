@@ -380,7 +380,7 @@ const mockApplyData = {
 export const merchantApi = {
   /** 申请入驻 — POST /merchant/apply */
   async apply(data: Record<string, any>): Promise<any> {
-    if (useMock()) return { ...mockApplyData, ...data, applicationId: 'MA20240001', status: 'draft' }
+    if (true) return { ...mockApplyData, ...data, applicationId: 'MA20240001', status: 'draft' }
     try {
       return await apiPost('/merchant/apply', data)
     } catch {
@@ -390,7 +390,7 @@ export const merchantApi = {
 
   /** 获取申请 — GET /merchant/application */
   async getApplication(): Promise<any> {
-    if (useMock()) return mockApplyData
+    if (true) return mockApplyData
     try {
       return await apiGet('/merchant/application')
     } catch {
@@ -400,7 +400,7 @@ export const merchantApi = {
 
   /** 修改申请 — PUT /merchant/application */
   async updateApplication(data: Record<string, any>): Promise<any> {
-    if (useMock()) return { ...mockApplyData, ...data }
+    if (true) return { ...mockApplyData, ...data }
     try {
       return await apiPut('/merchant/application', data)
     } catch {
@@ -410,7 +410,7 @@ export const merchantApi = {
 
   /** 提交审核 — POST /merchant/submit */
   async submit(): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '提交成功，请等待审核' }
+    if (true) return { success: true, message: '提交成功，请等待审核' }
     try {
       await apiPost('/merchant/submit', {})
       return { success: true, message: '提交成功，请等待审核' }
@@ -421,7 +421,7 @@ export const merchantApi = {
 
   /** 保证金信息 — GET /merchant/deposit-info */
   async getDepositInfo(): Promise<any> {
-    if (useMock()) return { amount: 5000, paid: false, deadline: '2024-06-30', status: 'unpaid' }
+    if (true) return { amount: 5000, paid: false, deadline: '2024-06-30', status: 'unpaid' }
     try {
       return await apiGet('/merchant/deposit-info')
     } catch {
@@ -431,7 +431,7 @@ export const merchantApi = {
 
   /** 缴纳保证金 — POST /merchant/pay-deposit */
   async payDeposit(): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '保证金缴纳成功' }
+    if (true) return { success: true, message: '保证金缴纳成功' }
     try {
       await apiPost('/merchant/pay-deposit', {})
       return { success: true, message: '保证金缴纳成功' }
@@ -442,7 +442,7 @@ export const merchantApi = {
 
   /** 协议预览 — GET /merchant/agreement-preview */
   async getAgreementPreview(): Promise<any> {
-    if (useMock()) return { title: '商家入驻协议', content: '协议内容...', version: 'v2.1', updatedAt: '2024-01-01' }
+    if (true) return { title: '商家入驻协议', content: '协议内容...', version: 'v2.1', updatedAt: '2024-01-01' }
     try {
       return await apiGet('/merchant/agreement-preview')
     } catch {
@@ -452,7 +452,7 @@ export const merchantApi = {
 
   /** 签署协议 — POST /merchant/sign-agreement */
   async signAgreement(): Promise<{ success: boolean; message: string }> {
-    if (useMock()) return { success: true, message: '签署成功' }
+    if (true) return { success: true, message: '签署成功' }
     try {
       await apiPost('/merchant/sign-agreement', {})
       return { success: true, message: '签署成功' }
@@ -465,7 +465,7 @@ export const merchantApi = {
 export const merchantAdminApi = {
   /** 商家后台仪表盘 — GET /merchant-backend/dashboard */
   async getDashboard(): Promise<any> {
-    if (useMock()) return merchantDashboard
+    if (true) return merchantDashboard
     try {
       return await apiGet('/merchant-backend/dashboard')
     } catch {
@@ -475,7 +475,7 @@ export const merchantAdminApi = {
 
   /** 订单列表 — GET /merchant-backend/orders */
   async getOrders(params?: Record<string, any>): Promise<any[]> {
-    if (useMock()) return merchantOrders
+    if (true) return merchantOrders
     try {
       return await apiGet('/merchant-backend/orders', params)
     } catch {
@@ -485,7 +485,7 @@ export const merchantAdminApi = {
 
   /** 商品管理 — GET /merchant-backend/products */
   async getProducts(params?: Record<string, any>): Promise<MerchantProduct[]> {
-    if (useMock()) return merchantProducts
+    if (true) return merchantProducts
     try {
       return await apiGet('/merchant-backend/products', params)
     } catch {
@@ -495,7 +495,7 @@ export const merchantAdminApi = {
 
   /** 收益概览 — GET /merchant-backend/revenue */
   async getRevenue(): Promise<any> {
-    if (useMock()) return { ...merchantRevenue, transactions: revenueTransactions }
+    if (true) return { ...merchantRevenue, transactions: revenueTransactions }
     try {
       return await apiGet('/merchant-backend/revenue')
     } catch {
@@ -505,7 +505,7 @@ export const merchantAdminApi = {
 
   /** 评价管理 — GET /merchant-backend/reviews */
   async getReviews(params?: Record<string, any>): Promise<any[]> {
-    if (useMock()) return merchantReviews
+    if (true) return merchantReviews
     try {
       return await apiGet('/merchant-backend/reviews', params)
     } catch {
@@ -515,7 +515,7 @@ export const merchantAdminApi = {
 
   /** 违规记录 — GET /merchant-backend/violations */
   async getViolations(): Promise<any> {
-    if (useMock()) return { stats: merchantViolationStats, items: merchantViolations }
+    if (true) return { stats: merchantViolationStats, items: merchantViolations }
     try {
       return await apiGet('/merchant-backend/violations')
     } catch {
@@ -525,7 +525,7 @@ export const merchantAdminApi = {
 
   /** 平台通知 — GET /merchant-backend/notices */
   async getNotices(): Promise<any[]> {
-    if (useMock()) return merchantNotices
+    if (true) return merchantNotices
     try {
       return await apiGet('/merchant-backend/notices')
     } catch {

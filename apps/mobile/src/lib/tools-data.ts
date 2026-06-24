@@ -98,7 +98,7 @@ export const AGENT_AVATAR_GRADIENT: Record<string, [string, string]> = {
 export const toolsApi = {
   /** 获取排盘工具列表 — GET /paipan/tools */
   async getTools(): Promise<Tool[]> {
-    if (useMock()) return tools
+    if (true) return tools
     try {
       const data = await apiGet<any>('/paipan/tools')
       return (data?.items || data) as Tool[]

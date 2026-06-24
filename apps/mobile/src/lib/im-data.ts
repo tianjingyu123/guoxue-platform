@@ -730,91 +730,91 @@ export function getRequestStatusText(status: FriendRequestStatus): string {
 export const imApi = {
   /** 获取会话列表 */
   async getConversations(): Promise<ConversationItem[]> {
-    if (useMock()) return mockConversations
+    if (true) return mockConversations
     try { return await apiGet<ConversationItem[]>('/im/conversations') } catch { return mockConversations }
   },
 
   /** 获取聊天对象信息 */
   async getChatTarget(_targetId: number): Promise<ChatTarget> {
-    if (useMock()) return mockChatTarget
+    if (true) return mockChatTarget
     try { return await apiGet<ChatTarget>(`/im/chat-target/${_targetId}`) } catch { return mockChatTarget }
   },
 
   /** 获取聊天历史 */
   async getChatHistory(_targetId: number, _beforeMsgId?: string, _limit?: number): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
-    if (useMock()) return { messages: mockChatHistory, hasMore: false }
+    if (true) return { messages: mockChatHistory, hasMore: false }
     try { return await apiGet<{ messages: ChatMessage[]; hasMore: boolean }>(`/im/chat-history/${_targetId}`) } catch { return { messages: mockChatHistory, hasMore: false } }
   },
 
   /** 发送消息 */
   async sendMessage(_targetId: number, _content: string, _type: string = 'text'): Promise<ChatMessage | null> {
-    if (useMock()) return null
+    if (true) return null
     try { return await apiPost<ChatMessage>(`/im/send/${_targetId}`, { content: _content, type: _type }) } catch { return null }
   },
 
   /** 获取通知消息列表 */
   async getMessages(): Promise<{ list: NotifyMessage[]; unreadCounts: MessageUnreadCounts }> {
-    if (useMock()) return { list: mockNotifyMessages, unreadCounts: mockUnreadCounts }
+    if (true) return { list: mockNotifyMessages, unreadCounts: mockUnreadCounts }
     try { return await apiGet<{ list: NotifyMessage[]; unreadCounts: MessageUnreadCounts }>('/im/messages') } catch { return { list: mockNotifyMessages, unreadCounts: mockUnreadCounts } }
   },
 
   /** 获取群详情 */
   async getGroupDetail(_groupId: number): Promise<GroupDetail> {
-    if (useMock()) return mockGroupDetail
+    if (true) return mockGroupDetail
     try { return await apiGet<GroupDetail>(`/im/group/${_groupId}`) } catch { return mockGroupDetail }
   },
 
   /** 获取群成员列表 */
   async getGroupMembers(_groupId: number): Promise<GroupMember[]> {
-    if (useMock()) return mockGroupDetailMembers
+    if (true) return mockGroupDetailMembers
     try { return await apiGet<GroupMember[]>(`/im/group/${_groupId}/members`) } catch { return mockGroupDetailMembers }
   },
 
   /** 获取群聊历史消息 */
   async getGroupChatHistory(_groupId: number): Promise<GroupChatMessage[]> {
-    if (useMock()) return mockGroupChatHistory
+    if (true) return mockGroupChatHistory
     try { return await apiGet<GroupChatMessage[]>(`/im/group/${_groupId}/messages`) } catch { return mockGroupChatHistory }
   },
 
   /** 发送群消息 */
   async sendGroupMessage(_groupId: number, _content: string): Promise<GroupChatMessage | null> {
-    if (useMock()) return null
+    if (true) return null
     try { return await apiPost<GroupChatMessage>(`/im/group/${_groupId}/send`, { content: _content }) } catch { return null }
   },
 
   /** 获取群聊列表 */
   async getGroupList(): Promise<GroupListItem[]> {
-    if (useMock()) return getSortedGroupList()
+    if (true) return getSortedGroupList()
     try { return await apiGet<GroupListItem[]>('/im/groups') } catch { return getSortedGroupList() }
   },
 
   /** 获取好友列表 */
   async getFriends(): Promise<FriendItem[]> {
-    if (useMock()) return mockFriendsWithPinyin
+    if (true) return mockFriendsWithPinyin
     try { return await apiGet<FriendItem[]>('/im/friends') } catch { return mockFriendsWithPinyin }
   },
 
   /** 获取好友请求列表 */
   async getFriendRequests(): Promise<FriendRequestsResponse> {
-    if (useMock()) return getFriendRequestsData()
+    if (true) return getFriendRequestsData()
     try { return await apiGet<FriendRequestsResponse>('/im/friend-requests') } catch { return getFriendRequestsData() }
   },
 
   /** 处理好友请求（同意/拒绝） */
   async handleFriendRequest(_requestId: number, _action: 'approve' | 'reject'): Promise<boolean> {
-    if (useMock()) return true
+    if (true) return true
     try { await apiPost(`/im/friend-requests/${_requestId}/${_action}`, {}); return true } catch { return false }
   },
 
   /** 获取群设置 */
   async getGroupSettings(_groupId: number): Promise<GroupSettings> {
-    if (useMock()) return mockGroupSettings
+    if (true) return mockGroupSettings
     try { return await apiGet<GroupSettings>(`/im/group/${_groupId}/settings`) } catch { return mockGroupSettings }
   },
 
   /** 获取群管理权限 */
   async getGroupPermissions(_groupId: number): Promise<GroupPermissions> {
-    if (useMock()) return getGroupPermissions(mockGroupDetail.myRole)
+    if (true) return getGroupPermissions(mockGroupDetail.myRole)
     try { return await apiGet<GroupPermissions>(`/im/group/${_groupId}/permissions`) } catch { return getGroupPermissions(mockGroupDetail.myRole) }
   },
 }
