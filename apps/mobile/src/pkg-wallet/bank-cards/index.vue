@@ -36,61 +36,29 @@
         </view>
       </view>
 
-      <app-empty v-else icon="credit-card" text="还没有绑定银行卡" />
+      <app-empty v-else icon="credit-card" text="银行卡绑定功能开发中" />
 
-      <!-- 添加按钮 -->
-      <view class="add-btn" @tap="showAdd = true">
+      <!-- 添加按钮（功能开发中，点击诚实引导） -->
+      <view class="add-btn" @tap="notReady">
         <app-icon name="plus" :size="36" color="#C41E3A" />
         <text class="add-txt">添加银行卡</text>
       </view>
 
       <view class="tip">
         <app-icon name="shield" :size="28" color="#C9A96E" />
-        <text class="tip-txt">为保障资金安全，请绑定本人实名银行卡</text>
+        <text class="tip-txt">银行卡绑定功能即将上线，敬请期待</text>
       </view>
     </scroll-view>
-
-    <!-- 添加卡片弹窗 -->
-    <view v-if="showAdd" class="mask" @tap="showAdd = false">
-      <view class="sheet" @tap.stop>
-        <view class="sheet-head">
-          <text class="sheet-title">添加银行卡</text>
-          <text class="sheet-close" @tap="showAdd = false">取消</text>
-        </view>
-        <view class="form">
-          <view class="field">
-            <text class="label">持卡人姓名</text>
-            <input v-model="form.holderName" class="input" placeholder="请输入持卡人姓名" placeholder-class="ph" />
-          </view>
-          <view class="field">
-            <text class="label">银行卡号</text>
-            <input v-model="form.cardNumber" type="text" class="input" placeholder="请输入银行卡号" placeholder-class="ph" />
-          </view>
-          <view class="field">
-            <text class="label">所属银行</text>
-            <view class="bank-grid">
-              <text
-                v-for="b in banks"
-                :key="b.code"
-                class="bank-chip"
-                :class="{ active: form.bankCode === b.code }"
-                @tap="form.bankCode = b.code"
-              >{{ b.name }}</text>
-            </view>
-          </view>
-          <view class="field">
-            <text class="label">预留手机号</text>
-            <input v-model="form.phone" type="text" maxlength="11" class="input" placeholder="请输入银行预留手机号" placeholder-class="ph" />
-          </view>
-        </view>
-        <view class="submit" :class="{ disabled: !canSubmit }" @tap="addCard">确认添加</view>
-      </view>
-    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+/**
+ * 银行卡管理 —— 后端绑卡/解绑端点尚未提供，诚实降级为引导态。
+ * 原硬编码假卡 + 本地 push/filter 假成功已移除（遵守前端数据流铁律：禁止假数据/假成功）。
+ * 待后端 wallet 绑卡端点就绪后，cards 接真实接口、添加/解绑/设默认接 API 即可恢复完整功能。
+ */
+import { ref } from 'vue'
 
 interface BankCard {
   id: string
@@ -105,27 +73,8 @@ interface BankCard {
   color: string
 }
 
-const cards = ref<BankCard[]>([
-  { id: '1', bankName: '中国工商银行', bankCode: 'icbc', cardType: '储蓄卡', first4: '6222', last4: '1234', holderName: '张明远', bindTime: '2025-08-15', isDefault: true, color: 'linear-gradient(135deg, #C41E3A 0%, #A01829 100%)' },
-  { id: '2', bankName: '招商银行', bankCode: 'cmb', cardType: '储蓄卡', first4: '6225', last4: '5678', holderName: '张明远', bindTime: '2026-01-20', isDefault: false, color: 'linear-gradient(135deg, #C41E3A 0%, #A01829 100%)' },
-  { id: '3', bankName: '中国农业银行', bankCode: 'abc', cardType: '储蓄卡', first4: '6228', last4: '9012', holderName: '张明远', bindTime: '2026-03-10', isDefault: false, color: 'linear-gradient(135deg, #16A34A 0%, #128A3E 100%)' },
-])
-
-const banks = [
-  { code: 'icbc', name: '工商银行' },
-  { code: 'abc', name: '农业银行' },
-  { code: 'boc', name: '中国银行' },
-  { code: 'ccb', name: '建设银行' },
-  { code: 'cmb', name: '招商银行' },
-  { code: 'comm', name: '交通银行' },
-]
-
-const showAdd = ref(false)
-const form = ref({ holderName: '', cardNumber: '', bankCode: '', phone: '' })
-
-const canSubmit = computed(() =>
-  form.value.holderName && form.value.cardNumber.length >= 16 && form.value.bankCode && form.value.phone.length === 11,
-)
+// 无后端绑卡端点 → 列表恒空（不再注入假卡），写操作统一引导「开发中」
+const cards = ref<BankCard[]>([])
 
 function maskName(name: string) {
   if (!name) return ''
@@ -133,51 +82,17 @@ function maskName(name: string) {
   return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1]
 }
 
-function openMenu(c: BankCard) {
-  const items = c.isDefault ? ['解绑'] : ['设为默认', '解绑']
-  uni.showActionSheet({
-    itemList: items,
-    success: (res) => {
-      const label = items[res.tapIndex]
-      if (label === '设为默认') {
-        cards.value.forEach((x) => (x.isDefault = x.id === c.id))
-        uni.showToast({ title: '已设为默认', icon: 'none' })
-      } else if (label === '解绑') {
-        uni.showModal({
-          title: '解绑银行卡',
-          content: `确定解绑 ${c.bankName} (尾号${c.last4}) 吗？`,
-          confirmColor: '#C41E3A',
-          success: (m) => {
-            if (m.confirm) {
-              cards.value = cards.value.filter((x) => x.id !== c.id)
-              uni.showToast({ title: '已解绑', icon: 'none' })
-            }
-          },
-        })
-      }
-    },
+function notReady() {
+  uni.showModal({
+    title: '敬请期待',
+    content: '银行卡绑定功能正在开发中，上线后即可使用',
+    showCancel: false,
+    confirmText: '我知道了',
   })
 }
 
-function addCard() {
-  if (!canSubmit.value) return
-  const bank = banks.find((b) => b.code === form.value.bankCode)
-  const num = form.value.cardNumber
-  cards.value.push({
-    id: String(Date.now()),
-    bankName: '中国' + (bank?.name || '银行'),
-    bankCode: form.value.bankCode,
-    cardType: '储蓄卡',
-    first4: num.slice(0, 4),
-    last4: num.slice(-4),
-    holderName: form.value.holderName,
-    bindTime: new Date().toISOString().slice(0, 10),
-    isDefault: cards.value.length === 0,
-    color: 'linear-gradient(135deg, #C9A96E 0%, #B08D4F 100%)',
-  })
-  showAdd.value = false
-  form.value = { holderName: '', cardNumber: '', bankCode: '', phone: '' }
-  uni.showToast({ title: '添加成功', icon: 'none' })
+function openMenu(_c: BankCard) {
+  notReady()
 }
 </script>
 
