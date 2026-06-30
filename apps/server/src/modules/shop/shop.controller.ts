@@ -740,8 +740,9 @@ export class ShopController {
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
   @ApiQuery({ name: "sort", required: false, type: String, description: "排序: newest(默认,最新) / withImages(有图优先)" })
-  listReviews(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("sort") sort?: string) {
-    return this.shop.listReviews(id, +page, +pageSize, sort);
+  @ApiQuery({ name: "filter", required: false, type: String, description: "评分筛选: all(默认) / good(好评≥4星) / medium(中评3星) / bad(差评≤2星) / images(有图)" })
+  listReviews(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("sort") sort?: string, @Query("filter") filter?: string) {
+    return this.shop.listReviews(id, +page, +pageSize, sort, filter);
   }
 
   @Post("reviews/:id/reply")

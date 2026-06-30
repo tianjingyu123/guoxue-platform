@@ -396,6 +396,42 @@ describe("ShopService", () => {
       const result = await svc.listReviews("p1")
       expect(result.total).toBe(1)
     })
+
+    // 评分多维过滤下沉：列表 where 带 rating/images 过滤，stats 始终全量（tab 计数准确）
+    describe("filter 评分多维过滤", () => {
+      beforeEach(() => {
+        mockPrisma.productReview.findMany.mockResolvedValue([]) // 空列表 → enrichReviews 提前返回，聚焦过滤逻辑
+        mockPrisma.productReview.count.mockResolvedValue(0)
+        mockPrisma.productReview.groupBy.mockResolvedValue([])
+      })
+
+      it("good=好评只过滤列表(rating>=4)，stats 不受筛选影响", async () => {
+        await svc.listReviews("p1", 1, 20, undefined, "good")
+        const listWhere = mockPrisma.productReview.findMany.mock.calls.at(-1)![0].where
+        expect(listWhere.rating).toEqual({ gte: 4 })
+        // stats(groupBy) 的 where 不带 rating，保证「全部/好评/中评/差评」tab 计数为全量
+        const statsWhere = mockPrisma.productReview.groupBy.mock.calls.at(-1)![0].where
+        expect(statsWhere.rating).toBeUndefined()
+      })
+
+      it("medium=中评(rating==3) / bad=差评(rating<=2)", async () => {
+        await svc.listReviews("p1", 1, 20, undefined, "medium")
+        expect(mockPrisma.productReview.findMany.mock.calls.at(-1)![0].where.rating).toBe(3)
+        await svc.listReviews("p1", 1, 20, undefined, "bad")
+        expect(mockPrisma.productReview.findMany.mock.calls.at(-1)![0].where.rating).toEqual({ lte: 2 })
+      })
+
+      it("images=有图(images 非空)", async () => {
+        await svc.listReviews("p1", 1, 20, undefined, "images")
+        expect(mockPrisma.productReview.findMany.mock.calls.at(-1)![0].where.images).toEqual({ isEmpty: false })
+      })
+
+      it("stats 返回全量 withImages 计数(供有图 tab)", async () => {
+        mockPrisma.productReview.count.mockResolvedValue(7)
+        const result = await svc.listReviews("p1")
+        expect(result.stats.withImages).toBe(7)
+      })
+    })
   })
 
   // ═══════════════════ 物流追踪 ═══════════════════

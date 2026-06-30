@@ -11,7 +11,7 @@
     <view v-else-if="error" class="state-wrap">
       <app-icon name="alert-circle" :size="56" color="#E74C3C" />
       <text class="state-text">{{ error }}</text>
-      <view class="retry-btn" hover-class="opt-hover" @tap="retry">
+      <view class="retry-btn" hover-class="opt-hover" @tap="refresh">
         <text class="retry-btn-text">重试</text>
       </view>
     </view>
@@ -53,7 +53,7 @@
           class="filter-tab"
           :class="{ 'filter-active': filter === tab.key }"
           hover-class="opt-hover"
-          @tap="filter = tab.key"
+          @tap="setFilter(tab.key)"
         >
           <text class="filter-label">{{ tab.label }}</text>
           <text class="filter-count" :class="{ 'count-active': filter === tab.key }">({{ tab.count }})</text>
@@ -63,11 +63,11 @@
 
     <!-- 评价列表 -->
     <view class="list">
-      <view v-if="filteredReviews.length === 0" class="empty">
+      <view v-if="reviews.length === 0" class="empty">
         <app-icon name="message-square" :size="80" color="#DDDDDD" />
         <text class="empty-text">暂无相关评价</text>
       </view>
-      <view v-for="rv in filteredReviews" :key="rv.id" class="rv-card">
+      <view v-for="rv in reviews" :key="rv.id" class="rv-card">
         <view class="rv-head">
           <image lazy-load class="rv-avatar" :src="rv.avatar" mode="aspectFill" />
           <view class="rv-info">
@@ -110,6 +110,7 @@
           </view>
         </view>
       </view>
+      <app-load-more v-if="reviews.length" :status="loadStatus" />
     </view>
       </template>
 
@@ -133,51 +134,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import { shopApi, type ShopProductReview } from '@/lib/shop-data'
+import { useList } from '@/composables/useList'
 
 type FilterType = 'all' | 'good' | 'medium' | 'bad' | 'images'
 
 const productId = ref('1')
 const stats = ref<any>({ average: 0, total: 0, withImages: 0, distribution: [] })
-const reviews = ref<ShopProductReview[]>([])
 const filter = ref<FilterType>('all')
 const previewImage = ref('')
 const previewImages = ref<string[]>([])
 const previewIndex = ref(0)
-const loading = ref(true)
-const error = ref('')
+
+// 评分筛选(好评/中评/差评/有图)下沉后端只过滤列表；stats 始终全量返回，保证 tab 计数准确
+const { list: reviews, loading, error, loadStatus, refresh, loadMore } = useList<ShopProductReview, { filter: FilterType }>({
+  fetcher: async ({ page, pageSize, filter: f }) => {
+    const res = await shopApi.getShopReviews(productId.value, { filter: f, page, pageSize })
+    if (page === 1) stats.value = res.stats // tab 计数依据全量 stats，首页即定
+    return { items: res.items, total: res.total }
+  },
+  getParams: () => ({ filter: filter.value }),
+})
 
 onLoad((q: any) => {
   if (q?.id) productId.value = q.id
+  refresh()
 })
+onReachBottom(() => loadMore())
 
-onMounted(async () => {
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await shopApi.getShopReviews(productId.value)
-    stats.value = res.stats
-    reviews.value = res.list
-  } catch (_e) {
-    error.value = '加载失败，请重试'
-  } finally {
-    loading.value = false
-  }
-})
-
-function retry() {
-  loading.value = true
-  error.value = ''
-  shopApi.getShopReviews(productId.value).then((res) => {
-    stats.value = res.stats
-    reviews.value = res.list
-  }).catch(() => {
-    error.value = '加载失败，请重试'
-  }).finally(() => {
-    loading.value = false
-  })
+function setFilter(key: FilterType) {
+  if (filter.value === key) return
+  filter.value = key
+  refresh()
 }
 
 const filterTabs = computed(() => {
@@ -191,16 +181,6 @@ const filterTabs = computed(() => {
     { key: 'images' as FilterType, label: '有图', count: stats.value.withImages },
   ]
 })
-
-const filteredReviews = computed(() =>
-  reviews.value.filter((r) => {
-    if (filter.value === 'good') return r.rating >= 4
-    if (filter.value === 'medium') return r.rating === 3
-    if (filter.value === 'bad') return r.rating <= 2
-    if (filter.value === 'images') return r.images && r.images.length > 0
-    return true
-  }),
-)
 
 function openPreview(images: string[] | undefined, idx: number) {
   if (!images) return

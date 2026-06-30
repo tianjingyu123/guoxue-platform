@@ -1562,11 +1562,15 @@ export class ShopService {
 
   /** 商品评价统计：平均分 + 各星级分布 + 总数 */
   private async getReviewStats(where: Prisma.ProductReviewWhereInput) {
-    const grouped = await this.prisma.productReview.groupBy({
-      by: ["rating"],
-      where,
-      _count: { rating: true },
-    });
+    const [grouped, withImages] = await Promise.all([
+      this.prisma.productReview.groupBy({
+        by: ["rating"],
+        where,
+        _count: { rating: true },
+      }),
+      // 全量「有图」数量（供前端「有图」筛选 tab 计数，分页后无法从当页聚合）
+      this.prisma.productReview.count({ where: { ...where, images: { isEmpty: false } } }),
+    ]);
     const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     let sum = 0, count = 0;
     for (const g of grouped) {
@@ -1575,24 +1579,30 @@ export class ShopService {
       sum += g.rating * n;
       count += n;
     }
-    return { average: count > 0 ? Number((sum / count).toFixed(1)) : 0, count, distribution };
+    return { average: count > 0 ? Number((sum / count).toFixed(1)) : 0, count, distribution, withImages };
   }
 
-  async listReviews(productId: string, page = 1, pageSize = 20, sort?: string) {
-    const where = { productId, status: "PUBLISHED" };
+  async listReviews(productId: string, page = 1, pageSize = 20, sort?: string, filter?: string) {
+    const where: Prisma.ProductReviewWhereInput = { productId, status: "PUBLISHED" };
+    // rating/有图 多维过滤仅作用于列表查询；stats 始终按全量算，保证筛选 tab 计数准确（好评/中评/差评/有图）
+    const listWhere: Prisma.ProductReviewWhereInput = { ...where };
+    if (filter === "good") listWhere.rating = { gte: 4 };
+    else if (filter === "medium") listWhere.rating = 3;
+    else if (filter === "bad") listWhere.rating = { lte: 2 };
+    else if (filter === "images") listWhere.images = { isEmpty: false };
     const skip = (page - 1) * pageSize;
-    // withImages「有图优先」需按数组长度排序，Prisma orderBy 不支持 → 原生 SQL；其余按时间倒序
+    // withImages「有图优先」需按数组长度排序，Prisma orderBy 不支持 → 原生 SQL（与 rating 过滤互斥，当前 UI 不同时使用）；其余按时间倒序
     const reviewsQuery =
-      sort === "withImages"
+      sort === "withImages" && !filter
         ? this.prisma.$queryRaw<any[]>`
             SELECT * FROM "ProductReview"
             WHERE "productId" = ${productId} AND status = 'PUBLISHED'
             ORDER BY (COALESCE(array_length(images, 1), 0) > 0) DESC, "createdAt" DESC
             LIMIT ${pageSize} OFFSET ${skip}`
-        : this.prisma.productReview.findMany({ where, skip, take: pageSize, orderBy: { createdAt: "desc" } });
+        : this.prisma.productReview.findMany({ where: listWhere, skip, take: pageSize, orderBy: { createdAt: "desc" } });
     const [rawReviews, total, stats] = await Promise.all([
       reviewsQuery,
-      this.prisma.productReview.count({ where }),
+      this.prisma.productReview.count({ where: listWhere }),
       this.getReviewStats(where),
     ]);
     const reviews = await this.enrichReviews(rawReviews);

@@ -1548,7 +1548,8 @@ function adaptShopReview(r: any): ShopProductReview {
 function adaptReviewStats(stats: any, reviews: any[]) {
   const dist = stats?.distribution || {}
   const total = stats?.count ?? reviews.length
-  const withImages = reviews.filter((r) => Array.isArray(r.images) && r.images.length > 0).length
+  // 优先用后端全量「有图」计数（分页后当页聚合不准）；后端缺失时回退当页统计
+  const withImages = stats?.withImages ?? reviews.filter((r) => Array.isArray(r.images) && r.images.length > 0).length
   const distribution = [5, 4, 3, 2, 1].map((stars) => {
     const count = dist[stars] ?? dist[String(stars)] ?? 0
     return { stars, count, percent: total > 0 ? Math.round((count / total) * 100) : 0 }
@@ -2235,11 +2236,22 @@ export const shopApi = {
     return { product: adaptShopProductDetail(p, reviewsRes?.stats), reviews }
   },
 
-  /** 获取shop商品评价 — GET /shop/products/:id/reviews（含 user/reply/stats） */
-  async getShopReviews(_id: string): Promise<{ stats: any; list: ShopProductReview[] }> {
-    const res = await apiGet<any>(`/shop/products/${_id}/reviews?pageSize=50`)
+  /** 获取shop商品评价 — GET /shop/products/:id/reviews（含 user/reply/stats）
+   *  filter(好评/中评/差评/有图)下沉后端只过滤列表；stats 始终全量返回供 tab 计数 */
+  async getShopReviews(
+    _id: string,
+    params?: { filter?: string; page?: number; pageSize?: number },
+  ): Promise<{ stats: any; items: ShopProductReview[]; total: number }> {
+    const { filter, page = 1, pageSize = 20 } = params || {}
+    const qs: string[] = [`page=${page}`, `pageSize=${pageSize}`]
+    if (filter && filter !== 'all') qs.push(`filter=${filter}`)
+    const res = await apiGet<any>(`/shop/products/${_id}/reviews?${qs.join('&')}`)
     const rawReviews = res?.reviews || []
-    return { stats: adaptReviewStats(res?.stats, rawReviews), list: rawReviews.map(adaptShopReview) }
+    return {
+      stats: adaptReviewStats(res?.stats, rawReviews),
+      items: rawReviews.map(adaptShopReview),
+      total: res?.total ?? rawReviews.length,
+    }
   },
 
   /** 获取mall首页 — GET /mall */
