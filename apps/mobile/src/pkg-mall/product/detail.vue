@@ -14,6 +14,8 @@ import type { RecommendItem } from '@/components/common/recommend-section.vue'
 
 const loading = ref(true)
 const error = ref(false)
+// 赋值来自 getProduct():ProductDetail，但模板主体在 v-else 块内裸访问 product.xxx，
+// 收敛为 ProductDetail|null 会触发大量模板 null 报错（需逐处 ?. 或重构 v-if），故保留 any
 const product = ref<any>(null)
 const swiperIndex = ref(0)
 const isFavorite = ref(false)
@@ -39,8 +41,8 @@ async function fetchData(productId?: string) {
   }
 }
 
-onLoad((query: any) => {
-  const id = query?.id as string || '1'
+onLoad((query) => {
+  const id = (query?.id as string) || '1'
   fetchData(id)
 })
 
@@ -83,7 +85,7 @@ const previewReviews = computed(() => {
   return product.value.reviews.slice(0, 2)
 })
 
-function onSwiperChange(e: any) { swiperIndex.value = e.detail.current }
+function onSwiperChange(e: { detail: { current: number } }) { swiperIndex.value = e.detail.current }
 function selectSpec(name: string, id: string) { selectedSpecs.value = { ...selectedSpecs.value, [name]: id } }
 function openSpecPanel(action: 'cart' | 'buy') { specAction.value = action; showSpecPanel.value = true }
 async function addToCart() {
@@ -95,8 +97,8 @@ async function addToCart() {
     cartCount.value = (res.items || []).reduce((s, i) => s + i.quantity, 0)
     showSpecPanel.value = false
     uni.showToast({ title: '已加入购物车', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '加入失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '加入失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -113,8 +115,8 @@ async function buyNow() {
     showSpecPanel.value = false
     uni.showToast({ title: '订单已提交', icon: 'success' })
     setTimeout(() => navigateTo(`/pkg-order/detail/index?id=${order.id}`), 800)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '下单失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '下单失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
