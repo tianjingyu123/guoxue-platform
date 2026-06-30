@@ -78,3 +78,16 @@ Prisma `Decimal` 字段在 JS 是 `Decimal.js` 对象、JSON 序列化为 **stri
 - 工作量：小（schema 4 字段 + service 2-3 处 + 读取点适配约 10 文件核查 + spec）。
 - 但 = schema 迁移 + 停机 + 读取点适配，**风险集中在读取点（Decimal→string）**，须谨慎逐点核。
 - 建议：独立窗口执行，先在本地完成代码改动 + tsc/jest 绿，再约用户停机迁移 + e2e 验证。是否执行请拍板。
+
+---
+
+## 六、执行结果（2026-06-30 ✅ 已完成并上线）
+
+**commit `1002939c`（分支 fix/audit-batch-a，本线 hunk 隔离提交，他线 391 行 schema 改动未吞）**
+
+- **代码**：schema 4 字段 → Decimal(12,2)；service `generateSettlement`/`paySettlement` 改「分」整数运算（分账两者之和严格守恒、规整到分不丢分）；spec 补 `generateSettlement`/`paySettlement` 测试（此前 0 覆盖丢分点，含「含分不丢分」用例）→ merchant jest **74/74**、全量 tsc **0**。
+- **连带修复**：admin `MerchantDetail.vue` 结算单显示把「元」当「分」`/100` 的单位 bug（vue-tsc 干净）。
+- **停机迁移 6 步全绿**：`pm2 stop guoxue-api` → `prisma generate` → `nest build`(EXIT 0) → `prisma db execute --file db-opt-14`（ALTER 4 列 → numeric）→ `pm2 restart`（online·unstable restarts 0）→ 验证。
+- **验证**：列类型 = numeric(12,2)；数据无损（`1200 → 1200.00`）；home `/` = 200；schema-db-check **0 不一致**。
+- **编号修正**：实际用 **db-opt-14**（本方案正文写的 09 已被占用，迁移编号当时已到 13）。
+- **剩**：e2e 真机验一笔含分结算 = 用户可选最终确认（代码层已 jest 证）。
