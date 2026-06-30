@@ -31,6 +31,14 @@ export class ClassicIndexTask {
       select: { id: true, title: true },
     });
 
+    // 一次性载入所有已索引的章节 sourceId 做内存查重，替代逐章 findFirst 的 N+1
+    // （此前每章一次 findFirst，全量遍历产生数十万次查询，占全库执行时间 99.9%）。
+    const existingRows = await this.prisma.circleKnowledge.findMany({
+      where: { circleId: "classic", sourceType: "classic_chapter" },
+      select: { sourceId: true },
+    });
+    const indexedIds = new Set(existingRows.map((r) => r.sourceId).filter(Boolean));
+
     let indexed = 0;
     for (const book of books) {
       const chapters = await this.prisma.classicChapter.findMany({
@@ -41,33 +49,22 @@ export class ClassicIndexTask {
 
       for (const chapter of chapters) {
         if (!chapter.content) continue;
+        if (indexedIds.has(chapter.id)) continue; // 已索引，内存查重跳过
         try {
-          // 检查是否已索引（通过 circle_knowledge 表查找）
-          const existing = await this.prisma.circleKnowledge.findFirst({
-            where: {
+          await this.prisma.circleKnowledge.create({
+            data: {
               circleId: "classic",
               sourceType: "classic_chapter",
               sourceId: chapter.id,
+              content: `《${book.title}》${chapter.title}: ${chapter.content}`,
+              contentHash: this.hashContent(chapter.content),
+              addedBy: "SYSTEM",
             },
           });
-
-          if (!existing) {
-            // 创建知识条目
-            await this.prisma.circleKnowledge.create({
-              data: {
-                circleId: "classic",
-                sourceType: "classic_chapter",
-                sourceId: chapter.id,
-                content: `《${book.title}》${chapter.title}: ${chapter.content}`,
-                contentHash: this.hashContent(chapter.content),
-                addedBy: "SYSTEM",
-              },
-            });
-          }
-
+          indexedIds.add(chapter.id); // 防同批重复创建
           indexed++;
         } catch (err) {
-          // 跳过已存在的
+          // 跳过创建失败的（如唯一约束冲突）
           this.logger.warn(`古籍章节索引创建失败`, err);
         }
       }
