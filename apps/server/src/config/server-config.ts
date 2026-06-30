@@ -125,6 +125,26 @@ class ServerConfig {
 
     return [];
   }
+
+  /** 启动时校验安全配置强度（密钥长度/弱值）。生产环境失败抛错拒绝启动，开发环境放行并告警。 */
+  validateSecurityConfig(): void {
+    const errors: string[] = [];
+    const jwt = process.env.JWT_SECRET || "";
+    const jwtLen = Buffer.byteLength(jwt, "utf8");
+    if (jwtLen < 32) errors.push(`JWT_SECRET 长度 ${jwtLen} < 32 字节，强度不足`);
+    const enc = process.env.ENCRYPTION_KEY || "";
+    const encLen = Buffer.byteLength(enc, "utf8");
+    if (encLen !== 32) errors.push(`ENCRYPTION_KEY 必须为 32 字节（当前 ${encLen}）`);
+    const weak = ["change-me", "dev-jwt-secret-for-local-testing-only-change-in-prod", "your-secret", "password", "secret123"];
+    if (jwt && weak.some((w) => jwt.includes(w))) errors.push("JWT_SECRET 使用了默认/弱值，请更换为高强度随机串");
+
+    if (errors.length === 0) return;
+    const body = errors.map((e) => "  ✗ " + e).join("\n");
+    if (this.isProduction) {
+      throw new Error(`[ServerConfig] 安全配置校验失败，生产环境拒绝启动：\n${body}`);
+    }
+    process.stderr.write(`[ServerConfig] ⚠️ 安全配置告警（开发环境放行，生产必须修复）：\n${body}\n`);
+  }
 }
 
 /** 单例配置对象 — 模块装饰器等 DI 不可用场景使用 */

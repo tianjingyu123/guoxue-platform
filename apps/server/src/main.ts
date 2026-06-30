@@ -9,6 +9,8 @@ import helmet from "helmet";
 import { AppGraphqlModule } from "./app-graphql.module";
 import { RedisThrottleGuard } from "./common/redis-throttle.guard";
 import { serverConfig } from "./config/server-config";
+import { cryptoSelfTest, setDecryptAlertHandler } from "./common/crypto.util";
+import { WeworkService } from "./modules/notification/wework.service";
 import { RedisService } from "./redis/redis.service";
 import { AllExceptionsFilter } from "./common/http-exception.filter";
 import { PrismaExceptionFilter } from "./common/prisma-exception.filter";
@@ -27,9 +29,20 @@ async function bootstrap() {
 
   // 启动前校验必需环境变量 — 一次性列出所有缺失项，避免逐个模块崩溃
   serverConfig.validateRequiredEnv();
+  // B2: 安全配置强度校验（密钥长度/弱值，生产强制）+ 加密往返自检（fail fast，密钥错配则拒绝启动）
+  serverConfig.validateSecurityConfig();
+  cryptoSelfTest();
 
   const logger = PinoLoggerService.getInstance();
   const app = await NestFactory.create<NestExpressApplication>(AppGraphqlModule, { logger });
+
+  // B2: 注入解密失败告警通道 — decrypt 遇 GCM 认证失败（疑似密钥错配）时经企微告警；无 webhook 时降级为日志
+  try {
+    const wework = app.get(WeworkService, { strict: false });
+    setDecryptAlertHandler((title, detail) => { wework.notifyAlert(title, detail).catch(() => undefined); });
+  } catch {
+    logger.raw().warn("WeworkService 不可用，解密失败告警降级为 stderr 日志");
+  }
 
   // 请求体大小限制 — 防止大payload攻击
   app.use(json({ limit: "10mb" }));
