@@ -8,6 +8,7 @@ import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { ActiveUserGuard } from "../../common/active-user.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { Auditable } from "../../common/audit.decorator";
 
 @ApiTags("虚拟币")
 @ApiBearerAuth()
@@ -47,6 +48,7 @@ export class CoinController {
   }
 
   @Post("admin/recharge")
+  @Auditable({ action: "管理员充值", targetType: "COIN" })
   @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员充值", description: "管理员为用户账户充值虚拟币" })
@@ -54,8 +56,8 @@ export class CoinController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  adminRecharge(@Body() dto: AdminRechargeDto) {
-    return this.coin.recharge(dto.userId, { amountCoin: dto.amountCoin, description: dto.description });
+  adminRecharge(@Body() dto: AdminRechargeDto, @Req() req: Request) {
+    return this.coin.requestRecharge(dto, req.user.id);
   }
 
   @Get("admin/transactions")
@@ -106,6 +108,7 @@ export class CoinController {
   }
 
   @Post("gifts")
+  @Auditable({ action: "创建礼物", targetType: "GIFT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建礼物", description: "管理员创建新礼物类型" })
@@ -118,6 +121,7 @@ export class CoinController {
   }
 
   @Put("gifts/:id")
+  @Auditable({ action: "更新礼物", targetType: "GIFT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新礼物", description: "管理员更新礼物信息" })
@@ -131,6 +135,7 @@ export class CoinController {
   }
 
   @Delete("gifts/:id")
+  @Auditable({ action: "删除礼物", targetType: "GIFT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除礼物", description: "管理员删除礼物类型" })

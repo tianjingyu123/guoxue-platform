@@ -120,6 +120,10 @@ export class CreateGiftDto {
   @ApiPropertyOptional({ description: "排序（兼容字段）" })
   @IsOptional() @IsInt()
   sortOrder?: number;
+
+  @ApiPropertyOptional({ description: "状态: ACTIVE 启用 / INACTIVE 停用", enum: ["ACTIVE", "INACTIVE"], default: "ACTIVE" })
+  @IsOptional() @IsString() @IsIn(["ACTIVE", "INACTIVE"])
+  status?: string;
 }
 
 export class SendGiftDto {

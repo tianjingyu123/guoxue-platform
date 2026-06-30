@@ -3,7 +3,8 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
-import { Prisma } from "@prisma/client";
+import { Prisma, UserStatus } from "@prisma/client";
+import { maskPhone } from "../../common/crypto.util";
 
 @Injectable()
 export class RiskControlService {
@@ -117,6 +118,68 @@ export class RiskControlService {
       where: { id },
       data: { status: "DISMISSED" },
     });
+  }
+
+  /**
+   * 预警处置联动：封禁目标用户 / 升级预警级别
+   * - ban_user：将预警关联的目标用户置为 BANNED，并把预警标记为 HANDLED
+   * - escalate：将预警级别升为 CRITICAL，状态仍保持 OPEN（待复核）
+   */
+  async actionAlert(id: string, operatorId: string, action: string, note?: string) {
+    const existing = await this.prisma.riskAlert.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "预警不存在");
+    if (existing.status !== "OPEN") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅可处置 OPEN 状态的预警");
+
+    const detailBase = (existing.detail as Record<string, any>) ?? {};
+
+    if (action === "ban_user") {
+      if (!existing.targetId) throw new BusinessException(ErrorCode.BAD_REQUEST, "该预警无关联目标，无法封禁");
+      if (existing.targetType && existing.targetType.toUpperCase() !== "USER")
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "该预警目标非用户，无法封禁");
+
+      const user = await this.prisma.user.findUnique({ where: { id: existing.targetId }, select: { id: true } });
+      if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "目标用户不存在");
+
+      this.logger.warn(`风控封禁用户: ${existing.targetId}, 操作人: ${operatorId}, 来源预警: ${id}`);
+      await this.prisma.user.update({
+        where: { id: existing.targetId },
+        data: { status: "BANNED" as UserStatus },
+      });
+
+      return this.prisma.riskAlert.update({
+        where: { id },
+        data: {
+          status: "HANDLED",
+          handledBy: operatorId,
+          handledAt: new Date(),
+          detail: {
+            ...detailBase,
+            action: "ban_user",
+            bannedUserId: existing.targetId,
+            handleNote: note ?? detailBase.handleNote,
+          } as Prisma.InputJsonValue,
+        },
+      });
+    }
+
+    if (action === "escalate") {
+      this.logger.warn(`预警升级为严重: ${id}, 操作人: ${operatorId}`);
+      return this.prisma.riskAlert.update({
+        where: { id },
+        data: {
+          level: "CRITICAL",
+          detail: {
+            ...detailBase,
+            escalated: true,
+            escalatedBy: operatorId,
+            escalatedAt: new Date().toISOString(),
+            escalateNote: note ?? detailBase.escalateNote,
+          } as Prisma.InputJsonValue,
+        },
+      });
+    }
+
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的处置动作");
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -276,23 +339,50 @@ export class RiskControlService {
   //  4. 用户行为时间线
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  async getUserTimeline(userId: string) {
-    const logs = await this.prisma.userBehaviorLog.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
-    return logs;
+  async getUserTimeline(
+    userId: string,
+    params: { action?: string; dateFrom?: string; dateTo?: string; page?: number; pageSize?: number } = {},
+  ) {
+    const { action, dateFrom, dateTo, page = 1, pageSize = 20 } = params;
+
+    const where: Prisma.UserBehaviorLogWhereInput = { userId };
+    if (action) where.action = { contains: action };
+    if (dateFrom || dateTo) {
+      const createdAt: Prisma.DateTimeFilter = {};
+      if (dateFrom) createdAt.gte = new Date(dateFrom);
+      if (dateTo) createdAt.lte = new Date(dateTo);
+      where.createdAt = createdAt;
+    }
+
+    const [items, total, user] = await Promise.all([
+      this.prisma.userBehaviorLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.userBehaviorLog.count({ where }),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, nickname: true, avatar: true, phone: true, status: true, createdAt: true },
+      }),
+    ]);
+
+    // 隐私脱敏：手机号掩码后返回
+    const userInfo = user ? { ...user, phone: maskPhone(user.phone) } : null;
+
+    return { items, total, page, pageSize, user: userInfo };
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  5. 申诉处理
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  async listAppeals(params: { status?: string; page?: number; pageSize?: number }) {
-    const { status, page = 1, pageSize = 20 } = params;
+  async listAppeals(params: { status?: string; type?: string; page?: number; pageSize?: number }) {
+    const { status, type, page = 1, pageSize = 20 } = params;
     const where: Prisma.AppealRecordWhereInput = {};
     if (status) where.status = status;
+    if (type) where.type = type;
 
     const [items, total] = await Promise.all([
       this.prisma.appealRecord.findMany({

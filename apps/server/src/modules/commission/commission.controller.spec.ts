@@ -10,7 +10,8 @@ import { ActiveUserGuard } from "../../common/active-user.guard";
 
 const mockCommissionSvc = {
   getAllConfigs: jest.fn().mockResolvedValue([{ key: "course", rate: 0.3 }]),
-  updateConfig: jest.fn().mockResolvedValue({ key: "course", rate: 0.4 }),
+  requestConfigChange: jest.fn().mockResolvedValue({ submitted: true, approvalId: "fa1", status: "PENDING", message: "已提交审批，待财务审批后生效" }),
+  requestRateChange: jest.fn().mockResolvedValue({ submitted: true, approvalId: "fa2", status: "PENDING", message: "已提交审批，待财务审批后生效" }),
   getStationEarnings: jest.fn().mockResolvedValue([{ amount: 100 }]),
   getStationBalance: jest.fn().mockResolvedValue({ available: 5000, frozen: 200 }),
   applyWithdrawal: jest.fn().mockResolvedValue({ id: "w1", amount: 1000 }),
@@ -53,10 +54,13 @@ describe("CommissionController", () => {
     expect(result).toHaveLength(1);
   });
 
-  it("PUT /commission/configs/:key — 更新配置", async () => {
-    const dto: any = { rate: 0.4 };
-    const result: any = await ctrl.updateConfig("course", dto);
-    expect(result.rate).toBe(0.4);
+  it("PUT /commission/configs/:key — 提交配置变更审批", async () => {
+    const dto: any = { rateA: 0.4 };
+    const req: any = { user: { id: "admin1" } };
+    const result: any = await ctrl.updateConfig("course", dto, req);
+    expect(result.submitted).toBe(true);
+    expect(result.status).toBe("PENDING");
+    expect(mockCommissionSvc.requestConfigChange).toHaveBeenCalledWith("course", dto, "admin1");
   });
 
   it("GET /commission/station-earnings/:stationId — 分站收益", async () => {
@@ -118,9 +122,11 @@ describe("CommissionController", () => {
     expect(result.course).toBe(0.3);
   });
 
-  it("PUT /commission/config — 更新分佣比例", async () => {
+  it("PUT /commission/config — 提交分佣比例变更审批", async () => {
     const dto = { type: "course", rate: 0.4 };
-    const result: any = await ctrl.updateCommissionConfig(dto);
-    expect(result.rate).toBe(0.4);
+    const req: any = { user: { id: "admin1" } };
+    const result: any = await ctrl.updateCommissionConfig(dto, req);
+    expect(result.submitted).toBe(true);
+    expect(mockCommissionSvc.requestRateChange).toHaveBeenCalledWith("course", 0.4, "admin1");
   });
 });

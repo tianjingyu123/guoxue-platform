@@ -10,7 +10,7 @@ const mockCoinSvc = {
   getBalance: jest.fn().mockResolvedValue({ coin: 100, bonusCoin: 20 }),
   getTransactions: jest.fn().mockResolvedValue([{ id: "t1", amount: 50 }]),
   getRechargeTiers: jest.fn().mockResolvedValue([{ amount: 6, coin: 60 }]),
-  recharge: jest.fn().mockResolvedValue({ id: "r1", amountCoin: 100 }),
+  requestRecharge: jest.fn().mockResolvedValue({ submitted: true, approvalId: "fa1", status: "PENDING", message: "已提交审批，待财务审批后生效" }),
   getRecharges: jest.fn().mockResolvedValue([{ id: "r1", userId: "u1", amountCoin: 100 }]),
   spend: jest.fn().mockResolvedValue({ success: true, remaining: 80 }),
   getGifts: jest.fn().mockResolvedValue([{ id: "g1", name: "鲜花", price: 10 }]),
@@ -58,11 +58,13 @@ describe("CoinController", () => {
     expect(mockCoinSvc.getRechargeTiers).toHaveBeenCalled();
   });
 
-  it("POST /coin/admin/recharge — 管理员充值", async () => {
+  it("POST /coin/admin/recharge — 管理员充值（提交审批）", async () => {
     const dto: any = { userId: "u1", amountCoin: 100, description: "活动赠送" };
-    const result: any = await ctrl.adminRecharge(dto);
-    expect(result.amountCoin).toBe(100);
-    expect(mockCoinSvc.recharge).toHaveBeenCalled();
+    const req: any = { user: { id: "admin1" } };
+    const result: any = await ctrl.adminRecharge(dto, req);
+    expect(result.submitted).toBe(true);
+    expect(result.status).toBe("PENDING");
+    expect(mockCoinSvc.requestRecharge).toHaveBeenCalledWith(dto, "admin1");
   });
 
   it("GET /coin/admin/recharges — 充值记录", async () => {

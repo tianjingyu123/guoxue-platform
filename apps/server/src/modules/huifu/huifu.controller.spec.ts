@@ -7,7 +7,7 @@ const mockSvc = {
   queryPayment: jest.fn(),
   createSplit: jest.fn(),
   querySplit: jest.fn(),
-  createRefund: jest.fn(),
+  requestRefund: jest.fn(),
   verifyNotify: jest.fn(),
   handleNotify: jest.fn(),
   getAllConfigs: jest.fn(),
@@ -45,8 +45,9 @@ describe("HuifuController", () => {
 
     it("查询支付状态", async () => {
       mockSvc.queryPayment.mockResolvedValue({ trade_status: "SUCCESS" });
-      const result = await ctrl.queryPayment("HF001");
+      const result = await ctrl.queryPayment("HF001", mockRequest("user-1"));
       expect(result.trade_status).toBe("SUCCESS");
+      expect(mockSvc.queryPayment).toHaveBeenCalledWith("HF001", "user-1");
     });
   });
 
@@ -80,10 +81,12 @@ describe("HuifuController", () => {
   });
 
   describe("退款", () => {
-    it("申请退款", async () => {
-      mockSvc.createRefund.mockResolvedValue({ refundStatus: "PROCESSING" });
-      const result = await ctrl.createRefund({ orderId: "order-1", amount: 50 });
-      expect(result.refundStatus).toBe("PROCESSING");
+    it("申请退款（提交审批）", async () => {
+      mockSvc.requestRefund.mockResolvedValue({ submitted: true, approvalId: "fa1", status: "PENDING", message: "已提交审批，待财务审批后生效" });
+      const result = await ctrl.createRefund({ orderId: "order-1", amount: 50 }, mockRequest("admin1"));
+      expect(result.submitted).toBe(true);
+      expect(result.status).toBe("PENDING");
+      expect(mockSvc.requestRefund).toHaveBeenCalledWith(expect.any(Object), "admin1");
     });
   });
 

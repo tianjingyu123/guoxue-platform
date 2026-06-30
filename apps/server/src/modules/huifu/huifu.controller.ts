@@ -88,8 +88,8 @@ export class HuifuController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
-  queryPayment(@Body("outTradeNo") outTradeNo: string) {
-    return this.svc.queryPayment(outTradeNo);
+  queryPayment(@Body("outTradeNo") outTradeNo: string, @Req() req: Request) {
+    return this.svc.queryPayment(outTradeNo, req.user.id);
   }
 
   // ───────── 分账 ─────────
@@ -130,8 +130,8 @@ export class HuifuController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  createRefund(@Body() dto: HuifuRefundDto) {
-    return this.svc.createRefund(dto);
+  createRefund(@Body() dto: HuifuRefundDto, @Req() req: Request) {
+    return this.svc.requestRefund(dto, req.user.id);
   }
 
   // ───────── 账单与余额 ─────────

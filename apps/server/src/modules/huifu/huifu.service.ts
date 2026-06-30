@@ -1,10 +1,11 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { createSign, createVerify, randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { HuifuPayDto, HuifuSplitDto, HuifuRefundDto } from "./huifu.dto";
+import { FundApprovalService } from "../fund-approval/fund-approval.service";
 
 /**
  * 汇付天下支付分账服务
@@ -21,8 +22,27 @@ export class HuifuService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
+    @Optional() private fundApproval?: FundApprovalService,
   ) {
     this.baseUrl = process.env.HUIFU_BASE_URL || "https://api.huifu.com";
+  }
+
+  /**
+   * 发起「退款」审批（不立即退款）。
+   * 审批通过后由 FundApprovalExecutor 调用 createRefund 真正发起汇付退款。
+   */
+  async requestRefund(dto: HuifuRefundDto, requestedBy: string) {
+    const orderId = dto.orderId || dto.outTradeNo;
+    if (!orderId) throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供订单ID或交易号");
+    if (!dto.amount || dto.amount <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "退款金额必须大于0");
+    if (!this.fundApproval) throw new BusinessException(ErrorCode.BAD_REQUEST, "审批服务不可用");
+    return this.fundApproval.create({
+      type: "REFUND",
+      payload: { orderId: dto.orderId, outTradeNo: dto.outTradeNo, amount: dto.amount, reason: dto.reason },
+      amount: dto.amount,
+      summary: `汇付退款 ¥${dto.amount}（交易号 ${dto.outTradeNo || orderId}）`,
+      requestedBy,
+    });
   }
 
   // ───────── 配置管理 ─────────
@@ -225,7 +245,9 @@ export class HuifuService {
       expire_time: "30m",
     };
 
-    if (dto.openid) {
+    // 微信公众号内 JSAPI 支付：仅当走微信渠道且携带 openid 时才转 JSAPI，
+    // 避免用户选支付宝/云闪付时被 openid 误覆盖成微信支付。
+    if (dto.openid && String(body.pay_type).startsWith("WECHAT")) {
       body.openid = dto.openid;
       body.pay_type = "WECHAT_JSAPI";
     }
@@ -260,7 +282,15 @@ export class HuifuService {
   }
 
   /** 查询支付状态 */
-  async queryPayment(outTradeNo: string) {
+  async queryPayment(outTradeNo: string, userId: string) {
+    // 校验该支付单归属当前用户，防止越权查询/探测他人订单（userId 必传，fail-closed）
+    const order = await this.prisma.order.findFirst({
+      where: { payTransactionId: outTradeNo },
+      select: { userId: true },
+    });
+    if (!order || order.userId !== userId) {
+      throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    }
     const merchantId = await this.getConfig("merchantId");
     const body = { merchant_id: merchantId, out_trade_no: outTradeNo };
     return this.callApi("POST", "/v1/trade/query", body);

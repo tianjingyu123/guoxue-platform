@@ -13,6 +13,7 @@ import { RequireFeature } from "../../common/feature-flag.decorator";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { Auditable } from "../../common/audit.decorator";
 
 @ApiTags("分佣")
 @Controller("commission")
@@ -37,16 +38,17 @@ export class CommissionController {
   }
 
   @Put("configs/:key")
+  @Auditable({ action: "发起分佣比例变更审批", targetType: "COMMISSION_CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "更新分佣配置" })
-  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiOperation({ summary: "更新分佣配置（提交审批，待财务审批后生效）" })
+  @ApiResponse({ status: 200, description: "已提交审批" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  updateConfig(@Param("key") key: string, @Body() dto: ConfigUpdateDto) {
-    return this.svc.updateConfig(key, dto);
+  updateConfig(@Param("key") key: string, @Body() dto: ConfigUpdateDto, @Req() req: Request) {
+    return this.svc.requestConfigChange(key, dto, req.user.id);
   }
 
   // ───────── 分站收益 ─────────
@@ -157,6 +159,7 @@ export class CommissionController {
   }
 
   @Put("admin/withdrawals/:id")
+  @Auditable({ action: "提现审核", targetType: "WITHDRAWAL" })
   @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "审核提现（管理员）" })
@@ -223,9 +226,10 @@ export class CommissionController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
+  @Auditable({ action: "发起分佣比例变更审批", targetType: "COMMISSION_CONFIG" })
   @ApiBody({ schema: { properties: { type: { type: "string" }, rate: { type: "number" } } } })
-  updateCommissionConfig(@Body() dto: CommissionRateDto) {
-    return this.svc.updateCommissionConfig(dto.type, dto.rate);
+  updateCommissionConfig(@Body() dto: CommissionRateDto, @Req() req: Request) {
+    return this.svc.requestRateChange(dto.type, dto.rate, req.user.id);
   }
 
   // ───────── 平台抽成管理（管理员） ─────────

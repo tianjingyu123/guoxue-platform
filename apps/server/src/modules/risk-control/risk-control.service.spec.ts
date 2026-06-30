@@ -28,6 +28,11 @@ const mockPrisma: any = {
   },
   userBehaviorLog: {
     findMany: jest.fn(),
+    count: jest.fn(),
+  },
+  user: {
+    findUnique: jest.fn(),
+    update: jest.fn(),
   },
   appealRecord: {
     findMany: jest.fn(),
@@ -235,12 +240,63 @@ describe("RiskControlService", () => {
   // ─── 4. 用户行为时间线 ───
 
   describe("getUserTimeline", () => {
-    it("返回用户最近200条行为日志", async () => {
+    it("返回分页行为日志及脱敏用户信息", async () => {
       mockPrisma.userBehaviorLog.findMany.mockResolvedValue([
         { id: "l1", userId: "u1", action: "LOGIN", createdAt: new Date() },
       ]);
+      mockPrisma.userBehaviorLog.count.mockResolvedValue(1);
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "u1", nickname: "张三", avatar: null, phone: "13912340099", status: "ACTIVE", createdAt: new Date(),
+      });
       const result = await svc.getUserTimeline("u1");
-      expect(result).toHaveLength(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+      expect(result.user).toBeDefined();
+      // 手机号脱敏（不原样返回）
+      expect(result.user?.phone).not.toBe("13912340099");
+    });
+
+    it("支持按行为类型与时间区间筛选", async () => {
+      mockPrisma.userBehaviorLog.findMany.mockResolvedValue([]);
+      mockPrisma.userBehaviorLog.count.mockResolvedValue(0);
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      const result = await svc.getUserTimeline("u1", {
+        action: "ORDER", dateFrom: "2026-01-01", dateTo: "2026-06-01", page: 2, pageSize: 10,
+      });
+      expect(result.total).toBe(0);
+      expect(result.page).toBe(2);
+      expect(result.user).toBeNull();
+    });
+  });
+
+  describe("actionAlert", () => {
+    it("升级预警为严重", async () => {
+      mockPrisma.riskAlert.findUnique.mockResolvedValue({ id: "a1", status: "OPEN", detail: {} });
+      mockPrisma.riskAlert.update.mockResolvedValue({ id: "a1", level: "CRITICAL" });
+      const result = await svc.actionAlert("a1", "admin1", "escalate", "升级处理");
+      expect(result.level).toBe("CRITICAL");
+    });
+
+    it("封禁目标用户", async () => {
+      mockPrisma.riskAlert.findUnique.mockResolvedValue({
+        id: "a1", status: "OPEN", detail: {}, targetId: "u1", targetType: "USER",
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "u1" });
+      mockPrisma.user.update.mockResolvedValue({ id: "u1", status: "BANNED" });
+      mockPrisma.riskAlert.update.mockResolvedValue({ id: "a1", status: "HANDLED" });
+      const result = await svc.actionAlert("a1", "admin1", "ban_user", "违规封禁");
+      expect(result.status).toBe("HANDLED");
+      expect(mockPrisma.user.update).toHaveBeenCalled();
+    });
+
+    it("预警不存在抛出异常", async () => {
+      mockPrisma.riskAlert.findUnique.mockResolvedValue(null);
+      await expect(svc.actionAlert("invalid", "admin1", "escalate")).rejects.toThrow(BusinessException);
+    });
+
+    it("非OPEN状态无法处置", async () => {
+      mockPrisma.riskAlert.findUnique.mockResolvedValue({ id: "a1", status: "HANDLED" });
+      await expect(svc.actionAlert("a1", "admin1", "escalate")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -252,6 +308,16 @@ describe("RiskControlService", () => {
       mockPrisma.appealRecord.count.mockResolvedValue(1);
       const result = await svc.listAppeals({});
       expect(result.items).toHaveLength(1);
+    });
+
+    it("按状态与类型筛选", async () => {
+      mockPrisma.appealRecord.findMany.mockResolvedValue([]);
+      mockPrisma.appealRecord.count.mockResolvedValue(0);
+      const result = await svc.listAppeals({ status: "PENDING", type: "USER_BAN" });
+      expect(result.total).toBe(0);
+      expect(mockPrisma.appealRecord.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { status: "PENDING", type: "USER_BAN" } }),
+      );
     });
   });
 

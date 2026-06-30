@@ -93,6 +93,13 @@ export class MailInvoiceDto {
   expressNo: string;
 }
 
+export class RejectInvoiceDto {
+  @ApiPropertyOptional({ description: "驳回原因" })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
 // ───────── 结算单 ─────────
 
 export class SettlementQueryDto {

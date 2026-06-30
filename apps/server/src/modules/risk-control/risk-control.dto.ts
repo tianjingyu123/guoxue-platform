@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsBoolean, Min, IsObject, MinLength } from "class-validator";
+import { IsString, IsOptional, IsInt, IsBoolean, Min, IsObject, MinLength, IsIn } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -88,6 +88,32 @@ export class HandleAlertDto {
   note?: string;
 }
 
+export class AlertActionDto {
+  @ApiPropertyOptional({ description: "处置动作：ban_user(封禁目标用户)/escalate(升级为严重)" })
+  @IsString() @IsIn(["ban_user", "escalate"])
+  action: string;
+
+  @ApiPropertyOptional({ description: "处置备注" })
+  @IsOptional() @IsString()
+  note?: string;
+}
+
+// ─── 用户行为时间线 ───
+
+export class UserTimelineQueryDto extends PaginationDto {
+  @ApiPropertyOptional({ description: "行为类型（子串匹配，如 ORDER/LOGIN）" })
+  @IsOptional() @IsString()
+  action?: string;
+
+  @ApiPropertyOptional({ description: "起始时间（ISO 字符串）" })
+  @IsOptional() @IsString()
+  dateFrom?: string;
+
+  @ApiPropertyOptional({ description: "截止时间（ISO 字符串）" })
+  @IsOptional() @IsString()
+  dateTo?: string;
+}
+
 // ─── 刷单检测 ───
 
 export class FraudDetectionListQueryDto extends PaginationDto {
@@ -106,6 +132,10 @@ export class AppealListQueryDto extends PaginationDto {
   @ApiPropertyOptional({ description: "申诉状态" })
   @IsOptional() @IsString()
   status?: string;
+
+  @ApiPropertyOptional({ description: "申诉类型：USER_BAN/CONTENT_BLOCK/WITHDRAWAL_REJECT" })
+  @IsOptional() @IsString()
+  type?: string;
 }
 
 export class RejectAppealDto {

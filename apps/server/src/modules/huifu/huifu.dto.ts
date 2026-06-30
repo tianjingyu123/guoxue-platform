@@ -1,15 +1,22 @@
-import { IsString, IsNumber, IsOptional, IsArray, ValidateNested, Min, IsBoolean } from "class-validator";
+import { IsString, IsNumber, IsOptional, IsArray, ValidateNested, Min, IsBoolean, IsIn } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+
+/**
+ * 汇付聚合支付渠道枚举（前后端唯一真相源）。
+ * ⚠️ 上线前需按汇付商户实际开通的产品文档核对这些 pay_type 字符串是否一致。
+ */
+export const HUIFU_PAY_TYPES = ["WECHAT_H5", "WECHAT_JSAPI", "ALIPAY", "UNIONPAY"] as const;
+export type HuifuPayType = (typeof HUIFU_PAY_TYPES)[number];
 
 export class HuifuPayDto {
   @ApiProperty({ description: "订单ID" })
   @IsString()
   orderId: string;
 
-  @ApiPropertyOptional({ description: "支付方式 WECHAT/ALIPAY/UNIONPAY" })
+  @ApiPropertyOptional({ description: "支付渠道（默认 WECHAT_H5）", enum: HUIFU_PAY_TYPES })
   @IsOptional()
-  @IsString()
+  @IsIn([...HUIFU_PAY_TYPES])
   payType?: string;
 
   @ApiPropertyOptional({ description: "微信openid（JSAPI支付必填）" })

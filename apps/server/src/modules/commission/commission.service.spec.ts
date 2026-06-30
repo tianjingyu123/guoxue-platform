@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { CommissionService } from "./commission.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WebhookService } from "../webhook/webhook.service";
+import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -17,6 +18,7 @@ const mockPrisma = {
   $transaction: jest.fn().mockImplementation((cb: any) => cb(mockPrisma)),
 };
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
+const mockRedis = { setNX: jest.fn().mockResolvedValue(true), del: jest.fn(), get: jest.fn().mockResolvedValue(null), set: jest.fn() };
 
 describe("CommissionService", () => {
   let svc: CommissionService;
@@ -27,6 +29,7 @@ describe("CommissionService", () => {
         CommissionService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: WebhookService, useValue: mockWebhook },
+        { provide: RedisService, useValue: mockRedis },
       ],
     }).compile();
     svc = mod.get(CommissionService);

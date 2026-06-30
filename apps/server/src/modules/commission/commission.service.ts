@@ -7,7 +7,14 @@ import { Prisma } from "@prisma/client";
 import { WebhookService } from "../webhook/webhook.service";
 import { SystemService } from "../system/system.service";
 import { MemoryCache } from "../../common/cache.util";
-import { encrypt, decrypt } from "../../common/crypto.util";
+import { encrypt, decrypt, maskBankCard, maskName, maskAlipay } from "../../common/crypto.util";
+import { RedisService } from "../../redis/redis.service";
+import { FundApprovalService } from "../fund-approval/fund-approval.service";
+
+/** 提现上限（元），与钱包提现口径一致 */
+const MAX_WITHDRAW_RMB = 50000;
+/** 计算可提现余额时视为"占用额度"的提现状态（PENDING 也占额度，防重复提现；REJECTED 自动释放） */
+const OCCUPYING_WITHDRAW_STATUSES = ["PENDING", "APPROVED", "PAID"];
 
 const OPERATOR_MGMT_RATES: Record<string, { mgmt: number; upper: number }> = {
   SILVER: { mgmt: 0.08, upper: 0.02 },
@@ -24,8 +31,52 @@ export class CommissionService {
   constructor(
     private prisma: PrismaService,
     private webhook: WebhookService,
+    private redis: RedisService,
     @Optional() private systemService?: SystemService,
+    @Optional() private fundApproval?: FundApprovalService,
   ) {}
+
+  // ───────── 分佣比例变更审批（发起端，不立即生效） ─────────
+
+  /**
+   * 发起「分佣比例变更」审批（PUT /commission/configs/:key 走此入口）。
+   * 审批通过后由 FundApprovalExecutor 调用 updateConfig 真正变更。
+   */
+  async requestConfigChange(
+    key: string,
+    dto: { rateA?: number; rateB?: number; rateC?: number; description?: string },
+    requestedBy: string,
+  ) {
+    const config = await this.prisma.commissionConfig.findUnique({ where: { configKey: key } });
+    if (!config) throw new BusinessException(ErrorCode.NOT_FOUND, "配置不存在");
+    if (!this.fundApproval) throw new BusinessException(ErrorCode.BAD_REQUEST, "审批服务不可用");
+    const parts: string[] = [];
+    if (dto.rateA !== undefined) parts.push(`A=${dto.rateA}`);
+    if (dto.rateB !== undefined) parts.push(`B=${dto.rateB}`);
+    if (dto.rateC !== undefined) parts.push(`C=${dto.rateC}`);
+    return this.fundApproval.create({
+      type: "COMMISSION_CONFIG",
+      payload: { method: "updateConfig", key, dto },
+      amount: null,
+      summary: `分佣比例变更 [${key}] ${parts.join(" ") || "(说明)"}`,
+      requestedBy,
+    });
+  }
+
+  /**
+   * 发起「分佣比例变更」审批（PUT /commission/config，单一 rate 形态）。
+   * 审批通过后调用 updateCommissionConfig 真正变更。
+   */
+  async requestRateChange(type: string, rate: number, requestedBy: string) {
+    if (!this.fundApproval) throw new BusinessException(ErrorCode.BAD_REQUEST, "审批服务不可用");
+    return this.fundApproval.create({
+      type: "COMMISSION_CONFIG",
+      payload: { method: "updateCommissionConfig", type, rate },
+      amount: null,
+      summary: `分佣比例变更 [${type}] → ${rate}`,
+      requestedBy,
+    });
+  }
 
   // ───────── 佣金配置管理 ─────────
 
@@ -229,9 +280,9 @@ export class CommissionService {
     });
     if (!station) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在");
 
-    // 计算已提现金额
+    // 计算已占用额度（PENDING/APPROVED/PAID 均占用，防止 PENDING 不计导致的重复提现）
     const withdrawn = await this.prisma.withdrawal.aggregate({
-      where: { stationId, status: { in: ["APPROVED", "PAID"] } },
+      where: { stationId, status: { in: OCCUPYING_WITHDRAW_STATUSES } },
       _sum: { amount: true },
     });
 
@@ -254,6 +305,14 @@ export class CommissionService {
     alipayAccount?: string;
     stationId?: string;
   }) {
+    // 金额基本合法性校验（防御纵深，DTO 已校验正数/上限）
+    if (!dto.amount || dto.amount <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "提现金额必须大于0");
+    }
+    if (dto.amount > MAX_WITHDRAW_RMB) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `单次提现金额不可超过 ¥${MAX_WITHDRAW_RMB}`);
+    }
+
     // 查找分站
     let stationId = dto.stationId;
     if (stationId) {
@@ -268,44 +327,54 @@ export class CommissionService {
       stationId = station.id;
     }
 
-    // 并行查询余额和最低提现门槛（优先 CommissionConfig，回退 ConfigSystem）
-    const [{ balance }, cfg, sysCfg] = await Promise.all([
-      this.getStationBalance(stationId),
-      this.prisma.commissionConfig.findUnique({ where: { configKey: "withdrawal_min" } }),
-      this.systemService?.getConfig("withdrawal_min").catch(() => null),
-    ]);
-    if (balance < dto.amount) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, `余额不足，当前可提现余额 ¥${balance.toFixed(2)}`);
+    // Redis 锁串行化同一分站的提现申请，防止并发绕过余额校验（重复提现套现）
+    const lockKey = `withdraw:lock:station:${stationId}`;
+    const locked = await this.redis.setNX(lockKey, "1", 10);
+    if (!locked) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "提现处理中，请稍后再试");
     }
+    try {
+      // 锁内复核余额（getStationBalance 已把 PENDING 计入占用额度）
+      const [{ balance }, cfg, sysCfg] = await Promise.all([
+        this.getStationBalance(stationId),
+        this.prisma.commissionConfig.findUnique({ where: { configKey: "withdrawal_min" } }),
+        this.systemService?.getConfig("withdrawal_min").catch(() => null),
+      ]);
+      if (balance < dto.amount) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, `余额不足，当前可提现余额 ¥${balance.toFixed(2)}`);
+      }
 
-    const minAmount = cfg ? Number(cfg.rateA)
-      : sysCfg?.configValue ? Number(sysCfg.configValue)
-      : 100;
-    if (dto.amount < minAmount) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, `最低提现金额为 ¥${minAmount}`);
-    }
+      const minAmount = cfg ? Number(cfg.rateA)
+        : sysCfg?.configValue ? Number(sysCfg.configValue)
+        : 100;
+      if (dto.amount < minAmount) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, `最低提现金额为 ¥${minAmount}`);
+      }
 
-    const withdrawal = await this.prisma.withdrawal.create({
-      data: {
+      const withdrawal = await this.prisma.withdrawal.create({
+        data: {
+          userId,
+          stationId,
+          amount: dto.amount,
+          bankName: dto.bankName,
+          bankAccount: dto.bankAccount ? encrypt(dto.bankAccount) : null,
+          bankHolder: dto.bankHolder ? encrypt(dto.bankHolder) : null,
+          alipayAccount: dto.alipayAccount ? encrypt(dto.alipayAccount) : null,
+          status: "PENDING",
+        },
+      });
+
+      this.webhook.fire("WITHDRAWAL_REQUESTED", {
+        withdrawalId: withdrawal.id,
         userId,
         stationId,
         amount: dto.amount,
-        bankName: dto.bankName,
-        bankAccount: dto.bankAccount ? encrypt(dto.bankAccount) : null,
-        bankHolder: dto.bankHolder ? encrypt(dto.bankHolder) : null,
-        alipayAccount: dto.alipayAccount ? encrypt(dto.alipayAccount) : null,
-        status: "PENDING",
-      },
-    });
+      }).catch((err) => this.logger.warn("Webhook 发送失败", err));
 
-    this.webhook.fire("WITHDRAWAL_REQUESTED", {
-      withdrawalId: withdrawal.id,
-      userId,
-      stationId,
-      amount: dto.amount,
-    }).catch((err) => this.logger.warn("Webhook 发送失败", err));
-
-    return withdrawal;
+      return withdrawal;
+    } finally {
+      await this.redis.del(lockKey);
+    }
   }
 
   async listWithdrawals(page = 1, pageSize = 20, status?: string) {
@@ -324,11 +393,13 @@ export class CommissionService {
       this.prisma.withdrawal.count({ where }),
     ]);
     // 解密敏感金融字段
+    // 金融敏感字段解密后脱敏返回（银行卡只留后4位、持卡人保留姓氏、支付宝中段掩码），
+    // 防管理端/用户端批量泄露完整卡号。管理员打款若需完整卡号应走独立的解密+审计接口。
     const decoded = withdrawals.map(w => ({
       ...w,
-      bankAccount: w.bankAccount ? decrypt(w.bankAccount) : null,
-      bankHolder: w.bankHolder ? decrypt(w.bankHolder) : null,
-      alipayAccount: w.alipayAccount ? decrypt(w.alipayAccount) : null,
+      bankAccount: w.bankAccount ? maskBankCard(decrypt(w.bankAccount)) : null,
+      bankHolder: w.bankHolder ? maskName(decrypt(w.bankHolder)) : null,
+      alipayAccount: w.alipayAccount ? maskAlipay(decrypt(w.alipayAccount)) : null,
     }));
     return { withdrawals: decoded, total, page, pageSize };
   }
@@ -360,11 +431,13 @@ export class CommissionService {
       this.prisma.withdrawal.count({ where }),
     ]);
     // 解密敏感金融字段
+    // 金融敏感字段解密后脱敏返回（银行卡只留后4位、持卡人保留姓氏、支付宝中段掩码），
+    // 防管理端/用户端批量泄露完整卡号。管理员打款若需完整卡号应走独立的解密+审计接口。
     const decoded = withdrawals.map(w => ({
       ...w,
-      bankAccount: w.bankAccount ? decrypt(w.bankAccount) : null,
-      bankHolder: w.bankHolder ? decrypt(w.bankHolder) : null,
-      alipayAccount: w.alipayAccount ? decrypt(w.alipayAccount) : null,
+      bankAccount: w.bankAccount ? maskBankCard(decrypt(w.bankAccount)) : null,
+      bankHolder: w.bankHolder ? maskName(decrypt(w.bankHolder)) : null,
+      alipayAccount: w.alipayAccount ? maskAlipay(decrypt(w.alipayAccount)) : null,
     }));
     return { withdrawals: decoded, total, page, pageSize };
   }

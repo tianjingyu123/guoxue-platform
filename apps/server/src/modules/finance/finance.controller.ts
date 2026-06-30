@@ -7,6 +7,7 @@ import {
   CreateInvoiceDto,
   IssueInvoiceDto,
   MailInvoiceDto,
+  RejectInvoiceDto,
   GenerateSettlementDto,
   ApproveWithdrawalDto,
   RejectWithdrawalDto,
@@ -16,6 +17,7 @@ import {
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { Auditable } from "../../common/audit.decorator";
 
 @ApiTags("财务管理")
 @ApiBearerAuth()
@@ -100,6 +102,7 @@ export class FinanceController {
   // ───────── 2b. 发票管理（管理端） ─────────
 
   @Post("invoices")
+  @Auditable({ action: "创建发票", targetType: "INVOICE" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "创建发票申请" })
@@ -130,6 +133,7 @@ export class FinanceController {
   }
 
   @Put("invoices/:id/issue")
+  @Auditable({ action: "开具发票", targetType: "INVOICE" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "开具发票" })
@@ -143,6 +147,7 @@ export class FinanceController {
   }
 
   @Put("invoices/:id/mail")
+  @Auditable({ action: "发票邮寄", targetType: "INVOICE" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "标记已邮寄" })
@@ -153,6 +158,20 @@ export class FinanceController {
   @ApiResponse({ status: 403, description: "无权限" })
   mailInvoice(@Param("id") id: string, @Body() dto: MailInvoiceDto) {
     return this.svc.mailInvoice(id, dto.expressNo);
+  }
+
+  @Put("invoices/:id/reject")
+  @Auditable({ action: "发票驳回", targetType: "INVOICE" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
+  @ApiOperation({ summary: "驳回发票申请" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  rejectInvoice(@Param("id") id: string, @Body() dto: RejectInvoiceDto, @Req() req: Request) {
+    return this.svc.rejectInvoice(id, req.user.id, dto.reason);
   }
 
   // ───────── 3. 结算单 ─────────
@@ -192,6 +211,7 @@ export class FinanceController {
   }
 
   @Put("settlements/:id/approve")
+  @Auditable({ action: "结算审批", targetType: "SETTLEMENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "审批通过结算单" })
@@ -205,6 +225,7 @@ export class FinanceController {
   }
 
   @Put("settlements/:id/pay")
+  @Auditable({ action: "结算打款", targetType: "SETTLEMENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "标记已打款" })
@@ -238,6 +259,7 @@ export class FinanceController {
   }
 
   @Put("withdrawals/:id/approve")
+  @Auditable({ action: "提现审批通过", targetType: "WITHDRAWAL" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "批准提现" })
@@ -251,6 +273,7 @@ export class FinanceController {
   }
 
   @Put("withdrawals/:id/reject")
+  @Auditable({ action: "提现驳回", targetType: "WITHDRAWAL" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "驳回提现" })
@@ -264,6 +287,7 @@ export class FinanceController {
   }
 
   @Post("withdrawals/:id/pay")
+  @Auditable({ action: "提现打款", targetType: "WITHDRAWAL" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "确认打款" })
@@ -278,6 +302,7 @@ export class FinanceController {
   // ───────── 6. 资金冻结/解冻 ─────────
 
   @Post("freeze")
+  @Auditable({ action: "资金冻结", targetType: "FUND" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "冻结订单资金" })
@@ -290,6 +315,7 @@ export class FinanceController {
   }
 
   @Post("unfreeze")
+  @Auditable({ action: "资金解冻", targetType: "FUND" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "解冻订单资金" })

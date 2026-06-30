@@ -1,4 +1,4 @@
-import { MinLength, IsOptional, IsString, IsNumber, IsIn } from "class-validator";
+import { MinLength, IsOptional, IsString, IsNumber, IsIn, IsPositive, Max } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 
 export class ConfigUpdateDto {
@@ -17,6 +17,8 @@ export class ConfigUpdateDto {
 
 export class WithdrawalApplyDto {
   @IsNumber()
+  @IsPositive()
+  @Max(50000)
   amount: number;
 
   @IsOptional() @IsString()

@@ -13,13 +13,14 @@ const mockSvc = {
   listAlerts: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
   handleAlert: jest.fn().mockResolvedValue({ id: "a1", status: "HANDLED" }),
   dismissAlert: jest.fn().mockResolvedValue({ id: "a1", status: "DISMISSED" }),
+  actionAlert: jest.fn().mockResolvedValue({ id: "a1", status: "HANDLED", level: "CRITICAL" }),
 
   listFraudDetections: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
   scanFraud: jest.fn().mockResolvedValue({ scanned: 3, results: [] }),
   confirmFraudDetection: jest.fn().mockResolvedValue({ id: "f1", status: "CONFIRMED" }),
   dismissFraudDetection: jest.fn().mockResolvedValue({ id: "f1", status: "DISMISSED" }),
 
-  getUserTimeline: jest.fn().mockResolvedValue([{ id: "l1", action: "LOGIN" }]),
+  getUserTimeline: jest.fn().mockResolvedValue({ items: [{ id: "l1", action: "LOGIN" }], total: 1, page: 1, pageSize: 20, user: { id: "u1", nickname: "张三" } }),
 
   listAppeals: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
   approveAppeal: jest.fn().mockResolvedValue({ id: "ap1", status: "APPROVED" }),
@@ -88,6 +89,12 @@ describe("RiskControlController", () => {
     expect(result.status).toBe("DISMISSED");
   });
 
+  it("POST /risk-control/alerts/:id/action — 预警处置", async () => {
+    const result = await ctrl.actionAlert("a1", mockReq(), { action: "ban_user", note: "封禁" });
+    expect(result.status).toBe("HANDLED");
+    expect(mockSvc.actionAlert).toHaveBeenCalledWith("a1", "admin1", "ban_user", "封禁");
+  });
+
   // ─── 刷单检测 ───
 
   it("GET /risk-control/fraud-detections — 刷单列表", async () => {
@@ -113,8 +120,10 @@ describe("RiskControlController", () => {
   // ─── 用户行为时间线 ───
 
   it("GET /risk-control/user-timeline/:userId — 行为时间线", async () => {
-    const result = await ctrl.getUserTimeline("u1");
-    expect(result).toHaveLength(1);
+    const result = await ctrl.getUserTimeline("u1", {});
+    expect(result.items).toHaveLength(1);
+    expect(result.user).toBeDefined();
+    expect(mockSvc.getUserTimeline).toHaveBeenCalledWith("u1", {});
   });
 
   // ─── 申诉 ───

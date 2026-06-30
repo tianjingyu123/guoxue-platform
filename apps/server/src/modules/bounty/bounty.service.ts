@@ -21,21 +21,25 @@ export class BountyService {
   // ───────── 创建悬赏 ─────────
 
   async createQuestion(userId: string, dto: CreateBountyDto) {
-    if (this.coinSvc) {
-      await this.coinSvc.freeze(userId, dto.bountyCoin, "BOUNTY");
-    }
-
-    return this.prisma.bountyQuestion.create({
-      data: {
-        title: dto.title,
-        description: dto.description,
-        bountyCoin: dto.bountyCoin,
-        category: dto.category || "BAZI",
-        stationId: dto.stationId || null,
-        circleId: dto.circleId,
-        images: dto.images || [],
-        askerId: userId,
-      },
+    // 冻结赏金与创建悬赏放进同一事务：冻结失败则回滚，避免"钱冻结了却没有悬赏记录"的孤儿冻结。
+    return this.prisma.$transaction(async (tx) => {
+      const question = await tx.bountyQuestion.create({
+        data: {
+          title: dto.title,
+          description: dto.description,
+          bountyCoin: dto.bountyCoin,
+          category: dto.category || "BAZI",
+          stationId: dto.stationId || null,
+          circleId: dto.circleId,
+          images: dto.images || [],
+          askerId: userId,
+        },
+      });
+      if (this.coinSvc) {
+        // 传入 question.id 作为 refId，便于后续 settle/refund 按 refId 精确解冻
+        await this.coinSvc.freeze(userId, dto.bountyCoin, "BOUNTY", question.id, tx);
+      }
+      return question;
     });
   }
 

@@ -7,6 +7,7 @@ import { RedisService } from "../../redis/redis.service";
 import { COIN_TO_RMB } from "../../common/constants";
 import { CommissionService } from "../commission/commission.service";
 import { SystemService } from "../system/system.service";
+import { FundApprovalService } from "../fund-approval/fund-approval.service";
 
 /** 默认充值档位（ConfigSystem 未配置时的兜底） */
 const DEFAULT_RECHARGE_TIERS = [
@@ -26,7 +27,26 @@ export class CoinService {
     private redis: RedisService,
     @Optional() private commission?: CommissionService,
     @Optional() private systemService?: SystemService,
+    @Optional() private fundApproval?: FundApprovalService,
   ) {}
+
+  /**
+   * 发起「灵石充值到账」审批（不立即到账）。
+   * 审批通过后由 FundApprovalExecutor 调用 recharge 真正充值。
+   * 注意：支付回调 handleRechargeCallback 仍直接 recharge，不走审批（用户已付款，必须立即到账）。
+   */
+  async requestRecharge(dto: { userId: string; amountCoin: number; description?: string }, requestedBy: string) {
+    if (!dto.userId) throw new BusinessException(ErrorCode.BAD_REQUEST, "请指定用户ID");
+    if (dto.amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "充值币数必须大于0");
+    if (!this.fundApproval) throw new BusinessException(ErrorCode.BAD_REQUEST, "审批服务不可用");
+    return this.fundApproval.create({
+      type: "RECHARGE",
+      payload: { userId: dto.userId, amountCoin: dto.amountCoin, description: dto.description },
+      amount: dto.amountCoin,
+      summary: `灵石充值 ${dto.amountCoin} 币到账（用户 ${dto.userId}）`,
+      requestedBy,
+    });
+  }
 
   /** 获取或创建虚拟币账户 */
   async getOrCreateAccount(userId: string) {
@@ -40,7 +60,7 @@ export class CoinService {
   /** 获取账户余额 */
   async getBalance(userId: string) {
     const account = await this.getOrCreateAccount(userId);
-    return { userId, balance: account.balance, totalRecharged: account.totalRecharged, totalSpent: account.totalSpent };
+    return { userId, balance: account.balance, frozen: account.frozen, totalRecharged: account.totalRecharged, totalSpent: account.totalSpent };
   }
 
   /** 充值（管理员手动充值 或 支付回调触发） */
@@ -247,29 +267,34 @@ export class CoinService {
     return COIN_TO_RMB;
   }
 
-  /** 礼物列表 */
+  /**
+   * 礼物列表（管理后台）。
+   * 返回全部礼物（含停用），admin 列表需展示停用项以便重新启用。
+   * 注意：C 端直播送礼面板走 /live/gifts（live.service 自带 status=ACTIVE 过滤），
+   * 不经此端点，故此处放开过滤不会向用户暴露停用礼物。
+   */
   async getGifts() {
     return this.prisma.gift.findMany({
-      where: { status: "ACTIVE" },
       orderBy: { sortOrder: "asc" },
       take: 200,
     });
   }
 
   /** 创建礼物（管理员） */
-  async createGift(dto: { name: string; icon?: string; iconUrl?: string; price?: number; priceCoin?: number; level?: string; animationType?: string; effectUrl?: string; sort?: number; sortOrder?: number }) {
+  async createGift(dto: { name: string; icon?: string; iconUrl?: string; price?: number; priceCoin?: number; level?: string; animationType?: string; effectUrl?: string; sort?: number; sortOrder?: number; status?: string }) {
     const data: Prisma.GiftCreateInput = {
       name: dto.name,
       icon: dto.icon || dto.iconUrl || "",
       priceCoin: dto.priceCoin ?? dto.price ?? 0,
       level: dto.level || dto.animationType || dto.effectUrl || "",
       sortOrder: dto.sortOrder ?? dto.sort ?? 0,
+      status: dto.status || "ACTIVE",
     };
     return this.prisma.gift.create({ data });
   }
 
   /** 更新礼物（管理员） */
-  async updateGift(giftId: string, dto: { name?: string; icon?: string; iconUrl?: string; price?: number; priceCoin?: number; level?: string; animationType?: string; effectUrl?: string; sort?: number; sortOrder?: number }) {
+  async updateGift(giftId: string, dto: { name?: string; icon?: string; iconUrl?: string; price?: number; priceCoin?: number; level?: string; animationType?: string; effectUrl?: string; sort?: number; sortOrder?: number; status?: string }) {
     const existing = await this.prisma.gift.findUnique({ where: { id: giftId } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "礼物不存在");
     const data: Prisma.GiftUpdateInput = {};
@@ -280,6 +305,7 @@ export class CoinService {
     if (animOrLevel !== undefined) data.level = animOrLevel;
     if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
     if (dto.sort !== undefined && dto.sortOrder === undefined) data.sortOrder = dto.sort;
+    if (dto.status !== undefined) data.status = dto.status;
     return this.prisma.gift.update({ where: { id: giftId }, data });
   }
 
@@ -414,12 +440,12 @@ export class CoinService {
   // ───────── 冻结/解冻/转移（悬赏等场景） ─────────
 
   /** 冻结虚拟币（原子扣减 balance，增加 frozen） */
-  async freeze(userId: string, amountCoin: number, scene: string, refId?: string) {
+  async freeze(userId: string, amountCoin: number, scene: string, refId?: string, prismaTx?: Prisma.TransactionClient) {
     if (amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "冻结币数必须大于0");
 
     await this.getOrCreateAccount(userId);
 
-    return this.prisma.$transaction(async (tx) => {
+    const run = async (tx: Prisma.TransactionClient) => {
       const result = await tx.virtualCoinAccount.updateMany({
         where: { userId, balance: { gte: amountCoin } },
         data: { balance: { decrement: amountCoin }, frozen: { increment: amountCoin } },
@@ -444,7 +470,10 @@ export class CoinService {
       });
 
       return { frozen: acc!.frozen, balance: acc!.balance };
-    });
+    };
+
+    // 调用方可传入 prismaTx 合并到外层事务（如悬赏创建：冻结与建单同事务）
+    return prismaTx ? run(prismaTx) : this.prisma.$transaction(run);
   }
 
   /** 解冻虚拟币（归还原余额）。调用方可传入 prismaTx 合并到外层事务。 */

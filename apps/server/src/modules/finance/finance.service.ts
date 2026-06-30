@@ -260,6 +260,32 @@ export class FinanceService {
     });
   }
 
+  /** 驳回发票申请（仅 PENDING 可驳回） */
+  async rejectInvoice(id: string, adminId: string, reason?: string) {
+    const invoice = await this.prisma.invoice.findUnique({ where: { id } });
+    if (!invoice) throw new BusinessException(ErrorCode.NOT_FOUND, "发票不存在");
+    if (invoice.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许驳回");
+
+    const updated = await this.prisma.invoice.update({
+      where: { id },
+      data: { status: "REJECTED" },
+    });
+
+    // Invoice 模型暂无 rejectReason 列，驳回原因落审计日志（复用 freezeAmount 同款写法）
+    await this.prisma.auditLog.create({
+      data: {
+        userId: adminId || null,
+        action: "REJECT_INVOICE",
+        targetType: "INVOICE",
+        targetId: id,
+        detail: `发票驳回, 原因: ${reason || "无"}`,
+      },
+    }).catch((e) => this.logger.warn("发票驳回审计日志记录失败", e));
+
+    this.logger.log(`发票 ${id} 已驳回, 原因: ${reason || "无"}`);
+    return updated;
+  }
+
   // ───────── 3. 结算单 ─────────
 
   async getSettlementList(dto: {

@@ -7,16 +7,19 @@ import { RolesGuard } from "../../common/roles.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { Roles } from "../../common/roles.decorator";
 import { RequireFeature } from "../../common/feature-flag.decorator";
+import { Auditable } from "../../common/audit.decorator";
 import {
   CreateRuleDto,
   UpdateRuleDto,
   RuleListQueryDto,
   AlertListQueryDto,
   HandleAlertDto,
+  AlertActionDto,
   FraudDetectionListQueryDto,
   AppealListQueryDto,
   RejectAppealDto,
   DeviceFingerprintQueryDto,
+  UserTimelineQueryDto,
 } from "./risk-control.dto";
 
 @ApiTags("风控中心")
@@ -125,6 +128,21 @@ export class RiskControlController {
     return this.svc.dismissAlert(id);
   }
 
+  @Post("alerts/:id/action")
+  @Auditable({ action: "风控预警处置", targetType: "RISK_ALERT" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "预警处置（封禁用户/升级）" })
+  @ApiResponse({ status: 201, description: "处置成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  actionAlert(@Param("id") id: string, @Req() req: Request, @Body() dto: AlertActionDto) {
+    return this.svc.actionAlert(id, req.user.id, dto.action, dto.note);
+  }
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  3. 刷单识别
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -197,8 +215,8 @@ export class RiskControlController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  getUserTimeline(@Param("userId") userId: string) {
-    return this.svc.getUserTimeline(userId);
+  getUserTimeline(@Param("userId") userId: string, @Query() q: UserTimelineQueryDto) {
+    return this.svc.getUserTimeline(userId, q);
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
