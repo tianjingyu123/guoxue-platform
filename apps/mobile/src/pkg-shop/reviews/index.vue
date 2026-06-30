@@ -142,6 +142,7 @@ import { useList } from '@/composables/useList'
 type FilterType = 'all' | 'good' | 'medium' | 'bad' | 'images'
 
 const productId = ref('1')
+// 评价统计：模板裸访问 stats.average/distribution[i].count 等，distribution 元素结构动态，保留 any
 const stats = ref<any>({ average: 0, total: 0, withImages: 0, distribution: [] })
 const filter = ref<FilterType>('all')
 const previewImage = ref('')
@@ -158,8 +159,8 @@ const { list: reviews, loading, error, loadStatus, refresh, loadMore } = useList
   getParams: () => ({ filter: filter.value }),
 })
 
-onLoad((q: any) => {
-  if (q?.id) productId.value = q.id
+onLoad((q) => {
+  if (q?.id) productId.value = q.id as string
   refresh()
 })
 onReachBottom(() => loadMore())

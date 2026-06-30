@@ -20,12 +20,13 @@ const speed = ref(1)
 const showChapters = ref(false)
 
 // 浏览器原生语音合成（H5/真机可用；小程序无 window → 降级提示）
+// uni 类型缺 Web Speech/DOM，保留 any
 const synth: any = (typeof window !== 'undefined' && (window as any).speechSynthesis) ? (window as any).speechSynthesis : null
 const ttsSupported = computed(() => !!synth)
-let zhVoice: any = null
+let zhVoice: any = null // uni 类型缺 Web Speech，保留 any
 function pickVoice() {
   if (!synth) return
-  const voices: any[] = synth.getVoices() || []
+  const voices: any[] = synth.getVoices() || [] // uni 类型缺 Web Speech，保留 any
   zhVoice =
     voices.find((v) => /zh[-_]?CN|cmn/i.test(v.lang)) ||
     voices.find((v) => /^zh/i.test(v.lang)) ||
@@ -62,11 +63,11 @@ async function fetchBook(id: string) {
     if (!data.book) throw new Error('书籍不存在')
     bookTitle.value = data.book.title
     bookMeta.value = [data.book.dynasty, data.book.author].filter(Boolean).join(' · ')
-    chapters.value = (data.book.chapters || []).map((c: any) => ({ id: c.id, title: c.title }))
+    chapters.value = (data.book.chapters || []).map((c: { id: string; title: string }) => ({ id: c.id, title: c.title }))
     if (!chapters.value.length) throw new Error('本书暂无可朗读章节')
     await loadChapter(0, false)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -92,6 +93,7 @@ async function loadChapter(idx: number, autoPlay = false) {
 function speakCurrent() {
   if (!synth) return
   if (curSentence.value >= sentences.value.length) { playing.value = false; return }
+  // uni 类型缺 Web Speech/DOM，保留 as any
   const u = new (window as any).SpeechSynthesisUtterance(sentences.value[curSentence.value])
   if (zhVoice) u.voice = zhVoice
   u.lang = 'zh-CN'

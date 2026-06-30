@@ -166,10 +166,10 @@ async function fetchNotifications(showRefreshing = false) {
   error.value = false
   try {
     notifications.value = await mineApi.getNotifications()
-  } catch (e: any) {
+  } catch (e) {
     // 仅在首屏（无已有数据）展示整页错误态；刷新失败保留旧列表 + toast 提示
     if (notifications.value.length === 0) error.value = true
-    showToast(e?.message || '加载失败')
+    showToast((e as Error)?.message || '加载失败')
   } finally {
     loading.value = false
     refreshing.value = false
@@ -201,8 +201,8 @@ async function handleMarkAllRead() {
     notifications.value.forEach((n) => { n.isRead = true })
     uni.$emit('notify:refresh') // 同步顶部铃铛角标
     showToast('已全部标记为已读')
-  } catch (e: any) {
-    showToast(e?.message || '操作失败')
+  } catch (e) {
+    showToast((e as Error)?.message || '操作失败')
   } finally {
     markingAllRead.value = false
   }

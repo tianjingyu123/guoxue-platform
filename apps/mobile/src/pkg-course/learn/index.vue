@@ -10,10 +10,15 @@ const loading = ref(true)
 const error = ref('')
 const courseId = ref('')
 
+// 课程详情对象，模板 v-else 裸访问字段，保留 any 避免 null 链式报错
 const course = ref<any>(null)
+// 学习进度详情对象，模板裸访问字段，保留 any 避免 null 链式报错
 const progress = ref<any>(null)
+// 章节列表，模板裸访问 lessons 等字段，保留 any
 const chapters = ref<any[]>([])
+// 笔记列表，模板裸访问 chapterTitle 等字段，保留 any
 const notes = ref<any[]>([])
+// 问答列表，模板裸访问 author 等字段，保留 any
 const questions = ref<any[]>([])
 
 type TabKey = 'catalog' | 'notes' | 'questions'
@@ -62,14 +67,14 @@ async function loadData() {
     chapters.value = res.chapters
     notes.value = res.notes
     questions.value = res.questions
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((options: any) => {
+onLoad((options) => {
   courseId.value = options?.id || '1'
 })
 

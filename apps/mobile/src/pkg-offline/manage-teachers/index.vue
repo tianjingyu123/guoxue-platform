@@ -103,8 +103,8 @@ async function load() {
     ])
     teachers.value = ts
     lecturers.value = ls
-  } catch (e: any) {
-    errMsg.value = e?.message || '加载失败'
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -119,8 +119,8 @@ async function onImport(l: SignedLecturer) {
     uni.showToast({ title: '已引入', icon: 'success' })
     await load()
     tab.value = 'mine'
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '引入失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '引入失败', icon: 'none' })
   } finally {
     importingId.value = ''
   }

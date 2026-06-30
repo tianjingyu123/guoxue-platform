@@ -90,8 +90,8 @@ async function load() {
     myRank.value = myUserId ? (items.find((r) => r.userId === myUserId) || null) : null
     await nextTick()
     setTimeout(draw, 50)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -179,7 +179,7 @@ function draw() {
 }
 
 /** 圆角矩形路径 */
-function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: number) {
+function roundRect(ctx: UniApp.CanvasContext, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath()
   ctx.moveTo(x + r, y)
   ctx.lineTo(x + w - r, y)
@@ -194,7 +194,7 @@ function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: numb
 }
 
 /** 文本换行绘制（限定最大行数，超出省略号） */
-function drawWrapped(ctx: any, text: string, cx: number, top: number, maxW: number, lineH: number, maxLines: number) {
+function drawWrapped(ctx: UniApp.CanvasContext, text: string, cx: number, top: number, maxW: number, lineH: number, maxLines: number) {
   const chars = (text || '').split('')
   const lines: string[] = []
   let line = ''

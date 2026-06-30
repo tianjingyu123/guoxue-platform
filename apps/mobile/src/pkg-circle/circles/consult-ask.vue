@@ -42,8 +42,8 @@ async function loadList() {
   try {
     const res = await questionApi.list({ circleId: circleId.value, isPublic: true, page: 1, pageSize: 30 })
     questions.value = res.items
-  } catch (e: any) {
-    listError.value = e?.message || '加载失败'
+  } catch (e) {
+    listError.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -67,8 +67,8 @@ async function submit() {
     })
     uni.showToast({ title: '提问已提交，已扣费', icon: 'success' })
     setTimeout(() => navigateTo(`/pkg-circle/circles/question-detail?id=${q.id}`), 600)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提交失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

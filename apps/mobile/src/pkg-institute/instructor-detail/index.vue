@@ -159,8 +159,8 @@ async function load(id?: string) {
   errMsg.value = ''
   try {
     detail.value = await instituteApi.getMember(id)
-  } catch (e: any) {
-    errMsg.value = e?.message || '加载失败'
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '加载失败'
     detail.value = null
   } finally {
     loading.value = false

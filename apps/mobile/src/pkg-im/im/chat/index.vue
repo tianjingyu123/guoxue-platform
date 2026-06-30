@@ -170,6 +170,7 @@ const props = defineProps<{ targetId: string }>()
 const statusBarHeight = ref(0)
 
 // 数据状态
+// target 为详情对象，模板裸访问多个字段（avatar/nickname/isOnline/isBlocked 等），收敛 any 会触发大量字段/null 报错，保留 any
 const target = ref<any>({})
 const messages = ref<ChatMessage[]>([])
 const loading = ref(true)
@@ -191,8 +192,8 @@ async function loadData() {
     ])
     target.value = chatTarget
     messages.value = chatHistory.messages
-  } catch (e: any) {
-    error.value = e?.message || '加载聊天数据失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载聊天数据失败，请重试'
     loading.value = false
     return
   }
@@ -250,6 +251,7 @@ const inputPlaceholder = computed(() => {
   }
 })
 
+// 绑定到 uni <input>，vue-tsc 按原生 input 事件签名校验，保留 any
 function onInput(e: any) {
   inputText.value = e.detail.value
 }

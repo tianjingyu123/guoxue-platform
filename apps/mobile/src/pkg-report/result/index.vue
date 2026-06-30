@@ -189,13 +189,33 @@ const statusFilters = [
   { value: 'rejected', label: '已驳回' },
 ]
 
+// 举报处理结论（result 字段结构，未处理时为 null）
+interface ReportRecordResult {
+  conclusion: string
+  action?: string // 处理措施（仅成立时有）
+  description: string
+  handler: string
+  handledAt: string
+}
+// 举报记录项（对应下方内联 mock 数组的元素结构）
+interface ReportRecord {
+  id: number
+  targetType: string
+  targetTitle: string
+  reportType: string
+  reason: string
+  createdAt: string
+  status: string
+  result: ReportRecordResult | null
+}
+
 const statusFilter = ref('all')
 const showDetail = ref(false)
-const selectedRecord = ref<any>(null)
+const selectedRecord = ref<ReportRecord | null>(null)
 
 const stats = ref({ total: 5, pending: 1, processing: 1, resolved: 2, rejected: 1 })
 
-const records = ref<any[]>([
+const records = ref<ReportRecord[]>([
   {
     id: 1,
     targetType: 'post',
@@ -308,7 +328,7 @@ function targetLabel(t: string) { return targetMap[t] || t }
 function statusLabel(s: string) { return statusMap[s] || s }
 function targetIcon(t: string) { return iconMap[t] || 'alert-circle' }
 
-function viewDetail(record: any) {
+function viewDetail(record: ReportRecord) {
   selectedRecord.value = record
   showDetail.value = true
 }

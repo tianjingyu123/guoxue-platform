@@ -15,8 +15,11 @@ const loading = ref(true)
 const error = ref('')
 const courseId = ref('')
 
+// 课程详情对象，模板 v-else 裸访问字段，保留 any 避免 null 链式报错
 const course = ref<any>(null)
+// 章节列表，模板裸访问 lessons 等字段，保留 any
 const chapters = ref<any[]>([])
+// 评价列表，模板裸访问 user/rating 等字段，保留 any
 const reviews = ref<any[]>([])
 const recItems = ref<RecommendItem[]>([])
 
@@ -78,14 +81,14 @@ async function loadData() {
     reviews.value = revs
     // 详情加载成功后拉取推荐（内置降级，无需 try/catch）
     recItems.value = await recommendApi.getForScene('course_detail', String(courseId.value))
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((options: any) => {
+onLoad((options) => {
   courseId.value = options?.id || '1'
 })
 

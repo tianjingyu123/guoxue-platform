@@ -29,8 +29,8 @@ const {
   },
 })
 
-onLoad((opt: any) => {
-  merchantId.value = opt?.id || ''
+onLoad((opt) => {
+  merchantId.value = (opt?.id as string) || ''
   refresh()
 })
 onReachBottom(() => loadMore())

@@ -201,7 +201,7 @@ const botDetail = ref({
   welcomeMessage: '',
 })
 
-onLoad((opts: any) => {
+onLoad((opts) => {
   if (opts?.id) botId.value = String(opts.id)
   loadDetail()
 })
@@ -215,6 +215,7 @@ async function loadDetail() {
   loading.value = true
   error.value = ''
   try {
+    // 后端 bot 详情返回结构字段较多且不固定，泛型保留 any 安全（仅取已知字段映射）
     const b = await apiGet<any>(`/bots/${botId.value}`)
     botDetail.value = {
       name: b.name || '智能体',
@@ -222,8 +223,8 @@ async function loadDetail() {
       voiceEnabled: !!b.voiceEnabled,
       welcomeMessage: b.intro || `您好！我是${b.name || '智能助手'}，有什么可以帮您的吗？`,
     }
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -259,6 +260,7 @@ async function handleSend() {
   })
 
   try {
+    // 后端对话返回结构（content/conversationId/disclaimer/recommendation）动态，泛型保留 any 安全
     const res = await apiPost<any>(`/bots/${botId.value}/chat`, {
       query: text,
       conversationId: conversationId.value || undefined,
@@ -271,10 +273,10 @@ async function handleSend() {
       done.disclaimer = res?.disclaimer
       done.recommendation = res?.recommendation || undefined
     }
-  } catch (e: any) {
+  } catch (e) {
     const target = messages.value.find((m) => m.id === aiId)
     if (target) {
-      target.content = '抱歉，回复失败：' + (e?.message || '请稍后再试')
+      target.content = '抱歉，回复失败：' + ((e as Error)?.message || '请稍后再试')
       target.isStreaming = false
     }
     streamingText.value = ''

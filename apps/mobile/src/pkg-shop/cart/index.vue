@@ -222,8 +222,8 @@ async function changeQty(item: FlatCartItem, delta: number) {
   try {
     const res = await shopApi.updateCartItem(item.id, next)
     syncItems(res.items)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '更新失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '更新失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -235,8 +235,8 @@ async function removeItem(id: string) {
     const res = await shopApi.removeCartItem(id)
     syncItems(res.items)
     swipedId.value = null
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -251,8 +251,8 @@ async function removeSelected() {
       latest = (await shopApi.removeCartItem(id)).items
     }
     syncItems(latest)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -267,8 +267,8 @@ async function clearInvalid() {
       latest = (await shopApi.removeCartItem(id)).items
     }
     syncItems(latest)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '清除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '清除失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

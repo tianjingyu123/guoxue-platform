@@ -166,6 +166,7 @@ import { liveApi, liveReviewFilters } from '@/lib/live-data'
 
 const filters = liveReviewFilters
 const dist = ref<Array<{ star: number; count: number; pct: number }>>([])
+// 评价列表，元素结构由后端返回，模板裸访问多字段，保留 any[]
 const reviews = ref<any[]>([])
 const loading = ref(true)
 const error = ref('')
@@ -178,11 +179,12 @@ async function fetchData() {
     dist.value = res.dist
     reviews.value = res.reviews
     // 初始化已回复的记录
+    // res.reviews 元素结构未知，保留 any 避免收敛触发报错
     replies.value = Object.fromEntries(
       res.reviews.filter((r: any) => r.reply).map((r: any) => [r.id, r.reply as string]),
     )
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }

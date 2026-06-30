@@ -188,19 +188,19 @@ const passwordStrength = computed(() => {
   return { level: 3, text: '强', color: '#22c55e' }
 })
 
-function onPhoneInput(e: any) {
+function onPhoneInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   phone.value = String(e.detail.value).replace(/\D/g, '').slice(0, 11)
   error.value = ''
 }
-function onCodeInput(e: any) {
+function onCodeInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   code.value = String(e.detail.value).replace(/\D/g, '').slice(0, 6)
   error.value = ''
 }
-function onPasswordInput(e: any) {
+function onPasswordInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   password.value = e.detail.value
   error.value = ''
 }
-function onConfirmInput(e: any) {
+function onConfirmInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   confirmPassword.value = e.detail.value
   error.value = ''
 }
@@ -224,8 +224,8 @@ async function sendCode() {
       countdown.value--
       if (countdown.value <= 0 && timer) clearInterval(timer)
     }, 1000)
-  } catch (e: any) {
-    error.value = e?.message || '发送失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '发送失败'
   }
 }
 
@@ -248,8 +248,8 @@ async function resetPassword() {
     } else {
       error.value = res.message || '重置失败'
     }
-  } catch (e: any) {
-    error.value = e?.message || '重置失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '重置失败'
   } finally {
     isLoading.value = false
   }

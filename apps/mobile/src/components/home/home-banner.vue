@@ -9,7 +9,7 @@ const props = withDefaults(defineProps<{ banners: BannerItem[]; interval?: numbe
 })
 
 const current = ref(0)
-function onChange(e: any) {
+function onChange(e: { detail: { current: number } }) {
   current.value = e.detail.current
 }
 function onTap(link: string) {

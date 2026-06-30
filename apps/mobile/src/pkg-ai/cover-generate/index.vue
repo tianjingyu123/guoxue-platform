@@ -214,6 +214,16 @@
 import { ref, computed, onMounted } from 'vue'
 import { navigateBack } from '@/utils/router'
 
+// 生成结果与历史记录的结构（均由本页本地构造，字段固定）
+interface CoverResult { id: string; bg: string; style: string; size: string; prompt: string }
+interface CoverHistoryItem {
+  id: string
+  title: string
+  createdAt: string
+  selectedId: string
+  results: Array<{ id: string; bg: string }>
+}
+
 const statusBarHeight = ref(20)
 
 // URL query
@@ -228,11 +238,11 @@ const generateCount = ref(4)
 
 const loading = ref(true)
 const generating = ref(false)
-const results = ref<any[]>([])
+const results = ref<CoverResult[]>([])
 const selectedResultId = ref<string | null>(null)
 
 const showHistory = ref(false)
-const history = ref<any[]>([])
+const history = ref<CoverHistoryItem[]>([])
 const historyLoading = ref(false)
 
 const styles = [
@@ -271,7 +281,7 @@ onMounted(() => {
     const sys = uni.getSystemInfoSync()
     statusBarHeight.value = sys.statusBarHeight || 20
     const pages = getCurrentPages()
-    const cur: any = pages[pages.length - 1]
+    const cur = pages[pages.length - 1] as unknown as { options?: Record<string, string>; $page?: { options?: Record<string, string> } }
     const opts = cur?.options || cur?.$page?.options || {}
     if (opts.title) title.value = decodeURIComponent(opts.title)
     if (opts.summary) contentSummary.value = decodeURIComponent(opts.summary)

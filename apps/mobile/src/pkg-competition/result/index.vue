@@ -219,8 +219,8 @@ async function load() {
     rankings.value = (rk.items || []).slice().sort((a, b) => a.rank - b.rank)
     myReg.value = reg
     detail.value = c
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -229,7 +229,7 @@ async function load() {
 function go(p: string) { navigateTo(p) }
 function goBack() { navigateBack() }
 
-onLoad((q: any) => {
+onLoad((q) => {
   compId.value = (q?.id as string) || ''
   roundId.value = (q?.roundId as string) || undefined
   uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0; sysH.value = e.windowHeight || 667 } })

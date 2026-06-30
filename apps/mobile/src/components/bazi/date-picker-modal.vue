@@ -69,7 +69,7 @@ const pvValue = computed(() => [
   hour.value === null ? 0 : hour.value + 1,
   minute.value === null ? 0 : minute.value + 1,
 ])
-function onPvChange(e: any) {
+function onPvChange(e: { detail: { value: number[] } }) {
   const [yi, mi, di, hi, mni] = e.detail.value
   year.value = years[yi]
   month.value = mi + 1

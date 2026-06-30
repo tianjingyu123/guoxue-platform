@@ -104,8 +104,8 @@ async function load() {
   error.value = ''
   try {
     agreement.value = await merchantApi.getAgreementPreview()
-  } catch (e: any) {
-    error.value = e?.message || '协议加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '协议加载失败'
   } finally {
     loading.value = false
   }
@@ -127,8 +127,8 @@ async function handleSign() {
     signedAt.value = formatNow()
     isSigned.value = true
     setTimeout(() => navigateTo('/merchant/application-status'), 2000)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '签署失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '签署失败', icon: 'none' })
   } finally {
     isSigning.value = false
   }

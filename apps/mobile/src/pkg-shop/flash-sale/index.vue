@@ -123,6 +123,7 @@ import { shopApi, formatCountdown, type FlashProduct } from '@/lib/shop-data'
 
 const loading = ref(true)
 const error = ref('')
+// 秒杀聚合数据(场次/商品/公告)：null 初值 + 模板 v-else 块裸访问 data.products 等，收敛会触发大量 possibly-null，保留 any
 const data = ref<any>(null)
 const activeSlot = ref('14')
 const showNotice = ref(true)
@@ -145,8 +146,8 @@ async function fetchFlashSaleData() {
     }
     endTime.value = data.value?.endOffsetMs ? Date.now() + data.value.endOffsetMs : 0
     cd.value = formatCountdown(endTime.value - Date.now())
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

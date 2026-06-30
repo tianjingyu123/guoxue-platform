@@ -211,6 +211,7 @@ import {
   orderApi,
   disputeTypes,
   disputeStatusConfig,
+  type DisputeListItem,
 } from '@/lib/order-data'
 
 const safeBottom = ref(0)
@@ -221,8 +222,10 @@ const view = ref<'create' | 'list' | 'detail'>('create')
 const loading = ref(true)
 const error = ref('')
 const orderId = ref('')
+// 申诉订单简要对象，create 视图 v-else-if 内裸访问多字段，收敛会触发 possibly-null，保留 any
 const order = ref<any>(null)
-const disputes = ref<any[]>([])
+const disputes = ref<DisputeListItem[]>([])
+// 申诉详情对象，detail 视图 v-else 内裸访问多字段，收敛会触发 possibly-null，保留 any
 const detail = ref<any>(null)
 
 async function loadData() {
@@ -237,8 +240,8 @@ async function loadData() {
     } else {
       // detail view loads on openDetail
     }
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -257,7 +260,7 @@ const submitting = ref(false)
 const navTitle = computed(() =>
   view.value === 'create' ? '提交申诉' : view.value === 'list' ? '我的申诉' : '申诉详情',
 )
-const currentIdx = computed(() => detail.value?.timeline?.findIndex((n: any) => n.isCurrent) ?? -1)
+const currentIdx = computed(() => detail.value?.timeline?.findIndex((n: { isCurrent?: boolean }) => n.isCurrent) ?? -1)
 
 function sCfg(status: string) {
   return disputeStatusConfig[status] || { label: status, color: '#999', bg: '#F5F5F5', icon: 'clock' }
@@ -296,8 +299,8 @@ async function openDetail(_id: string) {
   error.value = ''
   try {
     detail.value = await orderApi.disputeDetail(_id)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }

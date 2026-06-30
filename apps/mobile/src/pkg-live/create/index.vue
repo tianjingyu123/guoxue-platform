@@ -211,8 +211,8 @@ async function fetchData() {
   error.value = ''
   try {
     categories.value = await liveApi.getCategories()
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -239,8 +239,8 @@ async function onCreate() {
     await liveApi.createRoom({ title: title.value.trim(), chargeType: 'FREE' })
     uni.showToast({ title: '创建成功', icon: 'success' })
     setTimeout(() => goBack(), 800)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '创建失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '创建失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

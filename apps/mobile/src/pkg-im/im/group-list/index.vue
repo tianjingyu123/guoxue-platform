@@ -163,8 +163,8 @@ async function loadData() {
       if (!a.isPinned && b.isPinned) return 1
       return 0
     })
-  } catch (e: any) {
-    error.value = e?.message || '加载群列表失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载群列表失败，请重试'
   } finally {
     loading.value = false
   }

@@ -254,8 +254,8 @@ function toggleType(key: string) {
   error.value = ''
 }
 function adjustCreator() { const r = 100 - f.platform - f.circle; if (r >= 0 && r <= 100) f.creator = r }
-function onPlatform(e: any) { f.platform = e.detail.value; adjustCreator(); error.value = '' }
-function onCircle(e: any) { f.circle = e.detail.value; adjustCreator(); error.value = '' }
+function onPlatform(e: { detail: { value: number } }) { f.platform = e.detail.value; adjustCreator(); error.value = '' }
+function onCircle(e: { detail: { value: number } }) { f.circle = e.detail.value; adjustCreator(); error.value = '' }
 
 function handleSave() {
   if (!f.name.trim()) { error.value = '请输入方案名称'; return }

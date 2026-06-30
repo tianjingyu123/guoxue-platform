@@ -157,8 +157,8 @@ async function submitReply(rv: CourseReview) {
     editingId.value = ''
     draft.value = ''
     uni.showToast({ title: '回复成功', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '回复失败，请重试', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '回复失败，请重试', icon: 'none' })
   } finally {
     submittingId.value = ''
   }
@@ -168,7 +168,7 @@ function back() {
   goBack()
 }
 
-onLoad((options: any) => {
+onLoad((options) => {
   try {
     const info = uni.getWindowInfo ? uni.getWindowInfo() : uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 0

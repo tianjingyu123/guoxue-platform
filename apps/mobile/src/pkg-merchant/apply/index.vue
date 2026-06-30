@@ -289,6 +289,7 @@ const progressSteps = [
   { id: 3, name: '处理完成' },
 ]
 
+// 各校验器入参类型不一（string / string[]），由统一 Record 映射时形参逆变约束只能取 any
 const validators: Record<string, (v: any) => string | null> = {
   shopName: (v: string) => {
     if (!v.trim()) return '请输入店铺名称'
@@ -338,7 +339,7 @@ function fieldError(field: string): string | null {
   if (!touched[field]) return null
   const validator = validators[field]
   if (!validator) return null
-  return validator((formData as any)[field])
+  return validator((formData as Record<string, unknown>)[field])
 }
 
 function markTouched(field: string) {
@@ -348,7 +349,7 @@ function markTouched(field: string) {
 const completeness = computed(() => {
   const required = ['shopName', 'contactName', 'contactPhone', 'idNumber']
   const filled = required.filter((f) => {
-    const v = (formData as any)[f]
+    const v = (formData as Record<string, unknown>)[f]
     return typeof v === 'string' && v.trim() !== ''
   })
   return {
@@ -377,7 +378,7 @@ function validateForm(): boolean {
   fields.forEach((f) => markTouched(f))
   for (const field of fields) {
     const validator = validators[field]
-    if (validator && validator((formData as any)[field])) return false
+    if (validator && validator((formData as Record<string, unknown>)[field])) return false
   }
   return true
 }
@@ -410,8 +411,8 @@ async function handleSubmit() {
     submitStep.value = 3
     await new Promise((r) => setTimeout(r, 400))
     navigateTo('/merchant/application-status')
-  } catch (e: any) {
-    const msg = e?.message || '提交失败'
+  } catch (e) {
+    const msg = (e as Error)?.message || '提交失败'
     if (msg.includes('已提交') || msg.includes('已存在')) {
       uni.showToast({ title: '您已提交过入驻申请', icon: 'none' })
       setTimeout(() => navigateTo('/merchant/application-status'), 800)

@@ -8,12 +8,14 @@ import { courseApi } from '@/lib/course-data'
 const loading = ref(true)
 const error = ref('')
 
+// 场次列表，模板裸访问 status/startTime 等字段，保留 any
 const sessions = ref<any[]>([])
+// 秒杀课程列表，模板裸访问多字段，保留 any
 const courses = ref<any[]>([])
 
 const activeSession = ref('2')
 const secs = ref(3600)
-let timer: any = null
+let timer: ReturnType<typeof setInterval> | null = null
 
 function startTimer() {
   timer = setInterval(() => { secs.value = Math.max(0, secs.value - 1) }, 1000)
@@ -46,8 +48,8 @@ async function loadData() {
     ])
     sessions.value = saleSessions
     courses.value = saleCourses
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

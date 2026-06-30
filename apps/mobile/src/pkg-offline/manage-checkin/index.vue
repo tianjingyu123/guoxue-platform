@@ -100,8 +100,8 @@ async function load() {
       const c = courses.value.find((x) => x.id === preCourseId.value)
       if (c) { selectedCourse.value = c; await loadRegs(c.id) }
     }
-  } catch (e: any) {
-    errMsg.value = e?.message || '加载失败'
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -120,7 +120,7 @@ async function loadRegs(courseId: string) {
     registrations.value = []
   }
 }
-function onPickCourse(e: any) {
+function onPickCourse(e: { detail: { value: number } }) {
   selectedCourse.value = courses.value[Number(e.detail.value)] || null
   if (selectedCourse.value) loadRegs(selectedCourse.value.id)
 }
@@ -133,8 +133,8 @@ async function doSignIn(qrCode: string) {
     uni.showToast({ title: '核销成功', icon: 'success' })
     codeInput.value = ''
     if (selectedCourse.value) await loadRegs(selectedCourse.value.id)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '核销失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '核销失败', icon: 'none' })
   } finally {
     verifying.value = false
   }

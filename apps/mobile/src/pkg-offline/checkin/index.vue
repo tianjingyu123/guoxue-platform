@@ -119,8 +119,9 @@ async function load() {
   errMsg.value = ''
   try {
     reg.value = await offlineApi.getMyRegistration(courseId.value)
-  } catch (e: any) {
-    errMsg.value = e?.message?.includes('未登录') ? '请先登录后查看签到' : (e?.message || '加载失败')
+  } catch (e) {
+    const msg = (e as Error)?.message
+    errMsg.value = msg?.includes('未登录') ? '请先登录后查看签到' : (msg || '加载失败')
   } finally {
     loading.value = false
   }

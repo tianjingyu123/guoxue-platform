@@ -10,9 +10,11 @@ const loading = ref(true)
 const error = ref('')
 const workId = ref('')
 
+// 作业批改结果详情对象，模板 v-else 裸访问字段，保留 any 避免 null 链式报错
 const work = ref<any>(null)
 
-const statusMap: Record<string, any> = {
+// 状态映射：固定结构对象，给出明确类型
+const statusMap: Record<string, { text: string; color: string; bg: string; iconBg: string; icon: string }> = {
   pending: { text: '批改中', color: '#f97316', bg: '#FFF7ED', iconBg: '#FFEDD5', icon: 'clock' },
   graded: { text: '已批改', color: '#16a34a', bg: '#F0FDF4', iconBg: '#DCFCE7', icon: 'check-circle' },
   returned: { text: '已退回', color: '#ef4444', bg: '#FEF2F2', iconBg: '#FEE2E2', icon: 'alert-circle' },
@@ -40,14 +42,14 @@ async function loadData() {
   try {
     const res = await courseApi.getWorkResult(workId.value)
     work.value = res
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((options: any) => {
+onLoad((options) => {
   workId.value = options?.workId || options?.id || '1'
 })
 

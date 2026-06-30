@@ -23,8 +23,8 @@ async function fetchData() {
   try {
     const data = await mineApi.getMyLikes()
     list.value = data.map((i: LikeItem) => ({ ...i }))
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -52,8 +52,8 @@ async function unlike(item: LikeItem) {
     await mineApi.getMyLikes() // 这里可能需要一个取消点赞的API，目前用现有接口
     list.value = list.value.filter((i) => i.id !== item.id)
     uni.showToast({ title: '已取消点赞', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     unliking.value = null
   }

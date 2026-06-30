@@ -387,7 +387,7 @@ function handlePurchase() {
   }, 800)
 }
 
-function onToggleAutoRenew(e: any) {
+function onToggleAutoRenew(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   const enabled = e.detail.value
   autoRenewLoading.value = true
   setTimeout(() => {

@@ -96,12 +96,13 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
+    // /auth/me 返回结构较杂，此处仅取少量字段，保留 any
     const data = await apiGet<any>('/auth/me')
     me.nickname = data?.nickname || ''
     me.phone = data?.phone || ''
     me.email = data?.email || ''
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }

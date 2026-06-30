@@ -148,7 +148,7 @@ const form = reactive({
 
 const uploadingCover = ref(false)
 
-function onTypeChange(e: any) {
+function onTypeChange(e: { detail: { value: string } }) {
   typeIndex.value = Number(e.detail.value)
 }
 
@@ -157,8 +157,8 @@ async function chooseCover() {
   uploadingCover.value = true
   try {
     form.cover = await chooseAndUploadImage()
-  } catch (e: any) {
-    if (e?.message && e.message !== '已取消') uni.showToast({ title: e.message, icon: 'none' })
+  } catch (e) {
+    if ((e as Error)?.message && (e as Error).message !== '已取消') uni.showToast({ title: (e as Error).message, icon: 'none' })
   } finally {
     uploadingCover.value = false
   }
@@ -191,8 +191,9 @@ async function onSubmit() {
     })
     uni.showToast({ title: '已提交审核', icon: 'success' })
     setTimeout(() => goBack(), 800)
-  } catch (e: any) {
-    const msg = e?.message || e?.errMsg || ''
+  } catch (e) {
+    const err = e as { message?: string; errMsg?: string }
+    const msg = err?.message || err?.errMsg || ''
     if (msg.includes('讲师认证')) {
       uni.showModal({
         title: '需讲师认证',

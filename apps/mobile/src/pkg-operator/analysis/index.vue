@@ -87,8 +87,8 @@ async function loadData() {
     const res = await operatorApi.getAnalysisMembers()
     members.value = Array.isArray(res) ? res : []
     isEmpty.value = members.value.length === 0
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

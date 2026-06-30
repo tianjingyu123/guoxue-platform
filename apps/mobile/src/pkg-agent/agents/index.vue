@@ -197,9 +197,11 @@ const voiceSupported = ref(false)
 const showAllBots = ref(false)
 
 // #ifdef H5
+// window.SpeechRecognition 为浏览器宿主 API，uni 类型无定义，保留 as any
 voiceSupported.value =
   typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
 // #endif
+// 智能体/热门问答来自后端动态结构，模板裸访问多字段，保留 any
 const hotBots = ref<any[]>([])
 const hotQuestions = ref<any[]>([])
 
@@ -213,8 +215,8 @@ async function loadData() {
     ])
     hotBots.value = bots || []
     hotQuestions.value = questions || []
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -230,6 +232,7 @@ uni.getSystemInfo({
 
 const displayBots = computed(() => (showAllBots.value ? hotBots.value : hotBots.value.slice(0, 4)))
 
+// 浏览器 SpeechRecognition 实例，uni 类型无定义，保留 any
 let recognition: any = null
 // 语音搜索：H5 端调用浏览器原生 Web Speech API 做真实识别（无 mock 假识别）
 function handleVoiceSearch() {
@@ -247,6 +250,7 @@ function handleVoiceSearch() {
   recognition.lang = 'zh-CN'
   recognition.interimResults = false
   recognition.maxAlternatives = 1
+  // 浏览器语音识别结果事件，宿主 API 类型未定义，保留 any
   recognition.onresult = (e: any) => {
     const transcript = e?.results?.[0]?.[0]?.transcript || ''
     if (transcript) searchQuery.value = transcript

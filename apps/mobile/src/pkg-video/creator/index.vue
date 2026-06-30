@@ -381,8 +381,8 @@ async function loadAll() {
     products.value = ps
     earningsPreview.value = ep
     if (st?.profile) profile.value = { nickname: st.profile.nickname || '创作者', avatar: st.profile.avatar, bio: st.profile.bio }
-  } catch (e: any) {
-    errMsg.value = e?.message || '加载失败'
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

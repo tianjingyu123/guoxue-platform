@@ -68,7 +68,7 @@ const aiResult = ref<{ translation: string; notes: string[]; source?: string } |
 // ── 查词 ──
 const dictWord = ref('')
 const dictLoading = ref(false)
-const dictResult = ref<any>(null)
+const dictResult = ref<any>(null) // 查词结果对象结构随后端，保留 any
 const dictError = ref('')
 
 // ── 笔记 ──
@@ -111,13 +111,13 @@ async function fetchBook(id: string, chapterId?: string) {
     const data = await classicsApi.detail(id)
     if (!data.book) throw new Error('书籍不存在')
     bookTitle.value = data.book.title
-    chapters.value = (data.book.chapters || []).map((c: any) => ({ id: c.id, title: c.title }))
+    chapters.value = (data.book.chapters || []).map((c: { id: string; title: string }) => ({ id: c.id, title: c.title }))
     if (!chapters.value.length) throw new Error('本书暂无可阅读章节')
     let idx = chapterId ? chapters.value.findIndex((c) => c.id === chapterId) : 0
     if (idx < 0) idx = 0
     await loadChapter(idx, false)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -160,8 +160,8 @@ async function explain(seg: string) {
   try {
     const r = await classicsApi.translate(seg, bookTitle.value)
     aiResult.value = { translation: r?.translation || '暂无翻译', notes: Array.isArray(r?.notes) ? r.notes : [], source: r?.source }
-  } catch (e: any) {
-    aiError.value = e?.message || 'AI 解读失败，请稍后重试'
+  } catch (e) {
+    aiError.value = (e as Error)?.message || 'AI 解读失败，请稍后重试'
   } finally {
     aiLoading.value = false
   }
@@ -171,6 +171,7 @@ async function explain(seg: string) {
 const selectedText = ref('')
 function handleSelection() {
   if (typeof window === 'undefined') return
+  // uni 类型缺 Web Speech/DOM，保留 as any
   const t = (((window as any).getSelection && (window as any).getSelection())?.toString() || '').trim()
   selectedText.value = t.length >= 2 && t.length <= 200 ? t : ''
 }
@@ -196,8 +197,8 @@ async function doLookup() {
   dictResult.value = null
   try {
     dictResult.value = await classicsApi.lookupWord(w)
-  } catch (e: any) {
-    dictError.value = e?.message || '查询失败'
+  } catch (e) {
+    dictError.value = (e as Error)?.message || '查询失败'
   } finally {
     dictLoading.value = false
   }
@@ -211,8 +212,8 @@ async function addBookmark() {
   try {
     await classicsApi.addBookmark(bookId.value, { chapterId: curChapter.value.id, position: Math.round(lastScrollTop) })
     uni.showToast({ title: '已加书签', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '添加失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '添加失败', icon: 'none' })
   } finally {
     bookmarking.value = false
   }
@@ -232,8 +233,8 @@ async function submitNote() {
     await classicsApi.addNote(bookId.value, { chapterId: curChapter.value.id, content: c })
     noteOpen.value = false
     uni.showToast({ title: '笔记已保存', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally {
     noteSubmitting.value = false
   }

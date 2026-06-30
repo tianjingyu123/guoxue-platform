@@ -157,8 +157,8 @@ async function fetchData() {
   error.value = ''
   try {
     bookmarks.value = await classicsApi.bookmarks()
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -206,8 +206,8 @@ async function batchDelete() {
     bookmarks.value = bookmarks.value.filter((bm) => !ids.includes(bm.id))
     exitSelect()
     uni.showToast({ title: '已删除', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
     fetchData()
   }
 }
@@ -216,8 +216,8 @@ async function deleteItem(id: string) {
     await classicsApi.removeBookmark(id)
     bookmarks.value = bookmarks.value.filter((bm) => bm.id !== id)
     uni.showToast({ title: '已删除', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
   }
 }
 function openManageMenu() {

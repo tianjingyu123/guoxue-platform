@@ -181,8 +181,8 @@ async function fetchData() {
     const ctx = await accountApi.afterSaleApplyContext(orderId.value)
     maxAmount.value = ctx.maxAmount
     amount.value = String(ctx.maxAmount)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -267,8 +267,8 @@ async function submit() {
     })
     uni.showToast({ title: '申请已提交', icon: 'success' })
     setTimeout(() => redirectTo('/shop/my-after-sales'), 1200)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提交失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

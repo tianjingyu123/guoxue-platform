@@ -48,7 +48,8 @@ function toggleOpt(k: string) {
   else useDaylightSaving.value = !useDaylightSaving.value
 }
 
-function onDateConfirm(d: any) {
+// 与 date-picker-modal 的 confirm 事件载荷结构一致
+function onDateConfirm(d: { year: number; month: number; day: number; hour: number | null; minute: number | null; isLunar: boolean }) {
   birthDate.value = { year: d.year, month: d.month, day: d.day, hour: d.hour ?? 12, minute: d.minute ?? 0, isLunar: d.isLunar }
 }
 

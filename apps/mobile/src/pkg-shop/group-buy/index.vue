@@ -246,11 +246,12 @@ onMounted(async () => {
     const res = await shopApi.getGroupBuyList()
     groupBuyList.value = res.list
     myGroups.value = res.myList
+    // g 合并自 list/myList 两种结构(仅取 id/endOffsetMs)，保留 any
     ;[...res.list, ...res.myList].forEach((g: any) => {
       endMap[g.id] = Date.now() + g.endOffsetMs
     })
-  } catch (e: any) {
-    error.value = e.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -303,11 +304,12 @@ async function retry() {
     groupBuyList.value = res.list
     myGroups.value = res.myList
     endMapCleanup()
+    // g 合并自 list/myList 两种结构(仅取 id/endOffsetMs)，保留 any
     ;[...res.list, ...res.myList].forEach((g: any) => {
       endMap[g.id] = Date.now() + g.endOffsetMs
     })
-  } catch (e: any) {
-    error.value = e.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

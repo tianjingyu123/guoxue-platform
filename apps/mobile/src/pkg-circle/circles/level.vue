@@ -229,9 +229,9 @@ async function loadAll() {
     me.value = { ...growth.me, nickname: mine?.nickname ?? '我', avatar: mine?.avatar ?? '' }
     badges.value = badgeRes.badges
     checkedToday.value = cal.checkedToday
-  } catch (e: any) {
+  } catch (e) {
     loadError.value = true
-    uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || '加载失败', icon: 'none' })
   } finally {
     isLoading.value = false
   }
@@ -249,8 +249,8 @@ async function doCheckin() {
     }
     checkedToday.value = true
     await loadAll() // 刷新经验/等级
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '签到失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '签到失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

@@ -180,6 +180,7 @@ const statusBarHeight = ref(20)
 const loading = ref(true)
 const error = ref('')
 
+// 模板裸访问大量统计字段，保留 any 避免收敛触发大量报错
 const stats = ref<any>({})
 const rooms = ref<HostLiveRoom[]>([])
 const trend = ref<HostLiveTrend[]>([])
@@ -193,8 +194,8 @@ async function fetchData() {
     stats.value = res.stats
     rooms.value = res.rooms
     trend.value = res.trend
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }

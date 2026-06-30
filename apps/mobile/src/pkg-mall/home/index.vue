@@ -7,14 +7,16 @@ import LiveCard from '@/components/cards/live-card.vue'
 import MarketingZone from '@/components/mall/marketing-zone.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import type { MallQuickEntry, MallBanner, MallLive, MallCategory } from '@/lib/shop-data'
+import type { ProductCardData } from '@/lib/card-utils'
 
 const loading = ref(true)
 const error = ref(false)
-const mallQuickEntries = ref<any[]>([])
-const mallBanners = ref<any[]>([])
-const mallCommerceLives = ref<any[]>([])
-const mallCategories = ref<any[]>([])
-const mallProducts = ref<any[]>([])
+const mallQuickEntries = ref<MallQuickEntry[]>([])
+const mallBanners = ref<MallBanner[]>([])
+const mallCommerceLives = ref<MallLive[]>([])
+const mallCategories = ref<MallCategory[]>([])
+const mallProducts = ref<ProductCardData[]>([])
 const cartCount = ref(0)
 
 const bannerIndex = ref(0)

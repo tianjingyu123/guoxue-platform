@@ -91,6 +91,7 @@ import { track } from '@/composables/useTrack'
 const C = { primary: '#2563eb' }
 const loading = ref(true)
 const error = ref('')
+// 订单详情对象由后端 orderInfo 返回，字段不固定（orderNo/payLabel/amount/payTime 等），保留 any
 const order = ref<any>({})
 const related = ref<EbookRelated[]>([])
 const bookId = ref('1')
@@ -106,21 +107,21 @@ async function fetchData(id: string) {
     order.value = orderData
     track.purchase({ type: 'ebook', bookId: bookId.value, orderId: order.value?.orderNo, amount: order.value?.amount })
     // 取 store 前3本作为相关推荐
-    related.value = (storeData || []).slice(0, 3).map((b: any) => ({
+    related.value = (storeData || []).slice(0, 3).map((b) => ({
       id: b.id,
       title: b.title,
       author: b.author,
       price: b.price,
-      coverColor: (EBOOK_COVER as any)[b.color]?.from || '#3b6fd4',
+      coverColor: EBOOK_COVER[b.color]?.from || '#3b6fd4',
     }))
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((q: any = {}) => { bookId.value = q?.id || '1'; fetchData(bookId.value) })
+onLoad((q = {}) => { bookId.value = q?.id || '1'; fetchData(bookId.value) })
 
 function goReader() {
   uni.redirectTo({ url: `/pkg-ebook/reader/index?id=${bookId.value}` })

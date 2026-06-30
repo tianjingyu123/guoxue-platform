@@ -11,6 +11,7 @@ import { courseApi } from '@/lib/course-data'
 const loading = ref(true)
 const error = ref('')
 
+// 首页聚合数据对象，下方多个 computed 裸取字段，保留 any 避免 null 链式报错
 const homeData = ref<any>(null)
 
 // 通过 computed 保持 template 变量名不变
@@ -39,8 +40,8 @@ async function loadData() {
   try {
     const res = await courseApi.getHome()
     homeData.value = res
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

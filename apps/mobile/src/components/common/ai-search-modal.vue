@@ -108,8 +108,8 @@ async function handleSearch() {
   try {
     const res = await aiSearchApi.query(q)
     response.value = res.answer || '未获取到回答，请换个问法试试'
-  } catch (e: any) {
-    response.value = e?.message || 'AI 搜索失败，请稍后重试'
+  } catch (e) {
+    response.value = (e as Error)?.message || 'AI 搜索失败，请稍后重试'
   } finally {
     isSearching.value = false
   }

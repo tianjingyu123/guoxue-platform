@@ -72,8 +72,8 @@ async function fetchData() {
     ])
     balance.value = { coin: wallet.balance, points: wallet.points, frozen: 0 }
     allRecords.value = records
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

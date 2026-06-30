@@ -322,12 +322,12 @@ onShareTimeline(() => toTimeline({
 }))
 
 // ===== 触摸滑动 =====
-function onTouchStart(e: any) {
+function onTouchStart(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   if (showComments.value || showProducts.value || showCart.value) return
   touchStartY = e.touches[0].clientY
   touchCurrentY = e.touches[0].clientY
 }
-function onTouchMove(e: any) {
+function onTouchMove(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   if (showComments.value || showProducts.value || showCart.value || isTransitioning.value) return
   touchCurrentY = e.touches[0].clientY
   const diff = touchStartY - touchCurrentY
@@ -365,7 +365,7 @@ function onTouchEnd() {
 }
 
 // ===== 单击暂停 / 双击点赞 =====
-function onSingleTap(e: any) {
+function onSingleTap(e: { changedTouches?: Array<{ clientX?: number; clientY?: number }>; detail?: { clientX?: number; clientY?: number } }) {
   const now = Date.now()
   if (now - lastTapTime < 280) {
     // 双击

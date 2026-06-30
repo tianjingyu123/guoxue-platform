@@ -133,8 +133,8 @@ async function load(id?: string) {
   errMsg.value = ''
   try {
     event.value = await instituteApi.getEvent(id)
-  } catch (e: any) {
-    errMsg.value = e?.message || '加载失败'
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '加载失败'
     event.value = null
   } finally {
     loading.value = false

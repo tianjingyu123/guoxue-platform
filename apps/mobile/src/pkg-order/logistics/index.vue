@@ -94,6 +94,7 @@ import { orderApi, logisticsStatusMap } from '@/lib/order-data'
 
 const loading = ref(true)
 const error = ref('')
+// 物流详情对象，模板 v-else 内裸访问多字段，收敛会触发大量 possibly-null，保留 any
 const data = ref<any>(null)
 const orderId = ref('')
 
@@ -102,8 +103,8 @@ async function loadData() {
   error.value = ''
   try {
     data.value = await orderApi.logistics(orderId.value)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -114,7 +115,7 @@ const statusMeta = computed(
   () => logisticsStatusMap[data.value?.status] || { label: '运输中', color: '#C41E3A' },
 )
 
-onLoad((q: any) => {
+onLoad((q) => {
   orderId.value = q?.orderId || q?.id || ''
 })
 onMounted(() => { loadData() })

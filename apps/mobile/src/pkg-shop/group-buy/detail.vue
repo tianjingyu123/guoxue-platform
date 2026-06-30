@@ -173,8 +173,8 @@ onMounted(async () => {
     groups.value.forEach((g) => {
       endMap[g.id] = Date.now() + g.endOffsetMs
     })
-  } catch (e: any) {
-    error.value = e.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -196,8 +196,8 @@ async function join(groupId: string) {
   try {
     const res = await shopApi.joinGroupBuy(pageId, groupId)
     redirectTo(`/shop/paying?orderId=${res.orderId}&method=wechat&amount=${res.amount}`)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '参团失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '参团失败', icon: 'none' })
     joiningId.value = null
   }
 }
@@ -208,8 +208,8 @@ async function create() {
   try {
     const res = await shopApi.joinGroupBuy(pageId)
     redirectTo(`/shop/paying?orderId=${res.orderId}&method=wechat&amount=${res.amount}`)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '开团失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '开团失败', icon: 'none' })
     joiningId.value = null
   }
 }
@@ -224,8 +224,8 @@ async function retryLoad() {
     groups.value.forEach((g) => {
       endMap[g.id] = Date.now() + g.endOffsetMs
     })
-  } catch (e: any) {
-    error.value = e.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

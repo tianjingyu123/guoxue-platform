@@ -80,7 +80,7 @@ function retry() { loadData() }
 // ─── 音频播放器（跨端；后端暂无音频，逻辑保留兼容将来） ───
 const isPlaying = ref(false)
 const currentTime = ref(0)
-let audioCtx: any = null
+let audioCtx: any = null // uni InnerAudioContext 类型，保守保留 any
 function fmtDuration(sec: number) {
   const m = Math.floor(sec / 60)
   const s = sec % 60

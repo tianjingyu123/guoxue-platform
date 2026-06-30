@@ -365,6 +365,7 @@ const loading = ref(true)
 const error = ref('')
 const analyticsId = ref('1')
 
+// 以下分析数据模板裸访问大量字段，保留 any 避免收敛触发大量报错
 const liveInfo = ref<any>({ title: '', startTime: '', duration: '' })
 const coreStats = ref<any[]>([])
 const trafficData = ref<any[]>([])
@@ -405,8 +406,8 @@ async function fetchData() {
     replay.value = res.replay
     replayPublic.value = res.replay?.isPublic ?? false
     replayPaid.value = res.replay?.isPaid ?? false
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -414,7 +415,7 @@ async function fetchData() {
 
 const maxTraffic = computed(() => {
   if (trafficData.value.length === 0) return 0
-  return Math.max(...trafficData.value.map((d: any) => d.value))
+  return Math.max(...trafficData.value.map((d) => d.value))
 })
 
 const axisTicks = computed(() => {
@@ -450,7 +451,7 @@ function goBack() {
   uni.navigateBack()
 }
 
-onLoad((options: any) => {
+onLoad((options) => {
   if (options?.id) analyticsId.value = String(options.id)
   fetchData()
 })

@@ -105,6 +105,7 @@ async function fetchRecommends() {
   loadingRecommend.value = true
   try {
     const data = await shopApi.getMallHome()
+    // p 为 getMallHome 商品(字段名 title/name、cover/image 不定)，映射为推荐卡，保留 any
     recommends.value = (data.products || []).slice(0, 2).map((p: any) => ({
       id: String(p.id),
       name: p.title || p.name || '',

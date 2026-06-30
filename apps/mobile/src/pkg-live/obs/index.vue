@@ -344,8 +344,8 @@ async function fetchData() {
     stream.value = { ...data, status: data.status as 'online' | 'offline' | 'connecting' }
     streamStatus.value = data.status as 'online' | 'offline' | 'connecting'
     duration.value = data.duration
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }

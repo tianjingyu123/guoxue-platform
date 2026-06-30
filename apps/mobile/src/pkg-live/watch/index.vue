@@ -295,6 +295,7 @@ const statusBarHeight = ref(0)
 // ===== 直播间数据 =====
 const loading = ref(true)
 const error = ref('')
+// 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
 const room = ref<any>({ ...liveWatchRoom })
 const comments = ref<VerticalLiveComment[]>([])
 const products = ref<VerticalLiveProduct[]>([])
@@ -313,8 +314,8 @@ async function fetchRoomData(roomId: string) {
     room.value = { ...liveWatchRoom, ...data.room }
     comments.value = data.comments
     products.value = data.products
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }

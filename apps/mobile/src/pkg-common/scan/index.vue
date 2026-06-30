@@ -163,6 +163,7 @@ type ScanResultType =
 
 interface ScanResult {
   type: ScanResultType
+  // data 为按 type 区分的动态二维码载荷（好友/群聊/课程等字段各异），保留 any
   data: Record<string, any>
   action?: { label: string; url?: string; handler?: string }
 }
@@ -263,7 +264,7 @@ function goHome() {
 
 onMounted(() => {
   const pages = getCurrentPages()
-  const cur: any = pages[pages.length - 1]
+  const cur = pages[pages.length - 1] as unknown as { options?: Record<string, string> }
   const opts = cur?.options || {}
   // 接 ?content=/?data= query（入口 offline/checkin 等扫码场景会传），与原型一致：无 content 即 error 态
   const raw = opts.content || opts.data || ''

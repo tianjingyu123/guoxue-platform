@@ -263,8 +263,9 @@ const safeBottom = ref(0)
 
 const loading = ref(true)
 const error = ref('')
+// 商品详情：null 初值 + 模板 v-else-if 块裸访问 product.images/specs/skus 等，收敛触发大量 possibly-null，保留 any
 const product = ref<any>(null)
-const reviews = ref<any[]>([])
+const reviews = ref<any[]>([]) // 评价预览：本页未导入 ShopProductReview，模板裸访问，保留 any
 const productId = ref('1')
 
 const currentImage = ref(0)
@@ -301,8 +302,8 @@ async function fetchProductData() {
     product.value = result.product
     reviews.value = result.reviews || []
     selectedSku.value = product.value?.skus?.[0] || null
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -324,7 +325,7 @@ onLoad(async (q) => {
   }
 })
 
-function onSwiperChange(e: any) {
+function onSwiperChange(e: { detail: { current: number } }) {
   currentImage.value = e.detail.current
 }
 function toggleFavorite() {

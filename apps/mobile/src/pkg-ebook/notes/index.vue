@@ -158,8 +158,8 @@ async function fetchData() {
   error.value = ''
   try {
     items.value = await ebookApi.notes()
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -193,8 +193,8 @@ async function del(id: string) {
     await ebookApi.removeNote(id)
     items.value = items.value.filter((n) => n.id !== id)
     uni.showToast({ title: '已删除', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
   } finally {
     deletingId.value = ''
   }

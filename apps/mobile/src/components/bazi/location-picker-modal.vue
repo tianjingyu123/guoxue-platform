@@ -54,7 +54,7 @@ watch(() => props.open, (v) => { if (v) initFromProps() })
 watch(region, () => { pIdx.value = 0; cIdx.value = 0; dIdx.value = 0 })
 
 const pvValue = computed(() => [pIdx.value, cIdx.value, dIdx.value])
-function onChange(e: any) {
+function onChange(e: { detail: { value: number[] } }) {
   const [p, c, d] = e.detail.value
   if (p !== pIdx.value) { pIdx.value = p; cIdx.value = 0; dIdx.value = 0 }
   else if (c !== cIdx.value) { cIdx.value = c; dIdx.value = 0 }

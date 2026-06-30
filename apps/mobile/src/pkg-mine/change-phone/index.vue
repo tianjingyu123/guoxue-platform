@@ -30,8 +30,8 @@ async function fetchProfile() {
     const profile = await mineApi.getProfile()
     currentPhone.value = profile.phone
     phoneFull.value = profile.phoneFull
-  } catch (e: any) {
-    profileError.value = e?.message || '加载失败'
+  } catch (e) {
+    profileError.value = (e as Error)?.message || '加载失败'
   } finally {
     profileLoading.value = false
   }
@@ -53,8 +53,8 @@ async function sendVerifyCode() {
   if (countdown.value > 0 || !phoneFull.value) return
   try {
     await mineApi.sendPhoneCode(phoneFull.value, 'change-phone-old')
-  } catch (e: any) {
-    error.value = e?.message || '验证码发送失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '验证码发送失败'
     return
   }
   countdown.value = 60
@@ -68,8 +68,8 @@ async function sendNewCode() {
   if (newCountdown.value > 0 || newPhone.value.length !== 11) return
   try {
     await mineApi.sendPhoneCode(newPhone.value, 'change-phone-new')
-  } catch (e: any) {
-    error.value = e?.message || '验证码发送失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '验证码发送失败'
     return
   }
   newCountdown.value = 60
@@ -78,15 +78,15 @@ async function sendNewCode() {
     if (newCountdown.value <= 0 && timer2) clearInterval(timer2)
   }, 1000)
 }
-function onVerifyInput(e: any) {
+function onVerifyInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   verifyCode.value = e.detail.value.replace(/\D/g, '')
   error.value = ''
 }
-function onNewPhoneInput(e: any) {
+function onNewPhoneInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   newPhone.value = e.detail.value.replace(/\D/g, '')
   error.value = ''
 }
-function onNewCodeInput(e: any) {
+function onNewCodeInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   newCode.value = e.detail.value.replace(/\D/g, '')
   error.value = ''
 }
@@ -116,8 +116,8 @@ async function submitNewPhone() {
     await mineApi.changePhone(verifyCode.value, newPhone.value, newCode.value)
     step.value = 3
     setTimeout(() => goBack(), 2000)
-  } catch (e: any) {
-    error.value = e?.message || '绑定失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '绑定失败'
   } finally {
     loading.value = false
   }

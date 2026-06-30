@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { pointsApi } from '@/lib/points-data'
+import { pointsApi, type PointsHistoryItem } from '@/lib/points-data'
 
 const info = ref({ balance: 0, totalEarned: 0, totalSpent: 0, todayEarned: 0 })
-const historyItems = ref<any[]>([])
+const historyItems = ref<PointsHistoryItem[]>([])
 const loading = ref(true)
 const error = ref('')
 const activeTab = ref<'all' | 'earn' | 'spend'>('all')
@@ -29,8 +29,8 @@ async function fetchData() {
     ])
     info.value = pointsInfo
     historyItems.value = history
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

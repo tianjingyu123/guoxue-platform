@@ -195,19 +195,19 @@ const canRegister = computed(
   () => password.value.length >= 6 && password.value === confirmPassword.value && !!nickname.value && agreed.value,
 )
 
-function onPhoneInput(e: any) {
+function onPhoneInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   phone.value = String(e.detail.value).replace(/\D/g, '').slice(0, 11)
 }
-function onCodeInput(e: any) {
+function onCodeInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   code.value = String(e.detail.value).replace(/\D/g, '').slice(0, 6)
 }
-function onPasswordInput(e: any) {
+function onPasswordInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   password.value = e.detail.value
 }
-function onConfirmInput(e: any) {
+function onConfirmInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   confirmPassword.value = e.detail.value
 }
-function onNicknameInput(e: any) {
+function onNicknameInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   nickname.value = String(e.detail.value).slice(0, 20)
 }
 
@@ -229,8 +229,8 @@ async function sendCode() {
       if (countdown.value <= 0 && timer) clearInterval(timer)
     }, 1000)
     if (step.value === 'phone') step.value = 'verify'
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '发送失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '发送失败', icon: 'none' })
   }
 }
 
@@ -258,8 +258,8 @@ async function handleRegister() {
     } else {
       uni.showToast({ title: res.message || '注册失败', icon: 'none' })
     }
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '注册失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '注册失败', icon: 'none' })
   } finally {
     isLoading.value = false
   }

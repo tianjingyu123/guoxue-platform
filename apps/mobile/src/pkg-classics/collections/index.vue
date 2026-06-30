@@ -125,8 +125,8 @@ async function fetchData() {
   error.value = ''
   try {
     collections.value = await classicsApi.collections()
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -150,8 +150,8 @@ async function removeItem(id: string) {
     await classicsApi.removeFavorite(id)
     collections.value = collections.value.filter((i) => i.id !== id)
     uni.showToast({ title: '已取消收藏', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   }
 }
 function openItem(item: CollectionItem) {

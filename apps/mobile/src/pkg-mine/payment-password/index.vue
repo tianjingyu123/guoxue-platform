@@ -55,7 +55,7 @@ const activePin = computed({
   },
 })
 
-function onPinInput(e: any) {
+function onPinInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   activePin.value = e.detail.value
 }
 
@@ -76,8 +76,8 @@ async function handleSendCode() {
     await mineApi.sendPhoneCode(phone.value, 'RESET_PAY_PWD')
     startCountdown()
     error.value = ''
-  } catch (e: any) {
-    error.value = e?.message || '验证码发送失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '验证码发送失败'
   }
 }
 function handleForget() {
@@ -142,10 +142,10 @@ watch([oldPin, newPin, confirmPin], () => {
   else if (step.value === 'confirm_new' && confirmPin.value.length === 6) advance()
 })
 
-function onPhoneInput(e: any) {
+function onPhoneInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   phone.value = e.detail.value.replace(/\D/g, '').slice(0, 11)
 }
-function onSmsInput(e: any) {
+function onSmsInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   smsCode.value = e.detail.value.replace(/\D/g, '').slice(0, 6)
 }
 
@@ -155,8 +155,8 @@ onMounted(async () => {
     mode.value = profile.paymentPasswordSet ? 'change' : 'set'
     phoneFull.value = profile.phoneFull || ''
     step.value = mode.value === 'set' ? 'enter_new' : 'enter_old'
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
     step.value = 'enter_old'
   } finally {
     pageLoading.value = false

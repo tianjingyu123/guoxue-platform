@@ -10,7 +10,9 @@ const loading = ref(true)
 const error = ref('')
 const courseId = ref('')
 
+// 课程进度详情对象，模板 v-else 裸访问字段，保留 any 避免 null 链式报错
 const course = ref<any>(null)
+// 章节列表，模板裸访问 lessons 等字段，保留 any
 const chapters = ref<any[]>([])
 
 const isRefreshing = ref(false)
@@ -35,8 +37,8 @@ async function loadData() {
     ])
     course.value = progress
     chapters.value = progressChapters
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -47,7 +49,7 @@ function onRefresh() {
   loadData().finally(() => { isRefreshing.value = false })
 }
 
-onLoad((options: any) => {
+onLoad((options) => {
   courseId.value = options?.id || '1'
 })
 

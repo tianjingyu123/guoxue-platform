@@ -306,6 +306,7 @@ const showCircleSelect = ref(false)
 const showTopicSelect = ref(false)
 const showAIPanel = ref<'polish' | 'title' | 'tags' | 'cover' | null>(null)
 const aiLoading = ref(false)
+// AI 返回结构不定（润色/标题/标签/封面各异），保守保留 any
 const aiResult = ref<any>(null)
 const coverPrompt = ref('')
 const saving = ref(false)
@@ -317,7 +318,7 @@ const aiPanelTitle = computed(() => {
   return showAIPanel.value ? m[showAIPanel.value] : ''
 })
 
-onLoad((opts: any) => {
+onLoad((opts) => {
   if (opts?.circleId) selectedCircle.value = opts.circleId
 })
 
@@ -364,6 +365,7 @@ function insertFormat(format: 'bold' | 'italic' | 'quote') {
 function handleImageUpload() {
   uni.chooseImage({
     count: Math.max(1, 9 - images.value.length),
+    // uni.chooseImage 成功回调类型由 SDK 重载约束，保留 any
     success: (res: any) => {
       const paths: string[] = res.tempFilePaths || []
       images.value.push(...paths)
@@ -397,8 +399,8 @@ async function handleAIPolish() {
   try {
     const res = await publishAssistApi.polish(content.value)
     aiResult.value = { polished: res.polished }
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '润色失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '润色失败', icon: 'none' })
     showAIPanel.value = null
   } finally { aiLoading.value = false }
 }
@@ -409,8 +411,8 @@ async function handleAITitle() {
   try {
     const res = await publishAssistApi.optimizeTitle(base)
     aiResult.value = { titles: res.titles }
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '生成失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '生成失败', icon: 'none' })
     showAIPanel.value = null
   } finally { aiLoading.value = false }
 }
@@ -420,8 +422,8 @@ async function handleAITags() {
   try {
     const res = await publishAssistApi.suggestTags(content.value)
     aiResult.value = { tags: res.tags }
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '推荐失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '推荐失败', icon: 'none' })
     showAIPanel.value = null
   } finally { aiLoading.value = false }
 }
@@ -431,8 +433,8 @@ async function handleAICover() {
   try {
     const res = await publishAssistApi.generateCover(coverPrompt.value)
     aiResult.value = res
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '生成失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '生成失败', icon: 'none' })
   } finally { aiLoading.value = false }
 }
 
@@ -474,8 +476,8 @@ async function handleSaveDraft() {
       })
     }
     uni.showToast({ title: '草稿已保存', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally { saving.value = false }
 }
 
@@ -502,8 +504,8 @@ async function handlePublish() {
     }
     uni.showToast({ title: '发布成功', icon: 'success' })
     setTimeout(() => navigateBack(), 600)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '发布失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '发布失败', icon: 'none' })
   } finally { publishing.value = false }
 }
 </script>

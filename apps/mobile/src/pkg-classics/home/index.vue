@@ -7,8 +7,8 @@ import { classicsApi, _mockFilterTypes, fmtReads, type CategoryTile, type BookLi
 // 从 API 获取的数据
 const libraryStats = ref<{ value: string; label: string }[]>([])
 const categories = ref<CategoryTile[]>([])
-const todayFeature = ref<any>(null)
-const lastReading = ref<any>(null)
+const todayFeature = ref<any>(null) // 今日推荐详情对象结构随后端，保留 any
+const lastReading = ref<any>(null) // 最近阅读详情对象结构随后端，保留 any
 const weeklyMinutes = ref(0)
 const bookLists = ref<BookListItem[]>([])
 const rankingData = ref<RankItem[]>([])
@@ -34,8 +34,8 @@ async function fetchData() {
     rankingData.value = data.rankingData
     audioBooks.value = data.audioBooks
     featuredBooks.value = data.featuredBooks
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

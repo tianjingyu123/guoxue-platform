@@ -3,7 +3,7 @@ import { onLaunch, onShow, onHide, onError } from '@dcloudio/uni-app'
 import { track } from '@/composables/useTrack'
 
 /** 从跳转参数中取出页面路径（去 query），用于全局 page_view 埋点 */
-function pickUrl(args: any): string {
+function pickUrl(args: string | { url?: string }): string {
   const url = typeof args === 'string' ? args : args?.url
   return url ? String(url).split('?')[0] : ''
 }
@@ -12,7 +12,7 @@ onLaunch(() => {
   // 全局路由埋点：拦截四类跳转，统一上报 page_view（一处接入、全局覆盖，无需逐页改）
   ;['navigateTo', 'redirectTo', 'reLaunch', 'switchTab'].forEach((api) => {
     uni.addInterceptor(api, {
-      invoke(args: any) {
+      invoke(args: { url?: string }) {
         // 埋点拦截器自身异常绝不能影响跳转放行
         try {
           const path = pickUrl(args)

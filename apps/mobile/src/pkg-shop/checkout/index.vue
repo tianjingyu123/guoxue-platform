@@ -152,10 +152,10 @@ import { shopApi, formatCountdown, type ShippingAddress, type CheckoutCoupon } f
 
 const loading = ref(true)
 const error = ref('')
-const items = ref<any[]>([])
-const addresses = ref<any[]>([])
-const coupons = ref<any[]>([])
-const payMethods = ref<any[]>([])
+const items = ref<any[]>([]) // 结算商品(含 productId/skuId)：后端聚合结构无独立 interface，保留 any
+const addresses = ref<ShippingAddress[]>([])
+const coupons = ref<CheckoutCoupon[]>([])
+const payMethods = ref<any[]>([]) // 支付方式(badge/badgeColor)：无导出 interface，保留 any
 const currentAddress = ref<ShippingAddress | null>(null)
 const selectedCoupon = ref<CheckoutCoupon | null>(null)
 const payMethod = ref('wechat')
@@ -181,17 +181,17 @@ async function fetchCheckoutData() {
     payMethods.value = result.payMethods || []
     currentAddress.value = addresses.value.find((a: ShippingAddress) => a.isDefault) || addresses.value[0] || null
     if (!items.value.length) error.value = '没有可结算的商品，请返回重新选择'
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((q: any) => {
+onLoad((q) => {
   source.value = {
-    productId: q?.productId || undefined,
-    skuId: q?.skuId || undefined,
+    productId: (q?.productId as string) || undefined,
+    skuId: (q?.skuId as string) || undefined,
     quantity: q?.quantity ? Number(q.quantity) : undefined,
     itemIds: q?.items ? String(q.items).split(',').filter(Boolean) : undefined,
   }
@@ -245,8 +245,8 @@ async function submitOrder() {
     }
     redirectTo(`/shop/paying?orderId=${first.id}&method=${payMethod.value}&amount=${first.amount}`)
     // 成功跳转后不重置 submitting（页面已离开）
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '下单失败，请重试', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
     submitting.value = false
   }
 }

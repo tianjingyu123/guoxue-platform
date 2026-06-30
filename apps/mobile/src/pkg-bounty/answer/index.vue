@@ -173,7 +173,7 @@ function addImage() {
   }
   uni.chooseImage({
     count: 9 - images.value.length,
-    success: (res: any) => {
+    success: (res) => {
       const paths = res.tempFilePaths || []
       images.value = [...images.value, ...paths].slice(0, 9)
       error.value = ''
@@ -219,7 +219,7 @@ function goBack() {
 
 try {
   const pages = getCurrentPages()
-  const cur: any = pages[pages.length - 1]
+  const cur = pages[pages.length - 1] as unknown as { options?: Record<string, string>; $page?: { options?: Record<string, string> } }
   const opts = cur?.options || cur?.$page?.options || {}
   bountyId.value = opts.id || '1'
 } catch (e) {

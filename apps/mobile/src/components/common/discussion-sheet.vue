@@ -17,8 +17,8 @@
         :enable-a-i-assist="enableAIAssist"
         :controlled="controlled"
         class="ds-panel"
-        @submit-comment="(p: any) => emit('submit-comment', p)"
-        @like-comment="(id: any) => emit('like-comment', id)"
+        @submit-comment="(p) => emit('submit-comment', p)"
+        @like-comment="(id) => emit('like-comment', id)"
       />
     </view>
   </view>

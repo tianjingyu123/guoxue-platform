@@ -186,8 +186,8 @@ async function fetchData() {
   error.value = ''
   try {
     allFavorites.value = await mineApi.getFavorites()
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     isLoading.value = false
   }
@@ -218,8 +218,8 @@ async function handleRefresh() {
   try {
     allFavorites.value = await mineApi.getFavorites()
     uni.showToast({ title: '已刷新', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '刷新失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '刷新失败', icon: 'none' })
   } finally {
     isRefreshing.value = false
   }
@@ -249,8 +249,8 @@ async function removeByIds(ids: string[]) {
     selectedIds.value = []
     isEditMode.value = false
     uni.showToast({ title: `已取消${targets.length}个收藏`, icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

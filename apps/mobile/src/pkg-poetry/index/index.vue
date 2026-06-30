@@ -209,8 +209,8 @@ async function fetchData() {
     poems.value = data.poems
     poets.value = data.poets
     todayLikeCount.value = data.todayPoem.likes
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -273,8 +273,8 @@ async function onTodayLike() {
     const r = await poetryApi.toggleLike(todayPoem.value.id)
     todayLiked.value = r.liked
     todayLikeCount.value = r.likes
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     todayLiking.value = false
   }
@@ -286,8 +286,8 @@ async function onTodayCollect() {
   try {
     const r = await poetryApi.toggleCollect(todayPoem.value.id)
     todayBookmarked.value = r.collected
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     todayCollecting.value = false
   }

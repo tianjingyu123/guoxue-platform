@@ -129,18 +129,31 @@ const activity = {
 
 const showRules = ref(false)
 const countdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
-let cdTimer: any = null
+let cdTimer: ReturnType<typeof setInterval> | null = null
+
+// 秒杀活动商品项的本地类型定义
+interface ActivityItem {
+  id: number
+  productId: number
+  title: string
+  originalPrice: number
+  salePrice: number
+  soldCount: number
+  totalStock: number
+  limitPerUser: number
+  status: string
+}
 
 function pad(n: number) {
   return String(n).padStart(2, '0')
 }
-function progress(item: any) {
+function progress(item: ActivityItem) {
   return Math.round((item.soldCount / item.totalStock) * 100)
 }
-function buyText(item: any) {
+function buyText(item: ActivityItem) {
   return item.status === 'sold_out' ? '已抢光' : item.status === 'ended' ? '已结束' : '立即抢购'
 }
-function onBuy(item: any) {
+function onBuy(item: ActivityItem) {
   if (item.status === 'ongoing') {
     uni.showToast({ title: '抢购成功！', icon: 'success' })
   }

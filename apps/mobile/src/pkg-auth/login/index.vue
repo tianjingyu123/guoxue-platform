@@ -194,15 +194,15 @@ function switchType(t: 'phone' | 'password') {
   loginType.value = t
   error.value = ''
 }
-function onPhoneInput(e: any) {
+function onPhoneInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   phone.value = String(e.detail.value).replace(/\D/g, '').slice(0, 11)
   error.value = ''
 }
-function onCodeInput(e: any) {
+function onCodeInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   code.value = String(e.detail.value).replace(/\D/g, '').slice(0, 6)
   error.value = ''
 }
-function onPasswordInput(e: any) {
+function onPasswordInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   password.value = e.detail.value
   error.value = ''
 }
@@ -223,8 +223,8 @@ async function handleSendCode() {
     } else {
       error.value = res.message || '验证码发送失败'
     }
-  } catch (e: any) {
-    error.value = e?.message || '验证码发送失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '验证码发送失败'
   } finally {
     isSendingCode.value = false
   }
@@ -248,8 +248,8 @@ async function handleLogin() {
     } else {
       error.value = res.message || '登录失败'
     }
-  } catch (e: any) {
-    error.value = e?.message || '登录失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '登录失败'
   } finally {
     isLoading.value = false
   }

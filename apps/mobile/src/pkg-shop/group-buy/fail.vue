@@ -194,8 +194,8 @@ onLoad((q) => {
 onMounted(async () => {
   try {
     info.value = await shopApi.getGroupBuyFail(pageId || 'default')
-  } catch (e: any) {
-    error.value = e.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -226,8 +226,8 @@ async function retryLoad() {
   error.value = ''
   try {
     info.value = await shopApi.getGroupBuyFail(pageId || 'default')
-  } catch (e: any) {
-    error.value = e.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

@@ -22,10 +22,10 @@ async function toggleNotify(key: string) {
   notifySaving.value[key] = true
   try {
     await mineApi.updateNotifySetting(key, next)
-  } catch (e: any) {
+  } catch (e) {
     // 失败回滚，保证开关状态与后端一致
     notifications.value[key] = !next
-    uni.showToast({ title: e?.message || '设置失败', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || '设置失败', icon: 'none' })
   } finally {
     notifySaving.value[key] = false
   }
@@ -38,8 +38,8 @@ async function fetchData() {
     const data = await mineApi.getNotifySettings()
     notifyItems.value = data
     notifications.value = Object.fromEntries(data.map((i) => [i.key, i.value]))
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

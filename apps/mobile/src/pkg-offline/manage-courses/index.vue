@@ -155,8 +155,8 @@ async function load() {
     ])
     courses.value = cs
     teachers.value = ts
-  } catch (e: any) {
-    errMsg.value = e?.message || '加载失败'
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -167,12 +167,12 @@ function openCreate() {
   form.value = { title: '', intro: '', teacherId: '', price: '', maxStudents: '', date: todayStr.value, startTime: '09:00', endTime: '17:00', location: '' }
   createOpen.value = true
 }
-function onPickTeacher(e: any) {
+function onPickTeacher(e: { detail: { value: number } }) {
   form.value.teacherId = teachers.value[Number(e.detail.value)]?.id || ''
 }
-function onDateChange(e: any) { form.value.date = e.detail.value }
-function onStartChange(e: any) { form.value.startTime = e.detail.value }
-function onEndChange(e: any) { form.value.endTime = e.detail.value }
+function onDateChange(e: { detail: { value: string } }) { form.value.date = e.detail.value }
+function onStartChange(e: { detail: { value: string } }) { form.value.startTime = e.detail.value }
+function onEndChange(e: { detail: { value: string } }) { form.value.endTime = e.detail.value }
 async function submit() {
   if (!canSubmit.value || submitting.value) return
   submitting.value = true
@@ -191,8 +191,8 @@ async function submit() {
     uni.showToast({ title: '已创建，待审核', icon: 'success' })
     createOpen.value = false
     await load()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '创建失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '创建失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

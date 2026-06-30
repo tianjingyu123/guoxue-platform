@@ -108,8 +108,8 @@ async function load() {
   errMsg.value = ''
   try {
     all.value = await instituteApi.getTalentPool()
-  } catch (e: any) {
-    errMsg.value = e?.message || '加载失败'
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

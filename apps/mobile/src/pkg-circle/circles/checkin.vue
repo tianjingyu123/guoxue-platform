@@ -199,9 +199,9 @@ async function loadAll() {
     totalCheckins.value = cal.totalCheckins
     signedDates.value = new Set(cal.days.map((d) => d.date))
     myDays.value = [...cal.days].sort((a, b) => (a.date < b.date ? 1 : -1))
-  } catch (e: any) {
+  } catch (e) {
     loadError.value = true
-    uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || '加载失败', icon: 'none' })
   } finally {
     isLoading.value = false
   }
@@ -220,8 +220,8 @@ async function doCheckin() {
       showSuccess.value = true
     }
     await loadAll()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '签到失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '签到失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

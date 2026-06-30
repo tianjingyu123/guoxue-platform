@@ -22,7 +22,7 @@ const userInput = reactive({
   city: '',
 })
 
-// 紫微结果——从 API 实时计算
+// 紫微结果——从 API 实时计算（命盘结果为复杂嵌套结构，字段众多且未定型，保留 any）
 const ziweiResult = ref<any>(null)
 
 async function calcPaipan() {
@@ -39,8 +39,8 @@ async function calcPaipan() {
       minute: userInput.minute,
       city: userInput.city || undefined,
     })
-  } catch (e: any) {
-    loadError.value = e?.message || '排盘计算失败'
+  } catch (e) {
+    loadError.value = (e as Error)?.message || '排盘计算失败'
     ziweiResult.value = null
   } finally {
     loading.value = false

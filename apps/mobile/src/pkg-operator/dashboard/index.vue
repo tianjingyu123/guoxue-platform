@@ -173,8 +173,8 @@ async function loadData() {
     teamMembers.value = tm
     quotaRecords.value = qr
     inviteLink.value = il
-  } catch (e: any) {
-    const msg = e?.message || ''
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
     // 用户尚未开通运营商：后端抛错（含「不是运营商」等）→ 进入引导态而非错误态
     if (/运营商|不是|未找到/.test(msg)) {
       notOpened.value = true

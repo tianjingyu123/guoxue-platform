@@ -201,14 +201,14 @@ async function loadProduct() {
       categoryId: p.categoryId || '',
       tags: [...(p.tags || [])],
     }
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((opts: any) => {
+onLoad((opts) => {
   if (opts?.id) {
     productId.value = String(opts.id)
     loadProduct()
@@ -265,8 +265,8 @@ async function onSubmit() {
       uni.showToast({ title: '已提交审核', icon: 'success' })
     }
     setTimeout(() => navigateTo('/merchant/products'), 600)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提交失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

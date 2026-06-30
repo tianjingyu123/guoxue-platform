@@ -18,6 +18,7 @@ const showEditModal = ref(false)
 const showNotes = ref(false)
 const loading = ref(true)
 const error = ref('')
+// 八字排盘结果为复杂嵌套结构，字段众多且未定型，保留 any
 const baziResult = ref<any>(null)
 
 const userInput = reactive({
@@ -40,8 +41,8 @@ async function loadResult(q: Record<string, string> = {}) {
       minute: q.minute ? Number(q.minute) : 31,
     })
     baziResult.value = result
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

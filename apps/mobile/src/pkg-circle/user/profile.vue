@@ -87,8 +87,8 @@ async function loadProfile() {
     } else {
       error.value = res.message || '获取用户信息失败'
     }
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -104,8 +104,8 @@ async function loadPosts() {
     } else {
       postsError.value = res.message || '加载内容失败'
     }
-  } catch (e: any) {
-    postsError.value = e?.message || '加载内容失败，请重试'
+  } catch (e) {
+    postsError.value = (e as Error)?.message || '加载内容失败，请重试'
   } finally {
     postsLoading.value = false
   }

@@ -142,11 +142,11 @@ import { shopApi, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-d
 
 const loading = ref(true)
 const error = ref('')
-const items = ref<any[]>([])
-const addresses = ref<any[]>([])
-const coupons = ref<any[]>([])
-const payMethods = ref<any[]>([])
-const invoiceOptions = ref<any[]>([])
+const items = ref<any[]>([]) // 结算商品(含 productId/skuId)：后端聚合结构无独立 interface，保留 any
+const addresses = ref<ShippingAddress[]>([])
+const coupons = ref<CheckoutCoupon[]>([])
+const payMethods = ref<any[]>([]) // 支付方式(badge/badgeColor)：无导出 interface，保留 any
+const invoiceOptions = ref<any[]>([]) // 发票选项：lib 内联常量无导出 interface，保留 any
 const currentAddress = ref<ShippingAddress | null>(null)
 const selectedCoupon = ref<CheckoutCoupon | null>(null)
 const payMethod = ref('wechat')
@@ -172,8 +172,8 @@ async function fetchCheckoutData() {
     payMethods.value = result.payMethods || []
     invoiceOptions.value = result.invoiceOptions || []
     currentAddress.value = addresses.value.find((a: ShippingAddress) => a.isDefault) || addresses.value[0] || null
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

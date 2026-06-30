@@ -142,8 +142,9 @@ async function load() {
     const s = await offlineManageApi.getMyStation()
     station.value = s
     if (s) stats.value = await offlineManageApi.getDashboard(s.id)
-  } catch (e: any) {
-    errMsg.value = e?.message?.includes('未登录') ? '请先登录' : (e?.message || '加载失败')
+  } catch (e) {
+    const msg = (e as Error)?.message
+    errMsg.value = msg?.includes('未登录') ? '请先登录' : (msg || '加载失败')
   } finally {
     loading.value = false
   }

@@ -137,8 +137,8 @@ async function saveAnnouncement() {
   try {
     await circleManageApi.saveAnnouncement(circleId.value, announcement.value)
     uni.showToast({ title: '保存成功', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally {
     savingAnnouncement.value = false
   }
@@ -155,8 +155,8 @@ async function setRole(userId: string, role: 'ADMIN' | 'MEMBER') {
     const m = members.value.find((x) => x.userId === userId)
     if (m) { m.role = role === 'ADMIN' ? 'admin' : 'member'; m.rawRole = role }
     uni.showToast({ title: '操作成功', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     actingMemberId.value = null
     showConfirm.value = null
@@ -171,8 +171,8 @@ async function removeMember(userId: string) {
     await circleManageApi.removeMember(circleId.value, userId)
     members.value = members.value.filter((x) => x.userId !== userId)
     uni.showToast({ title: '已移出', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '移除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '移除失败', icon: 'none' })
   } finally {
     actingMemberId.value = null
     showConfirm.value = null
@@ -190,9 +190,9 @@ async function toggleTop(p: ManagePost) {
     const res = await circleManageApi.toggleTop(circleId.value, p.id)
     if (res && typeof res.isTop === 'boolean') p.isPinned = res.isTop
     uni.showToast({ title: p.isPinned ? '已置顶' : '已取消置顶', icon: 'none' })
-  } catch (e: any) {
+  } catch (e) {
     p.isPinned = prev
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     actingPostId.value = null
   }
@@ -207,9 +207,9 @@ async function toggleEssence(p: ManagePost) {
     const res = await circleManageApi.toggleEssence(circleId.value, p.id)
     if (res && typeof res.isEssence === 'boolean') p.isEssence = res.isEssence
     uni.showToast({ title: p.isEssence ? '已设精华' : '已取消精华', icon: 'none' })
-  } catch (e: any) {
+  } catch (e) {
     p.isEssence = prev
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     actingPostId.value = null
   }
@@ -222,8 +222,8 @@ async function deletePost(postId: string) {
     await circleManageApi.deletePost(circleId.value, postId)
     posts.value = posts.value.filter((x) => x.id !== postId)
     uni.showToast({ title: '已删除', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
   } finally {
     actingPostId.value = null
     showConfirm.value = null
@@ -262,8 +262,8 @@ async function saveSettings() {
     await circleManageApi.saveSettings(circleId.value, { name: settings.name, intro: settings.intro, needApproval: settings.needApproval })
     if (overview.value) { overview.value.name = settings.name; overview.value.intro = settings.intro; overview.value.needApproval = settings.needApproval }
     uni.showToast({ title: '设置已保存', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally {
     savingSettings.value = false
   }

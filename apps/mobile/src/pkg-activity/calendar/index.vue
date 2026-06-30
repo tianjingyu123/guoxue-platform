@@ -139,10 +139,34 @@ const legendTypes = [
   { type: 'course', color: typeColor.course, label: typeLabel.course },
 ]
 
+// 日历活动单元的本地类型定义
+interface CalendarEvent {
+  id: number
+  type: string
+  title: string
+  status: string
+  timeRange: string
+  extra: string
+}
+interface CalendarMarker {
+  date: string
+  hasFlashSale: boolean
+  hasGroupBuy: boolean
+  hasLive: boolean
+  hasCourse: boolean
+  events: CalendarEvent[]
+}
+interface CalendarCell {
+  date: string
+  day: number
+  isCurrentMonth: boolean
+  marker?: CalendarMarker
+}
+
 const now = new Date()
 const currentDate = ref(new Date(now.getFullYear(), now.getMonth(), 1))
 const selectedDate = ref<string | null>(null)
-const selectedEvents = ref<any[]>([])
+const selectedEvents = ref<CalendarEvent[]>([])
 
 const year = computed(() => currentDate.value.getFullYear())
 const month = computed(() => currentDate.value.getMonth() + 1)
@@ -186,7 +210,7 @@ const calendarDays = computed(() => {
   const lastDay = new Date(y, m, 0)
   const daysInMonth = lastDay.getDate()
   const startWeekday = firstDay.getDay()
-  const days: any[] = []
+  const days: CalendarCell[] = []
 
   const prevMonthLastDay = new Date(y, m - 1, 0).getDate()
   for (let i = startWeekday - 1; i >= 0; i--) {
@@ -216,14 +240,14 @@ function changeMonth(delta: number) {
   selectedDate.value = null
   selectedEvents.value = []
 }
-function selectDate(cell: any) {
+function selectDate(cell: CalendarCell) {
   selectedDate.value = cell.date
   selectedEvents.value = cell.marker?.events || []
 }
 function statusText(s: string) {
   return s === 'ongoing' ? '进行中' : s === 'upcoming' ? '即将开始' : '已结束'
 }
-function getEventLink(ev: any) {
+function getEventLink(ev: CalendarEvent) {
   switch (ev.type) {
     case 'flash_sale':
     case 'group_buy':

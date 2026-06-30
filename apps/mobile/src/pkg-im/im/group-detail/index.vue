@@ -17,6 +17,7 @@ const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
 
 const groupId = ref<number>(0)
+// group 为详情对象，模板裸访问多个字段（avatar/name/memberCount/myRole/noticeDetail 等），收敛 any 会触发大量字段/null 报错，保留 any
 const group = ref<any>({})
 const members = ref<GroupMember[]>([])
 const settings = ref<GroupSettings>({} as GroupSettings)
@@ -38,8 +39,8 @@ async function loadData() {
     group.value = detail
     members.value = memberList
     settings.value = groupSettings
-  } catch (e: any) {
-    error.value = e?.message || '加载群详情失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载群详情失败，请重试'
   } finally {
     loading.value = false
   }
@@ -95,11 +96,13 @@ function handleSaveNickname() {
   toast('昵称已更新')
 }
 
+// 绑定到 uni <switch>，vue-tsc 按原生 SVG/switch 事件签名校验，保留 any
 function handleToggleMute(e: any) {
   settings.value.isMuted = e.detail.value
   toast(settings.value.isMuted ? '已开启消息免打扰' : '已开启消息通知')
 }
 
+// 同上，绑定到 uni <switch>，保留 any
 function handleTogglePin(e: any) {
   settings.value.isPinned = e.detail.value
   toast(settings.value.isPinned ? '已置顶' : '已取消置顶')

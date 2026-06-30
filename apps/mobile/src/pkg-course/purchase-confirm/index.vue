@@ -10,7 +10,9 @@ const loading = ref(true)
 const error = ref('')
 const courseId = ref('')
 
+// 课程详情对象，模板 v-else 裸访问字段，保留 any 避免 null 链式报错
 const course = ref<any>(null)
+// 优惠券列表，模板裸访问 type/value 等多字段，保留 any
 const coupons = ref<any[]>([])
 
 const selectedCoupon = ref<string | null>(null)
@@ -39,6 +41,7 @@ function selectCoupon(id: string | null) {
   selectedCoupon.value = id
   showCouponList.value = false
 }
+// 优惠券项结构字段较多且来源为 any 列表，保留 any
 function isCouponAvailable(c: any) {
   return c.isAvailable && c.minAmount <= (course.value?.price ?? 0)
 }
@@ -53,14 +56,14 @@ async function loadData() {
     ])
     course.value = purchaseCourse
     coupons.value = purchaseCoupons
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((options: any) => {
+onLoad((options) => {
   courseId.value = options?.id || '1'
 })
 

@@ -152,8 +152,8 @@ async function load() {
       shopLogo: p.shopLogo || '',
       shopIntro: p.shopIntro || '',
     }
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -184,8 +184,8 @@ async function onSave() {
     })
     profile.value = updated
     uni.showToast({ title: '保存成功', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

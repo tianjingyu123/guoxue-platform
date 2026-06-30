@@ -135,15 +135,15 @@ async function loadData() {
     const items = await orderApi.reviewItems(orderId.value)
     reviewItems.value = items
     forms.splice(0, forms.length, ...items.map(() => ({ rating: 0, tags: [], content: '', images: [] })))
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
 }
 function retry() { loadData() }
 
-onLoad((opts: any) => {
+onLoad((opts) => {
   orderId.value = opts?.id || opts?.orderId || ''
   try {
     safeBottom.value = uni.getSystemInfoSync().safeAreaInsets?.bottom || 0

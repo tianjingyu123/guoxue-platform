@@ -165,8 +165,8 @@ async function load() {
     }
     Object.assign(notify, s.notify)
     Object.assign(privacy, s.privacy)
-  } catch (e: any) {
-    errMsg.value = e?.message || '加载失败'
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -193,8 +193,8 @@ async function handleSave() {
     } else {
       uni.showToast({ title: res.message || '保存失败', icon: 'none' })
     }
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally {
     saving.value = false
   }

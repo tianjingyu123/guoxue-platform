@@ -136,7 +136,9 @@ const loading = ref(true)
 const error = ref('')
 const range = ref('30d')
 const typeFilter = ref('all')
+// 模板裸访问收益统计字段，保留 any 避免收敛触发大量报错
 const stats = ref<any>({ total: 0, reward: 0, goods: 0, trend: 0 })
+// 收益记录列表，元素结构由后端返回，保留 any[]
 const records = ref<any[]>([])
 
 async function fetchData() {
@@ -146,8 +148,8 @@ async function fetchData() {
     const res = await liveApi.getEarnings(range.value)
     stats.value = res.stats
     records.value = res.records
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }

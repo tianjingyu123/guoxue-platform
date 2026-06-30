@@ -30,7 +30,7 @@ async function loadData() {
     tasks.value = t
     history.value = h
     exchangeItems.value = ex
-  } catch (e: any) { error.value = e?.message || '加载失败' }
+  } catch (e) { error.value = (e as Error)?.message || '加载失败' }
   finally { loading.value = false }
 }
 onMounted(loadData)
@@ -81,8 +81,8 @@ function confirmExchange() {
     } else {
       uni.showToast({ title: res.message, icon: 'none' })
     }
-  }).catch((e: any) => {
-    uni.showToast({ title: e?.message || '兑换失败', icon: 'none' })
+  }).catch((e) => {
+    uni.showToast({ title: (e as Error)?.message || '兑换失败', icon: 'none' })
   }).finally(() => { exchanging.value = false })
 }
 </script>

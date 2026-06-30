@@ -171,10 +171,12 @@ const isEmpty = ref(false)
 const notOpened = ref(false)
 
 // 各个数据 ref
+// 分站信息对象，模板裸访问多字段，保留 any
 const stationPanelInfo = ref<any>({})
 const stationPanelOverview = ref<StationOverviewItem[]>([])
 const stationOverviewIconMap = ref<Record<string, string>>({})
 const stationPanelTrends = ref<StationTrendData[]>([])
+// 余额对象，模板裸访问多字段，保留 any
 const stationPanelBalance = ref<any>({})
 const stationPanelQuickActions = ref<StationPanelQuickAction[]>([])
 const stationActionIconMap = ref<Record<string, string>>({})
@@ -208,8 +210,8 @@ async function loadData() {
     stationActionIconMap.value = actionIcons || {}
     stationPanelNotices.value = Array.isArray(notices) ? notices : []
     isEmpty.value = !info || Object.keys(info).length === 0
-  } catch (e: any) {
-    const msg = e?.message || ''
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
     // 后端未开通分站时抛错（404/未找到）→ 走友好引导态，不当作错误
     if (msg.includes('开通') || msg.includes('未找到') || msg.includes('不存在')) {
       notOpened.value = true

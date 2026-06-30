@@ -64,13 +64,13 @@ function handleSave() {
   }, 1000)
 }
 
-function onNicknameInput(e: any) {
+function onNicknameInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   form.value.nickname = (e.detail.value || '').slice(0, 20)
 }
-function onBioInput(e: any) {
+function onBioInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   form.value.bio = (e.detail.value || '').slice(0, 100)
 }
-function onBirthdayChange(e: any) {
+function onBirthdayChange(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   form.value.birthday = e.detail.value
 }
 

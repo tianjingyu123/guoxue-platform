@@ -208,8 +208,8 @@ async function load() {
     overview.value = ov
     earnings.value = list.items
     total.value = list.total
-  } catch (e: any) {
-    const msg = e?.message || ''
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
     if (msg.includes('开通分站') || msg.includes('没有开通') || msg.includes('NOT_FOUND')) {
       notOpened.value = true
     } else {
@@ -229,8 +229,8 @@ async function loadMore() {
     earnings.value = [...earnings.value, ...list.items]
     total.value = list.total
     page.value = next
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '加载失败', icon: 'none' })
   } finally {
     loadingMore.value = false
   }

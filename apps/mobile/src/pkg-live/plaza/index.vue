@@ -26,8 +26,8 @@ async function fetchData() {
   error.value = ''
   try {
     list.value = await liveApi.getPlaza(activeTab.value)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }

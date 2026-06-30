@@ -176,7 +176,7 @@ function onImageTap() {
   lastTap = now
 }
 
-function onContainerTouchStart(e: any) {
+function onContainerTouchStart(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   showControls.value = true
   scheduleHide()
   const touches = e.touches || []
@@ -192,7 +192,7 @@ function onContainerTouchStart(e: any) {
   }
 }
 
-function onContainerTouchMove(e: any) {
+function onContainerTouchMove(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   const touches = e.touches || []
   if (touches.length === 1 && isDragging && scale.value > 1) {
     position.value = {
@@ -210,7 +210,7 @@ function onContainerTouchMove(e: any) {
   }
 }
 
-function onContainerTouchEnd(e: any) {
+function onContainerTouchEnd(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   isDragging = false
   // 未缩放时左右滑动切换
   if (scale.value === 1) {
@@ -239,7 +239,7 @@ function onShare() {
 
 onMounted(() => {
   const pages = getCurrentPages()
-  const cur: any = pages[pages.length - 1]
+  const cur = pages[pages.length - 1] as unknown as { options?: Record<string, string> }
   const opts = cur?.options || {}
   const raw = opts.images || ''
   if (raw) {

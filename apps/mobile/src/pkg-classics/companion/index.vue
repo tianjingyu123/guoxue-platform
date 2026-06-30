@@ -219,8 +219,8 @@ async function handleSend() {
       content: r?.answer || '抱歉，我暂时无法回答，请换个角度再问问。',
       disclaimer: r?.disclaimer,
     })
-  } catch (e: any) {
-    messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: e?.message || 'AI 暂时无法回答，请稍后重试。' })
+  } catch (e) {
+    messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: (e as Error)?.message || 'AI 暂时无法回答，请稍后重试。' })
   } finally {
     isLoading.value = false
     scrollToBottom()

@@ -290,8 +290,8 @@ async function fetchData() {
     form.logo = cfg.logo
     form.themeColor = cfg.themeColor
     form.templateId = cfg.templateId
-  } catch (e: any) {
-    const msg = e?.message || ''
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
     if (/没有开通|未开通|NOT_FOUND|404/.test(msg)) notOpened.value = true
     else error.value = msg || '加载失败'
   } finally {
@@ -326,14 +326,15 @@ async function handleSave() {
       templateId: form.templateId,
     })
     uni.showToast({ title: '保存成功', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally {
     saving.value = false
   }
 }
 
 function copyShareLink() {
+  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
   const base = (import.meta as any).env?.VITE_H5_URL || ''
   const link = `${base}/#/pages/index/index?s=${config.value.code}`
   uni.setClipboardData({ data: link, success: () => uni.showToast({ title: '推广链接已复制', icon: 'none' }) })

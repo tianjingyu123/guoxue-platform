@@ -247,13 +247,16 @@ const statusBarHeight = ref(0)
 // 数据状态
 const loading = ref(true)
 const error = ref('')
+// 模板裸访问大量回放字段，保留 any 避免收敛触发大量报错
 const replay = ref<any>({})
 const isPlaying = ref(false)
 const speed = ref(1)
 const activeTab = ref<'chapters' | 'discussion' | 'qa' | 'products'>('chapters')
 const isCollected = ref(false)
+// 当前章节，结构由后端返回，保留 any
 const currentChapter = ref<any>({})
 
+// 标签页配置列表，含动态 count，保留 any[]
 const tabs = ref<any[]>([])
 
 async function fetchData(replayId: string) {
@@ -269,14 +272,14 @@ async function fetchData(replayId: string) {
       { key: 'qa' as const, label: '问答', icon: 'help-circle', count: data.qaList?.length || 0 },
       { key: 'products' as const, label: '商品', icon: 'shopping-bag', count: data.products?.length || 0 },
     ]
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((opts: any) => {
+onLoad((opts) => {
   fetchData(opts?.id || '1')
 })
 </script>

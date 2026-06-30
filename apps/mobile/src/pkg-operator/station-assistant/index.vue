@@ -196,6 +196,7 @@ const statusBarHeight = ref(20)
 const loading = ref(true)
 const error = ref('')
 const isEmpty = ref(false)
+// 助理配置对象，字段动态且模板裸访问，保留 any
 const config = ref<any>({})
 const messages = ref<AssistantMessage[]>([])
 const inputText = ref('')
@@ -223,8 +224,8 @@ async function loadConfig() {
     const res = await stationAssistantApi.getConfig()
     config.value = res || {}
     isEmpty.value = !res || Object.keys(res).length === 0
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -260,7 +261,7 @@ async function send(text?: string) {
       table: reply.table,
       actions: reply.actions,
     })
-  } catch (e: any) {
+  } catch (e) {
     messages.value.push({
       id: 'ai_' + Date.now(),
       role: 'assistant',

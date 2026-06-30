@@ -6,6 +6,7 @@ import SectionTitle from './section-title.vue'
 import ClassicsSection from './classics-section.vue'
 import { wuxingColorClass, wuxingBgClass, getGanZhi, GAN_SHI_SHEN, ZHI_SHI_SHEN } from '@/lib/bazi-constants'
 
+// data 为排盘结果聚合对象（四柱/大运/流年/神煞等多层嵌套，属排盘域算法产物），保留 any 不收敛对外契约
 const props = defineProps<{ data: any }>()
 const emit = defineEmits<{ (e: 'edit'): void }>()
 

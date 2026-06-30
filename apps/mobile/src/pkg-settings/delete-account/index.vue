@@ -141,14 +141,14 @@ const showConfirm = ref(false)
 
 const deleteDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('zh-CN')
 
-let timer: any = null
+let timer: ReturnType<typeof setInterval> | null = null
 function sendCode() {
   if (countdown.value > 0) return
   codeError.value = ''
   countdown.value = 60
   timer = setInterval(() => {
     countdown.value -= 1
-    if (countdown.value <= 0) clearInterval(timer)
+    if (countdown.value <= 0) clearInterval(timer ?? undefined)
   }, 1000)
 }
 

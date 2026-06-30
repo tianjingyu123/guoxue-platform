@@ -5,8 +5,12 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
 
-const seckillItems = ref<any[]>([])
-const groupItems = ref<any[]>([])
+// 秒杀卡片项（由 shopApi.getFlashSale().products 映射而来）
+interface SeckillItem { id: string | number; cover: string; title: string; price: number; originalPrice: number }
+// 拼团卡片项（与 shopApi.getActiveGroupBuys() 返回元素结构一致）
+interface GroupBuyCardItem { id: string; cover: string; title: string; need: number; joined: number; groupPrice: number; originalPrice: number }
+const seckillItems = ref<SeckillItem[]>([])
+const groupItems = ref<GroupBuyCardItem[]>([])
 
 // 秒杀倒计时：到今晚 22:00 结束，过点则顺延到次日
 const h = ref('00')

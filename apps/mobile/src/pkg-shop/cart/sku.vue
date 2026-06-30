@@ -176,8 +176,8 @@ async function changeQty(item: SkuCartItem, delta: number) {
   try {
     await shopApi.updateCartItem(item.id, next)
     await refreshSku()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '更新失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '更新失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -189,8 +189,8 @@ async function removeItem(id: string) {
     await shopApi.removeCartItem(id)
     await refreshSku()
     openId.value = null
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -202,8 +202,8 @@ async function removeSelected() {
     const targets = items.value.filter((i) => i.isValid && i.selected).map((i) => i.id)
     for (const id of targets) await shopApi.removeCartItem(id)
     await refreshSku()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -215,8 +215,8 @@ async function clearInvalid() {
     const targets = items.value.filter((i) => !i.isValid).map((i) => i.id)
     for (const id of targets) await shopApi.removeCartItem(id)
     await refreshSku()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '清除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '清除失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

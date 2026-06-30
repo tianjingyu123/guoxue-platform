@@ -146,8 +146,8 @@ async function fetchData() {
   try {
     const data = await accountApi.afterSales()
     list.value = data || []
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -180,8 +180,8 @@ async function doCancel() {
     )
     cancelId.value = ''
     uni.showToast({ title: '已取消', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '取消失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '取消失败', icon: 'none' })
   } finally {
     cancelling.value = false
   }

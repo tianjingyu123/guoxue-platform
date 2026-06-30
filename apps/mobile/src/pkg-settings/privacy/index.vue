@@ -114,8 +114,8 @@ const otherItems = ref([
   { id: 'recommend', icon: 'eye', title: '个性化推荐', desc: '基于您的兴趣推荐相关内容', value: true },
 ])
 
-function curLabel(sel: any) {
-  return sel.options.find((o: any) => o.value === sel.value)?.label || ''
+function curLabel(sel: { value: string; options: Array<{ label: string; value: string }> }) {
+  return sel.options.find((o) => o.value === sel.value)?.label || ''
 }
 function go(path: string) {
   navigateTo(path)

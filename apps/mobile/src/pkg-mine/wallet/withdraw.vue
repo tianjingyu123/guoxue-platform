@@ -26,7 +26,7 @@ async function loadData() {
     // 预填已存账户
     const savedAlipay = info.value.savedAccounts.find((a) => a.method === 'alipay')
     if (savedAlipay) fillAccount(savedAlipay)
-  } catch (e: any) { error.value = e?.message || '加载失败' }
+  } catch (e) { error.value = (e as Error)?.message || '加载失败' }
   finally { loading.value = false }
 }
 onMounted(loadData)
@@ -138,8 +138,8 @@ async function verifyAndSubmit() {
     } else {
       uni.showToast({ title: res.message, icon: 'none' })
     }
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '提现失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提现失败', icon: 'none' })
   } finally { verifying.value = false }
 }
 

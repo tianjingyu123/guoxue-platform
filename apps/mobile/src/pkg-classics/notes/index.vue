@@ -189,8 +189,8 @@ async function fetchData() {
   error.value = ''
   try {
     notes.value = await classicsApi.notes()
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -242,8 +242,8 @@ async function batchDelete() {
     notes.value = notes.value.filter((note) => !ids.includes(note.id))
     exitSelect()
     uni.showToast({ title: '已删除', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
     fetchData()
   }
 }
@@ -252,8 +252,8 @@ async function deleteItem(id: string) {
     await classicsApi.removeNote(id)
     notes.value = notes.value.filter((note) => note.id !== id)
     uni.showToast({ title: '已删除', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
   }
 }
 function openManageMenu() {
@@ -302,8 +302,8 @@ async function saveEdit() {
     if (n) n.noteContent = c
     editing.value = false
     uni.showToast({ title: '已保存', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally {
     editSubmitting.value = false
   }

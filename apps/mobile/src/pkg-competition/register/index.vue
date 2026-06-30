@@ -143,8 +143,8 @@ async function load() {
     const c = await competitionApi.detail(compId.value)
     if (!c) throw new Error('赛事不存在')
     comp.value = c
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -160,8 +160,8 @@ async function onSubmit() {
     participantNo.value = (reg?.id || '').slice(-8).toUpperCase()
     registrationTime.value = fmtDate(reg?.createdAt) || fmtDate(new Date().toISOString())
     step.value = 2
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '报名失败，请重试', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '报名失败，请重试', icon: 'none' })
   } finally {
     submitting.value = false
   }

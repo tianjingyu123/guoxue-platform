@@ -213,8 +213,8 @@ async function loadList() {
     articles.value = res.items
     total.value = res.total
     hasMore.value = res.items.length >= pageSize
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请稍后重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请稍后重试'
     articles.value = []
     total.value = 0
   } finally {

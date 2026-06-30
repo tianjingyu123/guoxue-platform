@@ -27,8 +27,8 @@ async function fetchProfile() {
     reasons.value = info.reasons
     dataItems.value = info.dataItems
     assets.value = info.assets
-  } catch (e: any) {
-    profileError.value = e?.message || '加载失败'
+  } catch (e) {
+    profileError.value = (e as Error)?.message || '加载失败'
   } finally {
     profileLoading.value = false
   }
@@ -69,10 +69,10 @@ async function doDelete() {
     const reason = selectedReason.value === 'other' ? (otherReason.value || label) : label
     await mineApi.deleteAccount(password.value, reason)
     redirectTo(`/mine/delete-account-result?status=pending&expire=${encodeURIComponent(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())}`)
-  } catch (e: any) {
+  } catch (e) {
     loading.value = false
     showConfirm.value = false
-    uni.showToast({ title: e?.message || '注销失败', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || '注销失败', icon: 'none' })
   }
 }
 </script>

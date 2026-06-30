@@ -192,8 +192,8 @@ async function load() {
     finance.value = fin
     pending.value = pend
     members.value = mem
-  } catch (e: any) {
-    errMsg.value = e?.message?.includes('管理层') ? '仅研究院管理层可访问本页' : (e?.message || '加载失败')
+  } catch (e) {
+    errMsg.value = (e as Error)?.message?.includes('管理层') ? '仅研究院管理层可访问本页' : ((e as Error)?.message || '加载失败')
   } finally {
     loading.value = false
   }
@@ -213,8 +213,8 @@ function onApprove(m: InstituteMember, status: 'ACTIVE' | 'REJECTED') {
         await instituteApi.approveMember(m.id, status)
         uni.showToast({ title: status === 'ACTIVE' ? '已通过' : '已拒绝', icon: 'success' })
         await load()
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
       } finally {
         actioningId.value = ''
       }
@@ -233,8 +233,8 @@ function onAssignRole(m: InstituteMember) {
         await instituteApi.changeRole(m.id, role)
         uni.showToast({ title: '已任命', icon: 'success' })
         await load()
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
       }
     },
   })
@@ -252,8 +252,8 @@ function onRecommend(m: InstituteMember) {
         await instituteApi.recommendTalent(m.id, level)
         uni.showToast({ title: '已设置讲师等级', icon: 'success' })
         await load()
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
       }
     },
   })
@@ -276,7 +276,8 @@ function openGrant() {
   grant.value = { userId: '', type: 'MGMT_BONUS', amount: '', description: '' }
   grantOpen.value = true
 }
-function onPickMember(e: any) {
+// picker selector 的 change 事件：e.detail.value 为选中项索引（number）
+function onPickMember(e: { detail: { value: number } }) {
   const idx = Number(e.detail.value)
   grant.value.userId = members.value[idx]?.userId || ''
 }
@@ -294,8 +295,8 @@ async function doGrant() {
     grantOpen.value = false
     await load()
     activeTab.value = 'finance'
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '发放失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '发放失败', icon: 'none' })
   } finally {
     granting.value = false
   }

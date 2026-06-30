@@ -72,8 +72,8 @@ async function calcLiuyao() {
       input.minute = userInput.value.minute
     }
     result.value = await liuyaoApi.preview(input)
-  } catch (e: any) {
-    loadError.value = e?.message || '排盘计算失败'
+  } catch (e) {
+    loadError.value = (e as Error)?.message || '排盘计算失败'
     result.value = null
   } finally {
     loading.value = false

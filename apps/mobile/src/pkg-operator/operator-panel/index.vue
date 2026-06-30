@@ -198,8 +198,8 @@ async function fetchData() {
     teamRanking.value = rankingRes
     quotaUsage.value = quotaRes
     quickActions.value = actionsRes
-  } catch (e: any) {
-    const msg = e?.message || ''
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
     // 用户不是运营商时后端抛错，展示开通引导态而非错误态
     if (/运营商|不是|未找到/.test(msg)) {
       notOpened.value = true

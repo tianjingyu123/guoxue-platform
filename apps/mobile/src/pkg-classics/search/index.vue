@@ -202,8 +202,8 @@ async function fetchInitData() {
     hotSearchData.value = data.hotSearch
     searchHistory.value = data.history || []
     recommendBooks.value = data.results?.slice(0, 3) || []
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -211,7 +211,7 @@ async function fetchInitData() {
 
 fetchInitData()
 
-async function onInput(e: any) {
+async function onInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   const value = e.detail.value
   searchValue.value = value
   if (value.trim()) {
@@ -238,7 +238,7 @@ async function handleSearch(keyword?: string) {
     const data = await classicsApi.search(kw)
     results.value = data.results
     searchState.value = data.results.length > 0 ? 'results' : 'empty'
-  } catch (e: any) {
+  } catch {
     results.value = []
     searchState.value = 'empty'
   } finally {

@@ -211,8 +211,8 @@ async function load() {
     ])
     station.value = s
     teachers.value = t
-  } catch (e: any) {
-    errMsg.value = e?.message || '加载失败'
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '加载失败'
     station.value = null
   } finally {
     loading.value = false

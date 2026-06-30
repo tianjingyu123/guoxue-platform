@@ -389,8 +389,8 @@ function togglePendant(id: number) {
 function toggleEffect(type: string) {
   effectSettings.value[type] = !effectSettings.value[type]
 }
-function setSlider(key: 'blur' | 'dark', e: any) {
-  // 原型为离散滑块,这里点击切换示意值
+function setSlider(key: 'blur' | 'dark', _e: { detail: { value: number } }) {
+  // 原型为离散滑块,这里点击切换示意值（事件入参 _e 暂未使用）
   const cur = key === 'blur' ? blur : dark
   cur.value = cur.value >= 100 ? 0 : cur.value + 10
 }

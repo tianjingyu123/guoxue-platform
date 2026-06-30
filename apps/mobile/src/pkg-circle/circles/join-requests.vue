@@ -29,9 +29,9 @@ async function loadRequests() {
   loadError.value = false
   try {
     requests.value = await growthApi.joinRequests(circleId.value)
-  } catch (e: any) {
+  } catch (e) {
     loadError.value = true
-    uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || '加载失败', icon: 'none' })
   } finally {
     isLoading.value = false
   }
@@ -72,8 +72,8 @@ async function review(req: JoinRequestItem, action: 'approve' | 'reject') {
     await growthApi.reviewJoinRequest(circleId.value, req.id, action)
     uni.showToast({ title: action === 'approve' ? '已通过' : '已拒绝', icon: 'success' })
     await loadRequests()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
     await loadRequests()
   } finally {
     submittingId.value = null
@@ -107,6 +107,7 @@ async function review(req: JoinRequestItem, action: 'approve' | 'reject') {
       </view>
       <!-- Tab -->
       <view class="jr-tabs">
+        <!-- t.key 是宽 string，switchTab 形参是联合字面量类型，去掉 as any 会报类型不匹配，故保留 -->
         <view v-for="t in [{ key: 'pending', label: '待审批' }, { key: 'processed', label: '已处理' }]" :key="t.key"
           class="jr-tab" :class="{ 'jr-tab-on': filter === t.key }" @tap="switchTab(t.key as any)">
           <text>{{ t.label }}</text>

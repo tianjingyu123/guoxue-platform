@@ -165,8 +165,8 @@ async function loadProfile() {
       bio: me.bio || '',
       interests: Array.isArray(me.interests) ? me.interests.slice(0, 5) : [],
     }
-  } catch (e: any) {
-    loadError.value = e?.message || '加载失败'
+  } catch (e) {
+    loadError.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -176,10 +176,10 @@ function goBack() {
   uni.navigateBack()
 }
 
-function onNicknameInput(e: any) {
+function onNicknameInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   profile.value.nickname = e.detail.value
 }
-function onBioInput(e: any) {
+function onBioInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   profile.value.bio = e.detail.value
 }
 
@@ -204,7 +204,7 @@ function handleChooseAvatar() {
   showAvatarSheet.value = false
   uni.chooseImage({
     count: 1,
-    success: (res: any) => {
+    success: (res) => {
       profile.value.avatar = res.tempFilePaths[0]
     },
   })
@@ -233,8 +233,8 @@ async function handleSave() {
     })
     uni.showToast({ title: '保存成功', icon: 'none' })
     setTimeout(() => uni.navigateBack(), 600)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally {
     saving.value = false
   }

@@ -137,14 +137,14 @@ async function fetchData(id: string) {
   bookId.value = id || '1'
   try {
     book.value = await ebookApi.checkoutInfo(id)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((q: any = {}) => { fetchData(q?.id || '1') })
+onLoad((q = {}) => { fetchData(q?.id || '1') })
 
 const finalPrice = computed(() => book.value.price || 0)
 
@@ -166,9 +166,9 @@ async function handlePay() {
     // 模拟支付：后端 purchase 直接记录已购 → 可读
     await ebookApi.purchase(bookId.value)
     uni.redirectTo({ url: `/pkg-ebook/checkout/success?id=${bookId.value}` })
-  } catch (e: any) {
+  } catch (e) {
     isProcessing.value = false
-    uni.showToast({ title: e?.message || '购买失败', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || '购买失败', icon: 'none' })
   }
 }
 </script>

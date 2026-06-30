@@ -109,8 +109,8 @@ async function load() {
   notOpened.value = false
   try {
     cfg.value = await operatorApi.getStationConfig()
-  } catch (e: any) {
-    const msg = e?.message || ''
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
     if (msg.includes('开通分站') || msg.includes('没有开通') || msg.includes('NOT_FOUND')) {
       notOpened.value = true
     } else {

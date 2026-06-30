@@ -11,6 +11,7 @@ const error = ref('')
 const courseId = ref('')
 
 type FilterKey = 'all' | 'pending' | 'graded'
+// 作业提交列表，模板裸访问 student/status 等字段，保留 any
 const submissions = ref<any[]>([])
 const filter = ref<FilterKey>('all')
 const batchMode = ref(false)
@@ -41,14 +42,14 @@ async function loadData() {
   try {
     const res = await courseApi.getWorkSubmissions(courseId.value)
     submissions.value = res
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((options: any) => {
+onLoad((options) => {
   courseId.value = options?.id || '1'
 })
 

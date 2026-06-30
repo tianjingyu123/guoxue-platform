@@ -189,8 +189,8 @@ async function handleSend() {
   try {
     const r = await classicsApi.askAI(text)
     messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: r?.answer || '抱歉，我暂时无法回答这个问题。' })
-  } catch (e: any) {
-    messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: e?.message || 'AI 暂时无法回答，请稍后重试。' })
+  } catch (e) {
+    messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: (e as Error)?.message || 'AI 暂时无法回答，请稍后重试。' })
   } finally {
     isLoading.value = false
     scrollToBottom()

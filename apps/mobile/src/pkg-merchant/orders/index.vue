@@ -137,7 +137,7 @@ const error = ref('')
 const activeTab = ref<TabKey>('all')
 const searchQuery = ref('')
 
-onLoad((opts: any) => {
+onLoad((opts) => {
   if (opts?.status && tabs.some((t) => t.key === opts.status)) activeTab.value = opts.status as TabKey
   load()
 })
@@ -152,8 +152,8 @@ async function load() {
       pageSize: 50,
     })
     orders.value = res.items
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

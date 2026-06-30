@@ -253,8 +253,8 @@ async function fetchData(id: string) {
       replies: [],
       replyCount: 0,
     }))
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -320,8 +320,8 @@ async function toggleFavorite() {
       isFavorited.value = true
       uni.showToast({ title: '已收藏', icon: 'success' })
     }
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     favSubmitting.value = false
   }
@@ -345,8 +345,8 @@ async function toggleShelf() {
     await classicsApi.saveProgress(book.value.id, first.id, 1)
     isInBookshelf.value = true
     uni.showToast({ title: '已加入书架', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     shelfSubmitting.value = false
   }

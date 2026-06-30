@@ -169,6 +169,7 @@ const statusBarHeight = ref(20)
 const navHeight = ref(64)
 const safeBottom = ref(0)
 
+// 售后详情对象，字段由后端动态返回，保留 any 以免触发模板空值连锁报错
 const detail = ref<any>({})
 const copied = ref(false)
 const showCancel = ref(false)
@@ -186,7 +187,7 @@ const statusTextMap: Record<string, { icon: string; color: string; bg: string; t
   cancelled: { icon: 'x-circle', color: '#999999', bg: 'rgba(153,153,153,0.08)', text: '已取消' },
 }
 const sCfg = computed(() => statusTextMap[detail.value.status] || statusTextMap.pending)
-const currentIdx = computed(() => detail.value.timeline?.findIndex((n: any) => n.isCurrent) ?? -1)
+const currentIdx = computed(() => detail.value.timeline?.findIndex((n: { isCurrent?: boolean }) => n.isCurrent) ?? -1)
 
 async function fetchData() {
   if (!currentId) {
@@ -198,14 +199,14 @@ async function fetchData() {
   try {
     const data = await accountApi.afterSaleDetail(currentId)
     detail.value = data || {}
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((q: any) => {
+onLoad((q) => {
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 20
@@ -246,8 +247,8 @@ async function doCancel() {
     detail.value.canCancel = false
     showCancel.value = false
     uni.showToast({ title: '已取消', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '取消失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '取消失败', icon: 'none' })
   } finally {
     cancelling.value = false
   }

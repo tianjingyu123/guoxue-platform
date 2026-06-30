@@ -251,14 +251,14 @@ async function fetchData(id: string) {
     book.value = res.book
     ebookDiscussions.value = res.discussions
     isFavorite.value = res.book.isFavorite
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((q: any = {}) => { fetchData(q?.id || '1') })
+onLoad((q = {}) => { fetchData(q?.id || '1') })
 
 // 微信原生分享
 const { toAppMessage, toTimeline } = useShare()
@@ -334,8 +334,8 @@ async function toggleFavorite() {
     else await ebookApi.removeFavorite(book.value.id)
     isFavorite.value = next
     uni.showToast({ title: next ? '已收藏' : '已取消收藏', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     favoriting.value = false
   }

@@ -14,13 +14,14 @@ const loading = ref(true)
 const error = ref('')
 const isEmpty = ref(false)
 
+// 分站配置对象，模板裸访问多字段，保留 any
 const station = ref<any>({})
 const featuredTypeConfig = ref<Record<string, { icon: string; label: string }>>({})
 const theme = computed(() => station.value.themeColor || '#C41E3A')
 
 // Hero 轮播
 const heroIndex = ref(0)
-function onHeroChange(e: any) {
+function onHeroChange(e: { detail: { current: number } }) {
   heroIndex.value = e.detail.current
 }
 
@@ -62,8 +63,8 @@ async function loadStationData() {
     station.value = config || {}
     featuredTypeConfig.value = typeConfig || {}
     isEmpty.value = !config || Object.keys(config).length === 0
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -80,7 +81,7 @@ const rightCol = computed<RenderItem[]>(() => renderItems.value.filter((_, i) =>
 // 回到顶部
 const showBackTop = ref(false)
 const scrollTopVal = ref(0)
-function onScroll(e: any) {
+function onScroll(e: { detail: { scrollTop: number } }) {
   showBackTop.value = e.detail.scrollTop > 1200
 }
 function backToTop() {

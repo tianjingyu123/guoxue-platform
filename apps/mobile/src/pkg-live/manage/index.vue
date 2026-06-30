@@ -271,8 +271,8 @@ async function fetchData() {
     const res = await liveApi.getManageList()
     stats.value = res.stats
     list.value = res.list
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }

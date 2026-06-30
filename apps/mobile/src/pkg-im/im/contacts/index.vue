@@ -221,8 +221,8 @@ async function loadData() {
     const grouped = groupFriendsByLetter(friends)
     groups.value = grouped
     letterList.value = getLetterIndexList(grouped)
-  } catch (e: any) {
-    error.value = e?.message || '加载好友列表失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载好友列表失败，请重试'
   } finally {
     loading.value = false
   }

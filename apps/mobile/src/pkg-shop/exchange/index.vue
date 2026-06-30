@@ -301,8 +301,8 @@ onMounted(async () => {
     if (products.value.length === 1) selectedProduct.value = products.value[0]
     const def = addresses.value.find((a) => a.isDefault)
     if (def) selectedAddress.value = def
-  } catch (e: any) {
-    error.value = e.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -362,8 +362,8 @@ async function handleSubmit() {
     await shopApi.submitExchange(orderId.value, parts.join('；').slice(0, 500))
     uni.showToast({ title: '换货申请已提交', icon: 'success' })
     setTimeout(() => navigateTo('/shop/my-after-sales'), 1200)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '提交失败，请重试', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提交失败，请重试', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -379,8 +379,8 @@ async function retryLoad() {
     if (products.value.length === 1) selectedProduct.value = products.value[0]
     const def = addresses.value.find((a) => a.isDefault)
     if (def) selectedAddress.value = def
-  } catch (e: any) {
-    error.value = e.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

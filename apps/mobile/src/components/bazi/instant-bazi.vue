@@ -25,7 +25,7 @@ const pillars = [
 ]
 
 const now = ref<Date | null>(null)
-let timer: any = null
+let timer: ReturnType<typeof setInterval> | null = null
 onMounted(() => { now.value = new Date(); timer = setInterval(() => { now.value = new Date() }, 1000) })
 onUnmounted(() => timer && clearInterval(timer))
 

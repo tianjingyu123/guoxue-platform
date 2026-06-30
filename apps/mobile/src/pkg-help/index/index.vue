@@ -204,7 +204,7 @@ const listTitle = computed(() => {
   return '常见问题'
 })
 
-function onSearch(e: any) {
+function onSearch(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   searchQuery.value = e.detail.value
 }
 function onAiSearch() {

@@ -112,7 +112,7 @@ try {
 function readTagParam(): string {
   try {
     const pages = getCurrentPages()
-    const cur: any = pages[pages.length - 1]
+    const cur: any = pages[pages.length - 1] // 宿主页面实例，类型不稳定，保守保留 any
     const raw = (cur && cur.options && (cur.options.tag || cur.options.name)) || ''
     try { return decodeURIComponent(raw) } catch { return raw }
   } catch (e) {

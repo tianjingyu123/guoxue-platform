@@ -207,8 +207,8 @@ async function load() {
     const [ov, his] = await Promise.all([creatorApi.getRevenueOverview(), creatorApi.getWithdrawHistory()])
     overview.value = ov
     history.value = his
-  } catch (e: any) {
-    errMsg.value = e?.message || '加载失败'
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -233,8 +233,8 @@ async function handleSubmit() {
     } else {
       uni.showToast({ title: res.message || '提现失败', icon: 'none' })
     }
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '提现失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提现失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

@@ -27,8 +27,8 @@ async function fetchData() {
   try {
     const data = await mineApi.getPermissions()
     permissions.value = data.map((p) => ({ ...p }))
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

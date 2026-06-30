@@ -191,8 +191,8 @@ async function load() {
   notApplied.value = false
   try {
     app.value = await merchantApi.getApplication()
-  } catch (e: any) {
-    const msg = e?.message || ''
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
     // 未提交过申请：后端返回「未找到入驻申请」→ 引导去入驻
     if (msg.includes('未找到') || msg.includes('不存在') || msg.includes('未登录')) notApplied.value = true
     else error.value = msg || '加载失败'

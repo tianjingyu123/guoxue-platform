@@ -26,8 +26,8 @@ async function goApply() {
   preview.value = null
   try {
     preview.value = await refundApi.preview(circleId.value)
-  } catch (e: any) {
-    error.value = e?.message || e?.data?.message || '当前无法申请退款'
+  } catch (e) {
+    error.value = (e as { message?: string; data?: { message?: string } })?.message || (e as { message?: string; data?: { message?: string } })?.data?.message || '当前无法申请退款'
   } finally {
     loading.value = false
   }
@@ -39,8 +39,8 @@ async function submit() {
   try {
     await refundApi.apply(circleId.value, reason.value.trim() || undefined)
     submitted.value = true
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || e?.data?.message || '提交失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as { message?: string; data?: { message?: string } })?.message || (e as { message?: string; data?: { message?: string } })?.data?.message || '提交失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

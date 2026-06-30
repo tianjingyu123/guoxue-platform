@@ -135,6 +135,7 @@ import { orderApi } from '@/lib/order-data'
 const safeBottom = ref(0)
 const loading = ref(true)
 const error = ref('')
+// 退款详情对象，模板 v-else 内裸访问多字段，收敛会触发大量 possibly-null，保留 any
 const data = ref<any>(null)
 const orderId = ref('')
 
@@ -143,8 +144,8 @@ async function loadData() {
   error.value = ''
   try {
     data.value = await orderApi.refundProgress(orderId.value)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -154,7 +155,7 @@ function retry() { loadData() }
 const refundMethod = '微信支付'
 const estimatedDate = '2024年1月18日'
 
-const currentIndex = computed(() => data.value?.timeline?.findIndex((n: any) => n.isCurrent) ?? -1)
+const currentIndex = computed(() => data.value?.timeline?.findIndex((n: { isCurrent?: boolean }) => n.isCurrent) ?? -1)
 
 function nodeStatus(idx: number): 'completed' | 'refunding' | 'pending' {
   if (!data.value) return 'pending'
@@ -164,7 +165,7 @@ function nodeStatus(idx: number): 'completed' | 'refunding' | 'pending' {
   return 'pending'
 }
 
-onLoad((q: any) => {
+onLoad((q) => {
   try {
     const info = uni.getSystemInfoSync()
     safeBottom.value = info.safeAreaInsets?.bottom || 0

@@ -209,12 +209,14 @@ async function fetchData() {
 
     const now = new Date()
     const currentHour = now.getHours()
+    // slot 访问 .time（聚合返回类型未必含该字段），保留 any 避免误报
     sessions.value = (data.timeSlots || []).map((slot: any) => {
       const slotHour = parseInt(slot.time.split(':')[0], 10)
       const { status, label } = deriveSessionStatus(slotHour, currentHour)
       return { id: slot.id, time: slot.label, status, label }
     })
 
+    // p 为聚合原始商品，映射为本页 SeckillProduct，保留 any
     products.value = (data.products || []).map((p: any) => {
       const totalStock = (p.stock || 0) + (p.sold || 0)
       const soldPercent = totalStock > 0 ? Math.round((p.sold / totalStock) * 100) : 0

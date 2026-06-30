@@ -245,7 +245,9 @@ import {
 
 const loading = ref(true)
 const error = ref('')
+// 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
 const room = ref<any>({})
+// 评论列表，元素结构由后端返回，保留 any[]
 const comments = ref<any[]>([])
 const products = ref<VerticalLiveProduct[]>([])
 const gifts = ref<LiveGift[]>([])
@@ -266,8 +268,8 @@ async function fetchData(roomId: string) {
     coinBalance.value = giftsData.balance
     viewerCount.value = roomData.room.viewerCount || 0
     likeCount.value = roomData.room.likeCount || 0
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -278,7 +280,7 @@ const isFollowing = ref(false)
 const viewerCount = ref(0)
 const likeCount = ref(0)
 
-onLoad((opts: any) => {
+onLoad((opts) => {
   fetchData(opts?.id || '1')
 })
 

@@ -218,8 +218,8 @@ async function load() {
       templates.value = t.templates || []
       dividends.value = d
     }
-  } catch (e: any) {
-    errMsg.value = e?.message || '加载失败'
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -233,8 +233,8 @@ async function onComplete(t: InstituteTask) {
     await instituteApi.completeTask(t.id)
     uni.showToast({ title: '已提交完成', icon: 'success' })
     await load()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     completingId.value = ''
   }
@@ -257,8 +257,8 @@ function onRefund() {
         const r = await instituteApi.depositRefund()
         uni.showToast({ title: r.message || '已提交', icon: 'success' })
         await load()
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '申请失败', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '申请失败', icon: 'none' })
       } finally {
         refunding.value = false
       }

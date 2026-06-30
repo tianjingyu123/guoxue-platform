@@ -154,8 +154,8 @@ async function fetchData(id: string) {
     collection.value = detail
     // related not directly available from API, use empty for now
     relatedCollections.value = []
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

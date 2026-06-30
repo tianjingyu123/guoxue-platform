@@ -489,8 +489,8 @@ async function fetchData() {
     connectRequests.value = res.requests
     products.value = res.products
     script.value = res.script
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -505,7 +505,7 @@ function scrollDanmakuToBottom() {
   danmakuScrollTop.value = danmakuList.value.length * 9999
 }
 
-onLoad(async (options: any) => {
+onLoad(async (options) => {
   if (options?.id) consoleId.value = String(options.id)
   await fetchData()
   liveTimer = setInterval(() => {

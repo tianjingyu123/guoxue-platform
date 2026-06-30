@@ -361,7 +361,7 @@ function goBack() {
 
 try {
   const pages = getCurrentPages()
-  const cur: any = pages[pages.length - 1]
+  const cur = pages[pages.length - 1] as unknown as { options?: Record<string, string>; $page?: { options?: Record<string, string> } }
   const opts = cur?.options || cur?.$page?.options || {}
   bountyId.value = opts.id || '1'
 } catch (e) {

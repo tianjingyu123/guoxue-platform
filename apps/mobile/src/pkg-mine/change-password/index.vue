@@ -47,8 +47,8 @@ async function handleSubmit() {
     await mineApi.changePassword(oldPwd.value, newPwd.value)
     showToast('密码修改成功', 'success')
     setTimeout(() => goBack(), 1000)
-  } catch (e: any) {
-    showToast(e?.message || '修改失败', 'error')
+  } catch (e) {
+    showToast((e as Error)?.message || '修改失败', 'error')
   } finally {
     loading.value = false
   }

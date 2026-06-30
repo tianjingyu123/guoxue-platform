@@ -158,7 +158,7 @@ function qIcoClass(q: MyResultAnswer) {
 }
 
 /** 格式化答案 JSON：兼容 selectedKey/selectedKeys/correctKey/correctKeys/text */
-function fmtAns(a?: Record<string, any> | null): string {
+function fmtAns(a?: Record<string, unknown> | null): string {
   if (!a || typeof a !== 'object') return '未作答'
   if (a.selectedKey != null) return String(a.selectedKey)
   if (a.correctKey != null) return String(a.correctKey)
@@ -178,8 +178,8 @@ async function load() {
   error.value = ''
   try {
     result.value = await competitionApi.myResults(compId.value)
-  } catch (e: any) {
-    error.value = e?.message || '暂无成绩，请先报名参赛并完成答题'
+  } catch (e) {
+    error.value = (e as Error)?.message || '暂无成绩，请先报名参赛并完成答题'
   } finally {
     loading.value = false
   }
@@ -188,7 +188,7 @@ async function load() {
 function go(p: string) { navigateTo(p) }
 function goBack() { navigateBack() }
 
-onLoad((q: any) => {
+onLoad((q) => {
   compId.value = (q?.id as string) || ''
   uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0; sysH.value = e.windowHeight || 667 } })
   load()

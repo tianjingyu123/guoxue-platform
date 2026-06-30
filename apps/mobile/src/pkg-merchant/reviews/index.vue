@@ -192,8 +192,8 @@ async function load() {
   try {
     const res = await merchantBackendApi.getReviews({ pageSize: 50 })
     reviews.value = res.items
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -220,8 +220,8 @@ async function sendReply(id: string) {
     replyingId.value = null
     replyText.value = ''
     await load()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '回复失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '回复失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

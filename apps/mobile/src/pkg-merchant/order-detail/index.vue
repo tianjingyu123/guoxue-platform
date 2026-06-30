@@ -251,7 +251,7 @@ const expressCompany = ref('')
 const trackingNo = ref('')
 const submitting = ref(false)
 
-onLoad((opts: any) => {
+onLoad((opts) => {
   orderId.value = opts?.id ? String(opts.id) : ''
   load()
 })
@@ -266,8 +266,8 @@ async function load() {
   error.value = ''
   try {
     order.value = await merchantBackendApi.getOrder(orderId.value)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -329,8 +329,8 @@ async function handleShip() {
     trackingNo.value = ''
     uni.showToast({ title: '发货成功', icon: 'success' })
     await load()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '发货失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '发货失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -349,8 +349,8 @@ async function handleApprove() {
         await merchantBackendApi.approveRefund(orderId.value)
         uni.showToast({ title: '已同意退款', icon: 'success' })
         await load()
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
       } finally {
         submitting.value = false
       }
@@ -377,8 +377,8 @@ function handleReject() {
         await merchantBackendApi.rejectRefund(orderId.value, reason)
         uni.showToast({ title: '已拒绝退款', icon: 'success' })
         await load()
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
       } finally {
         submitting.value = false
       }

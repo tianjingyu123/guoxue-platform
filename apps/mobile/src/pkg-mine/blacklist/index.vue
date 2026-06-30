@@ -13,8 +13,8 @@ async function fetchData() {
   try {
     const data = await mineApi.getBlacklist()
     list.value = data.map((u: BlacklistItem) => ({ ...u }))
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -44,8 +44,8 @@ async function confirmRemove() {
     await mineApi.unblockUser(selected.value.userId)
     list.value = list.value.filter((u) => u.id !== selected.value!.id)
     uni.showToast({ title: '已移出黑名单', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     removing.value = false
     removeDialog.value = false

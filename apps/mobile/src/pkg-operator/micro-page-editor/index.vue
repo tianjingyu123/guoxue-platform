@@ -46,8 +46,8 @@ async function loadData(preferId?: string) {
     const detail = await microPageApi.getDetail(target.id)
     page.value = detail
     components.value = [...(detail.components || [])].sort((a, b) => a.sortOrder - b.sortOrder)
-  } catch (e: any) {
-    const msg = e?.message || ''
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
     if (/没有开通|未开通|FORBIDDEN|403/.test(msg)) notOpened.value = true
     else error.value = msg || '加载失败'
   } finally {
@@ -75,8 +75,8 @@ async function addComponent(bp: ComponentBlueprint) {
     closeLibrary()
     // 内容型组件直接进编辑
     if (bp.configurable) openEditor(created)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '添加失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '添加失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -93,7 +93,7 @@ async function move(index: number, dir: -1 | 1) {
   submitting.value = true
   try {
     await microPageApi.sortComponents(page.value.id, arr.map((c) => c.id))
-  } catch (e: any) {
+  } catch (e) {
     uni.showToast({ title: '排序失败', icon: 'none' })
     await loadData(page.value.id)
   } finally {
@@ -114,7 +114,7 @@ async function removeComponent(comp: MicroComponent) {
       try {
         await microPageApi.deleteComponent(page.value.id, comp.id)
         components.value = components.value.filter((c) => c.id !== comp.id)
-      } catch (e: any) {
+      } catch (e) {
         uni.showToast({ title: '删除失败', icon: 'none' })
       } finally {
         submitting.value = false
@@ -126,6 +126,7 @@ async function removeComponent(comp: MicroComponent) {
 // ───────── 编辑组件配置 ─────────
 const editing = ref<MicroComponent | null>(null)
 const editTitle = ref('')
+// 动态楼层配置对象，字段随组件类型变化，保留 any
 const editConfig = ref<Record<string, any>>({})
 const editBlueprint = computed(() => (editing.value ? findBlueprint(editing.value.type) : undefined))
 
@@ -135,6 +136,7 @@ function openEditor(comp: MicroComponent) {
   editConfig.value = JSON.parse(JSON.stringify(comp.config || {}))
 }
 function closeEditor() { editing.value = null }
+// 绑定到 uni <switch>，vue-tsc 按原生事件签名校验，保留 any
 function onStatsChange(e: any) { editConfig.value.showStats = !!e?.detail?.value }
 
 // banner 图片 URL 增删
@@ -160,8 +162,8 @@ async function saveEditor() {
     }
     closeEditor()
     uni.showToast({ title: '已保存', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -176,8 +178,8 @@ async function publish() {
     await microPageApi.publish(page.value.id)
     if (page.value) page.value.status = 'PUBLISHED'
     uni.showToast({ title: '发布成功', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '发布失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '发布失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

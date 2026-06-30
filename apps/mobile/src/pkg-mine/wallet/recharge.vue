@@ -22,7 +22,7 @@ async function loadData() {
       selectedCoins.value = options.value.find((o) => o.popular)?.coins ?? options.value[0]?.coins ?? null
     }
   }
-  catch (e: any) { error.value = e?.message || '加载失败' }
+  catch (e) { error.value = (e as Error)?.message || '加载失败' }
   finally { loading.value = false }
 }
 onMounted(loadData)
@@ -70,8 +70,8 @@ async function handleSubmit() {
     const amountCoin = selectedOpt ? (selectedOpt.coins + selectedOpt.bonus) : (parseInt(customAmount.value) || 0) * 10
     const res = await mineApi.recharge(amountCoin, payMethod.value)
     uni.showToast({ title: res.message, icon: res.success ? 'success' : 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '充值失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '充值失败', icon: 'none' })
   } finally { isSubmitting.value = false }
 }
 </script>

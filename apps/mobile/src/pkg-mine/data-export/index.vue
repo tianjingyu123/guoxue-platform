@@ -22,8 +22,8 @@ async function fetchData() {
     ])
     exportDataTypes.value = typesData
     records.value = recordsData.map((r: ExportRecord) => ({ ...r }))
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

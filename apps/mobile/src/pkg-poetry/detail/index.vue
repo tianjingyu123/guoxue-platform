@@ -442,8 +442,8 @@ async function fetchDetail(poemId: string) {
     likeCount.value = data.poem.likes
     collectCount.value = data.poem.collections
     fetchComments(poemId)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -490,8 +490,8 @@ async function onToggleLike() {
     const r = await poetryApi.toggleLike(currentId.value)
     isLiked.value = r.liked
     likeCount.value = r.likes
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     liking.value = false
   }
@@ -504,8 +504,8 @@ async function onToggleCollect() {
     const r = await poetryApi.toggleCollect(currentId.value)
     isBookmarked.value = r.collected
     collectCount.value = r.collectCount
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     collecting.value = false
   }
@@ -555,8 +555,8 @@ async function onSubmitComment(payload: { content: string; parentId?: string | n
       payload.parentId !== undefined ? String(payload.parentId) : undefined,
     )
     await fetchComments(currentId.value)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '发表失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '发表失败', icon: 'none' })
   }
 }
 
@@ -570,8 +570,8 @@ async function onLikeComment(id: string | number) {
         ? { ...c, liked: r.liked, likeCount: r.likeCount }
         : { ...c, replies: c.replies.map((rp) => (rp.id === cid ? { ...rp, liked: r.liked, likeCount: r.likeCount } : rp)) },
     )
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   }
 }
 
@@ -645,21 +645,22 @@ async function generateAiRealtime() {
   try {
     const r = await poetryApi.askAI(currentId.value)
     typewriter(r.appreciation)
-  } catch (e: any) {
+  } catch (e) {
     aiStatus.value = 'idle'
-    uni.showToast({ title: e?.message || 'AI 生成失败', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || 'AI 生成失败', icon: 'none' })
   } finally {
     aiGenerating.value = false
   }
 }
 
 // ── 朗读 TTS（浏览器原生逐句跟读，复用古籍馆范式） ──
+// 注：uni-app 类型未含 Web Speech API（speechSynthesis/SpeechSynthesisUtterance/Voice），下方相关 any 保留
 const synth: any = (typeof window !== 'undefined' && (window as any).speechSynthesis) ? (window as any).speechSynthesis : null
 const ttsSupported = computed(() => !!synth)
-let zhVoice: any = null
+let zhVoice: any = null // Web Speech 语音对象类型缺失，保留 any
 function pickVoice() {
   if (!synth) return
-  const voices: any[] = synth.getVoices() || []
+  const voices: any[] = synth.getVoices() || [] // SpeechSynthesisVoice[] 类型缺失，保留 any
   zhVoice =
     voices.find((v) => /zh[-_]?CN|cmn/i.test(v.lang)) ||
     voices.find((v) => /^zh/i.test(v.lang)) ||
@@ -677,6 +678,7 @@ function speakLine() {
   if (!synth) return
   const lines = poem.value.content
   if (curLine.value >= lines.length) { isPlaying.value = false; curLine.value = -1; return }
+  // Web Speech 的 SpeechSynthesisUtterance 在 uni 类型中缺失，保留 as any
   const u = new (window as any).SpeechSynthesisUtterance(lines[curLine.value].line)
   if (zhVoice) u.voice = zhVoice
   u.lang = 'zh-CN'

@@ -51,7 +51,7 @@ const rightCol = computed<RenderItem[]>(() => renderItems.value.filter((_, i) =>
 // 回到顶部
 const showBackTop = ref(false)
 const scrollTopVal = ref(0)
-function onScroll(e: any) {
+function onScroll(e: { detail: { scrollTop: number } }) {
   showBackTop.value = e.detail.scrollTop > 900
 }
 function backToTop() {

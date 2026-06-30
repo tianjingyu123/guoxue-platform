@@ -166,10 +166,11 @@ const copied = ref(false)
 const loading = ref(false)
 const error = ref('')
 
+// 售后详情对象，字段由后端动态返回，保留 any 以免触发模板空值连锁报错
 const detail = ref<any>({})
 
 const rejectedTime = computed(() => {
-  const node = detail.value.timeline?.find((t: any) => t.status === 'rejected')
+  const node = detail.value.timeline?.find((t: { status?: string; time?: string }) => t.status === 'rejected')
   return node?.time || detail.value.createdAt || ''
 })
 
@@ -185,14 +186,14 @@ async function fetchData() {
   try {
     const data = await accountApi.afterSaleRejected(currentId)
     detail.value = data || {}
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((q: any) => {
+onLoad((q) => {
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 20

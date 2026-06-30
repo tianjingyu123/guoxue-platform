@@ -40,8 +40,8 @@ async function load() {
   error.value = ''
   try {
     q.value = await questionApi.detail(qid.value)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -54,8 +54,8 @@ async function onPeek() {
     await questionApi.peek(q.value.id)
     uni.showToast({ title: '围观成功', icon: 'success' })
     await load()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '围观失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '围观失败', icon: 'none' })
   } finally {
     peeking.value = false
   }
@@ -70,8 +70,8 @@ async function onAnswer() {
     uni.showToast({ title: '回答已提交', icon: 'success' })
     answerText.value = ''
     await load()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提交失败', icon: 'none' })
   } finally {
     answering.value = false
   }
@@ -91,8 +91,8 @@ function onReject() {
         await questionApi.reject(q.value.id)
         uni.showToast({ title: '已拒答并退款', icon: 'success' })
         await load()
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
       } finally {
         rejecting.value = false
       }

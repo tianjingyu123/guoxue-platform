@@ -34,9 +34,9 @@ async function loadBadges() {
   try {
     const res = await growthApi.badges(circleId.value)
     badges.value = res.badges
-  } catch (e: any) {
+  } catch (e) {
     loadError.value = true
-    uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || '加载失败', icon: 'none' })
   } finally {
     isLoading.value = false
   }

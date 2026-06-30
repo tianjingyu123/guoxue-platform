@@ -12,6 +12,7 @@ import { useList } from '@/composables/useList'
 import type { CourseCardData } from '@/lib/card-utils'
 
 // 头部区块（一次性加载，与主列表分页解耦）
+// 分类/推荐/秒杀头部数据，模板裸访问多字段，保留 any 避免连锁报错
 const courseListCategories = ref<any[]>([])
 const recommendedCourses = ref<any[]>([])
 const flashSaleCourses = ref<any[]>([])

@@ -14,7 +14,9 @@ const today = new Date()
 const todayDay = today.getDay()
 const todayStr = today.toISOString().slice(0, 10)
 
+// 学习目标详情对象，模板 v-else 裸访问字段，保留 any 避免 null 链式报错
 const goal = ref<any>(null)
+// 计划课程列表，模板裸访问 scheduledDays/cover 等字段，保留 any
 const courses = ref<any[]>([])
 const studyStreak = ref(0)
 const checkInLevels = ref<number[]>([])
@@ -91,8 +93,8 @@ async function loadData() {
     courses.value = res.courses
     studyStreak.value = res.streak
     checkInLevels.value = res.checkInLevels
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

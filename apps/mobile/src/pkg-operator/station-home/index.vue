@@ -63,8 +63,8 @@ async function loadData() {
     features.value = deriveFeatures(b.template?.modules || [])
     feedList.value = Array.isArray(feeds) ? feeds : []
     microPage.value = mp
-  } catch (e: any) {
-    const msg = e?.message || ''
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
     if (/不存在|NOT_FOUND|404|没有开通/.test(msg)) notFound.value = true
     else error.value = msg || '加载失败'
   } finally {
@@ -84,6 +84,7 @@ function openFeed(_item: StationFeedCard) {
 // 分享：复制分站推广链接（真实 code；海报图生成 P3 做）
 const showShare = ref(false)
 const shareLink = computed(() => {
+  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
   const base = (import.meta as any).env?.VITE_H5_URL || ''
   return `${base}/#/pkg-operator/station-home/index?s=${stationCode.value}`
 })

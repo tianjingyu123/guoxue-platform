@@ -202,8 +202,8 @@ async function onPay() {
     } catch { /* 无支付环境，止于下单 */ }
     paid.value = true
     setTimeout(() => { emit('paid', order.id); onClose() }, 1800)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '下单失败，请重试', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
     paying.value = false
   }
 }

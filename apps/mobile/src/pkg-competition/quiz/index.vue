@@ -169,7 +169,7 @@ const leaveCount = ref(0)
 
 // 倒计时
 const timeLeft = ref(0)
-let timer: any = null
+let timer: ReturnType<typeof setInterval> | null = null
 const startTs = ref(0)
 
 const q = computed(() => questions.value[current.value])
@@ -220,7 +220,7 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
-function buildAnswer(qq: PaperQuestion, s: QState): Record<string, any> {
+function buildAnswer(qq: PaperQuestion, s: QState): Record<string, unknown> {
   if (qq.type === 'MULTI_CHOICE') return { selectedKeys: s.selectedKeys }
   if (qq.type === 'SINGLE_CHOICE') return { selectedKey: s.selectedKey }
   return { text: s.text }
@@ -239,10 +239,10 @@ async function load() {
     if (timer) clearInterval(timer)
     timer = setInterval(() => {
       timeLeft.value--
-      if (timeLeft.value <= 0) { clearInterval(timer); autoSubmit() }
+      if (timeLeft.value <= 0) { clearInterval(timer ?? undefined); autoSubmit() }
     }, 1000)
-  } catch (e: any) {
-    error.value = e?.message || '试卷加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '试卷加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -272,9 +272,9 @@ async function doSubmit() {
     await competitionApi.batchSubmit(roundId.value, { registrationId: registrationId.value, answers })
     uni.showToast({ title: '交卷成功', icon: 'success' })
     setTimeout(() => redirectTo(`/competition/${compId.value}/score-detail`), 600)
-  } catch (e: any) {
+  } catch (e) {
     submitting.value = false
-    uni.showToast({ title: e?.message || '交卷失败，请重试', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || '交卷失败，请重试', icon: 'none' })
   }
 }
 

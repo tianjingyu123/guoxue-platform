@@ -261,6 +261,7 @@ const props = defineProps<{ groupId: string }>()
 const statusBarHeight = ref(0)
 
 // 数据状态
+// groupDetail 为详情对象，模板裸访问多个字段（name/notice/memberCount/myRole/noticeDetail 等），收敛 any 会触发大量字段/null 报错，保留 any
 const groupDetail = ref<any>({})
 const members = ref<GroupMember[]>([])
 const messages = ref<GroupChatMessage[]>([])
@@ -290,8 +291,8 @@ async function loadData() {
     messages.value = chatHistory
     const memberList = await imApi.getGroupMembers(Number(props.groupId))
     members.value = memberList
-  } catch (e: any) {
-    error.value = e?.message || '加载群聊数据失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载群聊数据失败，请重试'
   } finally {
     loading.value = false
   }
@@ -315,11 +316,13 @@ function canWithdraw(m: GroupChatMessage) {
   return m.senderId === CURRENT_USER_ID && canWithdrawMessage(m.timestamp)
 }
 
+// 绑定到 uni <input>，vue-tsc 按原生 input 事件签名校验，保留 any
 function onInput(e: any) {
   const val = e.detail.value
   inputText.value = val
   if (val.endsWith('@')) showAtList.value = true
 }
+// 同上，绑定到 uni <input>，保留 any
 function onAtSearch(e: any) {
   atSearchKeyword.value = e.detail.value
 }

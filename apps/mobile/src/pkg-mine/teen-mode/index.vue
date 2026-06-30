@@ -24,8 +24,8 @@ async function fetchData() {
   try {
     const data = await mineApi.getTeenMode()
     Object.assign(settings, data)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -72,7 +72,7 @@ function toggleMode() {
   }
 }
 
-function onPwdInput(e: any) {
+function onPwdInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   const v = String(e.detail.value).replace(/\D/g, '').slice(0, 4)
   if (pwdStep.value === 'set') {
     pwdSet.value = v
@@ -99,7 +99,7 @@ function onPwdInput(e: any) {
   }
 }
 
-function onVerifyInput(e: any) {
+function onVerifyInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   const v = String(e.detail.value).replace(/\D/g, '').slice(0, 4)
   pwdVerify.value = v
   if (v.length === 4) {
@@ -144,8 +144,8 @@ async function save() {
     await mineApi.updateTeenMode({ ...settings })
     uni.showToast({ title: '已保存', icon: 'none' })
     setTimeout(() => goBack(), 600)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally {
     saving.value = false
     submitting.value = false

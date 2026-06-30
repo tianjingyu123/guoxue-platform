@@ -230,8 +230,8 @@ async function load() {
   notOpened.value = false
   try {
     materials.value = await operatorApi.getMyStationMaterials()
-  } catch (e: any) {
-    const msg = e?.message || ''
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
     if (msg.includes('开通分站') || msg.includes('没有开通') || msg.includes('NOT_FOUND')) {
       notOpened.value = true
     } else {
@@ -250,8 +250,8 @@ async function useMaterial(m: PromotionMaterialItem) {
     await operatorApi.useStationMaterial(m.id)
     m.usageCount = (m.usageCount || 0) + 1
     uni.showToast({ title: '素材已记录使用，图片下载即将开放', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     actingId.value = ''
   }
@@ -276,7 +276,7 @@ async function handleCopy(c: PromotionMaterialItem) {
     } catch (e) {
       // 复制已成功，记录失败不打断用户
     }
-  } catch (e: any) {
+  } catch (e) {
     uni.showToast({ title: '复制失败', icon: 'none' })
   } finally {
     actingId.value = ''

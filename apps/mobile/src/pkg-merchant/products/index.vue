@@ -161,8 +161,8 @@ async function load() {
     const status = activeTab.value === 'ALL' ? undefined : activeTab.value
     const res = await merchantBackendApi.getProducts({ status })
     products.value = res.items
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -191,8 +191,8 @@ async function doList(p: MerchantProduct) {
     await merchantBackendApi.listProduct(p.id)
     uni.showToast({ title: '已上架', icon: 'success' })
     await load()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -206,8 +206,8 @@ async function doUnlist(p: MerchantProduct) {
     await merchantBackendApi.unlistProduct(p.id)
     uni.showToast({ title: '已下架', icon: 'success' })
     await load()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -226,8 +226,8 @@ function doDelete(p: MerchantProduct) {
         await merchantBackendApi.deleteProduct(p.id)
         uni.showToast({ title: '已删除', icon: 'success' })
         await load()
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
       } finally {
         submitting.value = false
       }

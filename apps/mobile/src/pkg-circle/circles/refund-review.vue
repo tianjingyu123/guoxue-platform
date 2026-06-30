@@ -32,8 +32,8 @@ async function approve(item: RefundRequestItem) {
     await refundApi.ownerReview(item.id, true)
     uni.showToast({ title: '已通过，转平台审核', icon: 'none' })
     await load()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     acting.value = false
   }
@@ -52,8 +52,8 @@ function reject(item: RefundRequestItem) {
         await refundApi.ownerReview(item.id, false, (r.content || '').trim() || undefined)
         uni.showToast({ title: '已驳回', icon: 'none' })
         await load()
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
       } finally {
         acting.value = false
       }

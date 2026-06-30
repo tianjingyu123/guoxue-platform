@@ -140,8 +140,8 @@ onMounted(async () => {
     const res = await shopApi.getPaymentMethods()
     methods.value = res.boundMethods
     addOptions.value = res.addOptions
-  } catch (e: any) {
-    error.value = e.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -196,8 +196,8 @@ async function retryLoad() {
     const res = await shopApi.getPaymentMethods()
     methods.value = res.boundMethods
     addOptions.value = res.addOptions
-  } catch (e: any) {
-    error.value = e.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

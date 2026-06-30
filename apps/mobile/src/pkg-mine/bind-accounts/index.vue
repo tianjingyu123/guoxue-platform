@@ -24,8 +24,8 @@ async function fetchData() {
   try {
     const data = await mineApi.getBoundAccounts()
     accounts.value = data.map((a: BoundAccount) => ({ ...a }))
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -49,8 +49,8 @@ async function handleBind(acc: BoundAccount) {
   try {
     await mineApi.toggleBind(acc.provider, true)
     showToast(`即将跳转到${acc.name}授权页面`)
-  } catch (e: any) {
-    showToast(e?.message || '操作失败')
+  } catch (e) {
+    showToast((e as Error)?.message || '操作失败')
   } finally {
     processing.value = false
   }
@@ -66,8 +66,8 @@ async function handleUnbind() {
         ? { ...acc, isBound: false, accountInfo: undefined, boundAt: undefined }
         : acc,
     )
-  } catch (e: any) {
-    showToast(e?.message || '解绑失败')
+  } catch (e) {
+    showToast((e as Error)?.message || '解绑失败')
   } finally {
     processing.value = false
     unbindTarget.value = null

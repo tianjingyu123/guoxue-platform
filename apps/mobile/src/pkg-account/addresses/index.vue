@@ -137,8 +137,8 @@ async function fetchAddresses() {
   try {
     const data = await accountApi.addresses()
     addresses.value = data || []
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -157,10 +157,10 @@ onLoad(() => {
   fetchAddresses()
 })
 
-function onTouchStart(e: any) {
+function onTouchStart(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   touchStartX = e.touches[0].clientX
 }
-function onTouchMove(e: any, id: string) {
+function onTouchMove(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */, id: string) {
   const diff = touchStartX - e.touches[0].clientX
   if (diff > 40) {
     swipedId.value = id
@@ -180,8 +180,8 @@ async function setDefault(addr: ShippingAddressItem) {
     await accountApi.setDefaultAddress(addr.id)
     addresses.value = addresses.value.map((a) => ({ ...a, isDefault: a.id === addr.id }))
     uni.showToast({ title: '已设为默认', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '设置失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '设置失败', icon: 'none' })
   } finally {
     settingDefault.value = false
   }
@@ -204,8 +204,8 @@ async function doDelete() {
     deleteId.value = ''
     swipedId.value = ''
     uni.showToast({ title: '已删除', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
   } finally {
     deleting.value = false
   }

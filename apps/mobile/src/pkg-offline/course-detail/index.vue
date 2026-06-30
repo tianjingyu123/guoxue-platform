@@ -235,8 +235,8 @@ async function load() {
   errMsg.value = ''
   try {
     course.value = await offlineApi.getCourse(courseId.value)
-  } catch (e: any) {
-    errMsg.value = e?.message || '加载失败'
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '加载失败'
     course.value = null
   } finally {
     loading.value = false
@@ -256,8 +256,8 @@ async function onEnroll() {
     uni.showToast({ title: num(course.value?.price) > 0 ? '报名成功 · 请到店支付' : '报名成功', icon: 'success' })
     await load()
     showQrCode.value = true
-  } catch (e: any) {
-    const msg = e?.message || '报名失败'
+  } catch (e) {
+    const msg = (e as Error)?.message || '报名失败'
     if (msg.includes('已报名') || msg.includes('已经')) {
       myReg.value = { id: '', courseId: courseId.value, userId: '', status: 'REGISTERED', qrCode: null, signedAt: null }
     }
@@ -276,8 +276,8 @@ async function onCancel() {
     showCancelConfirm.value = false
     uni.showToast({ title: '已取消报名', icon: 'none' })
     await load()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '取消失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '取消失败', icon: 'none' })
   } finally {
     submitting.value = false
   }

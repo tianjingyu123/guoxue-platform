@@ -108,8 +108,8 @@ async function load() {
   errMsg.value = ''
   try {
     products.value = await offlineManageApi.listProducts(stationId.value)
-  } catch (e: any) {
-    errMsg.value = e?.message || '加载失败'
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -139,8 +139,8 @@ async function submit() {
     }
     editOpen.value = false
     await load()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -156,8 +156,8 @@ function onDelete(p: StationProduct) {
         await offlineManageApi.deleteProduct(p.id)
         uni.showToast({ title: '已下架', icon: 'none' })
         await load()
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
       }
     },
   })

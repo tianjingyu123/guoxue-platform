@@ -170,8 +170,8 @@ async function load() {
       intro: config.intro || '',
       lockedUsers: config.lockedUsers || 0,
     }
-  } catch (e: any) {
-    const msg = e?.message || ''
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
     if (msg.includes('开通分站') || msg.includes('没有开通') || msg.includes('NOT_FOUND')) {
       notOpened.value = true
     } else {

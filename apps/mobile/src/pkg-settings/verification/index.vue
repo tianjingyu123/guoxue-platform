@@ -235,7 +235,7 @@ const canSubmit = computed(
   () => realName.value.length >= 2 && idNumber.value.length === 18 && !!frontImage.value && !!backImage.value,
 )
 
-function onIdInput(e: any) {
+function onIdInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   const v = String(e.detail.value || '').replace(/[^0-9Xx]/g, '').slice(0, 18)
   idNumber.value = v
 }

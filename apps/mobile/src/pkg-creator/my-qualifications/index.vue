@@ -137,6 +137,7 @@ async function loadData() {
   error.value = false
   try {
     const [me, cert, institute] = await Promise.all([
+      // /auth/me 返回结构未建模，保留 any（仅取 identityVerified 字段）
       apiGet<any>('/auth/me'),
       teacherApi.getMyCertification().catch(() => null),
       instituteApi.getMy().catch(() => null),

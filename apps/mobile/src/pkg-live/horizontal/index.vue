@@ -332,7 +332,9 @@ import { liveApi } from '@/lib/live-data'
 // ===== 直播间数据 =====
 const loading = ref(true)
 const error = ref('')
+// 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
 const room = ref<any>({})
+// 幻灯片/问答/消息/资料列表，元素结构由后端返回，保留 any[]
 const slides = ref<any[]>([])
 const questions = ref<any[]>([])
 const messages = ref<any[]>([])
@@ -348,8 +350,8 @@ async function fetchData(roomId: string) {
     questions.value = data.questions
     messages.value = data.messages
     files.value = data.files
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -407,7 +409,7 @@ function onShare() {}
 // @data-needs: 下载资料，入参 fileId 返回 URL
 function onDownloadFile(_id: string) {}
 
-onLoad((opts: any) => {
+onLoad((opts) => {
   const roomId = opts?.id || '1'
   fetchData(roomId)
 })

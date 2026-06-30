@@ -106,16 +106,17 @@ const confirmPwd = ref('')
 const error = ref('')
 const isLoading = ref(false)
 
+// 隐藏 input 的组件实例引用，需访问 $el 做聚焦，保留 any 避免组件实例类型连锁
 const setInput = ref<any>(null)
 const confirmInput = ref<any>(null)
 
-let timer: any = null
+let timer: ReturnType<typeof setInterval> | null = null
 function handleSendCode() {
   if (countdown.value > 0) return
   countdown.value = 60
   timer = setInterval(() => {
     if (countdown.value > 0) countdown.value--
-    else clearInterval(timer)
+    else clearInterval(timer ?? undefined)
   }, 1000)
 }
 
@@ -126,13 +127,13 @@ function handleVerifyCode() {
   step.value = 'set'
 }
 
-function onSetInput(e: any) {
+function onSetInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   const v = String(e.detail.value).replace(/\D/g, '').slice(0, 6)
   password.value = v
   error.value = ''
   if (v.length === 6) setTimeout(() => { step.value = 'confirm' }, 150)
 }
-function onConfirmInput(e: any) {
+function onConfirmInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   confirmPwd.value = String(e.detail.value).replace(/\D/g, '').slice(0, 6)
   error.value = ''
 }

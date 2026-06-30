@@ -6,10 +6,11 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import type { CategoryTab, CategorySortOption, CategoryProduct } from '@/lib/shop-data'
 import { useList } from '@/composables/useList'
 
-const categoryTabs = ref<any[]>([])
-const categorySortOptions = ref<any[]>([])
+const categoryTabs = ref<CategoryTab[]>([])
+const categorySortOptions = ref<CategorySortOption[]>([])
 
 const activeCategory = ref('all')
 const sortBy = ref('default')
@@ -21,11 +22,11 @@ const priceMax = ref(1000)
 
 const quickPrices: Array<[number, number]> = [[0, 50], [50, 100], [100, 300], [300, 500], [500, 1000]]
 
-const sortName = computed(() => categorySortOptions.value.find((s: any) => s.id === sortBy.value)?.name)
+const sortName = computed(() => categorySortOptions.value.find((s) => s.id === sortBy.value)?.name)
 const hasFilter = computed(() => priceMin.value > 0 || priceMax.value < 1000)
 
 // 分类/搜索/价格/排序全部作为查询参数下沉后端；切任一条件即重载第一页
-const { list: categoryProducts, loading, error, isEmpty, loadStatus, refresh, loadMore } = useList<any>({
+const { list: categoryProducts, loading, error, isEmpty, loadStatus, refresh, loadMore } = useList<CategoryProduct>({
   fetcher: ({ page, pageSize }) => shopApi.getMallProducts({
     page,
     pageSize,

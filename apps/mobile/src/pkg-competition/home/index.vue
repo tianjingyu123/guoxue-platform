@@ -187,8 +187,8 @@ async function load() {
   try {
     const res = await competitionApi.list({ pageSize: 50 })
     cards.value = res.items.map(toCard).filter((c): c is CardVM => c !== null)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }

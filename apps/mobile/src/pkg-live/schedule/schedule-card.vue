@@ -83,6 +83,7 @@ function formatDate(dateStr: string) {
 }
 function onItem(type: 'edit' | 'copy' | 'del') {
   showMenu.value = false
+  // 动态事件名 emit（type 为 'edit'|'copy'|'del'），去掉 as any 会因联合类型签名报错，保留
   ;(emit as any)(type)
 }
 </script>

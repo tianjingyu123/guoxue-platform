@@ -119,8 +119,8 @@ async function loadData() {
     const res = await imApi.getMessages()
     messages.value = res.list
     counts.value = res.unreadCounts as unknown as Record<string, number>
-  } catch (e: any) {
-    error.value = e?.message || '加载消息列表失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载消息列表失败，请重试'
   } finally {
     loading.value = false
   }

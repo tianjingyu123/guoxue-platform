@@ -96,8 +96,8 @@ async function fetchData() {
     const res = await mineApi.getFollowData()
     followingList.value = res.following
     followersList.value = res.followers
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -121,8 +121,8 @@ async function toggleFollow(user: FollowUserItem) {
     if (!next) {
       followingList.value = followingList.value.filter((x) => x.id !== user.id)
     }
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     submittingId.value = null
   }

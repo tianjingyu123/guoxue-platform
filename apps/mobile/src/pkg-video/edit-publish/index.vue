@@ -243,7 +243,8 @@ const topics = ref<string[]>([])
 const topicInput = ref('')
 const location = ref('')
 const selectedCircle = ref<{ id: number; name: string }>({ id: 1, name: '八字命理研习社' })
-const linkedProducts = ref<any[]>([])
+// 关联商品列表，模板仅读取 .length（功能开发中，元素结构未定）
+const linkedProducts = ref<unknown[]>([])
 const visibility = ref<'public' | 'circle'>('public')
 
 const coverFrames = [0, 1, 2, 3, 4, 5, 6, 7]

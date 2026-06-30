@@ -84,8 +84,8 @@ async function submitArticle() {
     })
     uni.showToast({ title: '发布成功', icon: 'success' })
     setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '发布失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '发布失败', icon: 'none' })
   } finally {
     aSubmitting.value = false
   }
@@ -131,8 +131,8 @@ async function submitCourse() {
     })
     uni.showToast({ title: '创建成功', icon: 'success' })
     setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '创建失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '创建失败', icon: 'none' })
   } finally {
     cSubmitting.value = false
   }

@@ -30,7 +30,7 @@ const emit = defineEmits<{
 const labelMap = { article: '阅读', course: '学习', post: '查看', live: '观看' }
 const contentLabel = () => labelMap[props.contentType]
 
-function onPriceInput(e: any) {
+function onPriceInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   emit('update:price', parseFloat(e.detail.value) || 0)
 }
 </script>

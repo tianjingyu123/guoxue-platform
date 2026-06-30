@@ -53,8 +53,8 @@ async function fetchData() {
     ranking.value = rank
     cases.value = cs
     inviteLink.value = link
-  } catch (e: any) {
-    const msg = e?.message || ''
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
     if (/运营商|不是|未找到|FORBIDDEN|403/.test(msg)) notOpened.value = true
     else error.value = msg || '加载失败'
   } finally {

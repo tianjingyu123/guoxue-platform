@@ -10,6 +10,7 @@ const loading = ref(true)
 const error = ref('')
 const instructorId = ref('')
 
+// 讲师详情对象，模板 v-else 裸访问字段，保留 any 避免 null 链式报错
 const detail = ref<any>(null)
 
 const tab = ref<'intro' | 'courses' | 'reviews'>('intro')
@@ -36,14 +37,14 @@ async function loadData() {
     const res = await instructorApi.getDetail(instructorId.value)
     detail.value = res
     following.value = res.isFollowing
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((options: any) => {
+onLoad((options) => {
   instructorId.value = options?.id || '1'
 })
 

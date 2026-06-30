@@ -15,8 +15,10 @@ import {
 const loading = ref(true)
 const error = ref('')
 const agentId = ref('')
+// 模板中多处裸访问 agentDetail 字段，收敛为具体类型会触发大量报错，保留 any
 const agentDetail = ref<any>({ name: '', freeQuota: 0, pricePerChat: 0, callPrice: 0 })
 const quickQuestions = ref<string[]>([])
+// 推荐课程/圈子来自后端动态结构（未在模板渲染，仅暂存），结构未固定，保留 any
 const recommendedCourses = ref<any[]>([])
 const recommendedCircles = ref<any[]>([])
 
@@ -38,6 +40,7 @@ async function loadData() {
   error.value = ''
   try {
     const pages = getCurrentPages()
+    // 宿主页面实例对象，uni 类型未暴露 options/$page 字段，保留 as any
     const currentPage = pages[pages.length - 1] as any
     const opts = currentPage?.options || currentPage?.$page?.options || {}
     const id = opts.id || '1'
@@ -66,8 +69,8 @@ async function loadData() {
 
     // 携带预填问题（广场「大家都在问」入口 ?q= 透传）
     if (opts.q) inputValue.value = decodeURIComponent(opts.q)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

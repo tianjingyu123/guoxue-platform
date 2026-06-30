@@ -6,11 +6,13 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import { goBack } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import type { ReviewTag, ReviewSortOption, FullReview } from '@/lib/shop-data'
 import { useList } from '@/composables/useList'
 
-const reviewTags = ref<any[]>([])
-const reviewSortOptions = ref<any[]>([])
-const reviewSummary = ref<any>({ goodRatePercent: 0, rating: 0, total: 0 })
+const reviewTags = ref<ReviewTag[]>([])
+const reviewSortOptions = ref<ReviewSortOption[]>([])
+// 评价总览汇总对象，字段固定，给出精确内联类型
+const reviewSummary = ref<{ goodRatePercent: number; rating: number; total: number }>({ goodRatePercent: 0, rating: 0, total: 0 })
 
 const productId = ref('')
 const selectedTag = ref('all')
@@ -20,7 +22,7 @@ const likedReviews = ref<(string | number)[]>([])
 const previewImage = ref<{ reviewId: string | number; index: number } | null>(null)
 
 // 排序下沉后端(newest/withImages)；首屏一并取回 summary/sortOptions/tags
-const { list: fullReviews, loading, error, isEmpty, loadStatus, refresh, loadMore } = useList<any>({
+const { list: fullReviews, loading, error, isEmpty, loadStatus, refresh, loadMore } = useList<FullReview>({
   fetcher: async ({ page, pageSize }) => {
     const data = await shopApi.getMallReviews(productId.value, page, sortBy.value, pageSize)
     if (page === 1) {
@@ -32,10 +34,10 @@ const { list: fullReviews, loading, error, isEmpty, loadStatus, refresh, loadMor
   },
 })
 
-const sortLabel = computed(() => reviewSortOptions.value.find((o: any) => o.id === sortBy.value)?.label)
-const previewReview = computed(() => fullReviews.value.find((r: any) => r.id === previewImage.value?.reviewId) || null)
+const sortLabel = computed(() => reviewSortOptions.value.find((o) => o.id === sortBy.value)?.label)
+const previewReview = computed(() => fullReviews.value.find((r) => r.id === previewImage.value?.reviewId) || null)
 
-onLoad((query: any) => {
+onLoad((query) => {
   productId.value = query?.id || query?.productId || ''
   refresh()
 })

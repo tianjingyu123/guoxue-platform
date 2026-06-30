@@ -75,8 +75,8 @@ async function load() {
   try {
     me.value = getCurrentUserId()
     calls.value = await callApi.myCalls()
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
     calls.value = []
   } finally {
     loading.value = false

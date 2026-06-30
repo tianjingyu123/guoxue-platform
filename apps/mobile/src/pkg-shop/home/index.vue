@@ -7,6 +7,7 @@ import { shopApi } from '@/lib/shop-data'
 
 const loading = ref(true)
 const error = ref('')
+// 商城首页聚合：null 初值 + 模板 v-else 块裸访问 data.banners/categories/flashSale 等，收敛触发大量 possibly-null，保留 any
 const data = ref<any>(null)
 const bannerIndex = ref(0)
 
@@ -31,8 +32,8 @@ async function fetchHomeData() {
     if (data.value?.flashSale?.durationSec) {
       endTime.value = Date.now() + data.value.flashSale.durationSec * 1000
     }
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
     tick(); timer = setInterval(tick, 1000)

@@ -344,20 +344,20 @@ function toggleLevel(v: string) {
   if (i >= 0) levels.splice(i, 1)
   else levels.push(v)
 }
-function onDateChange(key: 'registerStart' | 'registerEnd', e: any) { config.userFilter[key] = e.detail.value }
-function onScheduledChange(e: any) { config.scheduledTime = e.detail.value }
-function onNumInput(key: 'minConsumption' | 'maxConsumption', e: any) {
+function onDateChange(key: 'registerStart' | 'registerEnd', e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) { config.userFilter[key] = e.detail.value }
+function onScheduledChange(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) { config.scheduledTime = e.detail.value }
+function onNumInput(key: 'minConsumption' | 'maxConsumption', e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   const v = Number(e.detail.value)
   config.userFilter[key] = isNaN(v) || v === 0 ? undefined : v
 }
-function onUidInput(e: any) { config.userFilter.uidList = e.detail.value }
-function onPerUserInput(e: any) {
+function onUidInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) { config.userFilter.uidList = e.detail.value }
+function onPerUserInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   let v = Number(e.detail.value) || 1
   if (v < 1) v = 1
   if (v > 10) v = 10
   config.perUserLimit = v
 }
-function onTotalInput(e: any) {
+function onTotalInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   const v = Number(e.detail.value)
   config.totalLimit = isNaN(v) || v === 0 ? undefined : v
 }

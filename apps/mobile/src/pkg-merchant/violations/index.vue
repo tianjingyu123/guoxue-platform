@@ -153,8 +153,8 @@ async function load() {
   try {
     const res = await merchantBackendApi.getViolations({ page: 1, pageSize: 100 })
     violations.value = res.items
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -178,8 +178,8 @@ function onAppeal(v: MerchantViolation) {
         await merchantBackendApi.appealViolation(v.id, text)
         uni.showToast({ title: '申诉已提交', icon: 'success' })
         await load()
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '提交失败', icon: 'none' })
       } finally {
         submittingId.value = ''
       }

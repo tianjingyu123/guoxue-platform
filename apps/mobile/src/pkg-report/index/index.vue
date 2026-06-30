@@ -171,8 +171,17 @@ const reportTypes = [
   { id: 'other', label: '其他问题', description: '其他需要举报的违规行为' },
 ]
 
+// 被举报对象信息（按 type 区分，字段按需可选）
+interface ReportTarget {
+  type: string
+  content?: string
+  author?: string
+  time?: string
+  name?: string
+  description?: string
+}
 // 被举报对象（mock，按 type 区分）
-const targets: Record<string, any> = {
+const targets: Record<string, ReportTarget> = {
   post: {
     type: 'post',
     content: '这里是被举报内容的摘要片段，可能包含违规信息...',

@@ -124,7 +124,27 @@ try {
   statusBarHeight.value = 0
 }
 
-const reportResults: Record<string, any> = {
+// 被举报对象（用户无 title/content，帖子/评论有）
+interface ReportResultTarget {
+  title?: string
+  content?: string
+  nickname: string
+}
+// 举报处理结果详情（对应下方内联 mock 的元素结构）
+interface ReportResult {
+  id: string
+  targetType: string
+  target: ReportResultTarget
+  reportType: string
+  reportTime: string
+  result: string
+  resultTitle: string
+  resultDescription: string
+  processTime: string
+  punishment?: string // 处罚措施（仅成立时有）
+}
+
+const reportResults: Record<string, ReportResult> = {
   '1': {
     id: 'R202401150001',
     targetType: 'post',
@@ -172,6 +192,7 @@ const reportResults: Record<string, any> = {
 const reportId = ref('1')
 try {
   const pages = getCurrentPages()
+  // uni-app Page 类型未声明 options/$page，保留 any 以兼容多端取参
   const cur: any = pages[pages.length - 1]
   const opt = cur?.options || cur?.$page?.options || {}
   if (opt.id) reportId.value = String(opt.id)

@@ -150,8 +150,8 @@ async function loadData() {
     const res = await imApi.getFriendRequests()
     pending.value = res.pending
     processed.value = res.processed
-  } catch (e: any) {
-    error.value = e?.message || '加载好友请求失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载好友请求失败，请重试'
   } finally {
     loading.value = false
   }

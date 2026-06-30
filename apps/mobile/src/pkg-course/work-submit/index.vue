@@ -10,6 +10,7 @@ const loading = ref(true)
 const error = ref('')
 const chapterId = ref('')
 
+// 作业要求详情对象，模板 v-else 裸访问字段，保留 any 避免 null 链式报错
 const requirement = ref<any>(null)
 
 const content = ref('')
@@ -31,14 +32,14 @@ async function loadData() {
   try {
     const res = await courseApi.getWorkRequirement(chapterId.value)
     requirement.value = res
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((options: any) => {
+onLoad((options) => {
   chapterId.value = options?.chapterId || options?.id || '1'
 })
 

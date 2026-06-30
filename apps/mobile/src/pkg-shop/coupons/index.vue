@@ -139,9 +139,9 @@ import { goBack, navigateTo } from '@/utils/router'
 import { shopApi, formatCouponValue, type CenterCoupon } from '@/lib/shop-data'
 
 const activeTab = ref('unused')
-const myList = ref<any[]>([])
+const myList = ref<any[]>([]) // 我的券(getMyCoupons().coupons)：含 status 等字段，无导出 item interface，保留 any
 const centerList = ref<CenterCoupon[]>([])
-const couponTabs = ref<any[]>([])
+const couponTabs = ref<any[]>([]) // 券分类 tab(key/label)：lib 内联结构无导出 interface，保留 any
 const claimingId = ref<string | null>(null)
 const loading = ref(true)
 const error = ref('')

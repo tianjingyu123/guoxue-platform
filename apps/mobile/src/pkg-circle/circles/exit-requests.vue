@@ -55,8 +55,8 @@ async function approve(id: string) {
       r.id === id ? { ...r, stage: 'platform_reviewing' as const, ownerReviewedAt: new Date().toISOString().slice(0, 10) } : r,
     )
     uni.showToast({ title: '已同意退出', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败，请重试', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -75,8 +75,8 @@ async function confirmReject() {
     )
     rejectingId.value = null; rejectReason.value = ''
     uni.showToast({ title: '已驳回申请', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败，请重试', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -107,6 +107,7 @@ async function confirmReject() {
         </view>
       </view>
       <view class="er-tabs">
+        <!-- t.key 是宽 string，filter 是联合字面量类型，去掉 as any 会报类型不匹配，故保留 -->
         <view v-for="t in [{ key: 'pending', label: '待审核' }, { key: 'processed', label: '已处理' }]" :key="t.key"
           class="er-tab" :class="{ 'er-tab-on': filter === t.key }" @tap="filter = t.key as any">
           <text>{{ t.label }}</text>

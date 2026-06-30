@@ -111,6 +111,7 @@ const loading = ref(false)
 const results = ref<SearchUser[]>([])
 const sending = ref<Record<string, boolean>>({})
 
+// 绑定到 uni <input>，vue-tsc 按原生 input 事件签名校验，保留 any
 function onInput(e: any) {
   query.value = e.detail.value
 }

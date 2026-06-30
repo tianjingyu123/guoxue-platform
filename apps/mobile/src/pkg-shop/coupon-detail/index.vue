@@ -97,14 +97,15 @@ import { navigateTo } from '@/utils/router'
 import { shopApi, type CouponApplicableItem } from '@/lib/shop-data'
 
 const couponId = ref('1')
+// 优惠券详情对象：{} 初值 + 模板 v-else 块裸访问 coupon.value/minAmount 等，收敛触发大量 possibly-undefined，保留 any
 const coupon = ref<any>({})
 const copied = ref(false)
 const loading = ref(true)
 const error = ref('')
 const submitting = ref(false)
 
-onLoad((q: any) => {
-  if (q?.id) couponId.value = q.id
+onLoad((q) => {
+  if (q?.id) couponId.value = q.id as string
 })
 
 onMounted(async () => {

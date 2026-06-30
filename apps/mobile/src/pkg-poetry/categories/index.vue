@@ -54,8 +54,8 @@ async function fetchCategories() {
   error.value = ''
   try {
     categories.value = await poetryApi.categories()
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }

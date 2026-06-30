@@ -62,8 +62,8 @@ async function fetchData() {
     userData.value = data
     // 猜你喜欢（getForScene 已内置降级，无需 try/catch）
     recItems.value = await recommendApi.getForScene('guess_like')
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -105,8 +105,8 @@ async function handleCheckIn() {
       totalPoints: userData.value.checkIn.totalPoints + res.points,
     }
     uni.showToast({ title: `签到成功 +${res.points}积分`, icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '签到失败，请重试', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '签到失败，请重试', icon: 'none' })
   } finally {
     checkInSubmitting.value = false
   }

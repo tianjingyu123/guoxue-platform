@@ -36,8 +36,8 @@ async function loadGuests() {
   errMsg.value = ''
   try {
     guests.value = await circleGuestsApi.list()
-  } catch (e: any) {
-    errMsg.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -84,8 +84,8 @@ async function saveShareRate() {
     uni.showToast({ title: '分账比例已更新', icon: 'none' })
     showEditModal.value = null
     await loadGuests()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally {
     saving.value = false
   }
@@ -110,8 +110,8 @@ async function doRemove(g: CircleGuest) {
     await circleGuestsApi.remove(circleId.value, g.userId)
     uni.showToast({ title: '已移除', icon: 'none' })
     await loadGuests()
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '移除失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '移除失败', icon: 'none' })
   } finally {
     acting.value = false
   }

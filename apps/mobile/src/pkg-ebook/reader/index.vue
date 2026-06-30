@@ -394,6 +394,7 @@ const aiResult = ref<{ translation: string; notes: string[] } | null>(null)
 const dictWord = ref('')
 const dictLoading = ref(false)
 const dictError = ref('')
+// 查词结果结构由后端动态返回（word/english/relatedKeywords 等字段不固定），保留 any
 const dictResult = ref<any>(null)
 
 // ── 笔记 ──
@@ -475,8 +476,8 @@ async function fetchData(bkId: string, chId?: string) {
     let idx = chId ? chapters.value.findIndex((c) => c.id === chId) : 0
     if (idx < 0) idx = 0
     await loadChapter(idx)
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -493,9 +494,9 @@ async function loadChapter(idx: number) {
     const data = await ebookApi.readerChapter(bookId.value, ch.id)
     paragraphs.value = splitParagraphs(data?.content || '')
     if (!paragraphs.value.length) chapterError.value = '本章暂无正文内容'
-  } catch (e: any) {
+  } catch (e) {
     paragraphs.value = []
-    chapterError.value = e?.message || '本章需购买后阅读'
+    chapterError.value = (e as Error)?.message || '本章需购买后阅读'
   }
   // 重置阅读位置与书签态（按章独立）
   isBookmarked.value = false
@@ -532,14 +533,15 @@ async function explain(seg: string) {
       translation: r?.translated || r?.translation || '暂无翻译',
       notes: Array.isArray(r?.notes) ? r.notes : [],
     }
-  } catch (e: any) {
-    aiError.value = e?.message || 'AI 解读失败，请稍后重试'
+  } catch (e) {
+    aiError.value = (e as Error)?.message || 'AI 解读失败，请稍后重试'
   } finally {
     aiLoading.value = false
   }
 }
 function handleSelection() {
   if (typeof window === 'undefined') return
+  // window.getSelection 为 H5 端 DOM API，uni-app 类型未声明，保留 as any
   const t = (((window as any).getSelection && (window as any).getSelection())?.toString() || '').trim()
   selectedText.value = t.length >= 2 && t.length <= 200 ? t : ''
 }
@@ -559,8 +561,8 @@ async function doLookup() {
   dictResult.value = null
   try {
     dictResult.value = await ebookApi.lookup(w)
-  } catch (e: any) {
-    dictError.value = e?.message || '查询失败'
+  } catch (e) {
+    dictError.value = (e as Error)?.message || '查询失败'
   } finally {
     dictLoading.value = false
   }
@@ -575,8 +577,8 @@ async function toggleBookmark() {
     await ebookApi.addBookmark(bookId.value, { chapterId: curChapter.value.id, page: progressPct.value })
     isBookmarked.value = true
     uni.showToast({ title: '已添加书签', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '添加失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '添加失败', icon: 'none' })
   } finally {
     bookmarking.value = false
   }
@@ -597,8 +599,8 @@ async function submitNote() {
     await ebookApi.addNote(bookId.value, { chapterId: curChapter.value.id, content: c })
     showNote.value = false
     uni.showToast({ title: '笔记已保存', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally {
     noteSubmitting.value = false
   }
@@ -660,7 +662,7 @@ onUnmounted(() => {
 onHide(() => { reportSession(); saveProgress() })
 onUnload(() => { reportSession(); saveProgress() })
 
-onLoad((q: any = {}) => {
+onLoad((q = {}) => {
   loadPref()
   sessionStart = Date.now()
   fetchData(q?.id || '1', q?.chapter)

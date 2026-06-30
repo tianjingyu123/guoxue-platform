@@ -174,7 +174,8 @@ const certFields = [
 
 const canNext = computed(() => !!form.value.realName && !!form.value.title)
 
-function updateForm(key: string, e: any) {
+// 模板 @input 传入的是 uni-app 输入事件对象，仅取 detail.value
+function updateForm(key: string, e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   form.value[key] = e.detail.value
 }
 
@@ -184,8 +185,9 @@ async function chooseImage(key: string) {
   uploadingKey.value = key
   try {
     form.value[key] = await chooseAndUploadImage()
-  } catch (e: any) {
-    if (e?.message && e.message !== '已取消') uni.showToast({ title: e.message, icon: 'none' })
+  } catch (e) {
+    const err = e as Error
+    if (err?.message && err.message !== '已取消') uni.showToast({ title: err.message, icon: 'none' })
   } finally {
     uploadingKey.value = ''
   }
@@ -245,8 +247,9 @@ async function handleSubmit() {
     })
     step.value = 3
     status.value = 'pending'
-  } catch (e: any) {
-    const msg = e?.message || e?.errMsg || ''
+  } catch (e) {
+    const err = e as { message?: string; errMsg?: string }
+    const msg = err?.message || err?.errMsg || ''
     if (msg.includes('实名')) {
       uni.showModal({
         title: '需先完成实名认证',

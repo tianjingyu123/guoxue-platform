@@ -151,8 +151,8 @@ async function load() {
       uni.showToast({ title: '当前无需缴纳保证金', icon: 'none' })
       setTimeout(() => navigateTo('/merchant/application-status'), 800)
     }
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '加载失败', icon: 'none' })
   } finally {
     loading.value = false
   }
@@ -162,12 +162,12 @@ async function handlePay() {
   if (isPaying.value) return
   isPaying.value = true
   try {
-    const res: any = await merchantApi.payDeposit(selectedMethod.value)
+    const res = await merchantApi.payDeposit(selectedMethod.value) as { depositRecordId?: string }
     paidInfo.value = { paidAt: formatNow(), transactionId: res?.depositRecordId || '' }
     isPaid.value = true
     setTimeout(() => navigateTo('/merchant/application-status'), 2000)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '支付失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '支付失败', icon: 'none' })
   } finally {
     isPaying.value = false
   }

@@ -148,8 +148,8 @@ async function load() {
     // 联系电话同样可能脱敏，留空
     formData.contactPhone = ''
     formData.categoryIds = [...(app.categoryIds || [])]
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -175,7 +175,7 @@ async function handleSubmit() {
   isSubmitting.value = true
   try {
     // 仅提交有值的字段（脱敏留空字段不覆盖原值）
-    const payload: Record<string, any> = {
+    const payload: Record<string, string | string[] | undefined> = {
       shopName: formData.shopName.trim(),
       shopIntro: formData.shopIntro.trim() || undefined,
       contactName: formData.contactName.trim() || undefined,
@@ -186,8 +186,8 @@ async function handleSubmit() {
     await merchantApi.updateApplication(payload)
     uni.showToast({ title: '修改成功', icon: 'success' })
     setTimeout(() => navigateTo('/merchant/application-status'), 800)
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提交失败', icon: 'none' })
   } finally {
     isSubmitting.value = false
   }

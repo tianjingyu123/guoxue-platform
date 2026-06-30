@@ -178,7 +178,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { orderApi, invoiceStatusConfig, INVOICE_AVAILABLE } from '@/lib/order-data'
+import { orderApi, invoiceStatusConfig, INVOICE_AVAILABLE, type InvoiceOrder, type InvoiceRecord } from '@/lib/order-data'
 
 // 后端暂无电子发票子系统，统一诚实降级提示（不臆造可开票数据）
 const invoiceAvailable = INVOICE_AVAILABLE
@@ -188,8 +188,8 @@ const activeTab = ref<'apply' | 'list'>('apply')
 
 const loading = ref(true)
 const error = ref('')
-const applicableOrders = ref<any[]>([])
-const records = ref<any[]>([])
+const applicableOrders = ref<InvoiceOrder[]>([])
+const records = ref<InvoiceRecord[]>([])
 
 async function loadData() {
   loading.value = true
@@ -201,8 +201,8 @@ async function loadData() {
     ])
     applicableOrders.value = orders
     records.value = invoices
-  } catch (e: any) {
-    error.value = e?.message || '加载失败，请重试'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -288,7 +288,7 @@ async function submitApply() {
   }
 }
 
-function downloadInvoice(_rec: any) {
+function downloadInvoice(_rec: InvoiceRecord) {
   uni.showToast({ title: '发票下载中', icon: 'none' })
 }
 </script>

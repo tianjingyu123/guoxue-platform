@@ -316,19 +316,36 @@ const coupons = ref([
 ])
 const countdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
 
-let cdTimer: any = null
-let bannerTimer: any = null
+let cdTimer: ReturnType<typeof setInterval> | null = null
+let bannerTimer: ReturnType<typeof setInterval> | null = null
+
+// 秒杀商品与优惠券的本地类型定义
+interface SeckillProduct {
+  id: number
+  title: string
+  originalPrice: number
+  seckillPrice: number
+  stock: number
+  sold: number
+}
+interface Coupon {
+  id: number
+  amount: number
+  condition: string
+  scope: string
+  claimed: boolean
+}
 
 function pad(n: number) {
   return String(n).padStart(2, '0')
 }
-function offPercent(p: any) {
+function offPercent(p: SeckillProduct) {
   return Math.round((1 - p.seckillPrice / p.originalPrice) * 100)
 }
-function soldPercent(p: any) {
+function soldPercent(p: SeckillProduct) {
   return Math.round((p.sold / p.stock) * 100)
 }
-function claimCoupon(c: any) {
+function claimCoupon(c: Coupon) {
   if (!c.claimed) c.claimed = true
 }
 function go(path: string) {

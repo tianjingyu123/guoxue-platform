@@ -180,8 +180,8 @@ async function fetchData() {
     ])
     feedbackTypes.value = types
     historyFeedbacks.value = history
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -203,10 +203,10 @@ function typeOf(id: string) {
 function statusOf(status: string) {
   return feedbackStatusConfig[status] || feedbackStatusConfig.pending
 }
-function onContentInput(e: any) {
+function onContentInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   content.value = e.detail.value
 }
-function onContactInput(e: any) {
+function onContactInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   contact.value = e.detail.value
 }
 function removeImage(i: number) {
@@ -222,8 +222,8 @@ async function handleSubmit() {
   try {
     await mineApi.submitFeedback(selectedType.value!, content.value, contact.value || undefined, images.value)
     submitted.value = true
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提交失败', icon: 'none' })
   } finally {
     isSubmitting.value = false
   }

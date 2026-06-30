@@ -11,7 +11,9 @@ const error = ref('')
 const lessonId = ref('')
 const courseId = ref('')
 
+// 播放内容详情对象，模板 v-else 裸访问字段，保留 any 避免 null 链式报错
 const content = ref<any>(null)
+// 章节列表，模板裸访问 lessons 等字段，保留 any
 const chapters = ref<any[]>([])
 
 // 纯 UI 播放状态
@@ -67,14 +69,14 @@ async function loadData() {
     ])
     content.value = playerContent
     chapters.value = playerChapters
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((options: any) => {
+onLoad((options) => {
   lessonId.value = options?.lesson || '1'
   courseId.value = options?.id || '1'
   currentLessonId.value = lessonId.value

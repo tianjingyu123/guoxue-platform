@@ -10,6 +10,7 @@ const loading = ref(true)
 const error = ref('')
 const courseId = ref('')
 
+// 证书详情对象，模板 v-else 裸访问字段，保留 any 避免 null 链式报错
 const cert = ref<any>(null)
 
 const dateStr = computed(() => cert.value?.completedAt ?? '')
@@ -26,14 +27,14 @@ async function loadData() {
   try {
     const res = await courseApi.getCertificate(courseId.value)
     cert.value = res
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
 
-onLoad((options: any) => {
+onLoad((options) => {
   courseId.value = options?.id || '1'
 })
 

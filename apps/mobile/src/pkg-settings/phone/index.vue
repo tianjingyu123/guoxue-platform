@@ -121,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, type Ref } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
@@ -143,8 +143,8 @@ const newSending = ref(false)
 const newVerifying = ref(false)
 const phoneExistsModal = ref(false)
 
-let curTimer: any = null
-let newTimer: any = null
+let curTimer: ReturnType<typeof setInterval> | null = null
+let newTimer: ReturnType<typeof setInterval> | null = null
 
 function validPhone(p: string) {
   return /^1[3-9]\d{9}$/.test(p)
@@ -153,7 +153,7 @@ function maskPhone(p: string) {
   return p.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
 }
 
-function tick(countRef: any, timerHolder: 'cur' | 'new') {
+function tick(countRef: Ref<number>, timerHolder: 'cur' | 'new') {
   const t = setInterval(() => {
     if (countRef.value > 0) countRef.value--
     else clearInterval(t)

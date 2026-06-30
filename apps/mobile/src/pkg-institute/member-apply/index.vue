@@ -258,9 +258,9 @@ async function doApply() {
     await instituteApi.applyMember({ role: selectedRole.value, joinYear, deposit: 10000 })
     showPayDialog.value = false
     step.value = 4
-  } catch (e: any) {
+  } catch (e) {
     showPayDialog.value = false
-    uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || '提交失败', icon: 'none' })
   } finally {
     joining.value = false
   }

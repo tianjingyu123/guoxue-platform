@@ -189,8 +189,8 @@ onMounted(async () => {
     data.value = d
     records.value = r
     saleLink.value = sl
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -208,8 +208,8 @@ async function retry() {
     data.value = d
     records.value = r
     saleLink.value = sl
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
