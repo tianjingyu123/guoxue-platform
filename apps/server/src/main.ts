@@ -10,6 +10,7 @@ import { AppGraphqlModule } from "./app-graphql.module";
 import { RedisThrottleGuard } from "./common/redis-throttle.guard";
 import { serverConfig } from "./config/server-config";
 import { cryptoSelfTest, setDecryptAlertHandler } from "./common/crypto.util";
+import { ThirdPartyConfigLoader } from "./modules/system/third-party-config.loader";
 import { setAlertHandler } from "./common/alert";
 import { WeworkService } from "./modules/notification/wework.service";
 import { RedisService } from "./redis/redis.service";
@@ -121,6 +122,13 @@ async function bootstrap() {
       },
     },
   }));
+
+  // 启动时把后台配置的第三方密钥同步到 process.env（DB 优先、.env 兜底；保存时会再同步实现热生效）
+  try {
+    await app.get(ThirdPartyConfigLoader).syncToEnv();
+  } catch (e) {
+    logger.raw().warn(`第三方密钥同步失败，使用 .env 兜底：${(e as Error)?.message}`);
+  }
 
   const port = serverConfig.port;
   const host = serverConfig.host;

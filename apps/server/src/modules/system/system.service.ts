@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AuditService } from "../audit/audit.service";
+import { ThirdPartyConfigLoader } from "./third-party-config.loader";
 
 const CONFIG_CACHE_TTL = 3600; // 1小时
 const CONFIG_CACHE_PREFIX = "sys:config:";
@@ -17,39 +18,51 @@ export class SystemService {
     private prisma: PrismaService,
     private redis: RedisService,
     private audit: AuditService,
+    private thirdParty: ThirdPartyConfigLoader,
   ) {}
 
   async getAllConfigs() {
     const cached = await this.redis.getJson<any[]>(CONFIG_CACHE_PREFIX + "all");
-    if (cached) return cached;
-
-    const configs = await this.prisma.configSystem.findMany({
-      orderBy: { configKey: "asc" },
-    });
-    await this.redis.setJson(CONFIG_CACHE_PREFIX + "all", configs, CONFIG_CACHE_TTL);
-    return configs;
+    const configs = cached ?? await this.prisma.configSystem.findMany({ orderBy: { configKey: "asc" } });
+    if (!cached) await this.redis.setJson(CONFIG_CACHE_PREFIX + "all", configs, CONFIG_CACHE_TTL);
+    // 第三方密钥：解密 + 敏感字段掩码后返回（明文不出后端；缓存里存的仍是密文）
+    return configs.map((c: any) =>
+      this.thirdParty.isThirdPartyKey(c.configKey)
+        ? { ...c, configValue: this.thirdParty.buildDisplayValue(c.configKey, c.configValue) }
+        : c,
+    );
   }
 
   async getConfig(key: string) {
     const cached = await this.redis.getJson<any>(CONFIG_CACHE_PREFIX + key);
-    if (cached !== null) return cached;
-
-    const config = await this.prisma.configSystem.findUnique({ where: { configKey: key } });
-    if (config) {
-      await this.redis.setJson(CONFIG_CACHE_PREFIX + key, config, CONFIG_CACHE_TTL);
+    let config = cached;
+    if (cached === null || cached === undefined) {
+      config = await this.prisma.configSystem.findUnique({ where: { configKey: key } });
+      if (config) await this.redis.setJson(CONFIG_CACHE_PREFIX + key, config, CONFIG_CACHE_TTL);
+    }
+    if (config && this.thirdParty.isThirdPartyKey(key)) {
+      return { ...config, configValue: this.thirdParty.buildDisplayValue(key, config.configValue) };
     }
     return config;
   }
 
   async setConfig(key: string, value: string, description?: string, updatedBy?: string) {
+    // 第三方密钥：merge（掩码/空字段不覆盖原值）+ 加密存储
+    const storedValue = this.thirdParty.isThirdPartyKey(key)
+      ? await this.thirdParty.buildStoredValue(key, value)
+      : value;
     const result = await this.prisma.configSystem.upsert({
       where: { configKey: key },
-      create: { configKey: key, configValue: value, description, updatedBy },
-      update: { configValue: value, description, updatedBy },
+      create: { configKey: key, configValue: storedValue, description, updatedBy },
+      update: { configValue: storedValue, description, updatedBy },
     });
     // 失效缓存
     await this.redis.del(CONFIG_CACHE_PREFIX + key);
     await this.redis.del(CONFIG_CACHE_PREFIX + "all");
+    // 第三方密钥：保存后立即同步到 process.env（热生效，无需重启）
+    if (this.thirdParty.isThirdPartyKey(key)) {
+      await this.thirdParty.syncToEnv();
+    }
     return result;
   }
 
