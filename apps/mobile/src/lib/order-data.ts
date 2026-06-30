@@ -269,6 +269,62 @@ export function getDisputeTypeLabel(type: string) {
    适配工具：后端真实结构 → 前端视图模型
    ============================================================ */
 
+/* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
+interface RawProductLite { id?: string; title?: string; cover?: string | null; price?: number | string }
+interface RawSkuLite { skuName?: string }
+/** 后端 Order 原始响应 */
+interface RawOrder {
+  id?: string
+  status?: string
+  orderType?: string
+  amount?: number | string
+  originalAmount?: number | string
+  payAmount?: number | string
+  createdAt?: string | null
+  paidAt?: string | null
+  shippedAt?: string | null
+  completedAt?: string | null
+  payMethod?: string
+  title?: string
+  cover?: string | null
+  memberType?: string
+  targetId?: string
+  product?: RawProductLite | null
+  sku?: RawSkuLite | null
+  bundle?: { name?: string } | null
+}
+/** 后端物流轨迹节点 */
+interface RawTrack { status?: string; desc?: string; description?: string; time?: string }
+/** 后端 {order, logistics} 原始响应 */
+interface RawLogisticsWrap {
+  order?: { status?: string } | null
+  logistics?: {
+    company?: string
+    logisticsNo?: string
+    status?: string
+    province?: string
+    city?: string
+    district?: string
+    address?: string
+    contactName?: string
+    contactPhone?: string
+    trackingData?: RawTrack[]
+  } | null
+}
+/** 后端 AfterSale(enriched) 原始响应 */
+interface RawAfterSale {
+  id?: string
+  orderId?: string
+  status?: string
+  type?: string
+  reason?: string
+  amount?: number | string
+  createdAt?: string | null
+  updatedAt?: string | null
+  product?: RawProductLite | null
+  order?: { amount?: number | string; createdAt?: string | null } | null
+}
+
 /** ISO 时间 → 'YYYY-MM-DD HH:mm'（uni-app 多端无 dayjs 依赖，手写格式化） */
 function fmtTime(iso?: string | null): string {
   if (!iso) return ''
@@ -278,10 +334,10 @@ function fmtTime(iso?: string | null): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-const num = (v: any): number => { const n = Number(v); return isNaN(n) ? 0 : n }
+const num = (v: unknown): number => { const n = Number(v); return isNaN(n) ? 0 : n }
 
 /** 后端短订单号：取 UUID 前 8 位大写，供展示/复制 */
-function shortNo(id: string): string {
+function shortNo(id?: string): string {
   return id ? id.replace(/-/g, '').slice(0, 12).toUpperCase() : ''
 }
 
@@ -319,10 +375,10 @@ const AFTERSALE_TYPE_LABEL: Record<string, string> = {
   refund: '仅退款', return: '退货退款', exchange: '换货',
   not_received: '未收到货', not_as_described: '商品不符', quality_issue: '质量问题', other: '其他问题',
 }
-const typeText = (t: string) => AFTERSALE_TYPE_LABEL[t] || t
+const typeText = (t?: string) => (t ? AFTERSALE_TYPE_LABEL[t] || t : '')
 
 /** 单条后端订单 → 一条商品行（订单为单商品模型；无商品信息时降级为通用名） */
-function toOrderProduct(o: any): OrderProduct {
+function toOrderProduct(o: RawOrder): OrderProduct {
   return {
     id: o.product?.id || o.targetId || '',
     name: o.product?.title || '商品',
@@ -333,11 +389,11 @@ function toOrderProduct(o: any): OrderProduct {
   }
 }
 
-function adaptOrderListItem(o: any): OrderListItem {
+function adaptOrderListItem(o: RawOrder): OrderListItem {
   return {
-    id: o.id,
+    id: o.id || '',
     orderNo: shortNo(o.id),
-    status: ORDER_STATUS_MAP[o.status] || 'completed',
+    status: ORDER_STATUS_MAP[o.status || ''] || 'completed',
     totalAmount: num(o.originalAmount ?? o.amount),
     payAmount: num(o.payAmount ?? o.amount),
     createdAt: fmtTime(o.createdAt),
@@ -352,7 +408,7 @@ function adaptOrderListItem(o: any): OrderListItem {
   }
 }
 
-function adaptOrderDetail(o: any): OrderDetail {
+function adaptOrderDetail(o: RawOrder): OrderDetail {
   const base = adaptOrderListItem(o)
   return {
     ...base,
@@ -361,30 +417,30 @@ function adaptOrderDetail(o: any): OrderDetail {
   }
 }
 
-function adaptUnifiedOrder(o: any): UnifiedOrder {
-  const category = ORDER_TYPE_CATEGORY[o.orderType] || 'product'
+function adaptUnifiedOrder(o: RawOrder): UnifiedOrder {
+  const category = ORDER_TYPE_CATEGORY[o.orderType || ''] || 'product'
   const title = o.title || o.bundle?.name || (o.memberType ? `会员 · ${o.memberType}` : '订单')
   return {
-    id: o.id,
+    id: o.id || '',
     orderNo: shortNo(o.id),
     category,
     title,
     cover: o.cover || undefined,
     price: num(o.payAmount ?? o.amount),
-    status: UNIFIED_STATUS_MAP[o.status] || 'completed',
+    status: UNIFIED_STATUS_MAP[o.status || ''] || 'completed',
     createdAt: fmtTime(o.createdAt),
   }
 }
 
 /** 后端 {order, logistics} → 前端 LogisticsDetail */
-function adaptLogistics(orderId: string, raw: any): LogisticsDetail {
+function adaptLogistics(orderId: string, raw: RawLogisticsWrap): LogisticsDetail {
   const lg = raw?.logistics
   const ord = raw?.order
   const tracks: LogisticsTrack[] = Array.isArray(lg?.trackingData)
-    ? lg.trackingData
+    ? lg!.trackingData!
         .slice()
-        .sort((a: any, b: any) => new Date(b.time).getTime() - new Date(a.time).getTime())
-        .map((t: any, i: number) => ({
+        .sort((a: RawTrack, b: RawTrack) => new Date(b.time || 0).getTime() - new Date(a.time || 0).getTime())
+        .map((t: RawTrack, i: number) => ({
           status: t.status || '',
           description: t.desc || t.description || '',
           time: fmtTime(t.time),
@@ -414,13 +470,13 @@ function adaptLogistics(orderId: string, raw: any): LogisticsDetail {
 }
 
 /** 后端 AfterSale(enriched) → 前端纠纷列表项 */
-function adaptDisputeListItem(a: any): DisputeListItem {
+function adaptDisputeListItem(a: RawAfterSale): DisputeListItem {
   return {
-    id: a.id,
-    orderId: a.orderId,
+    id: a.id || '',
+    orderId: a.orderId || '',
     orderNo: shortNo(a.orderId),
     type: typeText(a.type),
-    status: AFTERSALE_STATUS_MAP[a.status] || 'pending',
+    status: AFTERSALE_STATUS_MAP[a.status || ''] || 'pending',
     productName: a.product?.title || '商品',
     productCover: a.product?.cover || '',
     createdAt: fmtTime(a.createdAt),
@@ -428,7 +484,7 @@ function adaptDisputeListItem(a: any): DisputeListItem {
 }
 
 /** 由 AfterSale.status 派生时间轴（后端无逐节点时间，按真实状态推进） */
-function buildAfterSaleTimeline(a: any) {
+function buildAfterSaleTimeline(a: RawAfterSale) {
   const t0 = fmtTime(a.createdAt)
   const t1 = fmtTime(a.updatedAt)
   const submitted = { status: 'submitted', title: '提交申请', description: '您已成功提交售后申请', time: t0, isCurrent: false }
@@ -448,9 +504,9 @@ function buildAfterSaleTimeline(a: any) {
   ]
 }
 
-function adaptDisputeDetail(a: any): DisputeDetail {
+function adaptDisputeDetail(a: RawAfterSale): DisputeDetail {
   const orderBrief: DisputeOrderBrief = {
-    orderId: a.orderId,
+    orderId: a.orderId || '',
     orderNo: shortNo(a.orderId),
     productName: a.product?.title || '商品',
     productCover: a.product?.cover || '',
@@ -458,11 +514,11 @@ function adaptDisputeDetail(a: any): DisputeDetail {
     createdAt: fmtTime(a.order?.createdAt || a.createdAt),
   }
   return {
-    id: a.id,
-    orderId: a.orderId,
+    id: a.id || '',
+    orderId: a.orderId || '',
     orderNo: shortNo(a.orderId),
     type: typeText(a.type),
-    status: AFTERSALE_STATUS_MAP[a.status] || 'pending',
+    status: AFTERSALE_STATUS_MAP[a.status || ''] || 'pending',
     description: a.reason || '',
     images: [],
     expectation: '',
@@ -474,22 +530,22 @@ function adaptDisputeDetail(a: any): DisputeDetail {
 }
 
 /** 后端 AfterSale(enriched) → 前端退款进度（退款页与纠纷页共用售后子系统） */
-function adaptRefundDetail(a: any): RefundDetail {
+function adaptRefundDetail(a: RawAfterSale): RefundDetail {
   const statusMap: Record<string, RefundDetail['status']> = {
     PENDING: 'merchant_review', PROCESSING: 'platform_review',
     APPROVED: 'refunding', COMPLETED: 'completed', REJECTED: 'submitted', CANCELLED: 'submitted',
   }
   const tl = buildAfterSaleTimeline(a)
   return {
-    id: a.id,
-    orderId: a.orderId,
+    id: a.id || '',
+    orderId: a.orderId || '',
     orderNo: shortNo(a.orderId),
     type: a.type === 'return' ? 'return_refund' : 'refund_only',
-    status: statusMap[a.status] || 'submitted',
+    status: statusMap[a.status || ''] || 'submitted',
     reason: a.reason || '',
     amount: num(a.amount ?? a.order?.amount),
     description: a.reason || '',
-    product: a.product ? { id: a.product.id, name: a.product.title, cover: a.product.cover || '', skuName: '', price: num(a.product.price), quantity: 1 } : undefined,
+    product: a.product ? { id: a.product.id || '', name: a.product.title || '商品', cover: a.product.cover || '', skuName: '', price: num(a.product.price), quantity: 1 } : undefined,
     timeline: tl,
     createdAt: fmtTime(a.createdAt),
     canCancel: a.status === 'PENDING',
@@ -503,7 +559,7 @@ export const orderApi = {
   async list(tab?: string, page = 1, pageSize = 20): Promise<{ items: OrderListItem[]; total: number }> {
     const status = tab ? TAB_TO_STATUS[tab] : undefined
     const qs = `page=${page}&pageSize=${pageSize}${status ? `&status=${status}` : ''}`
-    const res = await apiGet<{ orders: any[]; total?: number }>(`/shop/orders/my?${qs}`)
+    const res = await apiGet<{ orders: RawOrder[]; total?: number }>(`/shop/orders/my?${qs}`)
     const items = (res?.orders || []).map(adaptOrderListItem)
     return { items, total: res?.total ?? items.length }
   },
@@ -522,25 +578,25 @@ export const orderApi = {
 
   /** 订单详情 */
   async detail(orderId: string): Promise<OrderDetail> {
-    const o = await apiGet<any>(`/shop/orders/${orderId}`)
+    const o = await apiGet<RawOrder>(`/shop/orders/${orderId}`)
     return adaptOrderDetail(o)
   },
 
   /** 统一订单中心（商城+会员+权益包，跨品类聚合） */
   async center(_category?: string): Promise<UnifiedOrder[]> {
-    const res = await apiGet<{ orders: any[] }>(`/orders/my?page=1&pageSize=100`)
+    const res = await apiGet<{ orders: RawOrder[] }>(`/orders/my?page=1&pageSize=100`)
     return (res?.orders || []).map(adaptUnifiedOrder)
   },
 
   /** 物流详情 */
   async logistics(orderId: string): Promise<LogisticsDetail> {
-    const raw = await apiGet<any>(`/shop/orders/${orderId}/logistics`)
+    const raw = await apiGet<RawLogisticsWrap>(`/shop/orders/${orderId}/logistics`)
     return adaptLogistics(orderId, raw)
   },
 
   /** 加载订单可评价商品（评价页用，来自订单详情） */
   async reviewItems(orderId: string): Promise<ReviewItem[]> {
-    const o = await apiGet<any>(`/shop/orders/${orderId}`)
+    const o = await apiGet<RawOrder>(`/shop/orders/${orderId}`)
     return (adaptOrderDetail(o).products || []).map((p) => ({ id: p.id, name: p.name, cover: p.cover }))
   },
 
@@ -570,9 +626,9 @@ export const orderApi = {
 
   /** 退款进度（按 orderId 在用户售后单中匹配最新一条） */
   async refundProgress(orderId: string): Promise<RefundDetail> {
-    const res = await apiGet<any>(`/shop/after-sales?page=1&pageSize=100`)
-    const list = Array.isArray(res) ? res : (res?.items || [])
-    const matched = orderId ? list.find((a: any) => a.orderId === orderId) : list[0]
+    const res = await apiGet<RawAfterSale[] | { items: RawAfterSale[] }>(`/shop/after-sales?page=1&pageSize=100`)
+    const list: RawAfterSale[] = Array.isArray(res) ? res : (res?.items || [])
+    const matched = orderId ? list.find((a) => a.orderId === orderId) : list[0]
     if (!matched) throw new Error('暂无该订单的退款记录')
     return adaptRefundDetail(matched)
   },
@@ -580,10 +636,10 @@ export const orderApi = {
   /** 纠纷/售后：创建表单的订单简要（来自订单详情） */
   async getDisputeOrder(orderId: string): Promise<DisputeOrderBrief> {
     if (!orderId) throw new Error('缺少订单信息')
-    const o = await apiGet<any>(`/shop/orders/${orderId}`)
+    const o = await apiGet<RawOrder>(`/shop/orders/${orderId}`)
     const p = o.product
     return {
-      orderId: o.id,
+      orderId: o.id || '',
       orderNo: shortNo(o.id),
       productName: p?.title || '商品',
       productCover: p?.cover || '',
@@ -594,14 +650,14 @@ export const orderApi = {
 
   /** 我的纠纷/售后列表 */
   async getDisputes(): Promise<DisputeListItem[]> {
-    const res = await apiGet<any>(`/shop/after-sales?page=1&pageSize=100`)
-    const list = Array.isArray(res) ? res : (res?.items || [])
+    const res = await apiGet<RawAfterSale[] | { items: RawAfterSale[] }>(`/shop/after-sales?page=1&pageSize=100`)
+    const list: RawAfterSale[] = Array.isArray(res) ? res : (res?.items || [])
     return list.map(adaptDisputeListItem)
   },
 
   /** 纠纷/售后详情 */
   async disputeDetail(disputeId: string): Promise<DisputeDetail> {
-    const a = await apiGet<any>(`/shop/after-sales/${disputeId}`)
+    const a = await apiGet<RawAfterSale>(`/shop/after-sales/${disputeId}`)
     return adaptDisputeDetail(a)
   },
 
