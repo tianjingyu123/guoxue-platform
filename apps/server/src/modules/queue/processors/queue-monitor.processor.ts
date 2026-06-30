@@ -2,6 +2,7 @@ import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
 import { Logger } from "@nestjs/common";
 import { QueueService } from "../queue.service";
+import { sendAlert } from "../../../common/alert";
 
 /**
  * 队列监控 — 每5分钟检查所有队列的积压和失败情况
@@ -44,6 +45,8 @@ export class QueueMonitorProcessor extends WorkerHost {
 
       if (alerts.length > 0) {
         this.logger.error(`队列健康告警:\n${alerts.join("\n")}`);
+        // B4 可观测：队列积压/失败堆积经统一告警通道触达运维（节流防刷屏）
+        sendAlert("queue:health", "队列健康告警", alerts.join("\n"));
       }
     } catch (err) {
       this.logger.error("队列健康检查失败", err);

@@ -4,6 +4,7 @@ import { tap } from "rxjs/operators";
 import { trace } from "@opentelemetry/api";
 import { RequestContext } from "./request-context";
 import { PinoLoggerService } from "./pino-logger.service";
+import { sendAlert } from "./alert";
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
@@ -48,6 +49,8 @@ export class LoggingInterceptor implements NestInterceptor {
 
                 if (ms > CRITICAL_THRESHOLD_MS) {
                   pino.error({ method, url, status: res.statusCode, ms, traceId }, `CRITICAL SLOW ${method} ${url} → ${ms}ms`);
+                  // B4 可观测：严重慢请求经统一告警通道触达运维（节流防刷屏）
+                  sendAlert("slow:critical", "严重慢请求告警", `${method} ${url} 耗时 ${ms}ms（阈值 ${CRITICAL_THRESHOLD_MS}ms，traceId=${traceId}）`);
                 } else if (ms > SLOW_THRESHOLD_MS) {
                   pino.warn({ method, url, status: res.statusCode, ms, traceId }, `SLOW ${method} ${url} → ${ms}ms`);
                 }

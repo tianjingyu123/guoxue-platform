@@ -8,6 +8,7 @@ import {
 import { BusinessException } from "./business.exception";
 import { PinoLoggerService } from "./pino-logger.service";
 import { RequestContext } from "./request-context";
+import { sendAlert } from "./alert";
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -82,6 +83,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
           stack,
         },
         `${request.method} ${request.url} → ${status}`,
+      );
+      // B4 可观测：5xx 经统一告警通道触达运维（按状态码节流防风暴，无 webhook 时降级日志）
+      sendAlert(
+        `5xx:${status}`,
+        "服务 5xx 错误告警",
+        `${request.method} ${request.url} → ${status}（traceId=${RequestContext.traceId() || "N/A"}）`,
       );
     }
 

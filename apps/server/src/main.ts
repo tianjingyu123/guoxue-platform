@@ -10,6 +10,7 @@ import { AppGraphqlModule } from "./app-graphql.module";
 import { RedisThrottleGuard } from "./common/redis-throttle.guard";
 import { serverConfig } from "./config/server-config";
 import { cryptoSelfTest, setDecryptAlertHandler } from "./common/crypto.util";
+import { setAlertHandler } from "./common/alert";
 import { WeworkService } from "./modules/notification/wework.service";
 import { RedisService } from "./redis/redis.service";
 import { AllExceptionsFilter } from "./common/http-exception.filter";
@@ -39,9 +40,12 @@ async function bootstrap() {
   // B2: 注入解密失败告警通道 — decrypt 遇 GCM 认证失败（疑似密钥错配）时经企微告警；无 webhook 时降级为日志
   try {
     const wework = app.get(WeworkService, { strict: false });
-    setDecryptAlertHandler((title, detail) => { wework.notifyAlert(title, detail).catch(() => undefined); });
+    const toWework = (title: string, detail: string) => { wework.notifyAlert(title, detail).catch(() => undefined); };
+    setDecryptAlertHandler(toWework);
+    // B4 可观测：5xx / 慢请求 / 队列积压统一告警通道注入企微
+    setAlertHandler(toWework);
   } catch {
-    logger.raw().warn("WeworkService 不可用，解密失败告警降级为 stderr 日志");
+    logger.raw().warn("WeworkService 不可用，解密/可观测告警降级为 stderr 日志");
   }
 
   // 请求体大小限制 — 防止大payload攻击
