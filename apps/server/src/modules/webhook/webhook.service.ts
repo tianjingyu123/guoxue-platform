@@ -35,22 +35,27 @@ async function validateWebhookUrl(url: string): Promise<void> {
     throw new BusinessException(ErrorCode.BAD_REQUEST, "不允许使用本地回环地址");
   }
 
+  // 测试环境跳过真实 DNS 解析（单测不应依赖网络）；协议/回环/格式校验仍生效
+  if (process.env.NODE_ENV === "test") return;
+
   try {
     const lookupResult = await import("dns/promises").then((dns) =>
       dns.lookup(parsed.hostname!, { family: 4 }),
     ).catch(() => null);
 
-    if (lookupResult) {
-      const resolved = lookupResult.address;
-      for (const pattern of BLOCKED_IP_PATTERNS) {
-        if (pattern.test(resolved)) {
-          throw new BusinessException(ErrorCode.BAD_REQUEST, "不允许使用内网地址");
-        }
+    // DNS 解析失败：fail-closed 拒绝（原先 lookupResult 为 null 时跳过校验=放行，存在 SSRF 风险）
+    if (!lookupResult) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无法解析 Webhook 目标地址");
+    }
+    const resolved = lookupResult.address;
+    for (const pattern of BLOCKED_IP_PATTERNS) {
+      if (pattern.test(resolved)) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "不允许使用内网地址");
       }
     }
   } catch (err) {
     if (err instanceof BusinessException) throw err;
-    // DNS 解析失败不阻断，可能在非标准环境
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "无法解析 Webhook 目标地址");
   }
 }
 
@@ -151,6 +156,14 @@ export class WebhookService {
     secret: string | undefined,
     body: string,
   ): Promise<void> {
+    // 实发前二次校验 URL（防 TOCTOU / DNS-rebinding：注册时校验通过后域名可能被重绑到内网）
+    try {
+      await validateWebhookUrl(url);
+    } catch {
+      await this.updateStatus(subId, 0);
+      this.logger.warn(`Webhook 目标地址校验失败，跳过投递: ${url}`);
+      return;
+    }
     const maxRetries = 3;
     let lastError: Error | null = null;
     let statusCode = 0;
@@ -176,6 +189,7 @@ export class WebhookService {
           headers,
           body,
           signal: controller.signal,
+          redirect: "manual", // 禁止跟随重定向，防 302 跳转到内网/云元数据绕过 SSRF 校验
         });
 
         clearTimeout(timeout);

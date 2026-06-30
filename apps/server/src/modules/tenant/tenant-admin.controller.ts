@@ -80,6 +80,19 @@ export class TenantAdminController {
     return this.svc.getUsageStats(id, days ? +days : 30);
   }
 
+  @Get(":id/logs")
+  @ApiOperation({ summary: "API调用日志（分页）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  getLogs(
+    @Param("id") id: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+    @Query("status") status?: string,
+  ) {
+    return this.svc.getApiLogs(id, { page: page ? +page : 1, pageSize: pageSize ? +pageSize : 20, status });
+  }
+
   @Post("reset-quotas")
   @ApiOperation({ summary: "手动触发月度配额重置" })
   @ApiResponse({ status: 201, description: "创建成功" })

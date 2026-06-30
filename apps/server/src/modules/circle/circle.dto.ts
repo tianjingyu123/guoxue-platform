@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsArray, MinLength, MaxLength, IsNumber, IsInt, Min, Max } from "class-validator";
+import { IsString, IsOptional, IsArray, MinLength, MaxLength, IsNumber, IsInt, Min, Max, IsBoolean } from "class-validator";
 import { Type } from "class-transformer";
 
 export class CreateCircleDto {
@@ -73,6 +73,11 @@ export class UpdateCircleDto {
   @IsNumber()
   @IsOptional()
   price?: number;
+
+  @ApiPropertyOptional({ description: "加入是否需圈主审批（仅免费圈生效）" })
+  @IsBoolean()
+  @IsOptional()
+  needApproval?: boolean;
 }
 
 export class CreatePostDto {

@@ -76,8 +76,9 @@ describe("Interaction E2E", () => {
         .set("Authorization", `Bearer ${authAs("u1")}`)
         .expect(200)
 
-      // Set serialized as array
-      expect(Array.isArray(res.body)).toBe(false)
+      // isLiked 有意返回已点赞的 targetId 数组（Set 无法 JSON 序列化，前端拿不到状态）
+      expect(Array.isArray(res.body)).toBe(true)
+      expect(res.body).toEqual(expect.arrayContaining(["a1", "a2"]))
     })
   })
 

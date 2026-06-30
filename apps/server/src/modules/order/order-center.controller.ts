@@ -39,11 +39,24 @@ export class OrderCenterController {
         orderBy: { createdAt: "desc" },
         take: 1000,
       });
-      results.push(...orders.map(o => ({
-        id: o.id, orderType: "SHOP", type: o.type, targetId: o.targetId,
-        status: o.status, amount: o.amount, payAmount: o.payAmount,
-        createdAt: o.createdAt,
-      })));
+      // 补全商品标题/封面，供统一订单中心列表渲染（原仅返回 targetId 前端无法展示）
+      const productIds = [...new Set(orders.map(o => o.targetId).filter(Boolean))];
+      const products = productIds.length
+        ? await this.prisma.product.findMany({
+            where: { id: { in: productIds } },
+            select: { id: true, title: true, images: true },
+          })
+        : [];
+      const productMap = new Map(products.map(p => [p.id, p]));
+      results.push(...orders.map(o => {
+        const p = o.targetId ? productMap.get(o.targetId) : null;
+        return {
+          id: o.id, orderType: "SHOP", type: o.type, targetId: o.targetId,
+          status: o.status, amount: o.amount, payAmount: o.payAmount,
+          title: p?.title || null, cover: p?.images?.[0] || null,
+          createdAt: o.createdAt,
+        };
+      }));
     }
 
     // 会员购买（MemberPurchase 用 paidAt）

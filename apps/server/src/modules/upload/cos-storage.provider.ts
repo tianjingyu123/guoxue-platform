@@ -1,5 +1,4 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { extname } from "path";
 import { randomUUID } from "crypto";
 import COS from "cos-nodejs-sdk-v5";
 import { StorageProvider, UploadResult } from "./storage.interface";
@@ -29,7 +28,8 @@ export class CosStorageProvider implements StorageProvider {
   }
 
   async upload(file: Express.Multer.File): Promise<UploadResult> {
-    const ext = extname(file.originalname) || ".png";
+    // 安全扩展名：按已验证的 MIME 映射，不回退用户原始扩展名（与 LocalStorageProvider 一致，防 .svg/.html 落地）
+    const ext = this.getSafeExtension(file.mimetype);
     const key = `uploads/${randomUUID()}${ext}`;
 
     return new Promise((resolve, reject) => {
@@ -53,6 +53,16 @@ export class CosStorageProvider implements StorageProvider {
         },
       );
     });
+  }
+
+  /** 根据已验证的 MIME 类型返回安全扩展名，不回退用户原始扩展名 */
+  private getSafeExtension(mime: string): string {
+    const map: Record<string, string> = {
+      "image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp",
+      "audio/mpeg": ".mp3", "audio/mp3": ".mp3", "audio/wav": ".wav", "audio/m4a": ".m4a", "audio/ogg": ".ogg",
+      "video/mp4": ".mp4", "video/quicktime": ".mov", "video/webm": ".webm", "video/x-msvideo": ".avi", "video/x-matroska": ".mkv",
+    };
+    return map[mime] || ".bin";
   }
 
   async delete(key: string): Promise<void> {

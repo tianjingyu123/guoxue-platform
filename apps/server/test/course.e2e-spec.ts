@@ -76,9 +76,11 @@ describe("Course E2E", () => {
         .expect(401)
     })
 
-    it("创建成功", async () => {
+    it("创建成功（需讲师认证 APPROVED）", async () => {
       const token = jwt.sign({ sub: "u1" })
       prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      // CourseCreatorGuard：已通过讲师认证才能发课
+      prisma.teacherCertification.findUnique.mockResolvedValue({ status: "APPROVED" })
       prisma.course.create.mockResolvedValue({
         id: "new1", title: "新课程", price: 99,
       })
@@ -90,6 +92,19 @@ describe("Course E2E", () => {
         .expect(201)
 
       expect(res.body.id).toBe("new1")
+    })
+
+    it("未通过讲师认证返回 403", async () => {
+      const token = jwt.sign({ sub: "u1" })
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      // 无讲师认证记录 → CourseCreatorGuard 拦截
+      prisma.teacherCertification.findUnique.mockResolvedValue(null)
+
+      await request(app.getHttpServer())
+        .post("/api/v1/courses")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ title: "新课程", price: 99, intro: "课程详情" })
+        .expect(403)
     })
   })
 

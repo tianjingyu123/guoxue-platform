@@ -31,6 +31,9 @@ const mockPrisma = {
   },
   userRole: { upsert: jest.fn() },
   $transaction: jest.fn((ops: any[]) => Promise.all(ops)),
+  // 圈子 needApproval 列绕过 Prisma generate 锁，service 用原生 SQL 读写（默认非审批制）
+  $queryRawUnsafe: jest.fn().mockResolvedValue([{ needApproval: false }]),
+  $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
 };
 
 const mockRedis = {
@@ -126,7 +129,7 @@ describe("CircleService", () => {
       mockPrisma.circleMember.create.mockResolvedValue({ id: "m1", circleId: "c1", userId: "u2", role: "MEMBER" });
       mockPrisma.circle.update.mockResolvedValue({});
       const result = await svc.join("c1", "u2");
-      expect(result.role).toBe("MEMBER");
+      expect(result).toHaveProperty("role", "MEMBER");
       expect(mockPrisma.circle.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: { memberCount: { increment: 1 } } }),
       );

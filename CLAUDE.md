@@ -1,6 +1,6 @@
 # CLAUDE.md — 国学传统文化综合平台
 
-**计划文件：** `.claude/plans/stateful-knitting-star.md`
+**计划文件：** `docs/progress/stateful-knitting-star.md`
 **项目目录：** `guoxue-platform/`
 **当前阶段：** P2 增强
 
@@ -17,7 +17,7 @@
 - 管理员（用户）可随时通过"一键接管"开关暂停你的所有自动化权限
 
 ### 启动时务必
-1. 读取 `.claude/plans/stateful-knitting-star.md` 了解完整规划
+1. 读取 `docs/progress/stateful-knitting-star.md` 了解完整规划
 2. 读取 `.claude/projects/C--Users-Administrator-Desktop/memory/ongoing_task.md` 了解当前进度
 3. 检查工具链状态后（`npx tsc --noEmit`、`npx jest --no-coverage`）向用户汇报
 4. 检查是否有未完成的定时任务或待处理异常
@@ -26,7 +26,7 @@
 你的记忆不存于本地硬盘，而存于 Git 仓库。任何新电脑启动流程：
 ```
 git clone <仓库地址> → cd 项目目录 → 启动 Claude Code
-→ 自动读取 CLAUDE.md → 自动读取 plans/ → 自动苏醒
+→ 自动读取 CLAUDE.md → 自动读取 docs/progress/ → 自动苏醒
 ```
 **不需要手动交代任何东西**——配置跟着仓库走。
 
@@ -244,3 +244,29 @@ bash apps/mobile/scripts/scan-mock-imports.sh
 **执行时机**：功能开发完成 → 运行此清单 → 全部通过 → 运行 `tsc --noEmit && jest --no-coverage` → 提交。
 
 **修复模式**：发现一类问题 → 搜索同类（`grep` 所有同类调用点） → 统一修复 → 统一验证。
+
+### 前端工作规范（V0→Vue3·uni-app 多端 — 2026-06-25 用户规范并入，不可违反）
+
+**技术栈现实（务必认清，勿套标准 Vue Web）**：本项目移动端是 **uni-app 多端**（小程序/App/H5），非 Vite+Vue Router 的纯 Web。
+| 标准 Vue Web 设想 | 本项目实际(uni-app) |
+|---|---|
+| Vue Router 4 | `pages.json` 路由 + `navigateTo`/`onLoad` |
+| axios 封装 | `uni.request`（`utils/request.ts` 已封装 `apiGet/apiPost`） |
+| Tailwind class | **rpx + scss**（V0→Vue3 转的是 scss，非 Tailwind） |
+| `src/api/` | **`src/lib/*-data.ts`**（导出 `xxxApi` 对象 + 类型 + 适配） |
+| `src/views/x/` | **`src/pkg-x/`** 分包 |
+| Pinia stores 集中 | Pinia 已装；页面多为自包含 `ref`+lib 数据层 |
+
+**核心原则（V0 产出的处理）**：视觉层尽量保留，逻辑层按 Vue3 Composition API 最佳实践**重写**（不是最小化打补丁）。
+- ✅ 保留 HTML 结构与样式（V0 有效产出）；逻辑层（`<script setup>`）该重构就重构。
+- ❌ 不为"少改动"保留 React 式残留（误用 ref/reactive/computed/watch、useEffect 思路）；读不懂的逻辑直接按 Vue 习惯重写。
+- ✅ `<script setup>`+Composition API；`defineProps<T>()`/`defineEmits<T>()`；事件 kebab-case；可复用逻辑抽 `composables/useXxx`；单文件过大(~300行)拆分。
+
+**数据对接铁律**（与上「前端数据流铁律」「移动端 mock」合并执行）：
+- 所有接口走 `src/lib/*-data.ts` 的 `xxxApi`，**对接前先读后端 controller/service 源码确认真实路径与响应结构**（别臆造适配，别信单数/复数路径想当然）。
+- mock 全部替换真实接口；**错误传播给页面走三态，不回退假 mock 掩盖错误**（空→空态，错→错误态+重试）。后端无的字段 `v-if` 诚实降级隐藏。
+- 每个数据驱动页面必须 loading/error/empty 三态；写操作必须 `submitting` 防重复。
+
+**模块化上线验收主线（工作法）**：分模块逐一过，一遍做到上线标准不返工。每模块完成判据：① 页面真连后端(无 mock/无 if(true)/无假算法) ② 三态齐全 ③ 逻辑层 Vue 化 ④ 发现的问题/优化就地做(开发阶段免请示，业务规则除外) ⑤ 后端 tsc+jest、前端 vue-tsc、接口实测、mock 扫描全绿。详见记忆 [[guoxue-module-launch-mainline]]。
+
+**授权**（见记忆 [[guoxue-frontend-optimization-mandate]]）：开发阶段未上线，优化类(UI/交互/信息架构/视觉/文案/三态/性能/代码质量/后端字段补全/合理端点增强)**直接做不请示**；仅业务规则(付费/权益/数据语义/删功能/品牌大改/资金)先提案。现有项目+原型只是**基础**，发现问题与提升空间就优化，目标=顶级国际国学平台。

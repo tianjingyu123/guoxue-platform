@@ -102,6 +102,20 @@ export class SearchController {
     return this.svc.getStats();
   }
 
+  /** 搜索量近 N 天时序（管理后台用） */
+  @Get("admin/trend")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "搜索量近 N 天时序（按日聚合）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "days", required: false, type: Number, description: "统计天数，默认 7" })
+  getTrend(@Query("days") days = 7) {
+    return this.svc.getTrend(+days);
+  }
+
   /** 零结果搜索词（管理后台用） */
   @Get("zero-results")
   @UseGuards(JwtAuthGuard, RolesGuard)

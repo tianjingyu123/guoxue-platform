@@ -1,0 +1,21 @@
+-- P1 外键列补索引（2026-06-29 数据库优化）
+-- 18 个外键列首列无索引 → join/级联删除全表扫描。开发库数据量小，普通 CREATE INDEX 秒级。
+-- 命名遵循 Prisma 约定 Table_column_idx；IF NOT EXISTS 幂等可重跑。
+CREATE INDEX IF NOT EXISTS "CourseProgress_chapterId_idx" ON "CourseProgress"("chapterId");
+CREATE INDEX IF NOT EXISTS "CourseProgress_courseId_idx" ON "CourseProgress"("courseId");
+CREATE INDEX IF NOT EXISTS "CourseWork_userId_idx" ON "CourseWork"("userId");
+CREATE INDEX IF NOT EXISTS "ReadingProgress_bookId_idx" ON "ReadingProgress"("bookId");
+CREATE INDEX IF NOT EXISTS "Bookmark_bookId_idx" ON "Bookmark"("bookId");
+CREATE INDEX IF NOT EXISTS "EbookProgress_ebookId_idx" ON "EbookProgress"("ebookId");
+CREATE INDEX IF NOT EXISTS "EbookBookmark_ebookId_idx" ON "EbookBookmark"("ebookId");
+CREATE INDEX IF NOT EXISTS "EbookPurchase_ebookId_idx" ON "EbookPurchase"("ebookId");
+CREATE INDEX IF NOT EXISTS "AutomationRolePermission_permissionId_idx" ON "AutomationRolePermission"("permissionId");
+CREATE INDEX IF NOT EXISTS "ClassicReadingNote_bookId_idx" ON "ClassicReadingNote"("bookId");
+CREATE INDEX IF NOT EXISTS "CompetitionRegistration_userId_idx" ON "CompetitionRegistration"("userId");
+CREATE INDEX IF NOT EXISTS "CompetitionAnswer_questionId_idx" ON "CompetitionAnswer"("questionId");
+CREATE INDEX IF NOT EXISTS "CompetitionInvitation_inviteeId_idx" ON "CompetitionInvitation"("inviteeId");
+CREATE INDEX IF NOT EXISTS "CompetitionInvitation_inviterId_idx" ON "CompetitionInvitation"("inviterId");
+CREATE INDEX IF NOT EXISTS "RolePermission_permissionId_idx" ON "RolePermission"("permissionId");
+CREATE INDEX IF NOT EXISTS "CircleInviteCode_userId_idx" ON "CircleInviteCode"("userId");
+CREATE INDEX IF NOT EXISTS "CircleInvitation_inviterId_idx" ON "CircleInvitation"("inviterId");
+CREATE INDEX IF NOT EXISTS "PointsExchangeRecord_productId_idx" ON "PointsExchangeRecord"("productId");

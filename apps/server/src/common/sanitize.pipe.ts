@@ -13,7 +13,7 @@ const SKIP_FIELDS = new Set([
   "content", "text", "body", "description", "summary", "intro",
   "translation", "annotation", "excerpt", "evidence",
   "answer", "question",
-  "url", "iiifUrl", "manifestUrl", "src", "href", "link", "cover",
+  "url", "iiifUrl", "manifestUrl", "src", "href", "link", "cover", "path",
   "sourceUrl", "avatar", "imageUrl", "redirectUri",
   "password", "token", "accessToken", "refreshToken", "hash",
   "secret", "apiKey", "key",

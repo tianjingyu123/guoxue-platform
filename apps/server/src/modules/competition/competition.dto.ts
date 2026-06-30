@@ -420,8 +420,10 @@ export class UpdateCompetitionDto {
 
 /** 查询排名 */
 export class QueryRankingDto {
+  // competitionId 实际由 controller 从 path param 注入，@Query 校验时不应必填
+  @IsOptional()
   @IsString()
-  competitionId!: string;
+  competitionId?: string;
 
   @IsOptional()
   @IsString()

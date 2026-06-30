@@ -6,12 +6,8 @@ module.exports = {
       cwd: "C:/Users/Administrator/Desktop/guoxue-platform",
       env: {
         NODE_ENV: "development",
-        DATABASE_URL: "postgresql://guoxue:guoxue123@localhost:5433/guoxue",
-        REDIS_URL: "redis://localhost:6379",
-        JWT_SECRET: "dev-jwt-secret-for-local-testing-only-change-in-prod",
-        ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef",
-        BIGSCREEN_SECRET: "dev-bigscreen-secret",
         BULLMQ_DISABLED: "true",
+        // 其他配置（DATABASE_URL/JWT_SECRET 等）由 scripts/pm2-api.js 从 .env 加载
       },
       watch: false,
       max_memory_restart: "2G",

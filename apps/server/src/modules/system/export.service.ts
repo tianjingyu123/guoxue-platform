@@ -3,6 +3,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma, RoleType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { maskPhone, maskEmail } from "../../common/crypto.util";
 import * as fs from "fs";
 import * as path from "path";
 import { createGzip } from "zlib";
@@ -145,8 +146,8 @@ export class ExportService {
     const columns: Column[] = [
       { key: "id", label: "用户ID" },
       { key: "nickname", label: "昵称" },
-      { key: "phone", label: "手机号" },
-      { key: "email", label: "邮箱" },
+      { key: "phone", label: "手机号", format: (v) => maskPhone(v as string) },
+      { key: "email", label: "邮箱", format: (v) => maskEmail(v as string) },
       { key: "role", label: "角色" },
       { key: "status", label: "状态" },
       { key: "createdAt", label: "注册时间", format: (v) => v ? new Date(v as string).toISOString() : "" },
@@ -219,8 +220,8 @@ export class ExportService {
     const columns: Column[] = [
       { key: "id", label: "用户ID" },
       { key: "nickname", label: "昵称" },
-      { key: "phone", label: "手机号" },
-      { key: "email", label: "邮箱" },
+      { key: "phone", label: "手机号", format: (v) => maskPhone(v as string) },
+      { key: "email", label: "邮箱", format: (v) => maskEmail(v as string) },
       { key: "role", label: "角色" },
       { key: "status", label: "状态" },
       { key: "createdAt", label: "注册时间", format: (v) => v ? new Date(v as string).toISOString() : "" },

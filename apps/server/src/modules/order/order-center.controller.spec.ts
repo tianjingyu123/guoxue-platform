@@ -22,6 +22,7 @@ describe("OrderCenterController", () => {
           stationBundleAccess: { findMany: jest.fn() },
           station: { findFirst: jest.fn() },
           operator: { findFirst: jest.fn() },
+          product: { findMany: jest.fn().mockResolvedValue([]) },
         },
       }],
     })

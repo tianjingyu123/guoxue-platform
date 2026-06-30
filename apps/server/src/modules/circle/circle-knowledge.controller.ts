@@ -11,6 +11,7 @@ export class CircleKnowledgeController {
   constructor(private readonly knowledge: CircleKnowledgeService) {}
 
   // ───────── 知识库 CRUD ─────────
+  // 注：知识库为圈子私有资产，所有端点仅限该圈管理员（assertManager 守卫，防越权读写/导出）。
 
   @Post(":circleId/knowledge")
   @UseGuards(JwtAuthGuard)
@@ -19,11 +20,12 @@ export class CircleKnowledgeController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  addKnowledge(
+  async addKnowledge(
     @Param("circleId") circleId: string,
     @Body() body: { sourceType: string; sourceId?: string; content: string },
     @Req() req: Request,
   ) {
+    await this.knowledge.assertManager(circleId, req.user.id);
     return this.knowledge.add({
       circleId,
       sourceType: body.sourceType,
@@ -42,12 +44,14 @@ export class CircleKnowledgeController {
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
   @ApiQuery({ name: "sourceType", required: false })
-  listKnowledge(
+  async listKnowledge(
     @Param("circleId") circleId: string,
+    @Req() req: Request,
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
     @Query("sourceType") sourceType?: string,
   ) {
+    await this.knowledge.assertManager(circleId, req.user.id);
     return this.knowledge.list(circleId, { page: Number(page), pageSize: Number(pageSize), sourceType });
   }
 
@@ -59,11 +63,13 @@ export class CircleKnowledgeController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  updateKnowledge(
+  async updateKnowledge(
     @Param("circleId") circleId: string,
     @Param("id") id: string,
     @Body() body: { content: string },
+    @Req() req: Request,
   ) {
+    await this.knowledge.assertManager(circleId, req.user.id);
     return this.knowledge.update(circleId, id, body.content);
   }
 
@@ -75,11 +81,12 @@ export class CircleKnowledgeController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  removeKnowledge(
+  async removeKnowledge(
     @Param("circleId") circleId: string,
     @Param("id") id: string,
     @Req() req: Request,
   ) {
+    await this.knowledge.assertManager(circleId, req.user.id);
     return this.knowledge.remove(circleId, id, req.user.id);
   }
 
@@ -93,11 +100,13 @@ export class CircleKnowledgeController {
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
-  listCandidates(
+  async listCandidates(
     @Param("circleId") circleId: string,
+    @Req() req: Request,
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
   ) {
+    await this.knowledge.assertManager(circleId, req.user.id);
     return this.knowledge.listCandidates(circleId, Number(page), Number(pageSize));
   }
 
@@ -108,11 +117,12 @@ export class CircleKnowledgeController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  confirmCandidate(
+  async confirmCandidate(
     @Param("circleId") circleId: string,
     @Param("candidateId") candidateId: string,
     @Req() req: Request,
   ) {
+    await this.knowledge.assertManager(circleId, req.user.id);
     return this.knowledge.confirmCandidate(circleId, candidateId, req.user.id);
   }
 
@@ -123,10 +133,12 @@ export class CircleKnowledgeController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  rejectCandidate(
+  async rejectCandidate(
     @Param("circleId") circleId: string,
     @Param("candidateId") candidateId: string,
+    @Req() req: Request,
   ) {
+    await this.knowledge.assertManager(circleId, req.user.id);
     return this.knowledge.rejectCandidate(circleId, candidateId);
   }
 
@@ -144,11 +156,13 @@ export class CircleKnowledgeController {
   @ApiQuery({ name: "endDate", required: false })
   async exportJson(
     @Param("circleId") circleId: string,
+    @Req() req: Request,
     @Query("sourceType") sourceType?: string,
     @Query("startDate") startDate?: string,
     @Query("endDate") endDate?: string,
     @Res() res?: Response,
   ) {
+    await this.knowledge.assertManager(circleId, req.user.id);
     const data = await this.knowledge.exportJson(circleId, {
       sourceType,
       startDate: startDate ? new Date(startDate) : undefined,
@@ -175,11 +189,13 @@ export class CircleKnowledgeController {
   @ApiQuery({ name: "endDate", required: false })
   async exportMarkdown(
     @Param("circleId") circleId: string,
+    @Req() req: Request,
     @Query("sourceType") sourceType?: string,
     @Query("startDate") startDate?: string,
     @Query("endDate") endDate?: string,
     @Res() res?: Response,
   ) {
+    await this.knowledge.assertManager(circleId, req.user.id);
     const data = await this.knowledge.exportMarkdown(circleId, {
       sourceType,
       startDate: startDate ? new Date(startDate) : undefined,

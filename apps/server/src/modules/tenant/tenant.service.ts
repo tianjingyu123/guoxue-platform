@@ -223,6 +223,28 @@ export class TenantService {
     return { calls, byType, days };
   }
 
+  /** API 调用日志（分页） */
+  async getApiLogs(tenantId: string, opts: { page?: number; pageSize?: number; status?: string }) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
+    if (!tenant) throw new BusinessException(ErrorCode.NOT_FOUND, "租户不存在");
+
+    const page = opts.page && opts.page > 0 ? opts.page : 1;
+    const pageSize = opts.pageSize && opts.pageSize > 0 ? Math.min(opts.pageSize, 100) : 20;
+    const where: any = { tenantId };
+    if (opts.status) where.status = opts.status;
+
+    const [logs, total] = await Promise.all([
+      this.prisma.tenantApiCall.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.tenantApiCall.count({ where }),
+    ]);
+    return { logs, total, page, pageSize };
+  }
+
   /** 每月重置配额（定时任务调用） */
   async resetMonthlyQuotas() {
     const tenants = await this.prisma.tenant.findMany({

@@ -164,6 +164,10 @@ export class SearchService {
         table: "Content", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(excerpt,'')",
         select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: `"status" = 'PUBLISHED'`,
       },
+      Ebook: {
+        table: "Ebook", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(description,'')",
+        select: `id, title, author, cover, description, price, "purchaseCount"`, where: `"status" = 'PUBLISHED'`,
+      },
     };
 
     const cfg = configs[entityType];
@@ -229,6 +233,10 @@ export class SearchService {
       Content: {
         table: "Content", searchFields: ["title", "author", "excerpt"],
         select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: `"status" = 'PUBLISHED'`,
+      },
+      Ebook: {
+        table: "Ebook", searchFields: ["title", "author", "description"],
+        select: `id, title, author, cover, description, price, "purchaseCount"`, where: `"status" = 'PUBLISHED'`,
       },
     };
 
@@ -380,6 +388,43 @@ export class SearchService {
       hotKeywords: hotKeywords.map((r) => ({ keyword: r.keyword, count: r._count.keyword })),
       recentSearches,
     };
+  }
+
+  /**
+   * 搜索量近 N 天时序（按日聚合）
+   * 数据源：SearchHistory.createdAt（真实搜索日志）。
+   * 说明：SearchHistory 未区分 AI/普通搜索，故仅聚合总搜索量；不臆造 AI 维度。
+   */
+  async getTrend(days = 7): Promise<{ days: number; series: { date: string; total: number }[] }> {
+    const safeDays = Math.min(Math.max(Number(days) || 7, 1), 90);
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    since.setDate(since.getDate() - (safeDays - 1));
+
+    const rows = await this.prisma.$queryRaw<{ day: Date; count: bigint }[]>`
+      SELECT date_trunc('day', "createdAt") AS day, COUNT(*) AS count
+      FROM "SearchHistory"
+      WHERE "createdAt" >= ${since}
+      GROUP BY day
+      ORDER BY day ASC
+    `;
+
+    const counts = new Map<string, number>();
+    for (const r of rows) {
+      const key = new Date(r.day).toISOString().slice(0, 10);
+      counts.set(key, Number(r.count));
+    }
+
+    // 补齐连续日期，缺失日记 0（诚实展示无搜索日）
+    const series: { date: string; total: number }[] = [];
+    for (let i = 0; i < safeDays; i++) {
+      const d = new Date(since);
+      d.setDate(since.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      series.push({ date: key, total: counts.get(key) ?? 0 });
+    }
+
+    return { days: safeDays, series };
   }
 
   /** 零结果搜索关键词统计 */

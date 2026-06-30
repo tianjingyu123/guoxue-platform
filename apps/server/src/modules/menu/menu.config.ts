@@ -43,11 +43,22 @@ export const MENU_CONFIG: MenuItem[] = [
     roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
   },
   {
+    title: "诗词雅集",
+    icon: "Reading",
+    roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+    children: [
+      { title: "诗词管理", path: "/poetry" },
+      { title: "诗词分类", path: "/poetry/categories", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      { title: "诗单管理", path: "/poetry/collections" },
+    ],
+  },
+  {
     title: "社区管理",
     icon: "ChatDotRound",
     roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
     children: [
       { title: "圈子管理", path: "/circles" },
+      { title: "圈子退款审核", path: "/circle-refunds", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       { title: "视频管理", path: "/videos" },
       { title: "直播管理", path: "/lives" },
       { title: "付费问答", path: "/questions" },
@@ -122,7 +133,17 @@ export const MENU_CONFIG: MenuItem[] = [
     roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR"],
     children: [
       { title: "商品管理", path: "/products" },
+      { title: "商品品控", path: "/shop/product-audit", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR"] },
       { title: "优惠券管理", path: "/coupons" },
+    ],
+  },
+  {
+    title: "创作者中心",
+    icon: "VideoCamera",
+    roles: ["SUPER_ADMIN", "OPERATION_ADMIN"],
+    children: [
+      { title: "创作者管理", path: "/creator/list" },
+      { title: "创作者提现", path: "/creator/withdrawals" },
     ],
   },
   {
@@ -161,6 +182,7 @@ export const MENU_CONFIG: MenuItem[] = [
       { title: "提现审批", path: "/finance/withdrawals" },
       { title: "财务报表", path: "/finance/reports" },
       { title: "资金冻结", path: "/finance/freeze" },
+      { title: "资金审批中心", path: "/finance/fund-approval", roles: ["SUPER_ADMIN", "FINANCE_ADMIN"] },
       { title: "汇付天下支付", path: "/huifu", roles: ["SUPER_ADMIN", "FINANCE_ADMIN"] },
     ],
   },
@@ -245,6 +267,10 @@ export const MENU_CONFIG: MenuItem[] = [
     children: [
       { title: "分站管理", path: "/stations" },
       { title: "线下驿站", path: "/offline-venues" },
+      { title: "线下课程", path: "/offline/courses" },
+      { title: "驿站核销记录", path: "/offline/checkins" },
+      { title: "驿站商品监控", path: "/offline/products" },
+      { title: "师资预约监控", path: "/offline/bookings" },
     ],
   },
   {

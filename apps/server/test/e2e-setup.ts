@@ -54,6 +54,9 @@ function createPrismaMock() {
       return Promise.all(Array.isArray(arg) ? arg : [arg]);
     }),
     $queryRaw: jest.fn().mockResolvedValue([{ 1: 1 }]),
+    // needApproval 等绕过 generate 锁的列由 service 用原生 SQL 读写（默认非审批制）
+    $queryRawUnsafe: jest.fn().mockResolvedValue([{ needApproval: false }]),
+    $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
     $connect: jest.fn().mockResolvedValue(undefined),
     $disconnect: jest.fn().mockResolvedValue(undefined),
   }

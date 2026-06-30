@@ -3,7 +3,7 @@ import {
   Logger,
   Optional,
 } from "@nestjs/common";
-import { randomInt } from "crypto";
+import { randomInt, randomUUID } from "crypto";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -65,15 +65,23 @@ export class CircleService {
 
   async update(circleId: string, userId: string, dto: UpdateCircleDto) {
     await this.checkOwnership(circleId, userId);
+    // needApproval 是绕过 prisma generate 锁的新列，prisma client 不认识 → 从 dto 抽出单独原生更新
+    const { needApproval, ...rest } = dto as UpdateCircleDto & { needApproval?: boolean };
     const updated = await this.prisma.circle.update({
       where: { id: circleId },
-      data: dto,
+      data: rest,
     });
+    if (needApproval !== undefined) {
+      await this.prisma.$executeRawUnsafe(
+        `UPDATE "Circle" SET "needApproval"=$2 WHERE id=$1`,
+        circleId, !!needApproval,
+      );
+    }
     await Promise.all([
       this.redis.delByPattern("circles:list:*"),
       this.redis.del(`circles:detail:${circleId}`),
     ]);
-    return updated;
+    return { ...updated, ...(needApproval !== undefined ? { needApproval: !!needApproval } : {}) };
   }
 
   async getDetail(circleId: string, userId?: string) {
@@ -95,7 +103,7 @@ export class CircleService {
       return cached;
     }
 
-    const [circle, membership] = await Promise.all([
+    const [circle, membership, apprRows] = await Promise.all([
       this.prisma.circle.findUnique({
         where: { id: circleId },
         include: {
@@ -108,6 +116,8 @@ export class CircleService {
             where: { circleId_userId: { circleId, userId } },
           })
         : Promise.resolve(null),
+      // needApproval 列绕过 generate 锁，原生查后并入返回
+      this.prisma.$queryRawUnsafe<any[]>(`SELECT "needApproval" FROM "Circle" WHERE id=$1`, circleId),
     ]);
     if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
 
@@ -116,7 +126,7 @@ export class CircleService {
       await this.redis.setJson(memKey, membership, 60);
     }
 
-    const data = { ...circle, membership };
+    const data = { ...circle, needApproval: apprRows?.[0]?.needApproval === true, membership };
     await this.redis.setJson(cacheKey, data, 300);
     return data;
   }
@@ -183,6 +193,25 @@ export class CircleService {
     });
   }
 
+  /** 我的圈子数据汇总：已加入数 / 发帖数 / 累计获赞（真实聚合，替代前端写死的假数据） */
+  async getMyCircleStats(userId: string) {
+    const [joinedCount, myPosts] = await Promise.all([
+      this.prisma.circleMember.count({ where: { userId } }),
+      this.prisma.post.findMany({
+        where: { userId, status: "PUBLISHED" },
+        select: { id: true },
+      }),
+    ]);
+    const postCount = myPosts.length;
+    // 累计获赞 = 我发布的所有帖子收到的点赞总数（Like 表按 POST 聚合）
+    const likeReceived = postCount
+      ? await this.prisma.like.count({
+          where: { targetType: "POST", targetId: { in: myPosts.map((p) => p.id) } },
+        })
+      : 0;
+    return { joinedCount, postCount, likeReceived };
+  }
+
   // ───────── 圈子公告 ─────────
 
   @Cacheable({ key: (args: any[]) => `circle:announcement:${args[0]}`, ttl: 30 })
@@ -230,6 +259,9 @@ export class CircleService {
 
   async deleteAnnouncement(circleId: string, userId: string, announcementId: string) {
     await this.checkAdmin(circleId, userId);
+    // 校验公告确实属于该圈子，防止跨圈越权删除（IDOR）
+    const ann = await this.prisma.circleAnnouncement.findUnique({ where: { id: announcementId }, select: { circleId: true } });
+    if (!ann || ann.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
     await this.prisma.circleAnnouncement.delete({ where: { id: announcementId } });
     return { success: true };
   }
@@ -376,13 +408,59 @@ export class CircleService {
       throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已加入该圈子");
     }
 
-    // 免费圈子直接加入
+    // 免费圈子
     if (circle.type === "FREE") {
+      // needApproval 列绕过 generate 锁，原生查（circle 对象不含该字段）
+      const appr = await this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT "needApproval" FROM "Circle" WHERE id=$1`,
+        circleId,
+      );
+      // 需审批的免费圈：不直接进，产生入圈申请等圈主审核
+      if (appr?.[0]?.needApproval === true) {
+        return this.createJoinRequest(circleId, userId);
+      }
+      // 普通免费圈：直接加入
       return this.createMembership(circleId, userId, null, dto?.referrerId);
     }
 
     // 付费圈子需要先支付
     throw new BusinessException(ErrorCode.CIRCLE_JOIN_DENIED, "付费圈子请先完成支付");
+  }
+
+  /**
+   * 产生入圈申请（需审批的免费圈）。幂等：已有 PENDING 申请则提示等待。
+   * 审批由 growth.reviewJoinRequest 处理（通过则建成员 + memberCount+1）。
+   * CircleJoinRequest 表绕过 generate 锁，用原生 SQL 访问。
+   */
+  private async createJoinRequest(circleId: string, userId: string) {
+    const pending = await this.prisma.$queryRawUnsafe<any[]>(
+      `SELECT id FROM "CircleJoinRequest" WHERE "circleId"=$1 AND "userId"=$2 AND "status"='PENDING' LIMIT 1`,
+      circleId, userId,
+    );
+    if (pending.length) {
+      return { status: "pending", message: "您的入圈申请正在审核中，请耐心等待" };
+    }
+    await this.prisma.$executeRawUnsafe(
+      `INSERT INTO "CircleJoinRequest" ("id","circleId","userId","status","createdAt") VALUES ($1,$2,$3,'PENDING',CURRENT_TIMESTAMP)`,
+      randomUUID(), circleId, userId,
+    );
+    return { status: "pending", message: "入圈申请已提交，等待圈主审核" };
+  }
+
+  /**
+   * 我的入圈申请列表（申请人视角）。CircleJoinRequest 绕 generate 锁，
+   * 原生 SQL join Circle 取圈子名/封面；按申请时间倒序。
+   */
+  async getMyJoinRequests(userId: string) {
+    return this.prisma.$queryRawUnsafe<any[]>(
+      `SELECT r."id", r."circleId", r."status", r."message", r."reviewedAt", r."createdAt",
+              c."name" AS "circleName", c."cover" AS "circleCover"
+       FROM "CircleJoinRequest" r
+       LEFT JOIN "Circle" c ON c.id = r."circleId"
+       WHERE r."userId"=$1
+       ORDER BY r."createdAt" DESC`,
+      userId,
+    );
   }
 
   /** 创建付费入圈订单（返回订单信息供前端拉起支付） */
@@ -940,7 +1018,8 @@ export class CircleService {
 
   async deletePost(postId: string, userId: string, circleId: string) {
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
-    if (!post) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
+    // 校验帖子确实属于该圈子，防止跨圈越权删帖（IDOR）
+    if (!post || post.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
 
     // 检查权限：作者、圈主、管理员可删除
     if (post.userId !== userId) {
@@ -996,7 +1075,7 @@ export class CircleService {
   async toggleEssence(postId: string, circleId: string, userId: string) {
     await this.checkAdmin(circleId, userId);
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
-    if (!post) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
+    if (!post || post.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
 
     return this.prisma.post.update({
       where: { id: postId },
@@ -1007,7 +1086,7 @@ export class CircleService {
   async toggleTop(postId: string, circleId: string, userId: string) {
     await this.checkAdmin(circleId, userId);
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
-    if (!post) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
+    if (!post || post.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
 
     return this.prisma.post.update({
       where: { id: postId },
@@ -1085,6 +1164,34 @@ export class CircleService {
     });
   }
 
+  /**
+   * 聚合某用户在所有圈子中开通的达人咨询服务（个人主页"付费咨询"入口用）。
+   * 达人判定与 listCircleExperts 一致：角色 ∈ OWNER/PARTNER/GUEST 且 提问价或连麦价 > 0。
+   */
+  async listUserConsultServices(userId: string) {
+    return this.prisma.circleMember.findMany({
+      where: {
+        userId,
+        role: { in: ["OWNER", "PARTNER", "GUEST"] },
+        OR: [
+          { questionPriceCoin: { gt: 0 } },
+          { callPricePerMinuteCoin: { gt: 0 } },
+        ],
+      },
+      select: {
+        circleId: true,
+        role: true,
+        questionPriceCoin: true,
+        questionTimeoutHours: true,
+        callPricePerMinuteCoin: true,
+        callAvailableHours: true,
+        circle: { select: { id: true, name: true, cover: true } },
+        user: { select: { id: true, nickname: true, avatar: true } },
+      },
+      orderBy: { questionPriceCoin: "desc" },
+    });
+  }
+
   // ───────── 排行榜 ─────────
 
   @Cacheable({ key: (args: any[]) => `circle:ranking:${args[0]}:${args[1]}:${args[2] || "memberCount"}`, ttl: 30 })
@@ -1103,7 +1210,8 @@ export class CircleService {
           where,
           select: {
             id: true, name: true, cover: true, memberCount: true,
-            postCount: true, intro: true,
+            postCount: true, intro: true, categoryLevel1: true,
+            owner: { select: { nickname: true } },
           },
           orderBy: [{ memberCount: "desc" }, { postCount: "desc" }],
         }),
@@ -1120,7 +1228,8 @@ export class CircleService {
           where,
           select: {
             id: true, name: true, cover: true, memberCount: true,
-            postCount: true, intro: true,
+            postCount: true, intro: true, categoryLevel1: true,
+            owner: { select: { nickname: true } },
           },
           orderBy: { [sortField]: "desc" } as Prisma.CircleOrderByWithRelationInput,
           skip: (page - 1) * pageSize,
@@ -1259,6 +1368,7 @@ export class CircleService {
 
   async updateMemberGroup(circleId: string, groupId: string, userId: string, name?: string, color?: string) {
     await this.checkAdmin(circleId, userId);
+    await this.assertGroupInCircle(groupId, circleId);
     const data: Prisma.CircleMemberGroupUpdateInput = {};
     if (name !== undefined) data.name = name;
     if (color !== undefined) data.color = color;
@@ -1267,6 +1377,7 @@ export class CircleService {
 
   async deleteMemberGroup(circleId: string, groupId: string, userId: string) {
     await this.checkAdmin(circleId, userId);
+    await this.assertGroupInCircle(groupId, circleId);
     await this.prisma.circleMemberGroupRelation.deleteMany({ where: { groupId } });
     await this.prisma.circleMemberGroup.delete({ where: { id: groupId } });
     return { success: true };
@@ -1274,6 +1385,7 @@ export class CircleService {
 
   async addMembersToGroup(circleId: string, groupId: string, userId: string, userIds: string[]) {
     await this.checkAdmin(circleId, userId);
+    await this.assertGroupInCircle(groupId, circleId);
     const data = userIds.map((uid) => ({ groupId, userId: uid }));
     await this.prisma.circleMemberGroupRelation.createMany({ data, skipDuplicates: true });
     return { success: true };
@@ -1281,6 +1393,7 @@ export class CircleService {
 
   async removeMemberFromGroup(circleId: string, groupId: string, userId: string, targetUserId: string) {
     await this.checkAdmin(circleId, userId);
+    await this.assertGroupInCircle(groupId, circleId);
     await this.prisma.circleMemberGroupRelation.deleteMany({
       where: { groupId, userId: targetUserId },
     });
@@ -1465,6 +1578,12 @@ export class CircleService {
     if (!member || !["OWNER", "PARTNER", "ADMIN"].includes(member.role)) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "权限不足");
     }
+  }
+
+  /** 校验分组属于该圈子，防止跨圈越权操作分组（IDOR） */
+  private async assertGroupInCircle(groupId: string, circleId: string) {
+    const group = await this.prisma.circleMemberGroup.findUnique({ where: { id: groupId }, select: { circleId: true } });
+    if (!group || group.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "分组不存在");
   }
 
   private async ensureMember(circleId: string, userId: string) {

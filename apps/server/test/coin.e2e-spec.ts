@@ -132,37 +132,13 @@ describe("Coin E2E", () => {
         .expect(403)
     })
 
-    it("管理员充值成功", async () => {
+    it("管理员充值改走资金审批流（提交审批，不直接到账）", async () => {
       const token = jwt.sign({ sub: "admin1" })
       prisma.user.findUnique.mockResolvedValue({
         id: "admin1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }],
       })
-      prisma.virtualCoinAccount.findUnique.mockResolvedValue({
-        userId: "u2", balance: 0, totalRecharged: 0, totalSpent: 0,
-      })
-      prisma.virtualCoinAccount.update.mockResolvedValue({
-        userId: "u2", balance: 100, totalRecharged: 100, totalSpent: 0,
-      })
-      prisma.virtualCoinRecharge.create.mockResolvedValue({
-        id: "r1", userId: "u2", amountCoin: 100, payMethod: "ADMIN",
-      })
-      prisma.virtualCoinTransaction.create.mockResolvedValue({
-        id: "tx2", amountCoin: 100, scene: "RECHARGE",
-      })
-      prisma.$transaction.mockImplementation((arg: any) => {
-        if (typeof arg === "function") {
-          return arg({
-            virtualCoinAccount: {
-              update: prisma.virtualCoinAccount.update,
-              updateMany: prisma.virtualCoinAccount.updateMany,
-              findUnique: prisma.virtualCoinAccount.findUnique,
-            },
-            virtualCoinRecharge: { create: prisma.virtualCoinRecharge.create },
-            virtualCoinTransaction: { create: prisma.virtualCoinTransaction.create },
-          })
-        }
-        return Promise.all(arg)
-      })
+      // 充值发起端点不再直接扣加余额，而是创建 FundApproval(PENDING)
+      prisma.fundApproval.create.mockResolvedValue({ id: "fa1", status: "PENDING" })
 
       const res = await request(app.getHttpServer())
         .post("/api/v1/coin/admin/recharge")
@@ -170,7 +146,11 @@ describe("Coin E2E", () => {
         .send({ userId: "u2", amountCoin: 100, description: "活动赠送" })
         .expect(201)
 
-      expect(res.body.recharge.id).toBe("r1")
+      expect(res.body.submitted).toBe(true)
+      expect(res.body.approvalId).toBe("fa1")
+      expect(res.body.status).toBe("PENDING")
+      // 发起阶段不应直接产生充值记录
+      expect(prisma.virtualCoinRecharge.create).not.toHaveBeenCalled()
     })
   })
 
@@ -204,6 +184,22 @@ describe("Coin E2E", () => {
       prisma.virtualCoinAccount.updateMany.mockResolvedValue({ count: 1 })
       prisma.virtualCoinTransaction.create.mockResolvedValue({})
       prisma.giftRecord.create.mockResolvedValue({ id: "gr1", giftId: "g1", senderId: "u1", receiverId: "u2", liveRoomId: "lr1" })
+      // 自建 tx 须含 giftRecord（sendGift 在事务内 tx.giftRecord.create）；
+      // 否则会复用前一测试遗留的 $transaction 实现（clearAllMocks 不清实现）导致 tx.giftRecord 为 undefined
+      prisma.$transaction.mockImplementation((arg: any) => {
+        if (typeof arg === "function") {
+          return arg({
+            virtualCoinAccount: {
+              update: prisma.virtualCoinAccount.update,
+              updateMany: prisma.virtualCoinAccount.updateMany,
+              findUnique: prisma.virtualCoinAccount.findUnique,
+            },
+            virtualCoinTransaction: { create: prisma.virtualCoinTransaction.create },
+            giftRecord: { create: prisma.giftRecord.create },
+          })
+        }
+        return Promise.all(arg)
+      })
 
       const res = await request(app.getHttpServer())
         .post("/api/v1/coin/gifts/send")

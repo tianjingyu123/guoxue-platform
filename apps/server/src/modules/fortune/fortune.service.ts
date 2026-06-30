@@ -272,8 +272,26 @@ export class FortuneService {
     const record = await this.prisma.fortuneRecord.findUnique({
       where: { userId_fortuneType_period: { userId, fortuneType: type, period } },
     });
-    if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "运势记录不存在");
-    return record;
+    if (record) return record;
+
+    // 缺失即按（周期日期 + 用户）确定性生成并落库——运势算法确定性，同一用户同一天结果稳定
+    const baseDate = type === "DAILY" ? new Date(period) : new Date();
+    if (isNaN(baseDate.getTime())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的运势周期");
+    }
+    const content = generateFortune(baseDate, userId);
+    return this.prisma.fortuneRecord.create({
+      data: {
+        userId,
+        fortuneType: type,
+        period,
+        fortuneContent: content as unknown as Prisma.InputJsonValue,
+        luckyDirection: content.direction,
+        luckyColor: content.color,
+        luckyNumber: content.number,
+        advice: content.advice,
+      },
+    });
   }
 
   // ───────── 管理 ─────────
@@ -291,7 +309,7 @@ export class FortuneService {
   async adminListRecords(page = 1, pageSize = 20, fortuneType?: string) {
     const where: any = {};
     if (fortuneType) where.fortuneType = fortuneType;
-    const [records, total] = await Promise.all([
+    const [items, total] = await Promise.all([
       this.prisma.fortuneRecord.findMany({
         where,
         skip: (page - 1) * pageSize,
@@ -300,7 +318,34 @@ export class FortuneService {
       }),
       this.prisma.fortuneRecord.count({ where }),
     ]);
-    return { records, total, page, pageSize };
+    // 返回 items 键，由 ResponseInterceptor 自动识别为分页响应
+    return { items, total, page, pageSize };
+  }
+
+  /** 管理端：列出所有用户的运势推送订阅配置 */
+  async adminListSubscriptions(page = 1, pageSize = 20, fortuneType?: string) {
+    const where: any = {};
+    if (fortuneType) where.fortuneType = fortuneType;
+    const [items, total] = await Promise.all([
+      this.prisma.fortuneSubscription.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.fortuneSubscription.count({ where }),
+    ]);
+    return { items, total, page, pageSize };
+  }
+
+  /** 管理端：启用/禁用某条订阅配置 */
+  async adminUpdateSubscription(id: string, isActive: boolean) {
+    const sub = await this.prisma.fortuneSubscription.findUnique({ where: { id } });
+    if (!sub) throw new BusinessException(ErrorCode.NOT_FOUND, "订阅配置不存在");
+    return this.prisma.fortuneSubscription.update({
+      where: { id },
+      data: { isActive },
+    });
   }
 
   // ───────── 排盘工具聚合 ─────────

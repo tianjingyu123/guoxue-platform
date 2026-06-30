@@ -510,6 +510,12 @@ async function main() {
   console.log("✅ 扩充诗词: " + morePoemsData.length + " 首");
 
   // 5. 创建课程
+  // 演示媒体（公开样例，仅用于开发演示，可随时替换为真实 CDN 资源）
+  const DEMO_MEDIA_URL: Record<string, string> = {
+    VIDEO: "https://media.w3.org/2010/05/sintel/trailer.mp4",
+    AUDIO: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+  };
+
   const coursesData = [
     {
       title: "《道德经》81章精讲",
@@ -574,6 +580,10 @@ async function main() {
           title: ch.title,
           content: ch.content,
           sortOrder: ch.sortOrder,
+          // 演示数据：时长按内容篇幅推导(8~30分)、首章免费试看、音视频课配演示媒体
+          duration: Math.round(Math.min(1800, Math.max(480, (ch.content?.length ?? 900) / 1.4))),
+          freeTrial: ch.sortOrder === 0,
+          mediaUrl: c.type === "TEXT" ? null : DEMO_MEDIA_URL[c.type],
         },
       });
     }
@@ -675,6 +685,9 @@ async function main() {
           title: ch.title,
           content: ch.content,
           sortOrder: ch.sortOrder,
+          duration: Math.round(Math.min(1800, Math.max(480, (ch.content?.length ?? 900) / 1.4))),
+          freeTrial: ch.sortOrder === 0,
+          mediaUrl: c.type === "TEXT" ? null : DEMO_MEDIA_URL[c.type],
         },
       });
     }

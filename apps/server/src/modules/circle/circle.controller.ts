@@ -58,6 +58,26 @@ export class CircleController {
     return this.circle.getMyCircles(req.user.id);
   }
 
+  @Get("my-stats")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的圈子数据汇总（已加入/发帖/获赞）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  getMyCircleStats(@Req() req: Request) {
+    return this.circle.getMyCircleStats(req.user.id);
+  }
+
+  @Get("my-join-requests")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的入圈申请列表（申请人视角，含圈子名/状态）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  getMyJoinRequests(@Req() req: Request) {
+    return this.circle.getMyJoinRequests(req.user.id);
+  }
+
   // ───────── 草稿管理 ─────────
 
   @Get("drafts")
@@ -436,6 +456,16 @@ export class CircleController {
   @ApiResponse({ status: 200, description: "成功返回达人列表" })
   listExperts(@Param("id") circleId: string) {
     return this.circle.listCircleExperts(circleId);
+  }
+
+  @Get("expert-services/by-user/:userId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "用户的达人咨询服务聚合", description: "聚合该用户在所有圈子开通的提问/连麦服务，供个人主页付费咨询入口使用" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  listUserConsultServices(@Param("userId") userId: string) {
+    return this.circle.listUserConsultServices(userId);
   }
 
   @Get(":id/leaderboard")

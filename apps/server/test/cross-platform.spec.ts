@@ -34,9 +34,10 @@ const TEST_POINTS = [
 ];
 
 function pd(dt: string) {
-  const d = new Date(dt);
-  const [h, m] = dt.slice(11, 19).split(":").map(Number);
-  return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate(), h, min: m ?? 0 };
+  // 直接从 ISO 字符串解析年月日时分，避免 new Date() 受运行环境时区影响导致日期偏移
+  const [y, mo, d] = dt.slice(0, 10).split("-").map(Number);
+  const [h, mi] = dt.slice(11, 19).split(":").map(Number);
+  return { y, m: mo, d, h, min: mi ?? 0 };
 }
 
 // 工具函数：安全访问嵌套属性

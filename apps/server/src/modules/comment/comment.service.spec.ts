@@ -11,7 +11,13 @@ const mockPrisma = {
     count: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    groupBy: jest.fn().mockResolvedValue([]),
   },
+  article: { findMany: jest.fn().mockResolvedValue([]) },
+  course: { findMany: jest.fn().mockResolvedValue([]) },
+  video: { findMany: jest.fn().mockResolvedValue([]) },
+  product: { findMany: jest.fn().mockResolvedValue([]) },
+  post: { findMany: jest.fn().mockResolvedValue([]) },
   userBehavior: {
     create: jest.fn().mockResolvedValue({}),
   },
@@ -113,6 +119,53 @@ describe("CommentService", () => {
       mockPrisma.comment.count.mockResolvedValue(5);
       const result = await svc.getCommentCount("ARTICLE", "a1");
       expect(result).toBe(5);
+    });
+  });
+
+  describe("getUserComments", () => {
+    it("批量补全目标详情 + 聚合回复数（不 N+1）", async () => {
+      mockPrisma.comment.findMany.mockResolvedValueOnce([
+        { id: "c1", userId: "u1", targetType: "ARTICLE", targetId: "a1", content: "评论一", likeCount: 3, createdAt: new Date() },
+        { id: "c2", userId: "u1", targetType: "VIDEO", targetId: "v-deleted", content: "评论二", likeCount: 0, createdAt: new Date() },
+      ]);
+      mockPrisma.comment.count.mockResolvedValue(2);
+      mockPrisma.article.findMany.mockResolvedValue([{ id: "a1", title: "文章一", cover: "a.jpg", user: { nickname: "作者", avatar: null } }]);
+      mockPrisma.video.findMany.mockResolvedValue([]);
+      mockPrisma.comment.groupBy.mockResolvedValue([{ parentId: "c1", _count: { _all: 2 } }]);
+
+      const result = await svc.getUserComments("u1", 1, 20);
+
+      expect(mockPrisma.comment.groupBy).toHaveBeenCalledTimes(1);
+      expect(result.items[0]).toMatchObject({ id: "c1", replyCount: 2, hasReply: true });
+      expect(result.items[0].target).toMatchObject({ type: "article", title: "文章一", cover: "a.jpg" });
+      // 目标已删除 → null + 无回复
+      expect(result.items[1]).toMatchObject({ replyCount: 0, hasReply: false, target: null });
+    });
+  });
+
+  describe("getReceivedComments", () => {
+    it("补全我的内容标题 + 计算 isReplied/myReply", async () => {
+      // 拥有内容ID 查询：article 命中 a1，其余为空（course/video/product/post 用默认 []）
+      // article.findMany 被调用两次：①查我拥有的文章ID ②resolveTargets 取标题
+      mockPrisma.article.findMany
+        .mockResolvedValueOnce([{ id: "a1" }])
+        .mockResolvedValueOnce([{ id: "a1", title: "我的文章", cover: null, user: { nickname: "我", avatar: null } }]);
+      // comment.findMany：①收到的评论列表 ②我对这些评论的回复
+      mockPrisma.comment.findMany
+        .mockResolvedValueOnce([
+          { id: "rc1", userId: "other", targetType: "ARTICLE", targetId: "a1", content: "提问", createdAt: new Date(), user: { id: "other", nickname: "路人", avatar: null } },
+        ])
+        .mockResolvedValueOnce([
+          { id: "rep1", parentId: "rc1", content: "我的回复", createdAt: new Date() },
+        ]);
+      mockPrisma.comment.count.mockResolvedValue(1);
+
+      const result = await svc.getReceivedComments("owner", 1, 20);
+
+      expect(result.total).toBe(1);
+      expect(result.items[0]).toMatchObject({ id: "rc1", isReplied: true });
+      expect(result.items[0].target).toMatchObject({ type: "article", title: "我的文章" });
+      expect(result.items[0].myReply).toMatchObject({ content: "我的回复" });
     });
   });
 });

@@ -6,6 +6,7 @@ import { CreateCommentDto, UpdateCommentDto, CommentQueryDto } from "./comment.d
 import { Prisma } from "@prisma/client";
 import { safePagination } from "../../common/pagination";
 import { Cacheable } from "../../common/cache.decorator";
+import { resolveTargets, targetKey } from "../interaction/target-resolver";
 
 export interface ReplyNode {
   id: string;
@@ -213,7 +214,36 @@ export class CommentService {
       }),
       this.prisma.comment.count({ where }),
     ]);
-    return { items, total, page: p, pageSize: ps };
+
+    // 多态批量补全目标详情 + 一次性聚合各评论的回复数（均不 N+1）
+    const commentIds = items.map((c) => c.id);
+    const [targets, replyGroups] = await Promise.all([
+      resolveTargets(this.prisma, items),
+      commentIds.length
+        ? this.prisma.comment.groupBy({
+            by: ["parentId"],
+            where: { parentId: { in: commentIds }, status: "PUBLISHED" },
+            _count: { _all: true },
+          })
+        : Promise.resolve([] as { parentId: string | null; _count: { _all: number } }[]),
+    ]);
+    const replyCountMap = new Map<string, number>();
+    for (const g of replyGroups) {
+      if (g.parentId) replyCountMap.set(g.parentId, g._count._all);
+    }
+
+    const data = items.map((c) => {
+      const replyCount = replyCountMap.get(c.id) ?? 0;
+      return {
+        ...c,
+        replyCount,
+        hasReply: replyCount > 0,
+        // 目标已删除时为 null，前端降级显示"内容已删除"
+        target: targets.get(targetKey(c.targetType, c.targetId)) ?? null,
+      };
+    });
+
+    return { items: data, total, page: p, pageSize: ps };
   }
 
   /** 收到的评论：其他人对我的内容发表的评论 */
@@ -264,6 +294,36 @@ export class CommentService {
       this.prisma.comment.count({ where }),
     ]);
 
-    return { items, total, page: p, pageSize: ps };
+    // 多态批量补全"我的内容"标题 + 一次性查我对这些评论的回复（不 N+1）
+    const commentIds = items.map((c) => c.id);
+    const [targets, myReplies] = await Promise.all([
+      resolveTargets(this.prisma, items),
+      commentIds.length
+        ? this.prisma.comment.findMany({
+            where: { parentId: { in: commentIds }, userId, status: "PUBLISHED" },
+            orderBy: { createdAt: "asc" },
+            select: { id: true, parentId: true, content: true, createdAt: true },
+          })
+        : Promise.resolve([] as { id: string; parentId: string | null; content: string; createdAt: Date }[]),
+    ]);
+    const myReplyMap = new Map<string, { content: string; createdAt: Date }>();
+    for (const r of myReplies) {
+      // 取每条评论最早的一条我方回复
+      if (r.parentId && !myReplyMap.has(r.parentId)) {
+        myReplyMap.set(r.parentId, { content: r.content, createdAt: r.createdAt });
+      }
+    }
+
+    const data = items.map((c) => {
+      const myReply = myReplyMap.get(c.id);
+      return {
+        ...c,
+        target: targets.get(targetKey(c.targetType, c.targetId)) ?? null,
+        isReplied: !!myReply,
+        myReply: myReply ?? null,
+      };
+    });
+
+    return { items: data, total, page: p, pageSize: ps };
   }
 }

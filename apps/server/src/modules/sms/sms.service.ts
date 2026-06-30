@@ -93,6 +93,13 @@ export class SmsService {
       throw new BusinessException(ErrorCode.THIRD_SMS_FAILED, "验证码已发送，请60秒后再试");
     }
 
+    // 同号每日发送上限（防短信轰炸与短信费消耗）
+    const dailyKey = `sms:daily:${phone}`;
+    const dailyCount = parseInt((await this.redis.get(dailyKey)) || "0", 10);
+    if (dailyCount >= 10) {
+      throw new BusinessException(ErrorCode.THIRD_SMS_FAILED, "今日验证码发送次数已达上限，请明日再试");
+    }
+
     // 生成6位验证码（密码学安全随机数）
     const code = String(randomInt(100000, 1000000));
 
@@ -102,6 +109,10 @@ export class SmsService {
 
     // 设置频率限制（60秒）
     await this.redis.set(rateKey, "1", 60);
+    // 累加当日发送计数（TTL 到次日零点，跨天自动重置）
+    const _now = new Date();
+    const _secsToMidnight = Math.ceil((new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() + 1).getTime() - _now.getTime()) / 1000);
+    await this.redis.set(dailyKey, String(dailyCount + 1), _secsToMidnight);
 
     // 开发模式：跳过腾讯云 API，验证码直接打印到控制台
     if (this.isDevMode()) {

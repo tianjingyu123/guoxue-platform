@@ -112,7 +112,7 @@ describe("CosStorageProvider", () => {
     expect(provider).toBeDefined();
   });
 
-  it("无扩展名默认 .png", async () => {
+  it("无法识别的 MIME 回退为安全的 .bin（不可执行，不用用户原始扩展名）", async () => {
     const provider = new CosStorageProvider();
     mockPutObject.mockImplementation((_params: any, cb: (...args: any[]) => void) => cb(null, {}));
 
@@ -123,6 +123,6 @@ describe("CosStorageProvider", () => {
     } as Express.Multer.File;
 
     const result = await provider.upload(file);
-    expect(result.url).toContain(".png");
+    expect(result.url).toContain(".bin");
   });
 });

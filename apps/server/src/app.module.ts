@@ -5,12 +5,16 @@ import { RedisModule } from "./redis/redis.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { UserModule } from "./modules/user/user.module";
 import { CircleModule } from "./modules/circle/circle.module";
+import { CircleRefundModule } from "./modules/circle-refund/circle-refund.module";
+import { GrowthModule } from "./modules/growth/growth.module";
+import { ConsultCallModule } from "./modules/consult-call/consult-call.module";
 import { ArticleModule } from "./modules/article/article.module";
 import { PaipanModule } from "./modules/paipan/paipan.module";
 import { CourseModule } from "./modules/course/course.module";
 import { InteractionModule } from "./modules/interaction/interaction.module";
 import { ShopModule } from "./modules/shop/shop.module";
 import { NotificationModule } from "./modules/notification/notification.module";
+import { TrackModule } from "./modules/track/track.module";
 import { SearchModule } from "./modules/search/search.module";
 import { BotModule } from "./modules/bot/bot.module";
 import { LiveModule } from "./modules/live/live.module";
@@ -63,6 +67,7 @@ import { QueueModule } from "./modules/queue/queue.module";
 import { RenewalModule } from "./modules/renewal/renewal.module";
 import { TaskModule } from "./modules/task/task.module";
 import { HuifuModule } from "./modules/huifu/huifu.module";
+import { FundApprovalModule } from "./modules/fund-approval/fund-approval.module";
 import { TenantModule } from "./modules/tenant/tenant.module";
 import { ChurnModule } from "./modules/churn/churn.module";
 import { FortuneModule } from "./modules/fortune/fortune.module";
@@ -78,6 +83,7 @@ import { BundleModule } from "./modules/bundle/bundle.module";
 import { CheckinModule } from "./modules/checkin/checkin.module";
 import { ExportModule } from "./modules/export/export.module";
 import { WannianliModule } from "./modules/wannianli/wannianli.module";
+import { TeacherModule } from "./modules/teacher/teacher.module";
 
 const conditionalModules: any[] = [];
 if (process.env.BULLMQ_DISABLED !== "true") {
@@ -89,6 +95,6 @@ if (process.env.COMPETITION_ENABLED === "true") {
 }
 
 @Module({
-  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, TaskModule, ...conditionalModules, AuthModule, UserModule, BrowseHistoryModule, BundleModule, RenewalModule, CheckinModule, CircleModule, ArticleModule, PaipanModule, ToolRegistryModule, WannianliModule, CourseModule, InteractionModule, ShopModule, HuifuModule, TenantModule, ChurnModule, FortuneModule, PricingModule, BountyModule, ShareModule, CategoryModule, DiscoverModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, StationPickModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, HomeModule, PoetryModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, AiGatewayModule, ContentGenerationModule, OperationRobotModule, OperationEngineModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule, OrderCenterModule, MemberModule, ExportModule],
+  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, TaskModule, ...conditionalModules, AuthModule, UserModule, BrowseHistoryModule, BundleModule, RenewalModule, CheckinModule, CircleModule, CircleRefundModule, GrowthModule, ConsultCallModule, ArticleModule, PaipanModule, ToolRegistryModule, WannianliModule, CourseModule, TeacherModule, InteractionModule, ShopModule, HuifuModule, TenantModule, ChurnModule, FortuneModule, PricingModule, BountyModule, ShareModule, CategoryModule, DiscoverModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, StationPickModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, HomeModule, PoetryModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, AiGatewayModule, ContentGenerationModule, OperationRobotModule, OperationEngineModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule, OrderCenterModule, MemberModule, ExportModule, TrackModule, FundApprovalModule],
 })
 export class AppModule {}

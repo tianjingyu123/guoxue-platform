@@ -14,6 +14,17 @@ export class CircleKnowledgeService {
     private readonly vector: VectorService,
   ) {}
 
+  /** 校验调用者是该圈管理员（OWNER/PARTNER/ADMIN），否则拒绝。知识库管理仅限圈主/管理员。 */
+  async assertManager(circleId: string, userId: string) {
+    const member = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+      select: { role: true },
+    });
+    if (!member || !["OWNER", "PARTNER", "ADMIN"].includes(member.role)) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主或管理员可管理圈子知识库");
+    }
+  }
+
   // ───────── 知识库 CRUD ─────────
 
   /** 手动添加知识条目 */

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { FortuneService } from "./fortune.service";
@@ -66,14 +66,45 @@ export class FortuneController {
   }
 
   @Get(":type/:period")
-  @UseGuards(StrictRedisThrottleGuard)
-  @ApiOperation({ summary: "按周期查询运势" })
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "按周期查询运势（按登录用户，缺失即确定性生成）" })
   @ApiResponse({ status: 200, description: "成功" })
-  getByPeriod(@Param("type") type: string, @Param("period") period: string) {
-    return this.svc.getFortuneByPeriod("system", type, period);
+  @ApiResponse({ status: 401, description: "未登录" })
+  getByPeriod(@Req() req: Request, @Param("type") type: string, @Param("period") period: string) {
+    return this.svc.getFortuneByPeriod(req.user.id, type, period);
   }
 
   // ───────── 管理 ─────────
+
+  @Get("admin/subscriptions")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "运势推送订阅配置列表（管理端）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  listAdminSubscriptions(
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+    @Query("fortuneType") fortuneType?: string,
+  ) {
+    return this.svc.adminListSubscriptions(page ? +page : 1, pageSize ? +pageSize : 20, fortuneType);
+  }
+
+  @Put("admin/subscriptions/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "启用/禁用运势推送订阅配置（管理端）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 404, description: "订阅配置不存在" })
+  updateAdminSubscription(@Param("id") id: string, @Body("isActive") isActive: boolean) {
+    return this.svc.adminUpdateSubscription(id, isActive);
+  }
 
   @Post("admin/push-all")
   @UseGuards(JwtAuthGuard, RolesGuard)
