@@ -78,6 +78,17 @@ describe("CommissionService", () => {
       const result = await svc.calculateAndRecord("order-1", "COURSE", 100);
       expect(result).toBeNull();
     });
+    it("佣金金额规整到分，避免 JS 浮点尾数", async () => {
+      // 99.9 * 0.7 = 69.93000000000001（JS 浮点），应规整为 69.93 再存储与累加
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateA: 0.7 });
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "user-1", totalEarning: 0 });
+      mockPrisma.stationEarning.create.mockResolvedValue({ id: "earning-1" });
+      await svc.calculateAndRecord("order-1", "COURSE", 99.9, "referrer-1");
+      const createArg = mockPrisma.stationEarning.create.mock.calls[0][0];
+      expect(createArg.data.earned).toBe(69.93);
+      const updateArg = mockPrisma.station.update.mock.calls[0][0];
+      expect(updateArg.data.totalEarning.increment).toBe(69.93);
+    });
   });
 
   describe("getStationEarnings", () => {

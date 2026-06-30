@@ -83,7 +83,8 @@ export class CommissionService {
     if (!station) return null;
 
     const rate = Number(config.rateA); // 站长佣金比例
-    const earned = amount * rate;
+    // 规整到分（四舍五入），与本文件管理奖/平台抽成一致，避免 JS 浮点尾数（如 99.9*0.7）污染分账与累加
+    const earned = Math.round(amount * rate * 100) / 100;
 
     // 创建收益记录 + 更新分站总收益（原子操作）
     const earning = await this.prisma.$transaction(async (tx) => {
