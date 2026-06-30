@@ -259,6 +259,13 @@ export class StationController {
     return this.svc.getBrandWithTemplate(code);
   }
 
+  @Get("brand/:code/micro-page")
+  @ApiOperation({ summary: "通过推广码获取分站已发布微页面（公开·用户侧渲染·无则返回 null 回退模板）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  getPublishedMicroPage(@Param("code") code: string) {
+    return this.svc.getPublishedMicroPage(code);
+  }
+
   // ───────── 运营商品牌与小程序 ─────────
 
   @Put("operator/:id/brand")

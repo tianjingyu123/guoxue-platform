@@ -6,6 +6,7 @@ import { FeatureFlagService } from "../feature-flag/feature-flag.service";
 import { NotificationService } from "../notification/notification.service";
 import { SystemService } from "../system/system.service";
 import { MERCHANT_CONFIG_KEYS, MERCHANT_FEATURE_FLAGS } from "./merchant.types";
+import { encrypt, decrypt, maskIdCard, maskPhone } from "../../common/crypto.util";
 import {
   CreateMerchantApplyDto, UpdateMerchantApplyDto, ApproveMerchantDto, UpdateMerchantStatusDto,
   MerchantListQueryDto, UpdateMerchantProfileDto, ProductQueryDto, MerchantOrderQueryDto,
@@ -36,7 +37,8 @@ export class MerchantService {
         shopIntro: dto.shopIntro,
         contactName: dto.contactName,
         contactPhone: dto.contactPhone,
-        idCardNumber: dto.idCardNumber,
+        // 法人身份证号加密入库（PII，禁止明文落库）
+        idCardNumber: dto.idCardNumber ? encrypt(dto.idCardNumber) : dto.idCardNumber,
         idCardFront: dto.idCardFront,
         idCardBack: dto.idCardBack,
         businessLicense: dto.businessLicense,
@@ -47,10 +49,22 @@ export class MerchantService {
     });
   }
 
+  /** 出库脱敏：身份证号解密后掩码、联系电话/关联用户手机号掩码，防管理端与本人回显泄露完整 PII。
+   *  审核可凭 idCardFront/Back 照片核验，无需明文号码；如确需完整号应走独立的解密+审计接口。 */
+  private maskMerchant<T extends Record<string, any>>(m: T): T {
+    if (!m) return m;
+    return {
+      ...m,
+      idCardNumber: m.idCardNumber ? maskIdCard(decrypt(m.idCardNumber)) : m.idCardNumber,
+      contactPhone: m.contactPhone ? maskPhone(m.contactPhone) : m.contactPhone,
+      ...(m.user ? { user: { ...m.user, phone: maskPhone(m.user.phone ?? null) } } : {}),
+    };
+  }
+
   async getApplication(userId: string) {
     const merchant = await this.prisma.merchant.findUnique({ where: { userId } });
     if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "未找到入驻申请");
-    return merchant;
+    return this.maskMerchant(merchant);
   }
 
   async updateApplication(userId: string, dto: UpdateMerchantApplyDto) {
@@ -60,10 +74,13 @@ export class MerchantService {
       throw new BusinessException(ErrorCode.MERCHANT_STATUS_INVALID, "当前状态不可修改");
     }
 
+    // 身份证号若更新则加密入库（其余字段透传）
+    const { idCardNumber, ...rest } = dto;
     return this.prisma.merchant.update({
       where: { userId },
       data: {
-        ...dto,
+        ...rest,
+        ...(idCardNumber !== undefined ? { idCardNumber: idCardNumber ? encrypt(idCardNumber) : idCardNumber } : {}),
         ...(merchant.status === "REVIEW_FAILED" ? { status: "PENDING_REVIEW", rejectReason: null } : {}),
       },
     });
@@ -78,16 +95,23 @@ export class MerchantService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "请完善入驻信息");
     }
 
-    // 自动计算保证金
+    // 自动审核开关：开启时提交即视为审核通过，直接进入待缴保证金状态（开发/演示环境用，
+    // 生产关闭后走人工审核 admin approve）。自动审核必须同时算出保证金，否则缴费环节会因金额未设置而拦截。
+    const autoApprove = await this.featureFlag.isEnabled(MERCHANT_FEATURE_FLAGS.AUTO_APPROVE);
     let depositAmount: any = merchant.depositAmount;
-    const autoCalc = await this.featureFlag.isEnabled(MERCHANT_FEATURE_FLAGS.DEPOSIT_AUTO);
+    const autoCalc = autoApprove || (await this.featureFlag.isEnabled(MERCHANT_FEATURE_FLAGS.DEPOSIT_AUTO));
     if (autoCalc) {
       depositAmount = await this.calculateDeposit(merchant.categoryIds);
     }
 
     return this.prisma.merchant.update({
       where: { userId },
-      data: { status: "PENDING_REVIEW", depositAmount, reviewedAt: null, rejectReason: null },
+      data: {
+        status: autoApprove ? "DEPOSIT_PENDING" : "PENDING_REVIEW",
+        depositAmount,
+        reviewedAt: autoApprove ? new Date() : null,
+        rejectReason: null,
+      },
     });
   }
 
@@ -173,7 +197,7 @@ export class MerchantService {
       this.prisma.merchant.count({ where }),
     ]);
 
-    return { list, total, page, pageSize };
+    return { list: list.map((m) => this.maskMerchant(m)), total, page, pageSize };
   }
 
   async getMerchantById(id: string) {
@@ -186,7 +210,7 @@ export class MerchantService {
       },
     });
     if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
-    return merchant;
+    return this.maskMerchant(merchant);
   }
 
   async approveApplication(merchantId: string, reviewerId: string, dto: ApproveMerchantDto) {
@@ -412,13 +436,38 @@ export class MerchantService {
       }),
       this.prisma.order.count({ where }),
     ]);
-    return { list, total, page, pageSize };
+    return { list: await this.enrichOrders(list), total, page, pageSize };
+  }
+
+  /** 订单补全：商品标题/首图（targetId→Product）+ 买家脱敏昵称/手机号（userId→User） */
+  private async enrichOrders<T extends { targetId: string; userId: string }>(orders: T[]) {
+    if (orders.length === 0) return orders;
+    const productIds = [...new Set(orders.map((o) => o.targetId))];
+    const userIds = [...new Set(orders.map((o) => o.userId))];
+    const [products, users] = await Promise.all([
+      this.prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true, title: true, images: true } }),
+      this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, nickname: true, phone: true } }),
+    ]);
+    const pm = new Map(products.map((p) => [p.id, p]));
+    const um = new Map(users.map((u) => [u.id, u]));
+    return orders.map((o) => {
+      const prod = pm.get(o.targetId);
+      const usr = um.get(o.userId);
+      return {
+        ...o,
+        productTitle: prod?.title ?? "商品",
+        productImage: prod?.images?.[0] ?? null,
+        buyerNickname: usr?.nickname ?? "用户",
+        buyerPhone: usr?.phone ? maskPhone(usr.phone) : null,
+      };
+    });
   }
 
   async getOrder(merchantId: string, orderId: string) {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, merchantId } });
     if (!order) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单不存在");
-    return order;
+    const [enriched] = await this.enrichOrders([order]);
+    return enriched;
   }
 
   async shipOrder(merchantId: string, orderId: string, dto: ShipOrderDto) {

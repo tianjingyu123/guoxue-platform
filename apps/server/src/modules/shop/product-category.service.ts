@@ -52,7 +52,7 @@ export class ProductCategoryService implements OnModuleInit {
     const [items, total] = await Promise.all([
       this.prisma.product.findMany({
         where: { categoryId, status: "ON_SALE" },
-        select: { id: true, title: true, price: true, images: true, salesCount: true },
+        select: { id: true, title: true, price: true, originalPrice: true, images: true, salesCount: true },
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { salesCount: "desc" },

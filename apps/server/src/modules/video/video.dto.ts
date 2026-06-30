@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsInt, IsNumber, IsArray, Min, Max, ValidateNested, MinLength } from "class-validator";
+import { IsString, IsOptional, IsInt, IsNumber, IsArray, Min, Max, ValidateNested, MinLength, IsIn } from "class-validator";
 import { Type } from "class-transformer";
 
 export class CreateVideoDto {
@@ -41,6 +41,17 @@ export class UpdateVideoDto {
   @ApiPropertyOptional({ description: "状态" })
   @IsOptional() @IsString()
   status?: string;
+}
+
+export class AuditVideoDto {
+  @ApiProperty({ description: "审核动作", enum: ["approve", "reject"] })
+  @IsString()
+  @IsIn(["approve", "reject"])
+  action: "approve" | "reject";
+
+  @ApiPropertyOptional({ description: "驳回原因（reject 时建议填写）" })
+  @IsOptional() @IsString()
+  reason?: string;
 }
 
 export class VideoListQueryDto {

@@ -1,9 +1,11 @@
 import {
   Injectable, Logger,
 } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { ShopService } from "../shop/shop.service";
 import { Prisma } from "@prisma/client";
 import { Cacheable } from "../../common/cache.decorator";
 import {
@@ -23,7 +25,7 @@ import {
 export class MarketingService {
   private readonly logger = new Logger(MarketingService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private shop: ShopService) {}
 
   // ═══════════════════════════════════════
   // 秒杀管理
@@ -246,6 +248,61 @@ export class MarketingService {
       where: { groupBuyId: id },
       orderBy: { createdAt: "desc" },
     });
+  }
+
+  /**
+   * 拼团详情（用户端公开）：拼团活动 + 商品信息 + 进行中的团（按 groupId 聚合，含成员昵称/头像）。
+   * 供 C 端拼团详情页渲染；participants 端点是管理员专属，此方法对用户公开且补全展示字段。
+   */
+  async getGroupBuyDetailPublic(id: string) {
+    const gb = await this.prisma.groupBuy.findUnique({
+      where: { id },
+      include: { _count: { select: { participants: true } } },
+    });
+    if (!gb) throw new BusinessException(ErrorCode.GROUP_BUY_NOT_FOUND);
+
+    const product = await this.prisma.product.findUnique({
+      where: { id: gb.productId },
+      select: { id: true, title: true, images: true, price: true, originalPrice: true, intro: true },
+    });
+
+    // 进行中的团（WAITING 状态），按 groupId 聚合，补成员 user 信息
+    const participants = await this.prisma.groupBuyParticipant.findMany({
+      where: { groupBuyId: id, status: "WAITING" },
+      orderBy: { createdAt: "asc" },
+    });
+    const userIds = [...new Set(participants.map(p => p.userId))];
+    const users = userIds.length > 0
+      ? await this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, nickname: true, avatar: true } })
+      : [];
+    const uMap = new Map(users.map(u => [u.id, u]));
+
+    const groupMap = new Map<string, any[]>();
+    for (const pt of participants) {
+      const arr = groupMap.get(pt.groupId) || [];
+      const u = uMap.get(pt.userId);
+      arr.push({ userId: pt.userId, isLeader: pt.isLeader, nickname: u?.nickname || "团员", avatar: u?.avatar || null, joinedAt: pt.createdAt });
+      groupMap.set(pt.groupId, arr);
+    }
+    const groups = [...groupMap.entries()].map(([groupId, members]) => ({
+      groupId,
+      members,
+      currentMembers: members.length,
+      minMembers: gb.minMembers,
+    }));
+
+    return {
+      ...gb,
+      joinedCount: gb._count.participants,
+      product: product
+        ? {
+            id: product.id, title: product.title, image: product.images?.[0] || null,
+            price: Number(product.price), originalPrice: Number(product.originalPrice ?? product.price),
+            intro: product.intro || null,
+          }
+        : null,
+      groups,
+    };
   }
 
   // ═══════════════════════════════════════
@@ -905,45 +962,176 @@ export class MarketingService {
   @Cacheable({ key: "flash:sales:active", ttl: 30 })
   async getActiveFlashSales() {
     const now = new Date();
-    return this.prisma.flashSale.findMany({
+    const sales = await this.prisma.flashSale.findMany({
       where: {
         status: { in: ["ACTIVE", "SCHEDULED"] },
         endTime: { gte: now },
       },
-      include: { items: true },
+      include: { items: { orderBy: { sortOrder: "asc" } } },
       orderBy: { startTime: "asc" },
     });
+    // 补全秒杀商品信息（item 仅有 productId）
+    const productIds = [...new Set(sales.flatMap(s => s.items.map(i => i.productId)))];
+    const products = productIds.length > 0 ? await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, title: true, images: true, price: true, originalPrice: true },
+    }) : [];
+    const pMap = new Map(products.map(p => [p.id, p]));
+    return sales.map(s => ({
+      ...s,
+      items: s.items.map(it => {
+        const p = pMap.get(it.productId);
+        return {
+          ...it,
+          product: p ? {
+            id: p.id, title: p.title, image: p.images?.[0] || null,
+            price: Number(p.price), originalPrice: Number(p.originalPrice ?? p.price),
+          } : null,
+        };
+      }),
+    }));
   }
 
   @Cacheable({ key: "groupbuy:active", ttl: 30 })
   async getActiveGroupBuys() {
-    return this.prisma.groupBuy.findMany({
+    const groupBuys = await this.prisma.groupBuy.findMany({
       where: { status: "ACTIVE" },
       include: { _count: { select: { participants: true } } },
       orderBy: { createdAt: "desc" },
     });
+    // 补全拼团商品信息（仅有 productId）
+    const productIds = [...new Set(groupBuys.map(g => g.productId))];
+    const products = productIds.length > 0 ? await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, title: true, images: true, price: true, originalPrice: true },
+    }) : [];
+    const pMap = new Map(products.map(p => [p.id, p]));
+    return groupBuys.map(g => {
+      const p = pMap.get(g.productId);
+      return {
+        ...g,
+        joinedCount: g._count.participants,
+        product: p ? {
+          id: p.id, title: p.title, image: p.images?.[0] || null,
+          price: Number(p.price), originalPrice: Number(p.originalPrice ?? p.price),
+        } : null,
+      };
+    });
   }
 
+  /**
+   * 参与拼团（付费拼团）：校验活动/团容量/未重复 → 委托 shop 用拼团价创建 PENDING 订单 → 返回订单供前端支付。
+   * 支付成功后由 ShopService.settleGroupBuyIfNeeded 创建参与者并判定成团（参与者恒为已付）。
+   * @param groupId 传入则加入已有团（校验未满），否则开新团
+   */
   async joinGroupBuy(userId: string, groupBuyId: string, groupId?: string) {
     const gb = await this.prisma.groupBuy.findUnique({ where: { id: groupBuyId } });
     if (!gb) throw new BusinessException(ErrorCode.GROUP_BUY_NOT_FOUND);
     if (gb.status !== "ACTIVE") throw new BusinessException(ErrorCode.BAD_REQUEST, "拼团活动已结束");
 
+    // 已参与校验：仅已付（WAITING/SUCCESS）算已参与，未付订单不占名额（允许重新发起）
     const existing = await this.prisma.groupBuyParticipant.findFirst({
-      where: { groupBuyId, userId },
+      where: { groupBuyId, userId, status: { in: ["WAITING", "SUCCESS"] } },
     });
     if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "您已参与此拼团");
 
-    return this.prisma.groupBuyParticipant.create({
-      data: { groupBuyId, userId, groupId: groupId ?? groupBuyId },
+    // 确定团：加入已有团需校验未满；否则开新团
+    let targetGroupId = groupId;
+    if (targetGroupId) {
+      const cnt = await this.prisma.groupBuyParticipant.count({
+        where: { groupId: targetGroupId, status: { in: ["WAITING", "SUCCESS"] } },
+      });
+      if (cnt >= gb.minMembers) throw new BusinessException(ErrorCode.BAD_REQUEST, "该团已满，请开新团参与");
+    } else {
+      targetGroupId = randomUUID();
+    }
+
+    // 委托 shop 用拼团价创建订单（扣库存、防篡改），前端拿 orderId 走支付链路
+    const order = await this.shop.createGroupBuyOrder(userId, {
+      groupBuyId,
+      productId: gb.productId,
+      skuId: gb.skuId ?? undefined,
+      groupPrice: Number(gb.groupPrice),
+      groupId: targetGroupId,
     });
+    return { orderId: order.id, amount: Number(order.amount), groupId: targetGroupId, groupBuyId };
   }
 
   async getMyGroupBuys(userId: string) {
-    return this.prisma.groupBuyParticipant.findMany({
+    const records = await this.prisma.groupBuyParticipant.findMany({
       where: { userId },
-      include: { groupBuy: true },
+      include: { groupBuy: { include: { _count: { select: { participants: true } } } } },
       orderBy: { createdAt: "desc" },
     });
+    // 补全拼团商品信息（groupBuy 仅有 productId），供「我的拼团」列表渲染
+    const productIds = [...new Set(records.map(r => r.groupBuy.productId))];
+    const products = productIds.length > 0
+      ? await this.prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true, title: true, images: true } })
+      : [];
+    const pMap = new Map(products.map(p => [p.id, p]));
+    return records.map(r => {
+      const p = pMap.get(r.groupBuy.productId);
+      return {
+        ...r,
+        joinedCount: r.groupBuy._count.participants,
+        product: p ? { id: p.id, title: p.title, image: p.images?.[0] || null } : null,
+      };
+    });
+  }
+
+  /**
+   * 我的拼团结果（成功/失败结果页数据源）：返回参与状态 + 商品 + 同团成员 + 订单 + 退款信息。
+   * status: WAITING(拼团中) / SUCCESS(已成团) / REFUNDED(超时退款)。前端按 status 渲染成功/失败页。
+   */
+  async getMyGroupBuyResult(userId: string, groupBuyId: string) {
+    const part = await this.prisma.groupBuyParticipant.findFirst({
+      where: { groupBuyId, userId },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!part) throw new BusinessException(ErrorCode.NOT_FOUND, "未参与该拼团");
+    const gb = await this.prisma.groupBuy.findUnique({ where: { id: groupBuyId } });
+    if (!gb) throw new BusinessException(ErrorCode.GROUP_BUY_NOT_FOUND);
+
+    const product = await this.prisma.product.findUnique({
+      where: { id: gb.productId },
+      select: { id: true, title: true, images: true, price: true, originalPrice: true },
+    });
+
+    // 同团已付成员（含团长在前）
+    const members = await this.prisma.groupBuyParticipant.findMany({
+      where: { groupId: part.groupId, status: { in: ["WAITING", "SUCCESS"] } },
+      orderBy: { createdAt: "asc" },
+    });
+    const userIds = [...new Set(members.map((m) => m.userId))];
+    const users = userIds.length
+      ? await this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, nickname: true, avatar: true } })
+      : [];
+    const uMap = new Map(users.map((u) => [u.id, u]));
+
+    const order = part.orderId ? await this.prisma.order.findUnique({ where: { id: part.orderId } }) : null;
+
+    return {
+      status: part.status,
+      groupId: part.groupId,
+      orderId: part.orderId,
+      minMembers: gb.minMembers,
+      currentMembers: members.length,
+      product: product
+        ? {
+            id: product.id,
+            title: product.title,
+            image: product.images?.[0] || null,
+            price: Number(gb.groupPrice),
+            originalPrice: Number(product.originalPrice ?? product.price),
+          }
+        : null,
+      members: members.map((m) => {
+        const u = uMap.get(m.userId);
+        return { userId: m.userId, nickname: u?.nickname || "团员", avatar: u?.avatar || null, isLeader: m.isLeader };
+      }),
+      paidAt: order?.paidAt || null,
+      refundedAt: order?.refundedAt || null,
+      refundAmount: part.status === "REFUNDED" ? Number(order?.amount ?? gb.groupPrice) : 0,
+    };
   }
 }

@@ -166,6 +166,19 @@ export class UpdateMyOperatorDto {
   brandThemeColor?: string;
 }
 
+// 站长创建分站微页面（route 由后端生成、stationId 强制本分站，故站长只需传名称）
+export class StationCreatePageDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+}
+
 export class CreateOperatorDto {
   @IsString()
   @MinLength(1)

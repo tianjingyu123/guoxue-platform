@@ -16,6 +16,7 @@ const mockPrisma: any = {
   },
   merchantDepositRecord: {
     create: jest.fn(),
+    update: jest.fn(),
     findMany: jest.fn(),
     count: jest.fn(),
   },
@@ -61,9 +62,20 @@ describe("MerchantDepositService", () => {
       mockPrisma.merchantDepositRecord.create.mockResolvedValue({
         id: "dr1", merchantId: "m1", amount: 2000, type: "PAYMENT", status: "PENDING",
       });
+      mockPrisma.merchantDepositRecord.update.mockResolvedValue({
+        id: "dr1", status: "SUCCESS",
+      });
       const result = await svc.payDeposit("u1", { payMethod: "WECHAT" });
       expect(result.amount).toBe(2000);
       expect(result.payMethod).toBe("WECHAT");
+      // 模拟支付：记录置 SUCCESS 并推进状态机
+      expect(mockPrisma.merchantDepositRecord.update).toHaveBeenCalledWith({
+        where: { id: "dr1" },
+        data: expect.objectContaining({ status: "SUCCESS" }),
+      });
+      expect(mockMerchantSvc.handleDepositPaid).toHaveBeenCalledWith("m1");
+      expect(result.paid).toBe(true);
+      expect(result.status).toBe("AGREEMENT_PENDING");
     });
 
     it("状态不正确抛出异常", async () => {

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsArray, MinLength } from "class-validator";
+import { IsString, IsOptional, IsArray, MinLength, IsBoolean, IsInt, Min, Max } from "class-validator";
 
 export class GenUserSigDto {
   @ApiPropertyOptional({ description: "用户ID（不传则使用当前登录用户）" })
@@ -141,4 +141,35 @@ export class FriendDto {
   @IsString()
   @IsOptional()
   remark?: string;
+}
+
+// ───────── 私信社交策略配置（管理员） ─────────
+
+export class UpdatePolicyConfigDto {
+  @ApiPropertyOptional({ description: "是否允许陌生人私信" })
+  @IsOptional()
+  @IsBoolean()
+  allowStrangerDM?: boolean;
+
+  @ApiPropertyOptional({ description: "未互关时对方回复前可发条数", minimum: 0, maximum: 100 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  followerDMQuota?: number;
+
+  @ApiPropertyOptional({ description: "是否允许发送图片" })
+  @IsOptional()
+  @IsBoolean()
+  allowImage?: boolean;
+
+  @ApiPropertyOptional({ description: "是否允许发送语音" })
+  @IsOptional()
+  @IsBoolean()
+  allowVoice?: boolean;
+
+  @ApiPropertyOptional({ description: "是否允许发送文件" })
+  @IsOptional()
+  @IsBoolean()
+  allowFile?: boolean;
 }

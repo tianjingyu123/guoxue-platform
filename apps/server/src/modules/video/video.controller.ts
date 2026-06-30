@@ -6,13 +6,14 @@ import { VideoService } from "./video.service";
 import {
   CreateVideoDto, UpdateVideoDto, VideoListQueryDto,
   PullUploadDto, ProcessMediaDto, ClipVideoDto,
-  UploadSignatureDto, PlaybackStatsQueryDto,
+  UploadSignatureDto, PlaybackStatsQueryDto, AuditVideoDto,
 } from "./video.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
 import { StationId } from "../../common/station-id.decorator";
+import { Auditable } from "../../common/audit.decorator";
 
 @ApiTags("视频")
 @Controller("videos")
@@ -76,6 +77,20 @@ export class VideoController {
   @ApiResponse({ status: 404, description: "视频不存在" })
   update(@Req() req: Request, @Param("id") id: string, @Body() dto: UpdateVideoDto) {
     return this.svc.update(req.user.id, id, dto);
+  }
+
+  @Put("admin/:id/audit")
+  @Auditable({ action: "视频审核", targetType: "VIDEO" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  @ApiOperation({ summary: "管理端审核视频（通过/驳回）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "审核成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无审核权限" })
+  @ApiResponse({ status: 404, description: "视频不存在" })
+  auditVideo(@Param("id") id: string, @Body() dto: AuditVideoDto) {
+    return this.svc.audit(id, dto.action, dto.reason);
   }
 
   @Delete(":id")

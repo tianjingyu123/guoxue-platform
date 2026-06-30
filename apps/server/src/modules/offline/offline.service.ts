@@ -52,6 +52,14 @@ export class OfflineService {
     return s;
   }
 
+  /** 运营者识别：当前用户拥有的驿站（B 端经营后台地基）。非驿站主返回 null */
+  async getMyStation(userId: string) {
+    return this.prisma.stationOffline.findUnique({
+      where: { ownerUserId: userId },
+      include: { _count: { select: { courses: true, products: true, teachers: true, teacherBookings: true } } },
+    });
+  }
+
   async auditStation(id: string, status: string) {
     return this.prisma.stationOffline.update({ where: { id }, data: { status } });
   }
@@ -69,7 +77,8 @@ export class OfflineService {
         where,
         select: {
           id: true, name: true, city: true, address: true,
-          cover: true, phone: true,
+          cover: true, phone: true, type: true, intro: true,
+          businessHours: true, images: true, tags: true, facilities: true, status: true,
           _count: { select: { courses: true, products: true } },
         },
         skip: (page - 1) * pageSize, take: pageSize,
@@ -93,34 +102,81 @@ export class OfflineService {
     });
   }
 
-  async listOfflineCourses(stationId: string, page = 1, pageSize = 20) {
-    const where = { stationId };
+  async listOfflineCourses(stationId?: string, page = 1, pageSize = 20) {
+    // 传 stationId=单驿站课程（含草稿）；不传=用户端发现，仅 ACTIVE 驿站的已审核已发布课程
+    const where: Prisma.OfflineCourseWhereInput = stationId
+      ? { stationId }
+      : { auditStatus: "APPROVED", status: "PUBLISHED", station: { status: "ACTIVE" } };
     const [courses, total] = await Promise.all([
       this.prisma.offlineCourse.findMany({
         where,
-        include: { _count: { select: { registrations: true } } },
+        include: {
+          _count: { select: { registrations: true } },
+          station: { select: { id: true, name: true, city: true } },
+        },
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { startTime: "asc" },
       }),
       this.prisma.offlineCourse.count({ where }),
     ]);
-    return { courses, total, page, pageSize };
+    const teacherMap = await this.loadTeachers(courses.map((c) => c.teacherId));
+    return {
+      courses: courses.map((c) => ({ ...c, teacher: c.teacherId ? teacherMap.get(c.teacherId) || null : null })),
+      total,
+      page,
+      pageSize,
+    };
   }
 
   async getOfflineCourse(courseId: string) {
     const course = await this.prisma.offlineCourse.findUnique({
       where: { id: courseId },
       include: {
-        station: { select: { id: true, name: true, address: true } },
+        station: { select: { id: true, name: true, address: true, phone: true } },
         registrations: true,
       },
     });
     if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
-    return course;
+    let teacher: { id: string; name: string; avatar: string | null; specialties: string[]; bio: string | null } | null = null;
+    if (course.teacherId) {
+      teacher = await this.prisma.stationTeacher.findUnique({
+        where: { id: course.teacherId },
+        select: { id: true, name: true, avatar: true, specialties: true, bio: true },
+      });
+    }
+    return { ...course, teacher };
+  }
+
+  /** 批量加载讲师信息（OfflineCourse.teacherId → StationTeacher）*/
+  private async loadTeachers(teacherIds: (string | null)[]) {
+    const ids = [...new Set(teacherIds.filter((x): x is string => !!x))];
+    if (!ids.length) return new Map<string, { id: string; name: string; avatar: string | null; specialties: string[] }>();
+    const teachers = await this.prisma.stationTeacher.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true, avatar: true, specialties: true },
+    });
+    return new Map(teachers.map((t) => [t.id, t]));
   }
 
   // ───────── 课程报名 ─────────
+
+  /** 当前用户在某课程的报名记录（用户端签到凭证）*/
+  async getMyRegistration(courseId: string, userId: string) {
+    const reg = await this.prisma.offlineCourseRegistration.findUnique({
+      where: { courseId_userId: { courseId, userId } },
+      include: { course: { include: { station: { select: { id: true, name: true, address: true, phone: true } } } } },
+    });
+    if (!reg) return null;
+    let teacher: { id: string; name: string; avatar: string | null } | null = null;
+    if (reg.course.teacherId) {
+      teacher = await this.prisma.stationTeacher.findUnique({
+        where: { id: reg.course.teacherId },
+        select: { id: true, name: true, avatar: true },
+      });
+    }
+    return { ...reg, course: { ...reg.course, teacher } };
+  }
 
   async registerCourse(userId: string, courseId: string) {
     const course = await this.prisma.offlineCourse.findUnique({
@@ -210,7 +266,9 @@ export class OfflineService {
   }
 
   async listProducts(stationId: string, params?: { status?: string; page?: number; pageSize?: number }) {
-    const { status, page = 1, pageSize = 20 } = params || {};
+    const { status } = params || {};
+    const page = Number(params?.page) || 1;
+    const pageSize = Number(params?.pageSize) || 20;
     const where: Prisma.StationProductWhereInput = { stationId };
     if (status) where.status = status;
     const [products, total] = await Promise.all([
@@ -495,6 +553,33 @@ export class OfflineService {
     return this.prisma.stationTeacher.create({ data: dto });
   }
 
+  /** 从研究院签约讲师库引入讲师到本驿站（研究院→驿站师资供给闭环）*/
+  async createTeacherFromSigned(stationId: string, sourceUserId: string, specialties?: string[], bio?: string) {
+    const member = await this.prisma.instituteMember.findUnique({
+      where: { userId: sourceUserId },
+      select: { lecturerLevel: true, status: true, user: { select: { nickname: true, avatar: true } } },
+    });
+    if (!member || member.lecturerLevel !== "SIGNED" || member.status !== "ACTIVE") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该用户不是有效的签约讲师");
+    }
+    const station = await this.prisma.stationOffline.findUnique({ where: { id: stationId }, select: { id: true } });
+    if (!station) throw new BusinessException(ErrorCode.NOT_FOUND, "驿站不存在");
+
+    const existing = await this.prisma.stationTeacher.findFirst({ where: { stationId, sourceUserId } });
+    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "该签约讲师已在本站讲师库");
+
+    return this.prisma.stationTeacher.create({
+      data: {
+        stationId,
+        sourceUserId,
+        name: member.user.nickname,
+        avatar: member.user.avatar,
+        specialties: specialties || [],
+        bio: bio || null,
+      },
+    });
+  }
+
   async listTeachers(stationId?: string, page = 1, pageSize = 20) {
     const where: Prisma.StationTeacherWhereInput = {};
     if (stationId) where.stationId = stationId;
@@ -667,5 +752,101 @@ export class OfflineService {
       this.prisma.stationTeacherRequest.count({ where }),
     ]);
     return { data, total, page, pageSize };
+  }
+
+  // ───────── 平台管理视图（跨驿站只读监控） ─────────
+
+  /** 手机号脱敏 138****8000 */
+  private maskPhone(phone?: string | null): string | null {
+    if (!phone) return null;
+    return phone.length >= 11 ? phone.replace(/(\d{3})\d{4}(\d{4})/, "$1****$2") : phone.replace(/.(?=.{2})/g, "*");
+  }
+
+  /** 核销记录（跨驿站签到核销，平台监控）— status=SIGNED_IN */
+  async adminListCheckins(params?: { stationId?: string; page?: number; pageSize?: number }) {
+    const page = Number(params?.page) || 1;
+    const pageSize = Number(params?.pageSize) || 20;
+    const where: Prisma.OfflineCourseRegistrationWhereInput = { status: "SIGNED_IN" };
+    if (params?.stationId) where.course = { stationId: params.stationId };
+
+    const [regs, total] = await Promise.all([
+      this.prisma.offlineCourseRegistration.findMany({
+        where,
+        include: { course: { select: { id: true, title: true, price: true, station: { select: { id: true, name: true, city: true } } } } },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { signedAt: "desc" },
+      }),
+      this.prisma.offlineCourseRegistration.count({ where }),
+    ]);
+
+    // OfflineCourseRegistration 无 User 关联，批量补全用户信息并脱敏
+    const userIds = [...new Set(regs.map((r) => r.userId))];
+    const users = userIds.length
+      ? await this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, nickname: true, phone: true } })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const items = regs.map((r) => {
+      const u = userMap.get(r.userId);
+      return {
+        id: r.id,
+        userId: r.userId,
+        userNickname: u?.nickname || "—",
+        userPhone: this.maskPhone(u?.phone),
+        signedAt: r.signedAt,
+        createdAt: r.createdAt,
+        courseId: r.courseId,
+        courseTitle: r.course?.title || "—",
+        amount: r.course?.price ?? 0,
+        station: r.course?.station || null,
+      };
+    });
+    return { items, total, page, pageSize };
+  }
+
+  /** 驿站商品（跨驿站列表，平台监控）*/
+  async adminListProducts(params?: { stationId?: string; status?: string; page?: number; pageSize?: number }) {
+    const page = Number(params?.page) || 1;
+    const pageSize = Number(params?.pageSize) || 20;
+    const where: Prisma.StationProductWhereInput = {};
+    if (params?.stationId) where.stationId = params.stationId;
+    if (params?.status) where.status = params.status;
+
+    const [items, total] = await Promise.all([
+      this.prisma.stationProduct.findMany({
+        where,
+        include: { station: { select: { id: true, name: true, city: true } } },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.stationProduct.count({ where }),
+    ]);
+    return { items, total, page, pageSize };
+  }
+
+  /** 师资预约（跨驿站列表，平台监控）*/
+  async adminListBookings(params?: { stationId?: string; status?: string; page?: number; pageSize?: number }) {
+    const page = Number(params?.page) || 1;
+    const pageSize = Number(params?.pageSize) || 20;
+    const where: Prisma.StationTeacherBookingWhereInput = {};
+    if (params?.stationId) where.stationId = params.stationId;
+    if (params?.status) where.status = params.status;
+
+    const [items, total] = await Promise.all([
+      this.prisma.stationTeacherBooking.findMany({
+        where,
+        include: {
+          station: { select: { id: true, name: true, city: true } },
+          teacher: { select: { id: true, name: true } },
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { bookingDate: "desc" },
+      }),
+      this.prisma.stationTeacherBooking.count({ where }),
+    ]);
+    return { items, total, page, pageSize };
   }
 }

@@ -1,14 +1,18 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma, InstituteRole } from "@prisma/client";
+import { FundApprovalService } from "../fund-approval/fund-approval.service";
 
 const MGMT_ROLES: InstituteRole[] = ["PRESIDENT", "VICE_PRESIDENT", "SECRETARY_GENERAL"];
 
 @Injectable()
 export class InstituteService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Optional() private fundApproval?: FundApprovalService,
+  ) {}
 
   // ════════════════════════════════════════
   // 公开页
@@ -79,6 +83,7 @@ export class InstituteService {
         joinYear: dto.joinYear,
         deposit: dto.deposit || 10000,
         tasksRequired: 3,
+        status: "PENDING", // 申请入会先进入待审核，管理层通过后转 ACTIVE
         expireAt,
       },
       include: { user: { select: { id: true, nickname: true, avatar: true } } },
@@ -298,6 +303,22 @@ export class InstituteService {
     };
   }
 
+  /**
+   * 发起分红发放审批（不立即发放）。校验管理层身份后创建 FundApproval(PENDING)，
+   * 审批通过后由 FundApprovalExecutor 调用 createDividend 真正发放。
+   */
+  async requestDividend(userId: string, dto: { userId: string; type: string; amount: number; description?: string; period?: string }) {
+    await this.assertManagement(userId);
+    if (!this.fundApproval) throw new BusinessException(ErrorCode.BAD_REQUEST, "审批服务不可用");
+    return this.fundApproval.create({
+      type: "DIVIDEND",
+      payload: { userId: dto.userId, type: dto.type, amount: dto.amount, description: dto.description, period: dto.period },
+      amount: dto.amount,
+      summary: `研究院发放分红/奖励 ¥${dto.amount}（对象用户 ${dto.userId}，类型 ${dto.type}）`,
+      requestedBy: userId,
+    });
+  }
+
   async createDividend(userId: string, dto: { userId: string; type: string; amount: number; description?: string; period?: string }) {
     const mgr = await this.assertManagement(userId);
     return this.prisma.instituteDividend.create({
@@ -349,7 +370,17 @@ export class InstituteService {
       },
     });
     if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "成员不存在");
-    return member;
+
+    // 签约讲师：补充已入驻的驿站（研究院→驿站供给闭环可视化）
+    let enrolledStations: { stationId: string; name: string }[] = [];
+    if (member.lecturerLevel === "SIGNED") {
+      const sts = await this.prisma.stationTeacher.findMany({
+        where: { sourceUserId: member.userId, status: "ACTIVE" },
+        select: { stationId: true, station: { select: { name: true } } },
+      });
+      enrolledStations = sts.map((s) => ({ stationId: s.stationId, name: s.station?.name || "" }));
+    }
+    return { ...member, enrolledStations };
   }
 
   async updateMember(memberId: string, dto: { role?: string; status?: string; deposit?: number }) {
@@ -473,11 +504,61 @@ export class InstituteService {
     return { events, total, page, pageSize };
   }
 
+  async getEvent(id: string) {
+    const event = await this.prisma.instituteEvent.findUnique({
+      where: { id },
+      include: { institute: { select: { id: true, name: true, logo: true } } },
+    });
+    if (!event) throw new BusinessException(ErrorCode.NOT_FOUND, "活动不存在");
+    // 讲师信息（lecturerId 存的是 user.id）
+    let lecturer: { id: string; nickname: string; avatar: string | null } | null = null;
+    if (event.lecturerId) {
+      lecturer = await this.prisma.user.findUnique({
+        where: { id: event.lecturerId },
+        select: { id: true, nickname: true, avatar: true },
+      });
+    }
+    return { ...event, lecturer };
+  }
+
   async updateEvent(id: string, dto: { status?: string; title?: string; description?: string; location?: string }) {
     return this.prisma.instituteEvent.update({ where: { id }, data: dto as Prisma.InstituteEventUpdateInput });
   }
 
   // ───────── 选拔路径 ─────────
+
+  // ───────── 签约讲师库（供驿站选用·研究院→驿站师资供给闭环）─────────
+
+  async getSignedLecturers() {
+    const lecturers = await this.prisma.instituteMember.findMany({
+      where: { lecturerLevel: "SIGNED", status: "ACTIVE" },
+      select: {
+        id: true,
+        userId: true,
+        lecturerLevel: true,
+        joinYear: true,
+        tasksCompleted: true,
+        user: { select: { id: true, nickname: true, avatar: true } },
+      },
+      orderBy: { joinedAt: "asc" },
+    });
+
+    // 每位签约讲师已入驻的驿站
+    const userIds = lecturers.map((l) => l.userId);
+    const enrolled = userIds.length
+      ? await this.prisma.stationTeacher.findMany({
+          where: { sourceUserId: { in: userIds }, status: "ACTIVE" },
+          select: { sourceUserId: true, stationId: true, station: { select: { id: true, name: true } } },
+        })
+      : [];
+
+    return lecturers.map((l) => ({
+      ...l,
+      enrolledStations: enrolled
+        .filter((e) => e.sourceUserId === l.userId)
+        .map((e) => ({ stationId: e.stationId, name: e.station?.name || "" })),
+    }));
+  }
 
   async getSigningCandidates() {
     return this.prisma.instituteMember.findMany({

@@ -81,6 +81,21 @@ export class InstituteController {
     return this.svc.getTalentPool({ level, page: +page, pageSize: +pageSize });
   }
 
+  @Get("events/:id")
+  @ApiOperation({ summary: "活动详情（公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  getEvent(@Param("id") id: string) {
+    return this.svc.getEvent(id);
+  }
+
+  @Get("signed-lecturers")
+  @ApiOperation({ summary: "签约讲师库（供驿站选用·含已入驻驿站）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  getSignedLecturers() {
+    return this.svc.getSignedLecturers();
+  }
+
   // ════════════════════════════════════════
   // 成员 — 加入
   // ════════════════════════════════════════
@@ -220,7 +235,7 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   createDividend(@Req() req: Request, @Body() dto: CreateDividendDto) {
-    return this.svc.createDividend(req.user.id, dto);
+    return this.svc.requestDividend(req.user.id, dto);
   }
 
   @Put("manage/members/:id/recommend")

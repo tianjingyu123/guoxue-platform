@@ -64,26 +64,32 @@ export class DiscoverService {
     // 聚合模式：均分 pageSize
     const perSection = Math.max(2, Math.ceil(pageSize / 5));
     const cat = categoryLevel1 ? { categoryLevel1, categoryLevel2 } : undefined;
+    // 品类筛选模式下，仅聚合可按统一品类精确筛选的三源（content/course/product）；
+    // classic（四库法）与 bot（按类型）无法对齐统一品类，仅在「推荐」模式参与混排。
+    const inCategory = !!cat;
+    const empty = { items: [], total: 0 };
 
     const [content, courses, products, classics, bots] = await Promise.all([
       this.queryContent({ skip, pageSize: perSection, cat }),
       this.queryCourses({ skip, pageSize: perSection, cat }),
       this.queryProducts({ skip, pageSize: perSection, cat }),
-      this.queryClassics({ skip, pageSize: perSection }),
-      this.queryBots({ skip, pageSize: perSection }),
+      inCategory ? Promise.resolve(empty) : this.queryClassics({ skip, pageSize: perSection }),
+      inCategory ? Promise.resolve(empty) : this.queryBots({ skip, pageSize: perSection }),
     ]);
 
-    const data = {
-      page,
-      pageSize,
-      sections: [
-        { type: "content", title: "精选内容", items: content.items, total: content.total },
-        { type: "course", title: "热门课程", items: courses.items, total: courses.total },
-        { type: "product", title: "精选商品", items: products.items, total: products.total },
+    const sections = [
+      { type: "content", title: "精选内容", items: content.items, total: content.total },
+      { type: "course", title: "热门课程", items: courses.items, total: courses.total },
+      { type: "product", title: "精选商品", items: products.items, total: products.total },
+    ];
+    if (!inCategory) {
+      sections.push(
         { type: "classic", title: "古籍经典", items: classics.items, total: classics.total },
         { type: "bot", title: "智能体", items: bots.items, total: bots.total },
-      ],
-    };
+      );
+    }
+
+    const data = { page, pageSize, sections };
     await this.redis.setJson(cacheKey, data, DISCOVER_CACHE_TTL);
     return data;
   }

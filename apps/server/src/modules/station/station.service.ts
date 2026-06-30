@@ -455,6 +455,17 @@ export class StationService {
     return result;
   }
 
+  /** 通过推广码获取分站【已发布】微页面（公开·用户侧渲染）。无已发布页返回 null → 前端回退模板默认楼层 */
+  async getPublishedMicroPage(code: string) {
+    const station = await this.prisma.station.findUnique({ where: { code }, select: { id: true } });
+    if (!station) return null;
+    return this.prisma.marketingPage.findFirst({
+      where: { stationId: station.id, status: "PUBLISHED" },
+      orderBy: { publishedAt: "desc" },
+      include: { components: { orderBy: { sortOrder: "asc" } } },
+    });
+  }
+
   // ───────── 运营商品牌与小程序 ─────────
 
   async updateOperatorBrand(operatorId: string, dto: UpdateOperatorBrandDto) {

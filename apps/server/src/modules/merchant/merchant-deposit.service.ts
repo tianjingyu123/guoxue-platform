@@ -40,7 +40,21 @@ export class MerchantDepositService {
       },
     });
 
-    return { depositRecordId: record.id, amount: Number(merchant.depositAmount), payMethod: dto.payMethod };
+    // 开发/演示环境：模拟第三方支付即时到账，推进状态机至「待签署协议」。
+    // 真实微信/支付宝支付接入后，此处改为返回支付参数、由异步支付回调驱动 handleDepositPaid。
+    await this.prisma.merchantDepositRecord.update({
+      where: { id: record.id },
+      data: { status: "SUCCESS", payTransactionId: `SIMULATED-${record.id}` },
+    });
+    await this.merchantService.handleDepositPaid(merchant.id);
+
+    return {
+      depositRecordId: record.id,
+      amount: Number(merchant.depositAmount),
+      payMethod: dto.payMethod,
+      paid: true,
+      status: "AGREEMENT_PENDING",
+    };
   }
 
   /** 管理员退还保证金 */

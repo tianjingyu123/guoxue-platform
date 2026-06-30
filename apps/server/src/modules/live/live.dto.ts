@@ -16,6 +16,10 @@ export class CreateRoomDto {
   @IsOptional() @IsString()
   cover?: string;
 
+  @ApiPropertyOptional({ description: "预约开播时间（ISO 字符串）" })
+  @IsOptional() @IsString()
+  startTime?: string;
+
   @ApiPropertyOptional({ description: "主播用户ID，不传则默认为当前用户" })
   @IsOptional() @IsString()
   hostUserId?: string;

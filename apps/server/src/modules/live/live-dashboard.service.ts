@@ -69,7 +69,7 @@ export class LiveDashboardService {
       trends: data.map(d => ({
         minute: d.minute,
         online: d.onlineCount,
-        gmv: d.gmw,
+        gmv: d.gmw / 100, // gmw 存储为分，对外统一为元（与 report 口径一致）
         orders: d.orderCount,
         comments: d.commentCount,
         likes: d.likeCount,
@@ -121,7 +121,7 @@ export class LiveDashboardService {
 
   async getInteractions(roomId: string, userId: string) {
     await this.assertRoomHost(roomId, userId);
-    const [topGifters, recentComments] = await Promise.all([
+    const [topGifters, recentComments, giftsByType] = await Promise.all([
       this.prisma.giftRecord.groupBy({
         by: ["userId"],
         where: { liveRoomId: roomId },
@@ -135,20 +135,36 @@ export class LiveDashboardService {
         take: 50,
         select: { userId: true, content: true, createdAt: true },
       }),
+      // 按礼物种类聚合 — 打赏明细看板（数量/金币，按金币降序）
+      this.prisma.giftRecord.groupBy({
+        by: ["giftId"],
+        where: { liveRoomId: roomId },
+        _sum: { totalCoin: true, quantity: true },
+        orderBy: { _sum: { totalCoin: "desc" } },
+      }),
     ]);
 
     const gifterIds = topGifters.map(g => g.userId);
-    const users = await this.prisma.user.findMany({
-      where: { id: { in: gifterIds } },
-      select: { id: true, nickname: true, avatar: true },
-    });
+    const giftTypeIds = giftsByType.map(g => g.giftId);
+    const [users, gifts] = await Promise.all([
+      this.prisma.user.findMany({ where: { id: { in: gifterIds } }, select: { id: true, nickname: true, avatar: true } }),
+      this.prisma.gift.findMany({ where: { id: { in: giftTypeIds } }, select: { id: true, name: true, icon: true, priceCoin: true } }),
+    ]);
     const userMap = new Map(users.map(u => [u.id, u]));
+    const giftMap = new Map(gifts.map(g => [g.id, g]));
 
     return {
       topGifters: topGifters.map(g => ({
         userId: g.userId,
         nickname: userMap.get(g.userId)?.nickname,
         avatar: userMap.get(g.userId)?.avatar,
+        totalCoin: Number(g._sum.totalCoin || 0),
+      })),
+      giftsByType: giftsByType.map(g => ({
+        giftId: g.giftId,
+        name: giftMap.get(g.giftId)?.name || "礼物",
+        icon: giftMap.get(g.giftId)?.icon,
+        count: Number(g._sum.quantity || 0),
         totalCoin: Number(g._sum.totalCoin || 0),
       })),
       recentComments: recentComments.slice(0, 20),

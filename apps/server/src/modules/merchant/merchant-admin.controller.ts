@@ -14,6 +14,7 @@ import {
   SetCommissionRateDto, PaySettlementDto, GenerateSettlementDto, SettlementListQueryDto,
   CreateAgreementDto, UpdateAgreementDto, PaginationDto,
 } from "./merchant.dto";
+import { Auditable } from "../../common/audit.decorator";
 
 type AuthRequest = Omit<Request, "user"> & { user: { id: string; [key: string]: unknown } };
 
@@ -91,6 +92,7 @@ export class MerchantAdminController {
   // ── 入驻审核 ──
 
   @Post(":id/approve")
+  @Auditable({ action: "商家审核通过", targetType: "MERCHANT" })
   @ApiOperation({ summary: "审核通过" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -99,6 +101,7 @@ export class MerchantAdminController {
   }
 
   @Post(":id/reject")
+  @Auditable({ action: "商家审核驳回", targetType: "MERCHANT" })
   @ApiOperation({ summary: "审核驳回" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -109,6 +112,7 @@ export class MerchantAdminController {
   // ── 状态管理 ──
 
   @Put(":id/status")
+  @Auditable({ action: "商家状态变更", targetType: "MERCHANT" })
   @ApiOperation({ summary: "变更商家状态" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -128,6 +132,7 @@ export class MerchantAdminController {
   }
 
   @Post(":id/deposits/refund")
+  @Auditable({ action: "退还保证金", targetType: "MERCHANT" })
   @ApiOperation({ summary: "退还保证金" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -136,6 +141,7 @@ export class MerchantAdminController {
   }
 
   @Post(":id/deposits/adjust")
+  @Auditable({ action: "调整保证金", targetType: "MERCHANT" })
   @ApiOperation({ summary: "调整保证金金额" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -154,6 +160,7 @@ export class MerchantAdminController {
   }
 
   @Post(":id/violations")
+  @Auditable({ action: "商家违规记录", targetType: "MERCHANT" })
   @ApiOperation({ summary: "创建违规记录" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -162,6 +169,7 @@ export class MerchantAdminController {
   }
 
   @Put(":id/violations/:violationId")
+  @Auditable({ action: "处理商家违规", targetType: "MERCHANT" })
   @ApiOperation({ summary: "处理违规" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -208,6 +216,7 @@ export class MerchantAdminController {
   }
 
   @Post(":id/settlements/:settlementId/pay")
+  @Auditable({ action: "商家结算打款", targetType: "MERCHANT" })
   @ApiOperation({ summary: "标记结算已支付" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

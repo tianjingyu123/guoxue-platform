@@ -151,14 +151,56 @@ export class ShopCouponService {
       this.prisma.afterSale.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
       this.prisma.afterSale.count({ where }),
     ]);
-    return { items, total, page, pageSize };
+    return { items: await this.enrichAfterSales(items), total, page, pageSize };
   }
 
   async getAfterSale(id: string, userId: string) {
     const record = await this.prisma.afterSale.findUnique({ where: { id } });
     if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "售后记录不存在");
     if (record.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能查看自己的售后记录");
-    return record;
+    const [enriched] = await this.enrichAfterSales([record]);
+    return enriched;
+  }
+
+  /**
+   * 批量补全售后记录的订单/商品信息，供 C 端售后(退款/纠纷)页渲染。
+   * 原 AfterSale 行仅含 orderId，无商品名/封面/订单号，前端无法展示。
+   * 按 orderId join Order，再按 Order.targetId join Product；timeline 由前端按真实 status 派生。
+   */
+  private async enrichAfterSales<T extends { orderId: string }>(records: T[]) {
+    if (records.length === 0) return [] as (T & { order: any; product: any })[];
+
+    const orderIds = [...new Set(records.map(r => r.orderId).filter(Boolean))];
+    const orders = orderIds.length
+      ? await this.prisma.order.findMany({
+          where: { id: { in: orderIds } },
+          select: { id: true, targetId: true, status: true, amount: true, createdAt: true },
+        })
+      : [];
+    const orderMap = new Map(orders.map(o => [o.id, o]));
+
+    const productIds = [...new Set(orders.map(o => o.targetId).filter(Boolean))];
+    const products = productIds.length
+      ? await this.prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, title: true, images: true, price: true },
+        })
+      : [];
+    const productMap = new Map(products.map(p => [p.id, p]));
+
+    return records.map(r => {
+      const order = orderMap.get(r.orderId);
+      const product = order?.targetId ? productMap.get(order.targetId) : null;
+      return {
+        ...r,
+        order: order
+          ? { id: order.id, status: order.status, amount: Number(order.amount), createdAt: order.createdAt }
+          : null,
+        product: product
+          ? { id: product.id, title: product.title, cover: product.images?.[0] || null, price: Number(product.price) }
+          : null,
+      };
+    });
   }
 
   async cancelAfterSale(id: string, userId: string) {

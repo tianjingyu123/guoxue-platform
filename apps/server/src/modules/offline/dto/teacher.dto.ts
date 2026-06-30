@@ -45,6 +45,20 @@ export class UpdateTeacherDto {
   status?: string;
 }
 
+export class CreateTeacherFromSignedDto {
+  @ApiProperty({ description: "签约讲师的用户ID（来自研究院 lecturerLevel=SIGNED 成员）" })
+  @IsString() @MinLength(1)
+  sourceUserId: string;
+
+  @ApiPropertyOptional({ description: "专长标签" })
+  @IsOptional() @IsArray() @IsString({ each: true })
+  specialties?: string[];
+
+  @ApiPropertyOptional({ description: "简介" })
+  @IsOptional() @IsString()
+  bio?: string;
+}
+
 export class SetAvailabilityDto {
   @ApiProperty({ description: "可预约时段列表（ISO日期时间）" })
   @IsArray() @IsString({ each: true })

@@ -14,7 +14,7 @@ import {
   AuditCourseDto,
   UpdateOrderStatusDto, CreateTeacherRequestDto, RespondTeacherRequestDto,
 } from "./offline.dto";
-import { CreateTeacherDto, UpdateTeacherDto, SetAvailabilityDto } from "./dto/teacher.dto";
+import { CreateTeacherDto, UpdateTeacherDto, SetAvailabilityDto, CreateTeacherFromSignedDto } from "./dto/teacher.dto";
 
 @ApiTags("线下驿站")
 @Controller("offline")
@@ -62,6 +62,16 @@ export class OfflineController {
     @Query("pageSize") pageSize = 20,
   ) {
     return this.svc.discoverStations({ city, keyword, page: +page, pageSize: +pageSize });
+  }
+
+  @Get("stations/my")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的驿站（运营者经营后台地基，非驿站主返回 null）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  getMyStation(@Req() req: Request) {
+    return this.svc.getMyStation(req.user.id);
   }
 
   @Get("stations/:id")
@@ -113,10 +123,10 @@ export class OfflineController {
   }
 
   @Get("courses")
-  @ApiOperation({ summary: "获取驿站课程列表" })
+  @ApiOperation({ summary: "课程列表（传 stationId=单驿站；不传=用户端发现全部已发布课程）" })
   @ApiResponse({ status: 200, description: "成功" })
-  @ApiQuery({ name: "stationId", required: true })
-  listCourses(@Query("stationId") stationId: string, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
+  @ApiQuery({ name: "stationId", required: false })
+  listCourses(@Query("stationId") stationId?: string, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
     return this.svc.listOfflineCourses(stationId, Number(page) || 1, Number(pageSize) || 20);
   }
 
@@ -202,6 +212,16 @@ export class OfflineController {
   @ApiBearerAuth()
   registerCourse(@Req() req: Request, @Param("id") id: string) {
     return this.svc.registerCourse(req.user.id, id);
+  }
+
+  @Get("courses/:id/my-registration")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我在该课程的报名记录（签到凭证）" })
+  @ApiResponse({ status: 200, description: "成功（未报名返回 null）" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  getMyRegistration(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.getMyRegistration(id, req.user.id);
   }
 
   @Post("courses/:id/cancel")
@@ -426,6 +446,18 @@ export class OfflineController {
     return this.svc.createTeacher(dto);
   }
 
+  @Post("stations/:id/teachers/from-signed")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "从研究院签约讲师库引入讲师（研究院→驿站供给闭环）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "非有效签约讲师/已引入" })
+  @ApiResponse({ status: 404, description: "驿站不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  createTeacherFromSigned(@Param("id") stationId: string, @Body() dto: CreateTeacherFromSignedDto) {
+    return this.svc.createTeacherFromSigned(stationId, dto.sourceUserId, dto.specialties, dto.bio);
+  }
+
   @Get("admin/teachers")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -636,5 +668,68 @@ export class OfflineController {
     @Query("pageSize") pageSize = 20,
   ) {
     return this.svc.adminListTeacherRequests(status, +page, +pageSize);
+  }
+
+  // ───────── 平台管理视图（跨驿站只读监控） ─────────
+
+  @Get("admin/checkins")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "核销记录查询（跨驿站签到核销，平台监控）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "stationId", required: false })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  adminCheckins(
+    @Query("stationId") stationId?: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.adminListCheckins({ stationId, page: +page, pageSize: +pageSize });
+  }
+
+  @Get("admin/products")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "驿站商品查询（跨驿站商品列表，平台监控）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "stationId", required: false })
+  @ApiQuery({ name: "status", required: false })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  adminProducts(
+    @Query("stationId") stationId?: string,
+    @Query("status") status?: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.adminListProducts({ stationId, status, page: +page, pageSize: +pageSize });
+  }
+
+  @Get("admin/bookings")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "师资预约查询（跨驿站预约记录，平台监控）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "stationId", required: false })
+  @ApiQuery({ name: "status", required: false })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  adminBookings(
+    @Query("stationId") stationId?: string,
+    @Query("status") status?: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.adminListBookings({ stationId, status, page: +page, pageSize: +pageSize });
   }
 }

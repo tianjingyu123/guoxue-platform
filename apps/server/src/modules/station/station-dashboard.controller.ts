@@ -70,7 +70,8 @@ export class OperatorDashboardController {
     const userId = req.user.id;
     const operator = await this.prisma.operator.findFirst({ where: { userId }, select: { id: true, containQuota: true } });
     if (!operator) throw new ForbiddenException("当前用户不是运营商");
-    const stations = await this.prisma.station.findMany({ where: { userId }, select: { id: true, name: true, totalEarning: true, status: true } });
+    // 名下站长按 operatorId 归属查询（原按 userId 只能查到运营商自己的分站，漏掉团队成员）
+    const stations = await this.prisma.station.findMany({ where: { operatorId: operator.id }, select: { id: true, name: true, totalEarning: true, status: true } });
     return { operator, stations };
   }
 

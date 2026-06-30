@@ -50,6 +50,19 @@ export class VideoService {
     return { success: true };
   }
 
+  /** 管理端审核：approve → PUBLISHED；reject → REJECTED（记录原因） */
+  @CacheEvict({ key: (args) => `video:detail:${args[0]}`, pattern: true })
+  @CacheEvict({ key: "video:list:*", pattern: true })
+  async audit(id: string, action: "approve" | "reject", reason?: string) {
+    const video = await this.prisma.video.findUnique({ where: { id }, select: { id: true } });
+    if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
+    const data: Prisma.VideoUpdateInput =
+      action === "approve"
+        ? { status: "PUBLISHED", auditReason: null }
+        : { status: "REJECTED", auditReason: reason ?? null };
+    return this.prisma.video.update({ where: { id }, data });
+  }
+
   @Cacheable({ key: (args) => `video:list:${JSON.stringify(args[0])}`, ttl: 60 })
   async list(params: { circleId?: string; status?: string; page?: number; pageSize?: number; stationId?: string }) {
     const { circleId, status, page = 1, pageSize = 20, stationId } = params;

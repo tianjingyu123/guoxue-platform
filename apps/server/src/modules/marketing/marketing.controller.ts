@@ -741,6 +741,14 @@ export class MarketingController {
     return this.marketing.getActiveGroupBuys();
   }
 
+  @Get("group-buys/:id/detail")
+  @ApiOperation({ summary: "拼团详情（用户端公开·含商品与进行中的团）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "拼团不存在" })
+  getGroupBuyDetailPublic(@Param("id") id: string) {
+    return this.marketing.getGroupBuyDetailPublic(id);
+  }
+
   @Post("group-buys/:id/join")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "参与拼团" })
@@ -760,6 +768,17 @@ export class MarketingController {
   @ApiBearerAuth()
   getMyGroupBuys(@Req() req: Request) {
     return this.marketing.getMyGroupBuys(req.user.id);
+  }
+
+  @Get("group-buys/:id/my-result")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的拼团结果（成功/失败结果页数据源）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "未参与该拼团" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  getMyGroupBuyResult(@Req() req: Request, @Param("id") id: string) {
+    return this.marketing.getMyGroupBuyResult(req.user.id, id);
   }
 
   @Get("full-reductions/:id")

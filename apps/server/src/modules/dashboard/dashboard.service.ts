@@ -26,6 +26,9 @@ export class DashboardService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    // 昨日区间（用于日环比，仅对有 createdAt/updatedAt 时间序列的流量型指标计算）
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
     const [
       articleCount,
@@ -102,6 +105,30 @@ export class DashboardService {
     const returnRate = paidOrderCount > 0 ? ((refundedOrders / paidOrderCount) * 100).toFixed(1) : "0";
     const avgOrderValue = paidOrderCount > 0 ? Math.round(Number(totalPaidAmount._sum.amount || 0) / paidOrderCount) : 0;
 
+    // ── 昨日同口径聚合（日环比基准）──────────────────────
+    // 仅流量型指标可比：今日新增用户/今日营收/今日审核量/今日新增内容。
+    // 快照型指标（待审/待巡检/在售/各类总数）无历史快照，不计算环比，由前端诚实留白。
+    const [
+      yesterdayNewUsers,
+      yesterdayRevenueAgg,
+      yesterdayNewArticles,
+      yesterdayNewCourses,
+      yesterdayAuditedArticles,
+      yesterdayAuditedCourses,
+    ] = await Promise.all([
+      this.prisma.user.count({ where: { createdAt: { gte: yesterday, lt: today } } }),
+      this.prisma.order.aggregate({
+        where: { createdAt: { gte: yesterday, lt: today }, status: { in: ["PAID", "COMPLETED"] } },
+        _sum: { amount: true },
+      }),
+      this.prisma.article.count({ where: { createdAt: { gte: yesterday, lt: today } } }),
+      this.prisma.course.count({ where: { createdAt: { gte: yesterday, lt: today } } }),
+      this.prisma.article.count({ where: { auditStatus: { not: "PENDING" }, updatedAt: { gte: yesterday, lt: today } } }),
+      this.prisma.course.count({ where: { auditStatus: { not: "PENDING" }, updatedAt: { gte: yesterday, lt: today } } }),
+    ]);
+    const todayNewContentYesterday = yesterdayNewArticles + yesterdayNewCourses;
+    const todayAuditedYesterday = yesterdayAuditedArticles + yesterdayAuditedCourses;
+
     const orderStatusMap: Record<string, number> = {};
     for (const g of orderStatusDist) { orderStatusMap[g.status] = g._count; }
     const statusNames: Record<string, string> = { PENDING: "待付款", PAID: "已付款", SHIPPED: "已发货", COMPLETED: "已完成", REFUNDED: "已退款", CANCELLED: "已取消" };
@@ -146,6 +173,11 @@ export class DashboardService {
       // 内容审核仪表盘
       todayAudited: todayAuditedTotal,
       todayNewContent: todayNewContentTotal,
+      // 日环比基准（昨日同口径，仅流量型指标真实可比）
+      todayNewUsersYesterday: yesterdayNewUsers,
+      todayRevenueYesterday: Number(yesterdayRevenueAgg._sum.amount || 0),
+      todayAuditedYesterday,
+      todayNewContentYesterday,
       // 客服仪表盘
       processedOrders: 0,
       avgResponseTime: 0,

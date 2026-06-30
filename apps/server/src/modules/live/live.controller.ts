@@ -55,6 +55,80 @@ export class LiveController {
     return this.svc.listRooms(status, +page, +pageSize, circleId, stationId);
   }
 
+  @Get("my-rooms")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "主播端我的直播 — 经营概览 + 当前用户作为主播的全部直播间" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  getMyRooms(@Req() req: AuthRequest) {
+    return this.svc.getMyRooms(req.user.id);
+  }
+
+  @Get("earnings")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "主播端收益统计 — 带货 + 打赏，按周期(7d/30d/90d)" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiQuery({ name: "range", required: false, enum: ["7d", "30d", "90d"] })
+  @ApiBearerAuth()
+  getEarnings(@Req() req: AuthRequest, @Query("range") range = "7d") {
+    return this.svc.getEarnings(req.user.id, range);
+  }
+
+  @Get("products")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "主播带货商品库 — 平台在售商品(filter: all/on/off)" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiQuery({ name: "filter", required: false, type: String })
+  @ApiBearerAuth()
+  getLiveProducts(@Query("filter") filter?: string) {
+    return this.svc.getLiveProducts(filter);
+  }
+
+  @Get("settings")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "主播直播间设置 — 资料 + 通知/隐私偏好" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  getStreamerSettings(@Req() req: AuthRequest) {
+    return this.svc.getStreamerSettings(req.user.id);
+  }
+
+  @Get("reviews")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "主播端直播评价 — 评分分布 + 评价列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiQuery({ name: "filter", required: false, type: String })
+  @ApiBearerAuth()
+  getStreamerReviews(@Req() req: AuthRequest, @Query("filter") filter?: string) {
+    return this.svc.getStreamerReviews(req.user.id, filter);
+  }
+
+  @Get("team")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "主播端直播团队 — 团队成员 + 可邀请成员" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  getStreamerTeam(@Req() req: AuthRequest) {
+    return this.svc.getStreamerTeam(req.user.id);
+  }
+
+  @Get("console/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "主播端直播控制台 — 实时统计/弹幕/连麦/商品/提词器" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权访问" })
+  @ApiBearerAuth()
+  getConsoleData(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.getConsoleData(id, req.user.id);
+  }
+
   @Get("rooms/:id")
   @ApiOperation({ summary: "获取直播间详情" })
   @ApiResponse({ status: 200, description: "成功" })

@@ -1,8 +1,10 @@
 import { Test } from "@nestjs/testing";
 import { MarketingService } from "./marketing.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { ShopService } from "../shop/shop.service";
 import { BusinessException } from "../../common/business.exception";
 
+const mockShop = { createGroupBuyOrder: jest.fn() };
 const makeMockPrisma = () => {
   const mock: any = {
     $transaction: jest.fn((arg: any) => {
@@ -20,7 +22,7 @@ const makeMockPrisma = () => {
       create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(),
       update: jest.fn(), count: jest.fn(),
     },
-    groupBuyParticipant: { findMany: jest.fn(), findFirst: jest.fn(), create: jest.fn() },
+    groupBuyParticipant: { findMany: jest.fn(), findFirst: jest.fn(), create: jest.fn(), count: jest.fn() },
     couponTemplate: {
       create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(),
       update: jest.fn(), count: jest.fn(),
@@ -61,6 +63,7 @@ describe("MarketingService", () => {
       providers: [
         MarketingService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ShopService, useValue: mockShop },
       ],
     }).compile();
     svc = mod.get(MarketingService);
@@ -351,6 +354,49 @@ describe("MarketingService", () => {
       mockPrisma.fullReductionRule.findMany.mockResolvedValue([{ id: "fr1", name: "满100减20" }]);
       const result = await svc.getActiveFullReductions();
       expect(result).toHaveLength(1);
+    });
+  });
+
+  describe("joinGroupBuy（付费拼团）", () => {
+    it("开新团：校验通过后委托 shop 用拼团价创建订单，返回 orderId/新 groupId", async () => {
+      mockPrisma.groupBuy.findUnique.mockResolvedValue({ id: "gb1", status: "ACTIVE", productId: "p1", skuId: null, groupPrice: 279.3, minMembers: 2 });
+      mockPrisma.groupBuyParticipant.findFirst.mockResolvedValue(null); // 未参与
+      mockShop.createGroupBuyOrder.mockResolvedValue({ id: "gbo1", amount: 279.3 });
+      const res: any = await svc.joinGroupBuy("u1", "gb1");
+      expect(res.orderId).toBe("gbo1");
+      expect(res.amount).toBe(279.3);
+      expect(res.groupId).toBeTruthy(); // 新团 uuid
+      const arg = mockShop.createGroupBuyOrder.mock.calls.at(-1)[1];
+      expect(arg.groupPrice).toBe(279.3);
+      expect(arg.groupBuyId).toBe("gb1");
+    });
+
+    it("加入已有团：未满则创建订单", async () => {
+      mockPrisma.groupBuy.findUnique.mockResolvedValue({ id: "gb1", status: "ACTIVE", productId: "p1", skuId: null, groupPrice: 279.3, minMembers: 3 });
+      mockPrisma.groupBuyParticipant.findFirst.mockResolvedValue(null);
+      mockPrisma.groupBuyParticipant.count.mockResolvedValue(1); // 团内1人 < 3
+      mockShop.createGroupBuyOrder.mockResolvedValue({ id: "gbo2", amount: 279.3 });
+      const res: any = await svc.joinGroupBuy("u2", "gb1", "g-existing");
+      expect(res.orderId).toBe("gbo2");
+      expect(res.groupId).toBe("g-existing");
+    });
+
+    it("已参与（WAITING/SUCCESS）则拒绝", async () => {
+      mockPrisma.groupBuy.findUnique.mockResolvedValue({ id: "gb1", status: "ACTIVE", productId: "p1", groupPrice: 279.3, minMembers: 2 });
+      mockPrisma.groupBuyParticipant.findFirst.mockResolvedValue({ id: "p", status: "WAITING" });
+      await expect(svc.joinGroupBuy("u1", "gb1")).rejects.toThrow(BusinessException);
+    });
+
+    it("加入已满团则拒绝", async () => {
+      mockPrisma.groupBuy.findUnique.mockResolvedValue({ id: "gb1", status: "ACTIVE", productId: "p1", groupPrice: 279.3, minMembers: 2 });
+      mockPrisma.groupBuyParticipant.findFirst.mockResolvedValue(null);
+      mockPrisma.groupBuyParticipant.count.mockResolvedValue(2); // 已满
+      await expect(svc.joinGroupBuy("u3", "gb1", "g-full")).rejects.toThrow(BusinessException);
+    });
+
+    it("非 ACTIVE 活动拒绝参与", async () => {
+      mockPrisma.groupBuy.findUnique.mockResolvedValue({ id: "gb1", status: "ENDED", productId: "p1", groupPrice: 279.3, minMembers: 2 });
+      await expect(svc.joinGroupBuy("u1", "gb1")).rejects.toThrow(BusinessException);
     });
   });
 });

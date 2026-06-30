@@ -1,10 +1,11 @@
-import { Controller, Post, Get, Delete, Body, Query, Param, UseGuards, Req, ForbiddenException } from "@nestjs/common";
+import { Controller, Post, Get, Put, Delete, Body, Query, Param, UseGuards, Req, ForbiddenException } from "@nestjs/common";
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { ImService } from "./im.service";
+import { ImPolicyService } from "./im-policy.service";
 import {
   GenUserSigDto,
   ImportAccountDto,
@@ -17,12 +18,53 @@ import {
   SendImGroupMsgDto,
   SendImageDto,
   SendCustomDto,
+  UpdatePolicyConfigDto,
 } from "./im.dto";
 
 @ApiTags("IM 即时通讯")
 @Controller("im")
 export class ImController {
-  constructor(private im: ImService) {}
+  constructor(
+    private im: ImService,
+    private policy: ImPolicyService,
+  ) {}
+
+  // ───────── 私信社交策略 ─────────
+
+  @Get("relation/:targetId")
+  @ApiOperation({ summary: "查询与目标用户的私信关系与权限", description: "返回关系层级/能否发送/剩余条数/富媒体权限，用于聊天页输入框状态" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  getRelationPolicy(@Req() req: Request, @Param("targetId") targetId: string) {
+    return this.policy.evaluateC2C(req.user.id, targetId);
+  }
+
+  @Get("policy/config")
+  @ApiOperation({ summary: "获取私信社交策略配置（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  getPolicyConfig() {
+    return this.policy.getConfig();
+  }
+
+  @Put("policy/config")
+  @ApiOperation({ summary: "更新私信社交策略配置（管理员）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  updatePolicyConfig(@Body() dto: UpdatePolicyConfigDto) {
+    return this.policy.updateConfig(dto);
+  }
 
   @Post("user-sig")
   @ApiOperation({ summary: "生成 UserSig", description: "为当前登录用户生成腾讯云 IM 的 UserSig" })

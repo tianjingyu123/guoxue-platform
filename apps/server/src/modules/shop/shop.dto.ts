@@ -145,6 +145,10 @@ export class CreateOrderDto {
   @IsOptional() @IsString()
   couponId?: string;
 
+  @ApiPropertyOptional({ description: "收货地址ID（实物订单必填，虚拟订单可不传）" })
+  @IsOptional() @IsString()
+  addressId?: string;
+
   @ApiPropertyOptional({ description: "推荐人ID" })
   @IsOptional() @IsString()
   referrerId?: string;
@@ -233,6 +237,23 @@ export class ProductListQueryDto {
   @ApiPropertyOptional({ description: "排序: default/sales/price_asc/price_desc/newest" })
   @IsOptional() @IsString()
   sort?: string;
+}
+
+/** 品控巡检操作类型 */
+export enum ModerateAction {
+  TAKEDOWN = "takedown", // 违规下架
+  RESTORE = "restore",   // 恢复上架
+  WARN = "warn",         // 警告（不改状态，仅记录）
+}
+
+export class ModerateProductDto {
+  @ApiProperty({ description: "操作类型：takedown=违规下架 / restore=恢复上架 / warn=警告", enum: ModerateAction })
+  @IsEnum(ModerateAction)
+  action: ModerateAction;
+
+  @ApiPropertyOptional({ description: "违规原因 / 警告说明（下架建议必填）" })
+  @IsOptional() @IsString() @MaxLength(500)
+  reason?: string;
 }
 
 export class JsapiPayDto {

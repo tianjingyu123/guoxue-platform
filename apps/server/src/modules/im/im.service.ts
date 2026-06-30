@@ -3,6 +3,7 @@ import { TlsSigService } from "./tlssig.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { MetricsService } from "../../common/metrics.service";
+import { ImPolicyService, ImMediaPerms } from "./im-policy.service";
 
 export interface TimApiResponse {
   ErrorCode: number;
@@ -19,10 +20,36 @@ export class ImService {
 
   constructor(
     private tlsSig: TlsSigService,
+    private policy: ImPolicyService,
     @Optional() @Inject(MetricsService) private metrics?: MetricsService,
   ) {
     this.appId = this.tlsSig.getAppId();
     this.adminId = process.env.IM_ADMIN_ID || "administrator";
+  }
+
+  /**
+   * 单聊发送前置闸门：依据私信社交策略判定是否放行。
+   * 不通过则抛 FORBIDDEN（带 hint 文案）；media 指定时同时校验富媒体权限。
+   */
+  private async assertC2CAllowed(
+    fromUserId: string,
+    toUserId: string,
+    media?: keyof ImMediaPerms,
+  ) {
+    const result = await this.policy.evaluateC2C(fromUserId, toUserId);
+    if (!result.canSend) {
+      throw new BusinessException(
+        ErrorCode.FORBIDDEN,
+        result.hint || "当前关系无法向对方发送消息",
+      );
+    }
+    if (media && !result.mediaPerms[media]) {
+      throw new BusinessException(
+        ErrorCode.FORBIDDEN,
+        "当前关系暂不支持发送该类型消息，互相关注后可发送",
+      );
+    }
+    return result;
   }
 
   /** 检查 IM 是否已配置 */
@@ -177,7 +204,8 @@ export class ImService {
 
   /** 发送单聊消息 */
   async sendC2CMsg(fromUserId: string, toUserId: string, text: string) {
-    return this.callImApi("openim/sendmsg", {
+    await this.assertC2CAllowed(fromUserId, toUserId);
+    const res = await this.callImApi("openim/sendmsg", {
       SyncOtherMachine: 1,
       From_Account: fromUserId,
       To_Account: toUserId,
@@ -191,6 +219,10 @@ export class ImService {
         },
       ],
     });
+    // 发送成功：累加我→对方的待回计数；并清零对方→我的待回计数（本次相当于我回复了对方）
+    await this.policy.incrementSent(fromUserId, toUserId);
+    await this.policy.resetOnReply(fromUserId, toUserId);
+    return res;
   }
 
   /** 获取单聊历史消息 */
@@ -343,6 +375,7 @@ export class ImService {
 
   /** 发送图片消息（单聊） */
   async sendC2CImage(fromUserId: string, toUserId: string, imageUrl: string, width?: number, height?: number) {
+    await this.assertC2CAllowed(fromUserId, toUserId, "image");
     return this.callImApi("openim/sendmsg", {
       SyncOtherMachine: 1,
       From_Account: fromUserId,
@@ -367,6 +400,7 @@ export class ImService {
 
   /** 发送自定义消息 */
   async sendCustomMsg(fromUserId: string, toUserId: string, data: Record<string, unknown>, desc?: string) {
+    await this.assertC2CAllowed(fromUserId, toUserId);
     return this.callImApi("openim/sendmsg", {
       SyncOtherMachine: 1,
       From_Account: fromUserId,

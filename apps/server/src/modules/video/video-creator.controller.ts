@@ -1,8 +1,11 @@
 import { Request } from "express";
-import { Controller, Get, Post, Put, Body, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
+import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from "@nestjs/swagger";
 import { VideoCreatorService } from "./video-creator.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
+import { Auditable } from "../../common/audit.decorator";
 
 @ApiTags("视频创作者中心")
 @Controller("videos/creator")
@@ -89,10 +92,82 @@ export class VideoCreatorController {
     return this.svc.addProduct(req.user.id, data);
   }
 
+  @Get("settings")
+  @ApiOperation({ summary: "读取创作者设置 — 资料/通知/隐私" })
+  @ApiResponse({ status: 200, description: "返回当前创作者设置" })
+  getSettings(@Req() req: Request) {
+    return this.svc.getSettings(req.user.id);
+  }
+
   @Put("settings")
   @ApiOperation({ summary: "保存创作者设置" })
   @ApiResponse({ status: 200, description: "设置已保存" })
   saveSettings(@Req() req: Request, @Body() data: Record<string, any>) {
     return this.svc.saveSettings(req.user.id, data);
+  }
+
+  // ───────── 管理后台（SUPER_ADMIN / OPERATION_ADMIN） ─────────
+
+  @Get("admin/creators")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "创作者列表（管理员）— 含数据概览" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  @ApiQuery({ name: "keyword", required: false, type: String, description: "昵称/手机号搜索" })
+  adminListCreators(
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+    @Query("keyword") keyword?: string,
+  ) {
+    return this.svc.adminListCreators(+page, +pageSize, keyword);
+  }
+
+  @Get("admin/creators/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "创作者详情（管理员）— 资料/概览/作品" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  adminGetCreator(@Param("id") id: string) {
+    return this.svc.adminGetCreator(id);
+  }
+
+  @Get("admin/withdrawals")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
+  @ApiOperation({ summary: "创作者提现申请列表（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  @ApiQuery({ name: "keyword", required: false, type: String, description: "昵称/手机号搜索" })
+  @ApiQuery({ name: "status", required: false, type: String, description: "状态过滤 PENDING/APPROVED/REJECTED/PAID" })
+  adminListWithdrawals(
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+    @Query("keyword") keyword?: string,
+    @Query("status") status?: string,
+  ) {
+    return this.svc.adminListWithdrawals(+page, +pageSize, keyword, status);
+  }
+
+  @Post("admin/withdrawals/:id/review")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
+  @Auditable({ action: "创作者提现审批", targetType: "VIDEO_CREATOR_WITHDRAWAL" })
+  @ApiOperation({ summary: "审批创作者提现申请（通过/拒绝/打款）" })
+  @ApiResponse({ status: 200, description: "审批成功" })
+  @ApiResponse({ status: 400, description: "状态非法或参数错误" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 404, description: "申请不存在" })
+  reviewWithdrawal(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() data: { action: "approve" | "reject" | "pay"; note?: string },
+  ) {
+    return this.svc.reviewWithdrawal(id, req.user.id, data);
   }
 }
