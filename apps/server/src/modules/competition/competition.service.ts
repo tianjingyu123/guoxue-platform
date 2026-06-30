@@ -199,20 +199,23 @@ export class CompetitionService {
       }
     }
 
-    // 检查是否已报名
-    const existing = await this.prisma.competitionRegistration.findUnique({
-      where: { competitionId_userId: { competitionId, userId } },
-    });
-    if (existing) throw new BadRequestException("已报名过此赛事");
+    // 行锁串行化防超卖：锁定赛事行后，在锁内查重 + 计数 + 创建（消除 count-then-create 竞态）
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Competition" WHERE id = ${competitionId} FOR UPDATE`;
 
-    // 检查人数上限
-    if (competition.maxParticipants > 0) {
-      const count = await this.prisma.competitionRegistration.count({ where: { competitionId } });
-      if (count >= competition.maxParticipants) throw new BadRequestException("报名人数已达上限");
-    }
+      const existing = await tx.competitionRegistration.findUnique({
+        where: { competitionId_userId: { competitionId, userId } },
+      });
+      if (existing) throw new BadRequestException("已报名过此赛事");
 
-    return this.prisma.competitionRegistration.create({
-      data: { competitionId, userId, inviterId, inviteCode, paidFee: competition.entryFee },
+      if (competition.maxParticipants > 0) {
+        const count = await tx.competitionRegistration.count({ where: { competitionId } });
+        if (count >= competition.maxParticipants) throw new BadRequestException("报名人数已达上限");
+      }
+
+      return tx.competitionRegistration.create({
+        data: { competitionId, userId, inviterId, inviteCode, paidFee: competition.entryFee },
+      });
     });
   }
 
