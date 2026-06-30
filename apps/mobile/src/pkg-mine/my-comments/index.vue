@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoadMore from '@/components/common/app-load-more.vue'
+import { useList } from '@/composables/useList'
 import {
   mineApi,
   commentTypeNames,
@@ -8,35 +11,19 @@ import {
   type MyCommentItem,
 } from '@/lib/mine-data'
 
-const list = ref<MyCommentItem[]>([])
-const loading = ref(true)
-const error = ref('')
 const isEditMode = ref(false)
 const selectedIds = ref<(string | number)[]>([])
 const activeId = ref<string | number | null>(null)
 
-async function fetchData() {
-  loading.value = true
-  error.value = ''
-  try {
-    const data = await mineApi.getMyComments()
-    list.value = data.map((c: MyCommentItem) => ({ ...c }))
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-function retry() {
-  fetchData()
-}
-
-onMounted(() => {
-  fetchData()
+const { list, loading, error, isEmpty, loadStatus, refresh, loadMore } = useList<MyCommentItem>({
+  fetcher: async ({ page, pageSize }) => ({ items: await mineApi.getMyComments(page, pageSize) }),
 })
 
-const isEmpty = computed(() => list.value.length === 0)
+function retry() {
+  refresh()
+}
+
+onLoad(() => refresh())
 
 function toggleEdit() {
   isEditMode.value = !isEditMode.value
@@ -91,7 +78,7 @@ function openTarget() {
       <text class="empty-desc">去参与更多互动吧</text>
     </view>
 
-    <scroll-view v-else scroll-y class="scroll" :style="{ paddingBottom: isEditMode ? '160rpx' : '24rpx' }">
+    <scroll-view v-else scroll-y class="scroll" :style="{ paddingBottom: isEditMode ? '160rpx' : '24rpx' }" @scrolltolower="loadMore">
       <view class="comment-list">
         <view v-for="c in list" :key="c.id" class="comment-row">
           <view
@@ -147,6 +134,7 @@ function openTarget() {
           </view>
         </view>
       </view>
+      <app-load-more :status="loadStatus" />
     </scroll-view>
 
     <!-- 批量操作栏 -->

@@ -1453,8 +1453,8 @@ export const mineApi = {
   },
 
   /** 获取我的评论 —— GET /users/me/comments（后端 {items} 含 target/replyCount/hasReply → 适配） */
-  async getMyComments(): Promise<MyCommentItem[]> {
-    const res = await apiGet<{ items?: any[] } | any[]>('/users/me/comments?page=1&pageSize=50')
+  async getMyComments(page = 1, pageSize = 20): Promise<MyCommentItem[]> {
+    const res = await apiGet<{ items?: any[] } | any[]>(`/users/me/comments?page=${page}&pageSize=${pageSize}`)
     const list = Array.isArray(res) ? res : (res?.items ?? [])
     return list.map(adaptMyComment)
   },

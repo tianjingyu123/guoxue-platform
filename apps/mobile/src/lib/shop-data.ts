@@ -1798,8 +1798,8 @@ export const shopApi = {
   },
 
   /** C 端店铺主页 — 商家信息 + 在售商品（GET /shop/store/:merchantId）。失败抛给页面走三态，不回退假数据 */
-  async getStore(merchantId: string): Promise<StoreData> {
-    const res = await apiGet<any>(`/shop/store/${merchantId}?pageSize=50`)
+  async getStore(merchantId: string, page = 1, pageSize = 20): Promise<StoreData> {
+    const res = await apiGet<any>(`/shop/store/${merchantId}?page=${page}&pageSize=${pageSize}`)
     const m = res?.merchant || {}
     return {
       merchant: {

@@ -1,36 +1,39 @@
 <script setup lang="ts">
-/** C 端店铺主页 — 商家公开信息 + 在售商品（GET /shop/store/:merchantId）。失败走 error 三态，不回退假数据 */
+/** C 端店铺主页 — 商家公开信息 + 在售商品（GET /shop/store/:merchantId，商品分页）。失败走 error 三态，不回退假数据 */
 import { ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoadMore from '@/components/common/app-load-more.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { shopApi, type StoreData } from '@/lib/shop-data'
+import { useList } from '@/composables/useList'
 
 const merchantId = ref('')
-const store = ref<StoreData | null>(null)
-const loading = ref(false)
-const error = ref('')
+const merchant = ref<StoreData['merchant'] | null>(null)
 
-async function loadStore() {
-  if (!merchantId.value) {
-    error.value = '店铺不存在'
-    return
-  }
-  loading.value = true
-  error.value = ''
-  try {
-    store.value = await shopApi.getStore(merchantId.value)
-  } catch (_e) {
-    error.value = '店铺加载失败，请重试'
-  } finally {
-    loading.value = false
-  }
-}
+// 店铺主页 = 聚合头部 + 商品列表：商家信息随首屏一并取回，商品用 useList 分页
+const {
+  list: products,
+  total,
+  loading,
+  error,
+  loadStatus,
+  refresh,
+  loadMore,
+} = useList<StoreData['products'][number]>({
+  fetcher: async ({ page, pageSize }) => {
+    if (!merchantId.value) throw new Error('店铺不存在')
+    const data = await shopApi.getStore(merchantId.value, page, pageSize)
+    if (page === 1) merchant.value = data.merchant
+    return { items: data.products, total: data.total }
+  },
+})
 
 onLoad((opt: any) => {
   merchantId.value = opt?.id || ''
-  loadStore()
+  refresh()
 })
+onReachBottom(() => loadMore())
 
 function goProduct(id: string) {
   navigateTo('/mall/product/' + id)
@@ -59,34 +62,34 @@ function goProduct(id: string) {
     <view v-else-if="error" class="state-wrap">
       <view class="state-icon"><AppIcon name="alert-circle" :size="56" color="var(--brand)" /></view>
       <text class="state-text">{{ error }}</text>
-      <view class="state-retry" hover-class="press" @tap="loadStore"><text class="state-retry-text">点击重试</text></view>
+      <view class="state-retry" hover-class="press" @tap="refresh"><text class="state-retry-text">点击重试</text></view>
     </view>
 
     <!-- 内容 -->
-    <template v-else-if="store">
+    <template v-else-if="merchant">
       <!-- 店铺头 -->
       <view class="store-head">
         <view class="store-head-top">
-          <image lazy-load v-if="store.merchant.shopLogo" class="store-logo" :src="store.merchant.shopLogo" mode="aspectFill" />
+          <image lazy-load v-if="merchant.shopLogo" class="store-logo" :src="merchant.shopLogo" mode="aspectFill" />
           <view v-else class="store-logo store-logo-ph"><AppIcon name="store" :size="56" color="#fff" /></view>
           <view class="store-head-info">
-            <text class="store-name">{{ store.merchant.shopName }}</text>
-            <text v-if="store.merchant.shopIntro" class="store-intro">{{ store.merchant.shopIntro }}</text>
+            <text class="store-name">{{ merchant.shopName }}</text>
+            <text v-if="merchant.shopIntro" class="store-intro">{{ merchant.shopIntro }}</text>
           </view>
         </view>
         <view class="store-stats">
           <view class="stat-item">
-            <text class="stat-num">{{ store.merchant.rating }}</text>
+            <text class="stat-num">{{ merchant.rating }}</text>
             <text class="stat-label">评分</text>
           </view>
           <view class="stat-divider" />
           <view class="stat-item">
-            <text class="stat-num">{{ store.merchant.productCount }}</text>
+            <text class="stat-num">{{ merchant.productCount }}</text>
             <text class="stat-label">在售</text>
           </view>
           <view class="stat-divider" />
           <view class="stat-item">
-            <text class="stat-num">{{ store.merchant.totalSales }}</text>
+            <text class="stat-num">{{ merchant.totalSales }}</text>
             <text class="stat-label">已售</text>
           </view>
         </view>
@@ -96,33 +99,36 @@ function goProduct(id: string) {
       <view class="section">
         <view class="section-head">
           <text class="section-title">全部商品</text>
-          <text class="section-count">共 {{ store.total }} 件</text>
+          <text class="section-count">共 {{ total }} 件</text>
         </view>
 
         <!-- 空商品 -->
-        <view v-if="!store.products.length" class="empty">
+        <view v-if="!products.length" class="empty">
           <view class="empty-icon"><AppIcon name="shopping-bag" :size="56" color="var(--text-soft)" /></view>
           <text class="empty-text">该店铺暂无在售商品</text>
         </view>
 
         <!-- 商品网格 -->
-        <view v-else class="goods-grid">
-          <view
-            v-for="p in store.products"
-            :key="p.id"
-            class="goods-card"
-            hover-class="press"
-            @tap="goProduct(p.id)"
-          >
-            <image lazy-load v-if="p.cover" class="goods-img" :src="p.cover" mode="aspectFill" />
-            <view v-else class="goods-img goods-img-ph"><AppIcon name="shopping-bag" :size="48" color="var(--text-soft)" /></view>
-            <text class="goods-name">{{ p.title }}</text>
-            <view class="goods-foot">
-              <text class="goods-price">¥{{ p.price }}</text>
-              <text class="goods-sales">{{ p.sales }}人付款</text>
+        <template v-else>
+          <view class="goods-grid">
+            <view
+              v-for="p in products"
+              :key="p.id"
+              class="goods-card"
+              hover-class="press"
+              @tap="goProduct(p.id)"
+            >
+              <image lazy-load v-if="p.cover" class="goods-img" :src="p.cover" mode="aspectFill" />
+              <view v-else class="goods-img goods-img-ph"><AppIcon name="shopping-bag" :size="48" color="var(--text-soft)" /></view>
+              <text class="goods-name">{{ p.title }}</text>
+              <view class="goods-foot">
+                <text class="goods-price">¥{{ p.price }}</text>
+                <text class="goods-sales">{{ p.sales }}人付款</text>
+              </view>
             </view>
           </view>
-        </view>
+          <app-load-more :status="loadStatus" />
+        </template>
       </view>
     </template>
   </view>
