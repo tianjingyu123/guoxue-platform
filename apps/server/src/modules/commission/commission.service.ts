@@ -178,6 +178,15 @@ export class CommissionService {
 
   /** 退款时冲正分佣 — 逆向 station 收益 + operator 管理奖 + 平台抽成，同一事务 */
   async reverseCommission(orderId: string) {
+    // 幂等守卫：已存在冲正记录(earned<0)则跳过——防 fire-and-forget 重投 / 退款回调重投 / 重复倒扣为负
+    const alreadyReversed =
+      (await this.prisma.stationEarning.findFirst({ where: { orderId, earned: { lt: 0 } } })) ??
+      (await this.prisma.operatorEarning.findFirst({ where: { orderId, earned: { lt: 0 } } }));
+    if (alreadyReversed) {
+      this.logger.log(`订单 ${orderId} 已冲正，跳过重复冲正`);
+      return null;
+    }
+
     const [stationEarning, operatorEarnings, platformFees] = await Promise.all([
       this.prisma.stationEarning.findFirst({ where: { orderId, earned: { gt: 0 } } }),
       this.prisma.operatorEarning.findMany({ where: { orderId, earned: { gt: 0 } } }),

@@ -10,11 +10,11 @@ const mockPrisma = {
   stationEarning: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), aggregate: jest.fn(), findFirst: jest.fn() },
   station: { findUnique: jest.fn(), update: jest.fn() },
   operator: { findUnique: jest.fn(), update: jest.fn() },
-  operatorEarning: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), aggregate: jest.fn() },
+  operatorEarning: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn(), count: jest.fn(), aggregate: jest.fn(), findFirst: jest.fn() },
   notification: { create: jest.fn().mockReturnValue({ catch: jest.fn() }) },
   withdrawal: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), aggregate: jest.fn() },
   referralLink: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
-  platformFeeRecord: { findMany: jest.fn() },
+  platformFeeRecord: { findMany: jest.fn(), createMany: jest.fn() },
   $transaction: jest.fn().mockImplementation((cb: any) => cb(mockPrisma)),
 };
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
@@ -36,6 +36,40 @@ describe("CommissionService", () => {
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  describe("reverseCommission", () => {
+    it("已冲正则幂等跳过，不重复倒扣", async () => {
+      mockPrisma.stationEarning.findFirst.mockResolvedValue({ id: "se-r", earned: -10 });
+      const result = await svc.reverseCommission("order1");
+      expect(result).toBeNull();
+      expect(mockPrisma.stationEarning.create).not.toHaveBeenCalled();
+      expect(mockPrisma.operatorEarning.createMany).not.toHaveBeenCalled();
+    });
+
+    it("无分佣记录则跳过", async () => {
+      mockPrisma.stationEarning.findFirst.mockResolvedValue(null);
+      mockPrisma.operatorEarning.findFirst.mockResolvedValue(null);
+      mockPrisma.operatorEarning.findMany.mockResolvedValue([]);
+      mockPrisma.platformFeeRecord.findMany.mockResolvedValue([]);
+      const result = await svc.reverseCommission("order1");
+      expect(result).toBeNull();
+    });
+
+    it("有正向分佣则创建 REFUND 冲正", async () => {
+      // 守卫查冲正(earned<0)→无；正向查(earned>0)→有
+      mockPrisma.stationEarning.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ stationId: "s1", earned: 10, rate: 0.1 });
+      mockPrisma.operatorEarning.findFirst.mockResolvedValue(null);
+      mockPrisma.operatorEarning.findMany.mockResolvedValue([]);
+      mockPrisma.platformFeeRecord.findMany.mockResolvedValue([]);
+      const result = await svc.reverseCommission("order1");
+      expect(result).toEqual({ reversed: true });
+      expect(mockPrisma.stationEarning.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ type: "REFUND", earned: -10 }) }),
+      );
+    });
+  });
 
   describe("getAllConfigs", () => {
     it("返回所有配置", async () => {
