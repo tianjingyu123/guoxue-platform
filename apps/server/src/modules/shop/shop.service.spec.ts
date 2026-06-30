@@ -75,6 +75,7 @@ const mockPrisma: any = {
     create: jest.fn(),
     findMany: jest.fn(),
     count: jest.fn(),
+    groupBy: jest.fn().mockResolvedValue([]),
   },
   order: {
     create: jest.fn(),
@@ -103,9 +104,22 @@ const mockPrisma: any = {
   },
   user: {
     update: jest.fn(),
+    findMany: jest.fn().mockResolvedValue([]),
   },
   memberPurchase: {
     create: jest.fn(),
+  },
+  merchant: {
+    findUnique: jest.fn().mockResolvedValue(null),
+  },
+  groupBuy: {
+    findUnique: jest.fn(),
+  },
+  groupBuyParticipant: {
+    findFirst: jest.fn(),
+    count: jest.fn(),
+    create: jest.fn(),
+    updateMany: jest.fn().mockResolvedValue({ count: 0 }),
   },
 }
 
@@ -334,6 +348,24 @@ describe("ShopService", () => {
       const result = await svc.getUserOrders("u1")
       expect(result.total).toBe(1)
     })
+
+    it("传合法 status 时按状态过滤", async () => {
+      mockPrisma.order.findMany.mockResolvedValue([{ id: "o2" }])
+      mockPrisma.order.count.mockResolvedValue(1)
+      await svc.getUserOrders("u1", 1, 20, "PAID")
+      expect(mockPrisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: "u1", status: "PAID" } }),
+      )
+    })
+
+    it("传非法 status 时忽略过滤(回退全部)", async () => {
+      mockPrisma.order.findMany.mockResolvedValue([])
+      mockPrisma.order.count.mockResolvedValue(0)
+      await svc.getUserOrders("u1", 1, 20, "NOT_A_STATUS")
+      expect(mockPrisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: "u1" } }),
+      )
+    })
   })
 
   // ═══════════════════ 商品评价 ═══════════════════
@@ -432,6 +464,71 @@ describe("ShopService", () => {
     it("待付款订单不可更新物流", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PENDING" })
       await expect(svc.updateLogistics("o1", { logisticsNo: "SF456" })).rejects.toThrow(BusinessException)
+    })
+  })
+
+  describe("付费拼团状态机", () => {
+    it("createGroupBuyOrder 用拼团价下单并标记 GROUP_BUY/groupId/PENDING", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", status: "ON_SALE", supplierType: "PLATFORM", userId: null })
+      mockPrisma.order.create.mockResolvedValue({ id: "gbo1", amount: 279.3, status: "PENDING" })
+      const order = await svc.createGroupBuyOrder("u1", { groupBuyId: "gb1", productId: "p1", groupPrice: 279.3, groupId: "g1" })
+      expect(order.id).toBe("gbo1")
+      const data = mockPrisma.order.create.mock.calls.at(-1)[0].data
+      expect(data.amount).toBe(279.3)
+      expect(data.promotionType).toBe("GROUP_BUY")
+      expect(data.promotionId).toBe("gb1")
+      expect(data.groupId).toBe("g1")
+      expect(data.status).toBe("PENDING")
+    })
+
+    it("createGroupBuyOrder 下架商品不可下单", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", status: "OFF_SALE" })
+      await expect(svc.createGroupBuyOrder("u1", { groupBuyId: "gb1", productId: "p1", groupPrice: 279.3, groupId: "g1" }))
+        .rejects.toThrow(BusinessException)
+    })
+
+    it("settleGroupBuyIfNeeded 跳过非拼团订单", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", promotionType: null })
+      mockPrisma.groupBuyParticipant.create.mockClear()
+      await svc.settleGroupBuyIfNeeded("o1")
+      expect(mockPrisma.groupBuyParticipant.create).not.toHaveBeenCalled()
+    })
+
+    it("settleGroupBuyIfNeeded 幂等：订单已有参与者则跳过", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o3", promotionType: "GROUP_BUY", promotionId: "gb1", groupId: "g1" })
+      mockPrisma.groupBuyParticipant.findFirst.mockResolvedValue({ id: "existing" })
+      mockPrisma.groupBuyParticipant.create.mockClear()
+      await svc.settleGroupBuyIfNeeded("o3")
+      expect(mockPrisma.groupBuyParticipant.create).not.toHaveBeenCalled()
+    })
+
+    it("settleGroupBuyIfNeeded 未满员仅创建参与者(团长/WAITING)不成团", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", userId: "u1", promotionType: "GROUP_BUY", promotionId: "gb1", groupId: "g1" })
+      mockPrisma.groupBuyParticipant.findFirst.mockResolvedValue(null)
+      mockPrisma.groupBuy.findUnique.mockResolvedValue({ id: "gb1", minMembers: 2 })
+      mockPrisma.groupBuyParticipant.count.mockReset()
+      mockPrisma.groupBuyParticipant.count.mockResolvedValueOnce(0).mockResolvedValueOnce(1) // 现有0(团长) → 已付1(<2)
+      mockPrisma.groupBuyParticipant.create.mockResolvedValue({ id: "part1" })
+      mockPrisma.groupBuyParticipant.updateMany.mockClear()
+      await svc.settleGroupBuyIfNeeded("o1")
+      const cdata = mockPrisma.groupBuyParticipant.create.mock.calls.at(-1)[0].data
+      expect(cdata.isLeader).toBe(true)
+      expect(cdata.status).toBe("WAITING")
+      expect(mockPrisma.groupBuyParticipant.updateMany).not.toHaveBeenCalled()
+    })
+
+    it("settleGroupBuyIfNeeded 满员触发全组成团 SUCCESS", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o2", userId: "u2", promotionType: "GROUP_BUY", promotionId: "gb1", groupId: "g1" })
+      mockPrisma.groupBuyParticipant.findFirst.mockResolvedValue(null)
+      mockPrisma.groupBuy.findUnique.mockResolvedValue({ id: "gb1", minMembers: 2 })
+      mockPrisma.groupBuyParticipant.count.mockReset()
+      mockPrisma.groupBuyParticipant.count.mockResolvedValueOnce(1).mockResolvedValueOnce(2) // 现有1(非团长) → 已付2(≥2)
+      mockPrisma.groupBuyParticipant.create.mockResolvedValue({ id: "part2" })
+      mockPrisma.groupBuyParticipant.updateMany.mockClear().mockResolvedValue({ count: 2 })
+      await svc.settleGroupBuyIfNeeded("o2")
+      expect(mockPrisma.groupBuyParticipant.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { groupId: "g1", status: "WAITING" }, data: { status: "SUCCESS" } }),
+      )
     })
   })
 })

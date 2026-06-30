@@ -18,7 +18,7 @@ import {
   ProductListQueryDto, OrderListQueryDto,
   CreateSkuDto, JsapiPayDto, NativePayDto, RefundOrderDto,
   AddToCartDto, AdminPayOrderDto, AlipayRefundDto,
-  UnionpayRefundDto, ApplyAfterSaleDto,
+  UnionpayRefundDto, ApplyAfterSaleDto, ModerateProductDto,
 } from "./shop.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -27,6 +27,7 @@ import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { RequireFeature } from "../../common/feature-flag.decorator";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
+import { Auditable } from "../../common/audit.decorator";
 
 /** 已认证请求，附带 JWT 解析后的 user 信息 */
 type AuthRequest = Omit<Request, "user"> & {
@@ -75,6 +76,16 @@ export class ShopController {
     return this.shop.getProduct(id, scene, pageId);
   }
 
+  @Get("store/:merchantId")
+  @ApiOperation({ summary: "C端店铺主页（商家公开信息+在售商品）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "店铺不存在或未开通" })
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  getStore(@Param("merchantId") merchantId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.shop.getStore(merchantId, +page, +pageSize);
+  }
+
   @Put("products/:id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新商品" })
@@ -88,6 +99,7 @@ export class ShopController {
   }
 
   @Put("products/:id/status")
+  @Auditable({ action: "商品状态变更", targetType: "PRODUCT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "更新商品状态" })
@@ -99,6 +111,31 @@ export class ShopController {
   @ApiBearerAuth()
   updateProductStatus(@Param("id") id: string, @Body("status") status: string) {
     return this.shop.updateProductStatus(id, status);
+  }
+
+  @Put("admin/products/:id/moderate")
+  @Auditable({ action: "商品品控", targetType: "PRODUCT" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
+  @ApiOperation({ summary: "商品品控巡检（违规下架/恢复/警告）" })
+  @ApiResponse({ status: 200, description: "处理成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  async moderateProduct(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: ModerateProductDto) {
+    const result = await this.shop.moderateProduct(id, dto.action, dto.reason);
+    const actionLabel = ({ takedown: "违规下架", restore: "恢复上架", warn: "警告" } as Record<string, string>)[dto.action] ?? dto.action;
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "MODERATE",
+      targetType: "PRODUCT",
+      targetId: id,
+      detail: `商品品控-${actionLabel}${dto.reason ? `：${dto.reason}` : ""}`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志记录失败", err));
+    return result;
   }
 
   @Delete("products/:id")
@@ -183,8 +220,9 @@ export class ShopController {
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
-  myOrders(@Req() req: AuthRequest, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.shop.getUserOrders(req.user.id, +page, +pageSize);
+  @ApiQuery({ name: "status", required: false, type: String, description: "订单状态过滤(PENDING/PAID/SHIPPED/COMPLETED/REFUNDED/CANCELLED)" })
+  myOrders(@Req() req: AuthRequest, @Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("status") status?: string) {
+    return this.shop.getUserOrders(req.user.id, +page, +pageSize, status);
   }
 
   @Get("orders/:id")
@@ -255,6 +293,7 @@ export class ShopController {
   }
 
   @Put("orders/:id/pay")
+  @Auditable({ action: "管理员确认支付", targetType: "ORDER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "管理员确认支付（需提供实际支付流水号）" })
@@ -284,6 +323,7 @@ export class ShopController {
   }
 
   @Put("orders/:id/refund")
+  @Auditable({ action: "订单退款", targetType: "ORDER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "退款（管理员），对接微信支付退款" })
@@ -400,6 +440,7 @@ export class ShopController {
   }
 
   @Post("alipay/refund")
+  @Auditable({ action: "支付宝退款", targetType: "ORDER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "支付宝退款" })
@@ -435,6 +476,7 @@ export class ShopController {
   }
 
   @Post("unionpay/refund")
+  @Auditable({ action: "银联退款", targetType: "ORDER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "银联退款" })
@@ -457,6 +499,7 @@ export class ShopController {
   }
 
   @Put("orders/:id/cancel")
+  @Auditable({ action: "取消订单", targetType: "ORDER" })
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "取消订单" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -466,6 +509,30 @@ export class ShopController {
   @ApiBearerAuth()
   cancelOrder(@Req() req: AuthRequest, @Param("id") id: string) {
     return this.shop.cancelOrder(id, req.user.id);
+  }
+
+  @Post("orders/:id/confirm")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "确认收货（买家）" })
+  @ApiResponse({ status: 200, description: "确认成功" })
+  @ApiResponse({ status: 400, description: "订单状态不可确认" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  confirmReceipt(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.shop.confirmOrder(id, req.user.id);
+  }
+
+  @Post("group-buys/refund-expired")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "扫描并退款超时未成团的拼团（管理员/定时触发）" })
+  @ApiResponse({ status: 201, description: "处理完成" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  refundExpiredGroupBuys() {
+    return this.shop.refundExpiredGroupBuys();
   }
 
   // ───────── 优惠券 ─────────
@@ -498,6 +565,17 @@ export class ShopController {
       }
     }
     return this.couponSvc.listCoupons(+page, +pageSize, admin === "true");
+  }
+
+  // 注意：coupons/my 必须注册在 coupons/:id 之前，否则被 :id 吞掉（id="my"→优惠券不存在）
+  @Get("coupons/my")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取我的优惠券" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  myCoupons(@Req() req: AuthRequest) {
+    return this.couponSvc.getUserCoupons(req.user.id);
   }
 
   @Get("coupons/:id")
@@ -573,16 +651,6 @@ export class ShopController {
   @ApiBearerAuth()
   grantCoupon(@Param("id") id: string, @Body("userId") userId: string) {
     return this.couponSvc.grantCoupon(id, userId);
-  }
-
-  @Get("coupons/my")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "获取我的优惠券" })
-  @ApiResponse({ status: 200, description: "成功" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiBearerAuth()
-  myCoupons(@Req() req: AuthRequest) {
-    return this.couponSvc.getUserCoupons(req.user.id);
   }
 
   // ───────── 运费模板 ─────────
@@ -806,6 +874,7 @@ export class ShopController {
   }
 
   @Put("admin/after-sales/:id/process")
+  @Auditable({ action: "售后处理", targetType: "AFTER_SALE" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "处理售后（管理员）" })

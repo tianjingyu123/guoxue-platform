@@ -291,6 +291,12 @@ const ORDER_STATUS_MAP: Record<string, OrderStatus> = {
   COMPLETED: 'completed', CANCELLED: 'cancelled', REFUNDED: 'after_sale',
 }
 
+/** 前端 tab key → 后端订单状态枚举（ORDER_STATUS_MAP 反向），供列表按状态分页过滤 */
+const TAB_TO_STATUS: Record<string, string> = {
+  pending_pay: 'PENDING', pending_ship: 'PAID', pending_receive: 'SHIPPED',
+  completed: 'COMPLETED', after_sale: 'REFUNDED', cancelled: 'CANCELLED',
+}
+
 /** 后端 orderType（SHOP/MEMBER/BUNDLE）→ 前端统一中心品类 */
 const ORDER_TYPE_CATEGORY: Record<string, OrderCategory> = {
   SHOP: 'product', MEMBER: 'membership', BUNDLE: 'station', COURSE: 'course',
@@ -493,10 +499,13 @@ function adaptRefundDetail(a: any): RefundDetail {
 // ============ API 层（全部真连，错误向上传播由页面三态处理） ============
 
 export const orderApi = {
-  /** 我的商品订单列表（前端按 tab 二次过滤，故全量拉取） */
-  async list(_status?: string): Promise<OrderListItem[]> {
-    const res = await apiGet<{ orders: any[] }>(`/shop/orders/my?page=1&pageSize=100`)
-    return (res?.orders || []).map(adaptOrderListItem)
+  /** 我的商品订单列表（后端按状态分页）。tab 为前端 tab key(空=全部)，返回 {items,total} 供 useList */
+  async list(tab?: string, page = 1, pageSize = 20): Promise<{ items: OrderListItem[]; total: number }> {
+    const status = tab ? TAB_TO_STATUS[tab] : undefined
+    const qs = `page=${page}&pageSize=${pageSize}${status ? `&status=${status}` : ''}`
+    const res = await apiGet<{ orders: any[]; total?: number }>(`/shop/orders/my?${qs}`)
+    const items = (res?.orders || []).map(adaptOrderListItem)
+    return { items, total: res?.total ?? items.length }
   },
 
   /** 取消订单（仅待付款可取消，后端校验） */

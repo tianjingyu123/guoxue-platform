@@ -10,7 +10,7 @@
             :key="tab.key"
             class="tab"
             :class="{ active: activeTab === tab.key }"
-            @tap="activeTab = tab.key"
+            @tap="selectTab(tab.key)"
           >
             <text class="tab-text">{{ tab.label }}</text>
           </view>
@@ -22,14 +22,14 @@
     <view class="content">
       <view v-if="loading" class="loading"><text>加载中...</text></view>
       <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
-      <view v-else-if="filteredOrders.length === 0" class="empty">
+      <view v-else-if="isEmpty" class="empty">
         <app-icon name="package" :size="120" color="#E8E3DB" />
         <text class="empty-text">暂无订单</text>
         <view class="empty-btn" @tap="goShop"><text>去逛逛</text></view>
       </view>
 
       <view
-        v-for="order in filteredOrders"
+        v-for="order in orders"
         :key="order.id"
         class="order-card"
         @tap="goDetail(order.id)"
@@ -93,6 +93,8 @@
           </view>
         </view>
       </view>
+
+      <app-load-more v-if="!loading && !error && orders.length" :status="loadStatus" />
     </view>
 
     <!-- 取消弹窗 -->
@@ -121,34 +123,36 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref } from 'vue'
+import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoadMore from '@/components/common/app-load-more.vue'
 import { navigateTo } from '@/utils/router'
+import { useList } from '@/composables/useList'
 import { orderApi, orderStatusTabs, orderStatusConfig, orderCancelReasons, type OrderListItem } from '@/lib/order-data'
 
 const statusTabs = orderStatusTabs
 const cancelReasons = orderCancelReasons
 const activeTab = ref('')
-const loading = ref(false)
-const error = ref('')
-const orders = ref<OrderListItem[]>([])
 const showCancel = ref(false)
 const cancelId = ref<string | null>(null)
 const cancelReason = ref('')
 const submitting = ref(false)
 
-const retry = () => { error.value = ''; loadData() }
-async function loadData() {
-  loading.value = true; error.value = ''
-  try { orders.value = await orderApi.list(activeTab.value || undefined) }
-  catch (e: any) { error.value = e?.message || '加载失败' }
-  finally { loading.value = false }
-}
-onMounted(loadData)
+// 状态过滤已下沉后端(orderApi.list 传 tab→后端枚举)，切 tab 重载、上拉加载更多
+const { list: orders, loading, error, isEmpty, loadStatus, refresh, loadMore } = useList<OrderListItem>({
+  fetcher: ({ page, pageSize }) => orderApi.list(activeTab.value || undefined, page, pageSize),
+})
 
-const filteredOrders = computed(() =>
-  activeTab.value ? orders.value.filter((o) => o.status === activeTab.value) : orders.value
-)
+const retry = () => refresh()
+onLoad(() => refresh())
+onReachBottom(() => loadMore())
+
+function selectTab(key: string) {
+  if (activeTab.value === key) return
+  activeTab.value = key
+  refresh()
+}
 
 function cfg(status: string) {
   return orderStatusConfig[status] || orderStatusConfig.completed
