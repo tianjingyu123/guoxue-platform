@@ -11,6 +11,7 @@ import ChartCard from '@/components/ChartCard.vue'
 import { Reading, Goods, Money, Star, CircleCheckFilled, User } from '@element-plus/icons-vue'
 
 const loading = ref(false)
+const loadError = ref(false)
 const entityId = ref('')
 const data = ref<any>(null)
 
@@ -80,6 +81,7 @@ function buildFunnelOption(chapters: { name: string; completionCount: number }[]
 async function fetchData() {
   if (!entityId.value) return
   loading.value = true
+  loadError.value = false
   data.value = null
   cards.value = []
   chartOption.value = {}
@@ -103,7 +105,8 @@ async function fetchData() {
       chartOption.value = buildFunnelOption(chapters)
     }
   } catch {
-    // 静默失败
+    // 失败不吞错：进入错误态，由模板提示并提供重试
+    loadError.value = true
   } finally {
     loading.value = false
   }
@@ -164,12 +167,33 @@ function exportCSV() {
       </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <el-row
-      v-if="data"
-      :gutter="20"
-      class="stats-row"
+    <div
+      v-loading="loading"
+      class="content"
     >
+      <el-result
+        v-if="loadError"
+        icon="error"
+        title="数据加载失败"
+        sub-title="无法获取课程数据，请检查课程ID或稍后重试"
+      >
+        <template #extra>
+          <el-button
+            type="primary"
+            @click="fetchData"
+          >
+            重试
+          </el-button>
+        </template>
+      </el-result>
+
+      <template v-else>
+        <!-- 统计卡片 -->
+        <el-row
+          v-if="data"
+          :gutter="20"
+          class="stats-row"
+        >
       <el-col
         v-for="card in cards"
         :key="card.label"
@@ -217,18 +241,21 @@ function exportCSV() {
           :height="400"
         />
       </el-col>
-    </el-row>
+        </el-row>
 
-    <el-empty
-      v-if="!data && !loading"
-      description="请输入课程ID查询"
-      :image-size="48"
-    />
+        <el-empty
+          v-if="!data && !loading"
+          description="请输入课程ID查询"
+          :image-size="48"
+        />
+      </template>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .page { padding: 16px; }
+.content { min-height: 200px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .toolbar-right { display: flex; gap: 8px; }

@@ -22,7 +22,11 @@
             <el-button size="small" type="primary" @click="showTypeDialog()">新建类型</el-button>
           </div>
         </template>
-        <el-table :data="certTypes" border stripe>
+        <el-result v-if="typeError && !typeLoading" icon="error" title="加载失败" sub-title="请检查网络后重试">
+          <template #extra><el-button type="primary" @click="fetchCertTypes">重试</el-button></template>
+        </el-result>
+        <el-table v-else :data="certTypes" border stripe v-loading="typeLoading">
+          <template #empty><el-empty description="暂无认证类型" :image-size="80" /></template>
           <el-table-column label="图标" width="70">
             <template #default="{ row }">
               <span :style="{ color: row.color, fontSize: '20px' }">{{ row.icon || '🏅' }}</span>
@@ -61,7 +65,12 @@
         @reset="onAppReset"
       />
       <el-card>
+        <el-result v-if="appError && !appLoading" icon="error" title="加载失败" sub-title="请检查网络后重试">
+          <template #extra><el-button type="primary" @click="fetchApplications">重试</el-button></template>
+        </el-result>
+        <template v-else>
         <el-table :data="applications" border stripe v-loading="appLoading">
+          <template #empty><el-empty description="暂无认证申请" :image-size="80" /></template>
           <el-table-column prop="userName" label="用户" width="140" />
           <el-table-column label="申请认证" width="120">
             <template #default="{ row }">
@@ -80,7 +89,7 @@
           <el-table-column label="操作" width="180" v-if="showAppActions">
             <template #default="{ row }">
               <template v-if="row.status === 'PENDING'">
-                <el-button size="small" type="success" @click="approveApp(row)">通过</el-button>
+                <el-button size="small" type="success" :loading="submitting" @click="approveApp(row)">通过</el-button>
                 <el-button size="small" type="danger" @click="showRejectDialog(row)">拒绝</el-button>
               </template>
               <span v-else style="color:#909399">-</span>
@@ -96,6 +105,7 @@
           @current-change="fetchApplications"
           @size-change="fetchApplications"
         />
+        </template>
       </el-card>
     </template>
 
@@ -109,7 +119,12 @@
         @reset="onUserReset"
       />
       <el-card>
+        <el-result v-if="userError && !userLoading" icon="error" title="加载失败" sub-title="请检查网络后重试">
+          <template #extra><el-button type="primary" @click="fetchCertUsers">重试</el-button></template>
+        </el-result>
+        <template v-else>
         <el-table :data="certUsers" border stripe v-loading="userLoading">
+          <template #empty><el-empty description="暂无已认证用户" :image-size="80" /></template>
           <el-table-column prop="userName" label="用户" width="160" />
           <el-table-column label="认证标识" width="200">
             <template #default="{ row }">
@@ -147,6 +162,7 @@
           @current-change="fetchCertUsers"
           @size-change="fetchCertUsers"
         />
+        </template>
       </el-card>
     </template>
 
@@ -177,7 +193,7 @@
       </el-form>
       <template #footer>
         <el-button @click="typeDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveType">保存</el-button>
+        <el-button type="primary" :loading="submitting" @click="saveType">保存</el-button>
       </template>
     </el-dialog>
 
@@ -190,7 +206,7 @@
       </el-form>
       <template #footer>
         <el-button @click="rejectVisible = false">取消</el-button>
-        <el-button type="danger" @click="confirmReject">确认拒绝</el-button>
+        <el-button type="danger" :loading="submitting" @click="confirmReject">确认拒绝</el-button>
       </template>
     </el-dialog>
   </div>
@@ -208,12 +224,16 @@ const pendingCount = ref(0)
 
 // 认证类型
 const certTypes = ref<any[]>([])
+const typeLoading = ref(false)
+const typeError = ref(false)
+const submitting = ref(false)
 const typeDialogVisible = ref(false)
 const editingType = ref<any>(null)
 const typeForm = reactive({ name: "", icon: "🏅", color: "#C41E1E", description: "", autoGrantRole: "" as string })
 
 // 认证申请
 const appLoading = ref(false)
+const appError = ref(false)
 const applications = ref<any[]>([])
 const appPagination = reactive({ page: 1, pageSize: 10, total: 0 })
 const appFilters = reactive<Record<string, any>>({})
@@ -231,6 +251,7 @@ const appFilterDefs: { key: string; label: string; type: 'input' | 'select' | 'd
 
 // 已认证用户
 const userLoading = ref(false)
+const userError = ref(false)
 const certUsers = ref<any[]>([])
 const userPagination = reactive({ page: 1, pageSize: 10, total: 0 })
 const userFilters = reactive<Record<string, any>>({})
@@ -252,6 +273,8 @@ const showAppActions = ref(true)
 
 // === 认证类型 ===
 async function fetchCertTypes() {
+  typeLoading.value = true
+  typeError.value = false
   try {
     const res: any = await certificationApi.listTypes()
     certTypes.value = (res?.data ?? res)?.list ?? (res?.data ?? res)?.types ?? []
@@ -259,7 +282,8 @@ async function fetchCertTypes() {
     const typeOpts = certTypes.value.map(t => ({ label: t.name, value: t.id }))
     appFilterDefs[1].options = [{ label: "全部", value: "" }, ...typeOpts]
     userFilterDefs[0].options = [{ label: "全部", value: "" }, ...typeOpts]
-  } catch { /* */ }
+  } catch { typeError.value = true }
+  finally { typeLoading.value = false }
 }
 
 function showTypeDialog(row?: any) {
@@ -277,6 +301,8 @@ function showTypeDialog(row?: any) {
 }
 
 async function saveType() {
+  if (submitting.value) return
+  submitting.value = true
   try {
     if (editingType.value?.id) {
       await certificationApi.updateType(editingType.value.id, { ...typeForm })
@@ -285,6 +311,7 @@ async function saveType() {
     }
     ElMessage.success("保存成功"); typeDialogVisible.value = false; fetchCertTypes()
   } catch { /* */ }
+  finally { submitting.value = false }
 }
 
 async function deleteType(id: string) {
@@ -294,6 +321,7 @@ async function deleteType(id: string) {
 // === 认证申请 ===
 async function fetchApplications() {
   appLoading.value = true
+  appError.value = false
   try {
     const params = { page: appPagination.page, pageSize: appPagination.pageSize, ...appFilters }
     const res: any = await certificationApi.listApplications(params)
@@ -303,7 +331,7 @@ async function fetchApplications() {
     }))
     appPagination.total = d.total ?? 0
     pendingCount.value = d.pendingCount ?? 0
-  } catch { /* */ }
+  } catch { appError.value = true }
   finally { appLoading.value = false }
 }
 
@@ -311,7 +339,11 @@ function onAppSearch(f: Record<string, any>) { Object.assign(appFilters, f); app
 function onAppReset() { Object.keys(appFilters).forEach(k => { appFilters[k] = undefined }); appPagination.page = 1; fetchApplications() }
 
 async function approveApp(row: any) {
-  try { await certificationApi.approveApplication(row.id); ElMessage.success("已通过"); fetchApplications() } catch { /* */ }
+  if (submitting.value) return
+  submitting.value = true
+  try { await certificationApi.approveApplication(row.id); ElMessage.success("已通过"); fetchApplications() }
+  catch { /* */ }
+  finally { submitting.value = false }
 }
 
 function showRejectDialog(row: any) {
@@ -319,15 +351,19 @@ function showRejectDialog(row: any) {
 }
 
 async function confirmReject() {
+  if (submitting.value) return
+  submitting.value = true
   try {
     await certificationApi.rejectApplication(rejectingApp.value.id, rejectReason.value)
     ElMessage.success("已拒绝"); rejectVisible.value = false; fetchApplications()
   } catch { /* */ }
+  finally { submitting.value = false }
 }
 
 // === 已认证用户 ===
 async function fetchCertUsers() {
   userLoading.value = true
+  userError.value = false
   try {
     const params = { page: userPagination.page, pageSize: userPagination.pageSize, ...userFilters }
     const res: any = await certificationApi.listCertifiedUsers(params)
@@ -336,7 +372,7 @@ async function fetchCertUsers() {
       ...u, userName: u.user?.nickname ?? '未知', certCount: u.certifications?.length ?? 0
     }))
     userPagination.total = d.total ?? 0
-  } catch { /* */ }
+  } catch { userError.value = true }
   finally { userLoading.value = false }
 }
 

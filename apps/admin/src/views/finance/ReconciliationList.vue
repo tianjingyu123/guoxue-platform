@@ -6,14 +6,16 @@ import { exportCSV } from '@/utils/export'
 
 const loading = ref(false)
 const saving = ref(false)
+const error = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 20
 
 const statusFilter = ref('')
+const sourceFilter = ref('')
 const generateVisible = ref(false)
-const form = reactive({ period: '' })
+const form = reactive({ period: '', source: 'WECHAT' })
 const detailVisible = ref(false)
 const detailData = ref<any>(null)
 
@@ -22,37 +24,51 @@ onMounted(() => fetchList())
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 function formatMoney(v: any) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
 
+// 后端字段：status = PENDING / MATCHED / MISMATCH
 function statusTagType(status: string) {
-  const m: Record<string, string> = { COMPLETED: 'success', PENDING: 'warning', FAILED: 'danger', PROCESSING: 'primary' }
+  const m: Record<string, string> = { MATCHED: 'success', PENDING: 'warning', MISMATCH: 'danger' }
   return m[status] || 'info'
 }
-
 function statusLabel(status: string) {
-  const m: Record<string, string> = { COMPLETED: '已完成', PENDING: '待处理', FAILED: '失败', PROCESSING: '处理中' }
+  const m: Record<string, string> = { MATCHED: '已对平', PENDING: '待对账', MISMATCH: '有差异' }
   return m[status] || status
+}
+// 后端字段：source = WECHAT / ALIPAY / UNIONPAY
+function sourceLabel(s: string) {
+  const m: Record<string, string> = { WECHAT: '微信支付', ALIPAY: '支付宝', UNIONPAY: '银联' }
+  return m[s] || s || '-'
 }
 
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const params: any = { page: page.value, pageSize }
     if (statusFilter.value) params.status = statusFilter.value
+    if (sourceFilter.value) params.source = sourceFilter.value
+    // 后端 getReconciliationList 返回 { records, total, page, pageSize }
+    // 响应拦截器对 "records" 键不解包，故直接取 data.records
     const { data } = await financeApi.listReconciliations(params)
-    list.value = data.records || data.data || []
-    total.value = data.total || 0
-  } catch { list.value = [] } finally { loading.value = false }
+    list.value = data.records ?? data.items ?? []
+    total.value = data.total ?? list.value.length
+  } catch {
+    error.value = true
+    list.value = []
+  } finally { loading.value = false }
 }
 
 function openGenerate() {
   form.period = ''
+  form.source = 'WECHAT'
   generateVisible.value = true
 }
 
 async function doGenerate() {
+  if (saving.value) return
   if (!form.period) { ElMessage.warning('请选择对账月份'); return }
   saving.value = true
   try {
-    await financeApi.createReconciliation({ period: form.period })
+    await financeApi.createReconciliation({ period: form.period, source: form.source })
     ElMessage.success('对账已生成')
     generateVisible.value = false
     fetchList()
@@ -69,19 +85,19 @@ async function viewDetail(row: any) {
 
 function handleExport() {
   exportCSV('对账记录', [
-    { label: '对账月份', key: 'period' },
-    { label: '总收入', key: 'totalIncome' },
-    { label: '平台收入', key: 'platformIncome' },
-    { label: '分站收入', key: 'stationIncome' },
-    { label: '差额', key: 'difference' },
+    { label: '支付渠道', key: 'source' },
+    { label: '账单日期', key: 'billDate' },
+    { label: '账单总额', key: 'totalAmount' },
+    { label: '匹配金额', key: 'matchAmount' },
+    { label: '差异笔数', key: 'diffCount' },
     { label: '状态', key: 'statusLabel' },
     { label: '生成时间', key: 'createdAt' },
   ], list.value.map(r => ({
     ...r,
-    totalIncome: formatMoney(r.totalIncome),
-    platformIncome: formatMoney(r.platformIncome),
-    stationIncome: formatMoney(r.stationIncome),
-    difference: formatMoney(r.difference),
+    source: sourceLabel(r.source),
+    billDate: formatDate(r.billDate),
+    totalAmount: formatMoney(r.totalAmount),
+    matchAmount: formatMoney(r.matchAmount),
     statusLabel: statusLabel(r.status),
     createdAt: formatDate(r.createdAt),
   })))
@@ -94,27 +110,51 @@ function handleExport() {
       <h3>对账记录</h3>
       <div class="toolbar-right">
         <el-select
-          v-model="statusFilter"
-          placeholder="状态筛选"
+          v-model="sourceFilter"
+          placeholder="渠道筛选"
           clearable
-          style="width:130px"
+          style="width:120px"
           @change="fetchList"
         >
           <el-option
-            label="全部"
+            label="全部渠道"
             value=""
           />
           <el-option
-            label="待处理"
+            label="微信支付"
+            value="WECHAT"
+          />
+          <el-option
+            label="支付宝"
+            value="ALIPAY"
+          />
+          <el-option
+            label="银联"
+            value="UNIONPAY"
+          />
+        </el-select>
+        <el-select
+          v-model="statusFilter"
+          placeholder="状态筛选"
+          clearable
+          style="width:120px"
+          @change="fetchList"
+        >
+          <el-option
+            label="全部状态"
+            value=""
+          />
+          <el-option
+            label="待对账"
             value="PENDING"
           />
           <el-option
-            label="已完成"
-            value="COMPLETED"
+            label="已对平"
+            value="MATCHED"
           />
           <el-option
-            label="失败"
-            value="FAILED"
+            label="有差异"
+            value="MISMATCH"
           />
         </el-select>
         <el-button
@@ -129,104 +169,122 @@ function handleExport() {
       </div>
     </div>
 
-    <el-table
-      v-loading="loading"
-      :data="list"
-      stripe
+    <el-result
+      v-if="error && !loading"
+      icon="error"
+      title="加载失败"
+      sub-title="对账记录加载出错，请重试"
     >
-      <el-table-column
-        label="对账月份"
-        width="120"
-      >
-        <template #default="{ row }">
-          {{ row.period || '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="总收入"
-        width="130"
-      >
-        <template #default="{ row }">
-          <span style="font-weight:600;color:#409eff">{{ formatMoney(row.totalIncome) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="平台收入"
-        width="130"
-      >
-        <template #default="{ row }">
-          {{ formatMoney(row.platformIncome) }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="分站收入"
-        width="130"
-      >
-        <template #default="{ row }">
-          {{ formatMoney(row.stationIncome) }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="差额"
-        width="120"
-      >
-        <template #default="{ row }">
-          <span :style="{ color: Number(row.difference || 0) !== 0 ? '#f56c6c' : '#67c23a', fontWeight: Number(row.difference || 0) !== 0 ? '600' : 'normal' }">
-            {{ formatMoney(row.difference) }}
-          </span>
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="状态"
-        width="100"
-      >
-        <template #default="{ row }">
-          <el-tag
-            :type="statusTagType(row.status)"
-            size="small"
-          >
-            {{ statusLabel(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="生成时间"
-        width="170"
-      >
-        <template #default="{ row }">
-          {{ formatDate(row.createdAt) }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="操作"
-        width="100"
-        fixed="right"
-      >
-        <template #default="{ row }">
-          <el-button
-            size="small"
-            @click="viewDetail(row)"
-          >
-            详情
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
 
-    <el-empty
-      v-if="!loading && list.length === 0"
-      description="暂无对账记录"
-      style="margin-top:40px"
-    />
+    <template v-else>
+      <el-table
+        v-loading="loading"
+        :data="list"
+        stripe
+      >
+        <el-table-column
+          label="支付渠道"
+          width="120"
+        >
+          <template #default="{ row }">
+            {{ sourceLabel(row.source) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="账单日期"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.billDate) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="账单总额"
+          width="130"
+        >
+          <template #default="{ row }">
+            <span style="font-weight:600;color:#409eff">{{ formatMoney(row.totalAmount) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="匹配金额"
+          width="130"
+        >
+          <template #default="{ row }">
+            {{ formatMoney(row.matchAmount) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="差异笔数"
+          width="100"
+        >
+          <template #default="{ row }">
+            <span :style="{ color: (row.diffCount || 0) > 0 ? '#f56c6c' : '#67c23a', fontWeight: (row.diffCount || 0) > 0 ? '600' : 'normal' }">
+              {{ row.diffCount ?? 0 }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="状态"
+          width="100"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="statusTagType(row.status)"
+              size="small"
+            >
+              {{ statusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="生成时间"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.createdAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="100"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              size="small"
+              @click="viewDetail(row)"
+            >
+              详情
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <el-pagination
-      v-model:current-page="page"
-      :total="total"
-      :page-size="pageSize"
-      layout="total, prev, pager, next"
-      style="margin-top:16px;justify-content:flex-end"
-      @current-change="fetchList"
-    />
+      <el-empty
+        v-if="!loading && list.length === 0"
+        description="暂无对账记录"
+        style="margin-top:40px"
+      />
+
+      <el-pagination
+        v-model:current-page="page"
+        :total="total"
+        :page-size="pageSize"
+        layout="total, prev, pager, next"
+        style="margin-top:16px;justify-content:flex-end"
+        @current-change="fetchList"
+      />
+    </template>
 
     <!-- 生成对账弹窗 -->
     <el-dialog
@@ -235,6 +293,28 @@ function handleExport() {
       width="450px"
     >
       <el-form label-width="90px">
+        <el-form-item
+          label="支付渠道"
+          required
+        >
+          <el-select
+            v-model="form.source"
+            style="width:100%"
+          >
+            <el-option
+              label="微信支付"
+              value="WECHAT"
+            />
+            <el-option
+              label="支付宝"
+              value="ALIPAY"
+            />
+            <el-option
+              label="银联"
+              value="UNIONPAY"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item
           label="对账月份"
           required
@@ -273,23 +353,20 @@ function handleExport() {
         :column="2"
         border
       >
-        <el-descriptions-item
-          label="对账月份"
-          :span="2"
-        >
-          {{ detailData.period || '-' }}
+        <el-descriptions-item label="支付渠道">
+          {{ sourceLabel(detailData.source) }}
         </el-descriptions-item>
-        <el-descriptions-item label="总收入">
-          <span style="font-weight:600;color:#409eff">{{ formatMoney(detailData.totalIncome) }}</span>
+        <el-descriptions-item label="账单日期">
+          {{ formatDate(detailData.billDate) }}
         </el-descriptions-item>
-        <el-descriptions-item label="平台收入">
-          {{ formatMoney(detailData.platformIncome) }}
+        <el-descriptions-item label="账单总额">
+          <span style="font-weight:600;color:#409eff">{{ formatMoney(detailData.totalAmount) }}</span>
         </el-descriptions-item>
-        <el-descriptions-item label="分站收入">
-          {{ formatMoney(detailData.stationIncome) }}
+        <el-descriptions-item label="匹配金额">
+          {{ formatMoney(detailData.matchAmount) }}
         </el-descriptions-item>
-        <el-descriptions-item label="差额">
-          <span :style="{ color: Number(detailData.difference || 0) !== 0 ? '#f56c6c' : '#67c23a', fontWeight: '600' }">{{ formatMoney(detailData.difference) }}</span>
+        <el-descriptions-item label="差异笔数">
+          <span :style="{ color: (detailData.diffCount || 0) > 0 ? '#f56c6c' : '#333', fontWeight: '600' }">{{ detailData.diffCount ?? 0 }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag
@@ -299,27 +376,29 @@ function handleExport() {
             {{ statusLabel(detailData.status) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="订单总数">
-          {{ detailData.orderCount ?? '-' }}
+        <el-descriptions-item
+          v-if="detailData.detail?.orderCount != null"
+          label="内部订单数"
+        >
+          {{ detailData.detail.orderCount }}
         </el-descriptions-item>
-        <el-descriptions-item label="对账订单数">
-          {{ detailData.matchedCount ?? '-' }}
+        <el-descriptions-item
+          v-if="detailData.detail?.billEntryCount != null"
+          label="账单笔数"
+        >
+          {{ detailData.detail.billEntryCount }}
         </el-descriptions-item>
-        <el-descriptions-item label="异常订单数">
-          <span :style="{ color: (detailData.mismatchCount || 0) > 0 ? '#f56c6c' : '#333' }">{{ detailData.mismatchCount ?? 0 }}</span>
+        <el-descriptions-item
+          v-if="detailData.detail?.billStatus"
+          label="账单状态"
+        >
+          {{ detailData.detail.billStatus }}
         </el-descriptions-item>
         <el-descriptions-item
           label="生成时间"
           :span="2"
         >
           {{ formatDate(detailData.createdAt) }}
-        </el-descriptions-item>
-        <el-descriptions-item
-          v-if="detailData.remark"
-          label="备注"
-          :span="2"
-        >
-          {{ detailData.remark }}
         </el-descriptions-item>
       </el-descriptions>
     </el-dialog>

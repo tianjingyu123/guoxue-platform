@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { api } from '@/api'
+import { ref, computed } from 'vue'
+import { Check } from '@element-plus/icons-vue'
 
-const loading = ref(false)
-const saving = ref(false)
-const treeRef = ref<any>(null)
-const selectedRole = ref('SUPER_ADMIN')
-const checkedKeys = ref<string[]>([])
-const defaultExpandedKeys = ref<string[]>([])
+// ─────────────────────────────────────────────────────────────
+// 诚实呈现：本平台采用「固定角色权限模型」(RBAC by role)。
+// 角色与可访问范围由后端静态 @Roles 装饰器 + 菜单配置 + 路由守卫
+// 共同钉死，运行期不可在线编辑。此页为「角色权限总览（只读）」，
+// 数据源对齐后端 menu.config.ts 的角色可见性声明（单一声源）。
+// ─────────────────────────────────────────────────────────────
 
 const roleList = [
   { label: '超级管理员', value: 'SUPER_ADMIN' },
@@ -19,140 +18,85 @@ const roleList = [
   { label: '商品审核员', value: 'GOODS_AUDITOR' },
 ]
 
-const permissionModules = [
-  {
-    module: 'content',
-    label: '内容管理',
-    permissions: [
-      { key: 'content:view', label: '查看内容' },
-      { key: 'content:create', label: '创建内容' },
-      { key: 'content:edit', label: '编辑内容' },
-      { key: 'content:delete', label: '删除内容' },
-      { key: 'content:audit', label: '审核内容' },
-      { key: 'content:publish', label: '发布内容' },
-    ],
-  },
-  {
-    module: 'course',
-    label: '课程管理',
-    permissions: [
-      { key: 'course:view', label: '查看课程' },
-      { key: 'course:create', label: '创建课程' },
-      { key: 'course:edit', label: '编辑课程' },
-      { key: 'course:delete', label: '删除课程' },
-      { key: 'course:audit', label: '审核课程' },
-    ],
-  },
-  {
-    module: 'user',
-    label: '用户管理',
-    permissions: [
-      { key: 'user:view', label: '查看用户' },
-      { key: 'user:create', label: '创建用户' },
-      { key: 'user:edit', label: '编辑用户' },
-      { key: 'user:ban', label: '封禁/解封' },
-      { key: 'user:role', label: '分配角色' },
-      { key: 'user:delete', label: '删除用户' },
-    ],
-  },
-  {
-    module: 'order',
-    label: '订单管理',
-    permissions: [
-      { key: 'order:view', label: '查看订单' },
-      { key: 'order:edit', label: '编辑订单' },
-      { key: 'order:refund', label: '退款操作' },
-      { key: 'order:ship', label: '发货操作' },
-    ],
-  },
-  {
-    module: 'marketing',
-    label: '营销管理',
-    permissions: [
-      { key: 'marketing:view', label: '查看营销' },
-      { key: 'marketing:create', label: '创建活动' },
-      { key: 'marketing:edit', label: '编辑活动' },
-      { key: 'marketing:delete', label: '删除活动' },
-      { key: 'marketing:coupon', label: '优惠券管理' },
-    ],
-  },
-  {
-    module: 'finance',
-    label: '财务管理',
-    permissions: [
-      { key: 'finance:view', label: '查看财务' },
-      { key: 'finance:reconciliation', label: '对账管理' },
-      { key: 'finance:settlement', label: '结算管理' },
-      { key: 'finance:withdrawal', label: '提现审核' },
-    ],
-  },
-  {
-    module: 'system',
-    label: '系统管理',
-    permissions: [
-      { key: 'system:config', label: '系统配置' },
-      { key: 'system:log', label: '操作日志' },
-      { key: 'system:role', label: '角色管理' },
-      { key: 'system:webhook', label: 'Webhook管理' },
-      { key: 'system:sensitive', label: '敏感词管理' },
-    ],
-  },
+const ALL_ADMIN = roleList.map(r => r.value)
+
+// 功能模块 → 可访问角色（对齐后端 menu.config.ts，单一声源）
+interface MenuScope { title: string; roles: string[] }
+const menuScopes: MenuScope[] = [
+  { title: '工作台', roles: ALL_ADMIN },
+  { title: '内容管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'CONTENT_AUDITOR'] },
+  { title: '古籍管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'CONTENT_AUDITOR'] },
+  { title: '诗词雅集', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'CONTENT_AUDITOR'] },
+  { title: '社区管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'CONTENT_AUDITOR'] },
+  { title: '排盘工具', roles: ALL_ADMIN },
+  { title: '赛事管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN'] },
+  { title: '教学管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'CONTENT_AUDITOR'] },
+  { title: '用户管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'CUSTOMER_SERVICE'] },
+  { title: '文章管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'CONTENT_AUDITOR'] },
+  { title: '交易管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'FINANCE_ADMIN', 'GOODS_AUDITOR'] },
+  { title: '会员管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'FINANCE_ADMIN'] },
+  { title: '商城管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'GOODS_AUDITOR'] },
+  { title: '创作者中心', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN'] },
+  { title: '商家管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN'] },
+  { title: '营销管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN'] },
+  { title: '财务管理', roles: ['SUPER_ADMIN', 'FINANCE_ADMIN'] },
+  { title: '营销分佣', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'FINANCE_ADMIN'] },
+  { title: '风控中心', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'CUSTOMER_SERVICE'] },
+  { title: 'AI管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN'] },
+  { title: '管理驾驶舱', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN'] },
+  { title: '对外大屏', roles: ALL_ADMIN },
+  { title: '数据看板', roles: ALL_ADMIN },
+  { title: '线下管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN'] },
+  { title: '通知管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'CUSTOMER_SERVICE'] },
+  { title: '短信管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN'] },
+  { title: '研究院管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN'] },
+  { title: '举报管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'CUSTOMER_SERVICE'] },
+  { title: '评论管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'CONTENT_AUDITOR'] },
+  { title: '互动数据', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN', 'CONTENT_AUDITOR'] },
+  { title: '自动化运营', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN'] },
+  { title: '搜索分析', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN'] },
+  { title: 'IM管理', roles: ['SUPER_ADMIN', 'OPERATION_ADMIN'] },
+  { title: '系统管理', roles: ['SUPER_ADMIN'] },
 ]
 
-const treeData = computed(() => {
-  return permissionModules.map(m => ({
-    id: m.module,
-    label: m.label,
-    children: m.permissions.map(p => ({
-      id: p.key,
-      label: p.label,
-    })),
-  }))
-})
+const selectedRole = ref('SUPER_ADMIN')
 
-onMounted(() => {
-  defaultExpandedKeys.value = permissionModules.map(m => m.module)
-  loadRolePermissions()
-})
+const currentRoleLabel = computed(
+  () => roleList.find(r => r.value === selectedRole.value)?.label || '',
+)
 
-async function loadRolePermissions() {
-  loading.value = true
-  try {
-    const { data } = await api.get(`/admin/roles/${selectedRole.value}/permissions`)
-    const perms = data?.permissions || data?.data || []
-    checkedKeys.value = Array.isArray(perms) ? perms : []
-  } catch {
-    checkedKeys.value = []
-  } finally {
-    loading.value = false
-  }
-}
+const accessibleMenus = computed(
+  () => menuScopes.filter(m => m.roles.includes(selectedRole.value)),
+)
+const deniedMenus = computed(
+  () => menuScopes.filter(m => !m.roles.includes(selectedRole.value)),
+)
 
-function handleRoleChange(val: string) {
-  selectedRole.value = val
-  loadRolePermissions()
-}
-
-function onTreeCheck(_data: any, treeState: any) {
-  checkedKeys.value = treeState.checkedKeys
-}
-
-async function savePermissions() {
-  saving.value = true
-  try {
-    await api.put(`/admin/roles/${selectedRole.value}/permissions`, {
-      permissions: checkedKeys.value,
-    })
-    ElMessage.success('权限已保存')
-  } catch { } finally { saving.value = false }
+function canAccess(menu: MenuScope, role: string) {
+  return menu.roles.includes(role)
 }
 </script>
 
 <template>
   <div class="page">
     <div class="toolbar">
-      <h3>角色权限管理</h3>
+      <h3>角色权限总览（只读）</h3>
     </div>
+
+    <el-alert
+      type="warning"
+      :closable="false"
+      show-icon
+      style="margin-bottom:16px"
+    >
+      <template #title>
+        平台采用固定角色权限模型（RBAC by role）
+      </template>
+      <div style="line-height:1.7">
+        各角色的可访问菜单与功能范围由系统在代码层固定（后端静态权限校验 + 菜单配置 + 路由守卫共同生效），
+        <strong>不支持在线编辑</strong>。本页仅作权限范围只读展示，如需调整角色权限，请联系开发团队。
+      </div>
+    </el-alert>
 
     <div class="layout">
       <div class="left-panel">
@@ -161,9 +105,7 @@ async function savePermissions() {
         </div>
         <el-radio-group
           v-model="selectedRole"
-          vertical
           style="width:100%"
-          @change="handleRoleChange"
         >
           <el-radio-button
             v-for="role in roleList"
@@ -178,33 +120,84 @@ async function savePermissions() {
 
       <div class="right-panel">
         <div class="panel-title">
-          权限分配 — {{ roleList.find(r => r.value === selectedRole)?.label }}
+          可访问范围 — {{ currentRoleLabel }}
         </div>
+
+        <div class="scope-block">
+          <div class="scope-label">
+            可访问功能（{{ accessibleMenus.length }}）
+          </div>
+          <div class="tag-wrap">
+            <el-tag
+              v-for="m in accessibleMenus"
+              :key="m.title"
+              type="success"
+              effect="light"
+              size="large"
+              style="margin:0 8px 8px 0"
+            >
+              {{ m.title }}
+            </el-tag>
+          </div>
+        </div>
+
         <div
-          v-loading="loading"
-          class="tree-wrapper"
+          v-if="deniedMenus.length"
+          class="scope-block"
         >
-          <el-tree
-            ref="treeRef"
-            :data="treeData"
-            :props="{ label: 'label', children: 'children' }"
-            node-key="id"
-            :default-checked-keys="checkedKeys"
-            :default-expanded-keys="defaultExpandedKeys"
-            show-checkbox
-            check-strictly
-            @check="onTreeCheck"
+          <div class="scope-label">
+            无权限（{{ deniedMenus.length }}）
+          </div>
+          <div class="tag-wrap">
+            <el-tag
+              v-for="m in deniedMenus"
+              :key="m.title"
+              type="info"
+              effect="plain"
+              size="large"
+              style="margin:0 8px 8px 0;opacity:.6"
+            >
+              {{ m.title }}
+            </el-tag>
+          </div>
+        </div>
+
+        <div class="panel-title" style="margin-top:24px">
+          全角色权限矩阵
+        </div>
+        <el-table
+          :data="menuScopes"
+          border
+          size="small"
+          max-height="480"
+        >
+          <el-table-column
+            prop="title"
+            label="功能模块"
+            width="140"
+            fixed
           />
-        </div>
-        <div style="margin-top:16px;text-align:right">
-          <el-button
-            type="primary"
-            :loading="saving"
-            @click="savePermissions"
+          <el-table-column
+            v-for="role in roleList"
+            :key="role.value"
+            :label="role.label"
+            align="center"
+            min-width="110"
           >
-            保存权限
-          </el-button>
-        </div>
+            <template #default="{ row }">
+              <el-icon
+                v-if="canAccess(row, role.value)"
+                color="var(--el-color-success)"
+              >
+                <Check />
+              </el-icon>
+              <span
+                v-else
+                style="color:var(--color-text-secondary)"
+              >—</span>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
     </div>
   </div>
@@ -217,6 +210,8 @@ async function savePermissions() {
 .layout { display: flex; gap: 20px; min-height: 500px; }
 .left-panel { width: 200px; flex-shrink: 0; }
 .right-panel { flex: 1; min-width: 0; }
-.panel-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #8b4513; color: #333; }
-.tree-wrapper { border: 1px solid #ebeef5; border-radius: 4px; padding: 16px; background: #fafafa; min-height: 300px; }
+.panel-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--color-primary, #8b4513); color: var(--color-text-title); }
+.scope-block { margin-bottom: 20px; }
+.scope-label { font-size: 14px; font-weight: 500; margin-bottom: 10px; color: var(--color-text-regular); }
+.tag-wrap { display: flex; flex-wrap: wrap; }
 </style>

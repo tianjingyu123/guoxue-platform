@@ -7,7 +7,9 @@
 
       <el-table v-loading="loading" :data="list" stripe empty-text="暂无待审核申请">
         <el-table-column prop="user.nickname" label="申请人" width="140" />
-        <el-table-column prop="user.phone" label="手机号" width="130" />
+        <el-table-column label="手机号" width="130">
+          <template #default="{ row }">{{ maskPhone(row.user?.phone) }}</template>
+        </el-table-column>
         <el-table-column label="申请功能" width="130">
           <template #default="{ row }">{{ typeLabel(row.type) }}</template>
         </el-table-column>
@@ -17,10 +19,10 @@
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button type="success" size="small" @click="approve(row)">
+            <el-button v-permission="['SUPER_ADMIN','OPERATION_ADMIN']" type="success" size="small" @click="approve(row)">
               <el-icon><Check /></el-icon> 通过
             </el-button>
-            <el-button type="danger" size="small" @click="reject(row)">
+            <el-button v-permission="['SUPER_ADMIN','OPERATION_ADMIN']" type="danger" size="small" @click="reject(row)">
               <el-icon><Close /></el-icon> 拒绝
             </el-button>
           </template>
@@ -46,12 +48,21 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Close } from '@element-plus/icons-vue'
 import { api } from '@/api'
 
 const loading = ref(false)
+const submitting = ref(false)
 const list = ref<any[]>([])
+
+// 隐私脱敏：手机号保留前3后4
+function maskPhone(p?: string) {
+  if (!p) return '-'
+  const s = String(p)
+  if (s.length < 7) return s.replace(/\d(?=\d)/g, '*')
+  return s.slice(0, 3) + '****' + s.slice(-4)
+}
 
 const showReject = ref(false)
 const rejectNote = ref('')
@@ -76,11 +87,19 @@ async function fetchList() {
 }
 
 async function approve(row: any) {
+  if (submitting.value) return
   try {
+    await ElMessageBox.confirm(
+      `确定通过「${row.user?.nickname}」的${typeLabel(row.type)}申请？`,
+      '通过审批',
+      { type: 'warning' },
+    )
+    submitting.value = true
     await api.post(`/capabilities/review/${row.id}`, { approved: true })
     ElMessage.success(`已通过 ${row.user?.nickname} 的${typeLabel(row.type)}申请`)
     fetchList()
-  } catch { ElMessage.error('操作失败') }
+  } catch (e) { if (e !== 'cancel' && e !== 'close') ElMessage.error('操作失败') }
+  finally { submitting.value = false }
 }
 
 function reject(row: any) {

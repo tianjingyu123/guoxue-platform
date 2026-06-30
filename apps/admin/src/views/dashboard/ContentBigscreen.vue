@@ -1,5 +1,9 @@
 <template>
-  <div class="bigscreen content-eco">
+  <div
+    v-loading="loading"
+    class="bigscreen content-eco"
+    element-loading-background="rgba(11,19,32,0.6)"
+  >
     <header class="bs-header">
       <div class="bs-title">
         内容生态数据大屏
@@ -9,7 +13,25 @@
       </div>
     </header>
 
-    <div class="bs-body">
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="数据加载失败"
+      sub-title="无法获取数据，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchData"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <div
+      v-else
+      class="bs-body">
       <!-- 总量指标 -->
       <div class="kpi-bar">
         <div class="kpi-item">
@@ -83,6 +105,8 @@ import { bigscreenApi } from "@/api";
 const route = useRoute();
 const data = ref<Record<string, any>>({});
 const nowStr = ref(new Date().toLocaleString("zh-CN"));
+const loading = ref(true);
+const loadError = ref(false);
 let timer: any = null;
 let clockTimer: any = null;
 
@@ -93,7 +117,12 @@ async function fetchData() {
     const token = (route.query.token as string) || undefined;
     const { data: d } = await bigscreenApi.contentEco(token);
     data.value = d || {};
-  } catch { /* ignore */ }
+    loadError.value = false;
+  } catch {
+    loadError.value = true;
+  } finally {
+    loading.value = false;
+  }
 }
 
 onMounted(() => {

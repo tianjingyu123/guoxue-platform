@@ -328,7 +328,23 @@
             添加成员
           </el-button>
         </div>
+        <el-result
+          v-if="memberError"
+          icon="error"
+          title="加载失败"
+          sub-title="请检查网络后重试"
+        >
+          <template #extra>
+            <el-button
+              type="primary"
+              @click="fetchMembers"
+            >
+              重试
+            </el-button>
+          </template>
+        </el-result>
         <el-table
+          v-show="!memberError"
           v-loading="memberLoading"
           :data="members"
           stripe
@@ -428,6 +444,12 @@
               </el-button>
             </template>
           </el-table-column>
+          <template #empty>
+            <el-empty
+              description="暂无成员"
+              :image-size="80"
+            />
+          </template>
         </el-table>
         <el-pagination
           v-model:current-page="memberPage"
@@ -473,7 +495,23 @@
             @change="fetchPosts"
           />
         </div>
+        <el-result
+          v-if="postError"
+          icon="error"
+          title="加载失败"
+          sub-title="请检查网络后重试"
+        >
+          <template #extra>
+            <el-button
+              type="primary"
+              @click="fetchPosts"
+            >
+              重试
+            </el-button>
+          </template>
+        </el-result>
         <el-table
+          v-show="!postError"
           v-loading="postLoading"
           :data="posts"
           stripe
@@ -598,6 +636,12 @@
               </el-button>
             </template>
           </el-table-column>
+          <template #empty>
+            <el-empty
+              description="暂无帖子"
+              :image-size="80"
+            />
+          </template>
         </el-table>
         <el-pagination
           v-model:current-page="postPage"
@@ -635,7 +679,23 @@
             />
           </el-select>
         </div>
+        <el-result
+          v-if="articleError"
+          icon="error"
+          title="加载失败"
+          sub-title="请检查网络后重试"
+        >
+          <template #extra>
+            <el-button
+              type="primary"
+              @click="fetchArticles"
+            >
+              重试
+            </el-button>
+          </template>
+        </el-result>
         <el-table
+          v-show="!articleError"
           v-loading="articleLoading"
           :data="articles"
           stripe
@@ -730,6 +790,12 @@
               </el-button>
             </template>
           </el-table-column>
+          <template #empty>
+            <el-empty
+              description="暂无文章"
+              :image-size="80"
+            />
+          </template>
         </el-table>
         <el-pagination
           v-model:current-page="articlePage"
@@ -793,7 +859,23 @@
             />
           </el-select>
         </div>
+        <el-result
+          v-if="courseError"
+          icon="error"
+          title="加载失败"
+          sub-title="请检查网络后重试"
+        >
+          <template #extra>
+            <el-button
+              type="primary"
+              @click="fetchCourses"
+            >
+              重试
+            </el-button>
+          </template>
+        </el-result>
         <el-table
+          v-show="!courseError"
           v-loading="courseLoading"
           :data="courses"
           stripe
@@ -872,6 +954,12 @@
               </el-button>
             </template>
           </el-table-column>
+          <template #empty>
+            <el-empty
+              description="暂无课程"
+              :image-size="80"
+            />
+          </template>
         </el-table>
         <el-pagination
           v-model:current-page="coursePage"
@@ -917,7 +1005,23 @@
             />
           </el-select>
         </div>
+        <el-result
+          v-if="questionError"
+          icon="error"
+          title="加载失败"
+          sub-title="请检查网络后重试"
+        >
+          <template #extra>
+            <el-button
+              type="primary"
+              @click="fetchQuestions"
+            >
+              重试
+            </el-button>
+          </template>
+        </el-result>
         <el-table
+          v-show="!questionError"
           v-loading="questionLoading"
           :data="questions"
           stripe
@@ -1001,6 +1105,12 @@
               </el-button>
             </template>
           </el-table-column>
+          <template #empty>
+            <el-empty
+              description="暂无问答"
+              :image-size="80"
+            />
+          </template>
         </el-table>
         <el-pagination
           v-model:current-page="questionPage"
@@ -1039,7 +1149,23 @@
             />
           </el-select>
         </div>
+        <el-result
+          v-if="liveError"
+          icon="error"
+          title="加载失败"
+          sub-title="请检查网络后重试"
+        >
+          <template #extra>
+            <el-button
+              type="primary"
+              @click="fetchLives"
+            >
+              重试
+            </el-button>
+          </template>
+        </el-result>
         <el-table
+          v-show="!liveError"
           v-loading="liveLoading"
           :data="lives"
           stripe
@@ -1113,6 +1239,12 @@
               </el-button>
             </template>
           </el-table-column>
+          <template #empty>
+            <el-empty
+              description="暂无直播"
+              :image-size="80"
+            />
+          </template>
         </el-table>
         <el-pagination
           v-model:current-page="livePage"
@@ -1126,7 +1258,23 @@
 
       <!-- ====== 达人管理 ====== -->
       <template v-if="activeTab === 'experts'">
+        <el-result
+          v-if="expertError"
+          icon="error"
+          title="加载失败"
+          sub-title="请检查网络后重试"
+        >
+          <template #extra>
+            <el-button
+              type="primary"
+              @click="fetchExperts"
+            >
+              重试
+            </el-button>
+          </template>
+        </el-result>
         <el-table
+          v-show="!expertError"
           v-loading="expertLoading"
           :data="experts"
           stripe
@@ -1206,6 +1354,12 @@
               {{ row.callAvailableHours?.length ? row.callAvailableHours.length + '个时段' : '未设置' }}
             </template>
           </el-table-column>
+          <template #empty>
+            <el-empty
+              description="暂无达人"
+              :image-size="80"
+            />
+          </template>
         </el-table>
       </template>
 
@@ -1243,7 +1397,23 @@
             />
           </el-select>
         </div>
+        <el-result
+          v-if="revenueError"
+          icon="error"
+          title="加载失败"
+          sub-title="请检查网络后重试"
+        >
+          <template #extra>
+            <el-button
+              type="primary"
+              @click="fetchRevenue"
+            >
+              重试
+            </el-button>
+          </template>
+        </el-result>
         <el-table
+          v-show="!revenueError"
           v-loading="revenueLoading"
           :data="revenues"
           stripe
@@ -1319,6 +1489,12 @@
               {{ fmtDate(row.createdAt) }}
             </template>
           </el-table-column>
+          <template #empty>
+            <el-empty
+              description="暂无收益记录"
+              :image-size="80"
+            />
+          </template>
         </el-table>
         <el-pagination
           v-model:current-page="revenuePage"
@@ -1361,7 +1537,23 @@
             name="candidates"
           />
         </el-tabs>
+        <el-result
+          v-if="knowledgeError"
+          icon="error"
+          title="加载失败"
+          sub-title="请检查网络后重试"
+        >
+          <template #extra>
+            <el-button
+              type="primary"
+              @click="fetchKnowledge"
+            >
+              重试
+            </el-button>
+          </template>
+        </el-result>
         <el-table
+          v-show="!knowledgeError"
           v-loading="knowledgeLoading"
           :data="knowledgeSubTab === 'candidates' ? knowledgeCandidates : knowledgeItems"
           stripe
@@ -1423,17 +1615,39 @@
               </el-button>
             </template>
           </el-table-column>
+          <template #empty>
+            <el-empty
+              description="暂无知识"
+              :image-size="80"
+            />
+          </template>
         </el-table>
       </template>
 
       <!-- ====== 排行榜 ====== -->
       <template v-if="activeTab === 'ranking'">
+        <el-result
+          v-if="rankingError"
+          icon="error"
+          title="加载失败"
+          sub-title="请检查网络后重试"
+        >
+          <template #extra>
+            <el-button
+              type="primary"
+              @click="fetchRanking"
+            >
+              重试
+            </el-button>
+          </template>
+        </el-result>
         <el-row :gutter="16">
           <el-col :span="12">
             <div class="section-title">
               成员贡献榜
             </div>
             <el-table
+              v-show="!rankingError"
               :data="leaderboard"
               stripe
               size="small"
@@ -1468,6 +1682,12 @@
                 width="80"
                 align="center"
               />
+              <template #empty>
+                <el-empty
+                  description="暂无成员贡献"
+                  :image-size="80"
+                />
+              </template>
             </el-table>
           </el-col>
           <el-col :span="12">
@@ -1475,6 +1695,7 @@
               热门内容
             </div>
             <el-table
+              v-show="!rankingError"
               :data="hotContent"
               stripe
               size="small"
@@ -1516,6 +1737,12 @@
                 width="70"
                 align="center"
               />
+              <template #empty>
+                <el-empty
+                  description="暂无热门内容"
+                  :image-size="80"
+                />
+              </template>
             </el-table>
           </el-col>
         </el-row>
@@ -1773,6 +2000,7 @@
         </el-button>
         <el-button
           type="primary"
+          :loading="acting"
           @click="saveMemberGroups"
         >
           保存
@@ -1810,6 +2038,7 @@
         </el-button>
         <el-button
           type="primary"
+          :loading="acting"
           @click="addMember"
         >
           添加
@@ -1901,6 +2130,20 @@ const groupVisible = ref(false); const groupTargetUser = ref<any>(null); const g
 const addMemberVisible = ref(false);
 const addMemberForm = reactive({ userId: "", role: "MEMBER" });
 
+// 各 tab 错误态
+const memberError = ref(false);
+const postError = ref(false);
+const articleError = ref(false);
+const courseError = ref(false);
+const questionError = ref(false);
+const liveError = ref(false);
+const expertError = ref(false);
+const revenueError = ref(false);
+const knowledgeError = ref(false);
+const rankingError = ref(false);
+// 通用行级写操作防重复
+const acting = ref(false);
+
 function fmtDate(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
 function postTypeColor(t: string) { return { TEXT: "", IMAGE: "success", VIDEO: "danger", FILE: "warning", LINK: "info" }[t] || ""; }
 function postTypeLabel(t: string) { return { TEXT: "图文", IMAGE: "图片", VIDEO: "视频", FILE: "文件", LINK: "链接" }[t] || t; }
@@ -1943,7 +2186,7 @@ function onTabChange(tab: string) {
 
 // ─── 成员 ───
 async function fetchMembers() {
-  memberLoading.value = true;
+  memberLoading.value = true; memberError.value = false;
   try {
     // 这里后端需要支持更丰富的查询，暂时用现有API
     const { data } = await circleApi.detail(circleId);
@@ -1952,20 +2195,22 @@ async function fetchMembers() {
     const d = res.data as any;
     members.value = d?.members || d?.data || [];
     memberTotal.value = d?.total || 0;
-  } catch { members.value = []; } finally { memberLoading.value = false; }
+  } catch { members.value = []; memberError.value = true; } finally { memberLoading.value = false; }
 }
 
 async function changeRole(row: any, role: string) {
   if (row.role === "OWNER" && role !== "OWNER") return ElMessage.warning("不能降级圈主");
+  if (acting.value) return; acting.value = true;
   try {
     await circleApi.updateMember(circleId, row.userId, { role });
     ElMessage.success("角色已更新"); row.role = role;
-  } catch { /* ignore */ }
+  } catch { /* ignore */ } finally { acting.value = false; }
 }
 
 async function removeMember(row: any) {
   await ElMessageBox.confirm("确定移除该成员？", "确认", { type: "warning" });
-  try { await circleApi.removeMember(circleId, row.userId); ElMessage.success("已移除"); fetchMembers(); } catch { /* ignore */ }
+  if (acting.value) return; acting.value = true;
+  try { await circleApi.removeMember(circleId, row.userId); ElMessage.success("已移除"); fetchMembers(); } catch { /* ignore */ } finally { acting.value = false; }
 }
 
 async function showMemberGroups(row: any) {
@@ -1980,112 +2225,141 @@ async function showMemberGroups(row: any) {
 }
 
 async function saveMemberGroups() {
+  if (acting.value) return; acting.value = true;
   try {
     await api.post(`/circles/${circleId}/member-groups/assign`, { userId: groupTargetUser.value?.userId || groupTargetUser.value?.id, groupIds: groupSelected.value });
     ElMessage.success("分组已更新"); groupVisible.value = false;
-  } catch { /* ignore */ }
+  } catch { /* ignore */ } finally { acting.value = false; }
 }
 
 async function showAddMemberDialog() { addMemberVisible.value = true; }
 async function addMember() {
+  if (acting.value) return; acting.value = true;
   try {
     await api.post(`/circles/${circleId}/join`, { userId: addMemberForm.userId, role: addMemberForm.role });
     ElMessage.success("已添加"); addMemberVisible.value = false; fetchMembers();
-  } catch { /* ignore */ }
+  } catch { /* ignore */ } finally { acting.value = false; }
 }
 
 // ─── 帖子 ───
 async function fetchPosts() {
-  postLoading.value = true;
+  postLoading.value = true; postError.value = false;
   try {
     const params: any = { page: postPage.value, pageSize: 20 };
     if (postFilter.value === "essence") params.isEssence = "true";
     if (postFilter.value === "top") params.isEssence = "top";
     const { data } = await circleApi.getPosts(circleId, params);
     const d = data as any; posts.value = d?.posts || d?.data || []; postTotal.value = d?.total || 0;
-  } catch { posts.value = []; } finally { postLoading.value = false; }
+  } catch { posts.value = []; postError.value = true; } finally { postLoading.value = false; }
 }
 async function toggleEssence(row: any) {
-  try { await circleApi.toggleEssence(circleId, row.id); row.isEssence = !row.isEssence; ElMessage.success(row.isEssence ? "已设为精华" : "已取消精华"); } catch { /* ignore */ }
+  if (acting.value) return; acting.value = true;
+  try { await circleApi.toggleEssence(circleId, row.id); row.isEssence = !row.isEssence; ElMessage.success(row.isEssence ? "已设为精华" : "已取消精华"); } catch { /* ignore */ } finally { acting.value = false; }
 }
 async function toggleTop(row: any) {
-  try { await circleApi.toggleTop(circleId, row.id); row.isTop = !row.isTop; ElMessage.success(row.isTop ? "已设为置顶" : "已取消置顶"); } catch { /* ignore */ }
+  if (acting.value) return; acting.value = true;
+  try { await circleApi.toggleTop(circleId, row.id); row.isTop = !row.isTop; ElMessage.success(row.isTop ? "已设为置顶" : "已取消置顶"); } catch { /* ignore */ } finally { acting.value = false; }
 }
 async function deletePost(row: any) {
   await ElMessageBox.confirm("确定删除该帖子？", "确认", { type: "warning" });
-  try { await circleApi.deletePost(circleId, row.id); ElMessage.success("已删除"); fetchPosts(); } catch { /* ignore */ }
+  if (acting.value) return; acting.value = true;
+  try { await circleApi.deletePost(circleId, row.id); ElMessage.success("已删除"); fetchPosts(); } catch { /* ignore */ } finally { acting.value = false; }
 }
 
 // ─── 文章 ───
 async function fetchArticles() {
-  articleLoading.value = true;
+  articleLoading.value = true; articleError.value = false;
   try {
     const params: any = { page: articlePage.value, pageSize: 20, circleId };
     if (articleAuditFilter.value) params.status = articleAuditFilter.value;
     const { data } = await articleApi.list(params);
     const d = data as any; articles.value = d?.articles || d?.data || []; articleTotal.value = d?.total || 0;
-  } catch { articles.value = []; } finally { articleLoading.value = false; }
+  } catch { articles.value = []; articleError.value = true; } finally { articleLoading.value = false; }
 }
 async function auditArticle(row: any, status: string) {
-  try { await articleApi.audit(row.id, status); row.auditStatus = status; ElMessage.success(status === "APPROVED" ? "已通过" : "已拒绝"); } catch { /* ignore */ }
+  if (acting.value) return; acting.value = true;
+  try { await articleApi.audit(row.id, status); row.auditStatus = status; ElMessage.success(status === "APPROVED" ? "已通过" : "已拒绝"); } catch { /* ignore */ } finally { acting.value = false; }
 }
 async function deleteArticle(row: any) {
   await ElMessageBox.confirm("确定删除该文章？", "确认", { type: "warning" });
-  try { await articleApi.remove(row.id); ElMessage.success("已删除"); fetchArticles(); } catch { /* ignore */ }
+  if (acting.value) return; acting.value = true;
+  try { await articleApi.remove(row.id); ElMessage.success("已删除"); fetchArticles(); } catch { /* ignore */ } finally { acting.value = false; }
 }
 
 // ─── 课程 ───
 async function fetchCourses() {
-  courseLoading.value = true;
+  courseLoading.value = true; courseError.value = false;
   try {
     const res = await api.get("/courses", { params: { page: coursePage.value, pageSize: 20, circleId } });
     const d = res.data as any; courses.value = d?.courses || d?.data || []; courseTotal.value = d?.total || 0;
-  } catch { courses.value = []; } finally { courseLoading.value = false; }
+  } catch { courses.value = []; courseError.value = true; } finally { courseLoading.value = false; }
 }
 async function deleteCourse(row: any) {
   await ElMessageBox.confirm("确定删除该课程？", "确认", { type: "warning" });
-  try { await api.delete(`/courses/${row.id}`); ElMessage.success("已删除"); fetchCourses(); } catch { /* ignore */ }
+  if (acting.value) return; acting.value = true;
+  try { await api.delete(`/courses/${row.id}`); ElMessage.success("已删除"); fetchCourses(); } catch { /* ignore */ } finally { acting.value = false; }
 }
 
 // ─── 问答 ───
 async function fetchQuestions() {
-  questionLoading.value = true;
+  questionLoading.value = true; questionError.value = false;
   try {
     const params: any = { page: questionPage.value, pageSize: 20, circleId };
     if (questionFilter.value) params.status = questionFilter.value;
     const res = await api.get("/question", { params });
     const d = res.data as any; questions.value = d?.questions || d?.data || []; questionTotal.value = d?.total || 0;
-  } catch { questions.value = []; } finally { questionLoading.value = false; }
+  } catch { questions.value = []; questionError.value = true; } finally { questionLoading.value = false; }
 }
+// 单条退款：调用 POST /question/:id/refund（仅 PENDING 可退，退还提问者灵石并流转 REFUNDED）
 async function refundQuestion(row: any) {
-  await ElMessageBox.confirm("确定退款该问题？费用将退回提问者账户", "确认", { type: "warning" });
-  try { await api.post("/question/admin/refund-expired"); ElMessage.success("已退款"); fetchQuestions(); } catch { /* ignore */ }
+  try {
+    await ElMessageBox.confirm(
+      `确定为该提问退款 ${row.priceCoin} 币给提问者「${row.asker?.nickname || row.askerId}」？退款后状态变为「已退款」。`,
+      "确认退款",
+      { type: "warning", confirmButtonText: "确定退款", cancelButtonText: "取消" },
+    );
+  } catch {
+    return; // 用户取消
+  }
+  if (acting.value) return;
+  acting.value = true;
+  try {
+    await api.post(`/question/${row.id}/refund`, {});
+    ElMessage.success("已退款");
+    fetchQuestions();
+  } catch {
+    /* 错误由拦截器统一提示 */
+  } finally {
+    acting.value = false;
+  }
 }
 
 // ─── 直播 ───
 async function fetchLives() {
-  liveLoading.value = true;
+  liveLoading.value = true; liveError.value = false;
   try {
     const params: any = { page: livePage.value, pageSize: 20, circleId };
     if (liveStatusFilter.value) params.status = liveStatusFilter.value;
     const res = await api.get("/live/rooms", { params });
     const d = res.data as any; lives.value = d?.lives || d?.data || []; liveTotal.value = d?.total || 0;
-  } catch { lives.value = []; } finally { liveLoading.value = false; }
+  } catch { lives.value = []; liveError.value = true; } finally { liveLoading.value = false; }
 }
 async function deleteLive(row: any) {
   await ElMessageBox.confirm("确定删除该直播？", "确认", { type: "warning" });
-  try { await api.delete(`/live/rooms/${row.id}`); ElMessage.success("已删除"); fetchLives(); } catch { /* ignore */ }
+  if (acting.value) return; acting.value = true;
+  try { await api.delete(`/live/rooms/${row.id}`); ElMessage.success("已删除"); fetchLives(); } catch { /* ignore */ } finally { acting.value = false; }
 }
 
 // ─── 达人 ───
 async function fetchExperts() {
-  expertLoading.value = true;
+  expertLoading.value = true; expertError.value = false;
   try {
     const { data } = await circleApi.listExperts(circleId);
     experts.value = (data as any)?.experts || (data as any)?.data || [];
-  } catch { experts.value = []; } finally { expertLoading.value = false; }
+  } catch { experts.value = []; expertError.value = true; } finally { expertLoading.value = false; }
 }
 async function updateExpertPrice(row: any, field: string, value: number) {
+  if (acting.value) return; acting.value = true;
   try {
     await circleApi.setExpertConfig(circleId, {
       userId: row.userId,
@@ -2093,23 +2367,23 @@ async function updateExpertPrice(row: any, field: string, value: number) {
       questionTimeoutHours: field === "timeout" ? value : row.questionTimeoutHours,
       callPricePerMinuteCoin: field === "call" ? value : row.callPricePerMinuteCoin,
     } as any);
-  } catch { /* ignore */ }
+  } catch { /* ignore */ } finally { acting.value = false; }
 }
 
 // ─── 收益 ───
 async function fetchRevenue() {
-  revenueLoading.value = true;
+  revenueLoading.value = true; revenueError.value = false;
   try {
     const params: any = { page: revenuePage.value, pageSize: 20, circleId };
     if (revenueTypeFilter.value) params.type = revenueTypeFilter.value;
     const res = await api.get(`/commission/circle-revenue/${circleId}/records`, { params });
     const d = res.data as any; revenues.value = d?.records || d?.data || []; revenueTotal.value = d?.total || 0;
-  } catch { revenues.value = []; } finally { revenueLoading.value = false; }
+  } catch { revenues.value = []; revenueError.value = true; } finally { revenueLoading.value = false; }
 }
 
 // ─── 知识库 ───
 async function fetchKnowledge() {
-  knowledgeLoading.value = true;
+  knowledgeLoading.value = true; knowledgeError.value = false;
   try {
     const [itemsRes, candRes] = await Promise.all([
       api.get(`/circles/${circleId}/knowledge`),
@@ -2117,21 +2391,25 @@ async function fetchKnowledge() {
     ]);
     knowledgeItems.value = (itemsRes.data as any)?.items || (itemsRes.data as any)?.data || [];
     knowledgeCandidates.value = (candRes.data as any)?.candidates || (candRes.data as any)?.data || [];
-  } catch { knowledgeItems.value = []; knowledgeCandidates.value = []; } finally { knowledgeLoading.value = false; }
+  } catch { knowledgeItems.value = []; knowledgeCandidates.value = []; knowledgeError.value = true; } finally { knowledgeLoading.value = false; }
 }
 async function fetchKnowledgeCandidates() { fetchKnowledge(); }
 async function syncCircleKnowledge() {
-  try { await knowledgeApi.syncCircle(circleId); ElMessage.success("同步已触发，稍后查看结果"); } catch { /* ignore */ }
+  if (acting.value) return; acting.value = true;
+  try { await knowledgeApi.syncCircle(circleId); ElMessage.success("同步已触发，稍后查看结果"); } catch { /* ignore */ } finally { acting.value = false; }
 }
 async function confirmKnowledge(row: any) {
-  try { await knowledgeApi.confirmCandidate(row.id); ElMessage.success("已入库"); fetchKnowledge(); } catch { /* ignore */ }
+  if (acting.value) return; acting.value = true;
+  try { await knowledgeApi.confirmCandidate(row.id); ElMessage.success("已入库"); fetchKnowledge(); } catch { /* ignore */ } finally { acting.value = false; }
 }
 async function rejectKnowledge(row: any) {
-  try { await knowledgeApi.rejectCandidate(row.id); ElMessage.success("已拒绝"); fetchKnowledge(); } catch { /* ignore */ }
+  if (acting.value) return; acting.value = true;
+  try { await knowledgeApi.rejectCandidate(row.id); ElMessage.success("已拒绝"); fetchKnowledge(); } catch { /* ignore */ } finally { acting.value = false; }
 }
 
 // ─── 排行 ───
 async function fetchRanking() {
+  rankingError.value = false;
   try {
     const [lbRes, hotRes] = await Promise.all([
       circleApi.getLeaderboard(circleId, { page: 1, pageSize: 20 }),
@@ -2139,7 +2417,7 @@ async function fetchRanking() {
     ]);
     leaderboard.value = (lbRes.data as any)?.items || (lbRes.data as any)?.data || [];
     hotContent.value = (hotRes.data as any)?.data || [];
-  } catch { leaderboard.value = []; hotContent.value = []; }
+  } catch { leaderboard.value = []; hotContent.value = []; rankingError.value = true; }
 }
 
 // ─── 添加到知识库 ───
@@ -2149,6 +2427,7 @@ function getAdminUserId(): string {
 }
 
 async function addPostToKnowledge(row: any) {
+  if (acting.value) return; acting.value = true;
   try {
     await knowledgeApi.addToKnowledge({
       circleId,
@@ -2157,10 +2436,11 @@ async function addPostToKnowledge(row: any) {
       targetId: row.id,
     })
     ElMessage.success(`帖子已添加到知识库候选`)
-  } catch { ElMessage.error('添加失败') }
+  } catch { ElMessage.error('添加失败') } finally { acting.value = false; }
 }
 
 async function addArticleToKnowledge(row: any) {
+  if (acting.value) return; acting.value = true;
   try {
     await knowledgeApi.addToKnowledge({
       circleId,
@@ -2169,10 +2449,11 @@ async function addArticleToKnowledge(row: any) {
       targetId: row.id,
     })
     ElMessage.success(`文章已添加到知识库候选`)
-  } catch { ElMessage.error('添加失败') }
+  } catch { ElMessage.error('添加失败') } finally { acting.value = false; }
 }
 
 async function addCourseToKnowledge(row: any) {
+  if (acting.value) return; acting.value = true;
   try {
     await knowledgeApi.addToKnowledge({
       circleId,
@@ -2181,12 +2462,12 @@ async function addCourseToKnowledge(row: any) {
       targetId: row.id,
     })
     ElMessage.success(`课程已添加到知识库候选`)
-  } catch { ElMessage.error('添加失败') }
+  } catch { ElMessage.error('添加失败') } finally { acting.value = false; }
 }
 
 // ─── 设置 ───
 async function saveSettings() {
-  saving.value = true;
+  if (saving.value) return; saving.value = true;
   try {
     await circleApi.update(circleId, {
       name: settingsForm.name, cover: settingsForm.cover, intro: settingsForm.intro,
@@ -2212,7 +2493,7 @@ function openEdit() {
   editVisible.value = true;
 }
 async function saveEdit() {
-  saving.value = true;
+  if (saving.value) return; saving.value = true;
   try {
     await circleApi.update(circleId, { ...editForm });
     ElMessage.success("已更新"); editVisible.value = false; refreshDetail();
@@ -2222,10 +2503,12 @@ async function saveEdit() {
 // ─── 封禁/解封 ───
 async function disableCircle() {
   await ElMessageBox.confirm("确定封禁该圈子？封禁后用户无法访问", "确认", { type: "warning" });
-  try { await circleApi.update(circleId, { status: "DISABLED" } as any); ElMessage.success("已封禁"); refreshDetail(); } catch { /* ignore */ }
+  if (acting.value) return; acting.value = true;
+  try { await circleApi.update(circleId, { status: "DISABLED" } as any); ElMessage.success("已封禁"); refreshDetail(); } catch { /* ignore */ } finally { acting.value = false; }
 }
 async function enableCircle() {
-  try { await circleApi.update(circleId, { status: "ACTIVE" } as any); ElMessage.success("已解封"); refreshDetail(); } catch { /* ignore */ }
+  if (acting.value) return; acting.value = true;
+  try { await circleApi.update(circleId, { status: "ACTIVE" } as any); ElMessage.success("已解封"); refreshDetail(); } catch { /* ignore */ } finally { acting.value = false; }
 }
 </script>
 
@@ -2236,13 +2519,13 @@ async function enableCircle() {
 .header-left h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .header-actions { display: flex; gap: 8px; }
 .stat-row { margin-bottom: 16px; }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 12px 8px; text-align: center; }
-.stat-card .value { display: block; font-size: 20px; font-weight: 700; color: #303133; }
-.stat-card .value.warn { color: #f56c6c; }
-.stat-card .label { display: block; font-size: 12px; color: #909399; margin-top: 2px; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 12px 8px; text-align: center; }
+.stat-card .value { display: block; font-size: 20px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .value.warn { color: var(--color-error); }
+.stat-card .label { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
 .main-tabs { margin-top: 0; }
 .toolbar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-.section-title { font-weight: 600; font-size: 14px; color: #303133; margin-bottom: 10px; }
-.text-muted { color: #909399; }
-.text-danger { color: #f56c6c; }
+.section-title { font-weight: 600; font-size: 14px; color: var(--color-text-title); margin-bottom: 10px; }
+.text-muted { color: var(--color-text-secondary); }
+.text-danger { color: var(--color-error); }
 </style>

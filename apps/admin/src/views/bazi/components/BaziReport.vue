@@ -168,7 +168,7 @@ const pillars = [
   max-width: 800px;
   margin: 0 auto;
   line-height: 2;
-  color: #333;
+  color: var(--color-text-title);
 }
 
 .report-title {
@@ -181,7 +181,7 @@ const pillars = [
 .report-section {
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px dashed #E8E0D5;
+  border-bottom: 1px dashed var(--color-border);
 }
 .report-section h3 {
   font-size: 16px;
@@ -203,17 +203,17 @@ const pillars = [
   min-width: 48px;
 }
 .pillar-main .gan { font-size: 28px; font-weight: bold; }
-.pillar-main .zhi { font-size: 18px; color: #666; margin-top: 4px; }
+.pillar-main .zhi { font-size: 18px; color: var(--color-text-body); margin-top: 4px; }
 .pillar-info { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
 .canggan { margin: 0 4px; }
 
 .dayun-list { display: flex; flex-direction: column; gap: 8px; }
-.dayun-row { padding: 8px; background: #faf8f5; border-radius: 6px; }
+.dayun-row { padding: 8px; background: var(--color-bg-page); border-radius: 6px; }
 .dayun-header { display: flex; gap: 12px; align-items: center; }
 .dayun-step { color: var(--color-text-secondary); font-size: 12px; }
 .dayun-ganzhi { font-size: 16px; font-weight: bold; }
 .dayun-shishen { color: #8b4513; font-size: 13px; }
-.dayun-age { color: #666; font-size: 13px; margin-left: auto; }
+.dayun-age { color: var(--color-text-body); font-size: 13px; margin-left: auto; }
 .liunian-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .liunian-year {
   display: inline-block;

@@ -5,28 +5,39 @@ import { systemApi } from "@/api";
 
 const jobs = ref<any[]>([]);
 const loading = ref(false);
+const loadError = ref(false);
+const triggering = ref(false);
 const status = ref<any>({});
 
 onMounted(() => fetchStatus());
 
 async function fetchStatus() {
   loading.value = true;
+  loadError.value = false;
   try {
     const { data } = await systemApi.getCronStatus();
     status.value = data ?? {};
     jobs.value = (data as any)?.jobs ?? [];
+  } catch {
+    loadError.value = true;
+    jobs.value = [];
+    ElMessage.error("加载失败，请重试");
   } finally {
     loading.value = false;
   }
 }
 
 async function triggerJob(jobName: string) {
+  if (triggering.value) return;
   try {
     await ElMessageBox.confirm(`确认手动触发 "${jobName}" 任务？`, "操作确认", { type: "warning" });
+    triggering.value = true;
     await systemApi.triggerCron(jobName);
     ElMessage.success(`任务 ${jobName} 已触发`);
     fetchStatus();
-  } catch { /* 用户取消 */ }
+  } catch { /* 用户取消 */ } finally {
+    triggering.value = false;
+  }
 }
 
 function getStatusTag(s: string) {
@@ -54,12 +65,31 @@ function formatLastRun(v: any) {
       </el-button>
     </div>
 
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败，请重试"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchStatus"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="jobs"
       border
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无定时任务" />
+      </template>
       <el-table-column
         prop="name"
         label="任务名称"
@@ -112,6 +142,7 @@ function formatLastRun(v: any) {
           <el-button
             size="small"
             type="primary"
+            :loading="triggering"
             @click="triggerJob(row.name)"
           >
             手动触发

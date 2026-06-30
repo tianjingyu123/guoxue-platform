@@ -17,17 +17,39 @@
             :value="t.value"
           />
         </el-select>
-        <el-button @click="seedDefaults">
+        <el-button
+          :loading="seeding"
+          @click="seedDefaults"
+        >
           初始化默认权重
         </el-button>
       </div>
     </div>
+
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
 
     <el-table
       v-loading="loading"
       :data="list"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无搜索权重配置" />
+      </template>
       <el-table-column
         label="实体类型"
         width="120"
@@ -80,6 +102,7 @@
           <el-button
             size="small"
             type="primary"
+            :loading="!!row._saving"
             @click="saveWeight(row)"
           >
             保存
@@ -162,6 +185,7 @@
           取消
         </el-button><el-button
           type="primary"
+          :loading="saving"
           @click="doAdd"
         >
           添加
@@ -191,7 +215,8 @@ const ENTITY_TYPES = [
 const ENTITY_LABELS: Record<string, string> = {}
 ENTITY_TYPES.forEach(t => { ENTITY_LABELS[t.value] = t.label })
 
-const loading = ref(false); const list = ref<any[]>([]); const filterType = ref('')
+const loading = ref(false); const loadError = ref(false); const list = ref<any[]>([]); const filterType = ref('')
+const saving = ref(false); const seeding = ref(false)
 const addVis = ref(false)
 const addForm = reactive({ entityType: 'article', fieldName: 'all', weight: 1.0 })
 
@@ -199,17 +224,20 @@ onMounted(() => fetchList())
 
 async function fetchList() {
   loading.value = true
+  loadError.value = false
   try {
     const { data } = await searchApi.getWeights(filterType.value || undefined)
     list.value = (data || []).map((r: any) => ({ ...r, weight: Number(r.weight) }))
-  } catch { list.value = [] } finally { loading.value = false }
+  } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
 async function saveWeight(row: any) {
+  if (row._saving) return
+  row._saving = true
   try {
     await searchApi.upsertWeight({ entityType: row.entityType, fieldName: row.fieldName, weight: Number(row.weight), enabled: row.enabled })
     ElMessage.success('已保存')
-  } catch { }
+  } catch { } finally { row._saving = false }
 }
 
 async function toggleWeight(row: any) {
@@ -221,11 +249,15 @@ async function del(id: string) {
 }
 
 async function seedDefaults() {
-  try { await searchApi.seedWeights(); ElMessage.success('已初始化默认权重'); fetchList() } catch { }
+  if (seeding.value) return
+  seeding.value = true
+  try { await searchApi.seedWeights(); ElMessage.success('已初始化默认权重'); fetchList() } catch { } finally { seeding.value = false }
 }
 
 async function doAdd() {
-  try { await searchApi.upsertWeight({ entityType: addForm.entityType, fieldName: addForm.fieldName, weight: addForm.weight }); ElMessage.success('已添加'); addVis.value = false; fetchList() } catch { }
+  if (saving.value) return
+  saving.value = true
+  try { await searchApi.upsertWeight({ entityType: addForm.entityType, fieldName: addForm.fieldName, weight: addForm.weight }); ElMessage.success('已添加'); addVis.value = false; fetchList() } catch { } finally { saving.value = false }
 }
 </script>
 

@@ -25,6 +25,7 @@ const inputCollapsed = ref(false)
 
 // ═══════════ 计算 ═══════════
 async function doCalc() {
+  if (loading.value) return // 防重复提交
   loading.value = true
   errorMsg.value = ''
   try {

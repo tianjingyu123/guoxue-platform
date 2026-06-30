@@ -107,11 +107,31 @@
       </el-form-item>
     </el-form>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      title="注解列表加载失败"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        type="primary"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无注解" />
+      </template>
       <el-table-column
         prop="title"
         label="标题"
@@ -324,7 +344,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
-const loading = ref(false); const saving = ref(false); const seeding = ref(false); const vectorizing = ref(false)
+const loading = ref(false); const error = ref(false); const saving = ref(false); const seeding = ref(false); const vectorizing = ref(false)
 const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
 const vis = ref(false); const editingId = ref('')
 const filter = reactive({ keyword: '', school: '', type: '', bookId: '' })
@@ -335,6 +355,7 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const params: any = { page: page.value, pageSize: 20 }
     if (filter.bookId) {
@@ -346,7 +367,7 @@ async function fetchList() {
       list.value = data.items || data.data || []
       total.value = data.total || 0
     }
-  } catch { list.value = [] } finally { loading.value = false }
+  } catch { error.value = true; list.value = []; total.value = 0 } finally { loading.value = false }
 }
 
 function search() { page.value = 1; fetchList() }

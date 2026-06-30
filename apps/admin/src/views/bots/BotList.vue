@@ -37,12 +37,33 @@
       </template>
     </PageHeader>
 
+    <!-- 错误态 -->
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="Bot 列表加载失败"
+      sub-title="无法获取数据，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       border
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无 Bot 数据" />
+      </template>
       <el-table-column
         prop="name"
         label="名称"
@@ -481,6 +502,7 @@ import { botApi, circleApi } from "@/api";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
+const loadError = ref(false);
 const typeFilter = ref("");
 
 // ---- 创建/编辑表单 ----
@@ -525,11 +547,15 @@ function typeLabel(t: string): string {
 
 async function fetchList() {
   loading.value = true;
+  loadError.value = false;
   try {
     const params: any = {};
     if (typeFilter.value) params.type = typeFilter.value;
     const { data } = await botApi.list(params);
     list.value = Array.isArray(data) ? data : [];
+  } catch {
+    loadError.value = true;
+    list.value = [];
   } finally {
     loading.value = false;
   }
@@ -684,8 +710,8 @@ async function handleBindCircle() {
 .section-title {
   margin: 20px 0 10px;
   font-size: 15px;
-  color: #333;
+  color: var(--color-text-title);
   padding-left: 8px;
-  border-left: 3px solid #409eff;
+  border-left: 3px solid var(--color-info);
 }
 </style>

@@ -4,11 +4,26 @@
       <h3>违规记录</h3>
     </div>
 
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="违规记录加载失败，请稍后重试"
+    >
+      <template #extra>
+        <el-button type="primary" @click="fetchList">重试</el-button>
+      </template>
+    </el-result>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无违规记录" />
+      </template>
       <el-table-column
         label="类型"
         width="100"
@@ -89,6 +104,7 @@
     </el-table>
 
     <el-pagination
+      v-if="!error"
       v-model:current-page="page"
       :total="total"
       :page-size="20"
@@ -140,6 +156,7 @@ const list = ref<any[]>([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
+const error = ref(false);
 const saving = ref(false);
 const appealDialog = ref(false);
 const appealId = ref("");
@@ -156,11 +173,14 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const res = await merchantBackendApi.listViolations({ page: page.value, pageSize: 20 });
     const data = (res as any).data ?? res;
     list.value = data.list || data.data || [];
     total.value = data.total || 0;
+  } catch (e: any) {
+    error.value = true;
   } finally { loading.value = false; }
 }
 

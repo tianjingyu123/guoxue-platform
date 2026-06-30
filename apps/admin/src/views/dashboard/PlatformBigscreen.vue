@@ -1,5 +1,8 @@
 <template>
-  <div class="bigscreen platform">
+  <div
+    v-loading="loading"
+    class="bigscreen platform"
+  >
     <header class="bs-header">
       <div class="bs-title">
         国学传统文化综合平台 · 实时数据大屏
@@ -9,7 +12,31 @@
       </div>
     </header>
 
-    <div class="bs-body">
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="数据加载失败"
+      sub-title="无法获取大屏数据，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="load"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <el-empty
+      v-else-if="!hasData"
+      description="暂无数据"
+    />
+
+    <div
+      v-else
+      class="bs-body"
+    >
       <!-- 核心数字 -->
       <div class="stat-grid">
         <div class="stat-card">
@@ -95,13 +122,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
 
 const route = useRoute();
 const data = ref<Record<string, any>>({});
 const nowStr = ref(new Date().toLocaleString("zh-CN"));
+const loading = ref(true);
+const loadError = ref(false);
+const hasData = computed(() => Object.keys(data.value || {}).length > 0);
 
 let timer: any = null;
 let clockTimer: any = null;
@@ -110,17 +140,34 @@ function fmt(v: any) {
   return v != null ? Number(v).toLocaleString() : "0";
 }
 
-async function fetchData() {
+// 首次加载/重试：展示 loading 与错误态
+async function load() {
+  loading.value = true;
+  loadError.value = false;
   try {
     const token = (route.query.token as string) || undefined;
     const { data: d } = await bigscreenApi.platform(token);
     data.value = d || {};
-  } catch { /* ignore */ }
+  } catch {
+    loadError.value = true;
+  } finally {
+    loading.value = false;
+  }
+}
+
+// 定时静默刷新：失败时保留上一次数据，不打断展示
+async function refresh() {
+  try {
+    const token = (route.query.token as string) || undefined;
+    const { data: d } = await bigscreenApi.platform(token);
+    data.value = d || {};
+    loadError.value = false;
+  } catch { /* 静默刷新失败：保留上一次数据 */ }
 }
 
 onMounted(() => {
-  fetchData();
-  timer = setInterval(fetchData, 30000);
+  load();
+  timer = setInterval(refresh, 30000);
   clockTimer = setInterval(() => {
     nowStr.value = new Date().toLocaleString("zh-CN");
   }, 1000);

@@ -1,5 +1,9 @@
 <template>
-  <div class="bigscreen offline">
+  <div
+    v-loading="loading"
+    class="bigscreen offline"
+    element-loading-background="rgba(13,26,18,0.6)"
+  >
     <header class="bs-header">
       <div class="bs-title">
         线下驿站分布数据大屏
@@ -9,7 +13,25 @@
       </div>
     </header>
 
-    <div class="bs-body">
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="数据加载失败"
+      sub-title="无法获取数据，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchData"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <div
+      v-else
+      class="bs-body">
       <!-- 核心指标 -->
       <div class="kpi-bar">
         <div class="kpi-item">
@@ -34,8 +56,14 @@
         <div class="bs-panel">
           <h3>🏙️ 城市驿站分布</h3>
           <div
+            v-if="data.cityDistribution?.length"
             ref="cityChartRef"
             style="height:320px"
+          />
+          <el-empty
+            v-else
+            description="暂无数据"
+            :image-size="60"
           />
         </div>
         <!-- 驿站列表 -->
@@ -82,6 +110,8 @@ import * as echarts from "echarts";
 const route = useRoute();
 const data = ref<Record<string, any>>({});
 const nowStr = ref(new Date().toLocaleString("zh-CN"));
+const loading = ref(true);
+const loadError = ref(false);
 
 const cityChartRef = ref<HTMLDivElement>();
 let cityChart: echarts.ECharts | null = null;
@@ -113,9 +143,14 @@ async function fetchData() {
     const token = (route.query.token as string) || undefined;
     const { data: d } = await bigscreenApi.offlineMap(token);
     data.value = d || {};
+    loadError.value = false;
     await nextTick();
     renderCityChart();
-  } catch { /* ignore */ }
+  } catch {
+    loadError.value = true;
+  } finally {
+    loading.value = false;
+  }
 }
 
 onMounted(() => {

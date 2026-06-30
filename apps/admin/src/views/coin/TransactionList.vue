@@ -8,6 +8,7 @@ const total = ref(0);
 const page = ref(1);
 const pageSize = ref(20);
 const loading = ref(false);
+const error = ref(false);
 const searchUserId = ref("");
 const filterType = ref("");
 
@@ -21,6 +22,7 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (searchUserId.value) params.userId = searchUserId.value;
@@ -29,6 +31,10 @@ async function fetchList() {
     const payload = data ?? {};
     list.value = payload.transactions ?? payload.data ?? [];
     total.value = payload.total ?? 0;
+  } catch {
+    list.value = [];
+    total.value = 0;
+    error.value = true;
   } finally {
     loading.value = false;
   }
@@ -86,17 +92,37 @@ function formatTime(v: any) {
       </el-button>
     </div>
 
-    <el-table
-      v-loading="loading"
-      :data="list"
-      border
-      stripe
-      style="margin-top:12px"
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="无法获取交易流水，请重试"
     >
-      <el-table-column
-        label="用户"
-        width="120"
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <template v-else>
+      <el-table
+        v-loading="loading"
+        :data="list"
+        border
+        stripe
+        style="margin-top:12px"
       >
+        <template #empty>
+          <el-empty description="暂无交易流水" />
+        </template>
+        <el-table-column
+          label="用户"
+          width="120"
+        >
         <template #default="{ row }">
           {{ row.user?.nickname || row.userId?.substring(0, 8) || '-' }}
         </template>
@@ -154,16 +180,17 @@ function formatTime(v: any) {
           {{ formatTime(row.createdAt) }}
         </template>
       </el-table-column>
-    </el-table>
+      </el-table>
 
-    <el-pagination
-      v-model:current-page="page"
-      v-model:page-size="pageSize"
-      :total="total"
-      layout="total, prev, pager, next"
-      style="margin-top:16px;justify-content:flex-end"
-      @change="fetchList"
-    />
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :total="total"
+        layout="total, prev, pager, next"
+        style="margin-top:16px;justify-content:flex-end"
+        @change="fetchList"
+      />
+    </template>
   </div>
 </template>
 

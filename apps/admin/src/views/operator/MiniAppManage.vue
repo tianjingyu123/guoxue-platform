@@ -50,6 +50,17 @@
           </el-button>
         </template>
       </el-table-column>
+      <template #empty>
+        <el-empty :description="loadError ? '加载失败' : '暂无小程序配置'">
+          <el-button
+            v-if="loadError"
+            type="primary"
+            @click="fetchList"
+          >
+            重试
+          </el-button>
+        </el-empty>
+      </template>
     </el-table>
 
     <el-pagination
@@ -120,6 +131,7 @@ interface MiniAppConfig {
 }
 
 const loading = ref(false);
+const loadError = ref(false);
 const list = ref<MiniAppConfig[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
@@ -136,11 +148,13 @@ const form = reactive({
 
 async function fetchList() {
   loading.value = true;
+  loadError.value = false;
   try {
     const res = await operatorAdminApi.listMiniApps({ page: page.value, pageSize: pageSize.value });
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
+    loadError.value = true;
     ElMessage.error("获取小程序配置列表失败");
   } finally {
     loading.value = false;

@@ -248,7 +248,7 @@ const xiongShen = shenSha.filter((s: { type: string }) => s.type === 'xiong')
 .geju-card { text-align: center; padding: 12px; }
 .geju-name { font-size: 20px; margin-bottom: 8px; }
 .geju-name strong { margin-left: 8px; }
-.geju-desc { color: #666; font-size: 14px; }
+.geju-desc { color: var(--color-text-body); font-size: 14px; }
 .tag {
   display: inline-block;
   padding: 2px 8px;
@@ -290,7 +290,7 @@ const xiongShen = shenSha.filter((s: { type: string }) => s.type === 'xiong')
   gap: 8px;
   margin-bottom: 6px;
 }
-.bar-label { width: 24px; font-size: 14px; color: #666; }
+.bar-label { width: 24px; font-size: 14px; color: var(--color-text-body); }
 .bar-track {
   flex: 1;
   height: 16px;
@@ -333,7 +333,7 @@ const xiongShen = shenSha.filter((s: { type: string }) => s.type === 'xiong')
   padding: 8px;
   margin-bottom: 6px;
   border-radius: 6px;
-  background: #fafafa;
+  background: var(--color-bg-page);
 }
 .shensha-col li strong { font-size: 14px; }
 .pillar-tag {
@@ -343,7 +343,7 @@ const xiongShen = shenSha.filter((s: { type: string }) => s.type === 'xiong')
   border-radius: 8px;
   font-size: 11px;
   background: #e0e0e0;
-  color: #666;
+  color: var(--color-text-body);
 }
 .shensha-col .desc { margin: 4px 0 0; font-size: 12px; color: var(--color-text-secondary); }
 </style>

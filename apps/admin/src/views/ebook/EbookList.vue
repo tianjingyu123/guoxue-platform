@@ -32,11 +32,31 @@
       </div>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      title="电子书列表加载失败"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        type="primary"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无电子书" />
+      </template>
       <el-table-column
         prop="title"
         label="书名"
@@ -396,6 +416,7 @@ const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const loading = ref(false)
+const error = ref(false)
 const saving = ref(false)
 const filterStatus = ref('')
 const categories = ref<any[]>([])
@@ -417,6 +438,7 @@ onMounted(() => { fetchList(); fetchCategories() })
 
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const params: any = { page: page.value, pageSize: 20 }
     if (filterStatus.value) params.status = filterStatus.value
@@ -424,6 +446,10 @@ async function fetchList() {
     const data = res.data as any
     list.value = data.list || data.items || []
     total.value = data.total || 0
+  } catch {
+    error.value = true
+    list.value = []
+    total.value = 0
   } finally { loading.value = false }
 }
 

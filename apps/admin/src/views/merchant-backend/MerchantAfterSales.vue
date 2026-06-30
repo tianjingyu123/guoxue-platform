@@ -17,7 +17,21 @@
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="售后列表加载失败，请稍后重试"
+    >
+      <template #extra>
+        <el-button type="primary" @click="fetchList">重试</el-button>
+      </template>
+    </el-result>
+
+    <el-table v-else v-loading="loading" :data="list" stripe>
+      <template #empty>
+        <el-empty description="暂无售后数据" />
+      </template>
       <el-table-column prop="id" label="售后单号" width="200" show-overflow-tooltip />
       <el-table-column prop="orderId" label="关联订单" width="200" show-overflow-tooltip />
       <el-table-column prop="buyerName" label="买家" width="100" />
@@ -44,14 +58,14 @@
       </el-table-column>
       <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
-          <el-button v-if="row.status === 'PENDING'" size="small" text type="success" @click="handleAction(row, 'APPROVED')">同意</el-button>
-          <el-button v-if="row.status === 'PENDING'" size="small" text type="danger" @click="handleAction(row, 'REJECTED')">拒绝</el-button>
+          <el-button v-if="row.status === 'PENDING'" size="small" text type="success" :disabled="submitting" @click="handleAction(row, 'approve')">同意</el-button>
+          <el-button v-if="row.status === 'PENDING'" size="small" text type="danger" :disabled="submitting" @click="handleAction(row, 'reject')">拒绝</el-button>
           <el-button size="small" text type="primary" @click="openDetail(row)">详情</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" style="margin-top:16px;justify-content:flex-end" @current-change="fetchList" />
+    <el-pagination v-if="!error" v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" style="margin-top:16px;justify-content:flex-end" @current-change="fetchList" />
 
     <el-dialog v-model="detailDialog" title="售后详情" width="550px">
       <el-descriptions v-if="current" :column="2" border size="small">
@@ -76,10 +90,12 @@ const list = ref<any[]>([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
+const error = ref(false);
 const filterStatus = ref("");
 const filterType = ref("");
 const detailDialog = ref(false);
 const current = ref<any>(null);
+const submitting = ref(false);
 
 function formatDate(d: string) {
   return d ? new Date(d).toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-";
@@ -89,6 +105,7 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const params: any = { page: page.value, pageSize: 20 };
     if (filterStatus.value) params.status = filterStatus.value;
@@ -97,19 +114,41 @@ async function fetchList() {
     const data = (res as any).data ?? res;
     list.value = data.list || data.data || [];
     total.value = data.total || 0;
+  } catch (e: any) {
+    error.value = true;
   } finally { loading.value = false; }
 }
 
 function openDetail(row: any) { current.value = row; detailDialog.value = true; }
 
-async function handleAction(row: any, action: string) {
-  const label = action === "APPROVED" ? "同意" : "拒绝";
+async function handleAction(row: any, action: "approve" | "reject") {
+  if (submitting.value) return; // 防重复提交
+  const label = action === "approve" ? "同意" : "拒绝";
+  let remark = "";
   try {
-    await ElMessageBox.confirm(`确认${label}该售后申请？`, "操作确认", { type: "warning" });
-    await (merchantBackendApi as any).handleAfterSale?.(row.id, { action });
+    if (action === "reject") {
+      const r = await ElMessageBox.prompt("请输入拒绝原因（选填）", "拒绝售后", {
+        inputType: "textarea",
+        inputPlaceholder: "拒绝原因",
+      });
+      remark = r.value || "";
+    } else {
+      await ElMessageBox.confirm(`确认${label}该售后申请？`, "操作确认", { type: "warning" });
+    }
+  } catch {
+    return; // 用户取消，不发请求
+  }
+  submitting.value = true;
+  try {
+    // 正确端点：PUT /merchant-backend/after-sales/:id/process，action 取 approve/reject/complete
+    await merchantBackendApi.processAfterSale(row.id, { action, remark });
     ElMessage.success(`${label}成功`);
     fetchList();
-  } catch { /* cancelled */ }
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || `${label}失败，请重试`);
+  } finally {
+    submitting.value = false;
+  }
 }
 </script>
 

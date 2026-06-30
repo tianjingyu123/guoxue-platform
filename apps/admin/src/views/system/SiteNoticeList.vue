@@ -5,6 +5,7 @@ import { api } from '@/api'
 
 const loading = ref(false)
 const saving = ref(false)
+const loadError = ref(false)
 const list = ref<any[]>([])
 const vis = ref(false)
 const editingId = ref('')
@@ -23,10 +24,11 @@ onMounted(() => fetchList())
 
 async function fetchList() {
   loading.value = true
+  loadError.value = false
   try {
     const { data } = await api.get(BASE)
     list.value = data?.items ?? data?.data ?? data ?? []
-  } catch { list.value = [] } finally { loading.value = false }
+  } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
 function openCreate() {
@@ -89,6 +91,22 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
         新建公告
       </el-button>
     </div>
+
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
 
     <el-table
       v-loading="loading"

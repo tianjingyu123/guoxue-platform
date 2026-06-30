@@ -7,8 +7,26 @@
       </el-button>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      title="加载租户详情失败"
+      class="error-bar"
+    >
+      <el-button
+        size="small"
+        @click="fetchTenant"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <!-- 基本信息 -->
-    <el-card class="info-card">
+    <el-card
+      v-loading="loading"
+      class="info-card"
+    >
       <template #header>
         <span>基本信息</span>
       </template>
@@ -20,7 +38,7 @@
           {{ tenant?.name }}
         </el-descriptions-item>
         <el-descriptions-item label="API Key">
-          {{ tenant?.apiKey }}
+          {{ maskKey(tenant?.apiKey) }}
         </el-descriptions-item>
         <el-descriptions-item label="套餐">
           <el-tag :type="planTag(tenant?.plan)">
@@ -47,57 +65,83 @@
       </el-descriptions>
     </el-card>
 
-    <!-- 使用记录 -->
+    <!-- 配额变更记录 -->
     <el-card class="section-card">
       <template #header>
-        <span>使用记录</span>
+        <span>配额变更记录（最近 20 条）</span>
       </template>
       <el-table
-        v-loading="usageLoading"
+        v-loading="loading"
         :data="usageList"
         border
         stripe
       >
         <el-table-column
-          prop="date"
-          label="日期"
+          prop="changeType"
+          label="变更类型"
           width="120"
-        />
+        >
+          <template #default="{ row }">
+            <el-tag>{{ changeTypeLabel(row.changeType) }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column
-          prop="apiCalls"
-          label="API调用次数"
-          width="130"
-        />
-        <el-table-column
-          prop="quotaConsumed"
-          label="配额消耗"
+          prop="changeAmount"
+          label="变更数量"
           width="110"
         />
         <el-table-column
-          prop="distinctUsers"
-          label="活跃用户数"
-          width="110"
+          prop="quotaBefore"
+          label="变更前"
+          width="100"
         />
         <el-table-column
-          prop="avgResponseTime"
-          label="平均响应(ms)"
-          width="130"
+          prop="quotaAfter"
+          label="变更后"
+          width="100"
+        />
+        <el-table-column
+          prop="amountRmb"
+          label="金额(¥)"
+          width="100"
+        />
+        <el-table-column
+          prop="remark"
+          label="备注"
+          min-width="160"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="createdAt"
+          label="时间"
+          width="170"
         />
       </el-table>
-      <el-pagination
-        v-model:current-page="usagePage"
-        v-model:page-size="usagePageSize"
-        :total="usageTotal"
-        layout="total, prev, pager, next"
-        small
-        @current-change="fetchUsage"
-      />
     </el-card>
 
     <!-- API调用日志 -->
     <el-card class="section-card">
       <template #header>
-        <span>API调用日志</span>
+        <div class="card-header">
+          <span>API调用日志</span>
+          <el-select
+            v-model="logStatus"
+            placeholder="全部状态"
+            clearable
+            size="small"
+            style="width: 160px"
+            @change="onLogFilter"
+          >
+            <el-option
+              label="成功"
+              value="SUCCESS"
+            />
+            <el-option
+              label="配额超限"
+              value="QUOTA_EXCEEDED"
+            />
+          </el-select>
+        </div>
       </template>
       <el-table
         v-loading="logLoading"
@@ -106,25 +150,42 @@
         stripe
       >
         <el-table-column
+          prop="apiType"
+          label="类型"
+          width="140"
+        />
+        <el-table-column
           prop="endpoint"
           label="接口"
           min-width="160"
+          show-overflow-tooltip
         />
         <el-table-column
-          prop="method"
-          label="方法"
-          width="80"
+          prop="cost"
+          label="配额消耗"
+          width="100"
         />
         <el-table-column
-          prop="statusCode"
-          label="状态码"
-          width="80"
+          prop="tokensUsed"
+          label="Token"
+          width="90"
         />
         <el-table-column
           prop="responseTime"
           label="响应时间(ms)"
-          width="130"
+          width="120"
         />
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="120"
+        >
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'SUCCESS' ? 'success' : 'danger'">
+              {{ row.status }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column
           prop="ip"
           label="IP"
@@ -135,13 +196,17 @@
           label="调用时间"
           width="170"
         />
+        <template #empty>
+          <el-empty description="暂无调用日志" />
+        </template>
       </el-table>
       <el-pagination
+        v-if="logTotal > logPageSize"
         v-model:current-page="logPage"
-        v-model:page-size="logPageSize"
+        :page-size="logPageSize"
         :total="logTotal"
         layout="total, prev, pager, next"
-        small
+        style="margin-top: 12px; justify-content: flex-end"
         @current-change="fetchLogs"
       />
     </el-card>
@@ -160,14 +225,22 @@ const tenantId = route.params.id as string;
 const tenant = ref<any>(null);
 const usageList = ref<any[]>([]);
 const logList = ref<any[]>([]);
-const usageLoading = ref(false);
+const loading = ref(false);
+const error = ref(false);
+
+// API 调用日志（独立分页端点 GET /admin/tenants/:id/logs）
 const logLoading = ref(false);
-const usagePage = ref(1);
-const usagePageSize = ref(10);
-const usageTotal = ref(0);
 const logPage = ref(1);
-const logPageSize = ref(10);
+const logPageSize = ref(20);
 const logTotal = ref(0);
+const logStatus = ref("");
+
+/** API Key 脱敏：仅显示前后 4 位 */
+function maskKey(key?: string) {
+  if (!key) return "-";
+  if (key.length <= 8) return "****";
+  return `${key.slice(0, 4)}****${key.slice(-4)}`;
+}
 
 function planTag(plan: string) {
   const map: Record<string, string> = { BASIC: "info", PRO: "warning", ENTERPRISE: "danger" };
@@ -184,44 +257,52 @@ function statusLabel(status: string) {
   return map[status] || status;
 }
 
+function changeTypeLabel(type: string) {
+  const map: Record<string, string> = { RECHARGE: "充值", CONSUME: "消耗", RESET: "重置" };
+  return map[type] || type;
+}
+
 async function fetchTenant() {
+  loading.value = true;
+  error.value = false;
   try {
+    // 详情接口内联 usageRecords（配额变更记录最近 20 条）；API 调用日志走独立分页端点
     const res = await tenantAdminApi.detail(tenantId);
     tenant.value = res.data;
+    usageList.value = res.data?.usageRecords ?? [];
   } catch {
-    ElMessage.error("获取租户信息失败");
-  }
-}
-
-async function fetchUsage() {
-  usageLoading.value = true;
-  try {
-    const res = await tenantAdminApi.getUsage(tenantId, { page: usagePage.value, pageSize: usagePageSize.value });
-    usageList.value = res.data.list || res.data.rows || [];
-    usageTotal.value = res.data.total || 0;
-  } catch {
-    ElMessage.error("获取使用记录失败");
+    error.value = true;
+    ElMessage.error("获取租户详情失败");
   } finally {
-    usageLoading.value = false;
+    loading.value = false;
   }
 }
 
+/** API 调用日志（分页 + 状态筛选） */
 async function fetchLogs() {
   logLoading.value = true;
   try {
-    const res = await tenantAdminApi.getLogs(tenantId, { page: logPage.value, pageSize: logPageSize.value });
-    logList.value = res.data.list || res.data.rows || [];
-    logTotal.value = res.data.total || 0;
+    // 后端 GET /admin/tenants/:id/logs 额外支持 status 查询参数（api 包装类型未声明，用 any 透传）
+    const params: any = { page: logPage.value, pageSize: logPageSize.value };
+    if (logStatus.value) params.status = logStatus.value;
+    const res = await tenantAdminApi.getLogs(tenantId, params);
+    logList.value = res.data?.logs ?? [];
+    logTotal.value = res.data?.total ?? 0;
   } catch {
-    ElMessage.error("获取API日志失败");
+    logList.value = [];
+    logTotal.value = 0;
   } finally {
     logLoading.value = false;
   }
 }
 
+function onLogFilter() {
+  logPage.value = 1;
+  fetchLogs();
+}
+
 onMounted(() => {
   fetchTenant();
-  fetchUsage();
   fetchLogs();
 });
 </script>
@@ -229,6 +310,8 @@ onMounted(() => {
 <style scoped>
 .page { padding: 20px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.error-bar { margin-bottom: 12px; }
 .info-card { margin-bottom: 20px; }
 .section-card { margin-bottom: 20px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; }
 </style>

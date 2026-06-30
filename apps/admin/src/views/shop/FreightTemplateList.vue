@@ -10,11 +10,33 @@
       </el-button>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button
+          link
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="templates"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无运费模板" />
+      </template>
       <el-table-column
         prop="name"
         label="模板名称"
@@ -138,6 +160,7 @@
         </el-button>
         <el-button
           type="primary"
+          :loading="saving"
           @click="handleSave"
         >
           保存
@@ -164,6 +187,9 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "@/api";
 
 const loading = ref(false);
+const error = ref(false);
+const saving = ref(false);
+const deleting = ref(false);
 const templates = ref<any[]>([]);
 const total = ref(0);
 const page = ref(1);
@@ -183,10 +209,15 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const { data } = await api.get("/shop/freight-templates", { params: { page: page.value, pageSize: pageSize.value } });
     templates.value = data?.items || data?.data || [];
     total.value = data?.total || 0;
+  } catch {
+    templates.value = [];
+    total.value = 0;
+    error.value = true;
   } finally {
     loading.value = false;
   }
@@ -209,6 +240,8 @@ async function handleSave() {
     ElMessage.warning("请输入模板名称");
     return;
   }
+  if (saving.value) return;
+  saving.value = true;
   try {
     const payload = {
       name: form.value.name, type: form.value.type,
@@ -225,16 +258,20 @@ async function handleSave() {
     fetchList();
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || "操作失败");
+  } finally {
+    saving.value = false;
   }
 }
 
 async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(`确定删除模板「${row.name}」吗？`, "删除确认", { type: "warning" });
+    if (deleting.value) return;
+    deleting.value = true;
     await api.delete(`/shop/freight-templates/${row.id}`);
     ElMessage.success("已删除");
     fetchList();
-  } catch { /* 取消 */ }
+  } catch { /* 取消 */ } finally { deleting.value = false; }
 }
 </script>
 

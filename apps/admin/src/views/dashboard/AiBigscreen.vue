@@ -1,5 +1,9 @@
 <template>
-  <div class="bigscreen ai">
+  <div
+    v-loading="loading"
+    class="bigscreen ai"
+    element-loading-background="rgba(17,11,26,0.6)"
+  >
     <header class="bs-header">
       <div class="bs-title">
         AI 能力数据大屏
@@ -9,7 +13,25 @@
       </div>
     </header>
 
-    <div class="bs-body">
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="数据加载失败"
+      sub-title="无法获取数据，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchData"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <div
+      v-else
+      class="bs-body">
       <!-- 核心指标 -->
       <div class="kpi-bar">
         <div class="kpi-item">
@@ -34,16 +56,28 @@
         <div class="bs-panel">
           <h3>🎯 场景调用分布</h3>
           <div
+            v-if="data.sceneDistribution?.length"
             ref="sceneChartRef"
             style="height:300px"
+          />
+          <el-empty
+            v-else
+            description="暂无数据"
+            :image-size="60"
           />
         </div>
         <!-- 模型分布 -->
         <div class="bs-panel">
           <h3>🤖 模型使用分布 (本月)</h3>
           <div
+            v-if="data.modelDistribution?.length"
             ref="modelChartRef"
             style="height:300px"
+          />
+          <el-empty
+            v-else
+            description="暂无数据"
+            :image-size="60"
           />
         </div>
       </div>
@@ -65,6 +99,8 @@ import * as echarts from "echarts";
 const route = useRoute();
 const data = ref<Record<string, any>>({});
 const nowStr = ref(new Date().toLocaleString("zh-CN"));
+const loading = ref(true);
+const loadError = ref(false);
 
 const sceneChartRef = ref<HTMLDivElement>();
 const modelChartRef = ref<HTMLDivElement>();
@@ -110,9 +146,14 @@ async function fetchData() {
     const token = (route.query.token as string) || undefined;
     const { data: d } = await bigscreenApi.aiCapability(token);
     data.value = d || {};
+    loadError.value = false;
     await nextTick();
     renderCharts();
-  } catch { /* ignore */ }
+  } catch {
+    loadError.value = true;
+  } finally {
+    loading.value = false;
+  }
 }
 
 onMounted(() => {

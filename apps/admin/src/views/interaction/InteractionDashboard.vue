@@ -10,8 +10,26 @@
       </el-button>
     </div>
 
+    <el-result
+      v-if="loadError && !loading"
+      icon="error"
+      title="加载失败"
+      sub-title="请检查网络后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="refresh"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <!-- 核心指标 -->
     <el-row
+      v-show="!loadError"
+      v-loading="loading"
       :gutter="16"
       style="margin-bottom:16px"
     >
@@ -61,6 +79,7 @@
 
     <!-- 互动趋势图 -->
     <el-row
+      v-show="!loadError"
       :gutter="16"
       style="margin-bottom:16px"
     >
@@ -81,6 +100,7 @@
             <span>热门内容排行</span>
           </template>
           <el-table
+            v-loading="loading"
             :data="topContent"
             stripe
             size="small"
@@ -116,6 +136,12 @@
               width="70"
               align="center"
             />
+            <template #empty>
+              <el-empty
+                description="暂无热门内容"
+                :image-size="80"
+              />
+            </template>
           </el-table>
         </el-card>
       </el-col>
@@ -180,6 +206,8 @@ const stats = reactive({
 
 const topContent = ref<any[]>([]);
 const trendChart = ref(null);
+const loading = ref(false);
+const loadError = ref(false);
 
 function typeLabel(t: string) {
   const m: Record<string, string> = { ARTICLE: "文章", COURSE: "课程", CIRCLE: "圈子", PRODUCT: "商品", CLASSIC: "古籍" };
@@ -189,6 +217,8 @@ function typeLabel(t: string) {
 onMounted(() => refresh());
 
 async function refresh() {
+  loading.value = true;
+  loadError.value = false;
   try {
     const [statsRes, trendsRes, topRes] = await Promise.all([
       interactionApi.getAdminStats(),
@@ -208,7 +238,11 @@ async function refresh() {
 
     const top = topRes.data as any[];
     if (top) topContent.value = top;
-  } catch { /* ignore */ }
+  } catch {
+    loadError.value = true;
+  } finally {
+    loading.value = false;
+  }
 }
 
 function renderTrendChart(trends: any[]) {
@@ -233,9 +267,9 @@ function renderTrendChart(trends: any[]) {
 .interaction-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-card { background: #f5f7fa; border-radius: 10px; padding: 18px 14px; text-align: center; border: 1px solid #ebeef5; }
-.stat-card .value { display: block; font-size: 28px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 13px; color: #909399; margin-top: 4px; }
-.stat-card .sub { display: block; font-size: 11px; color: #67c23a; margin-top: 2px; }
-.stat-card.warn .sub { color: #f56c6c; }
+.stat-card { background: var(--color-bg-page); border-radius: 10px; padding: 18px 14px; text-align: center; border: 1px solid var(--color-border); }
+.stat-card .value { display: block; font-size: 28px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
+.stat-card .sub { display: block; font-size: 11px; color: var(--color-success); margin-top: 2px; }
+.stat-card.warn .sub { color: var(--color-error); }
 </style>

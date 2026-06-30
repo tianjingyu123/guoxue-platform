@@ -140,6 +140,17 @@
             {{ fmtDate(row.createdAt) }}
           </template>
         </el-table-column>
+        <template #empty>
+          <el-empty :description="loadError ? '加载失败' : '暂无发送日志'">
+            <el-button
+              v-if="loadError"
+              type="primary"
+              @click="fetchLogs"
+            >
+              重试
+            </el-button>
+          </el-empty>
+        </template>
       </el-table>
       <el-pagination
         v-model:current-page="page"
@@ -159,6 +170,7 @@ import { ref, reactive, onMounted } from "vue";
 import { smsApi } from "@/api";
 
 const loading = ref(false);
+const loadError = ref(false);
 const logs = ref<any[]>([]);
 const total = ref(0);
 const page = ref(1);
@@ -198,12 +210,13 @@ async function refresh() {
 
 async function fetchLogs() {
   loading.value = true;
+  loadError.value = false;
   try {
     const { data } = await smsApi.getAdminLogs({ page: page.value, pageSize: pageSize.value, status: filterStatus.value || undefined });
     const d = data as any;
     logs.value = d?.logs || d?.data || [];
     total.value = d?.total || 0;
-  } catch { logs.value = []; } finally { loading.value = false; }
+  } catch { logs.value = []; loadError.value = true; } finally { loading.value = false; }
 }
 </script>
 
@@ -211,11 +224,11 @@ async function fetchLogs() {
 .sms-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-card .value { display: block; font-size: 26px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 13px; color: #909399; margin-top: 4px; }
-.stat-card.success .value { color: #67c23a; }
-.stat-card.warn .value { color: #f56c6c; }
-.text-muted { color: #909399; }
-.text-danger { color: #f56c6c; font-size: 13px; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-card .value { display: block; font-size: 26px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
+.stat-card.success .value { color: var(--color-success); }
+.stat-card.warn .value { color: var(--color-error); }
+.text-muted { color: var(--color-text-secondary); }
+.text-danger { color: var(--color-error); font-size: 13px; }
 </style>

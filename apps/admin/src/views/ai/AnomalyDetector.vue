@@ -20,6 +20,26 @@
       </div>
     </div>
 
+    <!-- 错误态 -->
+    <el-alert
+      v-if="loadErr"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败"
+      style="margin-bottom:16px"
+    >
+      <template #default>
+        <el-button
+          type="primary"
+          size="small"
+          @click="reload"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
+
     <!-- 异常报告概览 -->
     <el-row
       v-if="lastReports.length > 0"
@@ -63,6 +83,7 @@
       >
         <el-card>
           <el-table
+            v-loading="rulesLoading"
             :data="rules"
             stripe
             size="small"
@@ -144,6 +165,11 @@
               </template>
             </el-table-column>
           </el-table>
+          <el-empty
+            v-if="!rulesLoading && rules.length === 0"
+            description="暂无检测规则"
+            :image-size="60"
+          />
         </el-card>
       </el-tab-pane>
 
@@ -219,7 +245,7 @@
               align="center"
             >
               <template #default="{ row }">
-                <span :style="{color: row.deviation > 3 ? '#f56c6c' : row.deviation > 2 ? '#e6a23c' : '#409eff', fontWeight:600}">
+                <span :style="{color: row.deviation > 3 ? 'var(--color-error)' : row.deviation > 2 ? 'var(--color-warning)' : 'var(--color-info)', fontWeight:600}">
                   {{ row.deviation }}σ
                 </span>
               </template>
@@ -276,6 +302,8 @@ const aiReport = ref('')
 const checking = ref(false)
 const checkingRule = ref('')
 const reportLoading = ref(false)
+const rulesLoading = ref(false)
+const loadErr = ref(false)
 const filterSeverity = ref('')
 
 const severityStats = computed(() => [
@@ -285,7 +313,9 @@ const severityStats = computed(() => [
   { key: '', label: '合计', count: lastReports.value.length, cls: 'info' },
 ])
 
-onMounted(() => { fetchRules(); fetchReports() })
+function reload() { loadErr.value = false; fetchRules(); fetchReports() }
+
+onMounted(() => reload())
 
 function dimLabel(d: string) { const m: Record<string,string> = { revenue:'营收', user:'用户', content:'内容', performance:'性能' }; return m[d] || d }
 function sevLabel(s: string) { const m: Record<string,string> = { critical:'严重', warning:'需关注', info:'提示' }; return m[s] || s }
@@ -294,10 +324,12 @@ function formatNum(n: number) { return typeof n === 'number' ? (Number.isInteger
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchRules() {
+  rulesLoading.value = true
   try {
     const res = await aiAnomalyApi.getRules()
     rules.value = res.data || []
-  } catch { /* ignore */ }
+  } catch { loadErr.value = true }
+  finally { rulesLoading.value = false }
 }
 
 async function fetchReports() {
@@ -310,7 +342,7 @@ async function fetchReports() {
     } else {
       reports.value = all
     }
-  } catch { /* ignore */ }
+  } catch { loadErr.value = true }
   finally { reportLoading.value = false }
 }
 
@@ -361,11 +393,11 @@ async function toggleRule(rule: any) {
 
 <style scoped>
 .toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:8px }
-.stat-card { background:#f5f7fa; border-radius:8px; padding:16px; text-align:center; transition: all 0.2s }
+.stat-card { background:var(--color-bg-page); border-radius:8px; padding:16px; text-align:center; transition: all 0.2s }
 .stat-card:hover { transform: translateY(-2px); box-shadow: 0 2px 8px rgba(0,0,0,0.08) }
 .stat-card.danger { background:#fef0f0; border:1px solid #fde2e2 }
 .stat-card.warn { background:#fdf6ec; border:1px solid #faecd8 }
 .stat-card.info { background:#ecf5ff; border:1px solid #d9ecff }
 .stat-card .value { display:block; font-size:28px; font-weight:700; line-height:1.2 }
-.stat-card .label { display:block; font-size:12px; color:#909399; margin-top:4px }
+.stat-card .label { display:block; font-size:12px; color:var(--color-text-secondary); margin-top:4px }
 </style>

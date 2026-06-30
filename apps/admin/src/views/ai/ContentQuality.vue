@@ -221,10 +221,17 @@
           <el-col :span="12">
             <el-card>
               <template #header>
-                <span>采纳率趋势（近30天）</span>
+                <span>AI内容质量四维评分（综合）</span>
               </template>
               <div
-                ref="acceptTrendRef"
+                v-if="qualityStats.total > 0"
+                ref="qualityDimRef"
+                style="height:300px"
+              />
+              <el-empty
+                v-else
+                description="暂无质量评分数据（需先对AI内容运行质量评分）"
+                :image-size="80"
                 style="height:300px"
               />
             </el-card>
@@ -232,10 +239,17 @@
           <el-col :span="12">
             <el-card>
               <template #header>
-                <span>各品类质量分</span>
+                <span>质量评分趋势（近30天 · 每日综合评分均值）</span>
               </template>
               <div
-                ref="categoryQualityRef"
+                v-if="trend.total > 0"
+                ref="trendRef"
+                style="height:300px"
+              />
+              <el-empty
+                v-else
+                description="近30天暂无质量评分记录（需先对AI内容运行质量评分）"
+                :image-size="80"
                 style="height:300px"
               />
             </el-card>
@@ -379,7 +393,7 @@
         <h2 style="margin-bottom:8px">
           {{ previewTarget.title }}
         </h2>
-        <p style="color:#909399;font-size:13px;margin-bottom:16px">
+        <p style="color:var(--color-text-secondary);font-size:13px;margin-bottom:16px">
           {{ previewTarget.categoryLevel1 }}{{ previewTarget.categoryLevel2 ? ' / ' + previewTarget.categoryLevel2 : '' }}
           · {{ (previewTarget.body || previewTarget.content || '').length }}字
         </p>
@@ -403,6 +417,8 @@ const activeTab = ref("pending");
 const loading = ref(false);
 
 const stats = reactive({ totalAiContent: 0, publishedCount: 0, draftCount: 0, acceptanceRate: 0, rejectedCount: 0 });
+// 真实质量评分统计（来自 GET /ai/quality/stats，四维 0-100 分）
+const qualityStats = reactive({ avgOverall: 0, avgAccuracy: 0, avgCompleteness: 0, avgReadability: 0, avgProfessionalism: 0, total: 0 });
 const pendingList = ref<any[]>([]);
 const feedbackList = ref<any[]>([]);
 const categories = ref<string[]>([]);
@@ -416,15 +432,17 @@ const rateForm = reactive({ score: 3, accuracy: 3, fluency: 3, richness: 3, feed
 const previewVisible = ref(false);
 const previewTarget = ref<any>(null);
 
-const acceptTrendRef = ref<HTMLElement | null>(null);
-const categoryQualityRef = ref<HTMLElement | null>(null);
+const qualityDimRef = ref<HTMLElement | null>(null);
+const trendRef = ref<HTMLElement | null>(null);
+// 近30天质量评分时序（来自 GET /ai/quality/trend）
+const trend = reactive<{ items: Array<{ date: string; avgOverall: number; count: number }>; total: number }>({ items: [], total: 0 });
 
 const AI_TAGS = ["基础知识库", "经典精华库", "玩法教程库", "AI生成", "AI互动"];
 
 const avgQualityScore = computed(() => {
-  const scored = pendingList.value.filter((c: any) => c._score > 0);
-  if (scored.length === 0) return "N/A";
-  return (scored.reduce((s: number, c: any) => s + c._score, 0) / scored.length).toFixed(1);
+  // 优先使用后端真实四维评分的综合分（0-100）
+  if (qualityStats.total > 0) return (qualityStats.avgOverall || 0).toFixed(1);
+  return "N/A";
 });
 
 function fmt(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
@@ -437,7 +455,23 @@ function getAiTags(row: any): string[] {
 onMounted(() => refresh());
 
 async function refresh() {
-  await Promise.all([fetchPending(), loadFeedback(), loadCategories()]);
+  await Promise.all([fetchPending(), loadFeedback(), loadCategories(), loadQualityStats(), loadTrend()]);
+}
+
+async function loadQualityStats() {
+  try {
+    const { data } = await api.get("/ai/quality/stats");
+    if (data) Object.assign(qualityStats, data);
+  } catch { /* ignore */ }
+}
+
+async function loadTrend() {
+  try {
+    const { data } = await api.get("/ai/quality/trend", { params: { days: 30 } });
+    const d = data as any;
+    trend.items = Array.isArray(d?.items) ? d.items : [];
+    trend.total = d?.total || 0;
+  } catch { /* ignore */ }
 }
 
 async function fetchPending() {
@@ -546,38 +580,58 @@ function onTabChange(tab: string) {
 }
 
 function renderTrend() {
-  if (acceptTrendRef.value) {
-    const chart = echarts.init(acceptTrendRef.value);
-    const dates: string[] = [];
-    const rates: number[] = [];
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i);
-      dates.push(`${d.getMonth() + 1}/${d.getDate()}`);
-      rates.push(Math.floor(Math.random() * 30) + 60);
-    }
+  // 真实四维质量评分柱状图（数据源：GET /ai/quality/stats，0-100 分）
+  if (qualityStats.total > 0 && qualityDimRef.value) {
+    const chart = echarts.init(qualityDimRef.value);
     chart.setOption({
       tooltip: { trigger: "axis" },
-      grid: { left: 50, right: 20, top: 10, bottom: 30 },
-      xAxis: { type: "category", data: dates, axisLabel: { fontSize: 10, interval: 4 } },
-      yAxis: { type: "value", min: 0, max: 100, axisLabel: { formatter: "{value}%" } },
+      grid: { left: 70, right: 40, top: 10, bottom: 20 },
+      xAxis: { type: "value", min: 0, max: 100, axisLabel: { formatter: "{value}" } },
+      yAxis: { type: "category", data: ["准确性", "完整性", "可读性", "专业性", "综合"] },
       series: [{
-        type: "line", data: rates, smooth: true, areaStyle: { color: "rgba(103,194,58,0.2)" },
-        itemStyle: { color: "#67c23a" }, markLine: { data: [{ type: "average", name: "均值" }] },
+        type: "bar",
+        data: [
+          qualityStats.avgAccuracy,
+          qualityStats.avgCompleteness,
+          qualityStats.avgReadability,
+          qualityStats.avgProfessionalism,
+          qualityStats.avgOverall,
+        ],
+        itemStyle: { color: "#409eff" }, barMaxWidth: 20,
+        label: { show: true, position: "right", formatter: "{c}分" },
       }],
     });
   }
 
-  if (categoryQualityRef.value) {
-    const chart = echarts.init(categoryQualityRef.value);
+  // 近30天质量评分趋势折线（数据源：GET /ai/quality/trend，每日综合评分均值 0-100）
+  if (trend.total > 0 && trendRef.value) {
+    // 构建完整30天坐标轴，缺数据日置 null（connectNulls 连接断点）
+    const byDate = new Map(trend.items.map((i) => [i.date, i.avgOverall]));
+    const days: string[] = [];
+    const values: (number | null)[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 29; i >= 0; i--) {
+      const dt = new Date(today);
+      dt.setDate(today.getDate() - i);
+      const key = dt.toISOString().slice(0, 10);
+      days.push(key.slice(5)); // MM-DD
+      values.push(byDate.has(key) ? byDate.get(key)! : null);
+    }
+    const chart = echarts.init(trendRef.value);
     chart.setOption({
-      tooltip: { trigger: "axis" },
-      grid: { left: 100, right: 30, top: 10, bottom: 20 },
-      xAxis: { type: "value", min: 0, max: 5, axisLabel: { formatter: "{value}分" } },
-      yAxis: { type: "category", data: categories.value.slice(0, 10) },
+      tooltip: { trigger: "axis", valueFormatter: (v: any) => (v == null ? "无数据" : `${v}分`) },
+      grid: { left: 45, right: 20, top: 20, bottom: 40 },
+      xAxis: { type: "category", data: days, axisLabel: { interval: 4, rotate: 0 } },
+      yAxis: { type: "value", min: 0, max: 100, name: "评分" },
       series: [{
-        type: "bar", data: categories.value.slice(0, 10).map(() => +(Math.random() * 2 + 3).toFixed(1)),
-        itemStyle: { color: "#409eff" }, barMaxWidth: 20,
-        label: { show: true, position: "right", formatter: "{c}分" },
+        type: "line",
+        data: values,
+        smooth: true,
+        connectNulls: true,
+        showSymbol: true,
+        itemStyle: { color: "#67c23a" },
+        areaStyle: { color: "rgba(103,194,58,0.12)" },
       }],
     });
   }
@@ -588,10 +642,10 @@ function renderTrend() {
 .quality-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 14px; text-align: center; }
-.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 12px; color: #909399; margin-top: 2px; }
-.stat-card.warn .value { color: #e6a23c; }
-.stat-card.info .value { color: #409eff; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 14px; text-align: center; }
+.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.stat-card.warn .value { color: var(--color-warning); }
+.stat-card.info .value { color: var(--color-info); }
 .content-body { line-height: 1.8; color: #444; font-size: 14px; }
 </style>

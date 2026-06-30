@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { competitionApi } from "@/api";
@@ -39,8 +39,18 @@ const columns = [
   { prop: "createdAt", label: "创建时间", width: 160, slot: "createdAt" },
 ];
 
+const error = ref(false);
+
 const { loading, tableData, pagination, filters, fetchList, handleSearch, handleReset } = useTable({
-  fetchApi: competitionApi.list,
+  fetchApi: async (params: any) => {
+    error.value = false;
+    try {
+      return await competitionApi.list(params);
+    } catch (e) {
+      error.value = true;
+      throw e;
+    }
+  },
   defaultPageSize: 20,
   transformResponse: (data: any) => ({
     items: data.data || [],
@@ -62,38 +72,60 @@ function formatPrize(v: number) {
   return v >= 100 ? "¥" + (v / 100).toFixed(0) : v + "分";
 }
 
+const actingId = ref<string | null>(null);
+
 async function handleDelete(id: string) {
+  if (actingId.value) return;
   try {
     await ElMessageBox.confirm("确定删除该赛事？仅草稿状态可删除。", "提示", { type: "warning" });
+    actingId.value = id;
     await competitionApi.delete(id);
     ElMessage.success("已删除");
     fetchList();
-  } catch { /* cancelled */ }
+  } catch (e) {
+    if (e !== "cancel" && e !== "close") ElMessage.error("删除失败");
+  } finally {
+    actingId.value = null;
+  }
 }
 
 async function handlePublish(id: string) {
+  if (actingId.value) return;
+  actingId.value = id;
   try {
     await competitionApi.publish(id);
     ElMessage.success("赛事已发布");
     fetchList();
-  } catch { /* */ }
+  } catch { /* 接口拦截器已提示 */ } finally {
+    actingId.value = null;
+  }
 }
 
 async function handleStart(id: string) {
+  if (actingId.value) return;
+  actingId.value = id;
   try {
     await competitionApi.start(id);
     ElMessage.success("赛事已开始");
     fetchList();
-  } catch { /* */ }
+  } catch { /* 接口拦截器已提示 */ } finally {
+    actingId.value = null;
+  }
 }
 
 async function handleFinish(id: string) {
+  if (actingId.value) return;
   try {
     await ElMessageBox.confirm("确定结束该赛事？结束后不可恢复。", "提示", { type: "warning" });
+    actingId.value = id;
     await competitionApi.finish(id);
     ElMessage.success("赛事已结束");
     fetchList();
-  } catch { /* */ }
+  } catch (e) {
+    if (e !== "cancel" && e !== "close") ElMessage.error("操作失败");
+  } finally {
+    actingId.value = null;
+  }
 }
 
 function exportData() {
@@ -118,7 +150,24 @@ function exportData() {
 
 <template>
   <div class="competition-list">
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="无法获取赛事列表，请重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <DataTable
+      v-else
       v-model:page="pagination.page"
       v-model:page-size="pagination.pageSize"
       :columns="columns"
@@ -280,6 +329,7 @@ function exportData() {
           v-if="row.status === 'DRAFT'"
           size="small"
           type="success"
+          :loading="actingId === row.id"
           @click="handlePublish(row.id)"
         >
           发布
@@ -288,6 +338,7 @@ function exportData() {
           v-if="row.status === 'PUBLISHED'"
           size="small"
           type="warning"
+          :loading="actingId === row.id"
           @click="handleStart(row.id)"
         >
           开始
@@ -296,6 +347,7 @@ function exportData() {
           v-if="row.status === 'IN_PROGRESS'"
           size="small"
           type="danger"
+          :loading="actingId === row.id"
           @click="handleFinish(row.id)"
         >
           结束
@@ -304,6 +356,7 @@ function exportData() {
           v-if="row.status === 'DRAFT'"
           size="small"
           type="danger"
+          :loading="actingId === row.id"
           @click="handleDelete(row.id)"
         >
           删除

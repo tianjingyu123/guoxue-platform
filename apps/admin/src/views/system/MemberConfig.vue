@@ -5,6 +5,7 @@ import { api } from '@/api'
 
 const loading = ref(false)
 const saving = ref(false)
+const loadError = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -39,11 +40,12 @@ const sortedList = computed(() => {
 
 async function fetchList() {
   loading.value = true
+  loadError.value = false
   try {
     const { data } = await api.get(BASE, { params: { page: page.value, pageSize: 20 } })
     list.value = Array.isArray(data) ? data : (data?.data ?? data?.memberConfigs ?? [])
     total.value = data?.total || 0
-  } catch { list.value = [] } finally { loading.value = false }
+  } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
 function openCreate() {
@@ -101,6 +103,22 @@ async function del(id: string) {
         添加等级
       </el-button>
     </div>
+
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
 
     <el-table
       v-loading="loading"

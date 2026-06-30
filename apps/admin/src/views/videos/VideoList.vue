@@ -16,15 +16,19 @@
             />
             <el-option
               label="待审核"
-              value="PENDING"
+              value="AUDITING"
             />
             <el-option
               label="已发布"
               value="PUBLISHED"
             />
             <el-option
+              label="已驳回"
+              value="REJECTED"
+            />
+            <el-option
               label="已下架"
-              value="REMOVED"
+              value="HIDDEN"
             />
           </el-select>
           <el-button
@@ -37,12 +41,33 @@
       </template>
     </PageHeader>
 
+    <!-- 错误态 -->
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="视频列表加载失败"
+      sub-title="无法获取数据，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       border
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无视频数据" />
+      </template>
       <el-table-column
         prop="title"
         label="标题"
@@ -65,10 +90,10 @@
       >
         <template #default="{ row }">
           <el-tag
-            :type="row.status === 'PUBLISHED' ? 'success' : row.status === 'PENDING' ? 'warning' : 'info'"
+            :type="statusType(row.status)"
             size="small"
           >
-            {{ row.status === 'PUBLISHED' ? '已发布' : row.status === 'PENDING' ? '待审核' : row.status === 'REMOVED' ? '已下架' : row.status }}
+            {{ statusLabel(row.status) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -88,10 +113,28 @@
       </el-table-column>
       <el-table-column
         label="操作"
-        width="220"
+        width="340"
         fixed="right"
       >
         <template #default="{ row }">
+          <el-button
+            v-if="row.status !== 'PUBLISHED'"
+            size="small"
+            type="success"
+            :loading="auditingId === row.id"
+            @click="approve(row)"
+          >
+            通过
+          </el-button>
+          <el-button
+            v-if="row.status !== 'REJECTED'"
+            size="small"
+            type="warning"
+            :loading="auditingId === row.id"
+            @click="reject(row)"
+          >
+            驳回
+          </el-button>
           <el-button
             size="small"
             @click="viewDetail(row)"
@@ -137,7 +180,10 @@
         <p v-if="detail.description">
           <b>描述：</b>{{ detail.description }}
         </p>
-        <p><b>状态：</b>{{ detail.status }}</p>
+        <p><b>状态：</b>{{ statusLabel(detail.status) }}</p>
+        <p v-if="detail.status === 'REJECTED' && detail.auditReason">
+          <b>驳回原因：</b>{{ detail.auditReason }}
+        </p>
       </div>
     </el-dialog>
 
@@ -215,13 +261,30 @@
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
-import { videoApi } from "@/api";
+import { videoApi, api } from "@/api";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
+const loadError = ref(false);
 const statusFilter = ref("");
 const detailVisible = ref(false);
 const detail = ref<any>(null);
+const auditingId = ref("");
+
+const STATUS_MAP: Record<string, { label: string; type: "success" | "warning" | "danger" | "info" }> = {
+  PUBLISHED: { label: "已发布", type: "success" },
+  AUDITING: { label: "待审核", type: "warning" },
+  REJECTED: { label: "已驳回", type: "danger" },
+  HIDDEN: { label: "已下架", type: "info" },
+  PROCESSING: { label: "处理中", type: "info" },
+};
+
+function statusLabel(s: string) {
+  return STATUS_MAP[s]?.label ?? s;
+}
+function statusType(s: string) {
+  return STATUS_MAP[s]?.type ?? "info";
+}
 
 // 创建/编辑弹窗
 const dialogVisible = ref(false);
@@ -240,11 +303,15 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  loadError.value = false;
   try {
     const params: any = { pageSize: 100 };
     if (statusFilter.value) params.status = statusFilter.value;
     const { data } = await videoApi.list(params);
     list.value = data.videos || data || [];
+  } catch {
+    loadError.value = true;
+    list.value = [];
   } finally { loading.value = false; }
 }
 
@@ -300,6 +367,47 @@ async function viewDetail(row: any) {
   } catch { /* */ }
 }
 
+async function approve(row: any) {
+  if (auditingId.value) return;
+  try {
+    await ElMessageBox.confirm(`确定通过视频「${row.title || row.id}」？通过后将公开发布。`, "审核通过", { type: "success" });
+  } catch { return; }
+  auditingId.value = row.id;
+  try {
+    await api.put(`/videos/admin/${row.id}/audit`, { action: "approve" });
+    ElMessage.success("已通过");
+    fetchList();
+  } catch {
+    ElMessage.error("操作失败，请重试");
+  } finally {
+    auditingId.value = "";
+  }
+}
+
+async function reject(row: any) {
+  if (auditingId.value) return;
+  let reason = "";
+  try {
+    const { value } = await ElMessageBox.prompt("请输入驳回原因（将告知作者）", "驳回视频", {
+      type: "warning",
+      inputType: "textarea",
+      inputPlaceholder: "如：内容违规 / 画质不达标 / 涉及敏感信息",
+      inputValidator: (v: string) => (v && v.trim() ? true : "请填写驳回原因"),
+    });
+    reason = (value || "").trim();
+  } catch { return; }
+  auditingId.value = row.id;
+  try {
+    await api.put(`/videos/admin/${row.id}/audit`, { action: "reject", reason });
+    ElMessage.success("已驳回");
+    fetchList();
+  } catch {
+    ElMessage.error("操作失败，请重试");
+  } finally {
+    auditingId.value = "";
+  }
+}
+
 function del(id: string) {
   ElMessageBox.confirm("确定删除？", "警告", { type: "warning" }).then(async () => {
     await videoApi.remove(id);
@@ -311,5 +419,5 @@ function del(id: string) {
 
 <style scoped>
 .page { padding: 0; }
-.detail p { margin: 6px 0; font-size: 14px; color: #333; }
+.detail p { margin: 6px 0; font-size: 14px; color: var(--color-text-title); }
 </style>

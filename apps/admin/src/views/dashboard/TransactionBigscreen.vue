@@ -1,5 +1,8 @@
 <template>
-  <div class="bigscreen transaction">
+  <div
+    v-loading="loading"
+    class="bigscreen transaction"
+  >
     <header class="bs-header">
       <div class="bs-title">
         实时交易数据大屏
@@ -9,7 +12,26 @@
       </div>
     </header>
 
-    <div class="bs-body">
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="数据加载失败"
+      sub-title="无法获取交易数据，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="load"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <div
+      v-else
+      class="bs-body"
+    >
       <!-- 指标栏 -->
       <div class="kpi-bar">
         <div class="kpi-item">
@@ -28,8 +50,14 @@
         <div class="bs-panel">
           <h3>📊 今日品类交易占比</h3>
           <div
+            v-show="data.typeBreakdown?.length"
             ref="pieChartRef"
             style="height:300px"
+          />
+          <el-empty
+            v-if="!(data.typeBreakdown?.length)"
+            description="暂无品类数据"
+            :image-size="60"
           />
         </div>
         <!-- 最近订单滚动 -->
@@ -77,6 +105,8 @@ import * as echarts from "echarts";
 const route = useRoute();
 const data = ref<Record<string, any>>({});
 const nowStr = ref(new Date().toLocaleString("zh-CN"));
+const loading = ref(true);
+const loadError = ref(false);
 
 const pieChartRef = ref<HTMLDivElement>();
 let pieChart: echarts.ECharts | null = null;
@@ -109,19 +139,38 @@ function renderPie() {
   }, true);
 }
 
-async function fetchData() {
+// 首次加载/重试：展示 loading 与错误态
+async function load() {
+  loading.value = true;
+  loadError.value = false;
   try {
     const token = (route.query.token as string) || undefined;
     const { data: d } = await bigscreenApi.transactions(token);
     data.value = d || {};
     await nextTick();
     renderPie();
-  } catch { /* ignore */ }
+  } catch {
+    loadError.value = true;
+  } finally {
+    loading.value = false;
+  }
+}
+
+// 定时静默刷新：失败时保留上一次数据，不打断展示
+async function refresh() {
+  try {
+    const token = (route.query.token as string) || undefined;
+    const { data: d } = await bigscreenApi.transactions(token);
+    data.value = d || {};
+    loadError.value = false;
+    await nextTick();
+    renderPie();
+  } catch { /* 静默刷新失败：保留上一次数据 */ }
 }
 
 onMounted(() => {
-  fetchData();
-  timer = setInterval(fetchData, 15000);
+  load();
+  timer = setInterval(refresh, 15000);
   clockTimer = setInterval(() => { nowStr.value = new Date().toLocaleString("zh-CN"); }, 1000);
 });
 

@@ -54,11 +54,34 @@
         label="支付配置"
         name="config"
       >
+        <el-result
+          v-if="loadError && !loading"
+          icon="error"
+          title="加载失败"
+          sub-title="支付配置加载失败，请检查网络后重试"
+        >
+          <template #extra>
+            <el-button
+              type="primary"
+              @click="refreshAll"
+            >
+              重试
+            </el-button>
+          </template>
+        </el-result>
         <el-table
+          v-show="!loadError"
+          v-loading="loading"
           :data="configList"
           stripe
           size="small"
         >
+          <template #empty>
+            <el-empty
+              description="暂无支付配置"
+              :image-size="80"
+            />
+          </template>
           <el-table-column
             label="配置项"
             prop="key"
@@ -79,6 +102,7 @@
                   size="small"
                   type="primary"
                   style="margin-left:8px"
+                  :loading="configSaving"
                   @click="saveConfig(row)"
                 >
                   保存
@@ -141,11 +165,18 @@
           </el-button>
         </div>
         <el-table
+          v-loading="splitLoading"
           :data="splitList"
           stripe
           size="small"
           style="margin-top:12px"
         >
+          <template #empty>
+            <el-empty
+              description="暂无分账记录"
+              :image-size="80"
+            />
+          </template>
           <el-table-column
             label="订单号"
             prop="orderId"
@@ -203,11 +234,18 @@
           </el-button>
         </div>
         <el-table
+          v-loading="refundLoading"
           :data="refundList"
           stripe
           size="small"
           style="margin-top:12px"
         >
+          <template #empty>
+            <el-empty
+              description="暂无退款记录"
+              :image-size="80"
+            />
+          </template>
           <el-table-column
             label="原交易号"
             prop="outTradeNo"
@@ -267,6 +305,7 @@
           <el-form-item>
             <el-button
               type="primary"
+              :loading="downloading"
               @click="downloadBill"
             >
               下载账单
@@ -378,6 +417,8 @@ import { huifuApi } from "@/api";
 const activeTab = ref("config");
 const paymentStatus = reactive({ enabled: false });
 const balance = ref("0.00");
+const loading = ref(false);
+const loadError = ref(false);
 
 const splitStats = reactive({ todayCount: 0 });
 const refundStats = reactive({ pending: 0 });
@@ -385,19 +426,23 @@ const refundStats = reactive({ pending: 0 });
 const configList = ref<any[]>([]);
 const editingKey = ref("");
 const editValue = ref("");
+const configSaving = ref(false);
 
 const splitVisible = ref(false);
 const splitSubmitting = ref(false);
+const splitLoading = ref(false);
 const splitForm = reactive({ orderId: "", amount: "", receiverId: "", receiverName: "" });
 const splitList = ref<any[]>([]);
 const splitQuery = reactive({ orderId: "" });
 
 const refundVisible = ref(false);
 const refundSubmitting = ref(false);
+const refundLoading = ref(false);
 const refundForm = reactive({ outTradeNo: "", amount: "", reason: "" });
 const refundList = ref<any[]>([]);
 
 const billDate = ref("");
+const downloading = ref(false);
 
 function fmtDate(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
 function maskValue(row: any) {
@@ -411,6 +456,8 @@ function maskValue(row: any) {
 onMounted(() => refreshAll());
 
 async function refreshAll() {
+  loading.value = true;
+  loadError.value = false;
   try {
     const [statusRes, configRes, balanceRes] = await Promise.all([
       huifuApi.getStatus(),
@@ -420,7 +467,7 @@ async function refreshAll() {
     paymentStatus.enabled = (statusRes.data as any)?.enabled || false;
     configList.value = (configRes.data as any)?.configs || [];
     balance.value = (balanceRes.data as any)?.balance || "0.00";
-  } catch { /* ignore */ }
+  } catch { loadError.value = true; } finally { loading.value = false; }
 }
 
 function startEdit(row: any) {
@@ -429,12 +476,14 @@ function startEdit(row: any) {
 }
 
 async function saveConfig(row: any) {
+  if (configSaving.value) return;
+  configSaving.value = true;
   try {
     await huifuApi.updateConfig({ key: row.key, value: editValue.value, description: row.description });
     ElMessage.success("配置已更新");
     editingKey.value = "";
     refreshAll();
-  } catch { /* ignore */ }
+  } catch { /* ignore */ } finally { configSaving.value = false; }
 }
 
 function onTabChange(tab: string) {
@@ -443,10 +492,11 @@ function onTabChange(tab: string) {
 }
 
 async function fetchSplitList() {
+  splitLoading.value = true;
   try {
     const { data } = await huifuApi.querySplit(splitQuery.orderId || "all");
     splitList.value = (data as any)?.splits || (data as any)?.data || [];
-  } catch { splitList.value = []; }
+  } catch { splitList.value = []; } finally { splitLoading.value = false; }
 }
 
 async function querySplitResult() {
@@ -476,7 +526,7 @@ async function submitRefund() {
   refundSubmitting.value = true;
   try {
     await huifuApi.createRefund({ ...refundForm, amount: Number(refundForm.amount) });
-    ElMessage.success("退款已发起");
+    ElMessage.success("已提交审批，待财务审批后生效");
     refundVisible.value = false;
     fetchRefundList();
   } catch { /* ignore */ } finally { refundSubmitting.value = false; }
@@ -484,6 +534,8 @@ async function submitRefund() {
 
 async function downloadBill() {
   if (!billDate.value) { ElMessage.warning("请选择日期"); return; }
+  if (downloading.value) return;
+  downloading.value = true;
   try {
     const { data } = await huifuApi.downloadBill(billDate.value);
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -492,7 +544,7 @@ async function downloadBill() {
     a.download = `汇付账单_${billDate.value}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
-  } catch { /* ignore */ }
+  } catch { /* ignore */ } finally { downloading.value = false; }
 }
 </script>
 
@@ -500,10 +552,10 @@ async function downloadBill() {
 .huifu-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-card .value { display: block; font-size: 28px; font-weight: 700; color: #303133; }
-.stat-card .value.warn { color: #f56c6c; }
-.stat-card .label { display: block; font-size: 13px; color: #909399; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-card .value { display: block; font-size: 28px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .value.warn { color: var(--color-error); }
+.stat-card .label { display: block; font-size: 13px; color: var(--color-text-secondary); }
 .toolbar-row { display: flex; align-items: center; }
-.text-muted { color: #909399; font-size: 13px; }
+.text-muted { color: var(--color-text-secondary); font-size: 13px; }
 </style>

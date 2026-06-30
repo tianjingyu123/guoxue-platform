@@ -18,6 +18,7 @@ const route = useRoute()
 // ==================== 状态 ====================
 const entityId = ref("")
 const loading = ref(false)
+const loadError = ref(false)
 const data = ref<any>(null)
 
 // 支持从分站管理页面跳转过来时自动查询
@@ -132,6 +133,7 @@ function buildBarOption() {
 async function fetchData() {
   if (!entityId.value.trim()) return
   loading.value = true
+  loadError.value = false
   data.value = null
   try {
     const res = await api.get(`/dashboard/station/${entityId.value.trim()}`)
@@ -163,6 +165,7 @@ async function fetchData() {
     }
   } catch {
     data.value = null
+    loadError.value = true
   } finally {
     loading.value = false
   }
@@ -206,7 +209,10 @@ function exportCSV() {
 </script>
 
 <template>
-  <div class="page">
+  <div
+    v-loading="loading"
+    class="page"
+  >
     <div class="toolbar">
       <h3>分站数据看板</h3>
       <div class="toolbar-right">
@@ -231,10 +237,26 @@ function exportCSV() {
         </el-button>
       </div>
     </div>
-    <div
-      v-if="data"
-      v-loading="loading"
+
+    <!-- 错误态 -->
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="数据加载失败"
+      sub-title="无法获取分站数据，请检查网络或稍后重试"
     >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchData"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <template v-else>
+    <div v-if="data">
       <el-row
         :gutter="20"
         class="stats-row"
@@ -282,6 +304,7 @@ function exportCSV() {
       description="请输入分站ID查询数据"
       :image-size="48"
     />
+    </template>
   </div>
 </template>
 

@@ -25,7 +25,7 @@
       class="toolbar-row"
       style="margin-bottom:16px"
     >
-      <span style="margin-right:8px;color:#606266">选择圈子：</span>
+      <span style="margin-right:8px;color:var(--color-text-body)">选择圈子：</span>
       <el-select
         v-model="selectedCircle"
         placeholder="选择圈子"
@@ -80,7 +80,23 @@
           label="候选内容"
           name="candidates"
         >
+          <el-result
+            v-if="candidateErr"
+            icon="error"
+            title="加载失败"
+            sub-title="候选内容加载出错，请重试"
+          >
+            <template #extra>
+              <el-button
+                type="primary"
+                @click="fetchCandidates"
+              >
+                重试
+              </el-button>
+            </template>
+          </el-result>
           <el-table
+            v-else
             v-loading="candidateLoading"
             :data="candidates"
             stripe
@@ -126,6 +142,7 @@
                 <el-button
                   size="small"
                   type="success"
+                  :loading="submitting"
                   @click="confirmCandidate(row)"
                 >
                   确认入库
@@ -133,6 +150,7 @@
                 <el-button
                   size="small"
                   type="danger"
+                  :loading="submitting"
                   @click="rejectCandidate(row)"
                 >
                   拒绝
@@ -147,7 +165,23 @@
           label="已入库"
           name="knowledge"
         >
+          <el-result
+            v-if="knowledgeErr"
+            icon="error"
+            title="加载失败"
+            sub-title="已入库内容加载出错，请重试"
+          >
+            <template #extra>
+              <el-button
+                type="primary"
+                @click="fetchKnowledge"
+              >
+                重试
+              </el-button>
+            </template>
+          </el-result>
           <el-table
+            v-else
             v-loading="knowledgeLoading"
             :data="knowledgeEntries"
             stripe
@@ -187,6 +221,7 @@
                 <el-button
                   size="small"
                   type="danger"
+                  :loading="submitting"
                   @click="removeEntry(row)"
                 >
                   移除
@@ -236,6 +271,22 @@
       </el-tabs>
     </template>
 
+    <el-result
+      v-else-if="circlesErr"
+      icon="error"
+      title="加载失败"
+      sub-title="圈子列表加载出错，请重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="loadCircles"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-empty
       v-else
       description="请选择一个圈子查看其知识库"
@@ -254,9 +305,13 @@ const activeTab = ref("candidates");
 
 const candidates = ref<any[]>([]);
 const candidateLoading = ref(false);
+const candidateErr = ref(false);
 const knowledgeEntries = ref<any[]>([]);
 const knowledgeLoading = ref(false);
+const knowledgeErr = ref(false);
 const syncing = ref(false);
+const circlesErr = ref(false);
+const submitting = ref(false);
 
 const stats = reactive({ totalEntries: 0, pendingCandidates: 0, confirmedToday: 0, lastSync: "" });
 
@@ -266,12 +321,15 @@ const selectedCircleName = computed(() => {
 
 function fmtDate(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
 
-onMounted(async () => {
+onMounted(() => loadCircles());
+
+async function loadCircles() {
+  circlesErr.value = false;
   try {
     const { data } = await circleApi.list({ pageSize: 200 });
     circles.value = (data as any)?.circles || (data as any)?.data || [];
-  } catch { /* ignore */ }
-});
+  } catch { circlesErr.value = true; }
+}
 
 async function onCircleChange() {
   activeTab.value = "candidates";
@@ -288,47 +346,55 @@ async function refresh() {
 
 async function fetchCandidates() {
   candidateLoading.value = true;
+  candidateErr.value = false;
   try {
     const { data } = await knowledgeApi.getCandidates(selectedCircle.value);
     const d = data as any;
     candidates.value = d?.candidates || d?.data || [];
     stats.pendingCandidates = d?.total || candidates.value.length;
-  } catch { candidates.value = []; } finally { candidateLoading.value = false; }
+  } catch { candidateErr.value = true; candidates.value = []; } finally { candidateLoading.value = false; }
 }
 
 async function fetchKnowledge() {
   knowledgeLoading.value = true;
+  knowledgeErr.value = false;
   try {
     const { data } = await knowledgeApi.getCandidates(selectedCircle.value, "CONFIRMED");
     const d = data as any;
     knowledgeEntries.value = d?.candidates || d?.data || [];
     stats.totalEntries = d?.total || knowledgeEntries.value.length;
-  } catch { knowledgeEntries.value = []; } finally { knowledgeLoading.value = false; }
+  } catch { knowledgeErr.value = true; knowledgeEntries.value = []; } finally { knowledgeLoading.value = false; }
 }
 
 async function confirmCandidate(row: any) {
+  if (submitting.value) return;
+  submitting.value = true;
   try {
     await knowledgeApi.confirmCandidate(row.id);
     ElMessage.success("已确认入库");
     fetchCandidates();
     fetchKnowledge();
-  } catch { /* ignore */ }
+  } catch { ElMessage.error("操作失败，请重试"); } finally { submitting.value = false; }
 }
 
 async function rejectCandidate(row: any) {
+  if (submitting.value) return;
+  submitting.value = true;
   try {
     await knowledgeApi.rejectCandidate(row.id);
     ElMessage.success("已拒绝");
     fetchCandidates();
-  } catch { /* ignore */ }
+  } catch { ElMessage.error("操作失败，请重试"); } finally { submitting.value = false; }
 }
 
 async function removeEntry(row: any) {
+  if (submitting.value) return;
+  submitting.value = true;
   try {
     await knowledgeApi.removeFromKnowledge(row.id, selectedCircle.value, "admin");
     ElMessage.success("已移除");
     fetchKnowledge();
-  } catch { /* ignore */ }
+  } catch { ElMessage.error("操作失败，请重试"); } finally { submitting.value = false; }
 }
 
 async function syncCircle() {
@@ -362,9 +428,9 @@ function onTabChange(tab: string) {
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .toolbar-row { display: flex; align-items: center; }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 16px; text-align: center; }
-.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 13px; color: #909399; margin-top: 4px; }
-.stat-card.warn .value { color: #e6a23c; }
-.text-muted { color: #909399; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 16px; text-align: center; }
+.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
+.stat-card.warn .value { color: var(--color-warning); }
+.text-muted { color: var(--color-text-secondary); }
 </style>

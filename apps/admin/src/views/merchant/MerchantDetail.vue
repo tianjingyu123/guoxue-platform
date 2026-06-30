@@ -12,7 +12,24 @@
       </h3>
     </div>
 
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="商家详情加载失败，请稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchDetail"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-tabs
+      v-else
       v-model="activeTab"
       v-loading="loading"
     >
@@ -261,6 +278,9 @@
           :data="violations"
           stripe
         >
+          <template #empty>
+            <el-empty description="暂无违规记录" />
+          </template>
           <el-table-column
             label="程度"
             width="80"
@@ -356,6 +376,9 @@
           :data="deposits"
           stripe
         >
+          <template #empty>
+            <el-empty description="暂无保证金记录" />
+          </template>
           <el-table-column
             label="类型"
             width="90"
@@ -424,6 +447,9 @@
           :data="settlements"
           stripe
         >
+          <template #empty>
+            <el-empty description="暂无结算记录" />
+          </template>
           <el-table-column
             label="结算周期"
             min-width="200"
@@ -872,6 +898,7 @@ const id = route.params.id as string
 
 const activeTab = ref('info')
 const loading = ref(false)
+const error = ref(false)
 const saving = ref(false)
 const merchant = ref<any>(null)
 const stats = ref<any>(null)
@@ -935,11 +962,14 @@ watch(activeTab, (tab) => {
 
 async function fetchDetail() {
   loading.value = true
+  error.value = false
   try {
     const res = await merchantApi.detail(id)
     merchant.value = (res.data as any)
     violations.value = merchant.value?.violations || []
     deposits.value = merchant.value?.depositRecords || []
+  } catch (e: any) {
+    error.value = true
   } finally { loading.value = false }
 }
 

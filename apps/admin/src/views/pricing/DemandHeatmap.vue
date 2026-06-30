@@ -71,12 +71,34 @@
       </el-form-item>
     </el-form>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button
+          link
+          type="primary"
+          @click="fetchData"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       border
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无需求热度数据" />
+      </template>
       <el-table-column
         prop="targetType"
         label="目标类型"
@@ -148,10 +170,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { ElMessage } from "element-plus";
 import { pricingApi } from "@/api";
 
 const loading = ref(false);
+const error = ref(false);
 const list = ref<any[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
@@ -176,6 +198,7 @@ function demandLabel(level: string) {
 
 async function fetchData() {
   loading.value = true;
+  error.value = false;
   try {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (filterType.value) params.targetType = filterType.value;
@@ -184,7 +207,9 @@ async function fetchData() {
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
-    ElMessage.error("获取需求热度数据失败");
+    list.value = [];
+    total.value = 0;
+    error.value = true;
   } finally {
     loading.value = false;
   }

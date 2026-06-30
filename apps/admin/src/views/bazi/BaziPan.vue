@@ -4,6 +4,7 @@
  * 使用 PageTool 模板 + 业务组件
  */
 import { ref, reactive } from 'vue'
+import { ElMessage } from 'element-plus'
 import { paipanApi } from '@/api'
 import { UI_COLORS, FONT_SIZE } from '@guoxue/shared'
 import { PageTool } from '@/components/paipan'
@@ -25,14 +26,18 @@ const form = reactive({
 const result = ref<any>(null)
 const mode = ref<'traditional' | 'report' | 'analysis'>('traditional')
 const loading = ref(false)
+const error = ref(false)
 const inputCollapsed = ref(false)
 
 async function doCalc() {
+  if (loading.value) return // 防重复
   loading.value = true
+  error.value = false
   try {
     result.value = await paipanApi.preview({ ...form })
   } catch {
-    // handled by interceptor
+    error.value = true
+    ElMessage.error('排盘失败，请稍后重试')
   } finally {
     loading.value = false
   }
@@ -134,7 +139,25 @@ doCalc()
 
     <!-- 结果区 -->
     <template #result>
-      <div v-if="result">
+      <!-- 错误态 -->
+      <el-result
+        v-if="error"
+        icon="error"
+        title="加载失败"
+        sub-title="排盘请求失败，请检查输入后重试"
+      >
+        <template #extra>
+          <el-button
+            type="primary"
+            :loading="loading"
+            @click="doCalc"
+          >
+            重试
+          </el-button>
+        </template>
+      </el-result>
+
+      <div v-else-if="result">
         <!-- 展示模式切换 -->
         <el-tabs
           v-model="mode"

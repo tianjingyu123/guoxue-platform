@@ -384,7 +384,7 @@ function renderInterChart() {
       sizeRange: [14, 40],
       rotationRange: [-30, 30],
       textStyle: {
-        color() { return ['#409eff','#67c23a','#e6a23c','#f56c6c','#909399','#b37feb'][Math.floor(Math.random()*6)]; },
+        color: (() => { const p = ['#409eff','#67c23a','#e6a23c','#f56c6c','#909399','#b37feb']; let i = 0; return () => p[i++ % p.length]; })(),
       },
       data: words.length > 0 ? words : [{ name: "暂无数据", value: 1 }],
     }],
@@ -502,13 +502,13 @@ onBeforeUnmount(() => {
 
 .kpi-row { margin-bottom: 16px; }
 .kpi-card { text-align: center; }
-.kpi-label { font-size: 13px; color: #909399; margin-bottom: 6px; }
+.kpi-label { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 6px; }
 .kpi-value { font-size: 22px; font-weight: 700; }
 
 .tab-chart { width: 100%; }
 
-.gift-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; }
-.g-rank { width: 22px; height: 22px; border-radius: 4px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+.gift-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--color-divider); }
+.g-rank { width: 22px; height: 22px; border-radius: 4px; background: var(--color-divider); display: flex; align-items: center; justify-content: center; font-size: 12px; }
 .g-user { flex: 1; }
-.g-amount { color: #e6a23c; font-weight: 600; }
+.g-amount { color: var(--color-warning); font-weight: 600; }
 </style>

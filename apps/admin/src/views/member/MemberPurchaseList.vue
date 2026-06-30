@@ -15,10 +15,11 @@
         width="140"
       />
       <el-table-column
-        prop="user.phone"
         label="手机号"
         width="140"
-      />
+      >
+        <template #default="{ row }">{{ maskPhone(row.user?.phone) }}</template>
+      </el-table-column>
       <el-table-column
         label="类型"
         width="100"
@@ -87,6 +88,13 @@ const loading = ref(false); const list = ref<any[]>([]); const total = ref(0); c
 
 onMounted(() => fetchList())
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+// 隐私脱敏：手机号保留前3后4
+function maskPhone(p?: string) {
+  if (!p) return '-'
+  const s = String(p)
+  if (s.length < 7) return s.replace(/\d(?=\d)/g, '*')
+  return s.slice(0, 3) + '****' + s.slice(-4)
+}
 
 async function fetchList() {
   loading.value = true

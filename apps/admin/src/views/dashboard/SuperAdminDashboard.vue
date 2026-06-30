@@ -10,11 +10,25 @@ import GreetingHeader from "@/components/GreetingHeader.vue"
 import AnimatedCounter from "@/components/AnimatedCounter.vue"
 import AnomalyAlert from "@/components/AnomalyAlert.vue"
 import ChartCard from "@/components/ChartCard.vue"
-import { User, Goods, Plus, WarningFilled, ChatDotRound, Reading, DataLine, Money } from "@element-plus/icons-vue"
+import { User, Goods, Plus, WarningFilled, ChatDotRound, Reading, DataLine, Money,
+  Setting, Lock, Operation, Connection, Odometer, Monitor, CaretTop, CaretBottom } from "@element-plus/icons-vue"
 
 const router = useRouter()
 
 const username = ref("超级管理员")
+
+// ==================== 快捷操作（超管系统治理高频页）====================
+interface QuickAction { label: string; path: string; icon: any }
+const quickActions: QuickAction[] = [
+  { label: "系统设置", path: "/system-settings", icon: Setting },
+  { label: "角色权限", path: "/system/role-permission", icon: Lock },
+  { label: "功能开关", path: "/system/feature-flags", icon: Operation },
+  { label: "第三方配置", path: "/system/third-party", icon: Connection },
+  { label: "管理驾驶舱", path: "/admin/cockpit", icon: Odometer },
+  { label: "平台综合大屏", path: "/bigscreen/platform", icon: Monitor },
+]
+// 待办角标（真实计数，无则为 0 不显示）
+const badges = ref<Record<string, number>>({})
 
 const cardRoutes: Record<string, string> = {
   "总用户数":   "/users",
@@ -36,15 +50,28 @@ function onCardClick(card: CardDef) {
 const alerts = ref<any[]>([])
 
 // ==================== 统计卡片 ====================
-interface CardDef { label: string; value: number; icon: any; }
+interface CardDelta { value: number; dir: "up" | "down" | "flat"; label: string }
+interface CardDef { label: string; value: number; icon: any; delta?: CardDelta }
 const cards = ref<CardDef[]>([])
+
+/** 日环比：仅当昨日基准>0 时计算，否则 undefined（诚实留白） */
+function makeDelta(todayVal: number, yesterdayVal: number, label = "环比昨日"): CardDelta | undefined {
+  if (!(yesterdayVal > 0)) return undefined
+  const g = (todayVal - yesterdayVal) / yesterdayVal * 100
+  return { value: Math.abs(Math.round(g * 10) / 10), dir: g > 0 ? "up" : g < 0 ? "down" : "flat", label }
+}
 
 // ==================== 服务健康状态 ====================
 interface HealthItem { name: string; status: string; label: string }
 const healthList = ref<HealthItem[]>([])
 
+// ==================== 加载状态 ====================
+const loading = ref(true)
+const loadError = ref(false)
+
 // ==================== 营收趋势 (ECharts) ====================
 const revenueOption = ref<any>({})
+const hasRevenue = ref(false)
 
 /** 构建营收趋势折线图 option */
 function buildRevenueOption(dates: string[], values: number[]) {
@@ -99,7 +126,9 @@ function statusType(status: string): "success" | "danger" | "warning" {
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
-async function fetchDashboard() {
+async function load() {
+  loading.value = true
+  loadError.value = false
   try {
     const [statsRes, trendsRes, healthRes, alertRes] = await Promise.all([
       api.get("/dashboard/stats"),
@@ -119,12 +148,22 @@ async function fetchDashboard() {
       { label: "系统健康",   value: s.systemOk ?? 1,     icon: DataLine },
     ]
 
+    // 真实日环比：今日新增用户/今日营收 vs 昨日同口径（后端 stats 已补昨日基准）
+    // 总用户/总订单/圈子/课程为累计快照，待处理举报为实时快照，无历史可比，诚实留白
+    const newUserCard = cards.value.find((c) => c.label === "今日新增用户")
+    if (newUserCard) newUserCard.delta = makeDelta(s.todayNewUsers ?? 0, s.todayNewUsersYesterday ?? 0)
+    const revenueCard = cards.value.find((c) => c.label === "今日营收")
+    if (revenueCard) revenueCard.delta = makeDelta(s.todayRevenue ?? 0, s.todayRevenueYesterday ?? 0)
+
     // 营收趋势
     const rev = trendsRes.data ?? {}
     const dates = rev.dates ?? []
     const values = rev.revenue ?? []
     if (dates.length && values.length) {
       revenueOption.value = buildRevenueOption(dates, values)
+      hasRevenue.value = true
+    } else {
+      hasRevenue.value = false
     }
 
     // 服务健康
@@ -137,19 +176,25 @@ async function fetchDashboard() {
       { name: "支付",   status: h.wechatPay?.status ?? "ok",  label: "微信支付" },
     ]
 
+    // 待办角标：第三方配置异常/降级服务数（真实取自 system-health）
+    const abnormal = healthList.value.filter((x) => x.status !== "ok").length
+    badges.value = { "/system/third-party": abnormal }
+
     // 报警取前 3 条
     const list = alertRes.data ?? []
     alerts.value = list.slice(0, 3).map((a: any) => ({
       text: a.text, count: a.count, level: a.level ?? "warning",
     }))
   } catch {
-    // 静默失败，保留空状态
+    loadError.value = true
+  } finally {
+    loading.value = false
   }
 }
 
 onMounted(() => {
-  fetchDashboard();
-  refreshTimer = setInterval(fetchDashboard, 30000);
+  load();
+  refreshTimer = setInterval(load, 30000);
 });
 
 onBeforeUnmount(() => {
@@ -158,9 +203,58 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="dashboard">
+  <div
+    v-loading="loading"
+    class="dashboard"
+  >
     <GreetingHeader :username="username" />
 
+    <!-- 快捷操作：超管系统治理高频页直达（始终可用）-->
+    <div class="section-card quick-actions">
+      <div class="section-card__title">
+        快捷操作
+      </div>
+      <div class="qa-grid">
+        <div
+          v-for="qa in quickActions"
+          :key="qa.path"
+          class="qa-item"
+          @click="router.push(qa.path)"
+        >
+          <el-badge
+            :value="badges[qa.path] || 0"
+            :hidden="!badges[qa.path]"
+            :max="99"
+          >
+            <div class="qa-icon">
+              <el-icon :size="22">
+                <component :is="qa.icon" />
+              </el-icon>
+            </div>
+          </el-badge>
+          <span class="qa-label">{{ qa.label }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 错误态 -->
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="数据加载失败"
+      sub-title="无法获取总览数据，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="load"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <template v-else>
     <!-- 报警行 -->
     <div
       v-if="alerts.length"
@@ -214,6 +308,16 @@ onBeforeUnmount(() => {
               <AnimatedCounter :value="card.value" />
             </template>
           </div>
+          <div
+            v-if="card.delta"
+            class="stat-card__delta"
+            :class="`stat-card__delta--${card.delta.dir}`"
+          >
+            <el-icon :size="12">
+              <component :is="card.delta.dir === 'down' ? CaretBottom : CaretTop" />
+            </el-icon>
+            <span>{{ card.delta.value }}% {{ card.delta.label }}</span>
+          </div>
         </div>
       </el-col>
     </el-row>
@@ -254,12 +358,18 @@ onBeforeUnmount(() => {
         :md="24"
       >
         <ChartCard
+          v-if="hasRevenue"
           title="营收趋势"
           :option="revenueOption"
           :height="320"
         />
+        <el-empty
+          v-else
+          description="暂无营收趋势数据"
+        />
       </el-col>
     </el-row>
+    </template>
   </div>
 </template>
 
@@ -282,17 +392,36 @@ onBeforeUnmount(() => {
 }
 .stat-card__value { font-size: 28px; font-weight: 700; color: #1A1A1A; font-feature-settings: "tnum"; line-height: 1.2; }
 .stat-card__value--alert { color: #FF6B6B; }
+.stat-card__delta { display: flex; align-items: center; gap: 3px; margin-top: 8px; font-size: 12px; font-weight: 600; }
+.stat-card__delta--up { color: var(--color-error, #F56C6C); }
+.stat-card__delta--down { color: var(--color-success, #67C23A); }
+.stat-card__delta--flat { color: var(--color-text-secondary); }
 .section-card {
   background: var(--color-bg-card); border-radius: 16px; padding: 20px 24px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04); margin-bottom: 20px;
 }
 .section-card__title { font-size: 14px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 16px; }
+.qa-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+.qa-item {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 16px 8px; border-radius: 12px; cursor: pointer;
+  background: var(--color-bg-page); transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.qa-item:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.qa-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: rgba(255,107,107,0.1); color: #FF6B6B;
+  display: flex; align-items: center; justify-content: center;
+}
+.qa-label { font-size: 13px; color: var(--color-text-body); font-weight: 500; }
+@media (max-width: 1100px) { .qa-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 768px) { .qa-grid { grid-template-columns: repeat(3, 1fr); } }
 .health-grid { display: flex; gap: 16px; flex-wrap: wrap; }
 .health-item {
   display: flex; align-items: center; gap: 12px;
-  padding: 12px 18px; border-radius: 10px; background: #FAFAFA; min-width: 140px;
+  padding: 12px 18px; border-radius: 10px; background: var(--color-bg-page); min-width: 140px;
 }
-.health-name { font-size: 14px; color: #666; font-weight: 500; }
+.health-name { font-size: 14px; color: var(--color-text-body); font-weight: 500; }
 .charts-row { margin-bottom: 20px; }
 @media (max-width: 768px) { .stat-card { margin-bottom: 12px; } }
 </style>

@@ -21,7 +21,12 @@
       @reset="onReset"
     />
 
+    <el-result v-if="loadError && !loading" icon="error" title="加载失败" sub-title="请检查网络后重试">
+      <template #extra><el-button type="primary" @click="fetchList">重试</el-button></template>
+    </el-result>
+
     <DataTable
+      v-show="!loadError"
       v-model:page="pagination.page"
       v-model:page-size="pagination.pageSize"
       :columns="columns"
@@ -74,8 +79,8 @@
     <!-- 批量操作栏 -->
     <div v-if="selectedIds.length > 0" class="batch-bar">
       <span>已选 {{ selectedIds.length }} 条</span>
-      <el-button size="small" type="warning" @click="batchFeature">批量精选</el-button>
-      <el-button size="small" type="info" @click="batchHide">批量隐藏</el-button>
+      <el-button size="small" type="warning" :loading="submitting" @click="batchFeature">批量精选</el-button>
+      <el-button size="small" type="info" :loading="submitting" @click="batchHide">批量隐藏</el-button>
       <el-popconfirm title="确定批量删除？" @confirm="batchDelete">
         <template #reference>
           <el-button size="small" type="danger">批量删除</el-button>
@@ -148,6 +153,8 @@ import { useTable } from "@/composables/useTable"
 const detailVisible = ref(false)
 const currentComment = ref<any>(null)
 const selectedIds = ref<string[]>([])
+const loadError = ref(false)
+const submitting = ref(false)
 
 const statsCards = ref([
   { label: "总评论", value: 0, color: "#409eff" },
@@ -188,7 +195,15 @@ const columns = [
 ]
 
 const { loading, tableData, pagination, filters, fetchList, handleSearch } = useTable({
-  fetchApi: socialApi.getCommentCenter,
+  fetchApi: async (params: any) => {
+    loadError.value = false
+    try {
+      return await socialApi.getCommentCenter(params)
+    } catch (e) {
+      loadError.value = true
+      throw e
+    }
+  },
   defaultPageSize: 15,
   transformResponse: (data: any) => ({
     items: (data.list ?? data.data ?? []).map((c: any) => ({
@@ -221,29 +236,57 @@ function formatTime(d: string): string { return d ? d.slice(0, 16).replace("T", 
 function showDetail(row: any) { currentComment.value = row; detailVisible.value = true }
 
 async function toggleFeature(row: any) {
+  if (submitting.value) return
+  submitting.value = true
   try {
     if (row.status === 'FEATURED') await socialApi.unfeatureComment(row.id)
     else await socialApi.featureComment(row.id)
     ElMessage.success(row.status === 'FEATURED' ? "已取消精选" : "已设为精选")
     fetchList(); fetchStats()
   } catch { /* */ }
+  finally { submitting.value = false }
 }
 
 async function toggleHide(row: any) {
+  if (submitting.value) return
+  submitting.value = true
   try {
     await commentApi.hide(row.id)
     ElMessage.success(row.status === "HIDDEN" ? "已显示" : "已隐藏")
     fetchList(); fetchStats()
   } catch { /* */ }
+  finally { submitting.value = false }
 }
 
 async function handleDelete(id: string) {
-  try { await commentApi.remove(id); ElMessage.success("删除成功"); fetchList(); fetchStats() } catch { /* */ }
+  if (submitting.value) return
+  submitting.value = true
+  try { await commentApi.remove(id); ElMessage.success("删除成功"); fetchList(); fetchStats() }
+  catch { /* */ }
+  finally { submitting.value = false }
 }
 
-async function batchFeature() { try { await socialApi.batchFeature(selectedIds.value); ElMessage.success("批量精选完成"); fetchList() } catch { /* */ } }
-async function batchHide() { try { await socialApi.batchHide(selectedIds.value); ElMessage.success("批量隐藏完成"); fetchList() } catch { /* */ } }
-async function batchDelete() { try { await socialApi.batchDelete(selectedIds.value); ElMessage.success("批量删除完成"); fetchList() } catch { /* */ } }
+async function batchFeature() {
+  if (submitting.value) return
+  submitting.value = true
+  try { await socialApi.batchFeature(selectedIds.value); ElMessage.success("批量精选完成"); fetchList() }
+  catch { /* */ }
+  finally { submitting.value = false }
+}
+async function batchHide() {
+  if (submitting.value) return
+  submitting.value = true
+  try { await socialApi.batchHide(selectedIds.value); ElMessage.success("批量隐藏完成"); fetchList() }
+  catch { /* */ }
+  finally { submitting.value = false }
+}
+async function batchDelete() {
+  if (submitting.value) return
+  submitting.value = true
+  try { await socialApi.batchDelete(selectedIds.value); ElMessage.success("批量删除完成"); fetchList() }
+  catch { /* */ }
+  finally { submitting.value = false }
+}
 
 async function fetchStats() {
   try {
@@ -267,11 +310,11 @@ onMounted(() => { fetchStats() })
 .stat-card { text-align: center; cursor: default; }
 .stat-value { font-size: 24px; font-weight: 700; }
 .stat-label { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
-.detail-info p { margin: 6px 0; font-size: 14px; color: #333; }
-.content-box { background: #f5f7fa; border-radius: 6px; padding: 12px; white-space: pre-wrap; word-break: break-all; font-size: 14px; line-height: 1.6; }
+.detail-info p { margin: 6px 0; font-size: 14px; color: var(--color-text-title); }
+.content-box { background: var(--color-bg-page); border-radius: 6px; padding: 12px; white-space: pre-wrap; word-break: break-all; font-size: 14px; line-height: 1.6; }
 .quote-box { background: #f0f4ff; border-left: 3px solid #8b5cf6; }
 .quote-meta { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
 .parent-box { background: #fef0f0; }
 .parent-meta { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
-.batch-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #fff; border: 1px solid #e4e7ed; border-radius: 8px; padding: 10px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); z-index: 1000; }
+.batch-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #fff; border: 1px solid var(--color-border); border-radius: 8px; padding: 10px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); z-index: 1000; }
 </style>

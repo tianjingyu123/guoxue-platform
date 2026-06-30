@@ -77,6 +77,11 @@
           </div>
         </template>
         <el-table :data="dailyVerses" border stripe v-loading="dailyLoading">
+          <template #empty>
+            <el-empty :description="dailyError ? '加载失败，请重试' : '暂无内容'">
+              <el-button v-if="dailyError" size="small" type="primary" @click="fetchDaily">重试</el-button>
+            </el-empty>
+          </template>
           <el-table-column prop="title" label="标题" width="200" show-overflow-tooltip />
           <el-table-column prop="author" label="作者/出处" width="120" />
           <el-table-column prop="content" label="内容" minWidth="280" show-overflow-tooltip />
@@ -148,7 +153,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dailyDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveDaily">保存</el-button>
+        <el-button type="primary" :loading="savingDaily" @click="saveDaily">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -162,7 +167,9 @@ import PageHeader from "@/components/PageHeader.vue"
 
 const activeTab = ref("solar")
 const saving = ref(false)
+const savingDaily = ref(false)
 const dailyLoading = ref(false)
+const dailyError = ref(false)
 
 // 节气
 const solarTerms = ref<any[]>([])
@@ -183,7 +190,7 @@ async function fetchSolarTerms() {
     solarTerms.value = ((res?.data ?? res)?.list ?? []).map((t: any) => ({
       ...t, pushDate: t.pushDate ?? "", pushTime: t.pushTime ?? "08:00", enabled: t.enabled ?? true,
     }))
-  } catch { /* */ }
+  } catch { ElMessage.error("节气配置加载失败") }
 }
 
 async function saveAllSolarTerms() {
@@ -201,6 +208,7 @@ async function saveAllSolarTerms() {
 
 async function fetchDaily() {
   dailyLoading.value = true
+  dailyError.value = false
   try {
     const res: any = await ritualContentApi.listDailyVerses({
       page: dailyPage.value, pageSize: dailyPageSize.value,
@@ -209,7 +217,11 @@ async function fetchDaily() {
     const d = res?.data ?? res
     dailyVerses.value = d.list ?? d.data ?? []
     dailyTotal.value = d.total ?? 0
-  } catch { /* */ }
+  } catch {
+    dailyError.value = true
+    dailyVerses.value = []
+    dailyTotal.value = 0
+  }
   finally { dailyLoading.value = false }
 }
 
@@ -228,6 +240,8 @@ function showDailyDialog(row?: any) {
 }
 
 async function saveDaily() {
+  if (savingDaily.value) return
+  savingDaily.value = true
   try {
     if (editingDaily.value?.id) {
       await ritualContentApi.updateDailyVerse(editingDaily.value.id, { ...dailyForm })
@@ -235,7 +249,8 @@ async function saveDaily() {
       await ritualContentApi.createDailyVerse({ ...dailyForm })
     }
     ElMessage.success("保存成功"); dailyDialogVisible.value = false; fetchDaily()
-  } catch { /* */ }
+  } catch { ElMessage.error("保存失败") }
+  finally { savingDaily.value = false }
 }
 
 async function deleteDaily(id: string) {

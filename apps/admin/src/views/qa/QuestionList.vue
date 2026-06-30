@@ -43,13 +43,34 @@
       </el-button>
     </div>
 
+    <!-- 错误态 -->
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="问答列表加载失败"
+      sub-title="无法获取数据，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       border
       stripe
       size="small"
     >
+      <template #empty>
+        <el-empty description="暂无问答数据" />
+      </template>
       <el-table-column
         label="问题"
         min-width="200"
@@ -261,6 +282,7 @@ import PageHeader from "@/components/PageHeader.vue";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
+const loadError = ref(false);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
@@ -278,12 +300,17 @@ function onFilterChange() {
 
 async function fetchList() {
   loading.value = true;
+  loadError.value = false;
   try {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (filterStatus.value) params.status = filterStatus.value;
     const { data } = await questionApi.list(params);
     list.value = data?.questions || [];
     total.value = data?.total || 0;
+  } catch {
+    loadError.value = true;
+    list.value = [];
+    total.value = 0;
   } finally {
     loading.value = false;
   }
@@ -340,6 +367,6 @@ function statusColor(s: string): string {
 .pagination { margin-top: var(--spacing-lg); display: flex; justify-content: flex-end; }
 .detail-section { margin-bottom: 14px; }
 .detail-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
-.detail-value { font-size: 14px; color: #333; }
+.detail-value { font-size: 14px; color: var(--color-text-title); }
 .question-body, .answer-body { background: #f8f5f0; padding: 12px; border-radius: 6px; white-space: pre-wrap; line-height: 1.6; }
 </style>

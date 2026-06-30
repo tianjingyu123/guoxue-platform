@@ -55,6 +55,21 @@
       </el-form-item>
     </el-form>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      title="加载租户列表失败"
+      class="error-bar"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
@@ -67,11 +82,13 @@
         min-width="140"
       />
       <el-table-column
-        prop="apiKey"
         label="API Key"
         min-width="180"
-        show-overflow-tooltip
-      />
+      >
+        <template #default="{ row }">
+          <span>{{ maskKey(row.apiKey) }}</span>
+        </template>
+      </el-table-column>
       <el-table-column
         prop="plan"
         label="套餐"
@@ -292,6 +309,7 @@ interface Tenant {
 }
 
 const loading = ref(false);
+const error = ref(false);
 const list = ref<Tenant[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
@@ -301,6 +319,13 @@ const searchForm = reactive({
   name: "",
   status: "",
 });
+
+/** API Key 脱敏：仅显示前后 4 位 */
+function maskKey(key?: string) {
+  if (!key) return "-";
+  if (key.length <= 8) return "****";
+  return `${key.slice(0, 4)}****${key.slice(-4)}`;
+}
 
 const dialogVisible = ref(false);
 const rechargeVisible = ref(false);
@@ -338,11 +363,18 @@ function statusLabel(status: string) {
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
-    const res = await tenantAdminApi.list({ page: page.value, pageSize: pageSize.value, ...searchForm });
-    list.value = res.data.list || res.data.rows || res.data.data || [];
-    total.value = res.data.total || res.data.count || 0;
+    // 后端按 keyword 模糊匹配 name；状态空值不传
+    const params: any = { page: page.value, pageSize: pageSize.value };
+    if (searchForm.name) params.keyword = searchForm.name;
+    if (searchForm.status) params.status = searchForm.status;
+    const res = await tenantAdminApi.list(params);
+    // 后端返回 { tenants, total, page, pageSize }（非标准分页键）
+    list.value = res.data.tenants ?? res.data.items ?? res.data ?? [];
+    total.value = res.data.total ?? 0;
   } catch {
+    error.value = true;
     ElMessage.error("获取租户列表失败");
   } finally {
     loading.value = false;
@@ -403,7 +435,8 @@ async function handleRecharge() {
   if (!currentRow.value) return;
   recharging.value = true;
   try {
-    await tenantAdminApi.recharge(currentRow.value.id, { amount: rechargeAmount.value });
+    // 后端 TenantRechargeDto 字段为 quotaAmount
+    await tenantAdminApi.recharge(currentRow.value.id, { quotaAmount: rechargeAmount.value } as any);
     ElMessage.success("充值成功");
     rechargeVisible.value = false;
     fetchList();
@@ -434,4 +467,5 @@ onMounted(fetchList);
 .page { padding: 20px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .search-bar { margin-bottom: 20px; }
+.error-bar { margin-bottom: 12px; }
 </style>

@@ -133,6 +133,17 @@
           </el-dropdown>
         </template>
       </el-table-column>
+      <template #empty>
+        <el-empty :description="loadError ? '加载失败' : '暂无分站数据'">
+          <el-button
+            v-if="loadError"
+            type="primary"
+            @click="fetchList"
+          >
+            重试
+          </el-button>
+        </el-empty>
+      </template>
     </el-table>
 
     <div
@@ -501,6 +512,8 @@ const router = useRouter();
 
 const stations = ref<any[]>([]);
 const loading = ref(false);
+const loadError = ref(false);
+const actioning = ref(false);
 const page = ref(1);
 const pageSize = 20;
 const total = ref(0);
@@ -550,10 +563,14 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  loadError.value = false;
   try {
     const { data } = await stationApi.list({ page: page.value, pageSize });
     stations.value = data.stations || [];
     total.value = data.total || 0;
+  } catch {
+    stations.value = [];
+    loadError.value = true;
   } finally {
     loading.value = false;
   }
@@ -597,16 +614,32 @@ async function save() {
 }
 
 async function toggleStatus(row: any, status: string) {
-  await stationApi.update(row.id, { status });
-  ElMessage.success(status === "DISABLED" ? "已禁用" : "已启用");
-  fetchList();
+  if (actioning.value) return;
+  actioning.value = true;
+  try {
+    await stationApi.update(row.id, { status });
+    ElMessage.success(status === "DISABLED" ? "已禁用" : "已启用");
+    fetchList();
+  } catch {
+    ElMessage.error("操作失败");
+  } finally {
+    actioning.value = false;
+  }
 }
 
 function delStation(id: string) {
   ElMessageBox.confirm("确定删除该分站？", "警告", { type: "warning" }).then(async () => {
-    await stationApi.remove(id);
-    ElMessage.success("已删除");
-    fetchList();
+    if (actioning.value) return;
+    actioning.value = true;
+    try {
+      await stationApi.remove(id);
+      ElMessage.success("已删除");
+      fetchList();
+    } catch {
+      ElMessage.error("删除失败");
+    } finally {
+      actioning.value = false;
+    }
   }).catch(() => {});
 }
 

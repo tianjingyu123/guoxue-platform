@@ -449,6 +449,24 @@ export const classicApi = {
     api.post("/classic/admin/daizhige-import", null, { params }),
 };
 
+// 诗词雅集（管理端）
+export const poetryAdminApi = {
+  listPoems: (params?: { page?: number; pageSize?: number; status?: string; categoryId?: string; dynasty?: string; keyword?: string }) =>
+    api.get("/poetry/admin/poems", { params }),
+  createPoem: (data: any) => api.post("/poetry/admin/poems", data),
+  updatePoem: (id: string, data: any) => api.put(`/poetry/admin/poems/${id}`, data),
+  deletePoem: (id: string) => api.delete(`/poetry/admin/poems/${id}`),
+  listCategories: () => api.get("/poetry/admin/categories"),
+  createCategory: (data: any) => api.post("/poetry/admin/categories", data),
+  updateCategory: (id: string, data: any) => api.put(`/poetry/admin/categories/${id}`, data),
+  deleteCategory: (id: string) => api.delete(`/poetry/admin/categories/${id}`),
+  listCollections: (params?: { page?: number; pageSize?: number; status?: string }) =>
+    api.get("/poetry/admin/collections", { params }),
+  createCollection: (data: any) => api.post("/poetry/admin/collections", data),
+  updateCollection: (id: string, data: any) => api.put(`/poetry/admin/collections/${id}`, data),
+  deleteCollection: (id: string) => api.delete(`/poetry/admin/collections/${id}`),
+};
+
 // 智能体
 export const botApi = {
   list: (params?: any) => api.get("/bots", { params }),
@@ -1846,14 +1864,14 @@ export const bountyApi = {
 
 // ───────── 运势推送管理 ─────────
 export const fortuneAdminApi = {
+  // 运势推送订阅配置（后端 @Controller("fortune") + 全局前缀 /api/v1 → /fortune/admin/*）
   listConfigs: (params?: { page?: number; pageSize?: number; fortuneType?: string }) =>
-    api.get("/admin/fortune/configs", { params }),
-  updateConfig: (id: string, data: any) => api.put(`/admin/fortune/configs/${id}`, data),
-  pushAll: () => api.post("/admin/fortune/push-all"),
-  getShareCardConfig: () => api.get("/admin/fortune/share-card-config"),
-  updateShareCardConfig: (data: any) => api.put("/admin/fortune/share-card-config", data),
+    api.get("/fortune/admin/subscriptions", { params }),
+  updateConfig: (id: string, data: { isActive: boolean }) =>
+    api.put(`/fortune/admin/subscriptions/${id}`, data),
+  pushAll: (fortuneType?: string) => api.post("/fortune/admin/push-all", { fortuneType }),
   listHistory: (params?: { page?: number; pageSize?: number; fortuneType?: string }) =>
-    api.get("/admin/fortune/history", { params }),
+    api.get("/fortune/admin/records", { params }),
 };
 
 // ───────── 运营商管理 ─────────

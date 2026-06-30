@@ -2,7 +2,7 @@
   <div class="paipan-records">
     <PageHeader
       title="排盘记录管理"
-      description="查看所有用户的八字和紫微斗数排盘记录"
+      description="查看所有用户的排盘记录（八字 / 紫微斗数 / 奇门遁甲 / 阳盘命理 / 六爻 / 大六壬）"
     />
 
     <!-- 筛选 -->
@@ -14,24 +14,37 @@
       @reset="handleReset"
     />
 
-    <!-- 表格 -->
-    <DataTable
-      :columns="columns"
-      :data="records"
-      :loading="loading"
-      :total="total"
-      :page="page"
-      :page-size="pageSize"
-      @update:page="page = $event; fetchRecords()"
-      @update:page-size="pageSize = $event; fetchRecords()"
-      @change="fetchRecords()"
+    <!-- 错误态 -->
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="无法获取排盘记录，请重试"
     >
-      <template #type="{ row }">
+      <template #extra>
+        <el-button type="primary" @click="fetchRecords">重试</el-button>
+      </template>
+    </el-result>
+
+    <!-- 表格 -->
+    <template v-else>
+      <DataTable
+        :columns="columns"
+        :data="records"
+        :loading="loading"
+        :total="total"
+        :page="page"
+        :page-size="pageSize"
+        @update:page="page = $event; fetchRecords()"
+        @update:page-size="pageSize = $event; fetchRecords()"
+        @change="fetchRecords()"
+      >
+        <template #type="{ row }">
         <el-tag
-          :type="row.paipanType === 'BAZI' ? 'warning' : 'success'"
+          :type="typeTag(row.paipanType)"
           size="small"
         >
-          {{ row.paipanType === 'BAZI' ? '八字' : '紫微' }}
+          {{ typeLabel(row.paipanType) }}
         </el-tag>
       </template>
       <template #user="{ row }">
@@ -40,17 +53,18 @@
       <template #time="{ row }">
         <span>{{ formatDate(row.createdAt) }}</span>
       </template>
-      <template #actions="{ row }">
-        <el-button
-          size="small"
-          type="primary"
-          text
-          @click="viewDetail(row)"
-        >
-          查看详情
-        </el-button>
-      </template>
-    </DataTable>
+        <template #actions="{ row }">
+          <el-button
+            size="small"
+            type="primary"
+            text
+            @click="viewDetail(row)"
+          >
+            查看详情
+          </el-button>
+        </template>
+      </DataTable>
+    </template>
 
     <!-- 详情弹窗 -->
     <el-dialog
@@ -64,26 +78,29 @@
         :column="2"
         border
       >
-        <el-descriptions-item label="姓名">
-          {{ detail.clientName }}
+        <el-descriptions-item label="姓名/事项">
+          {{ detail.clientName || '—' }}
         </el-descriptions-item>
-        <el-descriptions-item label="出生">
-          {{ detail.clientBirth }}
+        <el-descriptions-item label="出生/起卦">
+          {{ detail.clientBirth || '—' }}
         </el-descriptions-item>
         <el-descriptions-item label="类型">
           <el-tag
-            :type="detail.paipanType === 'BAZI' ? 'warning' : 'success'"
+            :type="typeTag(detail.paipanType)"
             size="small"
           >
-            {{ detail.paipanType === 'BAZI' ? '八字' : '紫微斗数' }}
+            {{ typeLabel(detail.paipanType) }}
           </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="用户">
+          {{ detail.user?.nickname || detail.user?.phone || '未知' }}
         </el-descriptions-item>
         <el-descriptions-item label="时间">
           {{ formatDate(detail.createdAt) }}
         </el-descriptions-item>
       </el-descriptions>
       <div
-        v-if="detail?.resultData && detail.paipanType === 'ZIWEI'"
+        v-if="detail?.resultData && detail.paipanType === 'ZIWEI' && detail.resultData.gongWei"
         class="ziwei-preview"
       >
         <h4>命盘摘要</h4>
@@ -100,10 +117,10 @@
         </div>
       </div>
       <div
-        v-if="detail?.resultData && detail.paipanType === 'BAZI'"
+        v-else-if="detail?.resultData"
         class="bazi-preview"
       >
-        <h4>八字排盘</h4>
+        <h4>排盘结果</h4>
         <pre class="bazi-json">{{ JSON.stringify(detail.resultData, null, 2) }}</pre>
       </div>
     </el-dialog>
@@ -112,10 +129,36 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue"
-import { paipanApi } from "@/api"
+import { ElMessage } from "element-plus"
+import { api, paipanApi } from "@/api"
 import PageHeader from "@/components/PageHeader.vue"
 import SearchFilter, { type FilterDef } from "@/components/SearchFilter.vue"
 import DataTable, { type TableColumn } from "@/components/DataTable.vue"
+
+// 排盘类型中文标签（与后端 PaipanRecord.paipanType 一一对应）
+const TYPE_LABELS: Record<string, string> = {
+  BAZI: "八字",
+  ZIWEI: "紫微斗数",
+  QIMEN: "奇门遁甲",
+  YANGPAN: "阳盘命理",
+  LIUYAO: "六爻",
+  DALIUREN: "大六壬",
+}
+// el-tag 配色（'' 为默认色）
+const TYPE_TAGS: Record<string, string> = {
+  BAZI: "warning",
+  ZIWEI: "success",
+  QIMEN: "primary",
+  YANGPAN: "danger",
+  LIUYAO: "info",
+  DALIUREN: "",
+}
+function typeLabel(t: string): string {
+  return TYPE_LABELS[t] || t || "未知"
+}
+function typeTag(t: string): string {
+  return TYPE_TAGS[t] ?? "info"
+}
 
 const filterDefs: FilterDef[] = [
   {
@@ -125,8 +168,7 @@ const filterDefs: FilterDef[] = [
     placeholder: "全部",
     options: [
       { label: "全部", value: "ALL" },
-      { label: "八字", value: "BAZI" },
-      { label: "紫微斗数", value: "ZIWEI" },
+      ...Object.entries(TYPE_LABELS).map(([value, label]) => ({ label, value })),
     ],
   },
 ]
@@ -141,6 +183,7 @@ const columns: TableColumn[] = [
 
 const records = ref<any[]>([])
 const loading = ref(false)
+const error = ref(false)
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
@@ -153,6 +196,7 @@ onMounted(() => fetchRecords())
 
 async function fetchRecords() {
   loading.value = true
+  error.value = false
   try {
     const { data: res } = await paipanApi.adminRecords({
       page: page.value,
@@ -161,6 +205,8 @@ async function fetchRecords() {
     })
     records.value = res.records || res.list || []
     total.value = res.total || 0
+  } catch {
+    error.value = true
   } finally {
     loading.value = false
   }
@@ -180,16 +226,12 @@ function handleReset() {
 
 async function viewDetail(row: any) {
   try {
-    if (row.paipanType === "ZIWEI") {
-      const { data } = await paipanApi.ziweiDetail(row.id)
-      detail.value = data
-    } else {
-      const { data } = await paipanApi.detail(row.id)
-      detail.value = data
-    }
+    // 管理员专用详情端点：不限记录所有者，覆盖全部排盘类型
+    const { data } = await api.get(`/paipan/admin/records/${row.id}`)
+    detail.value = data
     showDetail.value = true
   } catch {
-    // ignore
+    ElMessage.error("加载排盘详情失败，请重试")
   }
 }
 
@@ -205,7 +247,7 @@ function formatDate(d?: string): string {
 .ziwei-preview h4, .bazi-preview h4 {
   margin: 16px 0 8px;
   font-size: 14px;
-  color: #333;
+  color: var(--color-text-title);
 }
 
 .ziwei-grid {
@@ -234,7 +276,7 @@ function formatDate(d?: string): string {
 
 .ziwei-cell .gong-ganzhi {
   font-size: 11px;
-  color: #666;
+  color: var(--color-text-body);
 }
 
 .ziwei-cell .gong-stars {
@@ -245,7 +287,7 @@ function formatDate(d?: string): string {
 
 .bazi-json {
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-body);
   background: #faf8f3;
   padding: 12px;
   border-radius: 6px;

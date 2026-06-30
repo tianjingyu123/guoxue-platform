@@ -4,7 +4,24 @@
       <h3>收入结算</h3>
     </div>
 
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="收入结算数据加载失败，请稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchAll"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-row
+      v-else
       v-loading="loadingOverview"
       :gutter="16"
       style="margin-bottom:20px"
@@ -69,14 +86,21 @@
       </el-col>
     </el-row>
 
-    <h4 style="margin-bottom:12px">
+    <h4
+      v-if="!error"
+      style="margin-bottom:12px"
+    >
       结算记录
     </h4>
     <el-table
+      v-if="!error"
       v-loading="loading"
       :data="list"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无结算记录" />
+      </template>
       <el-table-column
         label="结算周期"
         min-width="200"
@@ -138,6 +162,7 @@
     </el-table>
 
     <el-pagination
+      v-if="!error"
       v-model:current-page="page"
       :total="total"
       :page-size="20"
@@ -158,18 +183,27 @@ const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
 const loadingOverview = ref(false);
+const error = ref(false);
 
 function formatDate(d: string) {
   return d ? new Date(d).toLocaleDateString("zh-CN") : "-";
 }
 
-onMounted(() => { fetchOverview(); fetchSettlements(); });
+onMounted(() => fetchAll());
+
+function fetchAll() {
+  error.value = false;
+  fetchOverview();
+  fetchSettlements();
+}
 
 async function fetchOverview() {
   loadingOverview.value = true;
   try {
     const res = await merchantBackendApi.getRevenue();
     overview.value = (res as any).data ?? res;
+  } catch (e: any) {
+    error.value = true;
   } finally { loadingOverview.value = false; }
 }
 
@@ -180,6 +214,8 @@ async function fetchSettlements() {
     const data = (res as any).data ?? res;
     list.value = data.list || data.data || [];
     total.value = data.total || 0;
+  } catch (e: any) {
+    error.value = true;
   } finally { loading.value = false; }
 }
 </script>
@@ -190,5 +226,5 @@ async function fetchSettlements() {
 .page-header h3 { margin: 0; }
 .stat-card { text-align: center; padding: 12px; }
 .stat-card .stat-label { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 8px; }
-.stat-card .stat-value { font-size: 24px; font-weight: bold; color: #333; }
+.stat-card .stat-value { font-size: 24px; font-weight: bold; color: var(--color-text-title); }
 </style>

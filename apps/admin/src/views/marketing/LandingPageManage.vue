@@ -16,6 +16,16 @@
             <el-button size="small" type="primary" @click="showPageDialog()">新建模板</el-button>
           </div>
         </template>
+        <el-alert
+          v-if="pageError"
+          type="error"
+          title="数据加载失败"
+          :closable="false"
+          show-icon
+          style="margin-bottom:12px"
+        >
+          <el-button size="small" type="primary" @click="fetchPages">重试</el-button>
+        </el-alert>
         <el-table :data="pages" border stripe v-loading="pageLoading">
           <el-table-column prop="name" label="模板名称" width="180" />
           <el-table-column label="适用场景" width="140">
@@ -50,6 +60,9 @@
               </el-popconfirm>
             </template>
           </el-table-column>
+          <template #empty>
+            <el-empty :description="pageError ? '加载失败，请重试' : '暂无数据'" />
+          </template>
         </el-table>
         <el-pagination
           v-model:current-page="pagePage"
@@ -137,6 +150,7 @@ import PageHeader from "@/components/PageHeader.vue"
 
 const activeTab = ref("templates")
 const pageLoading = ref(false)
+const pageError = ref(false)
 const saving = ref(false)
 
 // 落地页模板
@@ -176,12 +190,13 @@ function formatTime(d: string): string { return d ? d.slice(0, 16).replace("T", 
 
 async function fetchPages() {
   pageLoading.value = true
+  pageError.value = false
   try {
     const res: any = await marketingApi.listPages()
     const d = res?.data ?? res
     pages.value = d.list ?? d.data ?? []
     pageTotal.value = d.total ?? 0
-  } catch { /* */ }
+  } catch { pageError.value = true }
   finally { pageLoading.value = false }
 }
 

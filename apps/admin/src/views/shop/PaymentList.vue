@@ -100,12 +100,34 @@
       </el-col>
     </el-row>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-top:12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button
+          link
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       stripe
       style="margin-top:12px"
     >
+      <template #empty>
+        <el-empty description="暂无支付流水" />
+      </template>
       <el-table-column
         label="订单号"
         prop="orderNo"
@@ -183,6 +205,7 @@ import { orderApi } from '@/api'
 import { exportCSV } from '@/utils/export'
 
 const loading = ref(false)
+const error = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -250,6 +273,7 @@ async function fetchStats() {
 
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const params: any = { page: page.value, pageSize: 20 }
     if (filters.orderNo) params.orderNo = filters.orderNo
@@ -262,7 +286,11 @@ async function fetchList() {
     const { data } = await orderApi.list(params)
     list.value = data.orders || data.data || []
     total.value = data.total || 0
-  } catch { list.value = [] } finally { loading.value = false }
+  } catch {
+    list.value = []
+    total.value = 0
+    error.value = true
+  } finally { loading.value = false }
 }
 
 function handleExport() {
@@ -289,9 +317,9 @@ function handleExport() {
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 16px; text-align: center; }
-.stat-card .value { display: block; font-size: 22px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 13px; color: #909399; margin-top: 4px; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 16px; text-align: center; }
+.stat-card .value { display: block; font-size: 22px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
 
-.filter-row { background: #fafafa; padding: 12px; border-radius: 8px; }
+.filter-row { background: var(--color-bg-page); padding: 12px; border-radius: 8px; }
 </style>

@@ -10,6 +10,22 @@
       </el-button>
     </div>
 
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
@@ -72,6 +88,7 @@
             size="small"
             text
             :type="row.isActive ? 'warning' : 'success'"
+            :loading="togglingId === row.id"
             @click="toggle(row)"
           >
             {{ row.isActive ? '禁用' : '启用' }}
@@ -80,12 +97,16 @@
             size="small"
             text
             type="danger"
+            :loading="deletingId === row.id"
             @click="del(row.id)"
           >
             删除
           </el-button>
         </template>
       </el-table-column>
+      <template #empty>
+        <el-empty description="暂无 Webhook 订阅" />
+      </template>
     </el-table>
 
     <el-dialog
@@ -161,7 +182,10 @@ function eventLabel(v: string) { return EVENT_MAP[v] || v }
 
 const list = ref<any[]>([])
 const loading = ref(false)
+const loadError = ref(false)
 const saving = ref(false)
+const togglingId = ref('')
+const deletingId = ref('')
 const dialogVisible = ref(false)
 const form = ref({ event: 'ORDER_PAID', url: '', secret: '', description: '' })
 
@@ -171,7 +195,9 @@ onMounted(() => fetchList())
 
 async function fetchList() {
   loading.value = true
+  loadError.value = false
   try { const res = await webhookApi.list(); list.value = (res.data as any) || [] }
+  catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') }
   finally { loading.value = false }
 }
 
@@ -181,17 +207,25 @@ async function doRegister() {
   if (!form.value.url) { ElMessage.warning('请输入回调URL'); return }
   saving.value = true
   try { await webhookApi.register(form.value); ElMessage.success('已注册'); dialogVisible.value = false; fetchList() }
-  catch (e: any) { }
+  catch { ElMessage.error('注册失败，请重试') }
   finally { saving.value = false }
 }
 
 async function toggle(row: any) {
+  if (togglingId.value) return
+  togglingId.value = row.id
   try { await webhookApi.toggle(row.id, !row.isActive); ElMessage.success(row.isActive ? '已禁用' : '已启用'); fetchList() }
-  catch (e: any) { }
+  catch { ElMessage.error('操作失败，请重试') }
+  finally { togglingId.value = '' }
 }
 
 async function del(id: string) {
-  try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await webhookApi.unregister(id); ElMessage.success('已删除'); fetchList() } catch {}
+  try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }) } catch { return }
+  if (deletingId.value) return
+  deletingId.value = id
+  try { await webhookApi.unregister(id); ElMessage.success('已删除'); fetchList() }
+  catch { ElMessage.error('删除失败，请重试') }
+  finally { deletingId.value = '' }
 }
 </script>
 

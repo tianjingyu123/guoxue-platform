@@ -73,18 +73,39 @@
       </el-form-item>
     </el-form>
 
-    <el-table
-      v-loading="loading"
-      :data="list"
-      border
-      stripe
+    <!-- 错误态 -->
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="无法获取赏金问题列表，请重试"
     >
-      <el-table-column
-        prop="title"
-        label="问题标题"
-        min-width="200"
-        show-overflow-tooltip
-      />
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <template v-else>
+      <el-table
+        v-loading="loading"
+        :data="list"
+        border
+        stripe
+      >
+        <template #empty>
+          <el-empty description="暂无赏金问题" />
+        </template>
+        <el-table-column
+          prop="title"
+          label="问题标题"
+          min-width="200"
+          show-overflow-tooltip
+        />
       <el-table-column
         prop="category"
         label="分类"
@@ -147,6 +168,7 @@
           <el-button
             size="small"
             type="danger"
+            :loading="closingId === row.id"
             @click="handleClose(row)"
           >
             关闭
@@ -155,14 +177,15 @@
       </el-table-column>
     </el-table>
 
-    <el-pagination
-      v-model:current-page="page"
-      v-model:page-size="pageSize"
-      :total="total"
-      layout="total, sizes, prev, pager, next"
-      @current-change="fetchList"
-      @size-change="fetchList"
-    />
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :total="total"
+        layout="total, sizes, prev, pager, next"
+        @current-change="fetchList"
+        @size-change="fetchList"
+      />
+    </template>
   </div>
 </template>
 
@@ -172,6 +195,8 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { bountyApi } from "@/api";
 
 const loading = ref(false);
+const error = ref(false);
+const closingId = ref<string | null>(null);
 const list = ref<any[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
@@ -196,6 +221,7 @@ function statusLabel(status: string) {
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (filterCategory.value) params.category = filterCategory.value;
@@ -204,7 +230,7 @@ async function fetchList() {
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
-    ElMessage.error("获取问题列表失败");
+    error.value = true;
   } finally {
     loading.value = false;
   }
@@ -217,13 +243,17 @@ function resetFilter() {
 }
 
 async function handleClose(row: any) {
+  if (closingId.value) return;
   try {
     await ElMessageBox.confirm(`确定关闭问题"${row.title}"吗？`, "确认关闭", { type: "warning" });
+    closingId.value = row.id;
     await bountyApi.closeQuestion(row.id);
     ElMessage.success("已关闭");
     fetchList();
-  } catch {
-    // cancelled or error
+  } catch (e) {
+    if (e !== "cancel" && e !== "close") ElMessage.error("关闭失败");
+  } finally {
+    closingId.value = null;
   }
 }
 

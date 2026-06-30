@@ -244,18 +244,18 @@ async function handleDelete(id: string) {
 
 <style scoped>
 .page { padding: 0; }
-.detail-info p { margin: 6px 0; font-size: 14px; color: #333; }
+.detail-info p { margin: 6px 0; font-size: 14px; color: var(--color-text-title); }
 .content-box {
-  background: #f5f7fa; border-radius: 6px; padding: 12px;
+  background: var(--color-bg-page); border-radius: 6px; padding: 12px;
   white-space: pre-wrap; word-break: break-all; font-size: 14px; line-height: 1.6;
 }
 .parent-box { background: #fef0f0; }
 .parent-meta { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
-.replies-list { max-height: 300px; overflow-y: auto; border: 1px solid #ebeef5; border-radius: 6px; padding: 8px 12px; }
-.reply-item { padding: 8px 0; border-bottom: 1px solid #f2f2f2; }
+.replies-list { max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 12px; }
+.reply-item { padding: 8px 0; border-bottom: 1px solid var(--color-divider); }
 .reply-item:last-child { border-bottom: none; }
 .reply-meta { display: flex; justify-content: space-between; margin-bottom: 4px; }
-.reply-user { font-weight: 600; font-size: 13px; color: #409eff; }
+.reply-user { font-weight: 600; font-size: 13px; color: var(--color-info); }
 .reply-time { font-size: 12px; color: var(--color-text-secondary); }
-.reply-content { font-size: 14px; line-height: 1.6; color: #333; }
+.reply-content { font-size: 14px; line-height: 1.6; color: var(--color-text-title); }
 </style>

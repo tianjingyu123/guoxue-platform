@@ -48,7 +48,7 @@
           </div>
           <div
             v-else
-            style="color:#999"
+            style="color:var(--color-text-secondary)"
           >
             暂无备份记录
           </div>
@@ -56,11 +56,30 @@
       </el-col>
     </el-row>
 
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败，请重试"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无备份记录" />
+      </template>
       <el-table-column
         label="文件名"
         min-width="250"
@@ -107,7 +126,7 @@ import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '@/api'
 
-const loading = ref(false); const backingUp = ref(false); const uploading = ref(false)
+const loading = ref(false); const loadError = ref(false); const backingUp = ref(false); const uploading = ref(false)
 const list = ref<any[]>([]); const latest = ref<any>(null)
 
 onMounted(() => { fetchList(); fetchLatest() })
@@ -125,7 +144,8 @@ async function fetchLatest() {
 
 async function fetchList() {
   loading.value = true
-  try { const { data } = await api.get('/system/backup/list'); list.value = data.files || data.data || [] } catch { list.value = [] } finally { loading.value = false }
+  loadError.value = false
+  try { const { data } = await api.get('/system/backup/list'); list.value = data.files || data.data || [] } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
 async function manualBackup() {

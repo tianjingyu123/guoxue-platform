@@ -32,11 +32,33 @@
       </el-select>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button
+          link
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="items"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无售后记录" />
+      </template>
       <el-table-column
         label="售后编号"
         width="100"
@@ -128,11 +150,6 @@
       </el-table-column>
     </el-table>
 
-    <el-empty
-      v-if="!loading && items.length === 0"
-      description="暂无售后记录"
-    />
-
     <!-- 分页 -->
     <el-pagination
       v-if="total > 0"
@@ -166,6 +183,7 @@
         </el-button>
         <el-button
           :type="dialogAction === 'approve' ? 'success' : 'danger'"
+          :loading="processing"
           @click="confirmProcess"
         >
           确认
@@ -181,6 +199,8 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "@/api";
 
 const loading = ref(false);
+const error = ref(false);
+const processing = ref(false);
 const items = ref<any[]>([]);
 const total = ref(0);
 const page = ref(1);
@@ -216,6 +236,7 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const { data } = await api.get("/shop/admin/after-sales", {
       params: {
@@ -225,6 +246,10 @@ async function fetchList() {
     });
     items.value = data?.items || data?.data || [];
     total.value = data?.total || 0;
+  } catch {
+    items.value = [];
+    total.value = 0;
+    error.value = true;
   } finally {
     loading.value = false;
   }
@@ -242,6 +267,8 @@ async function confirmProcess() {
     ElMessage.warning("请填写拒绝原因");
     return;
   }
+  if (processing.value) return;
+  processing.value = true;
   try {
     await api.put(`/shop/admin/after-sales/${processId.value}/process`, {
       action: dialogAction.value,
@@ -252,6 +279,8 @@ async function confirmProcess() {
     fetchList();
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || "操作失败");
+  } finally {
+    processing.value = false;
   }
 }
 </script>

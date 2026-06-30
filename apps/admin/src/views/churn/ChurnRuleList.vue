@@ -10,6 +10,21 @@
       </el-button>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      title="加载规则列表失败"
+      class="error-bar"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
@@ -230,6 +245,7 @@ interface ChurnRule {
 }
 
 const loading = ref(false);
+const error = ref(false);
 const list = ref<ChurnRule[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
@@ -264,11 +280,15 @@ function riskLabel(level: string) {
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const res = await churnApi.listRules({ page: page.value, pageSize: pageSize.value });
-    list.value = res.data.list || res.data.rows || [];
-    total.value = res.data.total || 0;
+    // 后端 listRules 返回裸数组（take:100，无分页包装）
+    const rows = Array.isArray(res.data) ? res.data : (res.data.items ?? res.data.rules ?? []);
+    list.value = rows;
+    total.value = rows.length;
   } catch {
+    error.value = true;
     ElMessage.error("获取规则列表失败");
   } finally {
     loading.value = false;
@@ -294,18 +314,34 @@ function openEditDialog(row: ChurnRule) {
   form.scoreThreshold = row.scoreThreshold;
   form.daysThreshold = row.daysThreshold;
   form.actionType = row.actionType;
-  form.actionConfig = row.actionConfig;
+  // 后端 actionConfig 为对象，回填到 JSON 文本域
+  form.actionConfig =
+    row.actionConfig && typeof row.actionConfig === "object"
+      ? JSON.stringify(row.actionConfig, null, 2)
+      : (row.actionConfig as unknown as string) || "";
   dialogVisible.value = true;
 }
 
 async function handleSubmit() {
+  if (submitting.value) return;
+  // actionConfig 后端要求对象（@IsObject），文本域内容需解析为 JSON
+  let actionConfig: Record<string, unknown> = {};
+  if (form.actionConfig && form.actionConfig.trim()) {
+    try {
+      actionConfig = JSON.parse(form.actionConfig);
+    } catch {
+      ElMessage.error("动作配置必须是合法 JSON");
+      return;
+    }
+  }
+  const payload = { ...form, actionConfig };
   submitting.value = true;
   try {
     if (isEdit.value && currentRow.value) {
-      await churnApi.updateRule(currentRow.value.id, form);
+      await churnApi.updateRule(currentRow.value.id, payload);
       ElMessage.success("更新成功");
     } else {
-      await churnApi.createRule(form);
+      await churnApi.createRule(payload);
       ElMessage.success("创建成功");
     }
     dialogVisible.value = false;
@@ -334,4 +370,5 @@ onMounted(fetchList);
 <style scoped>
 .page { padding: 20px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.error-bar { margin-bottom: 12px; }
 </style>

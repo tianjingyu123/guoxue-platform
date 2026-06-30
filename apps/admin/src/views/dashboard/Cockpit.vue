@@ -3,6 +3,22 @@
     v-loading="loading"
     class="cockpit"
   >
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="数据加载失败"
+      sub-title="无法获取驾驶舱数据，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="refreshAll"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+    <template v-else>
     <!-- 页面头部 -->
     <div class="page-header">
       <h2>📊 管理驾驶舱</h2>
@@ -76,8 +92,14 @@
             <h3>💰 本月收入构成</h3>
           </template>
           <div
+            v-if="revenueComposition.length"
             ref="revenueChartRef"
             style="height:320px"
+          />
+          <el-empty
+            v-else
+            description="暂无收入数据"
+            :image-size="80"
           />
         </el-card>
       </el-col>
@@ -87,8 +109,14 @@
             <h3>📈 用户增长与获客成本</h3>
           </template>
           <div
+            v-if="userGrowthTrends.length"
             ref="userGrowthChartRef"
             style="height:320px"
+          />
+          <el-empty
+            v-else
+            description="暂无用户增长数据"
+            :image-size="80"
           />
         </el-card>
       </el-col>
@@ -105,8 +133,14 @@
             <h3>📉 近30天业务线收入趋势</h3>
           </template>
           <div
+            v-if="businessTrends.length"
             ref="businessTrendRef"
             style="height:340px"
+          />
+          <el-empty
+            v-else
+            description="暂无业务趋势数据"
+            :image-size="80"
           />
         </el-card>
       </el-col>
@@ -313,6 +347,7 @@
         </el-card>
       </el-col>
     </el-row>
+    </template>
   </div>
 </template>
 
@@ -322,7 +357,8 @@ import { ElMessage } from "element-plus";
 import { cockpitApi } from "@/api";
 import echarts from "@/utils/echarts";
 
-const loading = ref(false);
+const loading = ref(true);
+const loadError = ref(false);
 const autoRefresh = ref(true);
 const lastRefreshTime = ref("");
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -479,6 +515,7 @@ function formatDate(d: string) {
 // ─── 数据加载 ───
 async function refreshAll() {
   loading.value = true;
+  loadError.value = false;
   lastRefreshTime.value = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   try {
     const [ov, rc, ug, bt, al, rk] = await Promise.all([
@@ -504,6 +541,7 @@ async function refreshAll() {
     renderUserGrowthChart();
     renderBusinessTrendChart();
   } catch {
+    loadError.value = true;
     ElMessage.error("加载驾驶舱数据失败");
   } finally {
     loading.value = false;
@@ -542,7 +580,7 @@ onBeforeUnmount(() => {
 
 .kpi-row { margin-bottom: 16px; }
 .kpi-card { text-align: center; }
-.kpi-label { font-size: 13px; color: #909399; margin-bottom: 8px; }
+.kpi-label { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 8px; }
 .kpi-value { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
 .kpi-sub { font-size: 12px; color: #b0b3bb; }
 
@@ -551,21 +589,21 @@ onBeforeUnmount(() => {
 
 .alert-panel { height: 100%; }
 .alert-list { max-height: 320px; overflow-y: auto; }
-.alert-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; align-items: flex-start; }
-.alert-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; background: #e6a23c; }
-.alert-dot.danger { background: #f56c6c; }
-.alert-dot.warn { background: #e6a23c; }
-.alert-type { font-size: 12px; color: #909399; }
-.alert-msg { font-size: 13px; color: #303133; line-height: 1.4; }
+.alert-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--color-divider); align-items: flex-start; }
+.alert-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; background: var(--color-warning); }
+.alert-dot.danger { background: var(--color-error); }
+.alert-dot.warn { background: var(--color-warning); }
+.alert-type { font-size: 12px; color: var(--color-text-secondary); }
+.alert-msg { font-size: 13px; color: var(--color-text-title); line-height: 1.4; }
 
-.refund-row { font-size: 13px; color: #606266; }
+.refund-row { font-size: 13px; color: var(--color-text-body); }
 
 .rank-list { max-height: 240px; overflow-y: auto; }
-.rank-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
+.rank-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--color-bg-page); font-size: 13px; }
 .rank-num { width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; background: #b0b3bb; flex-shrink: 0; }
-.rank-num.top1 { background: #f56c6c; }
-.rank-num.top2 { background: #e6a23c; }
-.rank-num.top3 { background: #409eff; }
+.rank-num.top1 { background: var(--color-error); }
+.rank-num.top2 { background: var(--color-warning); }
+.rank-num.top3 { background: var(--color-info); }
 .rank-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rank-val { color: #909399; font-size: 12px; flex-shrink: 0; }
+.rank-val { color: var(--color-text-secondary); font-size: 12px; flex-shrink: 0; }
 </style>

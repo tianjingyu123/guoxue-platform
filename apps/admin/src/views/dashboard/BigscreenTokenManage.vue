@@ -14,8 +14,26 @@
       Token 用于对外数字大屏的安全访问控制。创建后需超级管理员审核才能生效，支持 IP 白名单和自动过期。
     </p>
 
-    <!-- Token 列表 -->
-    <el-card>
+    <!-- 错误态 -->
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="数据加载失败"
+      sub-title="无法获取 Token 列表，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="load"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <template v-else>
+      <!-- Token 列表 -->
+      <el-card>
       <template #header>
         <div class="card-header">
           <span>Token 列表</span>
@@ -197,7 +215,8 @@
           </template>
         </el-table-column>
       </el-table>
-    </el-card>
+      </el-card>
+    </template>
 
     <!-- 创建对话框 -->
     <el-dialog
@@ -299,6 +318,7 @@ const bigscreenTypes = [
 ];
 
 const loading = ref(false);
+const loadError = ref(false);
 const tokens = ref<any[]>([]);
 const logs = ref<any[]>([]);
 const creating = ref(false);
@@ -328,9 +348,16 @@ async function fetchTokens() {
   try {
     const { data } = await bigscreenTokenApi.list();
     tokens.value = (data as any[]) || [];
+    loadError.value = false;
+  } catch {
+    loadError.value = true;
   } finally {
     loading.value = false;
   }
+}
+
+async function load() {
+  await Promise.all([fetchTokens(), fetchLogs()]);
 }
 
 async function fetchLogs() {
@@ -385,8 +412,7 @@ async function del(id: string) {
 }
 
 onMounted(() => {
-  fetchTokens();
-  fetchLogs();
+  load();
 });
 </script>
 
@@ -394,9 +420,9 @@ onMounted(() => {
 .bigscreen-token { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .page-header h2 { margin: 0; font-size: 20px; }
-.desc { color: #909399; font-size: 13px; margin-bottom: 16px; }
+.desc { color: var(--color-text-secondary); font-size: 13px; margin-bottom: 16px; }
 
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .token-cell { display: flex; align-items: center; gap: 8px; }
-.token-cell code { font-size: 12px; background: #f5f7fa; padding: 2px 6px; border-radius: 4px; }
+.token-cell code { font-size: 12px; background: var(--color-bg-page); padding: 2px 6px; border-radius: 4px; }
 </style>

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import { auditApi } from '@/api'
 
 const loading = ref(false)
+const loadError = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -17,6 +19,7 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true
+  loadError.value = false
   try {
     const params: any = { page: page.value, pageSize: 20 }
     if (filters.operatorId) params.operatorId = filters.operatorId
@@ -29,7 +32,7 @@ async function fetchList() {
     const { data } = await auditApi.list(params)
     list.value = data?.data || data?.operationLogs || data?.logs || []
     total.value = data?.total || 0
-  } catch { list.value = [] } finally { loading.value = false }
+  } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
 function resetFilters() {
@@ -145,6 +148,22 @@ const actionTagMap: Record<string, string> = {
         </el-form-item>
       </el-form>
     </el-card>
+
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
 
     <el-table
       v-loading="loading"
@@ -262,7 +281,7 @@ const actionTagMap: Record<string, string> = {
       >
         详情数据：
       </div>
-      <pre style="background:#f5f5f5;padding:12px;border-radius:4px;max-height:360px;overflow:auto;font-size:13px;white-space:pre-wrap;word-break:break-all">{{ JSON.stringify(detailRow?.detail || detailRow, null, 2) }}</pre>
+      <pre style="background:var(--color-bg-page);padding:12px;border-radius:4px;max-height:360px;overflow:auto;font-size:13px;white-space:pre-wrap;word-break:break-all">{{ JSON.stringify(detailRow?.detail || detailRow, null, 2) }}</pre>
       <template #footer>
         <el-button @click="detailVis = false">
           关闭

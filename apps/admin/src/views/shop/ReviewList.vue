@@ -21,7 +21,23 @@
       </div>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button link type="primary" @click="fetchList">重试</el-button>
+      </template>
+    </el-alert>
+
     <el-table v-loading="loading" :data="reviews" stripe>
+      <template #empty>
+        <el-empty :description="productIdFilter ? '暂无评价' : '请搜索商品ID查看评价'" />
+      </template>
       <el-table-column label="商品" min-width="160">
         <template #default="{ row }">
           <span v-if="row.product">{{ row.product.title || row.productId }}</span>
@@ -81,14 +97,12 @@
       </el-table-column>
     </el-table>
 
-    <el-empty v-if="!loading && reviews.length === 0 && !productIdFilter" description="请搜索商品ID查看评价" />
-
     <!-- 回复弹窗 -->
     <el-dialog v-model="replyVisible" title="回复评价" width="480px">
       <el-input v-model="replyContent" type="textarea" :rows="4" placeholder="输入回复内容..." />
       <template #footer>
         <el-button @click="replyVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitReply">提交回复</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitReply">提交回复</el-button>
       </template>
     </el-dialog>
 
@@ -121,6 +135,9 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "@/api";
 
 const loading = ref(false);
+const error = ref(false);
+const submitting = ref(false);
+const acting = ref(false);
 const reviews = ref<any[]>([]);
 const productIdFilter = ref("");
 const ratingFilter = ref("");
@@ -131,6 +148,7 @@ const abnormalVisible = ref(false);
 const abnormalList = ref<any[]>([]);
 
 async function fetchList() {
+  error.value = false;
   if (!productIdFilter.value.trim()) {
     reviews.value = [];
     return;
@@ -147,6 +165,8 @@ async function fetchList() {
       isAbnormal: r.isAbnormal ?? false,
     }));
   } catch (e: any) {
+    reviews.value = [];
+    error.value = true;
     ElMessage.error(e?.response?.data?.message || "查询失败");
   } finally {
     loading.value = false;
@@ -164,6 +184,8 @@ async function submitReply() {
     ElMessage.warning("请输入回复内容");
     return;
   }
+  if (submitting.value) return;
+  submitting.value = true;
   try {
     await api.post(`/shop/reviews/${replyReviewId.value}/reply`, { reply: replyContent.value.trim() });
     ElMessage.success("回复成功");
@@ -171,25 +193,31 @@ async function submitReply() {
     fetchList();
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || "回复失败");
+  } finally {
+    submitting.value = false;
   }
 }
 
 async function toggleHide(row: any) {
+  if (acting.value) return;
+  acting.value = true;
   try {
     const newStatus = row.status === 'PUBLISHED' ? 'HIDDEN' : 'PUBLISHED';
     await api.put(`/shop/reviews/${row.id}/toggle`, { status: newStatus });
     ElMessage.success(newStatus === 'HIDDEN' ? '已隐藏' : '已显示');
     fetchList();
-  } catch { /* */ }
+  } catch { /* */ } finally { acting.value = false; }
 }
 
 async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm("确定删除该评价吗？", "删除确认", { type: "warning" });
+    if (acting.value) return;
+    acting.value = true;
     await api.delete(`/shop/reviews/${row.id}`);
     ElMessage.success("已删除");
     fetchList();
-  } catch { /* 取消 */ }
+  } catch { /* 取消 */ } finally { acting.value = false; }
 }
 
 async function checkAbnormal() {
@@ -214,6 +242,6 @@ async function checkAbnormal() {
 .toolbar h3 { margin: 0; font-size: 16px; }
 .filter-row { display: flex; align-items: center; }
 .vote-row { font-size: 13px; }
-.vote-up { color: #67c23a; }
-.vote-down { color: #f56c6c; }
+.vote-up { color: var(--color-success); }
+.vote-down { color: var(--color-error); }
 </style>

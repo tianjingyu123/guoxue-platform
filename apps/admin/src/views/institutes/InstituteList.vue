@@ -60,7 +60,24 @@
       </div>
     </div>
 
+    <el-result
+      v-if="loadError && !loading"
+      icon="error"
+      title="加载失败"
+      sub-title="请检查网络后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-table
+      v-show="!loadError"
       v-loading="loading"
       :data="list"
       border
@@ -150,6 +167,7 @@
             v-if="row.status === 'ACTIVE'"
             size="small"
             type="warning"
+            :loading="acting"
             @click="handleUpdate(row, 'FROZEN')"
           >
             冻结
@@ -158,6 +176,7 @@
             v-if="row.status === 'FROZEN'"
             size="small"
             type="success"
+            :loading="acting"
             @click="handleUpdate(row, 'ACTIVE')"
           >
             解冻
@@ -166,12 +185,19 @@
             v-if="row.status === 'ACTIVE'"
             size="small"
             type="danger"
+            :loading="acting"
             @click="handleUpdate(row, 'LEFT')"
           >
             退出
           </el-button>
         </template>
       </el-table-column>
+      <template #empty>
+        <el-empty
+          description="暂无研究院成员"
+          :image-size="80"
+        />
+      </template>
     </el-table>
 
     <div
@@ -278,6 +304,8 @@ import { instituteApi } from "@/api";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
+const loadError = ref(false);
+const acting = ref(false);
 const statusFilter = ref("");
 const roleFilter = ref("");
 const page = ref(1);
@@ -313,6 +341,7 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  loadError.value = false;
   try {
     const params: any = { page: page.value, pageSize };
     if (statusFilter.value) params.status = statusFilter.value;
@@ -320,6 +349,8 @@ async function fetchList() {
     const { data } = await instituteApi.listMembers(params);
     list.value = data.members || [];
     total.value = data.total || 0;
+  } catch {
+    loadError.value = true;
   } finally {
     loading.value = false;
   }
@@ -335,7 +366,7 @@ function openEdit(row: any) {
 }
 
 async function saveEdit() {
-  if (!editingRow.value) return;
+  if (!editingRow.value || saving.value) return;
   saving.value = true;
   try {
     await instituteApi.updateMember(editingRow.value.id, {
@@ -353,11 +384,17 @@ async function saveEdit() {
 }
 
 async function handleUpdate(row: any, status: string) {
+  if (acting.value) return;
   const label = status === "FROZEN" ? "冻结" : status === "ACTIVE" && row.status === "FROZEN" ? "解冻" : "设为已退出";
   await ElMessageBox.confirm(`确定${label}成员「${row.user?.nickname}」？`, "提示", { type: "warning" });
-  await instituteApi.updateMember(row.id, { status });
-  ElMessage.success(`已${label}`);
-  fetchList();
+  acting.value = true;
+  try {
+    await instituteApi.updateMember(row.id, { status });
+    ElMessage.success(`已${label}`);
+    fetchList();
+  } finally {
+    acting.value = false;
+  }
 }
 </script>
 

@@ -17,7 +17,11 @@
               </div>
             </div>
           </template>
-          <div class="emoji-grid">
+          <el-result v-if="loadError && !loading" icon="error" title="加载失败" sub-title="请检查网络后重试">
+            <template #extra><el-button type="primary" @click="fetchEmojis">重试</el-button></template>
+          </el-result>
+          <template v-else>
+          <div class="emoji-grid" v-loading="loading">
             <div
               v-for="e in emojis"
               :key="e.id"
@@ -29,6 +33,7 @@
               <span class="emoji-name">{{ e.name }}</span>
               <span class="emoji-usage">{{ e.usageCount ?? 0 }}次</span>
             </div>
+            <el-empty v-if="!loading && emojis.length === 0" description="暂无表情" :image-size="80" style="width:100%" />
           </div>
           <el-pagination
             v-model:current-page="emojiPage"
@@ -39,6 +44,7 @@
             @current-change="fetchEmojis"
             @size-change="fetchEmojis"
           />
+          </template>
         </el-card>
       </el-col>
 
@@ -116,7 +122,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="addEmoji">确认添加</el-button>
+        <el-button type="primary" :loading="submitting" @click="addEmoji">确认添加</el-button>
       </template>
     </el-dialog>
   </div>
@@ -129,6 +135,9 @@ import { emojiApi } from "@/api"
 import PageHeader from "@/components/PageHeader.vue"
 
 const catFilter = ref("")
+const loading = ref(false)
+const loadError = ref(false)
+const submitting = ref(false)
 const emojiPage = ref(1)
 const emojiPageSize = ref(30)
 const emojiTotal = ref(0)
@@ -153,12 +162,15 @@ watch(selectedEmoji, (val) => {
 })
 
 async function fetchEmojis() {
+  loading.value = true
+  loadError.value = false
   try {
     const res: any = await emojiApi.list({ category: catFilter.value || undefined, page: emojiPage.value, pageSize: emojiPageSize.value })
     const d = res?.data ?? res
     emojis.value = d.list ?? d.data ?? []
     emojiTotal.value = d.total ?? 0
-  } catch { /* */ }
+  } catch { loadError.value = true }
+  finally { loading.value = false }
 }
 
 async function fetchStats() {
@@ -179,22 +191,32 @@ function showEmojiDialog() {
 }
 
 async function addEmoji() {
+  if (submitting.value) return
+  submitting.value = true
   try {
     await emojiApi.create({ ...addForm })
     ElMessage.success("添加成功"); dialogVisible.value = false; fetchEmojis(); fetchStats()
   } catch { /* */ }
+  finally { submitting.value = false }
 }
 
 async function updateEmoji() {
   if (!selectedEmoji.value) return
+  if (submitting.value) return
+  submitting.value = true
   try {
     await emojiApi.update(selectedEmoji.value.id, { name: editForm.name, category: editForm.category, sortOrder: editForm.sortOrder })
     ElMessage.success("已更新"); fetchEmojis()
   } catch { /* */ }
+  finally { submitting.value = false }
 }
 
 async function deleteEmoji(id: string) {
-  try { await emojiApi.delete(id); ElMessage.success("已删除"); selectedEmoji.value = null; fetchEmojis(); fetchStats() } catch { /* */ }
+  if (submitting.value) return
+  submitting.value = true
+  try { await emojiApi.delete(id); ElMessage.success("已删除"); selectedEmoji.value = null; fetchEmojis(); fetchStats() }
+  catch { /* */ }
+  finally { submitting.value = false }
 }
 
 onMounted(() => { fetchEmojis(); fetchStats() })
@@ -205,17 +227,17 @@ onMounted(() => { fetchEmojis(); fetchStats() })
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .emoji-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .emoji-item { width: 80px; padding: 8px 4px; text-align: center; border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
-.emoji-item:hover { background: #f5f7fa; }
-.emoji-item.selected { border-color: #409eff; background: #ecf5ff; }
+.emoji-item:hover { background: var(--color-bg-page); }
+.emoji-item.selected { border-color: var(--color-info); background: #ecf5ff; }
 .emoji-icon { font-size: 28px; display: block; }
-.emoji-name { font-size: 11px; color: #666; display: block; margin-top: 2px; }
+.emoji-name { font-size: 11px; color: var(--color-text-body); display: block; margin-top: 2px; }
 .emoji-usage { font-size: 10px; color: #bbb; display: block; }
-.stat-mini { text-align: center; padding: 10px; background: #f5f7fa; border-radius: 8px; margin-bottom: 8px; }
-.stat-mini-val { font-size: 18px; font-weight: 700; color: #409eff; }
+.stat-mini { text-align: center; padding: 10px; background: var(--color-bg-page); border-radius: 8px; margin-bottom: 8px; }
+.stat-mini-val { font-size: 18px; font-weight: 700; color: var(--color-info); }
 .stat-mini-lbl { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
-.hot-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
-.hot-rank { width: 20px; font-weight: 700; color: #e6a23c; }
+.hot-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--color-bg-page); font-size: 13px; }
+.hot-rank { width: 20px; font-weight: 700; color: var(--color-warning); }
 .hot-icon { font-size: 18px; }
 .hot-name { flex: 1; }
-.hot-count { color: #999; font-size: 12px; }
+.hot-count { color: var(--color-text-secondary); font-size: 12px; }
 </style>

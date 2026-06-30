@@ -11,7 +11,24 @@
       </template>
     </PageHeader>
 
+    <el-result
+      v-if="loadError && !loading"
+      icon="error"
+      title="加载失败"
+      sub-title="圈子列表加载失败，请检查网络后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-table
+      v-show="!loadError"
       v-loading="loading"
       :data="list"
       border
@@ -199,6 +216,8 @@ const router = useRouter();
 
 const list = ref<any[]>([]);
 const loading = ref(false);
+const loadError = ref(false);
+const acting = ref(false);
 const dialogVisible = ref(false);
 const saving = ref(false);
 const editingId = ref("");
@@ -214,10 +233,12 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  loadError.value = false;
   try {
     const { data } = await circleApi.list({ pageSize: 100 });
     list.value = data.circles || data || [];
   } catch {
+    loadError.value = true;
     ElMessage.error("加载圈子列表失败");
   } finally { loading.value = false; }
 }
@@ -265,16 +286,24 @@ async function save() {
 }
 
 async function toggleStatus(row: any, status: string) {
-  await circleApi.update(row.id, { status });
-  ElMessage.success(status === "BANNED" ? "已封禁" : "已解封");
-  fetchList();
+  if (acting.value) return;
+  acting.value = true;
+  try {
+    await circleApi.update(row.id, { status });
+    ElMessage.success(status === "BANNED" ? "已封禁" : "已解封");
+    fetchList();
+  } finally { acting.value = false; }
 }
 
 function delCircle(id: string) {
   ElMessageBox.confirm("确定删除该圈子？", "警告", { type: "warning" }).then(async () => {
-    await circleApi.remove(id);
-    ElMessage.success("已删除");
-    fetchList();
+    if (acting.value) return;
+    acting.value = true;
+    try {
+      await circleApi.remove(id);
+      ElMessage.success("已删除");
+      fetchList();
+    } finally { acting.value = false; }
   }).catch(() => {});
 }
 </script>

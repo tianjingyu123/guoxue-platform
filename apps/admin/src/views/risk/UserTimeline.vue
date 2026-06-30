@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { riskApi } from '@/api'
 import { exportCSV } from '@/utils/export'
 
 const loading = ref(false)
+const error = ref(false)
+// list 直接保存后端按条件分页返回的行为日志
 const list = ref<any[]>([])
+const total = ref(0)
+const page = ref(1)
 const searchUserId = ref('')
 const searched = ref(false)
 
@@ -14,6 +18,7 @@ const userInfo = ref<any>(null)
 const dateRange = ref<[Date, Date] | null>(null)
 const actionType = ref('')
 
+// action 子串匹配，由后端 where.action.contains 过滤
 const actionTypeOptions = [
   { label: '全部', value: '' },
   { label: '登录', value: 'LOGIN' },
@@ -24,29 +29,37 @@ const actionTypeOptions = [
   { label: '登出', value: 'LOGOUT' },
 ]
 
-onMounted(() => {
-  // 如果有预置 userId 参数可在此处自动查询
-})
-
 function formatDate(d: string) {
   return d ? new Date(d).toLocaleString() : '-'
 }
 
-function maskPhone(phone: string): string {
-  if (!phone || phone.length < 7) return phone || '-'
-  return phone.slice(0, 3) + '****' + phone.slice(-4)
+// 隐私脱敏：IP / 设备ID 后端未脱敏，前端展示时掩码
+function maskIp(ip?: string): string {
+  if (!ip) return '-'
+  const parts = ip.split('.')
+  if (parts.length === 4) return `${parts[0]}.${parts[1]}.*.*`
+  return ip.length > 6 ? ip.slice(0, 4) + '****' : '****'
 }
 
-function getActionIcon(action: string): string {
-  const map: Record<string, string> = {
-    LOGIN: 'user',
-    ORDER: 'shopping-cart',
-    CONTENT: 'edit',
-    PAYMENT: 'money',
-    PROFILE: 'setting',
-    LOGOUT: 'switch-button',
-  }
-  return map[action] || 'info-filled'
+function maskId(id?: string): string {
+  if (!id) return '-'
+  if (id.length <= 8) return id.slice(0, 2) + '****'
+  return id.slice(0, 4) + '****' + id.slice(-4)
+}
+
+// 行为描述：UserBehaviorLog 无 description 字段，由 targetType/targetId/meta 拼装
+function behaviorDesc(item: any): string {
+  const parts: string[] = []
+  if (item.targetType) parts.push(`${item.targetType}${item.targetId ? '#' + item.targetId : ''}`)
+  if (item.meta && Object.keys(item.meta).length) parts.push(JSON.stringify(item.meta))
+  return parts.join(' ') || '-'
+}
+
+// 筛选条件变化：回到第一页重新查询（后端过滤/分页）
+function onFilterChange() {
+  if (!searched.value) return
+  page.value = 1
+  fetchTimeline()
 }
 
 async function searchTimeline() {
@@ -54,35 +67,37 @@ async function searchTimeline() {
     ElMessage.warning('请输入用户ID')
     return
   }
-  loading.value = true
   searched.value = true
+  page.value = 1
+  await fetchTimeline()
+}
+
+async function fetchTimeline() {
+  loading.value = true
+  error.value = false
   try {
-    const params: Record<string, any> = {}
-    if (dateRange.value) {
-      params.startDate = dateRange.value[0].toISOString()
-      params.endDate = dateRange.value[1].toISOString()
-    }
+    const params: Record<string, any> = { page: page.value, pageSize: 20 }
     if (actionType.value) params.action = actionType.value
-    const { data } = await riskApi.getUserTimeline(searchUserId.value.trim(), params)
-    list.value = data.timeline || data.records || data.data || []
-    if (data.user) {
-      userInfo.value = data.user
-    } else {
-      userInfo.value = list.value.length > 0 ? { userId: searchUserId.value.trim() } : null
+    if (dateRange.value) {
+      params.dateFrom = dateRange.value[0].toISOString()
+      params.dateTo = dateRange.value[1].toISOString()
     }
+    const { data } = await riskApi.getUserTimeline(searchUserId.value.trim(), params)
+    list.value = data.items ?? (Array.isArray(data) ? data : [])
+    total.value = data.total ?? list.value.length
+    // 后端联表返回用户基本信息（手机号已脱敏）
+    userInfo.value = data.user ?? null
   } catch {
     list.value = []
+    total.value = 0
     userInfo.value = null
+    error.value = true
   } finally {
     loading.value = false
   }
 }
 
 function exportTimeline() {
-  const actionMap: Record<string, string> = {
-    LOGIN: '登录', ORDER: '下单', CONTENT: '内容操作',
-    PAYMENT: '支付', PROFILE: '修改资料', LOGOUT: '登出',
-  }
   exportCSV(
     `用户行为轨迹_${searchUserId.value}`,
     [
@@ -95,14 +110,13 @@ function exportTimeline() {
       { label: '设备ID', key: 'deviceId' },
     ],
     list.value.map((item: any) => ({
-      ...item,
       createdAt: item.createdAt ? new Date(item.createdAt).toLocaleString() : '-',
-      action: actionMap[item.action] || item.action || '-',
-      desc: item.description || item.detail || (item.meta ? JSON.stringify(item.meta) : '') || '-',
+      action: item.action || '-',
+      desc: behaviorDesc(item),
       targetType: item.targetType || '-',
       targetId: item.targetId || '-',
-      ip: item.ip || '-',
-      deviceId: item.deviceId || '-',
+      ip: maskIp(item.ip),
+      deviceId: maskId(item.deviceId),
     })),
   )
 }
@@ -136,12 +150,14 @@ function exportTimeline() {
         end-placeholder="结束日期"
         style="width:260px"
         clearable
+        @change="onFilterChange"
       />
       <el-select
         v-model="actionType"
         placeholder="行为类型"
         clearable
         style="width:140px"
+        @change="onFilterChange"
       >
         <el-option
           v-for="a in actionTypeOptions"
@@ -159,34 +175,58 @@ function exportTimeline() {
       </el-button>
     </div>
 
-    <!-- 用户信息卡片 -->
+    <!-- 用户信息卡片（后端联表返回，手机号已脱敏） -->
     <div
       v-if="userInfo"
       class="user-card"
     >
       <el-descriptions
-        :column="4"
+        :column="3"
         border
         size="small"
       >
-        <el-descriptions-item label="用户ID">
-          <span style="font-weight:600">{{ userInfo.userId || searchUserId }}</span>
-        </el-descriptions-item>
         <el-descriptions-item label="昵称">
-          {{ userInfo.nickname || '-' }}
+          <span style="font-weight:600">{{ userInfo.nickname || '-' }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="用户ID">
+          {{ userInfo.id || searchUserId }}
         </el-descriptions-item>
         <el-descriptions-item label="手机号">
-          {{ maskPhone(userInfo.phone) }}
+          {{ userInfo.phone || '-' }}
         </el-descriptions-item>
-        <el-descriptions-item label="会员等级">
-          {{ userInfo.memberLevel || '普通' }}
+        <el-descriptions-item label="账号状态">
+          <el-tag
+            :type="userInfo.status === 'ACTIVE' ? 'success' : 'danger'"
+            size="small"
+          >
+            {{ userInfo.status || '-' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="注册时间">
+          {{ formatDate(userInfo.createdAt) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="行为记录数">
+          {{ total }}
         </el-descriptions-item>
       </el-descriptions>
     </div>
 
+    <!-- 错误态 -->
+    <el-empty
+      v-if="error"
+      description="加载失败，请重试"
+    >
+      <el-button
+        type="primary"
+        @click="searchTimeline"
+      >
+        重试
+      </el-button>
+    </el-empty>
+
     <!-- 时间线 -->
     <div
-      v-if="searched && list.length > 0"
+      v-if="searched && !error && list.length > 0"
       class="timeline-container"
     >
       <el-timeline>
@@ -200,33 +240,38 @@ function exportTimeline() {
             <div class="timeline-header">
               <el-tag
                 size="small"
-                :type="item.action === 'LOGIN' || item.action === 'LOGOUT' ? '' : item.action === 'ORDER' || item.action === 'PAYMENT' ? 'success' : 'warning'"
+                :type="(item.action || '').includes('LOGIN') || (item.action || '').includes('LOGOUT') ? '' : (item.action || '').includes('ORDER') || (item.action || '').includes('PAYMENT') ? 'success' : 'warning'"
               >
-                {{ item.action }}
+                {{ item.action || '-' }}
               </el-tag>
-              <span class="timeline-desc">{{ item.description || item.detail || '-' }}</span>
+              <span class="timeline-desc">{{ behaviorDesc(item) }}</span>
             </div>
             <div class="timeline-meta">
               <span
                 v-if="item.ip"
                 class="meta-tag"
-              >IP: {{ item.ip }}</span>
+              >IP: {{ maskIp(item.ip) }}</span>
               <span
-                v-if="item.deviceInfo"
+                v-if="item.deviceId"
                 class="meta-tag"
-              >设备: {{ item.deviceInfo }}</span>
-              <span
-                v-if="item.location"
-                class="meta-tag"
-              >位置: {{ item.location }}</span>
+              >设备: {{ maskId(item.deviceId) }}</span>
             </div>
           </div>
         </el-timeline-item>
       </el-timeline>
+
+      <el-pagination
+        v-model:current-page="page"
+        :total="total"
+        :page-size="20"
+        layout="total, prev, pager, next"
+        style="margin-top:16px;justify-content:flex-end"
+        @current-change="fetchTimeline"
+      />
     </div>
 
     <el-empty
-      v-else-if="!loading && searched"
+      v-else-if="!loading && searched && !error"
       description="未查询到该用户的行为记录"
     />
   </div>

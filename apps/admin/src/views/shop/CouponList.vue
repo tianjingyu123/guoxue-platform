@@ -15,12 +15,34 @@
       </div>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button
+          link
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
+
     <!-- 优惠券列表 -->
     <el-table
       v-loading="loading"
       :data="coupons"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无优惠券" />
+      </template>
       <el-table-column
         prop="name"
         label="名称"
@@ -316,7 +338,10 @@ const coupons = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const loading = ref(false)
+const error = ref(false)
 const saving = ref(false)
+const toggling = ref(false)
+const deleting = ref(false)
 
 const dialogVisible = ref(false)
 const editingId = ref('')
@@ -406,11 +431,16 @@ function openEdit(row: any) {
 
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     // 管理后台传 admin=true 查看全部优惠券（含已过期/禁用）
     const { data } = await shopApi.listCoupons({ page: page.value, pageSize: 20, admin: 'true' })
     coupons.value = data.coupons
     total.value = data.total
+  } catch {
+    coupons.value = []
+    total.value = 0
+    error.value = true
   } finally { loading.value = false }
 }
 
@@ -432,22 +462,26 @@ async function saveCoupon() {
 }
 
 async function toggleStatus(row: any) {
+  if (toggling.value) return
+  toggling.value = true
   const newStatus = row.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE'
   try {
     await shopApi.updateCouponStatus(row.id, newStatus)
     ElMessage.success(newStatus === 'ACTIVE' ? '已启用' : '已禁用')
     fetchList()
   } catch (e: any) {
-  }
+  } finally { toggling.value = false }
 }
 
 async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm('确定删除此优惠券？', '提示', { type: 'warning' })
+    if (deleting.value) return
+    deleting.value = true
     await shopApi.deleteCoupon(row.id)
     ElMessage.success('已删除')
     fetchList()
-  } catch { /* 取消 */ }
+  } catch { /* 取消 */ } finally { deleting.value = false }
 }
 </script>
 

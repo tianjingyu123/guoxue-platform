@@ -96,6 +96,9 @@
             </el-popconfirm>
           </template>
         </el-table-column>
+        <template #empty>
+          <el-empty description="暂无模板" />
+        </template>
       </el-table>
 
       <el-pagination

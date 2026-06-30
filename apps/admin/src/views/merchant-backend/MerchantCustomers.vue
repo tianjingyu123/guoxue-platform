@@ -7,7 +7,21 @@
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="客户列表加载失败，请稍后重试"
+    >
+      <template #extra>
+        <el-button type="primary" @click="fetchList">重试</el-button>
+      </template>
+    </el-result>
+
+    <el-table v-else v-loading="loading" :data="list" stripe>
+      <template #empty>
+        <el-empty description="暂无客户数据" />
+      </template>
       <el-table-column prop="id" label="客户ID" width="200" show-overflow-tooltip />
       <el-table-column prop="nickname" label="昵称" width="120" />
       <el-table-column prop="phone" label="手机号" width="140" />
@@ -28,7 +42,7 @@
       </el-table-column>
     </el-table>
 
-    <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" style="margin-top:16px;justify-content:flex-end" @current-change="fetchList" />
+    <el-pagination v-if="!error" v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" style="margin-top:16px;justify-content:flex-end" @current-change="fetchList" />
 
     <el-dialog v-model="detailDialog" title="客户详情" width="550px">
       <el-descriptions v-if="current" :column="2" border size="small">
@@ -51,6 +65,7 @@ const list = ref<any[]>([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
+const error = ref(false);
 const search = ref("");
 const detailDialog = ref(false);
 const current = ref<any>(null);
@@ -69,6 +84,7 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const params: any = { page: page.value, pageSize: 20 };
     if (search.value) params.keyword = search.value;
@@ -76,6 +92,8 @@ async function fetchList() {
     const data = (res as any).data ?? res;
     list.value = data.list || data.data || [];
     total.value = data.total || 0;
+  } catch (e: any) {
+    error.value = true;
   } finally { loading.value = false; }
 }
 

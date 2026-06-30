@@ -11,6 +11,7 @@ import ChartCard from '@/components/ChartCard.vue'
 import { VideoCamera, View, TrendCharts, Coin, Money, Timer } from '@element-plus/icons-vue'
 
 const loading = ref(false)
+const loadError = ref(false)
 const entityId = ref('')
 const data = ref<any>(null)
 
@@ -87,6 +88,7 @@ function buildViewerTrendOption(timeline: { time: string; count: number }[]) {
 async function fetchData() {
   if (!entityId.value) return
   loading.value = true
+  loadError.value = false
   data.value = null
   cards.value = []
   chartOption.value = {}
@@ -110,7 +112,7 @@ async function fetchData() {
       chartOption.value = buildViewerTrendOption(timeline)
     }
   } catch {
-    // 静默失败
+    loadError.value = true
   } finally {
     loading.value = false
   }
@@ -146,7 +148,10 @@ function exportCSV() {
 </script>
 
 <template>
-  <div class="page">
+  <div
+    v-loading="loading"
+    class="page"
+  >
     <div class="toolbar">
       <h3>直播数据看板</h3>
       <div class="toolbar-right">
@@ -173,6 +178,24 @@ function exportCSV() {
       </div>
     </div>
 
+    <!-- 错误态 -->
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="数据加载失败"
+      sub-title="无法获取直播数据，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchData"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <template v-else>
     <!-- 统计卡片 -->
     <el-row
       v-if="data"
@@ -227,12 +250,18 @@ function exportCSV() {
         />
       </el-col>
     </el-row>
+    <el-empty
+      v-else-if="data && !loading"
+      description="暂无观看趋势数据"
+      :image-size="48"
+    />
 
     <el-empty
       v-if="!data && !loading"
       description="请输入直播房间ID查询"
       :image-size="48"
     />
+    </template>
   </div>
 </template>
 

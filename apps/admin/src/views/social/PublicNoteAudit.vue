@@ -12,7 +12,12 @@
     />
 
     <el-card>
+      <el-result v-if="loadError && !loading" icon="error" title="加载失败" sub-title="请检查网络后重试">
+        <template #extra><el-button type="primary" @click="fetchList">重试</el-button></template>
+      </el-result>
+      <template v-else>
       <el-table :data="tableData" border stripe v-loading="loading">
+        <template #empty><el-empty description="暂无公开笔记" :image-size="80" /></template>
         <el-table-column prop="userName" label="用户" width="140" />
         <el-table-column prop="content" label="笔记内容" minWidth="240" show-overflow-tooltip />
         <el-table-column label="所属课程" width="160">
@@ -44,11 +49,11 @@
         <el-table-column label="操作" width="260">
           <template #default="{ row }">
             <template v-if="row.status === 'PENDING'">
-              <el-button size="small" type="success" @click="approveNote(row)">通过</el-button>
+              <el-button size="small" type="success" :loading="submitting" @click="approveNote(row)">通过</el-button>
               <el-button size="small" type="danger" @click="showRejectDialog(row)">拒绝</el-button>
-              <el-button size="small" type="warning" @click="featureNote(row)">推荐</el-button>
+              <el-button size="small" type="warning" :loading="submitting" @click="featureNote(row)">推荐</el-button>
             </template>
-            <el-button v-if="row.status === 'APPROVED'" size="small" text type="warning" @click="featureNote(row)">
+            <el-button v-if="row.status === 'APPROVED'" size="small" text type="warning" :loading="submitting" @click="featureNote(row)">
               {{ row.isFeatured ? '取消推荐' : '推荐' }}
             </el-button>
             <el-popconfirm title="确定删除?" @confirm="deleteNote(row.id)">
@@ -69,6 +74,7 @@
         @current-change="fetchList"
         @size-change="fetchList"
       />
+      </template>
     </el-card>
 
     <!-- 拒绝弹窗 -->
@@ -80,7 +86,7 @@
       </el-form>
       <template #footer>
         <el-button @click="rejectVisible = false">取消</el-button>
-        <el-button type="danger" @click="confirmReject">确认拒绝</el-button>
+        <el-button type="danger" :loading="submitting" @click="confirmReject">确认拒绝</el-button>
       </template>
     </el-dialog>
   </div>
@@ -98,6 +104,8 @@ import { useTable } from "@/composables/useTable"
 const rejectVisible = ref(false)
 const rejectReason = ref("")
 const rejectingNote = ref<any>(null)
+const loadError = ref(false)
+const submitting = ref(false)
 
 const filterDefs = [
   { key: "status", label: "状态", type: "select" as const, options: [
@@ -118,7 +126,15 @@ const columns = [
 ]
 
 const { loading, tableData, pagination, filters, fetchList, handleSearch } = useTable({
-  fetchApi: socialApi.listPublicNotes,
+  fetchApi: async (params: any) => {
+    loadError.value = false
+    try {
+      return await socialApi.listPublicNotes(params)
+    } catch (e) {
+      loadError.value = true
+      throw e
+    }
+  },
   defaultPageSize: 10,
   transformResponse: (data: any) => ({
     items: (data.list ?? data.data ?? []).map((n: any) => ({
@@ -135,17 +151,33 @@ function statusLabel(s: string): string { const m: Record<string, string> = { PE
 function statusColor(s: string): string { const m: Record<string, string> = { PENDING: "warning", APPROVED: "success", REJECTED: "danger" }; return m[s] ?? "" }
 
 async function approveNote(row: any) {
-  try { await socialApi.approveNote(row.id); ElMessage.success("已通过"); fetchList() } catch { /* */ }
+  if (submitting.value) return
+  submitting.value = true
+  try { await socialApi.approveNote(row.id); ElMessage.success("已通过"); fetchList() }
+  catch { /* */ }
+  finally { submitting.value = false }
 }
 function showRejectDialog(row: any) { rejectingNote.value = row; rejectReason.value = ""; rejectVisible.value = true }
 async function confirmReject() {
-  try { await socialApi.rejectNote(rejectingNote.value.id, rejectReason.value); ElMessage.success("已拒绝"); rejectVisible.value = false; fetchList() } catch { /* */ }
+  if (submitting.value) return
+  submitting.value = true
+  try { await socialApi.rejectNote(rejectingNote.value.id, rejectReason.value); ElMessage.success("已拒绝"); rejectVisible.value = false; fetchList() }
+  catch { /* */ }
+  finally { submitting.value = false }
 }
 async function featureNote(row: any) {
-  try { await socialApi.featureNote(row.id); ElMessage.success(row.isFeatured ? "已取消推荐" : "已推荐"); fetchList() } catch { /* */ }
+  if (submitting.value) return
+  submitting.value = true
+  try { await socialApi.featureNote(row.id); ElMessage.success(row.isFeatured ? "已取消推荐" : "已推荐"); fetchList() }
+  catch { /* */ }
+  finally { submitting.value = false }
 }
 async function deleteNote(id: string) {
-  try { await socialApi.deleteNote(id); ElMessage.success("已删除"); fetchList() } catch { /* */ }
+  if (submitting.value) return
+  submitting.value = true
+  try { await socialApi.deleteNote(id); ElMessage.success("已删除"); fetchList() }
+  catch { /* */ }
+  finally { submitting.value = false }
 }
 </script>
 

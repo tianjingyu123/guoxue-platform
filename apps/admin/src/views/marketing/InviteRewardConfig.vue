@@ -95,6 +95,16 @@
           <el-input v-model="recordSearch" placeholder="搜索用户ID" size="small" style="width:200px" clearable @change="fetchRecords" />
         </div>
       </template>
+      <el-alert
+        v-if="recordError"
+        type="error"
+        title="数据加载失败"
+        :closable="false"
+        show-icon
+        style="margin-bottom:12px"
+      >
+        <el-button size="small" type="primary" @click="fetchRecords">重试</el-button>
+      </el-alert>
       <el-table :data="records" border stripe v-loading="recordLoading">
         <el-table-column prop="inviterName" label="邀请人" width="140" />
         <el-table-column prop="inviteeName" label="被邀请人" width="140" />
@@ -112,6 +122,9 @@
         <el-table-column prop="createdAt" label="时间" width="150">
           <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
         </el-table-column>
+        <template #empty>
+          <el-empty :description="recordError ? '加载失败，请重试' : '暂无数据'" />
+        </template>
       </el-table>
       <el-pagination
         v-model:current-page="recordPage"
@@ -138,6 +151,7 @@ const recordSearch = ref("")
 const recordPage = ref(1)
 const recordPageSize = ref(10)
 const recordTotal = ref(0)
+const recordError = ref(false)
 const records = ref<any[]>([])
 
 const config = reactive({
@@ -190,6 +204,7 @@ async function fetchStats() {
 
 async function fetchRecords() {
   recordLoading.value = true
+  recordError.value = false
   try {
     const res: any = await inviteRewardApi.getRecords({
       page: recordPage.value, pageSize: recordPageSize.value,
@@ -202,7 +217,7 @@ async function fetchRecords() {
       inviteeName: r.invitee?.nickname ?? '未知',
     }))
     recordTotal.value = d.total ?? 0
-  } catch { /* */ }
+  } catch { recordError.value = true }
   finally { recordLoading.value = false }
 }
 
@@ -217,9 +232,9 @@ onMounted(() => { fetchConfig(); fetchStats(); fetchRecords() })
 .preview-rewards { text-align: left; margin-bottom: 12px; }
 .reward-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
 .reward-icon { font-size: 20px; }
-.reward-text { font-size: 13px; color: #333; }
-.preview-limit { font-size: 12px; color: #999; }
-.stat-mini { text-align: center; padding: 12px; background: #f5f7fa; border-radius: 8px; margin-bottom: 8px; }
-.stat-mini-val { font-size: 20px; font-weight: 700; color: #409eff; }
+.reward-text { font-size: 13px; color: var(--color-text-title); }
+.preview-limit { font-size: 12px; color: var(--color-text-secondary); }
+.stat-mini { text-align: center; padding: 12px; background: var(--color-bg-page); border-radius: 8px; margin-bottom: 8px; }
+.stat-mini-val { font-size: 20px; font-weight: 700; color: var(--color-info); }
 .stat-mini-lbl { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
 </style>

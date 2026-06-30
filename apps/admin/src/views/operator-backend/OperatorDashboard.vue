@@ -5,6 +5,23 @@
       <span class="subtitle">平台运营数据与资源管理</span>
     </div>
 
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="运营数据加载失败"
+      style="margin-bottom:16px"
+    >
+      <el-button
+        size="small"
+        type="primary"
+        @click="load"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-row v-loading="loading" :gutter="16">
       <el-col v-for="card in cards" :key="card.label" :span="6">
         <el-card class="stat-card" shadow="hover">
@@ -28,6 +45,11 @@
             <el-table-column prop="revenue" label="月收入">
               <template #default="{ row }">¥{{ Number(row.revenue || 0).toFixed(2) }}</template>
             </el-table-column>
+            <template #empty>
+              <el-empty :description="loadError ? '加载失败' : '暂无分站收入数据'">
+                <el-button v-if="loadError" type="primary" @click="load">重试</el-button>
+              </el-empty>
+            </template>
           </el-table>
         </el-card>
       </el-col>
@@ -50,6 +72,7 @@ import { UserFilled, Coin, Monitor, Odometer } from "@element-plus/icons-vue";
 import { operatorDashboardApi } from "@/api";
 
 const loading = ref(false);
+const loadError = ref(false);
 const dashboard = ref<any>({});
 const topStations = ref<any[]>([]);
 
@@ -60,14 +83,19 @@ const cards = computed(() => [
   { label: "API配额", value: dashboard.value.apiQuota ?? "-", icon: Odometer, bg: "#f5f0e8" },
 ]);
 
-onMounted(async () => {
+async function load() {
   loading.value = true;
+  loadError.value = false;
   try {
     const res = await operatorDashboardApi.overview();
     dashboard.value = (res as any)?.data ?? res ?? {};
     topStations.value = (dashboard.value as any)?.topStations ?? [];
+  } catch {
+    loadError.value = true;
   } finally { loading.value = false; }
-});
+}
+
+onMounted(load);
 </script>
 
 <style scoped>
@@ -78,7 +106,7 @@ onMounted(async () => {
 .stat-card { display: flex; align-items: center; gap: 12px; padding: 16px; }
 .stat-card :deep(.el-card__body) { display: flex; align-items: center; gap: 12px; padding: 0; width: 100%; }
 .stat-icon { width: 48px; height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #8B4513; flex-shrink: 0; }
-.stat-value { font-size: 22px; font-weight: bold; color: #333; }
+.stat-value { font-size: 22px; font-weight: bold; color: var(--color-text-title); }
 .stat-label { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
 .chart-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px; color: var(--color-text-secondary); }
 .chart-placeholder p { margin-top: 12px; font-size: 14px; }

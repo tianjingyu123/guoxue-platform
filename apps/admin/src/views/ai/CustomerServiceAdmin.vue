@@ -178,7 +178,7 @@
                 v-model="transferRules.keywordsStr"
                 placeholder="逗号分隔，如：退款,投诉,举报,人工"
               />
-              <span style="font-size:11px;color:#909399">用户消息包含这些关键词时自动转人工</span>
+              <span style="font-size:11px;color:var(--color-text-secondary)">用户消息包含这些关键词时自动转人工</span>
             </el-form-item>
             <el-form-item label="AI置信度低于阈值">
               <el-input-number
@@ -188,7 +188,7 @@
                 :step="0.1"
                 :precision="2"
               />
-              <span style="margin-left:8px;font-size:11px;color:#909399">当AI无法从知识库找到相关内容时</span>
+              <span style="margin-left:8px;font-size:11px;color:var(--color-text-secondary)">当AI无法从知识库找到相关内容时</span>
             </el-form-item>
             <el-form-item label="连续无效回答次数">
               <el-input-number
@@ -196,7 +196,7 @@
                 :min="1"
                 :max="10"
               />
-              <span style="margin-left:8px;font-size:11px;color:#909399">同一会话中AI连续N次无有效回答时自动转人工</span>
+              <span style="margin-left:8px;font-size:11px;color:var(--color-text-secondary)">同一会话中AI连续N次无有效回答时自动转人工</span>
             </el-form-item>
             <el-form-item label="人工客服工作时间">
               <el-time-picker
@@ -225,6 +225,7 @@
             type="primary"
             size="small"
             style="margin-top:12px"
+            :loading="savingRules"
             @click="saveRules"
           >
             保存规则
@@ -238,7 +239,7 @@
         name="test"
       >
         <div style="height:500px;display:flex;flex-direction:column">
-          <div style="flex:1;border:1px solid #ebeef5;border-radius:8px;overflow:hidden">
+          <div style="flex:1;border:1px solid var(--color-border);border-radius:8px;overflow:hidden">
             <ChatUI
               ref="csChatRef"
               :config="csChatConfig"
@@ -288,12 +289,29 @@
               搜索
             </el-button>
           </div>
+          <el-result
+            v-if="convErr"
+            icon="error"
+            title="加载失败"
+            sub-title="对话记录加载出错，请重试"
+          >
+            <template #extra>
+              <el-button
+                type="primary"
+                @click="fetchConversations"
+              >
+                重试
+              </el-button>
+            </template>
+          </el-result>
           <el-table
+            v-else
             v-loading="convLoading"
             :data="conversations"
             stripe
             size="small"
             max-height="400"
+            empty-text="暂无对话记录"
           >
             <el-table-column
               label="用户"
@@ -359,6 +377,7 @@ import { systemApi, api } from "@/api";
 
 const activeTab = ref("faq");
 const savingFaq = ref(false);
+const savingRules = ref(false);
 
 const stats = reactive({
   totalConversations: 0, todayConversations: 0, faqCount: 0,
@@ -398,6 +417,7 @@ const monitorKeyword = ref("");
 const monitorStatus = ref("");
 const conversations = ref<any[]>([]);
 const convLoading = ref(false);
+const convErr = ref(false);
 
 function fmt(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
 
@@ -500,6 +520,8 @@ async function loadRules() {
 }
 
 async function saveRules() {
+  if (savingRules.value) return;
+  savingRules.value = true;
   try {
     await systemApi.setConfig("customer_service_rules", {
       value: JSON.stringify({
@@ -509,12 +531,17 @@ async function saveRules() {
       description: "智能客服转人工规则",
     });
     ElMessage.success("规则已保存");
-  } catch { /* ignore */ }
+  } catch {
+    ElMessage.error("规则保存失败，请重试");
+  } finally {
+    savingRules.value = false;
+  }
 }
 
 // ── 对话监控 ──
 async function fetchConversations() {
   convLoading.value = true;
+  convErr.value = false;
   try {
     const params: any = { page: 1, pageSize: 20, scene: "customer_service" };
     if (monitorKeyword.value) params.keyword = monitorKeyword.value;
@@ -528,7 +555,7 @@ async function fetchConversations() {
       transferred: log.content?.includes("转人工") || log.content?.includes("人工客服"),
       createdAt: log.createdAt,
     }));
-  } finally { convLoading.value = false; }
+  } catch { convErr.value = true; } finally { convLoading.value = false; }
 }
 
 async function fetchStats() {
@@ -547,14 +574,14 @@ async function fetchStats() {
 .cs-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 14px; text-align: center; }
-.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 12px; color: #909399; margin-top: 2px; }
-.stat-card.warn .value { color: #e6a23c; }
-.stat-card.info .value { color: #409eff; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 14px; text-align: center; }
+.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.stat-card.warn .value { color: var(--color-warning); }
+.stat-card.info .value { color: var(--color-info); }
 
-.faq-cat-item { padding: 8px 12px; margin-bottom: 4px; background: #f5f7fa; border-radius: 6px; cursor: pointer; transition: all .2s; }
+.faq-cat-item { padding: 8px 12px; margin-bottom: 4px; background: var(--color-bg-page); border-radius: 6px; cursor: pointer; transition: all .2s; }
 .faq-cat-item:hover { background: #ecf5ff; }
 .faq-cat-header { display: flex; align-items: center; gap: 8px; }
-.faq-entry { padding: 8px; margin-bottom: 4px; border-bottom: 1px solid #ebeef5; }
+.faq-entry { padding: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--color-border); }
 </style>

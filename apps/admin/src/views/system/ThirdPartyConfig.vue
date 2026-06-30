@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import { systemApi } from '@/api'
 
 const loading = ref(false)
+const loadError = ref(false)
 const saving = ref(false)
 const testing = ref(false)
 const activeTab = ref('wechat_pay')
@@ -104,6 +105,7 @@ function getDisplayValue(form: any, field: string): string {
 
 async function fetchAllConfigs() {
   loading.value = true
+  loadError.value = false
   try {
     const { data } = await systemApi.listConfigs()
     const items = data?.configs ?? data?.data ?? []
@@ -127,7 +129,10 @@ async function fetchAllConfigs() {
         Object.assign(sms, parsed)
       }
     })
-  } catch { /* ignore */ } finally { loading.value = false }
+  } catch {
+    loadError.value = true
+    ElMessage.error('加载失败，请重试')
+  } finally { loading.value = false }
 }
 
 function getCurrentForm(): any {
@@ -152,7 +157,7 @@ async function saveConfig() {
     Object.assign(payload, form)
     await systemApi.setConfig(configKey, { value: JSON.stringify(payload) })
     ElMessage.success('配置已保存')
-  } catch { } finally { saving.value = false }
+  } catch { ElMessage.error('保存失败，请重试') } finally { saving.value = false }
 }
 
 async function testConnection() {
@@ -171,6 +176,22 @@ async function testConnection() {
     <div class="toolbar">
       <h3>第三方服务配置</h3>
     </div>
+
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchAllConfigs"
+      >
+        重试
+      </el-button>
+    </el-alert>
 
     <el-card
       v-loading="loading"

@@ -90,7 +90,7 @@
             <template #header>
               邮件配置测试
             </template>
-            <p style="color:#999;margin-bottom:16px">
+            <p style="color:var(--color-text-secondary);margin-bottom:16px">
               测试当前 SMTP 邮件服务配置是否正常
             </p>
             <el-form label-width="80px">
@@ -137,10 +137,13 @@
         </el-button>
       </div>
       <el-table
-        v-if="templates.length > 0"
         :data="templates"
         stripe
+        empty-text=" "
       >
+        <template #empty>
+          <el-empty description="暂无模板 — 模板保存在浏览器本地存储" />
+        </template>
         <el-table-column
           prop="name"
           label="模板名称"
@@ -188,10 +191,6 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-empty
-        v-else
-        description="暂无模板 — 模板保存在浏览器本地存储"
-      />
 
       <el-dialog
         v-model="tVis"
@@ -243,10 +242,13 @@
     <!-- 发送历史 -->
     <div v-if="activeTab === 'history'">
       <el-table
-        v-if="sendHistory.length > 0"
         :data="sendHistory"
         stripe
+        empty-text=" "
       >
+        <template #empty>
+          <el-empty description="暂无发送历史" />
+        </template>
         <el-table-column
           prop="to"
           label="收件人"
@@ -280,10 +282,6 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-empty
-        v-else
-        description="暂无发送历史"
-      />
       <div
         v-if="sendHistory.length > 0"
         style="margin-top:12px"

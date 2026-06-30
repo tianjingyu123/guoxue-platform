@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { riskApi } from '@/api'
 
 const loading = ref(false)
+const error = ref(false)
 const scanning = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
@@ -14,9 +15,20 @@ const statusFilter = ref('')
 const detailDialogVisible = ref(false)
 const detailData = ref<any>(null)
 
+// 后端 FraudDetection.type（扫描器生成 + schema 备注两套取值）
+const typeMap: Record<string, string> = {
+  SAME_DEVICE_MULTI_USER: '同设备多账号',
+  HIGH_FREQ_SAME_IP: '同IP高频下单',
+  ABNORMAL_REFUND_RATE: '退款率异常',
+  BRUSH_ORDER: '刷单',
+  FAKE_ACCOUNT: '虚假账号',
+  REFUND_ABUSE: '退款滥用',
+}
+
 onMounted(() => fetchList())
 
 async function triggerScan() {
+  if (scanning.value) return
   try {
     await ElMessageBox.confirm("确认手动触发全量刷单扫描？此操作可能需要一定时间。", "操作确认", { type: "warning" });
     scanning.value = true;
@@ -40,16 +52,71 @@ function getStatusLabel(status: string): string {
   return map[status] || status
 }
 
+function getTypeLabel(type: string): string {
+  return typeMap[type] || type || '-'
+}
+
+// confidence 是 0-1 量纲，转为 0-100 的百分比展示（与 riskScore 的 0-100 量纲不同，勿混用）
+function confidencePct(c: any): number {
+  const n = Number(c)
+  if (!Number.isFinite(n)) return 0
+  return Math.round(Math.min(Math.max(n, 0), 1) * 100)
+}
+
+// 隐私脱敏：IP / 设备ID 后端未脱敏，前端展示时掩码
+function maskIp(ip?: string): string {
+  if (!ip) return '-'
+  const parts = ip.split('.')
+  if (parts.length === 4) return `${parts[0]}.${parts[1]}.*.*`
+  return ip.length > 6 ? ip.slice(0, 4) + '****' : '****'
+}
+
+function maskId(id?: string): string {
+  if (!id) return '-'
+  if (id.length <= 8) return id.slice(0, 2) + '****'
+  return id.slice(0, 4) + '****' + id.slice(-4)
+}
+
+// 从 evidence JSON 提炼可疑行为摘要（订单数/关联账号/退款率等均在 evidence 内）
+function evidenceSummary(row: any): string {
+  const e = row?.evidence || {}
+  const parts: string[] = []
+  if (e.deviceId) parts.push(`设备 ${maskId(e.deviceId)}`)
+  if (e.ip) parts.push(`IP ${maskIp(e.ip)}`)
+  if (e.userCount != null) parts.push(`关联账号 ${e.userCount}`)
+  if (Array.isArray(e.userIds) && e.userCount == null) parts.push(`关联账号 ${e.userIds.length}`)
+  if (e.orderCount != null) parts.push(`下单 ${e.orderCount} 次`)
+  if (e.refundRate != null) parts.push(`退款率 ${(Number(e.refundRate) * 100).toFixed(0)}%`)
+  if (e.timeWindow) parts.push(`窗口 ${e.timeWindow}`)
+  return parts.join(' · ') || '-'
+}
+
+function getOrderCount(row: any): string {
+  const c = row?.evidence?.orderCount
+  return c != null ? String(c) : '-'
+}
+
+// 证据链中含原始 IP/设备ID，展示前掩码
+function sanitizedEvidence(row: any): Record<string, any> {
+  const e = { ...(row?.evidence || {}) }
+  if (e.ip) e.ip = maskIp(e.ip)
+  if (e.deviceId) e.deviceId = maskId(e.deviceId)
+  return e
+}
+
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const params: Record<string, any> = { page: page.value, pageSize: 20 }
     if (statusFilter.value) params.status = statusFilter.value
     const { data } = await riskApi.listFraudDetections(params)
-    list.value = data.fraudCases || data.data || []
-    total.value = data.total || 0
+    list.value = data.items ?? (Array.isArray(data) ? data : [])
+    total.value = data.total ?? list.value.length
   } catch {
     list.value = []
+    total.value = 0
+    error.value = true
   } finally {
     loading.value = false
   }
@@ -134,7 +201,22 @@ function getScoreStatus(score: number) {
       </el-select>
     </div>
 
+    <div
+      v-if="error"
+      class="error-state"
+    >
+      <el-empty description="加载失败，请重试">
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </el-empty>
+    </div>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       stripe
@@ -143,38 +225,51 @@ function getScoreStatus(score: number) {
         prop="userId"
         label="用户ID"
         width="120"
-      />
-      <el-table-column
-        prop="username"
-        label="用户名"
-        width="120"
         show-overflow-tooltip
-      />
+      >
+        <template #default="{ row }">
+          {{ row.userId || '-' }}
+        </template>
+      </el-table-column>
       <el-table-column
-        prop="orderCount"
+        label="检测类型"
+        width="130"
+      >
+        <template #default="{ row }">
+          {{ getTypeLabel(row.type) }}
+        </template>
+      </el-table-column>
+      <el-table-column
         label="关联订单数"
         width="100"
-      />
+      >
+        <template #default="{ row }">
+          {{ getOrderCount(row) }}
+        </template>
+      </el-table-column>
       <el-table-column
-        prop="suspiciousBehavior"
-        label="可疑行为描述"
-        min-width="200"
+        label="证据摘要"
+        min-width="220"
         show-overflow-tooltip
-      />
+      >
+        <template #default="{ row }">
+          {{ evidenceSummary(row) }}
+        </template>
+      </el-table-column>
       <el-table-column
-        label="风险分数"
-        width="160"
+        label="置信度"
+        width="170"
       >
         <template #default="{ row }">
           <div style="display:flex;align-items:center;gap:8px">
             <el-progress
-              :percentage="row.riskScore ?? 0"
-              :color="getScoreStatus(row.riskScore ?? 0).color"
+              :percentage="confidencePct(row.confidence)"
+              :color="getScoreStatus(confidencePct(row.confidence)).color"
               :stroke-width="16"
               style="flex:1;max-width:100px"
             />
-            <span :style="{ color: getScoreStatus(row.riskScore ?? 0).color, fontWeight: 'bold' }">
-              {{ row.riskScore ?? 0 }}
+            <span :style="{ color: getScoreStatus(confidencePct(row.confidence)).color, fontWeight: 'bold' }">
+              {{ confidencePct(row.confidence) }}%
             </span>
           </div>
         </template>
@@ -197,7 +292,7 @@ function getScoreStatus(score: number) {
         width="170"
       >
         <template #default="{ row }">
-          {{ formatDate(row.detectedAt || row.createdAt) }}
+          {{ formatDate(row.createdAt) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -252,21 +347,27 @@ function getScoreStatus(score: number) {
           border
         >
           <el-descriptions-item label="用户ID">
-            {{ detailData.userId }}
+            {{ detailData.userId || '-' }}
           </el-descriptions-item>
-          <el-descriptions-item label="用户名">
-            {{ detailData.username || '-' }}
+          <el-descriptions-item label="检测类型">
+            {{ getTypeLabel(detailData.type) }}
           </el-descriptions-item>
-          <el-descriptions-item label="风险分数">
+          <el-descriptions-item label="置信度">
             <el-tag
-              :type="getScoreStatus(detailData.riskScore ?? 0).type"
+              :type="getScoreStatus(confidencePct(detailData.confidence)).type"
               size="small"
             >
-              {{ detailData.riskScore ?? 0 }}
+              {{ confidencePct(detailData.confidence) }}%
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="检测时间">
-            {{ formatDate(detailData.detectedAt || detailData.createdAt) }}
+            {{ formatDate(detailData.createdAt) }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            v-if="detailData.stationId"
+            label="分站ID"
+          >
+            {{ detailData.stationId }}
           </el-descriptions-item>
           <el-descriptions-item
             label="状态"
@@ -282,50 +383,32 @@ function getScoreStatus(score: number) {
         </el-descriptions>
 
         <h4 style="margin:16px 0 8px;color:#8b4513">
-          可疑行为描述
+          证据摘要
         </h4>
         <p style="margin:0 0 16px;padding:12px;background:#fafafa;border-radius:4px;line-height:1.6">
-          {{ detailData.suspiciousBehavior || '暂无描述' }}
+          {{ evidenceSummary(detailData) }}
         </p>
 
+        <template v-if="Array.isArray(detailData.evidence?.userIds) && detailData.evidence.userIds.length">
+          <h4 style="margin:0 0 8px;color:#8b4513">
+            关联账号（{{ detailData.evidence.userIds.length }}）
+          </h4>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
+            <el-tag
+              v-for="uid in detailData.evidence.userIds"
+              :key="uid"
+              size="small"
+              type="info"
+            >
+              {{ uid }}
+            </el-tag>
+          </div>
+        </template>
+
         <h4 style="margin:0 0 8px;color:#8b4513">
-          关联订单
+          完整证据链
         </h4>
-        <el-table
-          v-if="(detailData.orders || []).length > 0"
-          :data="detailData.orders || []"
-          stripe
-          size="small"
-        >
-          <el-table-column
-            prop="orderId"
-            label="订单号"
-            min-width="140"
-          />
-          <el-table-column
-            prop="amount"
-            label="金额"
-            width="100"
-          >
-            <template #default="{ row }">
-              {{ row.amount ? '¥' + Number(row.amount).toFixed(2) : '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column
-            prop="createdAt"
-            label="下单时间"
-            width="170"
-          >
-            <template #default="{ row }">
-              {{ formatDate(row.createdAt) }}
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty
-          v-else
-          description="暂无关联订单"
-          :image-size="80"
-        />
+        <pre style="margin:0;padding:12px;background:#fafafa;border-radius:4px;line-height:1.6;white-space:pre-wrap;word-break:break-all;font-size:12px">{{ JSON.stringify(sanitizedEvidence(detailData), null, 2) }}</pre>
       </template>
       <template #footer>
         <el-button @click="detailDialogVisible = false">
@@ -341,4 +424,5 @@ function getScoreStatus(score: number) {
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .filters { display: flex; gap: 12px; margin-bottom: 16px; }
+.error-state { padding: 40px 0; }
 </style>

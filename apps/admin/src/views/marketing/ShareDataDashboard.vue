@@ -22,6 +22,17 @@
       </el-form>
     </el-card>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      title="数据加载失败"
+      :closable="false"
+      show-icon
+      style="margin-bottom:16px"
+    >
+      <el-button size="small" type="primary" @click="fetchAll">重试</el-button>
+    </el-alert>
+
     <!-- 总览卡片 -->
     <el-row :gutter="16" style="margin-bottom:16px">
       <el-col :span="4" v-for="s in overviewStats" :key="s.label">
@@ -53,6 +64,9 @@
         <el-table-column label="传播层级" width="100" align="center">
           <template #default="{ row }">{{ row.maxSpreadLevel ?? '-' }}级</template>
         </el-table-column>
+        <template #empty>
+          <el-empty description="暂无数据" />
+        </template>
       </el-table>
     </el-card>
 
@@ -80,6 +94,9 @@
           </template>
         </el-table-column>
         <el-table-column prop="influence" label="影响力分" width="100" align="center" sortable />
+        <template #empty>
+          <el-empty description="暂无数据" />
+        </template>
       </el-table>
     </el-card>
 
@@ -107,6 +124,7 @@ import PageHeader from "@/components/PageHeader.vue"
 const dateRange = ref<[string, string] | null>(null)
 const userSortBy = ref("shareCount")
 const userLoading = ref(false)
+const error = ref(false)
 const userRank = ref<any[]>([])
 
 const overviewStats = ref([
@@ -140,6 +158,7 @@ function levelColor(l: string): string {
 async function fetchAll() {
   const params: any = {}
   if (dateRange.value) { params.startDate = dateRange.value[0]; params.endDate = dateRange.value[1] }
+  error.value = false
   try {
     // 总览
     const ov: any = await shareDataApi.overview(params)
@@ -167,7 +186,7 @@ async function fetchAll() {
     funnelData.value[1].value = fd.clicks ?? 0
     funnelData.value[2].value = fd.landingVisits ?? 0
     funnelData.value[3].value = fd.registrations ?? 0
-  } catch { /* */ }
+  } catch { error.value = true }
 }
 
 async function fetchUserRank() {
@@ -198,8 +217,8 @@ onMounted(() => { fetchAll(); fetchUserRank() })
 .stat-label { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
 .stat-trend { font-size: 11px; margin-top: 2px; }
 .card-header { display: flex; justify-content: space-between; align-items: center; }
-.funnel-step { text-align: center; padding: 16px; background: #f5f7fa; border-radius: 8px; }
+.funnel-step { text-align: center; padding: 16px; background: var(--color-bg-page); border-radius: 8px; }
 .funnel-num { font-size: 28px; font-weight: 700; }
 .funnel-label { font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
-.funnel-rate { font-size: 11px; color: #909399; margin-top: 4px; }
+.funnel-rate { font-size: 11px; color: var(--color-text-secondary); margin-top: 4px; }
 </style>

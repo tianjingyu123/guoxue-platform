@@ -5,7 +5,7 @@
   >
     <div class="toolbar">
       <h3>AI 数据探索</h3>
-      <span style="color:#909399;font-size:13px">用自然语言查询数据库，AI 自动转 SQL 并解读结果</span>
+      <span style="color:var(--color-text-secondary);font-size:13px">用自然语言查询数据库，AI 自动转 SQL 并解读结果</span>
     </div>
 
     <!-- 快速提问 -->
@@ -23,7 +23,7 @@
     </div>
 
     <!-- ChatUI 对话区 -->
-    <div style="flex:1;border:1px solid #ebeef5;border-radius:8px;overflow:hidden;display:flex;flex-direction:column">
+    <div style="flex:1;border:1px solid var(--color-border);border-radius:8px;overflow:hidden;display:flex;flex-direction:column">
       <ChatUI
         ref="chatRef"
         :config="chatConfig"
@@ -33,10 +33,38 @@
 
       <!-- SQL 结果卡片（在对话下方展示结构化数据） -->
       <div
-        v-if="currentResult"
+        v-if="loading || queryErr || currentResult"
         class="result-area"
       >
-        <el-collapse v-model="resultCollapse">
+        <!-- 加载态 -->
+        <div
+          v-if="loading"
+          v-loading="true"
+          element-loading-text="查询中..."
+          style="height:120px"
+        />
+
+        <!-- 错误态 -->
+        <el-result
+          v-else-if="queryErr"
+          icon="error"
+          title="查询失败"
+          :sub-title="queryErrMsg"
+        >
+          <template #extra>
+            <el-button
+              type="primary"
+              :disabled="!lastQuestion"
+              @click="retryQuery"
+            >
+              重试
+            </el-button>
+          </template>
+        </el-result>
+
+        <!-- 正常结果 -->
+        <template v-else>
+          <el-collapse v-model="resultCollapse">
           <el-collapse-item
             title="生成的 SQL"
             name="sql"
@@ -60,7 +88,7 @@
         </div>
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <span style="font-size:13px;color:#606266">
+          <span style="font-size:13px;color:var(--color-text-body)">
             查询结果（{{ currentResult.rowCount || 0 }} 条）
           </span>
           <el-button
@@ -90,11 +118,12 @@
             show-overflow-tooltip
           />
         </el-table>
-        <el-empty
-          v-else
-          description="无数据"
-          :image-size="40"
-        />
+          <el-empty
+            v-else
+            description="无数据"
+            :image-size="40"
+          />
+        </template>
       </div>
     </div>
   </div>
@@ -113,6 +142,9 @@ const chatRef = ref<InstanceType<typeof ChatUI>>()
 const currentResult = ref<any>(null)
 const resultCollapse = ref<string[]>(['sql'])
 const loading = ref(false)
+const queryErr = ref(false)
+const queryErrMsg = ref('')
+const lastQuestion = ref('')
 
 const quickQuestions = [
   '最近7天每天的订单金额',
@@ -162,7 +194,8 @@ async function quickAsk(q: string) {
   chatRef.value?.addMessage({
     id: `q-${Date.now()}`, role: 'user', content: q, createdAt: new Date(),
   })
-  loading.value = true; currentResult.value = null
+  lastQuestion.value = q
+  loading.value = true; currentResult.value = null; queryErr.value = false
 
   try {
     const res = await aiDataExplorerApi.ask(q)
@@ -178,6 +211,7 @@ async function quickAsk(q: string) {
     }
   } catch (e: any) {
     const errMsg = e?.response?.data?.message || e.message || '查询失败'
+    queryErr.value = true; queryErrMsg.value = errMsg
     chatRef.value?.addMessage({
       id: `err-${Date.now()}`, role: 'assistant',
       content: `查询失败：${errMsg}`, createdAt: new Date(),
@@ -187,9 +221,15 @@ async function quickAsk(q: string) {
   }
 }
 
+/** 重试上一次查询 */
+function retryQuery() {
+  if (lastQuestion.value) quickAsk(lastQuestion.value)
+}
+
 /** 用户发送消息 → 也走 DataExplorer API */
 async function onUserMessage(msg: ChatMessage) {
-  loading.value = true; currentResult.value = null
+  lastQuestion.value = msg.content
+  loading.value = true; currentResult.value = null; queryErr.value = false
 
   try {
     const res = await aiDataExplorerApi.ask(msg.content)
@@ -204,6 +244,7 @@ async function onUserMessage(msg: ChatMessage) {
     }
   } catch (e: any) {
     const errMsg = e?.response?.data?.message || e.message || '查询失败'
+    queryErr.value = true; queryErrMsg.value = errMsg
     chatRef.value?.addMessage({
       id: `err-${Date.now()}`, role: 'assistant',
       content: `查询失败：${errMsg}`, createdAt: new Date(),
@@ -241,7 +282,7 @@ function exportCsv() {
 
 <style scoped>
 .toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px }
-.result-area { border-top:1px solid #ebeef5; padding:12px; background:#fff; max-height:400px; overflow-y:auto }
+.result-area { border-top:1px solid var(--color-border); padding:12px; background:#fff; max-height:400px; overflow-y:auto }
 .sql-block { background:#1e1e1e; color:#d4d4d4; padding:10px; border-radius:6px; margin:0; font-size:12px; overflow-x:auto; line-height:1.6 }
-.chart-suggestion { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #ebeef5; margin-bottom:8px }
+.chart-suggestion { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--color-border); margin-bottom:8px }
 </style>

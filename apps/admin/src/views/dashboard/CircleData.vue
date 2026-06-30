@@ -15,6 +15,7 @@ import {
 // ==================== 状态 ====================
 const entityId = ref("")
 const loading = ref(false)
+const loadError = ref(false)
 const data = ref<any>(null)
 
 // ==================== 统计卡片 ====================
@@ -118,6 +119,7 @@ function buildBarOption() {
 async function fetchData() {
   if (!entityId.value.trim()) return
   loading.value = true
+  loadError.value = false
   data.value = null
   try {
     const [circleRes, statsRes] = await Promise.all([
@@ -152,6 +154,7 @@ async function fetchData() {
     }
   } catch {
     data.value = null
+    loadError.value = true
   } finally {
     loading.value = false
   }
@@ -208,6 +211,7 @@ function exportCSV() {
         />
         <el-button
           type="primary"
+          :loading="loading"
           @click="fetchData"
         >
           查询
@@ -221,13 +225,29 @@ function exportCSV() {
       </div>
     </div>
     <div
-      v-if="data"
       v-loading="loading"
+      class="content"
     >
-      <el-row
-        :gutter="20"
-        class="stats-row"
+      <el-result
+        v-if="loadError"
+        icon="error"
+        title="数据加载失败"
+        sub-title="无法获取圈子数据，请检查圈子ID或稍后重试"
       >
+        <template #extra>
+          <el-button
+            type="primary"
+            @click="fetchData"
+          >
+            重试
+          </el-button>
+        </template>
+      </el-result>
+      <template v-else-if="data">
+        <el-row
+          :gutter="20"
+          class="stats-row"
+        >
         <el-col
           v-for="card in cards"
           :key="card.label"
@@ -265,17 +285,19 @@ function exportCSV() {
           />
         </el-col>
       </el-row>
+      </template>
+      <el-empty
+        v-else-if="!loading"
+        description="请输入圈子ID查询数据"
+        :image-size="48"
+      />
     </div>
-    <el-empty
-      v-if="!data && !loading"
-      description="请输入圈子ID查询数据"
-      :image-size="48"
-    />
   </div>
 </template>
 
 <style scoped>
 .page { padding: 16px; }
+.content { min-height: 200px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .toolbar-right { display: flex; gap: 8px; }

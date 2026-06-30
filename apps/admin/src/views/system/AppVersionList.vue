@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
 const loading = ref(false)
+const loadError = ref(false)
 const saving = ref(false)
 const list = ref<any[]>([])
 const vis = ref(false)
@@ -25,12 +26,17 @@ onMounted(() => fetchList())
 
 async function fetchList() {
   loading.value = true
+  loadError.value = false
   try {
     const params: any = {}
     if (platformFilter.value) params.platform = platformFilter.value
     const { data } = await api.get(BASE, { params })
     list.value = data ?? []
-  } catch { list.value = [] } finally { loading.value = false }
+  } catch {
+    loadError.value = true
+    list.value = []
+    ElMessage.error('加载失败，请重试')
+  } finally { loading.value = false }
 }
 
 function openCreate() {
@@ -106,6 +112,22 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
         </el-button>
       </div>
     </div>
+
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败，请重试"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
 
     <el-table
       v-loading="loading"

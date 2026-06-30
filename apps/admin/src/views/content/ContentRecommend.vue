@@ -10,11 +10,31 @@
       </el-button>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      title="推荐位加载失败"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        type="primary"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无推荐位" />
+      </template>
       <el-table-column
         label="封面"
         width="70"
@@ -201,7 +221,7 @@
             :max="100"
             style="width:100%"
           />
-          <span style="color:#999;font-size:12px;">数值越大越靠前</span>
+          <span style="color:var(--color-text-secondary);font-size:12px;">数值越大越靠前</span>
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
@@ -248,6 +268,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
 const loading = ref(false)
+const error = ref(false)
 const saving = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
@@ -274,12 +295,15 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const { data } = await api.get('/admin/recommend/rules', { params: { page: page.value, pageSize: 20 } })
     list.value = data.rules || data.data || []
     total.value = data.total || 0
   } catch {
+    error.value = true
     list.value = []
+    total.value = 0
   } finally { loading.value = false }
 }
 

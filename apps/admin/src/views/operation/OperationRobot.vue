@@ -20,8 +20,36 @@
       虚拟运营机器人用于自动化社区互动维护，包括内容点赞、评论互动、圈子签到、付费提问等。请根据需要管理各机器人的开关状态。
     </p>
 
+    <!-- 错误态 -->
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="机器人状态加载失败"
+      style="margin-bottom:16px"
+    >
+      <el-button
+        size="small"
+        type="primary"
+        @click="fetchStatus"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
+    <!-- 空态 -->
+    <el-empty
+      v-else-if="!loading && bots.length === 0"
+      description="暂无机器人，请点击「重新初始化」"
+    />
+
     <!-- 机器人卡片 -->
-    <el-row :gutter="16">
+    <el-row
+      v-else
+      v-loading="loading"
+      :gutter="16"
+    >
       <el-col
         v-for="bot in bots"
         :key="bot.role"
@@ -154,6 +182,8 @@ interface Bot {
 const bots = ref<Bot[]>([]);
 const toggling = ref("");
 const initializing = ref(false);
+const loading = ref(false);
+const loadError = ref(false);
 
 const mechanismData = [
   { role: "like_bot", name: "内容点赞助手", trigger: "每小时检查最近2小时发布、点赞≤2的内容", action: "随机增加1-3个点赞", impact: "新发布的冷门内容" },
@@ -163,6 +193,8 @@ const mechanismData = [
 ];
 
 async function fetchStatus() {
+  loading.value = true;
+  loadError.value = false;
   try {
     const { data } = await api.get("/operation-robots");
     bots.value = (data as Bot[]) || [];
@@ -172,7 +204,11 @@ async function fetchStatus() {
         bot.description = ROLE_LABELS[bot.role] || bot.role;
       }
     }
-  } catch { /* ignore */ }
+  } catch {
+    loadError.value = true;
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function toggleBot(bot: Bot, enabled: boolean) {
@@ -206,7 +242,7 @@ onMounted(() => fetchStatus());
 .operation-robot { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .page-header h2 { margin: 0; font-size: 20px; }
-.desc { color: #909399; font-size: 13px; margin-bottom: 16px; }
+.desc { color: var(--color-text-secondary); font-size: 13px; margin-bottom: 16px; }
 
 .bot-card { margin-bottom: 16px; transition: opacity .3s; }
 .bot-card.disabled { opacity: 0.5; }
@@ -215,11 +251,11 @@ onMounted(() => fetchStatus());
 .bot-name { font-size: 16px; font-weight: 600; }
 
 .bot-body { font-size: 13px; }
-.bot-role-tag { color: #409eff; margin-bottom: 6px; }
-.bot-desc { color: #606266; margin-bottom: 4px; line-height: 1.5; }
+.bot-role-tag { color: var(--color-info); margin-bottom: 6px; }
+.bot-desc { color: var(--color-text-body); margin-bottom: 4px; line-height: 1.5; }
 .bot-status { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.bot-status .label { color: #909399; width: 70px; flex-shrink: 0; }
-.bot-status code { background: #f5f7fa; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+.bot-status .label { color: var(--color-text-secondary); width: 70px; flex-shrink: 0; }
+.bot-status code { background: var(--color-bg-page); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
 
 .usage-card { margin-top: 24px; }
 </style>

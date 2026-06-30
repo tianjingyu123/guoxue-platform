@@ -16,7 +16,28 @@
       </div>
     </div>
 
-    <el-row :gutter="16">
+    <!-- 错误态 -->
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="首页配置加载失败"
+      sub-title="无法获取首页模块配置，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="refresh"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <el-row
+      v-else
+      v-loading="loading"
+      :gutter="16"
+    >
       <!-- 左侧：已启用模块列表 -->
       <el-col :span="14">
         <el-card>
@@ -34,7 +55,7 @@
 
           <div
             v-if="modules.length === 0"
-            style="color:#909399;text-align:center;padding:40px"
+            style="color:var(--color-text-secondary);text-align:center;padding:40px"
           >
             暂无已启用的首页模块，请添加
           </div>
@@ -139,7 +160,7 @@
             size="small"
             style="width:120px"
           />
-          <span style="margin-left:8px;font-size:13px;color:#909399">每行列数</span>
+          <span style="margin-left:8px;font-size:13px;color:var(--color-text-secondary)">每行列数</span>
         </el-card>
 
         <el-card style="margin-bottom:16px">
@@ -156,7 +177,7 @@
                 :min="1"
                 :max="20"
               />
-              <span style="margin-left:8px;font-size:12px;color:#909399">第N个模块位置</span>
+              <span style="margin-left:8px;font-size:12px;color:var(--color-text-secondary)">第N个模块位置</span>
             </el-form-item>
             <el-form-item label="展示工具">
               <el-checkbox-group v-model="paipanTools">
@@ -290,7 +311,10 @@
     </el-dialog>
 
     <!-- 预览 -->
-    <el-card style="margin-top:16px">
+    <el-card
+      v-if="!loadError"
+      style="margin-top:16px"
+    >
       <template #header>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span>首页预览（共 {{ enabledModules.length }} 个模块）</span>
@@ -321,7 +345,7 @@
         </div>
         <div
           v-if="enabledModules.length === 0"
-          style="color:#909399;text-align:center;padding:40px"
+          style="color:var(--color-text-secondary);text-align:center;padding:40px"
         >
           暂无启用模块
         </div>
@@ -378,6 +402,8 @@ const availableModuleGroups = [
 
 const saving = ref(false);
 const showPreview = ref(false);
+const loading = ref(true);
+const loadError = ref(false);
 
 // 首页模块
 const modules = ref<any[]>([]);
@@ -405,6 +431,8 @@ const enabledModules = computed(() => modules.value.filter((m: any) => m.enabled
 onMounted(() => refresh());
 
 async function refresh() {
+  loading.value = true;
+  loadError.value = false;
   try {
     // 加载首页配置
     const { data: configsData } = await systemApi.listConfigs();
@@ -450,19 +478,20 @@ async function refresh() {
     const tags = findCfg("home:featured_tags");
     featuredTags.value = Array.isArray(tags) ? tags : [];
 
-    // 品类列表
-    try {
-      const { data: treeData } = await api.get("/system/category-tree");
-      allCategories.value = Object.keys(treeData || {});
-    } catch {
-      allCategories.value = ["国学经典", "中医养生", "诗词歌赋", "民俗节庆", "非遗传承", "茶道香道", "书法绘画", "传统音乐", "武术太极", "易经智慧"];
-    }
+    // 品类列表（真连后端，失败不回退硬编码假分类）
+    const { data: treeData } = await api.get("/system/category-tree");
+    allCategories.value = Object.keys(treeData || {});
 
     // 如果发现页未配置，默认全选
     if (discoveryCategories.value.length === 0) {
       discoveryCategories.value = [...allCategories.value];
     }
-  } catch { /* ignore */ }
+  } catch (e) {
+    console.error("首页配置加载失败", e);
+    loadError.value = true;
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function saveAll() {
@@ -571,21 +600,21 @@ function addTag() {
 
 .module-card {
   display: flex; align-items: center; padding: 10px 12px; margin-bottom: 8px;
-  background: var(--color-bg-card); border: 1px solid #ebeef5; border-radius: 8px; transition: all .2s;
+  background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; transition: all .2s;
 }
 .module-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 .module-card.disabled { opacity: 0.5; }
 .module-card .module-info { flex: 1; min-width: 0; }
 .module-card .module-header { display: flex; align-items: center; gap: 8px; }
 .module-card .module-type { font-weight: 600; font-size: 14px; }
-.module-card .module-key { color: #909399; font-size: 12px; }
-.module-card .module-desc { font-size: 12px; color: #909399; margin-top: 2px; }
+.module-card .module-key { color: var(--color-text-secondary); font-size: 12px; }
+.module-card .module-desc { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
 .module-card .module-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
 .sort-btns { display: flex; flex-direction: column; gap: 2px; margin-right: 10px; }
 
 .preview-phone { max-width: 375px; margin: 0 auto; border: 2px solid #e0e0e0; border-radius: 16px; overflow: hidden; }
 .preview-block { padding: 20px 16px; text-align: center; min-height: 48px; border-bottom: 1px solid rgba(0,0,0,.05); }
-.preview-label { font-size: 14px; font-weight: 600; color: #303133; }
-.preview-key { font-size: 11px; color: #909399; margin-top: 2px; }
+.preview-label { font-size: 14px; font-weight: 600; color: var(--color-text-title); }
+.preview-key { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
 </style>

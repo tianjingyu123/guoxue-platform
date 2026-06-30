@@ -5,6 +5,7 @@ import { api } from '@/api'
 
 const loading = ref(false)
 const saving = ref(false)
+const loadError = ref(false)
 const list = ref<any[]>([])
 const vis = ref(false)
 const editingId = ref('')
@@ -30,6 +31,7 @@ onMounted(() => fetchList())
 
 async function fetchList() {
   loading.value = true
+  loadError.value = false
   try {
     if (typeFilter.value) {
       const { data } = await api.get(`${BASE}/${typeFilter.value}/versions`)
@@ -40,7 +42,7 @@ async function fetchList() {
       const results = await Promise.all(types.map(t => api.get(`${BASE}/${t}/versions`).then(r => (r.data ?? []).map((d: any) => ({ ...d, type: t }))).catch(() => [])))
       list.value = results.flat().sort((a: any, b: any) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     }
-  } catch { list.value = [] } finally { loading.value = false }
+  } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
 function openCreate() {
@@ -125,6 +127,22 @@ const filteredList = computed(() => {
         </el-button>
       </div>
     </div>
+
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
 
     <el-table
       v-loading="loading"

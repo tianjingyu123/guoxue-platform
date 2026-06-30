@@ -10,6 +10,25 @@
       </el-button>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button
+          link
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="treeData"
@@ -17,6 +36,9 @@
       default-expand-all
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无商品分类" />
+      </template>
       <el-table-column
         prop="name"
         label="分类名称"
@@ -134,6 +156,7 @@
         </el-button>
         <el-button
           type="primary"
+          :loading="saving"
           @click="handleSave"
         >
           保存
@@ -149,6 +172,9 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "@/api";
 
 const loading = ref(false);
+const error = ref(false);
+const saving = ref(false);
+const deleting = ref(false);
 const categories = ref<any[]>([]);
 const dialogVisible = ref(false);
 const isEdit = ref(false);
@@ -174,6 +200,7 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const { data } = await api.get("/shop/categories/tree");
     // 展平树
@@ -187,6 +214,9 @@ async function fetchList() {
     }
     walk(data || []);
     categories.value = flat;
+  } catch {
+    categories.value = [];
+    error.value = true;
   } finally {
     loading.value = false;
   }
@@ -213,6 +243,8 @@ async function handleSave() {
     ElMessage.warning("请输入分类名称");
     return;
   }
+  if (saving.value) return;
+  saving.value = true;
   try {
     if (isEdit.value) {
       await api.put(`/shop/categories/${form.value.id}`, {
@@ -232,16 +264,20 @@ async function handleSave() {
     fetchList();
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || "操作失败");
+  } finally {
+    saving.value = false;
   }
 }
 
 async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(`确定删除分类「${row.name}」吗？`, "删除确认", { type: "warning" });
+    if (deleting.value) return;
+    deleting.value = true;
     await api.delete(`/shop/categories/${row.id}`);
     ElMessage.success("已删除");
     fetchList();
-  } catch { /* 取消 */ }
+  } catch { /* 取消 */ } finally { deleting.value = false; }
 }
 </script>
 

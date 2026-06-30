@@ -2,6 +2,14 @@
   <div class="page">
     <PageHeader title="AI Prompt 场景化管理" />
 
+    <!-- 加载失败 -->
+    <div v-if="loadErr" class="load-error">
+      <el-empty description="加载失败，请重试">
+        <el-button type="primary" @click="reload">重新加载</el-button>
+      </el-empty>
+    </div>
+
+    <div v-else v-loading="loading">
     <!-- 场景选择标签 -->
     <el-tabs v-model="activeScene" @tab-change="onSceneChange" type="border-card">
       <el-tab-pane v-for="s in scenes" :key="s.key" :label="s.name" :name="s.key" />
@@ -43,7 +51,7 @@
               {{ '{' + '{' + v.name + '}' + '}' }} — {{ v.description }}
             </el-tag>
           </div>
-          <span v-else style="color:#909399">无变量</span>
+          <span v-else style="color:var(--color-text-secondary)">无变量</span>
         </el-form-item>
         <el-form-item label="模型">
           <el-select v-model="sceneForm.model" placeholder="选择模型">
@@ -70,7 +78,7 @@
           <el-button size="small" type="primary" @click="showStyleDialog()">添加风格</el-button>
         </div>
       </template>
-      <el-table :data="styles" border stripe>
+      <el-table v-loading="loading" :data="styles" border stripe>
         <el-table-column prop="name" label="风格名称" width="140" />
         <el-table-column prop="prompt" label="风格 Prompt" minWidth="300" show-overflow-tooltip />
         <el-table-column prop="example" label="示例" width="200" show-overflow-tooltip />
@@ -84,6 +92,9 @@
             </el-popconfirm>
           </template>
         </el-table-column>
+        <template #empty>
+          <el-empty description="暂无风格，点击右上角添加" :image-size="60" />
+        </template>
       </el-table>
     </el-card>
 
@@ -108,7 +119,7 @@
           <el-button size="small" type="primary" @click="fetchToggles">刷新</el-button>
         </div>
       </template>
-      <el-table :data="toggles" border stripe>
+      <el-table v-loading="loading" :data="toggles" border stripe>
         <el-table-column prop="label" label="功能" width="200" />
         <el-table-column prop="scene" label="所属场景" width="160" />
         <el-table-column label="状态" width="120">
@@ -117,8 +128,12 @@
           </template>
         </el-table-column>
         <el-table-column prop="description" label="说明" minWidth="200" />
+        <template #empty>
+          <el-empty description="暂无功能开关" :image-size="60" />
+        </template>
       </el-table>
     </el-card>
+    </div>
 
     <!-- 风格编辑弹窗 -->
     <el-dialog v-model="styleDialogVisible" :title="editingStyle?.id ? '编辑风格' : '添加风格'" width="540px">
@@ -154,6 +169,8 @@ const styles = ref<any[]>([])
 const sceneStats = ref<any[]>([])
 const toggles = ref<any[]>([])
 const saving = ref(false)
+const loading = ref(false)
+const loadErr = ref(false)
 const styleDialogVisible = ref(false)
 const editingStyle = ref<any>(null)
 const styleForm = reactive({ name: "", prompt: "", example: "" })
@@ -179,18 +196,28 @@ const sceneNameMap: Record<string, string> = {
   promotion_copy: "推广文案",
 }
 
-async function fetchScenes() {
+async function reload() {
+  loading.value = true
+  loadErr.value = false
   try {
-    const res: any = await aiPromptApi.listScenes()
-    scenes.value = ((res?.data ?? res)?.scenes ?? []).map((s: any) => ({
-      ...s,
-      name: sceneNameMap[s.key] ?? s.name ?? s.key,
-    }))
-    if (scenes.value.length > 0 && !activeScene.value) {
-      activeScene.value = scenes.value[0].key
-      await onSceneChange(activeScene.value)
-    }
-  } catch { /* */ }
+    await Promise.all([fetchScenes(), fetchToggles()])
+  } catch {
+    loadErr.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+async function fetchScenes() {
+  const res: any = await aiPromptApi.listScenes()
+  scenes.value = ((res?.data ?? res)?.scenes ?? []).map((s: any) => ({
+    ...s,
+    name: sceneNameMap[s.key] ?? s.name ?? s.key,
+  }))
+  if (scenes.value.length > 0 && !activeScene.value) {
+    activeScene.value = scenes.value[0].key
+    await onSceneChange(activeScene.value)
+  }
 }
 
 async function onSceneChange(key: string) {
@@ -233,7 +260,9 @@ async function fetchToggles() {
     const res: any = await aiPromptApi.getToggles()
     const list = (res?.data ?? res)?.toggles ?? (res?.data ?? res)?.list ?? []
     toggles.value = list.map((t: any) => ({ ...t, label: sceneNameMap[t.scene] ?? t.label ?? t.scene }))
-  } catch { /* */ }
+  } catch {
+    loadErr.value = true
+  }
 }
 
 async function saveScene() {
@@ -300,14 +329,15 @@ async function deleteStyle(id: string) {
   } catch { /* */ }
 }
 
-onMounted(() => { fetchScenes(); fetchToggles() })
+onMounted(() => { reload() })
 </script>
 
 <style scoped>
 .page { padding: 0; }
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .var-list { display: flex; flex-wrap: wrap; gap: 4px; }
-.stat-item { text-align: center; padding: 12px; background: #f5f7fa; border-radius: 8px; }
-.stat-val { font-size: 22px; font-weight: 700; color: #409eff; }
+.stat-item { text-align: center; padding: 12px; background: var(--color-bg-page); border-radius: 8px; }
+.stat-val { font-size: 22px; font-weight: 700; color: var(--color-info); }
+.load-error { padding: 40px 0; }
 .stat-lbl { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
 </style>

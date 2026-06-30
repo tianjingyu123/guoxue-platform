@@ -2,16 +2,36 @@
   <div class="aio-page">
     <div class="page-header">
       <h3>AI运营效果追踪</h3>
-      <el-button @click="refreshAll">
+      <el-button
+        :loading="loading"
+        @click="refreshAll"
+      >
         刷新全部
       </el-button>
     </div>
 
-    <!-- AI调用概览 -->
-    <el-row
-      :gutter="16"
-      style="margin-bottom:16px"
+    <!-- 错误态 -->
+    <el-empty
+      v-if="loadErr && !loading"
+      description="加载失败，请稍后重试"
     >
+      <el-button
+        type="primary"
+        @click="refreshAll"
+      >
+        重试
+      </el-button>
+    </el-empty>
+
+    <div
+      v-else
+      v-loading="loading"
+    >
+      <!-- AI调用概览 -->
+      <el-row
+        :gutter="16"
+        style="margin-bottom:16px"
+      >
       <el-col :span="4">
         <div class="stat-card">
           <span class="value">{{ aiStats.totalCalls?.toLocaleString() || 0 }}</span><span class="label">总AI调用次数</span>
@@ -65,7 +85,7 @@
             >
               <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:2px">
                 <span style="font-weight:600">{{ cat.level1 }}</span>
-                <span :style="{ color: cat.emptySubs > 0 ? '#f56c6c' : '#67c23a' }">
+                <span :style="{ color: cat.emptySubs > 0 ? 'var(--color-error)' : 'var(--color-success)' }">
                   {{ cat.publishedTotal }} 已发布 / {{ cat.emptySubs }} 空缺
                 </span>
               </div>
@@ -268,7 +288,7 @@
           </div>
           <div style="font-size:13px">
             <div v-if="emptyCats.length">
-              <span style="color:#f56c6c">⚠ 空品类（{{ emptyCats.length }}个）：</span>
+              <span style="color:var(--color-error)">⚠ 空品类（{{ emptyCats.length }}个）：</span>
               <el-tag
                 v-for="cat in emptyCats.slice(0, 8)"
                 :key="cat.level1 + cat.level2"
@@ -280,12 +300,12 @@
               </el-tag>
               <span
                 v-if="emptyCats.length > 8"
-                style="color:#909399"
+                style="color:var(--color-text-secondary)"
               >...还有{{ emptyCats.length - 8 }}个</span>
             </div>
             <div
               v-else
-              style="color:#67c23a"
+              style="color:var(--color-success)"
             >
               所有品类均有内容填充 ✓
             </div>
@@ -339,6 +359,7 @@
         </el-card>
       </el-col>
     </el-row>
+    </div>
   </div>
 </template>
 
@@ -367,6 +388,8 @@ const showGenPanel = ref(false);
 const genL1 = ref("");
 const genL2 = ref("");
 const generating = ref(false);
+const loading = ref(false);
+const loadErr = ref(false);
 
 const genL2Options = computed(() => {
   if (!genL1.value) return [];
@@ -389,7 +412,16 @@ const emptyCats = computed(() => {
 onMounted(() => refreshAll());
 
 async function refreshAll() {
-  await Promise.all([fetchAiStats(), fetchCatStats(), fetchRobots(), fetchRecentLogs(), fetchTokenTrend()]);
+  loading.value = true;
+  loadErr.value = false;
+  // 重置累加统计，避免重试时重复累加
+  genStats.totalGenerated = 0;
+  genStats.draftPending = 0;
+  try {
+    await Promise.all([fetchAiStats(), fetchCatStats(), fetchRobots(), fetchRecentLogs(), fetchTokenTrend()]);
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function fetchAiStats() {
@@ -400,7 +432,7 @@ async function fetchAiStats() {
     aiStats.todayCalls = d?.todayCalls || 0;
     aiStats.activeBots = d?.activeBots || 0;
     aiStats.abnormalAlerts = d?.abnormalAlerts || 0;
-  } catch { /* ignore */ }
+  } catch { loadErr.value = true; }
 }
 
 async function fetchCatStats() {
@@ -435,21 +467,21 @@ async function fetchCatStats() {
       genStats.draftPending += draftTotal;
     }
     catStats.value = list;
-  } catch { /* ignore */ }
+  } catch { loadErr.value = true; }
 }
 
 async function fetchRobots() {
   try {
     const { data } = await api.get("/operation-robots");
     robots.value = (data as any[]) || [];
-  } catch { /* ignore */ }
+  } catch { loadErr.value = true; }
 }
 
 async function fetchRecentLogs() {
   try {
     const { data } = await aiAdminApi.getCallLogs({ page: 1, pageSize: 10 });
     recentLogs.value = ((data as any)?.list || (data as any)?.data || []).slice(0, 10);
-  } catch { /* ignore */ }
+  } catch { loadErr.value = true; }
 }
 
 async function fetchTokenTrend() {
@@ -458,7 +490,7 @@ async function fetchTokenTrend() {
     tokenTrend.value = (data as any)?.trend || (data as any)?.dailyStats || [];
     await nextTick();
     renderChart();
-  } catch { /* ignore */ }
+  } catch { loadErr.value = true; }
 }
 
 function renderChart() {
@@ -496,6 +528,7 @@ async function toggleBot(bot: any, enabled: boolean) {
 }
 
 async function triggerGen() {
+  if (generating.value) return;
   if (!genL1.value) { ElMessage.warning("请选择一级品类"); return; }
   generating.value = true;
   try {
@@ -514,13 +547,13 @@ async function triggerGen() {
 .aio-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 14px; text-align: center; }
-.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 12px; color: #909399; margin-top: 2px; }
-.stat-card.warn .value { color: #e6a23c; }
-.stat-card.info .value { color: #409eff; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 14px; text-align: center; }
+.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.stat-card.warn .value { color: var(--color-warning); }
+.stat-card.info .value { color: var(--color-info); }
 
-.robot-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #ebeef5; }
+.robot-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--color-border); }
 .robot-row:last-child { border-bottom: none; }
 .bot-icon { font-size: 18px; }
 .bot-name { flex: 1; font-size: 14px; }

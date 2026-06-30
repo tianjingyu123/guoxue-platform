@@ -38,37 +38,13 @@
       </el-col>
       <el-col :span="6">
         <div class="stat-card">
-          <span class="value">{{ stats.totalProcessed }}</span><span class="label">累计处理</span>
+          <span class="value">{{ stats.totalProcessed }}</span><span class="label">累计已通过</span>
         </div>
       </el-col>
     </el-row>
 
-    <!-- 筛选 -->
+    <!-- 状态筛选 -->
     <div class="filter-bar">
-      <el-input
-        v-model="search.orderNo"
-        placeholder="订单号"
-        clearable
-        style="width:180px"
-        @change="fetchList"
-      />
-      <el-input
-        v-model="search.userId"
-        placeholder="用户ID/昵称"
-        clearable
-        style="width:160px"
-        @change="fetchList"
-      />
-      <el-date-picker
-        v-model="search.dateRange"
-        type="daterange"
-        range-separator="至"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
-        size="default"
-        style="width:260px"
-        @change="fetchList"
-      />
       <el-tabs
         v-model="activeTab"
         style="flex:1"
@@ -89,32 +65,57 @@
       </el-tabs>
     </div>
 
+    <!-- 错误态 -->
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button
+          link
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无退款申请" />
+      </template>
       <el-table-column
         label="订单号"
-        prop="orderNo"
-        width="180"
+        width="200"
         show-overflow-tooltip
-      />
+      >
+        <template #default="{ row }">
+          {{ row.orderId || '-' }}
+        </template>
+      </el-table-column>
       <el-table-column
         label="用户"
-        width="130"
+        width="160"
       >
         <template #default="{ row }">
           {{ row.user?.nickname || row.userId }}
         </template>
       </el-table-column>
       <el-table-column
-        label="商品/课程"
-        min-width="180"
-        show-overflow-tooltip
+        label="类型"
+        width="90"
       >
         <template #default="{ row }">
-          {{ row.product?.title || row.course?.title || '-' }}
+          {{ typeLabel(row.type) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -123,7 +124,7 @@
         align="right"
       >
         <template #default="{ row }">
-          ¥{{ fmt(row.amount || row.refundAmount) }}
+          ¥{{ fmt(row.amount) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -153,6 +154,7 @@
             <el-button
               size="small"
               type="success"
+              :disabled="processing"
               @click="showApproveConfirm(row)"
             >
               同意退款
@@ -160,6 +162,7 @@
             <el-button
               size="small"
               type="danger"
+              :disabled="processing"
               @click="showReject(row)"
             >
               拒绝
@@ -167,9 +170,9 @@
           </template>
           <template v-else>
             <span
-              v-if="row.auditNote"
+              v-if="row.logistics"
               class="reason text-muted"
-            >{{ row.auditNote }}</span>
+            >{{ row.logistics }}</span>
             <el-tag
               v-else-if="activeTab === 'APPROVED'"
               type="success"
@@ -212,10 +215,10 @@
         size="small"
       >
         <el-descriptions-item label="订单号">
-          {{ approveTarget?.orderNo }}
+          {{ approveTarget?.orderId }}
         </el-descriptions-item>
         <el-descriptions-item label="退款金额">
-          ¥{{ fmt(approveTarget?.amount || approveTarget?.refundAmount) }}
+          ¥{{ fmt(approveTarget?.amount) }}
         </el-descriptions-item>
         <el-descriptions-item label="退款原因">
           {{ approveTarget?.reason || '-' }}
@@ -273,17 +276,20 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import { orderApi } from "@/api";
+import { orderApi, api } from "@/api";
+
+// 退款审核基于「售后申请(AfterSale)」实体：其 status 枚举(PENDING/APPROVED/REJECTED/...)
+// 与本页标签完全对应，且平台侧仅 AfterSale 有「带原因拒绝退款」的真实端点
+// (PUT /shop/admin/after-sales/:id/process)。订单(Order)无平台级拒绝退款端点。
 
 const loading = ref(false);
+const error = ref(false);
 const processing = ref(false);
 const activeTab = ref("PENDING");
 const list = ref<any[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(20);
-
-const search = reactive({ orderNo: "", userId: "", dateRange: null as any });
 
 const stats = reactive({ pending: 0, pendingAmount: 0, todayRefund: 0, totalProcessed: 0 });
 
@@ -300,24 +306,24 @@ function fmt(v: number | string | undefined | null) {
 function formatDate(d: string) {
   return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-";
 }
+function typeLabel(t: string) {
+  return ({ refund: "退款", return: "退货", exchange: "换货" } as Record<string, string>)[t] || t || "退款";
+}
 
 onMounted(() => { fetchList(); fetchStats(); });
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: pageSize.value, status: activeTab.value };
-    if (search.orderNo) params.orderNo = search.orderNo;
-    if (search.userId) params.userId = search.userId;
-    if (search.dateRange?.length === 2) {
-      params.startDate = search.dateRange[0].toISOString().slice(0, 10);
-      params.endDate = search.dateRange[1].toISOString().slice(0, 10);
-    }
-    const { data } = await orderApi.list(params);
-    list.value = data?.orders || data?.data || [];
-    total.value = data?.total || 0;
+    const params = { page: page.value, pageSize: pageSize.value, status: activeTab.value };
+    const { data } = await api.get("/shop/admin/after-sales", { params });
+    list.value = (data as any)?.items || [];
+    total.value = (data as any)?.total || 0;
   } catch {
     list.value = [];
+    total.value = 0;
+    error.value = true;
   } finally {
     loading.value = false;
   }
@@ -325,35 +331,20 @@ async function fetchList() {
 
 async function fetchStats() {
   try {
-    // 统计各状态退款单数
-    const [pendingRes, approvedRes] = await Promise.all([
-      orderApi.list({ page: 1, pageSize: 1, status: "PENDING" }),
-      orderApi.list({ page: 1, pageSize: 1, status: "REFUNDED" }),
-    ]);
-    stats.pending = (pendingRes.data as any)?.total || 0;
-    stats.totalProcessed = (approvedRes.data as any)?.total || 0;
+    const pendingRes = await api.get("/shop/admin/after-sales", { params: { page: 1, pageSize: 100, status: "PENDING" } });
+    const pendingItems = (pendingRes.data as any)?.items || [];
+    stats.pending = (pendingRes.data as any)?.total ?? pendingItems.length;
+    stats.pendingAmount = pendingItems.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
 
-    // 估算待处理金额
-    if (stats.pending > 0) {
-      const pendingList = await orderApi.list({ page: 1, pageSize: Math.min(stats.pending, 100), status: "PENDING" });
-      const items = (pendingList.data as any)?.orders || (pendingList.data as any)?.data || [];
-      stats.pendingAmount = items.reduce((s: number, r: any) => s + Number(r.amount || r.refundAmount || 0), 0);
-    } else {
-      stats.pendingAmount = 0;
-    }
+    const approvedRes = await api.get("/shop/admin/after-sales", { params: { page: 1, pageSize: 100, status: "APPROVED" } });
+    const approvedItems = (approvedRes.data as any)?.items || [];
+    stats.totalProcessed = (approvedRes.data as any)?.total ?? approvedItems.length;
 
-    // 今日退款
     const todayStr = new Date().toISOString().slice(0, 10);
-    try {
-      const todayRes = await orderApi.list({ page: 1, pageSize: 1, status: "REFUNDED", startDate: todayStr, endDate: todayStr });
-      const todayData = todayRes.data as any;
-      if (todayData?.total) {
-        const todayItems = await orderApi.list({ page: 1, pageSize: Math.min((todayData as any).total, 100), status: "REFUNDED", startDate: todayStr, endDate: todayStr });
-        const todayList = (todayItems.data as any)?.orders || (todayItems.data as any)?.data || [];
-        stats.todayRefund = todayList.reduce((s: number, r: any) => s + Number(r.amount || r.refundAmount || 0), 0);
-      }
-    } catch { stats.todayRefund = 0; }
-  } catch { /* ignore */ }
+    stats.todayRefund = approvedItems
+      .filter((r: any) => String(r.updatedAt || r.createdAt || "").slice(0, 10) === todayStr)
+      .reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+  } catch { /* 统计失败不阻塞主流程 */ }
 }
 
 function showApproveConfirm(row: any) {
@@ -362,15 +353,19 @@ function showApproveConfirm(row: any) {
 }
 
 async function confirmApprove() {
-  if (!approveTarget.value) return;
+  if (!approveTarget.value || processing.value) return;
   processing.value = true;
   try {
-    await orderApi.refund(approveTarget.value.id);
+    // 同意退款：先对订单执行真实退款（原路退回 + 冲正分佣），再将售后单标记为已通过。
+    await orderApi.refund(approveTarget.value.orderId);
+    await api.put(`/shop/admin/after-sales/${approveTarget.value.id}/process`, { action: "approve" });
     ElMessage.success("退款已同意，资金将原路退回");
     approveVisible.value = false;
     await fetchList();
     await fetchStats();
-  } catch { /* ignore */ } finally { processing.value = false; }
+  } catch {
+    ElMessage.error("操作失败，请重试");
+  } finally { processing.value = false; }
 }
 
 function showReject(row: any) {
@@ -380,22 +375,27 @@ function showReject(row: any) {
 }
 
 async function confirmReject() {
-  if (!pendingItem.value) return;
+  if (!pendingItem.value || processing.value) return;
+  const reason = rejectReason.value.trim();
+  if (!reason) return;
   processing.value = true;
   try {
-    await orderApi.cancel(pendingItem.value.id);
+    // 拒绝退款：调用真实的售后处理端点并传递拒绝原因（原误调 orderApi.cancel 会取消订单且丢弃原因）。
+    await api.put(`/shop/admin/after-sales/${pendingItem.value.id}/process`, { action: "reject", remark: reason });
     ElMessage.success("已拒绝退款");
     rejectVisible.value = false;
     await fetchList();
     await fetchStats();
-  } catch { /* ignore */ } finally { processing.value = false; }
+  } catch {
+    ElMessage.error("操作失败，请重试");
+  } finally { processing.value = false; }
 }
 
 function exportCSV() {
-  const headers = ["订单号", "用户", "商品/课程", "退款金额", "退款原因", "状态", "申请时间"];
+  const headers = ["订单号", "用户", "类型", "退款金额", "退款原因", "状态", "申请时间"];
   const rows = list.value.map((r) => [
-    r.orderNo, r.user?.nickname || r.userId, r.product?.title || r.course?.title || "-",
-    r.amount || r.refundAmount, r.reason || "-", activeTab.value, formatDate(r.createdAt),
+    r.orderId, r.user?.nickname || r.userId, typeLabel(r.type),
+    r.amount, r.reason || "-", activeTab.value, formatDate(r.createdAt),
   ]);
   const csv = [headers, ...rows].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
   const blob = new Blob(["﻿" + csv], { type: "text/csv" });
@@ -414,16 +414,16 @@ function exportCSV() {
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all .2s; border: 2px solid transparent; }
-.stat-card:hover { border-color: #409eff; }
-.stat-card.active { border-color: #e6a23c; background: #fdf6ec; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all .2s; border: 2px solid transparent; }
+.stat-card:hover { border-color: var(--color-info); }
+.stat-card.active { border-color: var(--color-warning); background: #fdf6ec; }
 .stat-card .value { display: block; font-size: 24px; font-weight: 700; }
-.stat-card .label { display: block; font-size: 13px; color: #909399; margin-top: 4px; }
-.stat-card.amount .value { color: #f56c6c; }
+.stat-card .label { display: block; font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
+.stat-card.amount .value { color: var(--color-error); }
 
 .filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
 .pagination-wrap { display: flex; justify-content: flex-end; margin-top: 16px; }
 
 .reason { font-size: 12px; }
-.text-muted { color: #909399; }
+.text-muted { color: var(--color-text-secondary); }
 </style>

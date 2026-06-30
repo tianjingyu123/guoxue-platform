@@ -10,12 +10,34 @@
       </el-button>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button
+          link
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       border
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无定价规则" />
+      </template>
       <el-table-column
         prop="name"
         label="规则名称"
@@ -277,6 +299,8 @@ interface PricingRule {
 }
 
 const loading = ref(false);
+const error = ref(false);
+const deleting = ref(false);
 const list = ref<PricingRule[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
@@ -318,12 +342,15 @@ function strategyTag(strategy: string) {
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const res = await pricingApi.getRules({ page: page.value, pageSize: pageSize.value });
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
-    ElMessage.error("获取规则列表失败");
+    list.value = [];
+    total.value = 0;
+    error.value = true;
   } finally {
     loading.value = false;
   }
@@ -378,11 +405,15 @@ async function handleSubmit() {
 async function handleDelete(row: PricingRule) {
   try {
     await ElMessageBox.confirm(`确定删除规则"${row.name}"吗？`, "确认删除", { type: "warning" });
+    if (deleting.value) return;
+    deleting.value = true;
     await pricingApi.deleteRule(row.id);
     ElMessage.success("删除成功");
     fetchList();
   } catch {
     // cancelled or error
+  } finally {
+    deleting.value = false;
   }
 }
 

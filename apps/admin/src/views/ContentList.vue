@@ -1,5 +1,21 @@
 <template>
   <div class="content-page">
+    <el-alert
+      v-if="error"
+      type="error"
+      title="内容列表加载失败"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        type="primary"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
     <DataTable
       v-model:page="page"
       :columns="columns"
@@ -144,6 +160,7 @@ const typeLabels: Record<string, string> = { ARTICLE: '文章', POEM: '诗词', 
 
 const list = ref<any[]>([])
 const loading = ref(false)
+const error = ref(false)
 const page = ref(1)
 const total = ref(0)
 const pageSize = 12
@@ -194,11 +211,16 @@ function clearSelection() {
 
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const params: any = { page: page.value, pageSize, ...searchParams.value }
     const { data } = await contentApi.list(params)
     list.value = data.data
     total.value = data.total
+  } catch {
+    error.value = true
+    list.value = []
+    total.value = 0
   } finally { loading.value = false }
 }
 

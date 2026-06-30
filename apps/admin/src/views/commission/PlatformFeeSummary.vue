@@ -4,14 +4,19 @@ import { commissionApi } from "@/api";
 
 const summary = ref<any>({});
 const loading = ref(false);
+const error = ref(false);
 
 onMounted(() => fetchSummary());
 
 async function fetchSummary() {
   loading.value = true;
+  error.value = false;
   try {
     const { data } = await commissionApi.getPlatformFeeSummary();
     summary.value = data ?? {};
+  } catch {
+    error.value = true;
+    summary.value = {};
   } finally {
     loading.value = false;
   }
@@ -34,10 +39,27 @@ function formatCurrency(v: number) {
       </el-button>
     </div>
 
-    <el-row
-      v-loading="loading"
-      :gutter="16"
+    <el-result
+      v-if="error && !loading"
+      icon="error"
+      title="加载失败"
+      sub-title="平台抽成汇总加载出错，请重试"
     >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchSummary"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <template v-else>
+      <el-row
+        v-loading="loading"
+        :gutter="16"
+      >
       <el-col :span="6">
         <el-statistic
           title="平台总抽成"
@@ -125,11 +147,12 @@ function formatCurrency(v: number) {
       />
     </el-table>
 
-    <el-empty
-      v-if="!loading && (!summary.breakdown || summary.breakdown.length === 0)"
-      description="暂无抽成数据"
-      :image-size="80"
-    />
+      <el-empty
+        v-if="!loading && (!summary.breakdown || summary.breakdown.length === 0)"
+        description="暂无抽成数据"
+        :image-size="80"
+      />
+    </template>
   </div>
 </template>
 

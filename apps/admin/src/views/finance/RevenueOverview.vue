@@ -473,17 +473,17 @@ onMounted(() => refresh());
 .revenue-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .page-header h2 { margin: 0 0 4px 0; font-size: 20px; }
-.update-time { color: #909399; font-size: 12px; }
+.update-time { color: var(--color-text-secondary); font-size: 12px; }
 .header-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
 
 .metric-row { margin-bottom: 16px; }
-.metric-card { background: #f8f9fb; border-radius: 10px; padding: 18px 14px; text-align: center; border: 1px solid #ebeef5; }
-.metric-label { font-size: 13px; color: #909399; margin-bottom: 6px; }
-.metric-value { font-size: 24px; font-weight: 700; color: #303133; margin-bottom: 4px; }
-.metric-value.warn { color: #f56c6c; }
+.metric-card { background: #f8f9fb; border-radius: 10px; padding: 18px 14px; text-align: center; border: 1px solid var(--color-border); }
+.metric-label { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 6px; }
+.metric-value { font-size: 24px; font-weight: 700; color: var(--color-text-title); margin-bottom: 4px; }
+.metric-value.warn { color: var(--color-error); }
 .metric-change { font-size: 12px; }
-.metric-change.up { color: #67c23a; }
-.metric-change.down { color: #f56c6c; }
+.metric-change.up { color: var(--color-success); }
+.metric-change.down { color: var(--color-error); }
 
-.text-muted { color: #909399; }
+.text-muted { color: var(--color-text-secondary); }
 </style>

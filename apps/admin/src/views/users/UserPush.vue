@@ -116,7 +116,7 @@
             v-if="estimatedCount > 0"
             class="estimate"
           >
-            预计推送 <b>{{ estimatedCount }}</b> 人
+            符合筛选条件 <b>{{ estimatedCount }}</b> 人（实际推送人数以发送结果为准）
             <el-button
               type="danger"
               :loading="sending"
@@ -125,6 +125,12 @@
             >
               确认发送
             </el-button>
+          </div>
+          <div
+            v-else-if="counted"
+            class="estimate"
+          >
+            符合条件 <b>0</b> 人，请调整筛选条件
           </div>
         </el-form-item>
       </el-form>
@@ -168,11 +174,13 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { notificationApi } from '@/api'
+import { api, notificationApi, userApi } from '@/api'
 
 const form = reactive({ title: '', content: '', memberLevel: '', tag: '', minActiveDays: 0 })
 const counting = ref(false)
 const sending = ref(false)
+const counted = ref(false)
+// estimatedCount: >=0 真实人数；-1 表示含标签/活跃天数筛选无法精确预估
 const estimatedCount = ref(0)
 const history = ref<any[]>([])
 
@@ -186,30 +194,39 @@ onMounted(async () => {
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function countUsers() {
+  if (counting.value) return
   counting.value = true
   try {
-    // 模拟计数
-    await new Promise(r => setTimeout(r, 500))
-    estimatedCount.value = Math.floor(Math.random() * 5000) + 100
+    // 精确预估（dry-run，不发送）：后端 /users/push/estimate 与实际推送同口径过滤
+    const params: any = {}
+    if (form.memberLevel) params.memberLevel = form.memberLevel
+    if (form.minActiveDays) params.activeDays = form.minActiveDays
+    const { data } = await api.get('/users/push/estimate', { params })
+    estimatedCount.value = (data as any)?.count ?? 0
+    counted.value = true
+  } catch {
+    estimatedCount.value = 0
+    counted.value = true
   } finally { counting.value = false }
 }
 
 async function sendPush() {
   if (!form.title || !form.content) return ElMessage.warning('请填写标题和内容')
+  if (sending.value) return
   sending.value = true
   try {
-    const payload: any = {
-      type: 'SYSTEM',
+    // 真实分群推送端点：返回 matchedCount（实际匹配并写入通知的人数）
+    const { data } = await userApi.pushByTag({
+      tag: form.tag,
+      memberLevel: form.memberLevel,
+      activeDays: form.minActiveDays,
       title: form.title,
       content: form.content,
-    }
-    if (form.memberLevel) payload.memberLevel = form.memberLevel
-    if (form.tag) payload.tag = form.tag
-    if (form.minActiveDays) payload.minActiveDays = form.minActiveDays
-
-    await notificationApi.batchSend(payload)
-    ElMessage.success('推送已发送')
+    } as any)
+    const matched = (data as any)?.matchedCount
+    ElMessage.success(typeof matched === 'number' ? `已推送给 ${matched} 人` : '推送已发送')
     estimatedCount.value = 0
+    counted.value = false
     form.title = ''; form.content = ''
   } catch { } finally { sending.value = false }
 }

@@ -163,6 +163,26 @@
                     {{ fmt(row.createdAt) }}
                   </template>
                 </el-table-column>
+                <template #empty>
+                  <div
+                    v-if="loadErr"
+                    class="tbl-state"
+                  >
+                    <span>加载失败</span>
+                    <el-button
+                      size="small"
+                      type="primary"
+                      @click="refresh"
+                    >
+                      重试
+                    </el-button>
+                  </div>
+                  <el-empty
+                    v-else
+                    description="暂无图像审核记录"
+                    :image-size="60"
+                  />
+                </template>
               </el-table>
             </el-card>
           </el-col>
@@ -270,6 +290,26 @@
                     {{ fmt(row.createdAt) }}
                   </template>
                 </el-table-column>
+                <template #empty>
+                  <div
+                    v-if="loadErr"
+                    class="tbl-state"
+                  >
+                    <span>加载失败</span>
+                    <el-button
+                      size="small"
+                      type="primary"
+                      @click="refresh"
+                    >
+                      重试
+                    </el-button>
+                  </div>
+                  <el-empty
+                    v-else
+                    description="暂无语音合成记录"
+                    :image-size="60"
+                  />
+                </template>
               </el-table>
             </el-card>
           </el-col>
@@ -366,6 +406,26 @@
                     {{ fmt(row.createdAt) }}
                   </template>
                 </el-table-column>
+                <template #empty>
+                  <div
+                    v-if="loadErr"
+                    class="tbl-state"
+                  >
+                    <span>加载失败</span>
+                    <el-button
+                      size="small"
+                      type="primary"
+                      @click="refresh"
+                    >
+                      重试
+                    </el-button>
+                  </div>
+                  <el-empty
+                    v-else
+                    description="暂无转写记录"
+                    :image-size="60"
+                  />
+                </template>
               </el-table>
             </el-card>
           </el-col>
@@ -402,6 +462,7 @@ const imageAuditLogs = ref<any[]>([]);
 const ttsLogs = ref<any[]>([]);
 const transcribeLogs = ref<any[]>([]);
 const tasksLoading = ref(false);
+const loadErr = ref(false);
 
 function fmt(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
 
@@ -413,6 +474,7 @@ async function refresh() {
 
 async function loadTasks() {
   tasksLoading.value = true;
+  loadErr.value = false;
   try {
     const [imageRes, ttsRes, transRes] = await Promise.all([
       api.get("/ai/media/tasks", { params: { type: "image_audit", pageSize: 20 } }),
@@ -422,7 +484,9 @@ async function loadTasks() {
     imageAuditLogs.value = ((imageRes.data as any)?.list || []);
     ttsLogs.value = ((ttsRes.data as any)?.list || []);
     transcribeLogs.value = ((transRes.data as any)?.list || []);
-  } catch { /* ignore */ } finally { tasksLoading.value = false; }
+  } catch {
+    loadErr.value = true;
+  } finally { tasksLoading.value = false; }
 }
 
 async function loadTaskCounts() {
@@ -488,9 +552,10 @@ function onTabChange(_tab: string) { loadTasks(); }
 .mp-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 14px; text-align: center; }
-.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 12px; color: #909399; margin-top: 2px; }
-.stat-card.warn .value { color: #e6a23c; }
-.stat-card.info .value { color: #409eff; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 14px; text-align: center; }
+.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.stat-card.warn .value { color: var(--color-warning); }
+.stat-card.info .value { color: var(--color-info); }
+.tbl-state { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px 0; color: var(--color-text-secondary); }
 </style>

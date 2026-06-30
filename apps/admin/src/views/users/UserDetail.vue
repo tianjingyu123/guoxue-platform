@@ -6,7 +6,7 @@
     >
       <template #content>
         <span class="header-title">
-          用户详情 — {{ profile.userInfo?.nickname || profile.userInfo?.phone || '加载中...' }}
+          用户详情 — {{ profile.userInfo?.nickname || maskPhone(profile.userInfo?.phone) || '加载中...' }}
         </span>
         <el-tag
           v-if="profile.userInfo"
@@ -20,6 +20,7 @@
       <template #extra>
         <el-button
           v-if="profile.userInfo?.status === 'ACTIVE'"
+          v-permission="['SUPER_ADMIN','OPERATION_ADMIN']"
           size="small"
           type="warning"
           @click="handleBan"
@@ -28,6 +29,7 @@
         </el-button>
         <el-button
           v-else
+          v-permission="['SUPER_ADMIN','OPERATION_ADMIN']"
           size="small"
           type="success"
           @click="handleUnban"
@@ -125,10 +127,10 @@
             {{ profile.userInfo.nickname }}
           </el-descriptions-item>
           <el-descriptions-item label="手机号">
-            {{ profile.userInfo.phone }}
+            {{ maskPhone(profile.userInfo.phone) }}
           </el-descriptions-item>
           <el-descriptions-item label="邮箱">
-            {{ profile.userInfo.email || '-' }}
+            {{ maskEmail(profile.userInfo.email) }}
           </el-descriptions-item>
           <el-descriptions-item label="性别">
             {{ profile.userInfo.gender === 'MALE' ? '男' : profile.userInfo.gender === 'FEMALE' ? '女' : '-' }}
@@ -191,7 +193,7 @@
               <span
                 v-if="b.ip"
                 class="behavior-meta"
-              >IP: {{ b.ip }}</span>
+              >IP: {{ maskIp(b.ip) }}</span>
               <span
                 v-if="b.deviceId"
                 class="behavior-meta"
@@ -447,7 +449,7 @@
         label="角色权限"
         name="roles"
       >
-        <div class="tab-toolbar">
+        <div class="tab-toolbar" v-permission="['SUPER_ADMIN']">
           <el-select
             v-model="newRole"
             placeholder="选择角色"
@@ -495,6 +497,7 @@
           >
             <template #default="{ row }">
               <el-button
+                v-permission="['SUPER_ADMIN']"
                 size="small"
                 type="danger"
                 @click="removeRole(row)"
@@ -578,6 +581,7 @@ const orderLoading = ref(false)
 const circles = ref<any[]>([])
 const behaviors = ref<any[]>([])
 const newRole = ref('')
+const assigning = ref(false)
 
 const availableRoles = [
   { label: '超级管理员', value: 'SUPER_ADMIN' },
@@ -701,6 +705,26 @@ async function onTabChange(tab: string) {
   }
 }
 
+// 隐私脱敏
+function maskPhone(p?: string) {
+  if (!p) return "-"
+  const s = String(p)
+  if (s.length < 7) return s.replace(/\d(?=\d)/g, "*")
+  return s.slice(0, 3) + "****" + s.slice(-4)
+}
+function maskEmail(e?: string) {
+  if (!e) return "-"
+  const [name, domain] = String(e).split("@")
+  if (!domain) return e
+  return name.slice(0, 1) + "***@" + domain
+}
+function maskIp(ip?: string) {
+  if (!ip) return "-"
+  const parts = String(ip).split(".")
+  if (parts.length === 4) return `${parts[0]}.${parts[1]}.*.*`
+  return String(ip).slice(0, 6) + "***"
+}
+
 function formatTime(d: string): string { return d ? d.slice(0, 16).replace("T", " ") : "" }
 function spreadLevelColor(l: string): string {
   const m: Record<string, string> = { spark: "info", rising: "", hot: "warning", viral: "danger", phenomenon: "" }
@@ -709,13 +733,20 @@ function spreadLevelColor(l: string): string {
 
 async function assignRole() {
   if (!newRole.value) return
+  if (assigning.value) return
   try {
+    await ElMessageBox.confirm(
+      `确定为该用户授予「${roleLabel(newRole.value)}」角色？`,
+      '授予角色',
+      { type: 'warning' },
+    )
+    assigning.value = true
     await userApi.assignRole(userId, { roleType: newRole.value })
     ElMessage.success('角色已分配')
     newRole.value = ''
     const { data } = await userApi.detail(userId)
     userRoles.value = data.roles || []
-  } catch { }
+  } catch { } finally { assigning.value = false }
 }
 
 async function removeRole(row: any) {

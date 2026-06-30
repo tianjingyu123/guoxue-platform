@@ -33,7 +33,12 @@
             <el-button size="small" type="primary" @click="showTypeDialog()">新建成就</el-button>
           </div>
         </template>
+        <el-result v-if="typeError && !typeLoading" icon="error" title="加载失败" sub-title="请检查网络后重试">
+          <template #extra><el-button type="primary" @click="fetchTypes">重试</el-button></template>
+        </el-result>
+        <template v-else>
         <el-table :data="types" border stripe v-loading="typeLoading">
+          <template #empty><el-empty description="暂无成就类型" :image-size="80" /></template>
           <el-table-column label="勋章" width="80">
             <template #default="{ row }">
               <div class="badge-preview" v-if="row.badgeUrl">
@@ -76,6 +81,7 @@
           @current-change="fetchTypes"
           @size-change="fetchTypes"
         />
+        </template>
       </el-card>
     </template>
 
@@ -90,7 +96,12 @@
             </div>
           </div>
         </template>
+        <el-result v-if="uaError && !uaLoading" icon="error" title="加载失败" sub-title="请检查网络后重试">
+          <template #extra><el-button type="primary" @click="fetchUserAchievements">重试</el-button></template>
+        </el-result>
+        <template v-else>
         <el-table :data="userAchievements" border stripe v-loading="uaLoading">
+          <template #empty><el-empty description="暂无用户成就" :image-size="80" /></template>
           <el-table-column prop="userName" label="用户" width="150" />
           <el-table-column label="成就" width="200">
             <template #default="{ row }">
@@ -134,6 +145,7 @@
           @current-change="fetchUserAchievements"
           @size-change="fetchUserAchievements"
         />
+        </template>
       </el-card>
     </template>
 
@@ -169,7 +181,7 @@
       </el-form>
       <template #footer>
         <el-button @click="typeDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveType">保存</el-button>
+        <el-button type="primary" :loading="submitting" @click="saveType">保存</el-button>
       </template>
     </el-dialog>
 
@@ -187,7 +199,7 @@
       </el-form>
       <template #footer>
         <el-button @click="grantVisible = false">取消</el-button>
-        <el-button type="primary" @click="confirmGrant">确认授予</el-button>
+        <el-button type="primary" :loading="submitting" @click="confirmGrant">确认授予</el-button>
       </template>
     </el-dialog>
   </div>
@@ -202,6 +214,9 @@ import PageHeader from "@/components/PageHeader.vue"
 const activeTab = ref("types")
 const typeLoading = ref(false)
 const uaLoading = ref(false)
+const typeError = ref(false)
+const uaError = ref(false)
+const submitting = ref(false)
 const typeFilter = ref("")
 const typePage = ref(1)
 const typePageSize = ref(10)
@@ -244,12 +259,13 @@ function formatTime(d: string): string { return d ? d.slice(0, 16).replace("T", 
 // 成就类型
 async function fetchTypes() {
   typeLoading.value = true
+  typeError.value = false
   try {
     const res: any = await achievementApi.listTypes({ page: typePage.value, pageSize: typePageSize.value, category: typeFilter.value || undefined })
     const d = res?.data ?? res
     types.value = d.list ?? d.data ?? []
     typeTotal.value = d.total ?? 0
-  } catch { /* */ }
+  } catch { typeError.value = true }
   finally { typeLoading.value = false }
 }
 
@@ -269,11 +285,13 @@ function showTypeDialog(row?: any) {
 }
 
 async function saveType() {
+  if (submitting.value) return
+  let triggerCondition = null
+  if (triggerJsonStr.value.trim()) {
+    try { triggerCondition = JSON.parse(triggerJsonStr.value) } catch { ElMessage.warning("触发条件JSON格式错误"); return }
+  }
+  submitting.value = true
   try {
-    let triggerCondition = null
-    if (triggerJsonStr.value.trim()) {
-      try { triggerCondition = JSON.parse(triggerJsonStr.value) } catch { ElMessage.warning("触发条件JSON格式错误"); return }
-    }
     if (editingType.value?.id) {
       await achievementApi.updateType(editingType.value.id, { ...typeForm, triggerCondition })
     } else {
@@ -281,6 +299,7 @@ async function saveType() {
     }
     ElMessage.success("保存成功"); typeDialogVisible.value = false; fetchTypes(); fetchStats()
   } catch { /* */ }
+  finally { submitting.value = false }
 }
 
 async function deleteType(id: string) {
@@ -290,6 +309,7 @@ async function deleteType(id: string) {
 // 用户成就
 async function fetchUserAchievements() {
   uaLoading.value = true
+  uaError.value = false
   try {
     const res: any = await achievementApi.listUserAchievements({ page: uaPage.value, pageSize: uaPageSize.value })
     const d = res?.data ?? res
@@ -301,7 +321,7 @@ async function fetchUserAchievements() {
       achievementDesc: a.achievement?.description ?? '',
     }))
     uaTotal.value = d.total ?? 0
-  } catch { /* */ }
+  } catch { uaError.value = true }
   finally { uaLoading.value = false }
 }
 
@@ -314,10 +334,13 @@ function showGrantDialog() {
 }
 
 async function confirmGrant() {
+  if (submitting.value) return
+  submitting.value = true
   try {
     await achievementApi.grantAchievement({ userId: grantForm.userId, typeId: grantForm.typeId })
     ElMessage.success("授予成功"); grantVisible.value = false; fetchUserAchievements(); fetchStats()
   } catch { /* */ }
+  finally { submitting.value = false }
 }
 
 async function fetchStats() {

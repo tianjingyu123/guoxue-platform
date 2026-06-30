@@ -407,10 +407,10 @@ const { siZhu, qiYun, kongWang, shengXiao, taiYuan, mingGong, shenGong, wangXian
 }
 .liushi-cell {
   display: flex; align-items: center; gap: 6px;
-  padding: 6px 10px; background: #f5f5f5;
+  padding: 6px 10px; background: var(--color-bg-page);
   border-radius: 8px; font-size: 12px;
 }
-.ls-hour { color: #999; }
-.ls-ganzhi { color: #2c2c2c; font-weight: 600; }
+.ls-hour { color: var(--color-text-secondary); }
+.ls-ganzhi { color: var(--color-text-title); font-weight: 600; }
 .ls-shishen { color: v-bind('UI_COLORS.brand'); }
 </style>

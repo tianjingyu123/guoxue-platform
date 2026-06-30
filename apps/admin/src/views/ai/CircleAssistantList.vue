@@ -27,8 +27,19 @@
       v-if="activeTab === 'approvals'"
       v-loading="loading"
     >
+      <el-empty
+        v-if="loadErr"
+        description="加载失败，请重试"
+      >
+        <el-button
+          type="primary"
+          @click="fetchApprovals"
+        >
+          重试
+        </el-button>
+      </el-empty>
       <el-table
-        v-if="list.length > 0"
+        v-else-if="list.length > 0"
         :data="list"
         stripe
       >
@@ -125,8 +136,19 @@
           添加条目
         </el-button>
       </div>
+      <el-empty
+        v-if="kErr"
+        description="加载失败，请重试"
+      >
+        <el-button
+          type="primary"
+          @click="fetchKnowledge"
+        >
+          重试
+        </el-button>
+      </el-empty>
       <el-table
-        v-if="kList.length > 0"
+        v-else-if="kList.length > 0"
         v-loading="kLoading"
         :data="kList"
         stripe
@@ -196,8 +218,19 @@
           查询
         </el-button>
       </div>
+      <el-empty
+        v-if="uErr"
+        description="加载失败，请重试"
+      >
+        <el-button
+          type="primary"
+          @click="fetchUsage"
+        >
+          重试
+        </el-button>
+      </el-empty>
       <el-descriptions
-        v-if="usageData"
+        v-else-if="usageData"
         :column="2"
         border
       >
@@ -248,10 +281,10 @@
         </el-tag>
         <span
           v-else
-          style="font-size:12px;color:#909399"
+          style="font-size:12px;color:var(--color-text-secondary)"
         >输入圈子ID后开始测试</span>
       </div>
-      <div style="flex:1;border:1px solid #ebeef5;border-radius:8px;overflow:hidden">
+      <div style="flex:1;border:1px solid var(--color-border);border-radius:8px;overflow:hidden">
         <ChatUI
           ref="testChatRef"
           :config="testChatConfig"
@@ -309,14 +342,14 @@ import type { ChatUIConfig } from '@/components/ChatUI/types'
 import { aiAdminApi } from '@/api'
 
 const activeTab = ref('approvals')
-const loading = ref(false); const list = ref<any[]>([])
+const loading = ref(false); const loadErr = ref(false); const acting = ref(false); const list = ref<any[]>([])
 
-const kLoading = ref(false); const kSaving = ref(false); const kList = ref<any[]>([])
+const kLoading = ref(false); const kErr = ref(false); const kSaving = ref(false); const kList = ref<any[]>([])
 const kVis = ref(false); const kEditingId = ref('')
 const knowledgeCircleId = ref('')
 const kForm = reactive({ title: '', content: '' })
 
-const uLoading = ref(false); const usageCircleId = ref(''); const usageData = ref<any>(null)
+const uLoading = ref(false); const uErr = ref(false); const usageCircleId = ref(''); const usageData = ref<any>(null)
 
 // 测试对话
 const testCircleId = ref('')
@@ -340,26 +373,30 @@ function onTabChange(tab: string) {
 }
 
 async function fetchApprovals() {
-  loading.value = true
-  try { const { data } = await aiAdminApi.listCircleAssistants(); list.value = data.approvals || data.data || [] } catch { list.value = [] } finally { loading.value = false }
+  loading.value = true; loadErr.value = false
+  try { const { data } = await aiAdminApi.listCircleAssistants(); list.value = data.approvals || data.data || [] } catch { loadErr.value = true; list.value = [] } finally { loading.value = false }
 }
 
 async function approveBot(row: any) {
-  try { await aiAdminApi.approveCircleAssistant(row.circleId); ElMessage.success('已通过'); fetchApprovals() } catch { }
+  if (acting.value) return
+  acting.value = true
+  try { await aiAdminApi.approveCircleAssistant(row.circleId); ElMessage.success('已通过'); fetchApprovals() } catch { } finally { acting.value = false }
 }
 
 async function rejectBot(row: any) {
+  if (acting.value) return
   try {
     const { value } = await ElMessageBox.prompt('请输入驳回原因', '驳回申请', { type: 'warning', inputType: 'textarea' })
+    acting.value = true
     await aiAdminApi.rejectCircleAssistant(row.circleId, value)
     ElMessage.success('已驳回'); fetchApprovals()
-  } catch {}
+  } catch {} finally { acting.value = false }
 }
 
 async function fetchKnowledge() {
   if (!knowledgeCircleId.value) return
-  kLoading.value = true
-  try { const { data } = await aiAdminApi.getKnowledgeBase(knowledgeCircleId.value); kList.value = data.entries || data.data || [] } catch { kList.value = [] } finally { kLoading.value = false }
+  kLoading.value = true; kErr.value = false
+  try { const { data } = await aiAdminApi.getKnowledgeBase(knowledgeCircleId.value); kList.value = data.entries || data.data || [] } catch { kErr.value = true; kList.value = [] } finally { kLoading.value = false }
 }
 
 function openKnowledgeCreate() { kEditingId.value = ''; Object.assign(kForm, { title: '', content: '' }); kVis.value = true }
@@ -375,13 +412,18 @@ async function saveKnowledge() {
 }
 
 async function delKnowledge(id: string) {
-  try { await ElMessageBox.confirm('删除该条目？', '提示', { type: 'warning' }); await aiAdminApi.deleteKnowledgeEntry(id); ElMessage.success('已删除'); fetchKnowledge() } catch {}
+  if (acting.value) return
+  try {
+    await ElMessageBox.confirm('删除该条目？', '提示', { type: 'warning' })
+    acting.value = true
+    await aiAdminApi.deleteKnowledgeEntry(id); ElMessage.success('已删除'); fetchKnowledge()
+  } catch {} finally { acting.value = false }
 }
 
 async function fetchUsage() {
   if (!usageCircleId.value) return
-  uLoading.value = true
-  try { const { data } = await aiAdminApi.getUsageData(usageCircleId.value); usageData.value = data } catch { usageData.value = null } finally { uLoading.value = false }
+  uLoading.value = true; uErr.value = false
+  try { const { data } = await aiAdminApi.getUsageData(usageCircleId.value); usageData.value = data } catch { uErr.value = true; usageData.value = null } finally { uLoading.value = false }
 }
 </script>
 <style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>

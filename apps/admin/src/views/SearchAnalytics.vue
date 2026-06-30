@@ -49,7 +49,6 @@
 
     <el-tabs
       v-model="activeTab"
-      @tab-change="onTabChange"
     >
       <!-- 搜索分析 -->
       <el-tab-pane
@@ -265,10 +264,17 @@
           <el-col :span="12">
             <el-card>
               <template #header>
-                <span>AI搜索趋势（近7天）</span>
+                <span>搜索量趋势（近7天）</span>
               </template>
               <div
+                v-show="trendHasData"
                 ref="trendChartRef"
+                style="height:300px"
+              />
+              <el-empty
+                v-if="!trendHasData"
+                description="近7天暂无搜索记录"
+                :image-size="80"
                 style="height:300px"
               />
             </el-card>
@@ -278,8 +284,9 @@
               <template #header>
                 <span>搜索场景分布</span>
               </template>
-              <div
-                ref="sceneChartRef"
+              <el-empty
+                description="该指标暂无场景分类数据源（待后端埋点统计）"
+                :image-size="80"
                 style="height:300px"
               />
             </el-card>
@@ -336,10 +343,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick } from "vue";
+import { ref, reactive, onMounted, nextTick, onBeforeUnmount } from "vue";
 import { ElMessage } from "element-plus";
-import { api, aiAdminApi, searchApi, contentGenerationApi } from "@/api";
 import * as echarts from "echarts";
+import { api, aiAdminApi, searchApi } from "@/api";
 
 const activeTab = ref("analytics");
 
@@ -358,10 +365,11 @@ const aiPagination = reactive({ page: 1, total: 0 });
 
 // AI效果分析
 const zeroResultKeywords = ref<any[]>([]);
+
+// 搜索量趋势（近7天，真实聚合）
 const trendChartRef = ref<HTMLElement | null>(null);
-const sceneChartRef = ref<HTMLElement | null>(null);
+const trendHasData = ref(false);
 let trendChart: echarts.ECharts | null = null;
-let sceneChart: echarts.ECharts | null = null;
 
 function fmtNum(v: number): string {
   if (!v) return "0";
@@ -379,8 +387,48 @@ function fmtTime(t: string): string {
 onMounted(() => refresh());
 
 async function refresh() {
-  await Promise.all([fetchStats(), fetchAiLogs(), fetchZeroResults()]);
+  await Promise.all([fetchStats(), fetchAiLogs(), fetchZeroResults(), fetchTrend()]);
 }
+
+async function fetchTrend() {
+  try {
+    const { data } = await api.get("/search/admin/trend", { params: { days: 7 } });
+    const series: { date: string; total: number }[] = (data as any)?.series || [];
+    const hasData = series.some((s) => s.total > 0);
+    trendHasData.value = hasData;
+    if (!hasData) {
+      trendChart?.dispose();
+      trendChart = null;
+      return;
+    }
+    await nextTick();
+    if (!trendChartRef.value) return;
+    if (!trendChart) trendChart = echarts.init(trendChartRef.value);
+    trendChart.setOption({
+      tooltip: { trigger: "axis" },
+      grid: { left: 45, right: 24, top: 16, bottom: 28 },
+      xAxis: {
+        type: "category",
+        data: series.map((s) => s.date.slice(5)),
+        axisLabel: { fontSize: 10 },
+      },
+      yAxis: { type: "value", name: "搜索次数", minInterval: 1 },
+      series: [{
+        name: "搜索次数",
+        type: "line",
+        smooth: true,
+        areaStyle: { opacity: 0.12 },
+        itemStyle: { color: "#409eff" },
+        data: series.map((s) => s.total),
+      }],
+    });
+  } catch { trendHasData.value = false; }
+}
+
+onBeforeUnmount(() => {
+  trendChart?.dispose();
+  trendChart = null;
+});
 
 async function fetchStats() {
   try {
@@ -427,62 +475,6 @@ async function fetchZeroResults() {
     const { data } = await api.get("/search/zero-results");
     zeroResultKeywords.value = (data as any)?.keywords || (data as any)?.data || [];
   } catch { /* ignore */ }
-}
-
-function onTabChange(tab: string) {
-  if (tab === "ai-effect") {
-    nextTick(() => renderCharts());
-  }
-}
-
-function renderCharts() {
-  // AI搜索趋势图
-  if (trendChartRef.value) {
-    if (trendChart) trendChart.dispose();
-    trendChart = echarts.init(trendChartRef.value);
-    // 模拟近7天数据，实际应从API获取
-    const dates: string[] = [];
-    const aiCounts: number[] = [];
-    const totalCounts: number[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      dates.push(`${d.getMonth() + 1}/${d.getDate()}`);
-      aiCounts.push(Math.floor(Math.random() * 50) + 10);
-      totalCounts.push(Math.floor(Math.random() * 120) + 30);
-    }
-    trendChart.setOption({
-      tooltip: { trigger: "axis" },
-      legend: { data: ["AI搜索", "总搜索"], bottom: 0 },
-      grid: { left: 50, right: 20, top: 10, bottom: 30 },
-      xAxis: { type: "category", data: dates },
-      yAxis: { type: "value" },
-      series: [
-        { name: "AI搜索", type: "bar", data: aiCounts, itemStyle: { color: "#409eff" }, barMaxWidth: 30 },
-        { name: "总搜索", type: "line", data: totalCounts, itemStyle: { color: "#67c23a" }, smooth: true },
-      ],
-    });
-  }
-
-  // 场景分布饼图
-  if (sceneChartRef.value) {
-    if (sceneChart) sceneChart.dispose();
-    sceneChart = echarts.init(sceneChartRef.value);
-    sceneChart.setOption({
-      tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
-      series: [{
-        type: "pie", radius: ["45%", "75%"], center: ["50%", "50%"],
-        data: [
-          { name: "国学经典", value: 35 },
-          { name: "八字命理", value: 28 },
-          { name: "诗词歌赋", value: 18 },
-          { name: "中医养生", value: 12 },
-          { name: "其他", value: 7 },
-        ],
-        label: { fontSize: 10, formatter: "{b}\n{d}%" },
-      }],
-    });
-  }
 }
 
 function triggerAiFill(row: any) {

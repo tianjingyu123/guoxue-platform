@@ -53,7 +53,25 @@
       </el-col>
     </el-row>
 
+    <!-- 顶层加载失败错误态 -->
+    <el-result
+      v-if="loadErr"
+      icon="error"
+      title="加载失败"
+      sub-title="统计与品类数据加载出错，请重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="refreshStats"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-tabs
+      v-else
       v-model="activeTab"
       @tab-change="onTabChange"
     >
@@ -83,10 +101,12 @@
             </div>
           </template>
           <el-table
+            v-loading="statsLoading"
             :data="filteredCategoryStats"
             stripe
             size="small"
             max-height="450"
+            empty-text="暂无品类数据"
           >
             <el-table-column
               label="一级品类"
@@ -157,7 +177,7 @@
               <template #default="{ row }">
                 <el-progress
                   :percentage="row.healthScore || 0"
-                  :color="row.healthScore >= 80 ? '#67c23a' : row.healthScore >= 40 ? '#e6a23c' : '#f56c6c'"
+                  :color="row.healthScore >= 80 ? 'var(--color-success)' : row.healthScore >= 40 ? 'var(--color-warning)' : 'var(--color-error)'"
                   :stroke-width="14"
                 />
               </template>
@@ -400,12 +420,29 @@
             </el-button>
           </div>
 
+          <el-result
+            v-if="historyErr"
+            icon="error"
+            title="加载失败"
+            sub-title="生成历史加载出错，请重试"
+          >
+            <template #extra>
+              <el-button
+                type="primary"
+                @click="fetchHistory"
+              >
+                重试
+              </el-button>
+            </template>
+          </el-result>
           <el-table
+            v-else
             v-loading="historyLoading"
             :data="historyLogs"
             stripe
             size="small"
             max-height="450"
+            empty-text="暂无生成历史"
           >
             <el-table-column
               label="场景"
@@ -477,6 +514,7 @@
             </el-table-column>
           </el-table>
           <el-pagination
+            v-if="!historyErr"
             v-model:current-page="historyPagination.page"
             :total="historyPagination.total"
             :page-size="20"
@@ -505,6 +543,8 @@ const categories = ref<any[]>([]);
 const generating = ref(false);
 const autoFilling = ref(false);
 const recentTasks = ref<any[]>([]);
+const statsLoading = ref(false);
+const loadErr = ref(false);
 
 const genStats = reactive({ totalTasks: 0, successRate: 0 });
 const genForm = reactive({ level1: "", level2: "", types: ["knowledge", "classics", "tutorial"] as string[] });
@@ -512,6 +552,7 @@ const genForm = reactive({ level1: "", level2: "", types: ["knowledge", "classic
 // 生成历史
 const historyLogs = ref<any[]>([]);
 const historyLoading = ref(false);
+const historyErr = ref(false);
 const historyFilter = reactive({ category: "", type: "", status: "", dateRange: null as any });
 const historyPagination = reactive({ page: 1, total: 0 });
 
@@ -549,33 +590,38 @@ function fmt(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour1
 onMounted(() => refreshStats());
 
 async function refreshStats() {
-  await Promise.all([loadStats(), loadCategories()]);
+  statsLoading.value = true;
+  loadErr.value = false;
+  try {
+    await Promise.all([loadStats(), loadCategories()]);
+  } catch {
+    loadErr.value = true;
+  } finally {
+    statsLoading.value = false;
+  }
 }
 
 async function loadStats() {
-  try {
-    const { data } = await contentGenerationApi.getStats();
-    const s = data as any;
-    if (s) {
-      stats.totalCategories = s.totalCategories || 0;
-      stats.totalContent = s.totalContent || 0;
-      stats.emptyCategories = s.emptyCategories || 0;
-      stats.totalGeneratedToday = s.totalGeneratedToday || 0;
-      categoryStats.value = s.details || s.categoryStats || [];
-    }
-  } catch { /* ignore */ }
+  const { data } = await contentGenerationApi.getStats();
+  const s = data as any;
+  if (s) {
+    stats.totalCategories = s.totalCategories || 0;
+    stats.totalContent = s.totalContent || 0;
+    stats.emptyCategories = s.emptyCategories || 0;
+    stats.totalGeneratedToday = s.totalGeneratedToday || 0;
+    categoryStats.value = s.details || s.categoryStats || [];
+  }
 }
 
 async function loadCategories() {
-  try {
-    const { data } = await contentGenerationApi.getCategories();
-    const c = data as any;
-    if (c) categories.value = c.categories || c.tree || Object.entries(c).map(([k, v]) => ({ label: k, children: (v as string[]).map(s => ({ label: s })) }));
-  } catch { /* ignore */ }
+  const { data } = await contentGenerationApi.getCategories();
+  const c = data as any;
+  if (c) categories.value = c.categories || c.tree || Object.entries(c).map(([k, v]) => ({ label: k, children: (v as string[]).map(s => ({ label: s })) }));
 }
 
 async function fetchHistory() {
   historyLoading.value = true;
+  historyErr.value = false;
   try {
     const params: any = { page: historyPagination.page, pageSize: 20, scene: "content_generation" };
     if (historyFilter.status) params.status = historyFilter.status;
@@ -595,7 +641,7 @@ async function fetchHistory() {
     genStats.totalTasks = historyPagination.total;
     const successCount = list.filter((l: any) => l.status === "success").length;
     genStats.successRate = list.length > 0 ? Math.round((successCount / list.length) * 100) : 0;
-  } catch { /* ignore */ } finally { historyLoading.value = false; }
+  } catch { historyErr.value = true; } finally { historyLoading.value = false; }
 }
 
 async function triggerGenerate() {
@@ -657,9 +703,9 @@ function onTabChange(tab: string) {
 .cg-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 14px; text-align: center; }
-.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 12px; color: #909399; margin-top: 2px; }
-.stat-card.warn .value { color: #e6a23c; }
-.stat-card.info .value { color: #409eff; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 14px; text-align: center; }
+.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.stat-card.warn .value { color: var(--color-warning); }
+.stat-card.info .value { color: var(--color-info); }
 </style>

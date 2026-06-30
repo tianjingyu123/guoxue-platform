@@ -71,7 +71,7 @@ function downloadBlob(data: Blob, filename: string) {
           <template #header>
             <span>{{ t.icon }} {{ t.label }}</span>
           </template>
-          <p style="color:#909399;font-size:13px;min-height:36px">
+          <p style="color:var(--color-text-secondary);font-size:13px;min-height:36px">
             {{ t.desc }}
           </p>
           <el-button

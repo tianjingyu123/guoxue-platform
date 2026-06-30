@@ -31,7 +31,24 @@
       </el-select>
     </div>
 
+    <el-result
+      v-if="loadError && !loading"
+      icon="error"
+      title="加载失败"
+      sub-title="请检查网络后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchFinance"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-row
+      v-show="!loadError"
       v-loading="loading"
       :gutter="16"
       class="overview-row"
@@ -85,6 +102,7 @@
 
     <!-- 发放分红 -->
     <el-card
+      v-show="!loadError"
       class="section-card"
       shadow="never"
     >
@@ -150,6 +168,12 @@
             {{ row.createdAt ? new Date(row.createdAt).toLocaleString('zh-CN') : '-' }}
           </template>
         </el-table-column>
+        <template #empty>
+          <el-empty
+            description="暂无分红记录"
+            :image-size="80"
+          />
+        </template>
       </el-table>
     </el-card>
 
@@ -250,6 +274,7 @@ import { ElMessage } from "element-plus";
 import { instituteApi } from "@/api";
 
 const loading = ref(false);
+const loadError = ref(false);
 const period = ref("");
 const finance = ref<any>({});
 
@@ -267,10 +292,11 @@ onMounted(() => { fetchFinance(); fetchMembers(); });
 
 async function fetchFinance() {
   loading.value = true;
+  loadError.value = false;
   try {
     const { data } = await instituteApi.getFinance(period.value || undefined);
     finance.value = data;
-  } catch {} finally { loading.value = false; }
+  } catch { loadError.value = true; } finally { loading.value = false; }
 }
 
 async function fetchMembers() {
@@ -281,10 +307,11 @@ async function fetchMembers() {
 }
 
 async function submitDividend() {
+  if (savingDividend.value) return;
   savingDividend.value = true;
   try {
     await instituteApi.createDividend(dividendForm.value);
-    ElMessage.success("已发放");
+    ElMessage.success("已提交审批，待财务审批后生效");
     showDividendDialog.value = false;
     dividendForm.value = { userId: "", type: "MGMT_BONUS", amount: 0, period: "", description: "" };
     fetchFinance();
@@ -299,6 +326,6 @@ async function submitDividend() {
 .header h2 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .overview-row { margin-bottom: 16px; }
 .stat-label { font-size: 13px; color: var(--color-text-secondary); }
-.stat-value { font-size: 22px; font-weight: 600; color: #333; margin-top: 4px; }
+.stat-value { font-size: 22px; font-weight: 600; color: var(--color-text-title); margin-top: 4px; }
 .section-card { margin-bottom: 16px; }
 </style>

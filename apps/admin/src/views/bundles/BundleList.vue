@@ -49,12 +49,34 @@
       </div>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button
+          link
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       border
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无组合包" />
+      </template>
       <el-table-column
         label="名称"
         min-width="180"
@@ -368,6 +390,8 @@ import { bundleApi } from "@/api";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
+const error = ref(false);
+const deleting = ref(false);
 const keyword = ref("");
 const typeFilter = ref("");
 const page = ref(1);
@@ -387,6 +411,7 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const params: any = { page: page.value, pageSize };
     if (keyword.value) params.keyword = keyword.value;
@@ -394,6 +419,10 @@ async function fetchList() {
     const { data } = await bundleApi.list(params);
     list.value = data.bundles || [];
     total.value = data.total || 0;
+  } catch {
+    list.value = [];
+    total.value = 0;
+    error.value = true;
   } finally { loading.value = false; }
 }
 
@@ -424,9 +453,13 @@ async function save() {
 
 async function handleDelete(row: any) {
   await ElMessageBox.confirm(`确定删除组合包「${row.name}」？`, "提示", { type: "warning" });
-  await bundleApi.delete(row.id);
-  ElMessage.success("已删除");
-  fetchList();
+  if (deleting.value) return;
+  deleting.value = true;
+  try {
+    await bundleApi.delete(row.id);
+    ElMessage.success("已删除");
+    fetchList();
+  } finally { deleting.value = false; }
 }
 </script>
 

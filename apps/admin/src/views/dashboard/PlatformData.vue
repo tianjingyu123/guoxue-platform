@@ -12,7 +12,8 @@ import ChartCard from '@/components/ChartCard.vue'
 import { User, Document, Goods, Money, Plus, Coin, ChatDotRound, View } from '@element-plus/icons-vue'
 
 const router = useRouter()
-const loading = ref(false)
+const loading = ref(true)
+const loadError = ref(false)
 const data = ref<any>(null)
 
 interface CardDef {
@@ -100,6 +101,7 @@ function buildGrowthOption(dates: string[], values: number[]) {
 
 async function fetchData() {
   loading.value = true
+  loadError.value = false
   try {
     const [statsRes, trendsRes, _revenueRes, chartsRes] = await Promise.all([
       api.get('/dashboard/stats'),
@@ -134,7 +136,7 @@ async function fetchData() {
     // TOP10 内容
     topArticles.value = (c.topArticles ?? []).slice(0, 10)
   } catch {
-    // 静默失败
+    loadError.value = true
   } finally {
     loading.value = false
   }
@@ -166,7 +168,10 @@ onMounted(fetchData)
 </script>
 
 <template>
-  <div class="page">
+  <div
+    v-loading="loading"
+    class="page"
+  >
     <div class="toolbar">
       <h3>平台总数据</h3>
       <div class="toolbar-right">
@@ -182,6 +187,24 @@ onMounted(fetchData)
       </div>
     </div>
 
+    <!-- 错误态 -->
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="数据加载失败"
+      sub-title="无法获取平台数据，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchData"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <template v-else>
     <!-- 统计卡片 4x2 -->
     <el-row
       v-if="data"
@@ -230,16 +253,21 @@ onMounted(fetchData)
         :md="24"
       >
         <ChartCard
+          v-if="chartOption?.series?.[0]?.data?.length"
           title="用户增长趋势 · 近30天"
           :option="chartOption"
           :height="320"
+        />
+        <el-empty
+          v-else-if="!loading"
+          description="暂无用户增长数据"
         />
       </el-col>
     </el-row>
 
     <!-- TOP10 内容排行 -->
     <div
-      v-if="topArticles.length"
+      v-if="data"
       class="section-card"
     >
       <div class="section-card__title">
@@ -250,6 +278,12 @@ onMounted(fetchData)
         stripe
         style="width:100%"
       >
+        <template #empty>
+          <el-empty
+            description="暂无内容排行数据"
+            :image-size="48"
+          />
+        </template>
         <el-table-column
           type="index"
           label="排名"
@@ -287,9 +321,10 @@ onMounted(fetchData)
 
     <el-empty
       v-if="!data && !loading"
-      description="加载中..."
+      description="暂无数据"
       :image-size="48"
     />
+    </template>
   </div>
 </template>
 

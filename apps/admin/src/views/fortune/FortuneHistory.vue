@@ -42,12 +42,28 @@
       </el-form-item>
     </el-form>
 
+    <!-- 错误态 -->
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="无法获取运势推送历史，请重试"
+    >
+      <template #extra>
+        <el-button type="primary" @click="fetchList">重试</el-button>
+      </template>
+    </el-result>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       border
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无运势推送记录" />
+      </template>
       <el-table-column
         prop="userId"
         label="用户ID"
@@ -100,6 +116,7 @@
     </el-table>
 
     <el-pagination
+      v-if="!error"
       v-model:current-page="page"
       v-model:page-size="pageSize"
       :total="total"
@@ -112,10 +129,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { ElMessage } from "element-plus";
 import { fortuneAdminApi } from "@/api";
 
 const loading = ref(false);
+const error = ref(false);
 const list = ref<any[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
@@ -139,14 +156,15 @@ function sentStatusLabel(status: string) {
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (filterType.value) params.fortuneType = filterType.value;
     const res = await fortuneAdminApi.listHistory(params);
-    list.value = res.data.list || res.data.rows || [];
-    total.value = res.data.total || 0;
+    list.value = res.data.items ?? res.data.records ?? [];
+    total.value = res.data.total ?? 0;
   } catch {
-    ElMessage.error("获取推送历史失败");
+    error.value = true;
   } finally {
     loading.value = false;
   }

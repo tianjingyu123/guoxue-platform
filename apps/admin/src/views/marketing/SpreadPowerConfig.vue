@@ -44,6 +44,9 @@
                 <el-input v-model="row.description" size="small" placeholder="等级描述" />
               </template>
             </el-table-column>
+            <template #empty>
+              <el-empty description="暂无等级配置" />
+            </template>
           </el-table>
         </el-card>
       </el-col>
@@ -87,6 +90,16 @@
           </el-select>
         </div>
       </template>
+      <el-alert
+        v-if="userError"
+        type="error"
+        title="数据加载失败"
+        :closable="false"
+        show-icon
+        style="margin-bottom:12px"
+      >
+        <el-button size="small" type="primary" @click="fetchUsers">重试</el-button>
+      </el-alert>
       <el-table :data="users" border stripe v-loading="userLoading">
         <el-table-column prop="userName" label="用户" width="150" />
         <el-table-column label="传播力等级" width="120">
@@ -105,6 +118,9 @@
             <span v-else>{{ row.spreadLevelName }}</span>
           </template>
         </el-table-column>
+        <template #empty>
+          <el-empty :description="userError ? '加载失败，请重试' : '暂无数据'" />
+        </template>
       </el-table>
       <el-pagination
         v-model:current-page="userPage"
@@ -131,6 +147,7 @@ const filterLevel = ref("")
 const userPage = ref(1)
 const userPageSize = ref(10)
 const userTotal = ref(0)
+const userError = ref(false)
 const users = ref<any[]>([])
 
 const levels = ref<any[]>([])
@@ -191,6 +208,7 @@ async function saveAllLevels() {
 
 async function fetchUsers() {
   userLoading.value = true
+  userError.value = false
   try {
     const res: any = await spreadPowerApi.listUsers({
       page: userPage.value, pageSize: userPageSize.value,
@@ -201,7 +219,7 @@ async function fetchUsers() {
       ...u, userName: u.user?.nickname ?? '未知',
     }))
     userTotal.value = d.total ?? 0
-  } catch { /* */ }
+  } catch { userError.value = true }
   finally { userLoading.value = false }
 }
 
@@ -213,11 +231,11 @@ onMounted(() => { fetchLevels(); fetchStats(); fetchUsers() })
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .dist-chart { padding: 8px 0; }
 .dist-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.dist-label { width: 50px; font-size: 12px; color: #666; }
-.dist-bar-wrap { flex: 1; background: #f0f0f0; border-radius: 4px; height: 20px; overflow: hidden; }
+.dist-label { width: 50px; font-size: 12px; color: var(--color-text-body); }
+.dist-bar-wrap { flex: 1; background: var(--color-divider); border-radius: 4px; height: 20px; overflow: hidden; }
 .dist-bar { height: 100%; border-radius: 4px; transition: width 0.3s; min-width: 2px; }
-.dist-count { width: 40px; font-size: 12px; color: #999; text-align: right; }
-.stat-mini { text-align: center; padding: 12px; background: #f5f7fa; border-radius: 8px; margin-bottom: 8px; }
-.stat-mini-val { font-size: 20px; font-weight: 700; color: #409eff; }
+.dist-count { width: 40px; font-size: 12px; color: var(--color-text-secondary); text-align: right; }
+.stat-mini { text-align: center; padding: 12px; background: var(--color-bg-page); border-radius: 8px; margin-bottom: 8px; }
+.stat-mini-val { font-size: 20px; font-weight: 700; color: var(--color-info); }
 .stat-mini-lbl { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
 </style>

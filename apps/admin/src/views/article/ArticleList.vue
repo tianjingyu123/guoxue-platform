@@ -46,6 +46,23 @@
       </el-col>
     </el-row>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      title="文章列表加载失败"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        type="primary"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <DataTable
       v-model:page="page"
       v-model:page-size="pageSize"
@@ -369,6 +386,7 @@ import DataTable from "@/components/DataTable.vue";
 import SearchFilter from "@/components/SearchFilter.vue";
 
 const loading = ref(false);
+const error = ref(false);
 const saving = ref(false);
 const list = ref<any[]>([]);
 const total = ref(0);
@@ -441,6 +459,7 @@ async function fetchStats() {
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const params: any = { page: page.value, pageSize: pageSize.value, ...searchParams.value };
     const { data } = await articleApi.list(params);
@@ -448,7 +467,7 @@ async function fetchList() {
     list.value = d?.articles || d?.data || [];
     total.value = d?.total || 0;
     if (d?.tags) filterDefs[1].options = d.tags.map((t: string) => ({ label: t, value: t }));
-  } catch { list.value = []; } finally { loading.value = false; }
+  } catch { error.value = true; list.value = []; total.value = 0; } finally { loading.value = false; }
 }
 
 function onSearch(f: Record<string, any>) {
@@ -541,8 +560,8 @@ function exportCSV() {
 .article-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 16px; text-align: center; }
-.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 13px; color: #909399; margin-top: 4px; }
-.text-muted { color: #909399; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 16px; text-align: center; }
+.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
+.text-muted { color: var(--color-text-secondary); }
 </style>

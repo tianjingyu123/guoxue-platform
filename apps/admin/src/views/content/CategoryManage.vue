@@ -22,6 +22,23 @@
       </div>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      title="品类数据加载失败"
+      :closable="false"
+      show-icon
+      style="margin-bottom:16px"
+    >
+      <el-button
+        size="small"
+        type="primary"
+        @click="refresh"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <!-- 总览卡片 -->
     <el-row
       :gutter="16"
@@ -80,6 +97,9 @@
         size="small"
         row-key="key"
       >
+        <template #empty>
+          <el-empty description="暂无品类数据" />
+        </template>
         <el-table-column
           label="一级品类"
           width="120"
@@ -186,7 +206,7 @@
       <div
         v-for="(subs, level1) in editTree"
         :key="level1"
-        style="margin-bottom:16px;padding:12px;background:#f5f7fa;border-radius:8px"
+        style="margin-bottom:16px;padding:12px;background:var(--color-bg-page);border-radius:8px"
       >
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
           <el-input
@@ -308,6 +328,7 @@ import { ElMessage } from "element-plus";
 import { api, contentGenerationApi, systemApi } from "@/api";
 
 const loading = ref(false);
+const error = ref(false);
 const search = ref("");
 const categoryTree = ref<Record<string, string[]>>({});
 const stats = reactive({ totalCategories: 0, emptyCategories: 0, lowContentCategories: 0 });
@@ -332,6 +353,7 @@ onMounted(() => refresh());
 
 async function refresh() {
   loading.value = true;
+  error.value = false;
   try {
     const [treeRes, statsRes] = await Promise.all([
       systemApi.listConfigs(),
@@ -358,6 +380,9 @@ async function refresh() {
     stats.emptyCategories = d?.emptyCategories || 0;
     stats.lowContentCategories = d?.lowContentCategories || 0;
     statRows.value = d?.stats || [];
+  } catch {
+    error.value = true;
+    statRows.value = [];
   } finally { loading.value = false; }
 }
 
@@ -454,9 +479,9 @@ async function saveTree() {
 .cat-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 14px; text-align: center; }
-.stat-card .value { display: block; font-size: 26px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 12px; color: #909399; margin-top: 2px; }
-.stat-card.warn .value { color: #e6a23c; }
-.stat-card.info .value { color: #409eff; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 14px; text-align: center; }
+.stat-card .value { display: block; font-size: 26px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.stat-card.warn .value { color: var(--color-warning); }
+.stat-card.info .value { color: var(--color-info); }
 </style>

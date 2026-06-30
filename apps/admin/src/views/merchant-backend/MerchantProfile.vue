@@ -4,7 +4,24 @@
       <h3>店铺设置</h3>
     </div>
 
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="店铺信息加载失败，请稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchProfile"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-card
+      v-else
       v-loading="loading"
       style="max-width:600px"
     >
@@ -83,14 +100,18 @@ import { ElMessage } from "element-plus";
 import { merchantBackendApi, uploadApi } from "@/api";
 
 const loading = ref(false);
+const error = ref(false);
 const saving = ref(false);
 const uploading = ref(false);
 const logoUrl = ref("");
 
 const form = reactive({ shopName: "", shopLogo: "", shopIntro: "" });
 
-onMounted(async () => {
+onMounted(() => fetchProfile());
+
+async function fetchProfile() {
   loading.value = true;
+  error.value = false;
   try {
     const res = await merchantBackendApi.getProfile();
     const data = (res as any).data ?? res;
@@ -98,10 +119,12 @@ onMounted(async () => {
     form.shopLogo = data.shopLogo || "";
     form.shopIntro = data.shopIntro || "";
     logoUrl.value = form.shopLogo;
+  } catch (e: any) {
+    error.value = true;
   } finally {
     loading.value = false;
   }
-});
+}
 
 async function handleUpload(options: any) {
   uploading.value = true;
@@ -132,5 +155,5 @@ async function save() {
 .page-header { margin-bottom: 16px; }
 .page-header h3 { margin: 0; }
 .logo-section { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.logo-preview { width: 60px; height: 60px; border-radius: 6px; object-fit: cover; border: 1px solid #eee; }
+.logo-preview { width: 60px; height: 60px; border-radius: 6px; object-fit: cover; border: 1px solid var(--color-divider); }
 </style>

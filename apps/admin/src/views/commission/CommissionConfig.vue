@@ -3,16 +3,40 @@
     <div class="header">
       <h2>佣金配置管理</h2>
       <p class="desc">
-        调整各业务场景的分佣比例，修改即时生效。
+        调整各业务场景的分佣比例，提交后需财务审批通过方可生效。
       </p>
     </div>
 
+    <el-result
+      v-if="error && !loading"
+      icon="error"
+      title="加载失败"
+      sub-title="佣金配置加载出错，请重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchConfigs"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="configs"
       border
       stripe
     >
+      <template #empty>
+        <el-empty
+          v-if="!loading"
+          description="暂无佣金配置"
+          :image-size="80"
+        />
+      </template>
       <el-table-column
         prop="configKey"
         label="配置键"
@@ -165,6 +189,7 @@ import { ElMessage } from "element-plus";
 
 const configs = ref<any[]>([]);
 const loading = ref(false);
+const error = ref(false);
 const dialogVisible = ref(false);
 const editRow = ref<any>(null);
 const saving = ref(false);
@@ -177,9 +202,13 @@ onMounted(() => fetchConfigs());
 
 async function fetchConfigs() {
   loading.value = true;
+  error.value = false;
   try {
     const { data } = await commissionApi.getConfigs();
     configs.value = data || [];
+  } catch {
+    error.value = true;
+    configs.value = [];
   } finally {
     loading.value = false;
   }
@@ -218,7 +247,7 @@ async function save() {
       data.description = form.value.description;
     }
     await commissionApi.updateConfig(editRow.value.configKey, data);
-    ElMessage.success(`${editRow.value.configName} 已更新`);
+    ElMessage.success("已提交审批，待财务审批后生效");
     dialogVisible.value = false;
     await fetchConfigs();
   } catch {
@@ -234,5 +263,5 @@ async function save() {
 .header { margin-bottom: 16px; }
 .header h2 { margin: 0 0 4px; font-size: 18px; color: var(--color-text-title); }
 .desc { margin: 0; font-size: 13px; color: var(--color-text-secondary); }
-.rate-unit { margin-left: 8px; color: #666; }
+.rate-unit { margin-left: 8px; color: var(--color-text-body); }
 </style>

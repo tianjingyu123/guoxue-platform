@@ -28,7 +28,23 @@
         </el-button>
       </div>
     </div>
+    <el-empty
+      v-if="loadErr"
+      description="加载失败，请重试"
+    >
+      <el-button
+        type="primary"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-empty>
+    <el-empty
+      v-else-if="!loading && list.length === 0"
+      description="暂无调用记录"
+    />
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       stripe
@@ -169,7 +185,8 @@
 import { ref, onMounted } from 'vue'
 import { aiAdminApi } from '@/api'
 
-const loading = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+const loading = ref(false); const loadErr = ref(false)
+const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
 const statusFilter = ref('')
 const detailVis = ref(false); const detail = ref<any>({})
 
@@ -177,13 +194,13 @@ onMounted(() => fetchList())
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
-  loading.value = true
+  loading.value = true; loadErr.value = false
   try {
     const params: any = { page: page.value, pageSize: 20 }
     if (statusFilter.value) params.status = statusFilter.value
     const { data } = await aiAdminApi.getCallLogs(params)
     list.value = data.list || data.data || []; total.value = data.total || 0
-  } catch { list.value = [] } finally { loading.value = false }
+  } catch { loadErr.value = true; list.value = [] } finally { loading.value = false }
 }
 
 function viewDetail(row: any) { detail.value = row; detailVis.value = true }

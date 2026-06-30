@@ -68,12 +68,34 @@
       </template>
     </PageHeader>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button
+          link
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       border
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无订单" />
+      </template>
       <el-table-column
         label="订单号"
         width="200"
@@ -160,6 +182,7 @@ import PageHeader from "@/components/PageHeader.vue";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
+const error = ref(false);
 const keyword = ref("");
 const typeFilter = ref("");
 const statusFilter = ref("");
@@ -175,6 +198,7 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const params: any = { page: page.value, pageSize };
     if (keyword.value) params.keyword = keyword.value;
@@ -183,6 +207,10 @@ async function fetchList() {
     const { data } = await orderCenterApi.adminList(params);
     list.value = data.orders || [];
     total.value = data.total || 0;
+  } catch {
+    list.value = [];
+    total.value = 0;
+    error.value = true;
   } finally { loading.value = false; }
 }
 </script>

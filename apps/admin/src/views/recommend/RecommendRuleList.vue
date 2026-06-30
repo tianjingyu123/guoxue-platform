@@ -10,11 +10,31 @@
       </el-button>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      title="规则列表加载失败"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        type="primary"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无推荐规则" />
+      </template>
       <el-table-column
         prop="scene"
         label="场景"
@@ -252,6 +272,7 @@ const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const loading = ref(false)
+const error = ref(false)
 const saving = ref(false)
 
 const dialogVisible = ref(false)
@@ -266,11 +287,16 @@ onMounted(() => fetchList())
 
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const res = await recommendRuleApi.list({ page: page.value, pageSize: 20 })
     const data = res.data as any
     list.value = data.list || data.items || []
     total.value = data.total || 0
+  } catch {
+    error.value = true
+    list.value = []
+    total.value = 0
   } finally { loading.value = false }
 }
 

@@ -18,6 +18,22 @@
         <span style="font-size:13px">展示位置：<b>商城首页秒杀专区</b>、<b>微页面秒杀组件</b>。创建后需点击"开始"才在用户端生效。</span>
       </template>
     </el-alert>
+    <el-alert
+      v-if="error"
+      type="error"
+      title="数据加载失败"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        type="primary"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
     <el-table
       v-loading="loading"
       :data="list"
@@ -103,6 +119,9 @@
           </el-button>
         </template>
       </el-table-column>
+      <template #empty>
+        <el-empty :description="error ? '加载失败，请重试' : '暂无数据'" />
+      </template>
     </el-table>
 
     <div
@@ -221,7 +240,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { marketingApi } from '@/api'
 import ProductPicker from '@/components/ProductPicker.vue'
 
-const loading = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1); const pages = ref<any[]>([])
+const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1); const pages = ref<any[]>([])
 const vis = ref(false); const editingId = ref('')
 const form = reactive<{ name: string; productId: string; flashPrice: number; limitPerUser: number; startTime: string; endTime: string; scope: string; scopePageId: string }>({ name: '', productId: '', flashPrice: 0, limitPerUser: 1, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
 
@@ -231,8 +250,8 @@ async function loadPages() { try { const { data } = await marketingApi.listPages
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
-  loading.value = true
-  try { const { data } = await marketingApi.listFlashSales({ page: page.value, pageSize: 20 }); list.value = data.items || data.flashSales || data.data || []; total.value = data.total || 0 } catch { list.value = [] } finally { loading.value = false }
+  loading.value = true; error.value = false
+  try { const { data } = await marketingApi.listFlashSales({ page: page.value, pageSize: 20 }); list.value = data.items || data.flashSales || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', productId: '', flashPrice: 0, limitPerUser: 1, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' }); vis.value = true }
 function openEdit(row: any) { editingId.value = row.id; Object.assign(form, { name: row.name, productId: row.items?.[0]?.productId || '', flashPrice: Number(row.items?.[0]?.flashPrice) || 0, limitPerUser: row.limitPerUser || 1, startTime: row.startTime || '', endTime: row.endTime || '', scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '' }); vis.value = true }

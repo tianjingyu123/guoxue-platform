@@ -31,9 +31,33 @@
       <el-button @click="fetchList">
         查询
       </el-button>
+      <el-button
+        type="primary"
+        :loading="exporting"
+        @click="exportLogs"
+      >
+        导出 CSV
+      </el-button>
     </div>
 
+    <el-result
+      v-if="error && !loading"
+      icon="error"
+      title="加载失败"
+      sub-title="审计日志加载出错，请重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       border
@@ -42,6 +66,7 @@
     >
       <template #empty>
         <el-empty
+          v-if="!loading"
           description="暂无审计日志"
           :image-size="80"
         />
@@ -116,10 +141,12 @@
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
-import { auditApi } from "@/api";
+import { api, auditApi } from "@/api";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
+const error = ref(false);
+const exporting = ref(false);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
@@ -146,6 +173,7 @@ function onFilterChange() {
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (filterAction.value) params.action = filterAction.value;
@@ -157,9 +185,37 @@ async function fetchList() {
     list.value = data.logs || [];
     total.value = data.total || 0;
   } catch {
+    error.value = true;
+    list.value = [];
+    total.value = 0;
     ElMessage.error("加载审计日志失败");
   } finally {
     loading.value = false;
+  }
+}
+
+async function exportLogs() {
+  if (exporting.value) return;
+  exporting.value = true;
+  try {
+    const body: any = {};
+    if (filterAction.value) body.action = filterAction.value;
+    if (dateRange.value?.length === 2) {
+      body.startDate = dateRange.value[0];
+      body.endDate = dateRange.value[1];
+    }
+    const res = await api.post("/system/export/audit-logs", body, { responseType: "blob" });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `audit-logs-${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    ElMessage.success("导出成功");
+  } catch {
+    ElMessage.error("导出失败，请重试");
+  } finally {
+    exporting.value = false;
   }
 }
 

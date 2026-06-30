@@ -5,8 +5,27 @@
       <span class="subtitle">自动化内容运营策略控制中心</span>
     </div>
 
+    <!-- 错误态 -->
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="运营数据加载失败"
+      style="margin-bottom:16px"
+    >
+      <el-button
+        size="small"
+        type="primary"
+        @click="refresh"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <!-- 运营概览 -->
     <el-row
+      v-loading="loading"
       :gutter="16"
       class="stats-row"
     >
@@ -316,6 +335,9 @@ function formatDate(d: string | null | undefined) {
 
 const overview = reactive({ totalContent: 0, totalUsers: 0, totalCircles: 0, recentContent: 0 });
 
+const loading = ref(false);
+const loadError = ref(false);
+
 // 快捷操作状态
 const rotating = ref(false);
 const detecting = ref(false);
@@ -340,10 +362,8 @@ const personalUserId = ref("");
 const personalResult = ref<any>(null);
 
 async function fetchOverview() {
-  try {
-    const { data } = await api.get("/operation-engine/overview");
-    Object.assign(overview, data);
-  } catch { /* ignore */ }
+  const { data } = await api.get("/operation-engine/overview");
+  Object.assign(overview, data);
 }
 
 async function loadConfig(key: string) {
@@ -358,10 +378,18 @@ async function loadConfig(key: string) {
 }
 
 async function refresh() {
-  await fetchOverview();
-  weeklyBrief.value = await loadConfig("weekly_operation_brief");
-  hotPool.value = await loadConfig("homepage_recommendations");
-  emptyAlerts.value = await loadConfig("empty_category_alerts");
+  loading.value = true;
+  loadError.value = false;
+  try {
+    await fetchOverview();
+    weeklyBrief.value = await loadConfig("weekly_operation_brief");
+    hotPool.value = await loadConfig("homepage_recommendations");
+    emptyAlerts.value = await loadConfig("empty_category_alerts");
+  } catch {
+    loadError.value = true;
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function rotateContent() {
@@ -398,7 +426,7 @@ async function fetchRelated() {
       params: { categoryLevel1: relateL1.value, categoryLevel2: relateL2.value || undefined },
     });
     relatedResult.value = data;
-  } catch { /* ignore */ }
+  } catch { ElMessage.error("查询失败，请稍后重试"); }
 }
 
 async function fetchPersonal() {
@@ -408,7 +436,7 @@ async function fetchPersonal() {
       params: { userId: personalUserId.value },
     });
     personalResult.value = data;
-  } catch { /* ignore */ }
+  } catch { ElMessage.error("查询失败，请稍后重试"); }
 }
 
 onMounted(() => refresh());
@@ -418,14 +446,14 @@ onMounted(() => refresh());
 .operation-engine { padding: 0; }
 .page-header { margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 20px; }
-.subtitle { color: #909399; font-size: 14px; }
+.subtitle { color: var(--color-text-secondary); font-size: 14px; }
 
 .stats-row { margin-bottom: 16px; }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 16px; text-align: center; }
-.stat-card .value { display: block; font-size: 28px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 13px; color: #909399; margin-top: 4px; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 16px; text-align: center; }
+.stat-card .value { display: block; font-size: 28px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
 
 .section-card { margin-bottom: 16px; }
 
-.text-muted { color: #909399; font-size: 13px; }
+.text-muted { color: var(--color-text-secondary); font-size: 13px; }
 </style>

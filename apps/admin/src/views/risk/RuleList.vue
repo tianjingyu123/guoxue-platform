@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { riskApi } from '@/api'
 
 const loading = ref(false)
+const error = ref(false)
 const saving = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
@@ -14,34 +15,30 @@ const editingId = ref('')
 const typeFilter = ref('')
 const statusFilter = ref('')
 
+// 与后端 RiskRule.type 对齐：FRAUD/SPAM/ABNORMAL/SECURITY
 const typeOptions = [
   { label: '刷单', value: 'FRAUD' },
   { label: '垃圾内容', value: 'SPAM' },
-  { label: '异常登录', value: 'ABNORMAL_LOGIN' },
-  { label: '恶意退款', value: 'CHARGEBACK' },
-  { label: '设备盗用', value: 'DEVICE_THEFT' },
+  { label: '异常行为', value: 'ABNORMAL' },
+  { label: '安全风险', value: 'SECURITY' },
 ]
 
-const levelOptions = [
-  { label: '高', value: 'HIGH' },
-  { label: '中', value: 'MEDIUM' },
-  { label: '低', value: 'LOW' },
-]
-
+// 与后端 RiskRule.action 对齐：ALERT/FREEZE/REQUIRE_REVIEW
 const actionOptions = [
-  { label: '拦截', value: 'BLOCK' },
-  { label: '警告', value: 'WARN' },
-  { label: '监控', value: 'MONITOR' },
+  { label: '仅告警', value: 'ALERT' },
+  { label: '冻结', value: 'FREEZE' },
+  { label: '转人工审核', value: 'REQUIRE_REVIEW' },
 ]
 
+// 表单字段严格对应 RiskRule：name/type/conditions(Json)/action/enabled（无 level/threshold）
 const form = reactive({
   name: '',
   type: 'FRAUD',
-  level: 'MEDIUM',
-  threshold: 0,
-  action: 'WARN',
+  action: 'ALERT',
   enabled: true,
 })
+// conditions 为 JSON 对象，用文本框编辑后解析
+const conditionsText = ref('{}')
 
 onMounted(() => fetchList())
 
@@ -54,17 +51,25 @@ function getTypeLabel(type: string): string {
   return opt ? opt.label : type
 }
 
+function getActionLabel(action: string): string {
+  const opt = actionOptions.find(a => a.value === action)
+  return opt ? opt.label : action
+}
+
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const params: Record<string, any> = { page: page.value, pageSize: 20 }
     if (typeFilter.value) params.type = typeFilter.value
     if (statusFilter.value) params.enabled = statusFilter.value === 'true'
     const { data } = await riskApi.listRules(params)
-    list.value = data.rules || data.data || []
-    total.value = data.total || 0
+    list.value = data.items ?? (Array.isArray(data) ? data : [])
+    total.value = data.total ?? list.value.length
   } catch {
     list.value = []
+    total.value = 0
+    error.value = true
   } finally {
     loading.value = false
   }
@@ -72,7 +77,8 @@ async function fetchList() {
 
 function openCreate() {
   editingId.value = ''
-  Object.assign(form, { name: '', type: 'FRAUD', level: 'MEDIUM', threshold: 0, action: 'WARN', enabled: true })
+  Object.assign(form, { name: '', type: 'FRAUD', action: 'ALERT', enabled: true })
+  conditionsText.value = '{}'
   dialogVisible.value = true
 }
 
@@ -81,26 +87,44 @@ function openEdit(row: any) {
   Object.assign(form, {
     name: row.name,
     type: row.type || 'FRAUD',
-    level: row.level || 'MEDIUM',
-    threshold: row.threshold ?? 0,
-    action: row.action || 'WARN',
+    action: row.action || 'ALERT',
     enabled: row.enabled ?? true,
   })
+  conditionsText.value = JSON.stringify(row.conditions ?? {}, null, 2)
   dialogVisible.value = true
 }
 
 async function save() {
+  if (saving.value) return
+  if (!form.name.trim()) {
+    ElMessage.warning('请输入规则名称')
+    return
+  }
+  // 解析并校验 conditions JSON（后端要求为对象）
+  let conditions: Record<string, any>
+  try {
+    conditions = conditionsText.value.trim() ? JSON.parse(conditionsText.value) : {}
+  } catch {
+    ElMessage.error('触发条件不是合法的 JSON')
+    return
+  }
+  if (typeof conditions !== 'object' || Array.isArray(conditions)) {
+    ElMessage.error('触发条件必须是 JSON 对象')
+    return
+  }
   saving.value = true
   try {
+    const payload = { ...form, conditions }
     if (editingId.value) {
-      await riskApi.updateRule(editingId.value, form)
+      await riskApi.updateRule(editingId.value, payload)
     } else {
-      await riskApi.createRule(form)
+      await riskApi.createRule(payload)
     }
     ElMessage.success('已保存')
     dialogVisible.value = false
     fetchList()
   } catch {
+    // 错误已由响应拦截器统一提示
   } finally {
     saving.value = false
   }
@@ -112,6 +136,7 @@ async function toggleRule(row: any) {
     ElMessage.success(row.enabled ? '已禁用' : '已启用')
     fetchList()
   } catch {
+    // 错误已由响应拦截器统一提示
   }
 }
 
@@ -172,7 +197,22 @@ async function del(id: string) {
       </el-select>
     </div>
 
+    <div
+      v-if="error"
+      class="error-state"
+    >
+      <el-empty description="加载失败，请重试">
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </el-empty>
+    </div>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       stripe
@@ -191,15 +231,15 @@ async function del(id: string) {
         </template>
       </el-table-column>
       <el-table-column
-        label="风险等级"
-        width="100"
+        label="处置动作"
+        width="120"
       >
         <template #default="{ row }">
           <el-tag
-            :type="row.level === 'HIGH' ? 'danger' : row.level === 'MEDIUM' ? 'warning' : 'info'"
+            :type="row.action === 'FREEZE' ? 'danger' : row.action === 'REQUIRE_REVIEW' ? 'warning' : 'info'"
             size="small"
           >
-            {{ row.level === 'HIGH' ? '高' : row.level === 'MEDIUM' ? '中' : '低' }}
+            {{ getActionLabel(row.action) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -294,26 +334,6 @@ async function del(id: string) {
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="风险等级">
-          <el-select
-            v-model="form.level"
-            style="width:100%"
-          >
-            <el-option
-              v-for="l in levelOptions"
-              :key="l.value"
-              :label="l.label"
-              :value="l.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="触发阈值">
-          <el-input-number
-            v-model="form.threshold"
-            :min="0"
-            style="width:100%"
-          />
-        </el-form-item>
         <el-form-item label="处置动作">
           <el-select
             v-model="form.action"
@@ -326,6 +346,14 @@ async function del(id: string) {
               :value="a.value"
             />
           </el-select>
+        </el-form-item>
+        <el-form-item label="触发条件">
+          <el-input
+            v-model="conditionsText"
+            type="textarea"
+            :rows="5"
+            placeholder='JSON 对象，例如 {"threshold": 10, "window": "24h"}'
+          />
         </el-form-item>
         <el-form-item label="启用状态">
           <el-switch v-model="form.enabled" />
@@ -352,4 +380,5 @@ async function del(id: string) {
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .filters { display: flex; gap: 12px; margin-bottom: 16px; }
+.error-state { padding: 40px 0; }
 </style>

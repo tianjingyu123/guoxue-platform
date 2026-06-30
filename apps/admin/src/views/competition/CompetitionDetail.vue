@@ -12,6 +12,7 @@
         <el-button
           v-if="detail?.status === 'DRAFT'"
           type="success"
+          :loading="statusChanging"
           @click="changeStatus('publish')"
         >
           发布赛事
@@ -19,6 +20,7 @@
         <el-button
           v-if="detail?.status === 'PUBLISHED'"
           type="warning"
+          :loading="statusChanging"
           @click="changeStatus('start')"
         >
           开始赛事
@@ -26,6 +28,7 @@
         <el-button
           v-if="detail?.status === 'IN_PROGRESS'"
           type="danger"
+          :loading="statusChanging"
           @click="changeStatus('finish')"
         >
           结束赛事
@@ -36,7 +39,25 @@
       </template>
     </el-page-header>
 
+    <!-- 错误态 -->
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="无法获取赛事详情，请重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchDetail"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-tabs
+      v-else
       v-model="activeTab"
       type="border-card"
       @tab-change="onTabChange"
@@ -580,6 +601,7 @@
             <el-button
               type="warning"
               size="small"
+              :loading="calcingRank"
               @click="handleCalcRanking"
             >
               计算排名
@@ -814,6 +836,7 @@
         </el-button>
         <el-button
           type="primary"
+          :loading="savingRound"
           @click="saveRound"
         >
           保存
@@ -972,6 +995,7 @@
         </el-button>
         <el-button
           type="primary"
+          :loading="savingQuestion"
           @click="saveQuestion"
         >
           保存
@@ -1067,6 +1091,8 @@ const statusLabels: Record<string, { text: string; type: string }> = {
 
 // ─── 基本信息 ───
 const loading = ref(false);
+const error = ref(false);
+const statusChanging = ref(false);
 const detail = ref<any>(null);
 
 function formatDate(d: string) {
@@ -1076,13 +1102,18 @@ function formatDate(d: string) {
 
 async function fetchDetail() {
   loading.value = true;
+  error.value = false;
   try {
     const { data } = await competitionApi.detail(competitionId);
     detail.value = data;
+  } catch {
+    error.value = true;
   } finally { loading.value = false }
 }
 
 async function changeStatus(action: string) {
+  if (statusChanging.value) return;
+  statusChanging.value = true;
   try {
     if (action === "publish") { await competitionApi.publish(competitionId); }
     else if (action === "start") { await competitionApi.start(competitionId); }
@@ -1092,12 +1123,13 @@ async function changeStatus(action: string) {
     }
     ElMessage.success("操作成功");
     fetchDetail();
-  } catch { /* */ }
+  } catch { /* 取消或接口拦截器已提示 */ } finally { statusChanging.value = false }
 }
 
 // ─── 赛程管理 ───
 const rounds = ref<any[]>([]);
 const roundDialog = ref(false);
+const savingRound = ref(false);
 const editingRound = ref<any>(null);
 const roundForm = reactive({
   title: "", roundType: "PRELIMINARY", sortOrder: 0,
@@ -1107,8 +1139,12 @@ const roundForm = reactive({
 });
 
 async function fetchRounds() {
-  const { data } = await competitionApi.listRounds(competitionId);
-  rounds.value = Array.isArray(data) ? data : data.data || [];
+  try {
+    const { data } = await competitionApi.listRounds(competitionId);
+    rounds.value = Array.isArray(data) ? data : data.data || [];
+  } catch {
+    ElMessage.error("加载赛程失败");
+  }
 }
 
 function openRoundDialog(row?: any) {
@@ -1130,15 +1166,24 @@ function openRoundDialog(row?: any) {
 }
 
 async function saveRound() {
-  const payload = { ...roundForm };
-  if (editingRound.value) {
-    await competitionApi.updateRound(competitionId, editingRound.value.id, payload);
-  } else {
-    await competitionApi.createRound(competitionId, { ...payload, competitionId });
+  if (savingRound.value) return;
+  if (!roundForm.title.trim()) { ElMessage.warning("请填写赛程标题"); return; }
+  savingRound.value = true;
+  try {
+    const payload = { ...roundForm };
+    if (editingRound.value) {
+      await competitionApi.updateRound(competitionId, editingRound.value.id, payload);
+    } else {
+      await competitionApi.createRound(competitionId, { ...payload, competitionId });
+    }
+    ElMessage.success("赛程已保存");
+    roundDialog.value = false;
+    fetchRounds();
+  } catch {
+    ElMessage.error("保存失败，请重试");
+  } finally {
+    savingRound.value = false;
   }
-  ElMessage.success("赛程已保存");
-  roundDialog.value = false;
-  fetchRounds();
 }
 
 async function handleDeleteRound(roundId: string) {
@@ -1158,6 +1203,7 @@ const questionPage = ref(1);
 const questionPageSize = ref(50);
 const questionFilter = reactive({ roundId: "" });
 const questionDialog = ref(false);
+const savingQuestion = ref(false);
 const editingQuestion = ref<any>(null);
 const optionsJson = ref("");
 const answerJson = ref("");
@@ -1212,6 +1258,9 @@ async function saveQuestion() {
     return;
   }
 
+  if (savingQuestion.value) return;
+  if (!questionForm.stem.trim()) { ElMessage.warning("请填写题干"); return; }
+
   const payload = {
     ...questionForm,
     competitionId: competitionId,
@@ -1220,14 +1269,21 @@ async function saveQuestion() {
     roundId: questionForm.roundId || undefined,
   };
 
-  if (editingQuestion.value) {
-    await competitionApi.updateQuestion(competitionId, editingQuestion.value.id, payload);
-  } else {
-    await competitionApi.addQuestion(competitionId, payload);
+  savingQuestion.value = true;
+  try {
+    if (editingQuestion.value) {
+      await competitionApi.updateQuestion(competitionId, editingQuestion.value.id, payload);
+    } else {
+      await competitionApi.addQuestion(competitionId, payload);
+    }
+    ElMessage.success("题目已保存");
+    questionDialog.value = false;
+    fetchQuestions();
+  } catch {
+    ElMessage.error("保存失败，请重试");
+  } finally {
+    savingQuestion.value = false;
   }
-  ElMessage.success("题目已保存");
-  questionDialog.value = false;
-  fetchQuestions();
 }
 
 async function handleDeleteQuestion(questionId: string) {
@@ -1269,6 +1325,7 @@ async function handleRegAction(regId: string, status: string) {
 // ─── 排名管理 ───
 const rankings = ref<any[]>([]);
 const rankLoading = ref(false);
+const calcingRank = ref(false);
 const rankTotal = ref(0);
 const rankPage = ref(1);
 const rankPageSize = ref(50);
@@ -1287,11 +1344,17 @@ async function fetchRankings() {
 }
 
 async function handleCalcRanking() {
+  if (calcingRank.value) return;
+  calcingRank.value = true;
   try {
     const { data } = await competitionApi.calculateRanking(competitionId);
     ElMessage.success(`排名计算完成，共 ${data.length} 条记录`);
     fetchRankings();
-  } catch { /* */ }
+  } catch {
+    ElMessage.error("排名计算失败");
+  } finally {
+    calcingRank.value = false;
+  }
 }
 
 // ─── 批量导入题目 ───
@@ -1394,8 +1457,8 @@ function onTabChange(tab: string) {
 <style scoped>
 .competition-detail { padding: 16px; }
 .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0; }
-.markdown-body { padding: 12px 0; line-height: 1.8; color: #333; }
+.markdown-body { padding: 12px 0; line-height: 1.8; color: var(--color-text-title); }
 .prize-config-list { display: flex; flex-direction: column; gap: 8px; }
-.prize-config-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; }
+.prize-config-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--color-bg-page); }
 .prize-config-item:last-child { border-bottom: none; }
 </style>

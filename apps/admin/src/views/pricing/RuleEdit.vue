@@ -7,7 +7,26 @@
       </el-button>
     </div>
 
-    <el-card>
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button
+          link
+          type="primary"
+          @click="fetchRule"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
+
+    <el-card v-loading="loading">
       <el-form
         ref="formRef"
         :model="form"
@@ -182,6 +201,8 @@ const ruleId = route.params.id as string;
 const isNew = ruleId === "new" || ruleId === "create" || !ruleId;
 
 const saving = ref(false);
+const loading = ref(false);
+const error = ref(false);
 
 const form = reactive({
   name: "",
@@ -200,6 +221,8 @@ const rules = {
 
 async function fetchRule() {
   if (isNew) return;
+  loading.value = true;
+  error.value = false;
   try {
     const res = await pricingApi.getRule(ruleId);
     const data = res.data;
@@ -212,7 +235,9 @@ async function fetchRule() {
     form.strategyConfig = data.strategyConfig || "";
     form.priority = data.priority;
   } catch {
-    ElMessage.error("获取规则详情失败");
+    error.value = true;
+  } finally {
+    loading.value = false;
   }
 }
 

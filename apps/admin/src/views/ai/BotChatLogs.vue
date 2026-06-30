@@ -20,7 +20,23 @@
         </el-button>
       </div>
     </div>
+    <el-empty
+      v-if="loadErr"
+      description="加载失败，请重试"
+    >
+      <el-button
+        type="primary"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-empty>
+    <el-empty
+      v-else-if="!loading && list.length === 0"
+      description="暂无对话日志"
+    />
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       stripe
@@ -150,7 +166,8 @@ import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { aiAdminApi } from '@/api'
 
-const loading = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+const loading = ref(false); const loadErr = ref(false); const deleting = ref(false)
+const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
 const keyword = ref('')
 const detailVis = ref(false); const detail = ref<any>({})
 
@@ -158,13 +175,13 @@ onMounted(() => fetchList())
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
-  loading.value = true
+  loading.value = true; loadErr.value = false
   try {
     const params: any = { page: page.value, pageSize: 20 }
     if (keyword.value) params.keyword = keyword.value
     const { data } = await aiAdminApi.listChatLogs(params)
     list.value = data.list || data.data || []; total.value = data.total || 0
-  } catch { list.value = [] } finally { loading.value = false }
+  } catch { loadErr.value = true; list.value = [] } finally { loading.value = false }
 }
 
 async function viewDetail(row: any) {
@@ -172,7 +189,12 @@ async function viewDetail(row: any) {
 }
 
 async function del(id: string) {
-  try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await aiAdminApi.deleteChatLog(id); ElMessage.success('已删除'); fetchList() } catch {}
+  if (deleting.value) return
+  try {
+    await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' })
+    deleting.value = true
+    await aiAdminApi.deleteChatLog(id); ElMessage.success('已删除'); fetchList()
+  } catch {} finally { deleting.value = false }
 }
 </script>
 <style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>

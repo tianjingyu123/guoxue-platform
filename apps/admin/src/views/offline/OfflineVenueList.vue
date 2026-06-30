@@ -167,6 +167,17 @@
           </el-button>
         </template>
       </el-table-column>
+      <template #empty>
+        <el-empty :description="loadError ? '加载失败' : '暂无驿站数据'">
+          <el-button
+            v-if="loadError"
+            type="primary"
+            @click="fetchList"
+          >
+            重试
+          </el-button>
+        </el-empty>
+      </template>
     </el-table>
 
     <div
@@ -323,6 +334,9 @@
             </el-tag>
           </template>
         </el-table-column>
+        <template #empty>
+          <el-empty description="该驿站暂无课程" />
+        </template>
       </el-table>
     </el-dialog>
 
@@ -423,6 +437,8 @@ import { offlineApi } from "@/api";
 
 const venues = ref<any[]>([]);
 const loading = ref(false);
+const loadError = ref(false);
+const auditing = ref(false);
 const page = ref(1);
 const pageSize = 20;
 const total = ref(0);
@@ -472,6 +488,7 @@ function statusLabel(status: string) {
 
 async function fetchList() {
   loading.value = true;
+  loadError.value = false;
   try {
     const params: any = { page: page.value, pageSize };
     if (filters.city) params.city = filters.city;
@@ -479,6 +496,9 @@ async function fetchList() {
     const { data } = await offlineApi.list(params);
     venues.value = data.stations || [];
     total.value = data.total || 0;
+  } catch {
+    venues.value = [];
+    loadError.value = true;
   } finally {
     loading.value = false;
   }
@@ -509,10 +529,18 @@ async function save() {
 // ── 审核 ──
 
 async function handleAudit(row: any, status: string) {
+  if (auditing.value) return;
   const label = status === "ACTIVE" ? "通过" : status === "DISABLED" ? "拒绝/禁用" : status;
-  await offlineApi.audit(row.id, status);
-  ElMessage.success(`已${label}`);
-  fetchList();
+  auditing.value = true;
+  try {
+    await offlineApi.audit(row.id, status);
+    ElMessage.success(`已${label}`);
+    fetchList();
+  } catch {
+    ElMessage.error("操作失败");
+  } finally {
+    auditing.value = false;
+  }
 }
 
 // ── 课程管理 ──

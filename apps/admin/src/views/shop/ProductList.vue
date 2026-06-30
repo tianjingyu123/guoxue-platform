@@ -10,6 +10,24 @@
         </el-button>
       </template>
     </PageHeader>
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button
+          link
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
     <DataTable
       v-model:page="page"
       :columns="columns"
@@ -368,8 +386,10 @@ const products = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const loading = ref(false)
+const error = ref(false)
 const saving = ref(false)
 const uploading = ref(false)
+const acting = ref(false)
 
 const dialogVisible = ref(false)
 const editingId = ref('')
@@ -411,9 +431,12 @@ function specsText(s: any) { if (!s) return '-'; return Object.entries(s).map(([
 
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const { data } = await productApi.list({ page: page.value, pageSize: 20 })
     products.value = data.products; total.value = data.total
+  } catch {
+    products.value = []; total.value = 0; error.value = true
   } finally { loading.value = false }
 }
 
@@ -469,14 +492,23 @@ async function saveProduct() {
 }
 
 async function toggleStatus(row: any) {
+  if (acting.value) return
+  acting.value = true
   const newStatus = row.status === 'ON_SALE' ? 'OFF_SHELF' : 'ON_SALE'
-  await productApi.updateStatus(row.id, newStatus)
-  ElMessage.success(newStatus === 'ON_SALE' ? '已上架' : '已下架')
-  fetchList()
+  try {
+    await productApi.updateStatus(row.id, newStatus)
+    ElMessage.success(newStatus === 'ON_SALE' ? '已上架' : '已下架')
+    fetchList()
+  } finally { acting.value = false }
 }
 
 async function handleDelete(id: string) {
-  try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await productApi.delete(id); ElMessage.success('已删除'); fetchList() } catch { /* */ }
+  try {
+    await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' })
+    if (acting.value) return
+    acting.value = true
+    await productApi.delete(id); ElMessage.success('已删除'); fetchList()
+  } catch { /* */ } finally { acting.value = false }
 }
 
 async function openSkus(row: any) {
@@ -487,6 +519,8 @@ async function openSkus(row: any) {
 
 async function addSkuAction() {
   if (!skuProduct.value) return
+  if (acting.value) return
+  acting.value = true
   try {
     await productApi.addSku(skuProduct.value.id, {
       name: skuKey.value.trim() + ':' + skuVal.value.trim(),
@@ -495,11 +529,16 @@ async function addSkuAction() {
     ElMessage.success('SKU已添加')
     skuKey.value = ''; skuVal.value = ''; skuForm.price = 0; skuForm.stock = 0
     openSkus(skuProduct.value)
-  } catch { /* */ }
+  } catch { /* */ } finally { acting.value = false }
 }
 
 async function delSku(skuId: string) {
-  try { await ElMessageBox.confirm('确定删除此SKU？', '提示', { type: 'warning' }); await productApi.deleteSku(skuId); ElMessage.success('已删除'); openSkus(skuProduct.value) } catch { /* */ }
+  try {
+    await ElMessageBox.confirm('确定删除此SKU？', '提示', { type: 'warning' })
+    if (acting.value) return
+    acting.value = true
+    await productApi.deleteSku(skuId); ElMessage.success('已删除'); openSkus(skuProduct.value)
+  } catch { /* */ } finally { acting.value = false }
 }
 </script>
 

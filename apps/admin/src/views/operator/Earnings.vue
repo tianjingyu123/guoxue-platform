@@ -2,13 +2,33 @@
   <div class="page">
     <div class="header">
       <h2>运营商收益</h2>
-      <el-button
-        :loading="loading"
-        @click="refresh"
-      >
-        刷新数据
-      </el-button>
+      <div class="header-actions">
+        <el-button
+          type="primary"
+          plain
+          @click="goWithdrawals"
+        >
+          提现审核
+        </el-button>
+        <el-button
+          :loading="loading"
+          @click="refresh"
+        >
+          刷新数据
+        </el-button>
+      </div>
     </div>
+
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom:20px"
+    >
+      <template #title>
+        本页为运营商团队收益看板（只读）。站长 / 运营商的佣金提现审核（通过 / 拒绝 / 打款）请前往「提现审核」处理。
+      </template>
+    </el-alert>
 
     <!-- 概览卡片 -->
     <el-row
@@ -22,7 +42,7 @@
           </div>
           <div
             class="stat-value"
-            style="color:#e6a23c"
+            style="color:var(--color-warning)"
           >
             ¥{{ fmt(overview.monthTeamEarned) }}
           </div>
@@ -82,7 +102,7 @@
           </div>
           <div
             class="stat-value"
-            style="color:#67c23a"
+            style="color:var(--color-success)"
           >
             {{ overview.activeStations }}
           </div>
@@ -95,7 +115,7 @@
           </div>
           <div
             class="stat-value"
-            style="color:#f56c6c"
+            style="color:var(--color-error)"
           >
             {{ overview.silentStations }}
           </div>
@@ -108,7 +128,7 @@
           </div>
           <div
             class="stat-value"
-            style="color:#409eff"
+            style="color:var(--color-info)"
           >
             {{ (overview.quotaTotal || 0) - (overview.quotaUsed || 0) }}
           </div>
@@ -157,6 +177,17 @@
             </el-tag>
           </template>
         </el-table-column>
+        <template #empty>
+          <el-empty :description="loadError ? '加载失败' : '暂无站长业绩数据'">
+            <el-button
+              v-if="loadError"
+              type="primary"
+              @click="refresh"
+            >
+              重试
+            </el-button>
+          </el-empty>
+        </template>
       </el-table>
     </el-card>
   </div>
@@ -164,10 +195,18 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { operatorDashboardApi } from '@/api'
 
+const router = useRouter()
+function goWithdrawals() {
+  // 复用已有的提现审核页（/commission/withdrawals），按路由名跳转，不改路由配置
+  router.push({ name: 'WithdrawalList' })
+}
+
 const loading = ref(false)
+const loadError = ref(false)
 const overview = reactive({
   monthTeamEarned: 0, monthTeamAmount: 0, monthTeamOrders: 0,
   totalStations: 0, activeStations: 0, silentStations: 0,
@@ -179,6 +218,7 @@ function fmt(v: any) { return Number(v || 0).toLocaleString('zh-CN', { minimumFr
 
 async function refresh() {
   loading.value = true
+  loadError.value = false
   try {
     const [ov, rk] = await Promise.all([
       operatorDashboardApi.overview(),
@@ -187,6 +227,7 @@ async function refresh() {
     Object.assign(overview, ov.data)
     ranking.value = rk.data?.ranking || []
   } catch {
+    loadError.value = true
     ElMessage.error('获取数据失败')
   } finally {
     loading.value = false
@@ -200,6 +241,7 @@ onMounted(refresh)
 .page { padding: 16px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .header h2 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-label { font-size: 13px; color: #909399; margin-bottom: 8px; }
+.header-actions { display: flex; gap: 8px; }
+.stat-label { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 8px; }
 .stat-value { font-size: 28px; font-weight: 600; }
 </style>

@@ -11,11 +11,29 @@
       </el-button>
     </div>
 
-    <!-- 圈子选择 -->
-    <el-form
-      inline
-      style="margin-bottom:16px"
+    <!-- 错误态 -->
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="无法获取圈子列表，请重试"
     >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="loadCircles"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <template v-else>
+      <!-- 圈子选择 -->
+      <el-form
+        inline
+        style="margin-bottom:16px"
+      >
       <el-form-item label="选择圈子">
         <el-select
           v-model="selectedCircle"
@@ -139,10 +157,11 @@
         </el-table-column>
       </el-table>
     </el-card>
-    <el-empty
-      v-else
-      description="请先选择一个圈子"
-    />
+      <el-empty
+        v-else
+        description="请先选择一个圈子"
+      />
+    </template>
 
     <!-- 配置弹窗 -->
     <el-dialog
@@ -213,6 +232,7 @@ import { ElMessage } from 'element-plus'
 import { circleApi } from '@/api'
 
 const loading = ref(false)
+const error = ref(false)
 const saving = ref(false)
 const showConfigDialog = ref(false)
 const selectedCircle = ref('')
@@ -228,10 +248,16 @@ function roleLabel(role: string) {
 }
 
 async function loadCircles() {
+  loading.value = true
+  error.value = false
   try {
     const res = await circleApi.list({ page: 1, pageSize: 100 })
     circles.value = res.data?.circles || res.data?.list || res.data || []
-  } catch { /* ignore */ }
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
 }
 
 async function onCircleChange() {
@@ -262,6 +288,7 @@ function openConfig(row: any) {
 }
 
 async function submitConfig() {
+  if (saving.value) return
   if (!configForm.userId) { ElMessage.warning('请选择成员'); return }
   saving.value = true
   try {
@@ -282,7 +309,10 @@ async function refresh() {
   try {
     const res = await circleApi.listExperts(selectedCircle.value)
     experts.value = res.data || []
-  } catch { experts.value = [] }
+  } catch {
+    experts.value = []
+    ElMessage.error('加载达人列表失败')
+  }
   finally { loading.value = false }
 }
 

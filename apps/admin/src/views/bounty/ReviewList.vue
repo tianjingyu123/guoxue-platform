@@ -4,17 +4,38 @@
       <h2>赏金审核管理</h2>
     </div>
 
-    <el-table
-      v-loading="loading"
-      :data="list"
-      border
-      stripe
+    <!-- 错误态 -->
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="无法获取赏金审核列表，请重试"
     >
-      <el-table-column
-        prop="questionId"
-        label="问题ID"
-        width="200"
-      />
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <template v-else>
+      <el-table
+        v-loading="loading"
+        :data="list"
+        border
+        stripe
+      >
+        <template #empty>
+          <el-empty description="暂无待审核记录" />
+        </template>
+        <el-table-column
+          prop="questionId"
+          label="问题ID"
+          width="200"
+        />
       <el-table-column
         prop="questionTitle"
         label="问题标题"
@@ -58,6 +79,7 @@
             size="small"
             type="success"
             :disabled="row.status !== 'PENDING'"
+            :loading="processingId === row.id"
             @click="handleApprove(row)"
           >
             通过
@@ -66,6 +88,7 @@
             size="small"
             type="danger"
             :disabled="row.status !== 'PENDING'"
+            :loading="processingId === row.id"
             @click="handleReject(row)"
           >
             拒绝
@@ -74,14 +97,15 @@
       </el-table-column>
     </el-table>
 
-    <el-pagination
-      v-model:current-page="page"
-      v-model:page-size="pageSize"
-      :total="total"
-      layout="total, sizes, prev, pager, next"
-      @current-change="fetchList"
-      @size-change="fetchList"
-    />
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :total="total"
+        layout="total, sizes, prev, pager, next"
+        @current-change="fetchList"
+        @size-change="fetchList"
+      />
+    </template>
   </div>
 </template>
 
@@ -91,6 +115,8 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { bountyApi } from "@/api";
 
 const loading = ref(false);
+const error = ref(false);
+const processingId = ref<string | null>(null);
 const list = ref<any[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
@@ -108,39 +134,48 @@ function reviewStatusLabel(status: string) {
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const res = await bountyApi.listReviews({ page: page.value, pageSize: pageSize.value });
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
-    ElMessage.error("获取审核列表失败");
+    error.value = true;
   } finally {
     loading.value = false;
   }
 }
 
 async function handleApprove(row: any) {
+  if (processingId.value) return;
   try {
     await ElMessageBox.confirm("确定通过此审核吗？", "确认通过", { type: "info" });
+    processingId.value = row.id;
     await bountyApi.approveReview(row.id);
     ElMessage.success("已通过");
     fetchList();
-  } catch {
-    // cancelled or error
+  } catch (e) {
+    if (e !== "cancel" && e !== "close") ElMessage.error("操作失败");
+  } finally {
+    processingId.value = null;
   }
 }
 
 async function handleReject(row: any) {
+  if (processingId.value) return;
   try {
     const { value } = await ElMessageBox.prompt("请输入拒绝原因", "拒绝审核", {
       confirmButtonText: "确认",
       cancelButtonText: "取消",
     });
+    processingId.value = row.id;
     await bountyApi.rejectReview(row.id, value);
     ElMessage.success("已拒绝");
     fetchList();
-  } catch {
-    // cancelled or error
+  } catch (e) {
+    if (e !== "cancel" && e !== "close") ElMessage.error("操作失败");
+  } finally {
+    processingId.value = null;
   }
 }
 

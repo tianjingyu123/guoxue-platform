@@ -4,6 +4,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
 const loading = ref(false)
+const loadError = ref(false)
+const rollingBack = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -26,13 +28,18 @@ function truncate(val: any, maxLen = 60): string {
 
 async function fetchList() {
   loading.value = true
+  loadError.value = false
   try {
     const params: any = { page: page.value, pageSize: 20 }
     if (filters.configKey) params.configKey = filters.configKey
     const { data } = await api.get(BASE, { params })
     list.value = data?.items ?? data?.data ?? data?.versions ?? []
     total.value = data?.total || 0
-  } catch { list.value = [] } finally { loading.value = false }
+  } catch {
+    loadError.value = true
+    list.value = []
+    ElMessage.error('加载失败，请重试')
+  } finally { loading.value = false }
 }
 
 function resetFilters() {
@@ -56,17 +63,21 @@ async function viewDetail(row: any) {
 }
 
 async function rollback(row: any) {
+  if (rollingBack.value) return
   try {
     await ElMessageBox.confirm(
       `确定将配置 "${row.configKey}" 回滚到版本 ${row.version}？此操作将覆盖当前配置值。`,
       '回滚确认',
       { type: 'warning', confirmButtonText: '确认回滚', cancelButtonText: '取消' }
     )
+    rollingBack.value = true
     await api.post('/system/config-versions/rollback', { configKey: row.configKey, version: row.version })
     ElMessage.success('回滚成功')
     fetchList()
   } catch {
     // cancelled or error
+  } finally {
+    rollingBack.value = false
   }
 }
 </script>
@@ -101,6 +112,22 @@ async function rollback(row: any) {
         </el-form-item>
       </el-form>
     </el-card>
+
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败，请重试"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
 
     <el-table
       v-loading="loading"
@@ -165,6 +192,7 @@ async function rollback(row: any) {
           <el-button
             size="small"
             type="warning"
+            :loading="rollingBack"
             @click="rollback(row)"
           >
             回滚到此版本
@@ -217,7 +245,7 @@ async function rollback(row: any) {
       <div style="font-size:14px;font-weight:500;margin:12px 0 8px">
         配置值（JSON 格式化）：
       </div>
-      <pre style="background:#f5f5f5;padding:12px;border-radius:4px;max-height:400px;overflow:auto;font-size:13px;white-space:pre-wrap;word-break:break-all">{{ detailValue }}</pre>
+      <pre style="background:var(--color-bg-page);padding:12px;border-radius:4px;max-height:400px;overflow:auto;font-size:13px;white-space:pre-wrap;word-break:break-all">{{ detailValue }}</pre>
       <template #footer>
         <el-button @click="detailVis = false">
           关闭

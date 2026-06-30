@@ -43,6 +43,22 @@
       </el-col>
     </el-row>
 
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败，请重试"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="refresh"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-tabs v-model="activeTab">
       <!-- 默认配置 -->
       <el-tab-pane
@@ -165,10 +181,14 @@
         </div>
 
         <el-table
+          v-loading="loading"
           :data="sceneList"
           stripe
           size="small"
         >
+          <template #empty>
+            <el-empty description="暂无场景配置" />
+          </template>
           <el-table-column
             label="场景"
             width="200"
@@ -246,7 +266,7 @@
                   :stroke-width="16"
                   style="width:120px"
                 />
-                <span style="font-size:11px;color:#909399">{{ formatTokens(row.config.budgetControl.monthlyTokenLimit) }}</span>
+                <span style="font-size:11px;color:var(--color-text-secondary)">{{ formatTokens(row.config.budgetControl.monthlyTokenLimit) }}</span>
               </template>
               <template v-else>
                 <el-button
@@ -288,10 +308,14 @@
         name="budgets"
       >
         <el-table
+          v-loading="loading"
           :data="budgetList"
           stripe
           size="small"
         >
+          <template #empty>
+            <el-empty description="暂无预算数据" />
+          </template>
           <el-table-column
             label="场景"
             width="200"
@@ -321,7 +345,7 @@
             width="150"
           >
             <template #default="{ row }">
-              <span :style="{ color: row.remaining <= 0 ? '#f56c6c' : '#67c23a' }">{{ formatTokens(row.remaining) }}</span>
+              <span :style="{ color: row.remaining <= 0 ? 'var(--color-error)' : 'var(--color-success)' }">{{ formatTokens(row.remaining) }}</span>
             </template>
           </el-table-column>
           <el-table-column
@@ -476,7 +500,7 @@
                 :step="100000"
                 style="width:100%"
               />
-              <div style="font-size:11px;color:#909399">
+              <div style="font-size:11px;color:var(--color-text-secondary)">
                 0 表示不限制
               </div>
             </el-form-item>
@@ -530,6 +554,8 @@ const availableModels = [
 
 const activeTab = ref("scenes");
 const saving = ref(false);
+const loading = ref(false);
+const loadError = ref(false);
 const newSceneName = ref("");
 
 const config = reactive({
@@ -574,6 +600,8 @@ function formatTokens(n: number): string {
 onMounted(() => refresh());
 
 async function refresh() {
+  loading.value = true;
+  loadError.value = false;
   try {
     // 读取路由配置
     const { data: cfgRes } = await api.get("/ai/routing-config");
@@ -584,7 +612,12 @@ async function refresh() {
     // 读取预算
     const { data: budgetRes } = await api.get("/ai/scene-budgets");
     sceneBudgets.value = budgetRes;
-  } catch { /* ignore */ }
+  } catch {
+    loadError.value = true;
+    ElMessage.error("加载失败，请重试");
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function saveConfig() {
@@ -661,8 +694,8 @@ function confirmSceneEdit() {
 .aigw-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 14px; text-align: center; }
-.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 12px; color: #909399; margin-top: 2px; }
-.stat-card.warn .value { color: #e6a23c; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 14px; text-align: center; }
+.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.stat-card.warn .value { color: var(--color-warning); }
 </style>

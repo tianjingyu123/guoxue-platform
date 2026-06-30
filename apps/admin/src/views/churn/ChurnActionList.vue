@@ -19,12 +19,8 @@
             value="PENDING"
           />
           <el-option
-            label="已执行"
-            value="EXECUTED"
-          />
-          <el-option
-            label="已取消"
-            value="CANCELLED"
+            label="已完成"
+            value="COMPLETED"
           />
           <el-option
             label="失败"
@@ -41,6 +37,21 @@
         </el-button>
       </el-form-item>
     </el-form>
+
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      title="加载动作记录失败"
+      class="error-bar"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
 
     <el-table
       v-loading="loading"
@@ -77,11 +88,16 @@
         width="110"
       />
       <el-table-column
-        prop="remark"
-        label="备注"
+        label="结果/错误"
         min-width="200"
         show-overflow-tooltip
-      />
+      >
+        <template #default="{ row }">
+          <span :class="{ 'err-text': row.errorLog }">
+            {{ row.result || row.errorLog || '--' }}
+          </span>
+        </template>
+      </el-table-column>
       <el-table-column
         prop="createdAt"
         label="创建时间"
@@ -111,6 +127,7 @@ import { ElMessage } from "element-plus";
 import { churnApi } from "@/api";
 
 const loading = ref(false);
+const error = ref(false);
 const list = ref<any[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
@@ -119,34 +136,37 @@ const filterStatus = ref("");
 
 function actionTypeLabel(type: string) {
   const map: Record<string, string> = {
-    NOTIFY: "发送通知", COUPON: "发送优惠券", FLAG: "标记关注", SERVICE: "客服介入",
+    SMS: "短信触达", COUPON: "发送优惠券", TEMPLATE_MSG: "模板消息", WEBHOOK: "回调通知",
   };
   return map[type] || type;
 }
 
 function statusTag(status: string) {
   const map: Record<string, string> = {
-    PENDING: "info", EXECUTED: "success", CANCELLED: "warning", FAILED: "danger",
+    PENDING: "info", COMPLETED: "success", FAILED: "danger",
   };
   return map[status] || "info";
 }
 
 function statusLabel(status: string) {
   const map: Record<string, string> = {
-    PENDING: "待处理", EXECUTED: "已执行", CANCELLED: "已取消", FAILED: "失败",
+    PENDING: "待处理", COMPLETED: "已完成", FAILED: "失败",
   };
   return map[status] || status;
 }
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (filterStatus.value) params.status = filterStatus.value;
     const res = await churnApi.getActions(params);
-    list.value = res.data.list || res.data.rows || [];
-    total.value = res.data.total || 0;
+    // 后端返回 { actions, total, page, pageSize }（非标准分页键）
+    list.value = res.data.actions ?? res.data.items ?? res.data ?? [];
+    total.value = res.data.total ?? 0;
   } catch {
+    error.value = true;
     ElMessage.error("获取动作记录失败");
   } finally {
     loading.value = false;
@@ -160,4 +180,6 @@ onMounted(fetchList);
 .page { padding: 20px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .search-bar { margin-bottom: 20px; }
+.error-bar { margin-bottom: 12px; }
+.err-text { color: var(--el-color-danger); }
 </style>

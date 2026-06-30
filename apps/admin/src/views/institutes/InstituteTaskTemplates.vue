@@ -10,7 +10,24 @@
       </el-button>
     </div>
 
+    <el-result
+      v-if="loadError && !loading"
+      icon="error"
+      title="加载失败"
+      sub-title="请检查网络后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-table
+      v-show="!loadError"
       v-loading="loading"
       :data="list"
       border
@@ -75,12 +92,19 @@
           <el-button
             size="small"
             type="danger"
+            :loading="deleting"
             @click="handleDelete(row)"
           >
             删除
           </el-button>
         </template>
       </el-table-column>
+      <template #empty>
+        <el-empty
+          description="暂无任务模板"
+          :image-size="80"
+        />
+      </template>
     </el-table>
 
     <el-dialog
@@ -157,6 +181,8 @@ import { instituteApi } from "@/api";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
+const loadError = ref(false);
+const deleting = ref(false);
 
 const dialogVisible = ref(false);
 const saving = ref(false);
@@ -168,10 +194,11 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  loadError.value = false;
   try {
     const { data } = await instituteApi.listTaskTemplates();
     list.value = data || [];
-  } finally { loading.value = false; }
+  } catch { loadError.value = true; } finally { loading.value = false; }
 }
 
 function resetForm() {
@@ -190,6 +217,7 @@ function openEdit(row: any) {
 }
 
 async function save() {
+  if (saving.value) return;
   saving.value = true;
   try {
     if (isEdit.value) {
@@ -204,10 +232,16 @@ async function save() {
 }
 
 async function handleDelete(row: any) {
+  if (deleting.value) return;
   await ElMessageBox.confirm(`确定删除模板「${row.name}」？`, "提示", { type: "warning" });
-  await instituteApi.deleteTaskTemplate(row.id);
-  ElMessage.success("已删除");
-  fetchList();
+  deleting.value = true;
+  try {
+    await instituteApi.deleteTaskTemplate(row.id);
+    ElMessage.success("已删除");
+    fetchList();
+  } finally {
+    deleting.value = false;
+  }
 }
 </script>
 

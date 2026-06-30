@@ -35,7 +35,7 @@
     <el-card
       v-if="activeConfig"
       shadow="never"
-      style="margin-bottom:16px;border-left:3px solid #67c23a"
+      style="margin-bottom:16px;border-left:3px solid var(--color-success)"
     >
       <template #header>
         <b>当前生效的临时配置</b>
@@ -77,11 +77,30 @@
       />
     </el-tabs>
 
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无推荐码配置" />
+      </template>
       <el-table-column
         prop="stationId"
         label="分站ID"
@@ -238,7 +257,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
-const loading = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+const loading = ref(false); const saving = ref(false); const loadError = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
 const vis = ref(false); const editingId = ref(''); const tab = ref('all')
 const activeConfig = ref<any>(null)
 const form = reactive({ stationId: '', operatorId: '', commissionRate: 10, validFrom: '', validTo: '' })
@@ -252,8 +271,9 @@ async function fetchActive() {
 
 async function fetchList() {
   loading.value = true
+  loadError.value = false
   const url = tab.value === 'history' ? '/admin/referral/temp-configs/history' : '/admin/referral/temp-configs'
-  try { const { data } = await api.get(url, { params: { page: page.value, pageSize: 20 } }); list.value = data.items || data.data || []; total.value = data.total || 0 } catch { list.value = [] } finally { loading.value = false }
+  try { const { data } = await api.get(url, { params: { page: page.value, pageSize: 20 } }); list.value = data.items || data.data || []; total.value = data.total || 0 } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
 function onTabChange() { page.value = 1; fetchList() }

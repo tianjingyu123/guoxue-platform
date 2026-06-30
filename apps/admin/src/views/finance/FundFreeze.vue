@@ -1,48 +1,42 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { financeApi } from '@/api'
 import { exportCSV } from '@/utils/export'
 
 const loading = ref(false)
 const saving = ref(false)
+const error = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 20
-
-const statusFilter = ref('')
 
 const freezeVisible = ref(false)
 const freezeForm = reactive({ userId: '', amount: null as number | null, orderId: '', reason: '' })
 
 const unfreezeVisible = ref(false)
 const unfreezeTarget = ref<any>(null)
+const unfreezeReason = ref('')
 
 onMounted(() => fetchList())
 
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 function formatMoney(v: any) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
 
-function statusTagType(status: string) {
-  const m: Record<string, string> = { FROZEN: 'danger', UNFROZEN: 'success' }
-  return m[status] || 'info'
-}
-
-function statusLabel(status: string) {
-  const m: Record<string, string> = { FROZEN: '已冻结', UNFROZEN: '已解冻' }
-  return m[status] || status
-}
-
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const params: any = { page: page.value, pageSize }
-    if (statusFilter.value) params.status = statusFilter.value
+    // 后端 getFreezeRecords 返回 { items, total, ... }，列表元素为含 frozenAmount 的 Order 记录
     const { data } = await financeApi.listFreezes(params)
-    list.value = data.records || data.data || []
-    total.value = data.total || 0
-  } catch { list.value = [] } finally { loading.value = false }
+    list.value = data.items ?? []
+    total.value = data.total ?? list.value.length
+  } catch {
+    error.value = true
+    list.value = []
+  } finally { loading.value = false }
 }
 
 function openFreeze() {
@@ -54,12 +48,14 @@ function openFreeze() {
 }
 
 async function submitFreeze() {
-  if (!freezeForm.userId.trim()) { ElMessage.warning('请输入用户ID'); return }
+  if (saving.value) return
+  if (!freezeForm.userId.trim() && !freezeForm.orderId.trim()) { ElMessage.warning('请输入用户ID或订单号'); return }
   if (!freezeForm.amount || freezeForm.amount <= 0) { ElMessage.warning('请输入有效的冻结金额'); return }
   if (!freezeForm.reason.trim()) { ElMessage.warning('请输入冻结原因'); return }
   saving.value = true
   try {
-    const payload: any = { userId: freezeForm.userId, amount: freezeForm.amount, reason: freezeForm.reason }
+    const payload: any = { amount: freezeForm.amount, reason: freezeForm.reason }
+    if (freezeForm.userId.trim()) payload.userId = freezeForm.userId
     if (freezeForm.orderId.trim()) payload.orderId = freezeForm.orderId
     await financeApi.freezeFund(payload)
     ElMessage.success('冻结成功')
@@ -70,14 +66,17 @@ async function submitFreeze() {
 
 function openUnfreeze(row: any) {
   unfreezeTarget.value = row
+  unfreezeReason.value = ''
   unfreezeVisible.value = true
 }
 
 async function submitUnfreeze() {
+  if (saving.value) return
   if (!unfreezeTarget.value) return
   saving.value = true
   try {
-    await financeApi.unfreezeFund({ orderId: unfreezeTarget.value.orderId, freezeId: unfreezeTarget.value.id })
+    // 后端 unfreezeAmount 仅需 { orderId, reason? }；列表记录即订单，orderId = 记录 id
+    await financeApi.unfreezeFund({ orderId: unfreezeTarget.value.id, reason: unfreezeReason.value || undefined })
     ElMessage.success('解冻成功')
     unfreezeVisible.value = false
     fetchList()
@@ -86,18 +85,16 @@ async function submitUnfreeze() {
 
 function handleExport() {
   exportCSV('资金冻结记录', [
+    { label: '订单号', key: 'id' },
     { label: '用户ID', key: 'userId' },
-    { label: '订单ID', key: 'orderId' },
-    { label: '金额', key: 'amount' },
-    { label: '原因', key: 'reason' },
-    { label: '状态', key: 'statusLabel' },
-    { label: '操作人', key: 'operator' },
-    { label: '冻结时间', key: 'createdAt' },
+    { label: '冻结金额', key: 'frozenAmount' },
+    { label: '订单金额', key: 'payAmount' },
+    { label: '冻结时间', key: 'updatedAt' },
   ], list.value.map(r => ({
     ...r,
-    amount: formatMoney(r.amount),
-    statusLabel: statusLabel(r.status),
-    createdAt: formatDate(r.createdAt),
+    frozenAmount: formatMoney(r.frozenAmount),
+    payAmount: formatMoney(r.payAmount ?? r.amount),
+    updatedAt: formatDate(r.updatedAt),
   })))
 }
 </script>
@@ -107,26 +104,6 @@ function handleExport() {
     <div class="toolbar">
       <h3>资金冻结/解冻</h3>
       <div class="toolbar-right">
-        <el-select
-          v-model="statusFilter"
-          placeholder="状态筛选"
-          clearable
-          style="width:130px"
-          @change="fetchList"
-        >
-          <el-option
-            label="全部"
-            value=""
-          />
-          <el-option
-            label="已冻结"
-            value="FROZEN"
-          />
-          <el-option
-            label="已解冻"
-            value="UNFROZEN"
-          />
-        </el-select>
         <el-button
           type="warning"
           @click="openFreeze"
@@ -139,98 +116,109 @@ function handleExport() {
       </div>
     </div>
 
-    <el-table
-      v-loading="loading"
-      :data="list"
-      stripe
+    <el-result
+      v-if="error && !loading"
+      icon="error"
+      title="加载失败"
+      sub-title="冻结记录加载出错，请重试"
     >
-      <el-table-column
-        prop="userId"
-        label="用户ID"
-        width="120"
-      />
-      <el-table-column
-        prop="orderId"
-        label="关联订单"
-        width="150"
-        show-overflow-tooltip
-      />
-      <el-table-column
-        label="冻结金额"
-        width="120"
-      >
-        <template #default="{ row }">
-          <span style="font-weight:600;color:#f56c6c">{{ formatMoney(row.amount) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column
-        prop="reason"
-        label="冻结原因"
-        min-width="160"
-        show-overflow-tooltip
-      />
-      <el-table-column
-        label="状态"
-        width="100"
-      >
-        <template #default="{ row }">
-          <el-tag
-            :type="statusTagType(row.status)"
-            size="small"
-          >
-            {{ statusLabel(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column
-        prop="operator"
-        label="操作人"
-        width="120"
-      />
-      <el-table-column
-        label="冻结时间"
-        width="170"
-      >
-        <template #default="{ row }">
-          {{ formatDate(row.createdAt) }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="操作"
-        width="100"
-        fixed="right"
-      >
-        <template #default="{ row }">
-          <el-button
-            v-if="row.status === 'FROZEN'"
-            size="small"
-            type="success"
-            @click="openUnfreeze(row)"
-          >
-            解冻
-          </el-button>
-          <span
-            v-else
-            style="color:#999;font-size:12px"
-          >已解冻</span>
-        </template>
-      </el-table-column>
-    </el-table>
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
 
-    <el-empty
-      v-if="!loading && list.length === 0"
-      description="暂无冻结记录"
-      style="margin-top:40px"
-    />
+    <template v-else>
+      <el-table
+        v-loading="loading"
+        :data="list"
+        stripe
+      >
+        <el-table-column
+          prop="id"
+          label="订单号"
+          width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="userId"
+          label="用户ID"
+          width="160"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="冻结金额"
+          width="130"
+        >
+          <template #default="{ row }">
+            <span style="font-weight:600;color:#f56c6c">{{ formatMoney(row.frozenAmount) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="订单金额"
+          width="130"
+        >
+          <template #default="{ row }">
+            {{ formatMoney(row.payAmount ?? row.amount) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="状态"
+          width="100"
+        >
+          <template #default>
+            <el-tag
+              type="danger"
+              size="small"
+            >
+              已冻结
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="冻结时间"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.updatedAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="100"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              size="small"
+              type="success"
+              @click="openUnfreeze(row)"
+            >
+              解冻
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <el-pagination
-      v-model:current-page="page"
-      :total="total"
-      :page-size="pageSize"
-      layout="total, prev, pager, next"
-      style="margin-top:16px;justify-content:flex-end"
-      @current-change="fetchList"
-    />
+      <el-empty
+        v-if="!loading && list.length === 0"
+        description="暂无冻结记录"
+        style="margin-top:40px"
+      />
+
+      <el-pagination
+        v-model:current-page="page"
+        :total="total"
+        :page-size="pageSize"
+        layout="total, prev, pager, next"
+        style="margin-top:16px;justify-content:flex-end"
+        @current-change="fetchList"
+      />
+    </template>
 
     <!-- 冻结弹窗 -->
     <el-dialog
@@ -246,19 +234,16 @@ function handleExport() {
         style="margin-bottom:16px"
       />
       <el-form label-width="90px">
-        <el-form-item
-          label="用户ID"
-          required
-        >
+        <el-form-item label="用户ID">
           <el-input
             v-model="freezeForm.userId"
-            placeholder="请输入用户ID"
+            placeholder="按用户冻结其首笔已支付订单"
           />
         </el-form-item>
-        <el-form-item label="关联订单号">
+        <el-form-item label="订单号">
           <el-input
             v-model="freezeForm.orderId"
-            placeholder="选填，关联争议订单"
+            placeholder="按指定订单冻结（与用户ID二选一）"
           />
         </el-form-item>
         <el-form-item
@@ -319,20 +304,28 @@ function handleExport() {
         :column="1"
         border
         size="small"
+        style="margin-bottom:16px"
       >
+        <el-descriptions-item label="订单号">
+          {{ unfreezeTarget.id }}
+        </el-descriptions-item>
         <el-descriptions-item label="用户ID">
           {{ unfreezeTarget.userId }}
         </el-descriptions-item>
         <el-descriptions-item label="冻结金额">
-          <span style="font-weight:600;color:#f56c6c">{{ formatMoney(unfreezeTarget.amount) }}</span>
-        </el-descriptions-item>
-        <el-descriptions-item label="冻结原因">
-          {{ unfreezeTarget.reason }}
+          <span style="font-weight:600;color:#f56c6c">{{ formatMoney(unfreezeTarget.frozenAmount) }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="冻结时间">
-          {{ formatDate(unfreezeTarget.createdAt) }}
+          {{ formatDate(unfreezeTarget.updatedAt) }}
         </el-descriptions-item>
       </el-descriptions>
+      <el-input
+        v-model="unfreezeReason"
+        type="textarea"
+        :rows="2"
+        placeholder="解冻原因（选填）"
+        maxlength="200"
+      />
       <template #footer>
         <el-button @click="unfreezeVisible = false">
           取消

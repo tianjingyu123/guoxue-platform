@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { riskApi } from '@/api'
+import { riskApi, api } from '@/api'
 
 const loading = ref(false)
+const error = ref(false)
 const saving = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
@@ -16,7 +17,10 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 const dialogVisible = ref(false)
 const editingId = ref('')
-const processForm = reactive({ action: 'DISMISS', remark: '' })
+const editingRow = ref<any>(null)
+// 四种真实处置：handle(标记已处理) / dismiss(忽略) 走原端点；
+// ban_user(封禁目标用户) / escalate(升级为严重) 走 POST /risk-control/alerts/:id/action
+const processForm = reactive({ action: 'HANDLE', remark: '' })
 
 const levelOptions = [
   { label: '严重', value: 'CRITICAL' },
@@ -24,11 +28,22 @@ const levelOptions = [
   { label: '警告', value: 'WARN' },
 ]
 
-const actionOptions = [
-  { label: '忽略', value: 'DISMISS' },
-  { label: '升级处理', value: 'ESCALATE' },
-  { label: '封禁用户', value: 'BLOCK_USER' },
-]
+// 处置选项随预警目标动态变化：仅当目标为用户时才允许封禁
+const actionOptions = computed(() => {
+  const opts = [
+    { label: '标记已处理', value: 'HANDLE' },
+    { label: '忽略', value: 'DISMISS' },
+    { label: '升级为严重', value: 'escalate' },
+  ]
+  const tt = (editingRow.value?.targetType || '').toUpperCase()
+  if (tt === 'USER' && editingRow.value?.targetId) {
+    opts.push({ label: '封禁目标用户', value: 'ban_user' })
+  }
+  return opts
+})
+
+// 与后端 RiskAlert.status 对齐：OPEN/HANDLED/DISMISSED
+const statusMap: Record<string, string> = { OPEN: '待处理', HANDLED: '已处理', DISMISSED: '已忽略' }
 
 const levelOrder: Record<string, number> = { CRITICAL: 0, DANGER: 1, WARN: 2 }
 
@@ -44,19 +59,26 @@ function getLevelLabel(level: string): string {
   return opt ? opt.label : level
 }
 
+function getStatusLabel(status: string): string {
+  return statusMap[status] || status
+}
+
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const params: Record<string, any> = { page: page.value, pageSize: 20 }
     if (levelFilter.value) params.level = levelFilter.value
     if (statusFilter.value) params.status = statusFilter.value
     const { data } = await riskApi.listAlerts(params)
-    const items = data.alerts || data.data || []
+    const items: any[] = data.items ?? (Array.isArray(data) ? data : [])
     items.sort((a: any, b: any) => (levelOrder[a.level] ?? 99) - (levelOrder[b.level] ?? 99))
     list.value = items
-    total.value = data.total || 0
+    total.value = data.total ?? items.length
   } catch {
     list.value = []
+    total.value = 0
+    error.value = true
   } finally {
     loading.value = false
   }
@@ -82,23 +104,33 @@ function stopAutoRefresh() {
 
 function openProcess(row: any) {
   editingId.value = row.id
-  processForm.action = 'DISMISS'
+  editingRow.value = row
+  processForm.action = 'HANDLE'
   processForm.remark = ''
   dialogVisible.value = true
 }
 
 async function processAlert() {
+  if (saving.value) return
   saving.value = true
   try {
     if (processForm.action === 'DISMISS') {
       await riskApi.dismissAlert(editingId.value)
-    } else {
+    } else if (processForm.action === 'HANDLE') {
+      // handle 端点会把备注写入 detail.handleNote，真正回传后端
       await riskApi.handleAlert(editingId.value, processForm.remark)
+    } else {
+      // ban_user / escalate：处置联动端点，真回传后端
+      await api.post(`/risk-control/alerts/${editingId.value}/action`, {
+        action: processForm.action,
+        note: processForm.remark || undefined,
+      })
     }
-    ElMessage.success('已处理')
+    ElMessage.success(processForm.action === 'ban_user' ? '已封禁目标用户' : '已处理')
     dialogVisible.value = false
     fetchList()
   } catch {
+    // 错误已由响应拦截器统一提示，保留弹窗供用户重试
   } finally {
     saving.value = false
   }
@@ -147,12 +179,31 @@ async function processAlert() {
         />
         <el-option
           label="已处理"
-          value="PROCESSED"
+          value="HANDLED"
+        />
+        <el-option
+          label="已忽略"
+          value="DISMISSED"
         />
       </el-select>
     </div>
 
+    <div
+      v-if="error"
+      class="error-state"
+    >
+      <el-empty description="加载失败，请重试">
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </el-empty>
+    </div>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       stripe
@@ -192,10 +243,10 @@ async function processAlert() {
       >
         <template #default="{ row }">
           <el-tag
-            :type="row.status === 'OPEN' ? 'danger' : 'success'"
+            :type="row.status === 'OPEN' ? 'danger' : row.status === 'DISMISSED' ? 'info' : 'success'"
             size="small"
           >
-            {{ row.status === 'OPEN' ? '待处理' : '已处理' }}
+            {{ getStatusLabel(row.status) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -259,6 +310,22 @@ async function processAlert() {
             />
           </el-select>
         </el-form-item>
+        <el-alert
+          v-if="processForm.action === 'ban_user'"
+          type="warning"
+          :closable="false"
+          show-icon
+          title="将把该预警关联的目标用户置为封禁状态，请谨慎操作"
+          style="margin-bottom:14px"
+        />
+        <el-alert
+          v-else-if="processForm.action === 'escalate'"
+          type="info"
+          :closable="false"
+          show-icon
+          title="将把该预警级别升为「严重」，状态仍保持待处理以便复核"
+          style="margin-bottom:14px"
+        />
         <el-form-item label="备注说明">
           <el-input
             v-model="processForm.remark"
@@ -289,4 +356,5 @@ async function processAlert() {
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .filters { display: flex; gap: 12px; margin-bottom: 16px; }
+.error-state { padding: 40px 0; }
 </style>

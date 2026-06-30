@@ -25,6 +25,7 @@ const methodOptions = [
 ]
 
 async function doCalc() {
+  if (loading.value) return // 防重复提交
   loading.value = true
   errorMsg.value = ''
   try {
@@ -110,22 +111,22 @@ function toggleYao(index: number) {
 <style scoped>
 .input-form { display: flex; flex-direction: column; gap: 20px; padding: 20px; }
 .form-section { display: flex; flex-direction: column; gap: 8px; }
-.form-label { font-size: 14px; color: #606266; font-weight: 500; }
+.form-label { font-size: 14px; color: var(--color-text-body); font-weight: 500; }
 .form-input, .form-select {
-  height: 40px; padding: 0 12px; border: 1px solid #dcdfe6; border-radius: 6px;
+  height: 40px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 6px;
   font-size: 14px; background: #fff;
 }
 .yao-toggles { display: flex; gap: 8px; }
 .yao-btn {
-  width: 48px; height: 36px; border: 1px solid #dcdfe6; border-radius: 6px;
+  width: 48px; height: 36px; border: 1px solid var(--color-border); border-radius: 6px;
   background: #fff; font-size: 14px; cursor: pointer;
 }
-.yao-btn.active { background: #409eff; color: #fff; border-color: #409eff; }
+.yao-btn.active { background: var(--color-info); color: #fff; border-color: var(--color-info); }
 .calc-btn {
-  height: 44px; background: #409eff; color: #fff; border: none; border-radius: 6px;
+  height: 44px; background: var(--color-info); color: #fff; border: none; border-radius: 6px;
   font-size: 16px; font-weight: 500; cursor: pointer;
 }
 .calc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.error-box { padding: 16px; background: #fef0f0; color: #f56c6c; border-radius: 6px; }
-.empty-hint { padding: 40px; text-align: center; color: #909399; }
+.error-box { padding: 16px; background: #fef0f0; color: var(--color-error); border-radius: 6px; }
+.empty-hint { padding: 40px; text-align: center; color: var(--color-text-secondary); }
 </style>

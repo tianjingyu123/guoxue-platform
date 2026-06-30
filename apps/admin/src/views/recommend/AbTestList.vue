@@ -18,11 +18,31 @@
       </div>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      title="实验列表加载失败"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        type="primary"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无实验" />
+      </template>
       <el-table-column
         prop="name"
         label="实验名称"
@@ -208,6 +228,7 @@ import { abTestApi } from '@/api'
 
 const list = ref<any[]>([])
 const loading = ref(false)
+const error = ref(false)
 const saving = ref(false)
 
 const dialogVisible = ref(false)
@@ -226,7 +247,9 @@ onMounted(() => fetchList())
 
 async function fetchList() {
   loading.value = true
+  error.value = false
   try { const res = await abTestApi.list(); list.value = (res.data as any) || [] }
+  catch { error.value = true; list.value = [] }
   finally { loading.value = false }
 }
 

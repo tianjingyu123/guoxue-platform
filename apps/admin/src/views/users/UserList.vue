@@ -157,6 +157,7 @@
       <template #batch>
         <span>已选 {{ selectedRows.length }} 项</span>
         <el-button
+          v-permission="['SUPER_ADMIN','OPERATION_ADMIN']"
           size="small"
           type="success"
           @click="batchUnban"
@@ -164,6 +165,7 @@
           批量解封
         </el-button>
         <el-button
+          v-permission="['SUPER_ADMIN','OPERATION_ADMIN']"
           size="small"
           type="warning"
           @click="batchBan"
@@ -172,6 +174,9 @@
         </el-button>
       </template>
 
+      <template #phone="{ row }">
+        {{ maskPhone(row.phone) }}
+      </template>
       <template #nickname="{ row }">
         <el-link
           type="primary"
@@ -247,6 +252,7 @@
           详情
         </el-button>
         <el-button
+          v-permission="['SUPER_ADMIN']"
           size="small"
           @click="openRoles(row)"
         >
@@ -254,6 +260,7 @@
         </el-button>
         <el-button
           v-if="row.status === 'ACTIVE'"
+          v-permission="['SUPER_ADMIN','OPERATION_ADMIN']"
           size="small"
           type="warning"
           @click="handleBan(row)"
@@ -262,6 +269,7 @@
         </el-button>
         <el-button
           v-else
+          v-permission="['SUPER_ADMIN','OPERATION_ADMIN']"
           size="small"
           type="success"
           @click="handleUnban(row)"
@@ -385,6 +393,15 @@ const roleUser = ref<any>(null);
 const roleUserRoles = ref<any[]>([]);
 const newRole = ref("");
 const selectedRows = ref<any[]>([]);
+const submitting = ref(false);
+
+// 隐私脱敏：手机号保留前3后4
+function maskPhone(p?: string) {
+  if (!p) return "-";
+  const s = String(p);
+  if (s.length < 7) return s.replace(/\d(?=\d)/g, "*");
+  return s.slice(0, 3) + "****" + s.slice(-4);
+}
 
 const columns = [
   { prop: "nickname", label: "昵称", width: 120, slot: "nickname" },
@@ -484,53 +501,71 @@ function openRoles(row: any) {
 }
 
 async function addRole() {
+  if (submitting.value) return;
   if (!newRole.value || !roleUser.value) return;
   try {
+    await ElMessageBox.confirm(
+      `确定为「${roleUser.value.nickname}」授予「${roleLabel(newRole.value)}」角色？`,
+      "授予角色",
+      { type: "warning" },
+    );
+    submitting.value = true;
     await userApi.assignRole(roleUser.value.id, { roleType: newRole.value });
     ElMessage.success("角色已添加");
     roleUserRoles.value.push({ roleType: newRole.value }); newRole.value = ""; fetchList();
-  } catch { /* */ }
+  } catch { /* */ } finally { submitting.value = false; }
 }
 
 async function removeRole(userId: string, roleType: string) {
+  if (submitting.value) return;
   if (roleType === "SUPER_ADMIN") { ElMessage.warning("不能移除超管角色"); return; }
   try {
+    await ElMessageBox.confirm(`确定移除「${roleLabel(roleType)}」角色？`, "移除角色", { type: "warning" });
+    submitting.value = true;
     await userApi.removeRole(userId, roleType);
     ElMessage.success("角色已移除");
     roleUserRoles.value = roleUserRoles.value.filter(r => r.roleType !== roleType); fetchList();
-  } catch { /* */ }
+  } catch { /* */ } finally { submitting.value = false; }
 }
 
 async function handleBan(row: any) {
+  if (submitting.value) return;
   try {
     await ElMessageBox.prompt("请输入封禁原因", "封禁用户", { type: "warning" });
+    submitting.value = true;
     await userApi.ban(row.id);
     ElMessage.success("已封禁"); fetchList();
-  } catch { /* */ }
+  } catch { /* */ } finally { submitting.value = false; }
 }
 
 async function handleUnban(row: any) {
+  if (submitting.value) return;
   try {
     await ElMessageBox.confirm("确定解封该用户？", "提示", { type: "info" });
+    submitting.value = true;
     await userApi.unban(row.id);
     ElMessage.success("已解封"); fetchList();
-  } catch { /* */ }
+  } catch { /* */ } finally { submitting.value = false; }
 }
 
 async function batchBan() {
+  if (submitting.value) return;
   try {
     await ElMessageBox.confirm(`确定封禁选中的 ${selectedRows.value.length} 个用户？`, "批量封禁", { type: "warning" });
+    submitting.value = true;
     for (const r of selectedRows.value) { if (r.status === "ACTIVE") await userApi.ban(r.id); }
     ElMessage.success("批量封禁完成"); fetchList();
-  } catch { /* */ }
+  } catch { /* */ } finally { submitting.value = false; }
 }
 
 async function batchUnban() {
+  if (submitting.value) return;
   try {
     await ElMessageBox.confirm(`确定解封选中的 ${selectedRows.value.length} 个用户？`, "批量解封", { type: "info" });
+    submitting.value = true;
     for (const r of selectedRows.value) { if (r.status !== "ACTIVE") await userApi.unban(r.id); }
     ElMessage.success("批量解封完成"); fetchList();
-  } catch { /* */ }
+  } catch { /* */ } finally { submitting.value = false; }
 }
 
 function exportData() {
@@ -545,6 +580,7 @@ function exportData() {
     ],
     list.value.map((u) => ({
       ...u,
+      phone: maskPhone(u.phone),
       rolesStr: (u.roles || []).map((r: any) => r.roleType).join(" "),
       createdAt: u.createdAt?.slice(0, 16).replace("T", " "),
       lastActiveAt: u.lastActiveAt?.slice(0, 16).replace("T", " "),

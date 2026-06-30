@@ -15,12 +15,34 @@
       </div>
     </div>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button
+          link
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       border
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无礼物" />
+      </template>
       <el-table-column
         prop="name"
         label="名称"
@@ -48,7 +70,7 @@
         width="110"
       >
         <template #default="{ row }">
-          {{ row.price }} 币
+          {{ row.priceCoin ?? row.price }} 币
         </template>
       </el-table-column>
       <el-table-column
@@ -65,26 +87,30 @@
         </template>
       </el-table-column>
       <el-table-column
-        prop="sort"
         label="排序"
         width="70"
-      />
-      <el-table-column
-        label="状态"
-        width="80"
       >
         <template #default="{ row }">
-          <el-tag
-            :type="row.status === 'ACTIVE' ? 'success' : 'info'"
-            size="small"
-          >
-            {{ row.status === 'ACTIVE' ? '启用' : '禁用' }}
-          </el-tag>
+          {{ row.sortOrder ?? row.sort }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="状态"
+        width="100"
+      >
+        <template #default="{ row }">
+          <el-switch
+            :model-value="(row.status ?? 'ACTIVE') === 'ACTIVE'"
+            active-text="启用"
+            inactive-text="停用"
+            :loading="togglingId === row.id"
+            @change="(v: boolean) => toggleStatus(row, v)"
+          />
         </template>
       </el-table-column>
       <el-table-column
         label="操作"
-        width="260"
+        width="180"
         fixed="right"
       >
         <template #default="{ row }">
@@ -93,20 +119,6 @@
             @click="openEdit(row)"
           >
             编辑
-          </el-button>
-          <el-button
-            size="small"
-            type="primary"
-            @click="openSendDialog(row)"
-          >
-            发送
-          </el-button>
-          <el-button
-            size="small"
-            :type="row.status === 'ACTIVE' ? 'warning' : 'success'"
-            @click="toggleStatus(row)"
-          >
-            {{ row.status === 'ACTIVE' ? '禁用' : '启用' }}
           </el-button>
           <el-button
             size="small"
@@ -236,56 +248,12 @@
         </el-button>
       </template>
     </el-dialog>
-
-    <!-- 发放礼物弹窗 -->
-    <el-dialog
-      v-model="showSendDialog"
-      title="发放礼物"
-      width="400px"
-    >
-      <el-form
-        :model="sendForm"
-        label-width="80px"
-      >
-        <el-form-item
-          label="用户ID"
-          required
-        >
-          <el-input
-            v-model="sendForm.userId"
-            placeholder="接收用户ID"
-          />
-        </el-form-item>
-        <el-form-item
-          label="数量"
-          required
-        >
-          <el-input-number
-            v-model="sendForm.quantity"
-            :min="1"
-            :step="1"
-            style="width: 100%"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showSendDialog = false">
-          取消
-        </el-button>
-        <el-button
-          type="primary"
-          @click="handleSendGift"
-        >
-          发放
-        </el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
-import { coinApi } from "@/api";
+import { coinApi, api } from "@/api";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { exportCSV } from "@/utils/export";
 
@@ -294,10 +262,12 @@ const total = ref(0);
 const page = ref(1);
 const pageSize = ref(20);
 const loading = ref(false);
+const error = ref(false);
 const saving = ref(false);
 
 const dialogVisible = ref(false);
 const editingId = ref("");
+const togglingId = ref("");
 
 const form = reactive({
   name: "",
@@ -306,11 +276,6 @@ const form = reactive({
   level: "BASIC",
   sort: 0,
 });
-
-// 发放礼物弹窗
-const showSendDialog = ref(false);
-const sendGiftId = ref("");
-const sendForm = reactive({ userId: "", quantity: 1 });
 
 onMounted(() => fetchList());
 
@@ -336,11 +301,16 @@ function levelLabel(level: string) {
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const { data } = await coinApi.getGifts();
-    const items = data.gifts || data.list || data || [];
+    const items = (data as any).gifts || (data as any).list || data || [];
     list.value = Array.isArray(items) ? items : [];
     total.value = list.value.length;
+  } catch {
+    list.value = [];
+    total.value = 0;
+    error.value = true;
   } finally {
     loading.value = false;
   }
@@ -362,14 +332,15 @@ function openEdit(row: any) {
   Object.assign(form, {
     name: row.name || "",
     icon: row.icon || "",
-    price: Number(row.price) || 10,
+    price: Number(row.priceCoin ?? row.price) || 10,
     level: row.level || "BASIC",
-    sort: row.sort ?? 0,
+    sort: row.sortOrder ?? row.sort ?? 0,
   });
   dialogVisible.value = true;
 }
 
 async function saveGift() {
+  if (saving.value) return;
   if (!form.name) {
     ElMessage.warning("请输入礼物名称");
     return;
@@ -380,46 +351,21 @@ async function saveGift() {
   }
   saving.value = true;
   try {
-    const payload = { id: editingId.value || undefined, ...form };
-    await coinApi.createGift(payload);
-    ElMessage.success(editingId.value ? "已更新" : "已创建");
+    if (editingId.value) {
+      // 编辑走 PUT /coin/gifts/:id（原误调 POST 创建端点会生成重复礼物）
+      await api.put(`/coin/gifts/${editingId.value}`, { ...form });
+      ElMessage.success("已更新");
+    } else {
+      await coinApi.createGift({ ...form });
+      ElMessage.success("已创建");
+    }
     dialogVisible.value = false;
     fetchList();
-  } catch (e: any) {
+  } catch {
+    /* 错误由请求拦截器统一提示 */
   } finally {
     saving.value = false;
   }
-}
-
-async function toggleStatus(row: any) {
-  const newStatus = row.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
-  try {
-    await coinApi.createGift({ ...row, status: newStatus, id: row.id });
-    ElMessage.success(newStatus === "ACTIVE" ? "已启用" : "已禁用");
-    fetchList();
-  } catch (e: any) {
-  }
-}
-
-function openSendDialog(gift: any) {
-  sendGiftId.value = gift.id;
-  sendForm.userId = "";
-  sendForm.quantity = 1;
-  showSendDialog.value = true;
-}
-
-async function handleSendGift() {
-  if (!sendForm.userId) {
-    ElMessage.warning("请输入用户ID");
-    return;
-  }
-  await coinApi.sendGift({
-    giftId: sendGiftId.value,
-    userId: sendForm.userId,
-    quantity: sendForm.quantity,
-  });
-  ElMessage.success("已发放");
-  showSendDialog.value = false;
 }
 
 async function handleDeleteGift(row: any) {
@@ -437,6 +383,27 @@ async function handleDeleteGift(row: any) {
   }
 }
 
+// 启用/停用：调 PUT /coin/gifts/:id 更新 status（后端已支持 status 字段，
+// admin 列表返回全部礼物含停用项；C 端送礼面板走 /live/gifts 仅返回 ACTIVE，不受影响）
+async function toggleStatus(row: any, active: boolean) {
+  if (togglingId.value) return;
+  togglingId.value = row.id;
+  const nextStatus = active ? "ACTIVE" : "INACTIVE";
+  try {
+    await api.put(`/coin/gifts/${row.id}`, { status: nextStatus });
+    row.status = nextStatus;
+    ElMessage.success(active ? "已启用" : "已停用");
+  } catch {
+    /* 错误由请求拦截器统一提示；开关因绑定 model-value 会自动回弹 */
+  } finally {
+    togglingId.value = "";
+  }
+}
+
+// 已移除「发送/发放礼物」入口：唯一可用端点 POST /coin/gifts/send 走直播打赏链路，
+// 会从管理员本人账户扣除灵石、直播间写死为 "admin"，并触发平台抽成，并非「管理员向用户发放礼物」。
+// 平台无「管理员赠礼/发放」端点，故移除该误用入口（如需发放可走 POST /coin/admin/recharge 直接充值灵石）。
+
 function exportData() {
   exportCSV(
     "礼物列表",
@@ -446,15 +413,13 @@ function exportData() {
       { label: "价格(币)", key: "price" },
       { label: "等级", key: "level" },
       { label: "排序", key: "sort" },
-      { label: "状态", key: "status" },
     ],
     list.value.map((g) => ({
       name: g.name,
       icon: g.icon || "--",
-      price: g.price,
+      price: g.priceCoin ?? g.price,
       level: levelLabel(g.level),
-      sort: g.sort,
-      status: g.status === "ACTIVE" ? "启用" : "禁用",
+      sort: g.sortOrder ?? g.sort,
     })),
   );
 }

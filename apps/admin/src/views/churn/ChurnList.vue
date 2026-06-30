@@ -108,6 +108,21 @@
       </el-form-item>
     </el-form>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      title="加载流失预测列表失败"
+      class="error-bar"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
@@ -172,6 +187,7 @@ import { ElMessage } from "element-plus";
 import { churnApi } from "@/api";
 
 const loading = ref(false);
+const error = ref(false);
 const scoring = ref(false);
 const list = ref<any[]>([]);
 const page = ref(1);
@@ -192,13 +208,16 @@ function riskLabel(level: string) {
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (filterRiskLevel.value) params.riskLevel = filterRiskLevel.value;
     const res = await churnApi.getPredictions(params);
-    list.value = res.data.list || res.data.rows || [];
-    total.value = res.data.total || 0;
+    // 后端返回 { predictions, total, page, pageSize }（非标准分页键，拦截器不解包）
+    list.value = res.data.predictions ?? res.data.items ?? res.data ?? [];
+    total.value = res.data.total ?? 0;
   } catch {
+    error.value = true;
     ElMessage.error("获取流失预测列表失败");
   } finally {
     loading.value = false;
@@ -208,16 +227,23 @@ async function fetchList() {
 async function fetchStats() {
   try {
     const res = await churnApi.getStats();
-    stats.value = res.data || { LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 };
+    // 后端返回小写键 { low, medium, high, critical }
+    const d = res.data || {};
+    stats.value = {
+      LOW: d.low ?? 0,
+      MEDIUM: d.medium ?? 0,
+      HIGH: d.high ?? 0,
+      CRITICAL: d.critical ?? 0,
+    };
   } catch {
-    // ignore
+    ElMessage.error("获取流失统计失败");
   }
 }
 
 async function handleScore() {
   scoring.value = true;
   try {
-    await churnApi.score();
+    await churnApi.calculate();
     ElMessage.success("评分完成");
     fetchList();
     fetchStats();
@@ -238,6 +264,7 @@ onMounted(() => {
 .page { padding: 20px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .search-bar { margin-bottom: 20px; }
+.error-bar { margin-bottom: 12px; }
 .stats-row { margin-bottom: 20px; }
 .stat-card { text-align: center; }
 .stat-label { font-size: 14px; color: var(--color-text-secondary); margin-bottom: 8px; }

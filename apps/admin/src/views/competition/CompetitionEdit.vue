@@ -408,6 +408,7 @@
               <el-button
                 v-if="isEdit"
                 type="danger"
+                :loading="deleting"
                 @click="handleDelete"
               >
                 删除赛事
@@ -438,6 +439,7 @@
               v-if="form.status === 'DRAFT'"
               type="success"
               size="small"
+              :loading="statusChanging"
               @click="changeStatus('publish')"
             >
               发布赛事
@@ -446,6 +448,7 @@
               v-if="form.status === 'PUBLISHED'"
               type="warning"
               size="small"
+              :loading="statusChanging"
               @click="changeStatus('start')"
             >
               开始赛事
@@ -454,6 +457,7 @@
               v-if="form.status === 'IN_PROGRESS'"
               type="danger"
               size="small"
+              :loading="statusChanging"
               @click="changeStatus('finish')"
             >
               结束赛事
@@ -497,6 +501,8 @@ const statusLabels: Record<string, { text: string; type: string }> = {
 const formRef = ref<any>(null);
 const saving = ref(false);
 const uploading = ref(false);
+const statusChanging = ref(false);
+const deleting = ref(false);
 const coverUrl = ref("");
 
 const form = reactive({
@@ -574,6 +580,7 @@ onMounted(async () => {
 });
 
 async function save() {
+  if (saving.value) return;
   saving.value = true;
   try {
     const payload = {
@@ -592,7 +599,9 @@ async function save() {
       ElMessage.success("创建成功");
       router.replace(`/competitions/${data.id}/edit`);
     }
-  } catch { /* handled by interceptor */ } finally {
+  } catch {
+    ElMessage.error("保存失败，请重试");
+  } finally {
     saving.value = false;
   }
 }
@@ -608,6 +617,8 @@ async function handleCoverUpload(options: any) {
 }
 
 async function changeStatus(action: string) {
+  if (statusChanging.value) return;
+  statusChanging.value = true;
   try {
     if (action === "publish") { await competitionApi.publish(competitionId); form.status = "PUBLISHED"; }
     else if (action === "start") { await competitionApi.start(competitionId); form.status = "IN_PROGRESS"; }
@@ -617,16 +628,22 @@ async function changeStatus(action: string) {
       form.status = "FINISHED";
     }
     ElMessage.success("操作成功");
-  } catch { /* */ }
+  } catch { /* 取消或接口拦截器已提示 */ } finally { statusChanging.value = false }
 }
 
 async function handleDelete() {
+  if (deleting.value) return;
   try {
     await ElMessageBox.confirm("确定删除该赛事？仅草稿状态可删除。", "警告", { type: "error", confirmButtonClass: "el-button--danger" });
+    deleting.value = true;
     await competitionApi.delete(competitionId);
     ElMessage.success("已删除");
     router.push("/competitions");
-  } catch { /* */ }
+  } catch (e) {
+    if (e !== "cancel" && e !== "close") ElMessage.error("删除失败");
+  } finally {
+    deleting.value = false;
+  }
 }
 </script>
 
@@ -639,7 +656,7 @@ async function handleDelete() {
 .sidebar-section h4 { margin: 0 0 10px; font-size: 14px; color: var(--color-text-title); border-bottom: 1px solid #f0e6d3; padding-bottom: 6px; }
 .hint { margin-left: 8px; color: var(--color-text-secondary); font-size: 12px; }
 .cover-upload { margin-top: 4px; }
-.cover-preview { position: relative; width: 200px; aspect-ratio: 16/10; border-radius: 4px; overflow: hidden; background: #f5f5f5; margin-bottom: 8px; }
+.cover-preview { position: relative; width: 200px; aspect-ratio: 16/10; border-radius: 4px; overflow: hidden; background: var(--color-bg-page); margin-bottom: 8px; }
 .cover-preview img { width: 100%; height: 100%; object-fit: cover; }
 .cover-remove { position: absolute; top: 4px; right: 4px; }
 .cover-input-row { display: flex; gap: 4px; margin-bottom: 8px; }

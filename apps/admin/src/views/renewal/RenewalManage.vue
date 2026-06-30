@@ -12,13 +12,32 @@
       <template #header>
         <span style="font-weight:600">即将到期（30天内）</span>
       </template>
+      <el-result
+        v-if="expiringError"
+        icon="error"
+        title="加载失败"
+        sub-title="无法获取即将到期数据，请重试"
+      >
+        <template #extra>
+          <el-button
+            type="primary"
+            @click="fetchExpiring"
+          >
+            重试
+          </el-button>
+        </template>
+      </el-result>
       <el-table
+        v-else
         v-loading="expiringLoading"
         :data="expiringData"
         border
         stripe
         size="small"
       >
+        <template #empty>
+          <el-empty description="暂无即将到期数据" />
+        </template>
         <el-table-column
           label="类型"
           width="120"
@@ -117,17 +136,36 @@
           查询
         </el-button>
       </div>
-      <el-table
-        v-loading="historyLoading"
-        :data="historyList"
-        border
-        stripe
+      <el-result
+        v-if="historyError"
+        icon="error"
+        title="加载失败"
+        sub-title="无法获取续费记录，请重试"
       >
-        <el-table-column
-          label="用户"
-          width="120"
-          prop="user.nickname"
-        />
+        <template #extra>
+          <el-button
+            type="primary"
+            @click="fetchHistory"
+          >
+            重试
+          </el-button>
+        </template>
+      </el-result>
+      <template v-else>
+        <el-table
+          v-loading="historyLoading"
+          :data="historyList"
+          border
+          stripe
+        >
+          <template #empty>
+            <el-empty description="暂无续费记录" />
+          </template>
+          <el-table-column
+            label="用户"
+            width="120"
+            prop="user.nickname"
+          />
         <el-table-column
           label="类型"
           width="120"
@@ -177,19 +215,20 @@
             {{ row.createdAt ? new Date(row.createdAt).toLocaleString('zh-CN') : '-' }}
           </template>
         </el-table-column>
-      </el-table>
-      <div
-        v-if="historyTotal > pageSize"
-        class="pagination"
-      >
-        <el-pagination
-          v-model:current-page="page"
-          layout="prev, pager, next"
-          :total="historyTotal"
-          :page-size="pageSize"
-          @current-change="fetchHistory"
-        />
-      </div>
+        </el-table>
+        <div
+          v-if="historyTotal > pageSize"
+          class="pagination"
+        >
+          <el-pagination
+            v-model:current-page="page"
+            layout="prev, pager, next"
+            :total="historyTotal"
+            :page-size="pageSize"
+            @current-change="fetchHistory"
+          />
+        </div>
+      </template>
     </el-card>
   </div>
 </template>
@@ -199,9 +238,11 @@ import { ref, onMounted } from "vue";
 import { renewalApi } from "@/api";
 
 const expiringLoading = ref(false);
+const expiringError = ref(false);
 const expiringData = ref<any[]>([]);
 
 const historyLoading = ref(false);
+const historyError = ref(false);
 const historyList = ref<any[]>([]);
 const typeFilter = ref("");
 const page = ref(1);
@@ -220,6 +261,7 @@ onMounted(() => { fetchExpiring(); fetchHistory(); });
 
 async function fetchExpiring() {
   expiringLoading.value = true;
+  expiringError.value = false;
   try {
     const { data } = await renewalApi.getExpiringUsers();
     const items: any[] = [];
@@ -227,6 +269,9 @@ async function fetchExpiring() {
     (data.expiringInstituteMembers || []).forEach((m: any) => items.push({ _type: "INSTITUTE_MEMBER", name: m.institute?.name || m.id, expireAt: m.expireAt, daysLeft: calcDays(m.expireAt) }));
     (data.expiringVip || []).forEach((u: any) => items.push({ _type: "VIP", nickname: u.nickname, memberLevel: u.memberLevel, expireAt: u.memberExpire, daysLeft: calcDays(u.memberExpire) }));
     expiringData.value = items.sort((a, b) => (a.daysLeft || 999) - (b.daysLeft || 999));
+  } catch {
+    expiringData.value = [];
+    expiringError.value = true;
   } finally { expiringLoading.value = false; }
 }
 
@@ -237,12 +282,17 @@ function calcDays(date: string | null) {
 
 async function fetchHistory() {
   historyLoading.value = true;
+  historyError.value = false;
   try {
     const params: any = { page: page.value, pageSize };
     if (typeFilter.value) params.type = typeFilter.value;
     const { data } = await renewalApi.getAdminHistory(params);
     historyList.value = data.records || [];
     historyTotal.value = data.total || 0;
+  } catch {
+    historyList.value = [];
+    historyTotal.value = 0;
+    historyError.value = true;
   } finally { historyLoading.value = false; }
 }
 </script>

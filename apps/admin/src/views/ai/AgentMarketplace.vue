@@ -86,7 +86,23 @@
 
     <!-- 智能体卡片网格 -->
     <div
-      v-if="filteredAgents.length === 0 && !loading"
+      v-if="loadErr && !loading"
+      style="text-align:center;padding:60px 0"
+    >
+      <el-empty
+        description="加载失败，请稍后重试"
+        :image-size="80"
+      >
+        <el-button
+          type="primary"
+          @click="refresh"
+        >
+          重试
+        </el-button>
+      </el-empty>
+    </div>
+    <div
+      v-else-if="filteredAgents.length === 0 && !loading"
       style="text-align:center;padding:60px 0"
     >
       <el-empty
@@ -95,7 +111,10 @@
       />
     </div>
 
-    <el-row :gutter="16">
+    <el-row
+      v-loading="loading"
+      :gutter="16"
+    >
       <el-col
         v-for="agent in filteredAgents"
         :key="agent.id"
@@ -121,6 +140,7 @@
               <el-switch
                 v-model="agent.enabled"
                 size="small"
+                :loading="agentToggling === agent.id"
                 @change="(v: boolean) => toggleAgent(agent, v)"
               />
             </div>
@@ -147,7 +167,7 @@
               </div>
               <div class="agent-stat-item">
                 <span class="stat-label">成功率</span>
-                <span :style="{ color: agent.successRate >= 95 ? '#67c23a' : agent.successRate >= 80 ? '#e6a23c' : '#f56c6c' }">
+                <span :style="{ color: agent.successRate >= 95 ? 'var(--color-success)' : agent.successRate >= 80 ? 'var(--color-warning)' : 'var(--color-error)' }">
                   {{ agent.successRate || 0 }}%
                 </span>
               </div>
@@ -356,6 +376,11 @@
           </template>
         </el-table-column>
       </el-table>
+      <el-empty
+        v-if="!logsLoading && agentLogs.length === 0"
+        description="暂无调用日志"
+        :image-size="60"
+      />
     </el-dialog>
   </div>
 </template>
@@ -373,6 +398,8 @@ const CAT_LABELS: Record<string, string> = { paipan: "排盘类", customer_servi
 const CATEGORY_ORDER = ["paipan", "customer_service", "content", "operation", "knowledge", "circle"];
 
 const loading = ref(false);
+const loadErr = ref(false);
+const agentToggling = ref("");
 const filterCategory = ref("");
 const searchKeyword = ref("");
 
@@ -409,6 +436,8 @@ onMounted(() => refresh());
 
 async function refresh() {
   loading.value = true;
+  loadErr.value = false;
+  agents.value = []; // 重置，避免重试时重复累加
   try {
     await Promise.all([loadBots(), loadOpRobots(), loadCircleAssistants()]);
     await loadStats();
@@ -439,7 +468,7 @@ async function loadBots() {
         successRate: 98,
       });
     }
-  } catch { /* ignore */ }
+  } catch { loadErr.value = true; }
 }
 
 async function loadOpRobots() {
@@ -464,7 +493,7 @@ async function loadOpRobots() {
         successRate: 100,
       });
     }
-  } catch { /* ignore */ }
+  } catch { loadErr.value = true; }
 }
 
 async function loadCircleAssistants() {
@@ -488,7 +517,7 @@ async function loadCircleAssistants() {
         successRate: ca.successRate || 95,
       });
     }
-  } catch { /* ignore */ }
+  } catch { loadErr.value = true; }
 }
 
 async function loadStats() {
@@ -507,6 +536,8 @@ function goToBotManage() { router.push("/bots"); }
 function goToOpRobot() { router.push("/operation/robots"); }
 
 async function toggleAgent(agent: any, enabled: boolean) {
+  if (agentToggling.value === agent.id) return; // 防重复
+  agentToggling.value = agent.id;
   try {
     if (agent.source === "operation") {
       await api.post(`/operation-robots/${agent.sourceId}/toggle`, { enabled });
@@ -516,6 +547,9 @@ async function toggleAgent(agent: any, enabled: boolean) {
     ElMessage.success(`「${agent.name}」已${enabled ? '启用' : '停用'}`);
   } catch {
     agent.enabled = !enabled;
+    ElMessage.error("操作失败，请重试");
+  } finally {
+    agentToggling.value = "";
   }
 }
 
@@ -541,7 +575,10 @@ async function viewLogs(agent: any) {
       status: log.status,
       createdAt: log.createdAt,
     }));
-  } catch { /* ignore */ } finally { logsLoading.value = false; }
+  } catch {
+    agentLogs.value = [];
+    ElMessage.error("日志加载失败，请重试");
+  } finally { logsLoading.value = false; }
 }
 
 function configAgent(agent: any) {
@@ -559,22 +596,22 @@ function configAgent(agent: any) {
 .marketplace-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 14px; text-align: center; }
-.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 12px; color: #909399; margin-top: 2px; }
-.stat-card.warn .value { color: #e6a23c; }
-.stat-card.info .value { color: #409eff; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 14px; text-align: center; }
+.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.stat-card.warn .value { color: var(--color-warning); }
+.stat-card.info .value { color: var(--color-info); }
 
 .agent-card { transition: opacity .3s; }
 .agent-card.disabled { opacity: 0.5; }
 .agent-header { display: flex; align-items: center; gap: 8px; }
 .agent-icon { font-size: 28px; flex-shrink: 0; }
 .agent-name { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.agent-cat { font-size: 11px; color: #909399; }
+.agent-cat { font-size: 11px; color: var(--color-text-secondary); }
 .agent-body { font-size: 13px; }
-.agent-desc { color: #606266; line-height: 1.5; min-height: 36px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.agent-desc { color: var(--color-text-body); line-height: 1.5; min-height: 36px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .agent-stats { display: flex; gap: 16px; }
 .agent-stat-item { display: flex; flex-direction: column; gap: 2px; }
 .agent-stat-item .stat-label { font-size: 10px; color: #c0c4cc; }
-.agent-stat-item .stat-value { font-size: 13px; color: #303133; font-weight: 600; }
+.agent-stat-item .stat-value { font-size: 13px; color: var(--color-text-title); font-weight: 600; }
 </style>

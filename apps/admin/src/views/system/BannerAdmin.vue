@@ -10,7 +10,26 @@
       </el-button>
     </div>
 
+    <!-- 错误态 -->
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="Banner 配置加载失败"
+      sub-title="无法读取或解析首页 Banner 配置，请稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="load"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-table
+      v-else
+      v-loading="loading"
       :data="banners"
       border
       stripe
@@ -70,7 +89,10 @@
       </el-table-column>
     </el-table>
 
-    <div style="margin-top:16px">
+    <div
+      v-if="!loadError"
+      style="margin-top:16px"
+    >
       <el-button
         :loading="saving"
         type="success"
@@ -78,7 +100,7 @@
       >
         保存到服务器
       </el-button>
-      <span style="margin-left:12px;color:#999;font-size:13px">编辑后需点击保存生效</span>
+      <span style="margin-left:12px;color:var(--color-text-secondary);font-size:13px">编辑后需点击保存生效</span>
     </div>
 
     <el-dialog
@@ -152,31 +174,32 @@ interface Banner {
 
 const banners = ref<Banner[]>([]);
 const saving = ref(false);
+const loading = ref(true);
+const loadError = ref(false);
 const dialogVisible = ref(false);
 const editIdx = ref(-1);
 const form = ref<Banner>({ icon: "", title: "", sub: "", bg: "" });
 
-onMounted(async () => {
+onMounted(load);
+
+async function load() {
+  loading.value = true;
+  loadError.value = false;
   try {
     const { data } = await systemApi.listConfigs();
     const config = (data.configs || []).find((c: any) => c.configKey === "home_banners");
     if (config) {
-      try { banners.value = JSON.parse(config.configValue); } catch { /* JSON 解析失败，使用默认值 */ }
-    }
-    if (banners.value.length === 0) {
-      banners.value = getDefaults();
+      // 解析失败属于配置数据损坏，必须报错而非静默回退假数据
+      banners.value = JSON.parse(config.configValue);
+    } else {
+      // 无配置（首次）→ 空态，由管理员添加
+      banners.value = [];
     }
   } catch {
-    banners.value = getDefaults();
+    loadError.value = true;
+  } finally {
+    loading.value = false;
   }
-});
-
-function getDefaults(): Banner[] {
-  return [
-    { icon: "📜", title: "国学经典", sub: "品读四书五经，传承中华文化", bg: "linear-gradient(135deg, #C41E3A, #8B0000)" },
-    { icon: "🌸", title: "诗词欣赏", sub: "唐诗宋词，感受千年风雅", bg: "linear-gradient(135deg, #6b3a1f, #c4943a)" },
-    { icon: "🧘", title: "修身养性", sub: "以文化人，以德润身", bg: "linear-gradient(135deg, #5a3a1a, #8b6914)" },
-  ];
 }
 
 function openAdd() {
@@ -222,6 +245,6 @@ async function saveBanners() {
 <style scoped>
 .page { padding: 20px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.header h2 { margin: 0; font-size: 18px; color: #C41E3A; }
+.header h2 { margin: 0; font-size: 18px; color: var(--color-primary); }
 .bg-preview { padding: 4px 10px; border-radius: 4px; color: #fff; font-size: 11px; }
 </style>

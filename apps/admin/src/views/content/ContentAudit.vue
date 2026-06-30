@@ -94,12 +94,32 @@
       />
     </el-tabs>
 
+    <el-alert
+      v-if="error"
+      type="error"
+      title="审核列表加载失败"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        type="primary"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
       stripe
       @selection-change="handleSelection"
     >
+      <template #empty>
+        <el-empty description="暂无待处理内容" />
+      </template>
       <el-table-column
         type="selection"
         width="45"
@@ -272,6 +292,7 @@ import { contentApi, courseApi, auditApi, contentGenerationApi } from '@/api'
 const AI_TAGS = ['基础知识库', '经典精华库', '玩法教程库', 'AI生成', 'AI互动'];
 
 const loading = ref(false)
+const error = ref(false)
 const activeTab = ref('PENDING')
 const list = ref<any[]>([])
 const total = ref(0)
@@ -325,6 +346,7 @@ function handleSelection(rows: any[]) { selected.value = rows }
 
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const status = activeTab.value === 'AI_GENERATED' ? undefined : activeTab.value;
 
@@ -364,6 +386,10 @@ async function fetchList() {
 
     list.value = items;
     total.value = items.length;
+  } catch {
+    error.value = true
+    list.value = []
+    total.value = 0
   } finally { loading.value = false }
 }
 
@@ -430,10 +456,10 @@ function preview(row: any) {
 .audit-page { padding: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-mini { background: #f5f7fa; border-radius: 6px; padding: 8px 12px; text-align: center; }
-.stat-mini .v { display: block; font-size: 22px; font-weight: 700; color: #303133; }
-.stat-mini .l { display: block; font-size: 11px; color: #909399; }
-.preview-body h2 { color: #333; margin-bottom: 8px; }
+.stat-mini { background: var(--color-bg-page); border-radius: 6px; padding: 8px 12px; text-align: center; }
+.stat-mini .v { display: block; font-size: 22px; font-weight: 700; color: var(--color-text-title); }
+.stat-mini .l { display: block; font-size: 11px; color: var(--color-text-secondary); }
+.preview-body h2 { color: var(--color-text-title); margin-bottom: 8px; }
 .preview-body .meta { color: var(--color-text-secondary); font-size: 13px; margin-bottom: 16px; }
 .preview-body .content { line-height: 1.8; color: #444; }
 </style>

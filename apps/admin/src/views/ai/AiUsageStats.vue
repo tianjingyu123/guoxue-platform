@@ -2,10 +2,33 @@
   <div class="page">
     <div class="page-header">
       <h3>AI调用日志与成本追踪</h3>
-      <el-button @click="refresh">
+      <el-button
+        :loading="loading"
+        @click="refresh"
+      >
         刷新
       </el-button>
     </div>
+
+    <!-- 错误态 -->
+    <el-alert
+      v-if="loadErr"
+      type="error"
+      :closable="false"
+      show-icon
+      title="部分数据加载失败"
+      style="margin-bottom:16px"
+    >
+      <template #default>
+        <el-button
+          type="primary"
+          size="small"
+          @click="refresh"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
 
     <!-- 统计卡片 -->
     <el-row
@@ -134,8 +157,14 @@
             <span>Token用量趋势（近7天）</span>
           </template>
           <div
+            v-show="scenarioDistribution.length"
             ref="trendChartRef"
             style="height:280px"
+          />
+          <el-empty
+            v-if="!loading && scenarioDistribution.length === 0"
+            description="暂无趋势数据"
+            :image-size="60"
           />
         </el-card>
       </el-col>
@@ -145,8 +174,14 @@
             <span>场景分布（今日）</span>
           </template>
           <div
+            v-show="scenarioDistribution.length"
             ref="sceneChartRef"
             style="height:280px"
+          />
+          <el-empty
+            v-if="!loading && scenarioDistribution.length === 0"
+            description="暂无场景数据"
+            :image-size="60"
           />
         </el-card>
       </el-col>
@@ -188,7 +223,7 @@
         <el-table-column label="费用占比" width="100" align="center">
           <template #default="{ row }">
             <el-progress :percentage="row.costPercent || 0" :stroke-width="8" :show-text="false" />
-            <span style="font-size:12px;color:#909399">{{ row.costPercent || 0 }}%</span>
+            <span style="font-size:12px;color:var(--color-text-secondary)">{{ row.costPercent || 0 }}%</span>
           </template>
         </el-table-column>
       </el-table>
@@ -348,6 +383,7 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
 const stats = reactive({ totalCalls: 0, todayCalls: 0, todayTokens: 0, successRate: 0 });
 const logs = ref<any[]>([]);
 const loading = ref(false);
+const loadErr = ref(false);
 const scenarioDistribution = ref<any[]>([]);
 
 const sceneOptions = ref<string[]>([]);
@@ -390,6 +426,7 @@ function calcCost(modelName: string, tokenUsage: { promptTokens: number; complet
 onMounted(() => refresh());
 
 async function refresh() {
+  loadErr.value = false;
   await Promise.all([fetchStats(), fetchLogs(), fetchAlerts()]);
 }
 
@@ -412,7 +449,7 @@ async function fetchStats() {
     modelOptions.value = (d?.models || []).map((m: string) => ({ label: m, value: m }));
 
     renderSceneDimension();
-  } catch { /* ignore */ }
+  } catch { loadErr.value = true; }
 }
 
 async function fetchLogs() {
@@ -435,14 +472,14 @@ async function fetchLogs() {
     // Refresh charts after data load
     await nextTick();
     renderCharts();
-  } finally { loading.value = false; }
+  } catch { loadErr.value = true; } finally { loading.value = false; }
 }
 
 async function fetchAlerts() {
   try {
     const { data } = await aiAdminApi.getAbnormalCalls();
     alerts.value = (data as any)?.alerts || (data as any)?.data || [];
-  } catch { /* ignore */ }
+  } catch { loadErr.value = true; }
 }
 
 function renderCharts() {
@@ -535,9 +572,9 @@ function exportCSV() {
 .page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 14px; text-align: center; }
-.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: #303133; }
-.stat-card .label { display: block; font-size: 12px; color: #909399; margin-top: 2px; }
-.stat-card.warn .value { color: #e6a23c; }
-.stat-card.info .value { color: #409eff; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 14px; text-align: center; }
+.stat-card .value { display: block; font-size: 24px; font-weight: 700; color: var(--color-text-title); }
+.stat-card .label { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.stat-card.warn .value { color: var(--color-warning); }
+.stat-card.info .value { color: var(--color-info); }
 </style>

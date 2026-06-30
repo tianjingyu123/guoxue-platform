@@ -240,8 +240,9 @@ let quill: any = null
 
 onMounted(async () => {
   if (isEdit && id) {
-    const { data } = await contentApi.detail(id)
-    Object.assign(form, {
+    try {
+      const { data } = await contentApi.detail(id)
+      Object.assign(form, {
       title: data.title,
       type: data.type,
       author: data.author || '',
@@ -251,7 +252,10 @@ onMounted(async () => {
       cover: data.cover || '',
       tags: data.tags || [],
       status: data.status || 'PUBLISHED',
-    })
+      })
+    } catch {
+      ElMessage.error('内容加载失败，请返回重试')
+    }
   }
 
   // 初始化 Quill 编辑器
@@ -358,7 +362,7 @@ async function handleSave(status?: string) {
   align-items: center;
   padding: 12px 24px;
   background: var(--color-bg-card);
-  border-bottom: 1px solid #E8E0D5;
+  border-bottom: 1px solid var(--color-border);
 }
 .edit-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .header-actions { display: flex; gap: 8px; }
@@ -376,7 +380,7 @@ async function handleSave(status?: string) {
   background: var(--color-bg-card);
   padding: 20px;
   border-radius: 8px 0 0 8px;
-  border: 1px solid #E8E0D5;
+  border: 1px solid var(--color-border);
   border-right: none;
 }
 
@@ -384,7 +388,7 @@ async function handleSave(status?: string) {
   width: 280px;
   flex-shrink: 0;
   background: var(--color-bg-card);
-  border: 1px solid #E8E0D5;
+  border: 1px solid var(--color-border);
   border-radius: 0 8px 8px 0;
   padding: 16px;
   display: flex;
@@ -407,10 +411,10 @@ async function handleSave(status?: string) {
 
 /* 封面 */
 .cover-upload { display: flex; flex-direction: column; gap: 8px; }
-.cover-preview { position: relative; width: 100%; aspect-ratio: 16/10; border-radius: 4px; overflow: hidden; background: #f5f5f5; }
+.cover-preview { position: relative; width: 100%; aspect-ratio: 16/10; border-radius: 4px; overflow: hidden; background: var(--color-bg-page); }
 .cover-preview img { width: 100%; height: 100%; object-fit: cover; }
 .cover-remove { position: absolute; top: 4px; right: 4px; }
-.cover-placeholder { width: 100%; aspect-ratio: 16/10; border: 2px dashed #E8E0D5; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--color-text-placeholder); font-size: 13px; }
+.cover-placeholder { width: 100%; aspect-ratio: 16/10; border: 2px dashed var(--color-border); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--color-text-placeholder); font-size: 13px; }
 .cover-input-row { display: flex; gap: 4px; }
 
 /* 标签 */
@@ -420,7 +424,7 @@ async function handleSave(status?: string) {
 
 @media (max-width: 900px) {
   .edit-body { flex-direction: column; }
-  .edit-sidebar { width: 100%; border-radius: 0 0 8px 8px; border-top: none; border-left: 1px solid #E8E0D5; }
-  .edit-main { border-radius: 8px 8px 0 0; border-right: 1px solid #E8E0D5; }
+  .edit-sidebar { width: 100%; border-radius: 0 0 8px 8px; border-top: none; border-left: 1px solid var(--color-border); }
+  .edit-main { border-radius: 8px 8px 0 0; border-right: 1px solid var(--color-border); }
 }
 </style>

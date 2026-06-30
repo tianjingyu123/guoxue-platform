@@ -12,7 +12,23 @@
       <template #header>
         <span style="font-weight:600">圈子列表</span>
       </template>
+      <el-result
+        v-if="loadError && !loading"
+        icon="error"
+        title="加载失败"
+        sub-title="圈子列表加载失败，请检查网络后重试"
+      >
+        <template #extra>
+          <el-button
+            type="primary"
+            @click="fetchCircles"
+          >
+            重试
+          </el-button>
+        </template>
+      </el-result>
       <el-table
+        v-show="!loadError"
         v-loading="loading"
         :data="circleList"
         border
@@ -20,6 +36,12 @@
         highlight-current-row
         @current-change="selectCircle"
       >
+        <template #empty>
+          <el-empty
+            description="暂无圈子"
+            :image-size="80"
+          />
+        </template>
         <el-table-column
           label="名称"
           min-width="160"
@@ -142,6 +164,12 @@
           border
           stripe
         >
+          <template #empty>
+            <el-empty
+              description="暂无嘉宾"
+              :image-size="80"
+            />
+          </template>
           <el-table-column
             label="嘉宾"
             min-width="150"
@@ -234,6 +262,8 @@ import { ElMessage } from "element-plus";
 import { circleBackendApi } from "@/api";
 
 const loading = ref(false);
+const loadError = ref(false);
+const savingRate = ref(false);
 const circleList = ref<any[]>([]);
 const page = ref(1);
 const pageSize = 20;
@@ -250,11 +280,12 @@ onMounted(() => fetchCircles());
 
 async function fetchCircles() {
   loading.value = true;
+  loadError.value = false;
   try {
     const { data } = await circleBackendApi.adminCircles({ page: page.value, pageSize });
     circleList.value = data.circles || [];
     circleTotal.value = data.total || 0;
-  } finally { loading.value = false; }
+  } catch { loadError.value = true; } finally { loading.value = false; }
 }
 
 async function selectCircle(row: any) {
@@ -288,10 +319,12 @@ async function fetchRevenue() {
 }
 
 async function updateShareRate(userId: string, shareRate: number) {
+  if (savingRate.value) return;
+  savingRate.value = true;
   try {
     await circleBackendApi.setGuestShareRate(userId, shareRate);
     ElMessage.success("已更新");
-  } catch { ElMessage.error("更新失败"); }
+  } catch { ElMessage.error("更新失败"); } finally { savingRate.value = false; }
 }
 </script>
 
@@ -302,7 +335,7 @@ async function updateShareRate(userId: string, shareRate: number) {
 .section-card { margin-bottom: 16px; }
 .overview-row { margin-bottom: 16px; }
 .stat-label { font-size: 13px; color: var(--color-text-secondary); }
-.stat-value { font-size: 22px; font-weight: 600; color: #333; margin-top: 4px; }
+.stat-value { font-size: 22px; font-weight: 600; color: var(--color-text-title); margin-top: 4px; }
 .rev-item { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; }
 .rev-label { font-size: 13px; color: var(--color-text-secondary); }
 .rev-num { font-size: 20px; font-weight: 600; }

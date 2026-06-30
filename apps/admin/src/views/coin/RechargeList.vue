@@ -29,16 +29,36 @@
       </div>
     </div>
 
-    <el-table
-      v-loading="loading"
-      :data="list"
-      border
-      stripe
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="无法获取充值记录，请重试"
     >
-      <el-table-column
-        label="用户昵称"
-        width="130"
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <template v-else>
+      <el-table
+        v-loading="loading"
+        :data="list"
+        border
+        stripe
       >
+        <template #empty>
+          <el-empty description="暂无充值记录" />
+        </template>
+        <el-table-column
+          label="用户昵称"
+          width="130"
+        >
         <template #default="{ row }">
           {{ row.user?.nickname || "--" }}
         </template>
@@ -113,20 +133,21 @@
           {{ formatTime(row.createdAt) }}
         </template>
       </el-table-column>
-    </el-table>
+      </el-table>
 
-    <div
-      v-if="total > pageSize"
-      class="pagination"
-    >
-      <el-pagination
-        v-model:current-page="page"
-        :page-size="pageSize"
-        :total="total"
-        layout="total, prev, pager, next"
-        @current-change="fetchList"
-      />
-    </div>
+      <div
+        v-if="total > pageSize"
+        class="pagination"
+      >
+        <el-pagination
+          v-model:current-page="page"
+          :page-size="pageSize"
+          :total="total"
+          layout="total, prev, pager, next"
+          @current-change="fetchList"
+        />
+      </div>
+    </template>
 
     <!-- 管理员充值弹窗 -->
     <el-dialog
@@ -185,12 +206,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { coinApi } from "@/api";
+import { coinApi, api } from "@/api";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { exportCSV } from "@/utils/export";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
+const error = ref(false);
 const filterUserId = ref("");
 const page = ref(1);
 const pageSize = ref(20);
@@ -210,6 +232,7 @@ function onFilterChange() {
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const { data } = await coinApi.getRecharges(
       page.value,
@@ -218,6 +241,10 @@ async function fetchList() {
     );
     list.value = data.recharges || data.list || [];
     total.value = data.total || 0;
+  } catch {
+    list.value = [];
+    total.value = 0;
+    error.value = true;
   } finally {
     loading.value = false;
   }
@@ -284,8 +311,13 @@ async function submitRecharge() {
   }
   submitting.value = true;
   try {
-    await coinApi.adminRecharge(rechargeForm.value);
-    ElMessage.success("充值成功");
+    // 直调审批端点（后端已改为创建资金审批单，不立即到账）；字段名对齐后端 AdminRechargeDto
+    await api.post("/coin/admin/recharge", {
+      userId,
+      amountCoin: coins,
+      description: rechargeForm.value.remark || undefined,
+    });
+    ElMessage.success("已提交审批，待财务审批后生效");
     rechargeVisible.value = false;
     fetchList();
   } finally {

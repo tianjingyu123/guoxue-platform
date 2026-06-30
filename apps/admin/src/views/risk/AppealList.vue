@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { riskApi } from '@/api'
 
 const loading = ref(false)
+const error = ref(false)
 const saving = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
@@ -19,10 +20,11 @@ const rejectForm = reactive({ reason: '' })
 const detailDialogVisible = ref(false)
 const detailData = ref<any>(null)
 
+// 与后端 AppealRecord.type 对齐：USER_BAN/CONTENT_BLOCK/WITHDRAWAL_REJECT
 const appealTypeOptions = [
-  { label: '封号申诉', value: 'BAN' },
-  { label: '交易纠纷', value: 'TRADE_DISPUTE' },
-  { label: '内容申诉', value: 'CONTENT' },
+  { label: '封号申诉', value: 'USER_BAN' },
+  { label: '内容封禁申诉', value: 'CONTENT_BLOCK' },
+  { label: '提现驳回申诉', value: 'WITHDRAWAL_REJECT' },
 ]
 
 onMounted(() => fetchList())
@@ -43,15 +45,20 @@ function getStatusLabel(status: string): string {
 
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const params: Record<string, any> = { page: page.value, pageSize: 20 }
     if (statusFilter.value) params.status = statusFilter.value
     if (typeFilter.value) params.type = typeFilter.value
+    // 后端 listAppeals 支持 status + type 过滤与分页
     const { data } = await riskApi.listAppeals(params)
-    list.value = data.appeals || data.data || []
-    total.value = data.total || 0
+    const items: any[] = data.items ?? (Array.isArray(data) ? data : [])
+    list.value = items
+    total.value = data.total ?? items.length
   } catch {
     list.value = []
+    total.value = 0
+    error.value = true
   } finally {
     loading.value = false
   }
@@ -79,6 +86,7 @@ function openReject(id: string) {
 }
 
 async function reject() {
+  if (saving.value) return
   if (!rejectForm.reason.trim()) {
     ElMessage.warning('请输入驳回理由')
     return
@@ -144,28 +152,43 @@ function showDetail(row: any) {
       </el-select>
     </div>
 
+    <div
+      v-if="error"
+      class="error-state"
+    >
+      <el-empty description="加载失败，请重试">
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </el-empty>
+    </div>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       stripe
     >
       <el-table-column
-        prop="applicant"
-        label="申诉人"
-        width="120"
+        prop="userId"
+        label="申诉人ID"
+        width="160"
         show-overflow-tooltip
       />
       <el-table-column
         label="申诉类型"
-        width="120"
+        width="140"
       >
         <template #default="{ row }">
-          {{ getTypeLabel(row.type || row.appealType) }}
+          {{ getTypeLabel(row.type) }}
         </template>
       </el-table-column>
       <el-table-column
-        prop="content"
-        label="申诉内容"
+        prop="reason"
+        label="申诉理由"
         min-width="240"
         show-overflow-tooltip
       />
@@ -242,11 +265,11 @@ function showDetail(row: any) {
           :column="2"
           border
         >
-          <el-descriptions-item label="申诉人">
-            {{ detailData.applicant || detailData.userId || '-' }}
+          <el-descriptions-item label="申诉人ID">
+            {{ detailData.userId || '-' }}
           </el-descriptions-item>
           <el-descriptions-item label="申诉类型">
-            {{ getTypeLabel(detailData.type || detailData.appealType) }}
+            {{ getTypeLabel(detailData.type) }}
           </el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag
@@ -260,33 +283,49 @@ function showDetail(row: any) {
             {{ formatDate(detailData.createdAt) }}
           </el-descriptions-item>
           <el-descriptions-item
-            v-if="detailData.status === 'REJECTED' && detailData.reason"
+            v-if="detailData.reviewedBy"
+            label="审批人"
+          >
+            {{ detailData.reviewedBy }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            v-if="detailData.reviewedAt"
+            label="审批时间"
+          >
+            {{ formatDate(detailData.reviewedAt) }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            v-if="detailData.status === 'REJECTED' && detailData.reviewNote"
             label="驳回理由"
             :span="2"
           >
-            {{ detailData.reason }}
+            {{ detailData.reviewNote }}
           </el-descriptions-item>
         </el-descriptions>
 
         <h4 style="margin:16px 0 8px;color:#8b4513">
-          申诉内容
+          申诉理由
         </h4>
         <div style="padding:12px;background:#fafafa;border-radius:4px;line-height:1.8;white-space:pre-wrap">
-          {{ detailData.content || '暂无内容' }}
+          {{ detailData.reason || '暂无内容' }}
         </div>
 
-        <h4
-          v-if="detailData.reply"
-          style="margin:16px 0 8px;color:#8b4513"
-        >
-          回复内容
-        </h4>
-        <div
-          v-if="detailData.reply"
-          style="padding:12px;background:#f0f9eb;border-radius:4px;line-height:1.8;white-space:pre-wrap"
-        >
-          {{ detailData.reply }}
-        </div>
+        <template v-if="Array.isArray(detailData.evidence) && detailData.evidence.length">
+          <h4 style="margin:16px 0 8px;color:#8b4513">
+            申诉证据
+          </h4>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <el-image
+              v-for="(img, i) in detailData.evidence"
+              :key="i"
+              :src="img"
+              :preview-src-list="detailData.evidence"
+              :initial-index="i"
+              fit="cover"
+              style="width:90px;height:90px;border-radius:4px"
+            />
+          </div>
+        </template>
       </template>
       <template #footer>
         <el-button @click="detailDialogVisible = false">
@@ -337,4 +376,5 @@ function showDetail(row: any) {
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .filters { display: flex; gap: 12px; margin-bottom: 16px; }
+.error-state { padding: 40px 0; }
 </style>

@@ -150,12 +150,36 @@
     </div>
 
     <!-- 任务列表 -->
+    <el-result
+      v-if="error && !loading"
+      icon="error"
+      title="加载失败"
+      sub-title="任务列表加载出错，请重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       stripe
       @row-click="openDetail"
     >
+      <template #empty>
+        <el-empty
+          v-if="!loading"
+          description="暂无任务"
+          :image-size="80"
+        />
+      </template>
       <el-table-column
         prop="id"
         label="ID"
@@ -552,6 +576,7 @@
         </el-button>
         <el-button
           type="primary"
+          :loading="transferring"
           @click="doTransfer"
         >
           确认转交
@@ -592,6 +617,7 @@
         </el-button>
         <el-button
           type="primary"
+          :loading="approving"
           @click="doApprove"
         >
           确认
@@ -635,6 +661,8 @@ function formatDate(d: string | null | undefined) {
 // 列表
 const list = ref<any[]>([]);
 const loading = ref(false);
+const error = ref(false);
+const submitting = ref(false);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
@@ -662,6 +690,7 @@ async function fetchStats() {
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (filters.status) params.status = filters.status;
@@ -672,6 +701,10 @@ async function fetchList() {
     const { data } = await api.get("/tasks", { params });
     list.value = data?.items ?? [];
     total.value = data?.total ?? 0;
+  } catch {
+    error.value = true;
+    list.value = [];
+    total.value = 0;
   } finally {
     loading.value = false;
   }
@@ -720,16 +753,19 @@ async function openDetail(row: any) {
 
 // 认领
 async function claimTask(row: any) {
+  if (submitting.value) return;
+  submitting.value = true;
   try {
     await ElMessageBox.confirm(`确认认领任务「${row.title}」？`, "认领任务");
     await api.post(`/tasks/${row.id}/claim`, { executorType: "HUMAN" });
     ElMessage.success("认领成功");
     fetchList();
-  } catch { /* cancelled */ }
+  } catch { /* cancelled */ } finally { submitting.value = false; }
 }
 
 // 转交
 const showTransferDialog = ref(false);
+const transferring = ref(false);
 const transferTarget = ref<any>(null);
 const transferForm = reactive({ toType: "HUMAN", toId: "", reason: "" });
 function showTransfer(row: any) {
@@ -741,26 +777,31 @@ function showTransfer(row: any) {
 }
 async function doTransfer() {
   if (!transferForm.reason.trim()) return ElMessage.warning("请输入转交原因");
+  if (transferring.value) return;
+  transferring.value = true;
   try {
     await api.post(`/tasks/${transferTarget.value!.id}/transfer`, transferForm);
     ElMessage.success("转交成功");
     showTransferDialog.value = false;
     fetchList();
-  } catch { /* ignore */ }
+  } catch { /* ignore */ } finally { transferring.value = false; }
 }
 
 // 完成
 async function completeTask(row: any) {
+  if (submitting.value) return;
+  submitting.value = true;
   try {
     await ElMessageBox.confirm(`确认完成任务「${row.title}」？`, "完成任务");
     await api.put(`/tasks/${row.id}`, { status: "COMPLETED" });
     ElMessage.success("任务已完成");
     fetchList();
-  } catch { /* cancelled */ }
+  } catch { /* cancelled */ } finally { submitting.value = false; }
 }
 
 // 审批
 const showApproveDialog = ref(false);
+const approving = ref(false);
 const approveTarget = ref<any>(null);
 const approveForm = reactive({ approved: true, remark: "" });
 function showApprove(row: any) {
@@ -770,43 +811,51 @@ function showApprove(row: any) {
   showApproveDialog.value = true;
 }
 async function doApprove() {
+  if (approving.value) return;
+  approving.value = true;
   try {
     await api.post(`/tasks/${approveTarget.value!.id}/approve`, approveForm);
     ElMessage.success(approveForm.approved ? "审批通过" : "已驳回");
     showApproveDialog.value = false;
     fetchList();
-  } catch { /* ignore */ }
+  } catch { /* ignore */ } finally { approving.value = false; }
 }
 
 // 强制收回
 async function forceReclaim(row: any) {
+  if (submitting.value) return;
+  submitting.value = true;
   try {
     await ElMessageBox.confirm("强制收回将把任务重置为待处理状态，确认？", "强制收回");
     await api.post(`/tasks/${row.id}/force-reclaim`);
     ElMessage.success("已强制收回");
     showDetail.value = false;
     fetchList();
-  } catch { /* cancelled */ }
+  } catch { /* cancelled */ } finally { submitting.value = false; }
 }
 
 // 回滚
 async function rollbackTask(row: any) {
+  if (submitting.value) return;
+  submitting.value = true;
   try {
     await ElMessageBox.confirm("回滚将恢复任务到上一个快照状态，确认？", "回滚任务");
     await api.post(`/tasks/${row.id}/rollback`);
     ElMessage.success("已回滚");
     fetchList();
-  } catch { /* cancelled */ }
+  } catch { /* cancelled */ } finally { submitting.value = false; }
 }
 
 // 取消
 async function cancelTask(row: any) {
+  if (submitting.value) return;
+  submitting.value = true;
   try {
     await ElMessageBox.confirm(`确认取消任务「${row.title}」？`, "取消任务", { type: "warning" });
     await api.put(`/tasks/${row.id}`, { status: "CANCELLED" });
     ElMessage.success("任务已取消");
     fetchList();
-  } catch { /* cancelled */ }
+  } catch { /* cancelled */ } finally { submitting.value = false; }
 }
 
 onMounted(() => {
@@ -820,19 +869,19 @@ onMounted(() => {
 .page-header h2 { margin: 0; font-size: 20px; }
 
 .stats-row { margin-bottom: 16px; }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all .2s; border: 2px solid transparent; }
-.stat-card:hover { border-color: #409eff; }
-.stat-card.active { border-color: #409eff; background: #ecf5ff; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all .2s; border: 2px solid transparent; }
+.stat-card:hover { border-color: var(--color-info); }
+.stat-card.active { border-color: var(--color-info); background: #ecf5ff; }
 .stat-card .value { display: block; font-size: 28px; font-weight: 700; }
-.stat-card .label { display: block; font-size: 13px; color: #909399; margin-top: 4px; }
-.stat-card.pending.active { border-color: #e6a23c; background: #fdf6ec; }
-.stat-card.in-progress.active { border-color: #409eff; background: #ecf5ff; }
-.stat-card.review.active { border-color: #f56c6c; background: #fef0f0; }
+.stat-card .label { display: block; font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
+.stat-card.pending.active { border-color: var(--color-warning); background: #fdf6ec; }
+.stat-card.in-progress.active { border-color: var(--color-info); background: #ecf5ff; }
+.stat-card.review.active { border-color: var(--color-error); background: #fef0f0; }
 
 .filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 
 .pagination-wrap { display: flex; justify-content: flex-end; margin-top: 16px; }
 
-.text-muted { color: #909399; }
-.json-preview { background: #f5f7fa; padding: 12px; border-radius: 4px; font-size: 12px; overflow-x: auto; max-height: 200px; }
+.text-muted { color: var(--color-text-secondary); }
+.json-preview { background: var(--color-bg-page); padding: 12px; border-radius: 4px; font-size: 12px; overflow-x: auto; max-height: 200px; }
 </style>

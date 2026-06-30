@@ -107,12 +107,37 @@ const routes = [
         component: () => import("@/views/classics/ClassicCommentaryManage.vue"),
         meta: { title: "古籍注解", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
+      // === 诗词雅集 ===
+      {
+        path: "poetry",
+        name: "PoetryList",
+        component: () => import("@/views/poetry/PoetryList.vue"),
+        meta: { title: "诗词管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+      },
+      {
+        path: "poetry/categories",
+        name: "PoetryCategoryManage",
+        component: () => import("@/views/poetry/PoetryCategoryManage.vue"),
+        meta: { title: "诗词分类", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+      },
+      {
+        path: "poetry/collections",
+        name: "PoetryCollectionManage",
+        component: () => import("@/views/poetry/PoetryCollectionManage.vue"),
+        meta: { title: "诗单管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+      },
       // === 社区 ===
       {
         path: "circles",
         name: "CircleList",
         component: () => import("@/views/circles/CircleList.vue"),
         meta: { title: "圈子管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+      },
+      {
+        path: "circle-refunds",
+        name: "CircleRefundAudit",
+        component: () => import("@/views/circles/CircleRefundAudit.vue"),
+        meta: { title: "圈子退款审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "circles/:id",
@@ -303,6 +328,24 @@ const routes = [
         name: "ProductList",
         component: () => import("@/views/shop/ProductList.vue"),
         meta: { title: "商品管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR"] },
+      },
+      {
+        path: "shop/product-audit",
+        name: "ProductAudit",
+        component: () => import("@/views/shop/ProductAudit.vue"),
+        meta: { title: "商品品控", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR"] },
+      },
+      {
+        path: "creator/list",
+        name: "CreatorList",
+        component: () => import("@/views/creator/CreatorList.vue"),
+        meta: { title: "创作者管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "creator/withdrawals",
+        name: "CreatorWithdrawals",
+        component: () => import("@/views/creator/CreatorWithdrawals.vue"),
+        meta: { title: "创作者提现", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "orders",
@@ -518,6 +561,12 @@ const routes = [
         name: "FundFreeze",
         component: () => import("@/views/finance/FundFreeze.vue"),
         meta: { title: "资金冻结", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+      },
+      {
+        path: "finance/fund-approval",
+        name: "FundApprovalCenter",
+        component: () => import("@/views/finance/FundApprovalCenter.vue"),
+        meta: { title: "资金审批中心", roles: ["SUPER_ADMIN", "FINANCE_ADMIN"] },
       },
       // === 风控 ===
       {
@@ -994,6 +1043,24 @@ const routes = [
         component: () => import("@/views/offline/OfflineVenueList.vue"),
         meta: { title: "线下驿站", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
+      {
+        path: "offline/checkins",
+        name: "OfflineCheckinList",
+        component: () => import("@/views/offline/OfflineCheckinList.vue"),
+        meta: { title: "驿站核销记录", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "offline/products",
+        name: "OfflineProductAdmin",
+        component: () => import("@/views/offline/OfflineProductAdmin.vue"),
+        meta: { title: "驿站商品监控", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "offline/bookings",
+        name: "OfflineBookingList",
+        component: () => import("@/views/offline/OfflineBookingList.vue"),
+        meta: { title: "师资预约监控", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
       // === 运营商管理 ===
       {
         path: "operators/picks",
@@ -1294,14 +1361,14 @@ const routes = [
         path: "station-backend",
         name: "StationBackend",
         component: () => import("@/views/station-backend/StationDashboard.vue"),
-        meta: { title: "分站权益中心" },
+        meta: { title: "分站权益中心", roles: ["SUPER_ADMIN", "STATION_MASTER"] },
       },
       // === 运营商后台（运营商自管理）===
       {
         path: "operator-backend",
         name: "OperatorBackend",
         component: () => import("@/views/operator-backend/OperatorDashboard.vue"),
-        meta: { title: "运营商权益中心" },
+        meta: { title: "运营商权益中心", roles: ["SUPER_ADMIN", "OPERATOR"] },
       },
       // === 403 ===
       {

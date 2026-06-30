@@ -51,7 +51,7 @@
         min-width="150"
       >
         <template #default="{ row }">
-          {{ row.station?.name || '-' }}<br><small style="color:#999">{{ row.station?.city }}</small>
+          {{ row.station?.name || '-' }}<br><small style="color:var(--color-text-secondary)">{{ row.station?.city }}</small>
         </template>
       </el-table-column>
       <el-table-column
@@ -118,6 +118,17 @@
           {{ row.createdAt ? new Date(row.createdAt).toLocaleString('zh-CN') : '-' }}
         </template>
       </el-table-column>
+      <template #empty>
+        <el-empty :description="loadError ? '加载失败' : '暂无申请记录'">
+          <el-button
+            v-if="loadError"
+            type="primary"
+            @click="fetchList"
+          >
+            重试
+          </el-button>
+        </el-empty>
+      </template>
     </el-table>
 
     <div
@@ -141,6 +152,7 @@ import { teacherRequestApi } from "@/api";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
+const loadError = ref(false);
 const statusFilter = ref("");
 const page = ref(1);
 const pageSize = 20;
@@ -156,12 +168,16 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  loadError.value = false;
   try {
     const params: any = { page: page.value, pageSize };
     if (statusFilter.value) params.status = statusFilter.value;
     const { data } = await teacherRequestApi.adminList(params);
     list.value = data.data || [];
     total.value = data.total || 0;
+  } catch {
+    list.value = [];
+    loadError.value = true;
   } finally { loading.value = false; }
 }
 </script>

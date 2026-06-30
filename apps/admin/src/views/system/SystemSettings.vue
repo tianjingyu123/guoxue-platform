@@ -11,6 +11,22 @@
       </template>
     </PageHeader>
 
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchConfigs"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="configs"
@@ -71,12 +87,16 @@
           <el-button
             type="danger"
             size="small"
+            :loading="deletingKey === row.configKey"
             @click="remove(row)"
           >
             删除
           </el-button>
         </template>
       </el-table-column>
+      <template #empty>
+        <el-empty description="暂无系统配置" />
+      </template>
     </el-table>
 
     <el-dialog
@@ -141,18 +161,25 @@ import PageHeader from "@/components/PageHeader.vue";
 
 const configs = ref<any[]>([]);
 const loading = ref(false);
+const loadError = ref(false);
 const dialogVisible = ref(false);
 const isEdit = ref(false);
 const saving = ref(false);
+const deletingKey = ref("");
 const form = ref({ configKey: "", configValue: "", description: "" });
 
 onMounted(() => fetchConfigs());
 
 async function fetchConfigs() {
   loading.value = true;
+  loadError.value = false;
   try {
     const { data } = await systemApi.listConfigs();
     configs.value = data.configs || [];
+  } catch {
+    loadError.value = true;
+    configs.value = [];
+    ElMessage.error("加载失败，请重试");
   } finally {
     loading.value = false;
   }
@@ -204,11 +231,17 @@ async function remove(row: any) {
     await ElMessageBox.confirm(`确定删除配置 "${row.configKey}"？`, "确认删除", {
       type: "warning",
     });
+  } catch {
+    return; // cancel
+  }
+  if (deletingKey.value) return;
+  deletingKey.value = row.configKey;
+  try {
     await systemApi.deleteConfig(row.configKey);
     ElMessage.success("已删除");
     fetchConfigs();
-  } catch {
-    // cancel
+  } finally {
+    deletingKey.value = "";
   }
 }
 </script>

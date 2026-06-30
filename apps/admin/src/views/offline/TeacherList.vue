@@ -101,6 +101,17 @@
           </el-button>
         </template>
       </el-table-column>
+      <template #empty>
+        <el-empty :description="loadError ? '加载失败' : '暂无教师数据'">
+          <el-button
+            v-if="loadError"
+            type="primary"
+            @click="fetchList"
+          >
+            重试
+          </el-button>
+        </el-empty>
+      </template>
     </el-table>
 
     <div
@@ -220,7 +231,7 @@
       </el-table>
       <div
         v-if="conflictMsg"
-        style="margin-top:8px;color:#f56c6c"
+        style="margin-top:8px;color:var(--color-error)"
       >
         {{ conflictMsg }}
       </div>
@@ -258,7 +269,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
-const loading = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+const loading = ref(false); const loadError = ref(false); const deleting = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
 const vis = ref(false); const editingId = ref('')
 const filter = reactive({ stationId: '' })
 const form = reactive({ name: '', stationId: '', avatar: '', specialtiesStr: '', bio: '', status: 'ACTIVE' })
@@ -271,7 +282,8 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true
-  try { const { data } = await api.get('/offline/admin/teachers', { params: { page: page.value, pageSize: 20, stationId: filter.stationId || undefined } }); list.value = data.items || data.data || []; total.value = data.total || 0 } catch { list.value = [] } finally { loading.value = false }
+  loadError.value = false
+  try { const { data } = await api.get('/offline/admin/teachers', { params: { page: page.value, pageSize: 20, stationId: filter.stationId || undefined } }); list.value = data.items || data.data || []; total.value = data.total || 0 } catch { list.value = []; loadError.value = true } finally { loading.value = false }
 }
 
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', stationId: '', avatar: '', specialtiesStr: '', bio: '', status: 'ACTIVE' }); vis.value = true }
@@ -291,7 +303,14 @@ async function save() {
   } catch { } finally { saving.value = false }
 }
 
-async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await api.delete(`/offline/admin/teachers/${id}`); ElMessage.success('已删除'); fetchList() } catch {} }
+async function del(id: string) {
+  try {
+    await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' })
+    if (deleting.value) return
+    deleting.value = true
+    await api.delete(`/offline/admin/teachers/${id}`); ElMessage.success('已删除'); fetchList()
+  } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败') } finally { deleting.value = false }
+}
 
 function openSchedule(row: any) {
   scheduleTeacherId.value = row.id; scheduleMonth.value = new Date().toISOString().slice(0, 7); schedule.value = []; conflictMsg.value = ''

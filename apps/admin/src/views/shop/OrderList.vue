@@ -11,6 +11,9 @@ const total = ref(0);
 const page = ref(1);
 const pageSize = ref(20);
 const loading = ref(false);
+const error = ref(false);
+const acting = ref(false);
+const savingLogistics = ref(false);
 const filterStatus = ref("");
 
 // 物流弹窗
@@ -44,12 +47,17 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const { data } = await orderApi.list({
       page: page.value, pageSize: pageSize.value, status: filterStatus.value || undefined,
     });
     orders.value = data.orders;
     total.value = data.total;
+  } catch {
+    orders.value = [];
+    total.value = 0;
+    error.value = true;
   } finally { loading.value = false; }
 }
 
@@ -62,19 +70,23 @@ async function handlePay(orderId: string) {
       "支付确认",
       { type: "warning", confirmButtonText: "确认收款" },
     );
+    if (acting.value) return;
+    acting.value = true;
     await orderApi.pay(orderId);
     ElMessage.success("支付确认成功");
     fetchList();
-  } catch { /* */ }
+  } catch { /* */ } finally { acting.value = false; }
 }
 
 async function handleShip(orderId: string) {
   try {
     await ElMessageBox.confirm("确认要发货吗？", "操作确认", { type: "warning", confirmButtonText: "确认发货" });
+    if (acting.value) return;
+    acting.value = true;
     await orderApi.ship(orderId);
     ElMessage.success("发货成功");
     fetchList();
-  } catch { /* */ }
+  } catch { /* */ } finally { acting.value = false; }
 }
 
 async function handleRefund(orderId: string) {
@@ -84,19 +96,23 @@ async function handleRefund(orderId: string) {
       "退款确认",
       { type: "warning", confirmButtonText: "确认退款", confirmButtonClass: "el-button--danger" },
     );
+    if (acting.value) return;
+    acting.value = true;
     await orderApi.refund(orderId);
     ElMessage.success("退款成功");
     fetchList();
-  } catch { /* */ }
+  } catch { /* */ } finally { acting.value = false; }
 }
 
 async function handleComplete(orderId: string) {
   try {
     await ElMessageBox.confirm("确认要完成该订单吗？", "操作确认", { type: "info", confirmButtonText: "确认完成" });
+    if (acting.value) return;
+    acting.value = true;
     await orderApi.complete(orderId);
     ElMessage.success("订单已完成");
     fetchList();
-  } catch { /* */ }
+  } catch { /* */ } finally { acting.value = false; }
 }
 
 async function openLogistics(row: any) {
@@ -121,6 +137,8 @@ async function openLogistics(row: any) {
 }
 
 async function saveLogistics() {
+  if (savingLogistics.value) return;
+  savingLogistics.value = true;
   try {
     const payload: any = {};
     Object.entries(logisticsForm).forEach(([k, v]) => { if (v) payload[k] = v; });
@@ -128,7 +146,7 @@ async function saveLogistics() {
     ElMessage.success("物流信息已保存");
     logisticsVisible.value = false;
     fetchList();
-  } catch { /* */ }
+  } catch { /* */ } finally { savingLogistics.value = false; }
 }
 
 function exportData() {
@@ -153,6 +171,24 @@ function exportData() {
 <template>
   <div class="order-list">
     <PageHeader title="订单管理" />
+    <el-alert
+      v-if="error"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <template #title>
+        加载失败，请
+        <el-button
+          link
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-alert>
     <DataTable
       v-model:page="page"
       v-model:page-size="pageSize"
@@ -338,6 +374,7 @@ function exportData() {
         </el-button>
         <el-button
           type="primary"
+          :loading="savingLogistics"
           @click="saveLogistics"
         >
           保存

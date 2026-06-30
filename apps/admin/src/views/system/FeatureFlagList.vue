@@ -5,6 +5,7 @@ import { api } from '@/api'
 
 const loading = ref(false)
 const saving = ref(false)
+const loadError = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -26,11 +27,12 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true
+  loadError.value = false
   try {
     const { data } = await api.get(BASE, { params: { page: page.value, pageSize: 20 } })
     list.value = Array.isArray(data) ? data : (data?.items ?? data?.data ?? data?.featureFlags ?? [])
     total.value = data?.total || (Array.isArray(data) ? data.length : 0)
-  } catch { list.value = [] } finally { loading.value = false }
+  } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
 function openCreate() {
@@ -96,6 +98,22 @@ async function del(id: string) {
       </el-button>
     </div>
 
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
@@ -124,7 +142,7 @@ async function del(id: string) {
             :model-value="row.enabled"
             @change="toggleEnabled(row)"
           />
-          <span :style="{ color: row.enabled ? '#67c23a' : '#f56c6c', marginLeft: '6px', fontSize: '12px' }">{{ row.enabled ? 'ON' : 'OFF' }}</span>
+          <span :style="{ color: row.enabled ? 'var(--color-success)' : 'var(--color-error)', marginLeft: '6px', fontSize: '12px' }">{{ row.enabled ? 'ON' : 'OFF' }}</span>
         </template>
       </el-table-column>
       <el-table-column

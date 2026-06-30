@@ -28,11 +28,30 @@
       </el-select>
     </div>
 
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="filteredWords"
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无敏感词" />
+      </template>
       <el-table-column
         prop="word"
         label="敏感词"
@@ -71,7 +90,7 @@
       </el-table-column>
     </el-table>
 
-    <div style="margin-top:12px;color:#999">
+    <div style="margin-top:12px;color:var(--color-text-secondary)">
       共 {{ words.length }} 个敏感词
     </div>
 
@@ -196,6 +215,7 @@ interface SensitiveWord {
 
 const words = ref<SensitiveWord[]>([])
 const loading = ref(false)
+const loadError = ref(false)
 const saving = ref(false)
 const searchWord = ref('')
 const filterScope = ref('')
@@ -242,11 +262,12 @@ onMounted(() => fetchList())
 
 async function fetchList() {
   loading.value = true
+  loadError.value = false
   try {
     const res = await sensitiveWordApi.list()
     const raw: any[] = (res.data as any)?.words || []
     words.value = raw.map((w: any) => typeof w === 'string' ? { word: w, scopes: [], level: 'MEDIUM' } : w)
-  } finally { loading.value = false }
+  } catch { loadError.value = true; words.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
 function openAdd() { addWord.value = ''; addWords.value = ''; addMode.value = 'single'; addScope.value = []; addLevel.value = 'MEDIUM'; addDialog.value = true }

@@ -5,6 +5,7 @@ import { systemApi } from '@/api'
 
 const loading = ref(false)
 const saving = ref(false)
+const loadError = ref(false)
 const list = ref<any[]>([])
 const vis = ref(false)
 const editingId = ref('')
@@ -28,6 +29,7 @@ const sortedList = computed(() => {
 
 async function fetchList() {
   loading.value = true
+  loadError.value = false
   try {
     const { data } = await systemApi.listConfigs()
     const items: any[] = []
@@ -39,7 +41,7 @@ async function fetchList() {
       }
     })
     list.value = items
-  } catch { list.value = [] } finally { loading.value = false }
+  } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
 function openCreate() {
@@ -123,6 +125,22 @@ async function del(row: any) {
       </el-button>
     </div>
 
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="加载失败"
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="sortedList"
@@ -172,7 +190,7 @@ async function del(row: any) {
             @click.stop
             @change="toggleStatus(row)"
           />
-          <span :style="{ color: row.enabled ? '#67c23a' : '#f56c6c', marginLeft: '6px', fontSize: '12px' }">{{ row.enabled ? '启用' : '禁用' }}</span>
+          <span :style="{ color: row.enabled ? 'var(--color-success)' : 'var(--color-error)', marginLeft: '6px', fontSize: '12px' }">{{ row.enabled ? '启用' : '禁用' }}</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -236,7 +254,7 @@ async function del(row: any) {
               %
             </template>
           </el-input-number>
-          <div style="color:#999;font-size:12px;margin-top:4px">
+          <div style="color:var(--color-text-secondary);font-size:12px;margin-top:4px">
             设置运营商的分成百分比
           </div>
         </el-form-item>
@@ -262,7 +280,7 @@ async function del(row: any) {
             :min="0"
             style="width:100%"
           />
-          <div style="color:#999;font-size:12px;margin-top:4px">
+          <div style="color:var(--color-text-secondary);font-size:12px;margin-top:4px">
             数值越小越靠前
           </div>
         </el-form-item>

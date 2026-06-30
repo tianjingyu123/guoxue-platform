@@ -2,7 +2,7 @@
   <div class="page">
     <div class="toolbar">
       <h3>AI 协作审核</h3>
-      <span style="color:#909399;font-size:13px">人机协作提案审核：低风险自动执行、中风险需确认、高风险必须人工审批</span>
+      <span style="color:var(--color-text-secondary);font-size:13px">人机协作提案审核：低风险自动执行、中风险需确认、高风险必须人工审批</span>
     </div>
 
     <!-- 概览卡片 -->
@@ -134,7 +134,23 @@
 
     <!-- 列表 -->
     <el-card>
+      <el-empty
+        v-if="loadErr"
+        description="加载失败，请重试"
+      >
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </el-empty>
+      <el-empty
+        v-else-if="!loading && list.length === 0"
+        description="暂无协作提案"
+      />
       <el-table
+        v-else
         v-loading="loading"
         :data="list"
         stripe
@@ -455,7 +471,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { aiCollaborationApi } from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-const loading = ref(false); const list = ref<any[]>([]); const total = ref(0)
+const loading = ref(false); const loadErr = ref(false); const list = ref<any[]>([]); const total = ref(0)
 const page = ref(1); const pageSize = 20
 const filterStatus = ref(''); const filterRisk = ref('')
 const overview = ref<any>({})
@@ -491,7 +507,7 @@ function statusTagType(s: string) {
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
-  loading.value = true
+  loading.value = true; loadErr.value = false
   try {
     const params: any = { limit: pageSize, offset: (page.value - 1) * pageSize }
     if (filterStatus.value) params.status = filterStatus.value
@@ -499,7 +515,7 @@ async function fetchList() {
     const res = await aiCollaborationApi.list(params)
     list.value = res.data?.items || []
     total.value = res.data?.total || 0
-  } catch { /* ignore */ }
+  } catch { loadErr.value = true; list.value = [] }
   finally { loading.value = false }
 }
 
@@ -600,11 +616,11 @@ async function showDetail(item: any) {
 
 <style scoped>
 .toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:8px }
-.stat-card { background:#f5f7fa; border-radius:8px; padding:16px; text-align:center; transition: all 0.2s }
+.stat-card { background:var(--color-bg-page); border-radius:8px; padding:16px; text-align:center; transition: all 0.2s }
 .stat-card:hover { transform: translateY(-2px); box-shadow: 0 2px 8px rgba(0,0,0,0.08) }
 .stat-card.danger { background:#fef0f0; border:1px solid #fde2e2 }
 .stat-card.warn { background:#fdf6ec; border:1px solid #faecd8 }
 .stat-card.info { background:#ecf5ff; border:1px solid #d9ecff }
 .stat-card .value { display:block; font-size:28px; font-weight:700; line-height:1.2 }
-.stat-card .label { display:block; font-size:12px; color:#909399; margin-top:4px }
+.stat-card .label { display:block; font-size:12px; color:var(--color-text-secondary); margin-top:4px }
 </style>

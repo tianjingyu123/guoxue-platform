@@ -41,12 +41,33 @@
       </template>
     </PageHeader>
 
+    <!-- 错误态 -->
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="直播列表加载失败"
+      sub-title="无法获取数据，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       border
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无直播数据" />
+      </template>
       <el-table-column
         prop="title"
         label="直播间"
@@ -226,6 +247,7 @@ import { liveApi } from "@/api";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
+const loadError = ref(false);
 const statusFilter = ref("");
 const detailVisible = ref(false);
 const detail = ref<any>(null);
@@ -249,11 +271,15 @@ function statusLabel(s: string) {
 
 async function fetchList() {
   loading.value = true;
+  loadError.value = false;
   try {
     const params: any = { pageSize: 100 };
     if (statusFilter.value) params.status = statusFilter.value;
     const { data } = await liveApi.rooms(params);
     list.value = data.rooms || data || [];
+  } catch {
+    loadError.value = true;
+    list.value = [];
   } finally { loading.value = false; }
 }
 
@@ -327,5 +353,5 @@ function del(id: string) {
 
 <style scoped>
 .page { padding: 0; }
-.detail p { margin: 6px 0; font-size: 14px; color: #333; }
+.detail p { margin: 6px 0; font-size: 14px; color: var(--color-text-title); }
 </style>

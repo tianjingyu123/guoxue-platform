@@ -150,9 +150,22 @@
         </el-table-column>
       </el-table>
       <el-empty
-        v-if="!loading && templates.length === 0"
+        v-if="!loading && !loadErr && templates.length === 0"
         description="暂无模板"
       />
+      <div
+        v-if="!loading && loadErr"
+        class="load-error"
+      >
+        <el-empty description="加载失败，请重试">
+          <el-button
+            type="primary"
+            @click="fetchList"
+          >
+            重新加载
+          </el-button>
+        </el-empty>
+      </div>
     </el-card>
 
     <!-- 编辑/创建对话框 -->
@@ -329,6 +342,7 @@ function sceneLabel(s: string) {
 }
 
 const loading = ref(false);
+const loadErr = ref(false);
 const templates = ref<any[]>([]);
 const filterScene = ref("");
 const filterStatus = ref("");
@@ -354,12 +368,16 @@ function formatTime(t: string) {
 
 async function fetchList() {
   loading.value = true;
+  loadErr.value = false;
   try {
     const params: any = {};
     if (filterScene.value) params.scene = filterScene.value;
     if (filterStatus.value) params.status = filterStatus.value;
     const { data } = await ragTemplateApi.list(params);
     templates.value = (data as any[]) || [];
+  } catch {
+    loadErr.value = true;
+    templates.value = [];
   } finally {
     loading.value = false;
   }
@@ -437,10 +455,11 @@ onMounted(() => fetchList());
 .rag-template { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .page-header h2 { margin: 0; font-size: 20px; }
-.desc { color: #909399; font-size: 13px; margin-bottom: 12px; }
+.desc { color: var(--color-text-secondary); font-size: 13px; margin-bottom: 12px; }
 
 .filter-bar { display: flex; align-items: center; }
+.load-error { padding: 20px 0; }
 
 pre { margin: 0; white-space: pre-wrap; font-size: 13px; line-height: 1.5; }
-.preview-content { background: #f5f7fa; padding: 16px; border-radius: 8px; white-space: pre-wrap; line-height: 1.6; font-size: 14px; }
+.preview-content { background: var(--color-bg-page); padding: 16px; border-radius: 8px; white-space: pre-wrap; line-height: 1.6; font-size: 14px; }
 </style>

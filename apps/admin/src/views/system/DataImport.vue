@@ -51,7 +51,7 @@
               选择文件
             </el-button>
             <template #tip>
-              <span style="margin-left:8px;color:#999">仅支持 CSV 格式，最大 10MB</span>
+              <span style="margin-left:8px;color:var(--color-text-secondary)">仅支持 CSV 格式，最大 10MB</span>
             </template>
           </el-upload>
         </el-form-item>
@@ -131,7 +131,7 @@
       <div v-else-if="importType === 'user'">
         <p><strong>用户</strong> — 列：nickname, phone, email, gender(0/1), bio</p>
       </div>
-      <p style="color:#999;margin-top:8px">
+      <p style="color:var(--color-text-secondary);margin-top:8px">
         第一行为表头，编码需为 UTF-8
       </p>
     </el-card>
@@ -140,7 +140,7 @@
       <template #header>
         殆知阁古籍自动导入
       </template>
-      <p style="color:#666;margin-bottom:12px">
+      <p style="color:var(--color-text-body);margin-bottom:12px">
         从 daizhige.org 自动采集古籍全文，当前索引 <strong>8,860</strong> 部。
         需先运行 <code>py scripts/daizhige-scraper.py index && download N && generate</code> 生成种子文件。
       </p>
@@ -260,8 +260,9 @@ async function doImport() {
     const res = await importApi.importCsv(importType.value, file.value)
     importResult.value = res.data
     ElMessage.success('导入完成')
-  } catch (e: any) { }
-  finally { importing.value = false }
+  } catch (e: any) {
+    ElMessage.error('导入失败: ' + (e.response?.data?.message || e.message))
+  } finally { importing.value = false }
 }
 
 // ── 殆知阁自动导入 ──

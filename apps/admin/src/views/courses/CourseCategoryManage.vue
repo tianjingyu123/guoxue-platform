@@ -40,8 +40,28 @@
       </el-col>
     </el-row>
 
+    <!-- 错误态 -->
+    <el-result
+      v-if="loadError"
+      icon="error"
+      title="课程品类树加载失败"
+      sub-title="无法获取课程分类数据，请检查网络或稍后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchTree"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <!-- 分类树预览 -->
-    <el-card v-loading="loading">
+    <el-card
+      v-else
+      v-loading="loading"
+    >
       <template #header>
         <span>课程品类树</span>
       </template>
@@ -144,14 +164,6 @@
         >
           + 添加一级分类
         </el-button>
-        <el-button
-          size="small"
-          type="warning"
-          style="margin-left:8px"
-          @click="resetToDefault"
-        >
-          恢复默认
-        </el-button>
       </div>
       <template #footer>
         <el-button @click="showEditTree = false">
@@ -175,6 +187,7 @@ import { ElMessage } from "element-plus"
 import { systemApi } from "@/api"
 
 const loading = ref(false)
+const loadError = ref(false)
 const categoryTree = ref<Record<string, string[]>>({})
 const totalSub = computed(() => Object.values(categoryTree.value).reduce((s, arr) => s + arr.length, 0))
 
@@ -182,34 +195,16 @@ onMounted(() => fetchTree())
 
 async function fetchTree() {
   loading.value = true
+  loadError.value = false
   try {
     const { data } = await systemApi.getCourseCategoryTree()
-    if (data && Object.keys(data).length > 0) {
-      categoryTree.value = data
-    } else {
-      // 加载默认值
-      categoryTree.value = getDefaultTree()
-    }
+    // 真连后端：无配置 → 空态（模板已提示去编辑添加），不回退本地假分类树
+    categoryTree.value = (data && typeof data === "object") ? data : {}
   } catch {
-    categoryTree.value = getDefaultTree()
+    // 加载失败 → 错误态，绝不静默回退假数据掩盖错误
+    loadError.value = true
+    categoryTree.value = {}
   } finally { loading.value = false }
-}
-
-function getDefaultTree(): Record<string, string[]> {
-  return {
-    "国学经典": ["儒家经典", "道家典籍", "佛学经典", "诸子百家"],
-    "易经命理": ["八字命理", "紫微斗数", "风水堪舆", "姓名学", "六爻占卜"],
-    "中医养生": ["中医基础", "食疗药膳", "经络穴位", "四季养生", "导引吐纳"],
-    "道家文化": ["道门经典", "内丹修炼", "符箓科仪", "道教历史"],
-    "儒家文化": ["四书五经", "宋明理学", "礼乐文化", "家训家风"],
-    "诗词文学": ["唐诗鉴赏", "宋词赏析", "古文观止", "现代诗词创作"],
-    "书法绘画": ["书法入门", "国画技法", "名家鉴赏", "篆刻艺术"],
-    "茶道香道": ["茶道文化", "香道文化", "茶具鉴赏", "品茶技法"],
-    "武术太极": ["太极拳", "八段锦", "武术基础", "养生气功"],
-    "民俗节庆": ["传统节日", "民俗活动", "民间故事", "礼仪习俗"],
-    "非遗传承": ["传统技艺", "传统美术", "传统音乐"],
-    "其他": ["通识入门", "专题讲座", "综合课程"],
-  }
 }
 
 // ── 编辑 ──
@@ -248,14 +243,6 @@ function deleteLevel1(level1: string) {
   delete editTree.value[level1]
 }
 
-function resetToDefault() {
-  editTree.value = JSON.parse(JSON.stringify(getDefaultTree()))
-  editLevel1Names.value = {}
-  for (const k of Object.keys(editTree.value)) {
-    editLevel1Names.value[k] = k
-  }
-}
-
 async function saveTree() {
   savingTree.value = true
   try {
@@ -275,11 +262,11 @@ async function saveTree() {
 
 <style scoped>
 .cat-page { padding: 0; }
-.stat-card { background: #f5f7fa; border-radius: 8px; padding: 16px; text-align: center; }
-.stat-card .value { display: block; font-size: 28px; font-weight: 700; color: #C41E3A; }
-.stat-card .label { display: block; font-size: 12px; color: #909399; margin-top: 4px; }
+.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 16px; text-align: center; }
+.stat-card .value { display: block; font-size: 28px; font-weight: 700; color: var(--color-primary); }
+.stat-card .label { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
 .tree-preview { display: flex; flex-direction: column; gap: 12px; }
-.level1-group { padding: 10px; border-radius: 8px; background: #faf8f5; }
+.level1-group { padding: 10px; border-radius: 8px; background: var(--color-bg-page); }
 .level1-name { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .level1-count { font-size: 12px; color: var(--color-text-secondary); }
 .level2-list { display: flex; flex-wrap: wrap; gap: 4px; }

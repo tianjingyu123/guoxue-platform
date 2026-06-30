@@ -13,11 +13,29 @@
             添加档位
           </el-button>
         </div>
+        <el-alert
+          v-if="loadError"
+          type="error"
+          :closable="false"
+          show-icon
+          title="加载失败，请重试"
+          style="margin-bottom:12px"
+        >
+          <el-button
+            size="small"
+            @click="fetchTiers"
+          >
+            重试
+          </el-button>
+        </el-alert>
         <el-table
           v-loading="loading"
           :data="tierList"
           stripe
         >
+          <template #empty>
+            <el-empty description="暂无充值档位" />
+          </template>
           <el-table-column
             prop="name"
             label="档位名称"
@@ -72,11 +90,29 @@
             添加礼物
           </el-button>
         </div>
+        <el-alert
+          v-if="loadError"
+          type="error"
+          :closable="false"
+          show-icon
+          title="加载失败，请重试"
+          style="margin-bottom:12px"
+        >
+          <el-button
+            size="small"
+            @click="fetchGifts"
+          >
+            重试
+          </el-button>
+        </el-alert>
         <el-table
           v-loading="loading"
           :data="giftList"
           stripe
         >
+          <template #empty>
+            <el-empty description="暂无礼物" />
+          </template>
           <el-table-column
             prop="name"
             label="礼物名"
@@ -267,7 +303,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
-const loading = ref(false); const saving = ref(false)
+const loading = ref(false); const loadError = ref(false); const saving = ref(false)
 const tierList = ref<any[]>([]); const giftList = ref<any[]>([]); const total = ref(0); const page = ref(1)
 const activeTab = ref('tiers')
 const vis = ref(false); const editingId = ref(''); const dialogTitle = ref('添加档位')
@@ -284,6 +320,7 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchTiers() {
   loading.value = true
+  loadError.value = false
   try {
     const { data } = await api.get('/system/configs', { params: { keyPrefix: TIER_PREFIX } })
     const items = data?.configs ?? data?.data ?? []
@@ -291,16 +328,17 @@ async function fetchTiers() {
       const val = typeof item.value === 'string' ? JSON.parse(item.value) : item.value
       return { ...val, _key: item.key, _id: item.id }
     })
-  } catch { tierList.value = [] } finally { loading.value = false }
+  } catch { loadError.value = true; tierList.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
 async function fetchGifts() {
   loading.value = true
+  loadError.value = false
   try {
     const { data } = await api.get(GIFT_BASE, { params: { page: page.value, pageSize: 20 } })
     giftList.value = data.gifts || data.data || []
     total.value = data.total || 0
-  } catch { giftList.value = [] } finally { loading.value = false }
+  } catch { loadError.value = true; giftList.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
 function openCreateTier() {

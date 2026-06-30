@@ -23,6 +23,7 @@ const form = reactive({
 
 const result = ref<any>(null)
 const loading = ref(false)
+const error = ref(false)
 
 const tianGan = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸']
 const diZhi = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥']
@@ -33,10 +34,14 @@ async function doCalc() {
     ElMessage.warning('请选择年份干支')
     return
   }
+  if (loading.value) return // 防重复
   loading.value = true
+  error.value = false
   try {
     result.value = await paipanApi.ziweiPreview({ ...form })
-  } catch (e: any) {
+  } catch {
+    error.value = true
+    ElMessage.error('排盘失败，请稍后重试')
   } finally {
     loading.value = false
   }
@@ -177,9 +182,27 @@ function starClass(star: any) {
       </el-form>
     </div>
 
+    <!-- 错误态 -->
+    <el-result
+      v-if="error"
+      icon="error"
+      title="加载失败"
+      sub-title="排盘请求失败，请检查输入后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          :loading="loading"
+          @click="doCalc"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <!-- 结果展示 -->
     <div
-      v-if="result"
+      v-if="result && !error"
       class="result-area"
     >
       <!-- 概览 -->
@@ -262,7 +285,7 @@ function starClass(star: any) {
 
     <!-- 空状态 -->
     <div
-      v-if="!result && !loading"
+      v-if="!result && !loading && !error"
       class="empty-state"
     >
       <p>请输入出生信息，点击"排盘"查看紫微斗数命盘</p>
@@ -280,7 +303,7 @@ function starClass(star: any) {
 .input-panel {
   background: #fff;
   padding: 16px 24px;
-  border-bottom: 1px solid #E8E0D5;
+  border-bottom: 1px solid var(--color-border);
   box-shadow: 0 1px 3px rgba(0,0,0,.06);
 }
 .input-panel h2 {
@@ -329,7 +352,7 @@ function starClass(star: any) {
   border: 1px solid #e8dcc8;
   border-radius: 8px;
   padding: 12px;
-  border-left: 3px solid #E8E0D5;
+  border-left: 3px solid var(--color-border);
 }
 .gong-card.ming {
   border-left-color: #8b4513;
@@ -345,11 +368,11 @@ function starClass(star: any) {
   border-bottom: 1px dashed #f0e6d3;
 }
 .gong-title-row { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
-.gong-name { font-size: 14px; font-weight: bold; color: #333; }
+.gong-name { font-size: 14px; font-weight: bold; color: var(--color-text-title); }
 .gong-badge { font-size: 10px; padding: 1px 5px; border-radius: 4px; color: #fff; }
 .gong-badge.ming { background: #8b4513; }
 .gong-badge.shen { background: #e6a23c; }
-.gong-ganzhi { font-size: 13px; color: #666; display: block; }
+.gong-ganzhi { font-size: 13px; color: var(--color-text-body); display: block; }
 .gong-daxian { font-size: 11px; color: #bbb; display: block; }
 
 .gong-stars {
@@ -375,7 +398,7 @@ function starClass(star: any) {
 .star-xiong { background: #fef0f0; color: #f56c6c; }
 .star-neutral { background: #f5f5f5; color: #909399; }
 
-.gong-extra { padding-top: 6px; border-top: 1px dashed #f0f0f0; }
+.gong-extra { padding-top: 6px; border-top: 1px dashed var(--color-divider); }
 .extra-item { font-size: 10px; color: var(--color-text-placeholder); display: block; line-height: 1.6; }
 
 .empty-state {

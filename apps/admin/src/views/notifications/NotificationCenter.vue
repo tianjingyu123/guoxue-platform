@@ -7,6 +7,10 @@ const notifications = ref<any[]>([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
+const loadError = ref(false);
+const sending = ref(false);
+const batchSending = ref(false);
+const deleting = ref(false);
 
 // 发送表单
 const sendForm = ref({ title: "", content: "", type: "SYSTEM", targetUserId: "", link: "" });
@@ -20,14 +24,16 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  loadError.value = false;
   try {
     const { data } = await notificationApi.list({ page: page.value, pageSize: 20 });
     notifications.value = data.notifications;
     total.value = data.total;
-  } finally { loading.value = false; }
+  } catch { loadError.value = true; } finally { loading.value = false; }
 }
 
 async function handleSend() {
+  if (sending.value) return;
   const payload = {
     type: sendForm.value.type,
     title: sendForm.value.title,
@@ -35,13 +41,19 @@ async function handleSend() {
     ...(sendForm.value.targetUserId ? { userId: sendForm.value.targetUserId } : {}),
     ...(sendForm.value.link ? { targetType: "LINK" as const, targetId: sendForm.value.link } : {}),
   };
-  await notificationApi.send(payload);
-  ElMessage.success("已发送");
-  showSend.value = false;
-  sendForm.value = { title: "", content: "", type: "SYSTEM", targetUserId: "", link: "" };
+  sending.value = true;
+  try {
+    await notificationApi.send(payload);
+    ElMessage.success("已发送");
+    showSend.value = false;
+    sendForm.value = { title: "", content: "", type: "SYSTEM", targetUserId: "", link: "" };
+  } finally {
+    sending.value = false;
+  }
 }
 
 async function handleBatchSend() {
+  if (batchSending.value) return;
   const payload = {
     userIds: [] as string[],
     type: batchForm.value.type,
@@ -49,24 +61,33 @@ async function handleBatchSend() {
     content: batchForm.value.content,
     ...(batchForm.value.link ? { targetType: "LINK" as const, targetId: batchForm.value.link } : {}),
   };
-  await notificationApi.batchSend(payload);
-  ElMessage.success("批量发送成功");
-  showBatch.value = false;
-  batchForm.value = { title: "", content: "", type: "SYSTEM", link: "" };
+  batchSending.value = true;
+  try {
+    await notificationApi.batchSend(payload);
+    ElMessage.success("批量发送成功");
+    showBatch.value = false;
+    batchForm.value = { title: "", content: "", type: "SYSTEM", link: "" };
+  } finally {
+    batchSending.value = false;
+  }
 }
 
 async function handleDelete(row: any) {
+  if (deleting.value) return;
   try {
     await ElMessageBox.confirm("确定删除该通知？", "提示", {
       confirmButtonText: "确定",
       cancelButtonText: "取消",
       type: "warning",
     });
+    deleting.value = true;
     await notificationApi.delete(row.id);
     ElMessage.success("已删除");
     fetchList();
   } catch {
     // 取消或失败不处理
+  } finally {
+    deleting.value = false;
   }
 }
 </script>
@@ -88,7 +109,24 @@ async function handleDelete(row: any) {
       </div>
     </div>
 
+    <el-result
+      v-if="loadError && !loading"
+      icon="error"
+      title="加载失败"
+      sub-title="请检查网络后重试"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
     <el-table
+      v-show="!loadError"
       v-loading="loading"
       :data="notifications"
       stripe
@@ -139,12 +177,19 @@ async function handleDelete(row: any) {
           <el-button
             size="small"
             type="danger"
+            :loading="deleting"
             @click="handleDelete(row)"
           >
             删除
           </el-button>
         </template>
       </el-table-column>
+      <template #empty>
+        <el-empty
+          description="暂无通知"
+          :image-size="80"
+        />
+      </template>
     </el-table>
 
     <el-pagination
@@ -223,6 +268,7 @@ async function handleDelete(row: any) {
         </el-button>
         <el-button
           type="primary"
+          :loading="sending"
           @click="handleSend"
         >
           发送
@@ -292,6 +338,7 @@ async function handleDelete(row: any) {
         </el-button>
         <el-button
           type="primary"
+          :loading="batchSending"
           @click="handleBatchSend"
         >
           批量发送

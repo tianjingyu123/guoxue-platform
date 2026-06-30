@@ -18,6 +18,22 @@
         <span style="font-size:13px">展示位置：<b>购物车页</b>自动匹配最优满减、<b>结算页</b>显示减免金额。创建后即生效。</span>
       </template>
     </el-alert>
+    <el-alert
+      v-if="error"
+      type="error"
+      title="数据加载失败"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <el-button
+        size="small"
+        type="primary"
+        @click="fetchList"
+      >
+        重试
+      </el-button>
+    </el-alert>
     <el-table
       v-loading="loading"
       :data="list"
@@ -80,6 +96,9 @@
           </el-button>
         </template>
       </el-table-column>
+      <template #empty>
+        <el-empty :description="error ? '加载失败，请重试' : '暂无数据'" />
+      </template>
     </el-table>
 
     <div
@@ -216,7 +235,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { marketingApi } from '@/api'
 import ProductPicker from '@/components/ProductPicker.vue'
 
-const loading = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1); const pages = ref<any[]>([])
+const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1); const pages = ref<any[]>([])
 const vis = ref(false); const editingId = ref('')
 const form = reactive<{ name: string; threshold: number; reduction: number; giftProductId: string; productIds: string[]; startTime: string; endTime: string; scope: string; scopePageId: string }>({ name: '', threshold: 100, reduction: 10, giftProductId: '', productIds: [], startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
 
@@ -231,10 +250,11 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true
+  error.value = false
   try {
     const { data } = await marketingApi.listFullReductions({ page: page.value, pageSize: 20 })
     list.value = data.items || data.fullReductions || data.list || data.data || []; total.value = data.total || 0
-  } catch { list.value = [] } finally { loading.value = false }
+  } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
 
 function openCreate() {
