@@ -181,28 +181,33 @@ export class OfflineService {
   async registerCourse(userId: string, courseId: string) {
     const course = await this.prisma.offlineCourse.findUnique({
       where: { id: courseId },
-      include: { _count: { select: { registrations: true } } },
     });
     if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
 
-    const existing = await this.prisma.offlineCourseRegistration.findUnique({
-      where: { courseId_userId: { courseId, userId } },
-    });
-    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "已报名该课程");
-
-    if (course._count.registrations >= course.maxStudents) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "课程名额已满");
-    }
-
     const qrCode = `QR_${courseId}_${userId}_${Date.now()}`;
-    try {
-      return this.prisma.offlineCourseRegistration.create({
-        data: { courseId, userId, qrCode },
+    // 行锁串行化防超卖：锁定课程行后，在锁内查重 + 计数 + 创建（消除 count-then-create 竞态）
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "OfflineCourse" WHERE id = ${courseId} FOR UPDATE`;
+
+      const existing = await tx.offlineCourseRegistration.findUnique({
+        where: { courseId_userId: { courseId, userId } },
       });
-    } catch (e: unknown) {
-      if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.BAD_REQUEST, "已报名该课程");
-      throw e;
-    }
+      if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "已报名该课程");
+
+      const count = await tx.offlineCourseRegistration.count({ where: { courseId } });
+      if (count >= course.maxStudents) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "课程名额已满");
+      }
+
+      try {
+        return await tx.offlineCourseRegistration.create({
+          data: { courseId, userId, qrCode },
+        });
+      } catch (e: unknown) {
+        if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.BAD_REQUEST, "已报名该课程");
+        throw e;
+      }
+    });
   }
 
   async cancelRegistration(userId: string, courseId: string) {
