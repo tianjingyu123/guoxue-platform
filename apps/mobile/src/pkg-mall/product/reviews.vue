@@ -1,16 +1,15 @@
 <script setup lang="ts">
-/** 商品评价页 - 从原型 app/mall/product/[id]/reviews/page.tsx 1:1 迁移 */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+/** 商品评价页 - 后端分页 + 排序(newest/withImages)下沉，useList 管理列表 */
+import { ref, computed } from 'vue'
+import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoadMore from '@/components/common/app-load-more.vue'
 import { goBack } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import { useList } from '@/composables/useList'
 
-const loading = ref(true)
-const error = ref(false)
 const reviewTags = ref<any[]>([])
 const reviewSortOptions = ref<any[]>([])
-const fullReviews = ref<any[]>([])
 const reviewSummary = ref<any>({ goodRatePercent: 0, rating: 0, total: 0 })
 
 const productId = ref('')
@@ -20,42 +19,29 @@ const showSortMenu = ref(false)
 const likedReviews = ref<(string | number)[]>([])
 const previewImage = ref<{ reviewId: string | number; index: number } | null>(null)
 
-const sortLabel = computed(() => reviewSortOptions.value.find((o: any) => o.id === sortBy.value)?.label)
-const sortedReviews = computed(() => {
-  const list = fullReviews.value.filter((r: any) => selectedTag.value === 'all' || r.tags.includes(selectedTag.value))
-  return [...list].sort((a: any, b: any) => {
-    switch (sortBy.value) {
-      case 'newest': return new Date(b.time).getTime() - new Date(a.time).getTime()
-      case 'withImages': return b.images.length - a.images.length
-      case 'mostLikes': return b.likes - a.likes
-      default: return 0
+// 排序下沉后端(newest/withImages)；首屏一并取回 summary/sortOptions/tags
+const { list: fullReviews, loading, error, isEmpty, loadStatus, refresh, loadMore } = useList<any>({
+  fetcher: async ({ page, pageSize }) => {
+    const data = await shopApi.getMallReviews(productId.value, page, sortBy.value, pageSize)
+    if (page === 1) {
+      reviewTags.value = data.tags || []
+      reviewSortOptions.value = data.sortOptions || []
+      reviewSummary.value = data.summary || { goodRatePercent: 0, rating: 0, total: 0 }
     }
-  })
+    return { items: data.reviews || [], total: data.total }
+  },
 })
-const previewReview = computed(() => fullReviews.value.find((r: any) => r.id === previewImage.value?.reviewId) || null)
 
-async function fetchData() {
-  loading.value = true
-  error.value = false
-  try {
-    const data = await shopApi.getMallReviews(productId.value)
-    reviewTags.value = data.tags || []
-    reviewSortOptions.value = data.sortOptions || []
-    fullReviews.value = data.reviews || []
-    reviewSummary.value = data.summary || { goodRatePercent: 0, rating: 0, total: 0 }
-  } catch (e) {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
-}
+const sortLabel = computed(() => reviewSortOptions.value.find((o: any) => o.id === sortBy.value)?.label)
+const previewReview = computed(() => fullReviews.value.find((r: any) => r.id === previewImage.value?.reviewId) || null)
 
 onLoad((query: any) => {
   productId.value = query?.id || query?.productId || ''
-  fetchData()
+  refresh()
 })
+onReachBottom(() => loadMore())
 
-function pickSort(id: string) { sortBy.value = id; showSortMenu.value = false }
+function pickSort(id: string) { sortBy.value = id; showSortMenu.value = false; refresh() }
 function toggleLike(id: string | number) {
   likedReviews.value = likedReviews.value.includes(id)
     ? likedReviews.value.filter((x) => x !== id)
@@ -85,7 +71,7 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
     <view v-else-if="error" class="state-wrap">
       <view class="state-icon"><AppIcon name="alert-circle" :size="56" color="#c41e3a" /></view>
       <text class="state-text">加载失败，请重试</text>
-      <view class="state-retry" @tap="fetchData"><text class="state-retry-text">点击重试</text></view>
+      <view class="state-retry" @tap="refresh"><text class="state-retry-text">点击重试</text></view>
     </view>
     <!-- 内容 -->
     <template v-else>
@@ -121,7 +107,7 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
 
     <!-- 排序栏 -->
     <view class="sort-bar">
-      <text class="sort-count">共 {{ sortedReviews.length }} 条评价</text>
+      <text class="sort-count">共 {{ reviewSummary.total }} 条评价</text>
       <view class="sort-dropdown">
         <view class="sort-trigger" @tap="showSortMenu = !showSortMenu">
           <text class="sort-text">{{ sortLabel }}</text>
@@ -138,7 +124,7 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
 
     <!-- 评价列表 -->
     <view class="review-list">
-      <view v-for="r in sortedReviews" :key="r.id" class="review-item">
+      <view v-for="r in fullReviews" :key="r.id" class="review-item">
         <view class="rv-head">
           <image lazy-load class="rv-avatar" :src="r.user.avatar" mode="aspectFill" />
           <view class="rv-info">
@@ -177,7 +163,9 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
       </view>
     </view>
 
-    <view v-if="!sortedReviews.length" class="empty">
+    <app-load-more v-if="!isEmpty" :status="loadStatus" />
+
+    <view v-if="isEmpty" class="empty">
       <view class="empty-icon"><AppIcon name="star" :size="56" color="var(--text-soft)" /></view>
       <text class="empty-text">暂无相关评价</text>
     </view>

@@ -732,8 +732,9 @@ export class ShopController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
-  listReviews(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.shop.listReviews(id, +page, +pageSize);
+  @ApiQuery({ name: "sort", required: false, type: String, description: "排序: newest(默认,最新) / withImages(有图优先)" })
+  listReviews(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("sort") sort?: string) {
+    return this.shop.listReviews(id, +page, +pageSize, sort);
   }
 
   @Post("reviews/:id/reply")

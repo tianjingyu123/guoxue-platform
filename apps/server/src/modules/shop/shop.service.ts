@@ -1552,15 +1552,20 @@ export class ShopService {
     return { average: count > 0 ? Number((sum / count).toFixed(1)) : 0, count, distribution };
   }
 
-  async listReviews(productId: string, page = 1, pageSize = 20) {
+  async listReviews(productId: string, page = 1, pageSize = 20, sort?: string) {
     const where = { productId, status: "PUBLISHED" };
+    const skip = (page - 1) * pageSize;
+    // withImages「有图优先」需按数组长度排序，Prisma orderBy 不支持 → 原生 SQL；其余按时间倒序
+    const reviewsQuery =
+      sort === "withImages"
+        ? this.prisma.$queryRaw<any[]>`
+            SELECT * FROM "ProductReview"
+            WHERE "productId" = ${productId} AND status = 'PUBLISHED'
+            ORDER BY (COALESCE(array_length(images, 1), 0) > 0) DESC, "createdAt" DESC
+            LIMIT ${pageSize} OFFSET ${skip}`
+        : this.prisma.productReview.findMany({ where, skip, take: pageSize, orderBy: { createdAt: "desc" } });
     const [rawReviews, total, stats] = await Promise.all([
-      this.prisma.productReview.findMany({
-        where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { createdAt: "desc" },
-      }),
+      reviewsQuery,
       this.prisma.productReview.count({ where }),
       this.getReviewStats(where),
     ]);

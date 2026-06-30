@@ -1751,11 +1751,11 @@ function adaptCategoryProduct(p: any): CategoryProduct {
 }
 
 /** mall 评价排序选项（UI 配置） */
+// mostLikes 已移除：后端评价无点赞体系(ProductReview 无 likeCount，likes 恒 0)，排序无意义
 const MALL_REVIEW_SORT_OPTIONS = [
   { id: 'default', label: '默认排序' },
   { id: 'newest', label: '最新评价' },
   { id: 'withImages', label: '有图优先' },
-  { id: 'mostLikes', label: '最多点赞' },
 ]
 
 /** 后端商品评价 → 前端 FullReview（后端无 level/spec/tags/likes，诚实降级；reply 取后端回复） */
@@ -2275,8 +2275,9 @@ export const shopApi = {
   },
 
   /** 获取mall评价 — GET /mall/product/:id/reviews */
-  async getMallReviews(_id: string): Promise<any> {
-    const res = await apiGet<any>(`/shop/products/${_id}/reviews?pageSize=50`)
+  async getMallReviews(_id: string, page = 1, sort?: string, pageSize = 20): Promise<any> {
+    const sortQs = sort && sort !== 'default' ? `&sort=${sort}` : ''
+    const res = await apiGet<any>(`/shop/products/${_id}/reviews?page=${page}&pageSize=${pageSize}${sortQs}`)
     const raw = res?.reviews || []
     const stats = res?.stats || {}
     const dist = stats.distribution || {}
@@ -2292,6 +2293,7 @@ export const shopApi = {
         rating: Number(stats.average ?? 0),
         total,
       },
+      total,
     }
   },
 }
