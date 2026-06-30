@@ -40,7 +40,7 @@ export const featuredTypeConfig: Record<StationFeaturedItem['type'], { icon: str
 }
 
 // Hero 轮播兜底图（后端 Station 无 heroImages 字段，用既有 banner 素材保证轮播组件可渲染）
-const DEFAULT_HERO = '/static/images/banners/banner-1.png'
+const DEFAULT_HERO = '/static/images/banners/banner-1.webp'
 
 function toYmd(d?: string | null): string {
   return d ? String(d).slice(0, 10) : ''

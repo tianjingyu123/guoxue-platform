@@ -13,9 +13,9 @@ export interface BannerItem {
 }
 
 export const defaultBanners: BannerItem[] = [
-  { id: '1', image: '/static/images/banners/banner-1.png', title: '八字命理入门精讲 限时优惠', link: '/pages/courses/index' },
-  { id: '2', image: '/static/images/banners/banner-2.png', title: '大师直播：2024下半年运势解读', link: '/pages/live/index' },
-  { id: '3', image: '/static/images/banners/banner-3.png', title: '新人专享 首单立减50元', link: '/pages/mall/index' },
+  { id: '1', image: '/static/images/banners/banner-1.webp', title: '八字命理入门精讲 限时优惠', link: '/pages/courses/index' },
+  { id: '2', image: '/static/images/banners/banner-2.webp', title: '大师直播：2024下半年运势解读', link: '/pages/live/index' },
+  { id: '3', image: '/static/images/banners/banner-3.webp', title: '新人专享 首单立减50元', link: '/pages/mall/index' },
 ]
 
 // ============================================

@@ -58,10 +58,10 @@ export const categories = [
 
 // 运营专栏 - 平台手动配置
 export const columns = [
-  { id: 'best-courses', title: '精选好课', subtitle: '名师系统课程', count: 36, href: '/topic/精选好课', cover: '/static/discover/board-courses.png', accent: '#A0621A' },
-  { id: 'hot-products', title: '热门好物', subtitle: '开运法器精选', count: 128, href: '/topic/热门好物', cover: '/static/discover/board-products.png', accent: '#8B2E2E' },
-  { id: 'new-classics', title: '古籍新上', subtitle: '经典原著典藏', count: 24, href: '/topic/古籍新上', cover: '/static/discover/board-classics.png', accent: '#7A5A20' },
-  { id: 'rec-circles', title: '推荐圈子', subtitle: '同好交流社群', count: 52, href: '/topic/推荐圈子', cover: '/static/discover/board-circles.png', accent: '#5A3E6B' },
+  { id: 'best-courses', title: '精选好课', subtitle: '名师系统课程', count: 36, href: '/topic/精选好课', cover: '/static/discover/board-courses.webp', accent: '#A0621A' },
+  { id: 'hot-products', title: '热门好物', subtitle: '开运法器精选', count: 128, href: '/topic/热门好物', cover: '/static/discover/board-products.webp', accent: '#8B2E2E' },
+  { id: 'new-classics', title: '古籍新上', subtitle: '经典原著典藏', count: 24, href: '/topic/古籍新上', cover: '/static/discover/board-classics.webp', accent: '#7A5A20' },
+  { id: 'rec-circles', title: '推荐圈子', subtitle: '同好交流社群', count: 52, href: '/topic/推荐圈子', cover: '/static/discover/board-circles.webp', accent: '#5A3E6B' },
 ]
 
 // 热搜词

@@ -30,9 +30,9 @@ interface Course {
 
 // 课程首页 Banner
 const courseBanners = [
-  { id: 'b1', image: '/static/images/banners/banner-1.png', title: '八字命理系统精讲 · 限时五折', link: '/course/c4' },
-  { id: 'b2', image: '/static/images/banners/banner-2.png', title: '紫微斗数大师直播课 火热报名', link: '/course/c1' },
-  { id: 'b3', image: '/static/images/banners/banner-3.png', title: '新人专享 · 名师好课首单立减', link: '/courses/flash-sale' },
+  { id: 'b1', image: '/static/images/banners/banner-1.webp', title: '八字命理系统精讲 · 限时五折', link: '/course/c4' },
+  { id: 'b2', image: '/static/images/banners/banner-2.webp', title: '紫微斗数大师直播课 火热报名', link: '/course/c1' },
+  { id: 'b3', image: '/static/images/banners/banner-3.webp', title: '新人专享 · 名师好课首单立减', link: '/courses/flash-sale' },
 ]
 
 // 分类导航（图标式，国学特色）
