@@ -3,10 +3,21 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
+interface MemberConfigRow {
+  id: string
+  name?: string
+  price?: number
+  durationDays?: number
+  benefits?: string
+  status?: string
+  updatedAt?: string
+  createdAt?: string
+}
+
 const loading = ref(false)
 const saving = ref(false)
 const loadError = ref(false)
-const list = ref<any[]>([])
+const list = ref<MemberConfigRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const vis = ref(false)
@@ -32,7 +43,7 @@ const BASE = '/system/member-configs'
 
 onMounted(() => fetchList())
 
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 const sortedList = computed(() => {
   return [...list.value].sort((a, b) => (a.price ?? 999999) - (b.price ?? 999999))
@@ -54,7 +65,7 @@ function openCreate() {
   vis.value = true
 }
 
-function openEdit(row: any) {
+function openEdit(row: MemberConfigRow) {
   editingId.value = row.id
   Object.assign(form, {
     name: row.name || 'NONE',

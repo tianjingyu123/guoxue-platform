@@ -375,6 +375,28 @@ import { ChatUI } from '@/components/ChatUI'
 import type { ChatUIConfig } from '@/components/ChatUI/types'
 import { systemApi, api } from "@/api";
 
+// 对话监控行
+interface ConversationRow {
+  userId?: string;
+  question?: string;
+  answer?: string;
+  resolved?: boolean;
+  transferred?: boolean;
+  createdAt?: string;
+}
+// 系统配置项
+interface SystemConfig { configKey?: string; configValue?: string }
+// 后端调用日志原始结构
+interface CallLogRaw {
+  userId?: string;
+  query?: string;
+  prompt?: string;
+  response?: string;
+  content?: string;
+  status?: string;
+  createdAt?: string;
+}
+
 const activeTab = ref("faq");
 const savingFaq = ref(false);
 const savingRules = ref(false);
@@ -394,7 +416,7 @@ const transferRules = reactive({
   keywordsStr: "退款,投诉,举报,人工,客服",
   lowConfidenceThreshold: 0.3,
   maxEmptyResponses: 3,
-  workHours: [new Date(2024, 0, 1, 9, 0), new Date(2024, 0, 1, 18, 0)] as any,
+  workHours: [new Date(2024, 0, 1, 9, 0), new Date(2024, 0, 1, 18, 0)] as [Date, Date],
   offHoursMessage: "当前为非工作时间，客服将在工作日9:00-18:00为您服务，请先留言或查看帮助中心。",
   pushCard: true,
 });
@@ -415,7 +437,7 @@ const csChatConfig: ChatUIConfig = {
 // 对话监控
 const monitorKeyword = ref("");
 const monitorStatus = ref("");
-const conversations = ref<any[]>([]);
+const conversations = ref<ConversationRow[]>([]);
 const convLoading = ref(false);
 const convErr = ref(false);
 
@@ -431,8 +453,8 @@ async function refresh() {
 async function loadFaq() {
   try {
     const { data } = await systemApi.listConfigs();
-    const configs = (data as any)?.configs || [];
-    const faqCfg = configs.find((c: any) => c.configKey === "customer_service_faq");
+    const configs = (data as { configs?: SystemConfig[] })?.configs || [];
+    const faqCfg = configs.find((c) => c.configKey === "customer_service_faq");
     if (faqCfg?.configValue) {
       const parsed = JSON.parse(faqCfg.configValue);
       faqData.value = parsed.entries || {};
@@ -507,8 +529,8 @@ function removeFaqEntry(cat: string, idx: number) {
 async function loadRules() {
   try {
     const { data } = await systemApi.listConfigs();
-    const configs = (data as any)?.configs || [];
-    const cfg = configs.find((c: any) => c.configKey === "customer_service_rules");
+    const configs = (data as { configs?: SystemConfig[] })?.configs || [];
+    const cfg = configs.find((c) => c.configKey === "customer_service_rules");
     if (cfg?.configValue) {
       const parsed = JSON.parse(cfg.configValue);
       Object.assign(transferRules, parsed);
@@ -543,11 +565,11 @@ async function fetchConversations() {
   convLoading.value = true;
   convErr.value = false;
   try {
-    const params: any = { page: 1, pageSize: 20, scene: "customer_service" };
+    const params: Record<string, string | number> = { page: 1, pageSize: 20, scene: "customer_service" };
     if (monitorKeyword.value) params.keyword = monitorKeyword.value;
     const { data } = await api.get("/ai/call-logs", { params });
-    const d = data as any;
-    conversations.value = (d?.list || d?.data || []).map((log: any) => ({
+    const d = data as { list?: CallLogRaw[]; data?: CallLogRaw[] };
+    conversations.value = (d?.list || d?.data || []).map((log) => ({
       userId: log.userId,
       question: log.query || log.prompt,
       answer: log.response || log.content,
@@ -561,7 +583,7 @@ async function fetchConversations() {
 async function fetchStats() {
   try {
     const { data } = await api.get("/ai/usage-stats", { params: { period: "month" } });
-    const d = data as any;
+    const d = data as { totalCalls?: number; todayCalls?: number; successRate?: number; avgLatencyMs?: number };
     stats.totalConversations = d?.totalCalls || 0;
     stats.todayConversations = d?.todayCalls || 0;
     stats.autoResolveRate = d?.successRate || 0;

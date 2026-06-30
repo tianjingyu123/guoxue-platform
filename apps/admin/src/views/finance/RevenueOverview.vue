@@ -278,8 +278,14 @@ function fmt(v: number | string | undefined | null) {
   return Number(v).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// 收入构成明细项
+interface BreakdownItem { label: string; value: number; percent: string }
+// 营收趋势点（后端字段不固定，宽松定义）
+interface TrendPoint { date?: string; amount?: number; revenue?: number; value?: number; refund?: number }
+
 const lastUpdate = ref("");
 const timeRange = ref("30d");
+// el-date-picker daterange 的 v-model，类型由组件维护，保留 any 避免框架类型冲突
 const customRange = ref<any>(null);
 
 const metrics = reactive({
@@ -291,7 +297,7 @@ const metrics = reactive({
   avgOrder: 0, payingUsers: 0,
 });
 
-const breakdownItems = ref<any[]>([]);
+const breakdownItems = ref<BreakdownItem[]>([]);
 
 const trendChart = ref(null);
 const pieChart = ref(null);
@@ -318,6 +324,7 @@ function getTimeParams() {
 async function refresh() {
   const params = getTimeParams();
   try {
+    // params 形状随时间范围而变（{days} 或 {startDate,endDate}），与各接口入参类型不完全一致，保留 as any
     const [overviewRes, statsRes, breakdownRes, trendsRes] = await Promise.all([
       revenueApi.platformOverview(),
       revenueApi.stats(params as any),
@@ -325,7 +332,7 @@ async function refresh() {
       revenueApi.platformTrends(params as any),
     ]);
 
-    const overview = overviewRes.data as any;
+    const overview = overviewRes.data as Record<string, any>;
     if (overview) {
       // 后端返回 totalRmb / totalCoin / totalCount / monthRmb / todayRmb / byScene
       metrics.totalRevenue = Number(overview.totalRmb || overview.totalRevenue || overview.total || 0);
@@ -345,9 +352,9 @@ async function refresh() {
       metrics.orderUp = Number(overview.orderChange || 0) >= 0;
     }
 
-    const breakdown = breakdownRes.data as any;
+    const breakdown = breakdownRes.data as Record<string, any>;
     if (breakdown) {
-      const total = Object.values(breakdown).reduce((s: number, v: any) => s + Number(v), 0);
+      const total = Object.values(breakdown).reduce((s: number, v) => s + Number(v), 0);
       breakdownItems.value = Object.entries(breakdown).map(([k, v]) => ({
         label: k,
         value: Number(v),
@@ -355,7 +362,7 @@ async function refresh() {
       }));
     }
 
-    const trends = trendsRes.data as any;
+    const trends = trendsRes.data as TrendPoint[];
     if (trendChart.value && trends) {
       renderTrendChart(trends);
     }
@@ -367,30 +374,31 @@ async function refresh() {
     if (channelChart.value) {
       renderChannelChart(overviewRes.data);
     }
-  } catch (e: any) {
-    console.error("营收数据加载失败:", e?.response?.data || e?.message || e);
+  } catch (e) {
+    const err = e as { response?: { data?: unknown }; message?: string }
+    console.error("营收数据加载失败:", err?.response?.data || err?.message || e);
     ElMessage.error("获取营收数据失败");
   }
   lastUpdate.value = new Date().toLocaleString("zh-CN", { hour12: false });
 }
 
-function renderTrendChart(trends: any[]) {
+function renderTrendChart(trends: TrendPoint[]) {
   const chart = echarts.init(trendChart.value!);
   chart.setOption({
     tooltip: { trigger: "axis" },
     legend: { data: ["收入", "退款"], bottom: 0 },
-    xAxis: { type: "category", data: trends.map((t: any) => t.date) },
+    xAxis: { type: "category", data: trends.map((t) => t.date) },
     yAxis: { type: "value", axisLabel: { formatter: (v: number) => `¥${(v / 1000).toFixed(0)}k` } },
     series: [
       {
         name: "收入", type: "line", smooth: true, symbol: "none",
-        data: trends.map((t: any) => t.amount || t.revenue || t.value || 0),
+        data: trends.map((t) => t.amount || t.revenue || t.value || 0),
         areaStyle: { opacity: 0.15 }, lineStyle: { color: "#409eff" },
         itemStyle: { color: "#409eff" },
       },
       {
         name: "退款", type: "line", smooth: true, symbol: "none",
-        data: trends.map((t: any) => t.refund || 0),
+        data: trends.map((t) => t.refund || 0),
         areaStyle: { opacity: 0.08 }, lineStyle: { color: "#f56c6c" },
         itemStyle: { color: "#f56c6c" },
       },
@@ -406,13 +414,13 @@ function renderPieChart() {
     series: [{
       type: "pie", radius: ["50%", "75%"], center: ["50%", "55%"],
       label: { formatter: "{b}\n{d}%", fontSize: 12 },
-      data: breakdownItems.value.map((d: any) => ({ name: d.label, value: d.value })),
+      data: breakdownItems.value.map((d) => ({ name: d.label, value: d.value })),
       emphasis: { label: { fontSize: 16, fontWeight: "bold" } },
     }],
   });
 }
 
-function renderChannelChart(overview: any) {
+function renderChannelChart(overview: Record<string, any> | null | undefined) {
   const chart = echarts.init(channelChart.value!);
   const channels = (overview?.channelBreakdown || overview?.channels) as Record<string, number> | undefined;
   if (!channels) {

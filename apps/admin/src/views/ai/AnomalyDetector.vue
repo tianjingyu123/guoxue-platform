@@ -294,10 +294,35 @@ import { ref, computed, onMounted } from 'vue'
 import { aiAnomalyApi } from '@/api'
 import { ElMessage } from 'element-plus'
 
+/** axios 错误结构（用于提取后端 message） */
+type ApiError = { response?: { data?: { message?: string } } }
+
+/** 检测规则行（字段宽松 optional） */
+interface AnomalyRule {
+  id?: string
+  metric?: string
+  dimension?: string
+  baselineWindow?: number
+  deviationThreshold?: number
+  severity?: string
+  enabled?: boolean
+}
+/** 异常记录 */
+interface AnomalyReport {
+  ruleId?: string
+  metric?: string
+  currentValue?: number
+  baselineMean?: number
+  deviation?: number
+  severity?: string
+  summary?: string
+  detectedAt?: string
+}
+
 const activeTab = ref('rules')
-const rules = ref<any[]>([])
-const reports = ref<any[]>([])
-const lastReports = ref<any[]>([])
+const rules = ref<AnomalyRule[]>([])
+const reports = ref<AnomalyReport[]>([])
+const lastReports = ref<AnomalyReport[]>([])
 const aiReport = ref('')
 const checking = ref(false)
 const checkingRule = ref('')
@@ -336,7 +361,7 @@ async function fetchReports() {
   reportLoading.value = true
   try {
     const res = await aiAnomalyApi.checkAll()
-    const all = (res.data?.reports || []) as any[]
+    const all = (res.data?.reports || []) as AnomalyReport[]
     if (filterSeverity.value) {
       reports.value = all.filter(r => r.severity === filterSeverity.value)
     } else {
@@ -359,8 +384,8 @@ async function runAllChecks() {
     } else {
       ElMessage.success('当前所有指标正常')
     }
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || '巡检失败')
+  } catch (e) {
+    ElMessage.error((e as ApiError)?.response?.data?.message || '巡检失败')
   } finally {
     checking.value = false
   }
@@ -379,14 +404,14 @@ async function runSingleCheck(ruleId: string) {
     } else {
       ElMessage.success('该指标正常')
     }
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || '检测失败')
+  } catch (e) {
+    ElMessage.error((e as ApiError)?.response?.data?.message || '检测失败')
   } finally {
     checkingRule.value = ''
   }
 }
 
-async function toggleRule(rule: any) {
+async function toggleRule(rule: AnomalyRule) {
   // 更新本地状态，后端可通过 addRule 接口覆盖
 }
 </script>

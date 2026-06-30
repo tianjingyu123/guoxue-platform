@@ -102,15 +102,29 @@ import { ref, onMounted, onBeforeUnmount } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
 
+/** 创作者贡献项 */
+interface CreatorItem { userId?: string; nickname?: string; articleCount?: number }
+/** 内容生态大屏数据（字段宽松 optional，依模板实际访问声明） */
+interface ContentEcoData {
+  totalContent?: number;
+  totalArticles?: number;
+  totalPosts?: number;
+  totalCourses?: number;
+  totalVideos?: number;
+  monthGrowth?: { articles?: number; posts?: number };
+  topCreators?: CreatorItem[];
+  updatedAt?: string;
+}
+
 const route = useRoute();
-const data = ref<Record<string, any>>({});
+const data = ref<ContentEcoData>({});
 const nowStr = ref(new Date().toLocaleString("zh-CN"));
 const loading = ref(true);
 const loadError = ref(false);
-let timer: any = null;
-let clockTimer: any = null;
+let timer: ReturnType<typeof setInterval> | undefined = undefined;
+let clockTimer: ReturnType<typeof setInterval> | undefined = undefined;
 
-function fmt(v: any) { return v != null ? Number(v).toLocaleString() : "0"; }
+function fmt(v: number | string | null | undefined) { return v != null ? Number(v).toLocaleString() : "0"; }
 
 async function fetchData() {
   try {

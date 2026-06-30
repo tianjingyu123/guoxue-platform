@@ -21,6 +21,9 @@ const form = reactive({
   lunarYearZhi: '午' as string,
 })
 
+/** 星曜（用于样式计算，字段宽松 optional） */
+interface ZiweiStar { name?: string; type?: string; liangJi?: string }
+// 排盘结果：来自 axios 响应 data 无类型来源，模板大量裸访问字段，保留 any
 const result = ref<any>(null)
 const loading = ref(false)
 const error = ref(false)
@@ -48,7 +51,7 @@ async function doCalc() {
 }
 
 // 星曜样式
-function starClass(star: any) {
+function starClass(star: ZiweiStar) {
   const base = 'star-tag'
   const type = star.type === 'main' ? 'star-main' : star.type === 'assist' ? 'star-assist' : 'star-sisha'
   const ji = star.liangJi === '吉' ? 'star-ji' : star.liangJi === '凶' ? 'star-xiong' : 'star-neutral'

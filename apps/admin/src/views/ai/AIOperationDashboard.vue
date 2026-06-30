@@ -373,13 +373,42 @@ import * as echarts from "echarts";
 
 const botIcons: Record<string, string> = { like_bot: "👍", comment_bot: "💬", signin_bot: "📝", question_bot: "❓" };
 
+/** 单个子品类统计 */
+interface SubStat { published: number; draft: number; total: number }
+/** 品类健康度行（核心字段本地构造必有，模板裸访问故设必选） */
+interface CatStat {
+  level1: string;
+  subs?: string[];
+  subStats?: Record<string, SubStat>;
+  publishedTotal?: number;
+  draftTotal?: number;
+  emptySubs: number;
+  subCategories: number;
+}
+/** 后端品类统计条目 */
+interface CatStatEntry { level1?: string; level2?: string; published: number; draft: number; total: number }
+/** 虚拟运营机器人 */
+interface RobotItem { role: string; name?: string; enabled?: boolean }
+/** 最新调用日志 */
+interface RecentLog {
+  scene?: string;
+  service?: string;
+  modelName?: string;
+  tokenUsage?: { promptTokens?: number; completionTokens?: number };
+  status?: string;
+}
+/** 趋势点 */
+interface TrendPoint { date?: string; day?: string; totalTokens?: number; tokens?: number }
+/** 空品类（由本地构造必有，模板做字符串拼接 key 故设必选） */
+interface EmptyCat { level1: string; level2: string }
+
 const aiStats = reactive({ totalCalls: 0, todayCalls: 0, activeBots: 0, abnormalAlerts: 0 });
 const genStats = reactive({ totalGenerated: 0, draftPending: 0 });
-const catStats = ref<any[]>([]);
-const robots = ref<any[]>([]);
+const catStats = ref<CatStat[]>([]);
+const robots = ref<RobotItem[]>([]);
 const botToggling = ref("");
-const recentLogs = ref<any[]>([]);
-const tokenTrend = ref<any[]>([]);
+const recentLogs = ref<RecentLog[]>([]);
+const tokenTrend = ref<TrendPoint[]>([]);
 const tokenPeriod = ref("week");
 const chartRef = ref<HTMLElement | null>(null);
 let chartInstance: echarts.ECharts | null = null;
@@ -393,12 +422,12 @@ const loadErr = ref(false);
 
 const genL2Options = computed(() => {
   if (!genL1.value) return [];
-  const cat = catStats.value.find((c: any) => c.level1 === genL1.value);
+  const cat = catStats.value.find((c) => c.level1 === genL1.value);
   return cat?.subs || [];
 });
 
 const emptyCats = computed(() => {
-  const result: any[] = [];
+  const result: EmptyCat[] = [];
   for (const cat of catStats.value) {
     for (const sub of (cat.subs || [])) {
       if (!cat.subStats || !cat.subStats[sub] || cat.subStats[sub].total === 0) {
@@ -427,7 +456,7 @@ async function refreshAll() {
 async function fetchAiStats() {
   try {
     const { data } = await aiAdminApi.getCallStats();
-    const d = data as any;
+    const d = data as { totalCalls?: number; todayCalls?: number; activeBots?: number; abnormalAlerts?: number };
     aiStats.totalCalls = d?.totalCalls || 0;
     aiStats.todayCalls = d?.todayCalls || 0;
     aiStats.activeBots = d?.activeBots || 0;
@@ -441,16 +470,16 @@ async function fetchCatStats() {
       contentGenerationApi.getStats(),
       contentGenerationApi.getCategories(),
     ]);
-    const statsData = statsRes.data as any;
+    const statsData = statsRes.data as { stats?: CatStatEntry[] };
     const tree = treeRes.data as Record<string, string[]>;
 
-    const list: any[] = [];
+    const list: CatStat[] = [];
     for (const [level1, subs] of Object.entries(tree || {})) {
-      const subStats: Record<string, any> = {};
+      const subStats: Record<string, SubStat> = {};
       let publishedTotal = 0, draftTotal = 0, emptySubs = 0;
 
       for (const sub of subs) {
-        const s = (statsData?.stats || []).find((r: any) => r.level1 === level1 && r.level2 === sub);
+        const s = (statsData?.stats || []).find((r) => r.level1 === level1 && r.level2 === sub);
         if (s) {
           subStats[sub] = s;
           publishedTotal += s.published;
@@ -473,21 +502,23 @@ async function fetchCatStats() {
 async function fetchRobots() {
   try {
     const { data } = await api.get("/operation-robots");
-    robots.value = (data as any[]) || [];
+    robots.value = (data as RobotItem[]) || [];
   } catch { loadErr.value = true; }
 }
 
 async function fetchRecentLogs() {
   try {
     const { data } = await aiAdminApi.getCallLogs({ page: 1, pageSize: 10 });
-    recentLogs.value = ((data as any)?.list || (data as any)?.data || []).slice(0, 10);
+    const d = data as { list?: RecentLog[]; data?: RecentLog[] };
+    recentLogs.value = (d?.list || d?.data || []).slice(0, 10);
   } catch { loadErr.value = true; }
 }
 
 async function fetchTokenTrend() {
   try {
     const { data } = await aiAdminApi.getCallStats(tokenPeriod.value);
-    tokenTrend.value = (data as any)?.trend || (data as any)?.dailyStats || [];
+    const d = data as { trend?: TrendPoint[]; dailyStats?: TrendPoint[] };
+    tokenTrend.value = d?.trend || d?.dailyStats || [];
     await nextTick();
     renderChart();
   } catch { loadErr.value = true; }
@@ -498,8 +529,8 @@ function renderChart() {
   if (chartInstance) chartInstance.dispose();
 
   chartInstance = echarts.init(chartRef.value);
-  const dates = tokenTrend.value.map((d: any) => d.date || d.day || "");
-  const tokens = tokenTrend.value.map((d: any) => d.totalTokens || d.tokens || 0);
+  const dates = tokenTrend.value.map((d) => d.date || d.day || "");
+  const tokens = tokenTrend.value.map((d) => d.totalTokens || d.tokens || 0);
 
   chartInstance.setOption({
     tooltip: { trigger: "axis" },
@@ -517,7 +548,7 @@ function renderChart() {
   });
 }
 
-async function toggleBot(bot: any, enabled: boolean) {
+async function toggleBot(bot: RobotItem, enabled: boolean) {
   botToggling.value = bot.role;
   try {
     await api.post(`/operation-robots/${bot.role}/toggle`, { enabled });

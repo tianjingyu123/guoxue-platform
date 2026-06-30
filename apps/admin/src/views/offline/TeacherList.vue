@@ -269,12 +269,29 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
-const loading = ref(false); const loadError = ref(false); const deleting = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+/** 教师行（字段宽松 optional） */
+interface TeacherRow {
+  id: string
+  name?: string
+  stationId?: string
+  avatar?: string
+  specialties?: string[]
+  bio?: string
+  status?: string
+  createdAt?: string
+}
+/** 排期行 */
+interface ScheduleRow {
+  date?: string
+  slots?: string[]
+}
+
+const loading = ref(false); const loadError = ref(false); const deleting = ref(false); const saving = ref(false); const list = ref<TeacherRow[]>([]); const total = ref(0); const page = ref(1)
 const vis = ref(false); const editingId = ref('')
 const filter = reactive({ stationId: '' })
 const form = reactive({ name: '', stationId: '', avatar: '', specialtiesStr: '', bio: '', status: 'ACTIVE' })
 
-const scheduleVis = ref(false); const schedule = ref<any[]>([]); const scheduleMonth = ref(''); const conflictMsg = ref(''); const scheduleTeacherId = ref('')
+const scheduleVis = ref(false); const schedule = ref<ScheduleRow[]>([]); const scheduleMonth = ref(''); const conflictMsg = ref(''); const scheduleTeacherId = ref('')
 const availabilityVis = ref(false); const availSlotsStr = ref(''); const settingAvail = ref(false); const availTeacherId = ref('')
 
 onMounted(() => fetchList())
@@ -287,12 +304,12 @@ async function fetchList() {
 }
 
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', stationId: '', avatar: '', specialtiesStr: '', bio: '', status: 'ACTIVE' }); vis.value = true }
-function openEdit(row: any) { editingId.value = row.id; Object.assign(form, { name: row.name, stationId: row.stationId, avatar: row.avatar || '', specialtiesStr: (row.specialties || []).join(','), bio: row.bio || '', status: row.status || 'ACTIVE' }); vis.value = true }
+function openEdit(row: TeacherRow) { editingId.value = row.id; Object.assign(form, { name: row.name, stationId: row.stationId, avatar: row.avatar || '', specialtiesStr: (row.specialties || []).join(','), bio: row.bio || '', status: row.status || 'ACTIVE' }); vis.value = true }
 
 async function save() {
   saving.value = true
   try {
-    const payload: any = { name: form.name, stationId: form.stationId, avatar: form.avatar || undefined, specialties: form.specialtiesStr ? form.specialtiesStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [], bio: form.bio || undefined }
+    const payload: Record<string, unknown> = { name: form.name, stationId: form.stationId, avatar: form.avatar || undefined, specialties: form.specialtiesStr ? form.specialtiesStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [], bio: form.bio || undefined }
     if (editingId.value) {
       if (form.status) payload.status = form.status
       await api.put(`/offline/admin/teachers/${editingId.value}`, payload)
@@ -312,7 +329,7 @@ async function del(id: string) {
   } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败') } finally { deleting.value = false }
 }
 
-function openSchedule(row: any) {
+function openSchedule(row: TeacherRow) {
   scheduleTeacherId.value = row.id; scheduleMonth.value = new Date().toISOString().slice(0, 7); schedule.value = []; conflictMsg.value = ''
   scheduleVis.value = true
 }
@@ -321,7 +338,7 @@ async function fetchSchedule() {
   try { const { data } = await api.get('/offline/admin/schedule/conflicts', { params: { teacherId: scheduleTeacherId.value, date: scheduleMonth.value + '-01' } }); conflictMsg.value = data.conflicts?.length ? `${data.conflicts.length} 个冲突` : '' } catch { conflictMsg.value = '' }
 }
 
-function openAvailability(row: any) { availTeacherId.value = row.id; availSlotsStr.value = ''; availabilityVis.value = true }
+function openAvailability(row: TeacherRow) { availTeacherId.value = row.id; availSlotsStr.value = ''; availabilityVis.value = true }
 async function setAvailability() {
   settingAvail.value = true
   try {

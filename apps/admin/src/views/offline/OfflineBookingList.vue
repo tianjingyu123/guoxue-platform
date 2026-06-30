@@ -144,9 +144,21 @@
 import { ref, onMounted } from 'vue'
 import { api } from '@/api'
 
+/** 师资预约行（字段宽松 optional，仅覆盖模板/脚本实际访问） */
+interface BookingRow {
+  id?: string
+  station?: { name?: string; city?: string }
+  teacher?: { name?: string }
+  bookingDate?: string
+  price?: number
+  status?: string
+  remark?: string
+  createdAt?: string
+}
+
 const loading = ref(false)
 const loadError = ref(false)
-const list = ref<any[]>([])
+const list = ref<BookingRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const stationId = ref('')

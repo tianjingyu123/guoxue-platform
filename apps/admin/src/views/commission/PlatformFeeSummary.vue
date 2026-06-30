@@ -2,6 +2,8 @@
 import { ref, onMounted } from "vue";
 import { commissionApi } from "@/api";
 
+// 汇总对象字段在模板中被直接参与除法/货币格式化（formatCurrency 需 number），
+// 收敛为强类型会引发多处模板 "possibly undefined" 连锁报错，故保留 any 作边界。
 const summary = ref<any>({});
 const loading = ref(false);
 const error = ref(false);

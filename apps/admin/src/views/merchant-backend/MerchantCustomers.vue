@@ -61,17 +61,28 @@
 import { ref, onMounted } from "vue";
 import { merchantBackendApi } from "@/api";
 
-const list = ref<any[]>([]);
+/** 客户行（字段宽松 optional） */
+interface CustomerRow {
+  id: string;
+  nickname?: string;
+  phone?: string;
+  totalSpent?: number;
+  orderCount?: number;
+  lastOrderAt?: string;
+  createdAt?: string;
+}
+
+const list = ref<CustomerRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
 const error = ref(false);
 const search = ref("");
 const detailDialog = ref(false);
-const current = ref<any>(null);
-let timer: any = null;
+const current = ref<CustomerRow | null>(null);
+let timer: ReturnType<typeof setTimeout> | undefined;
 
-function formatDate(d: string) {
+function formatDate(d?: string) {
   return d ? new Date(d).toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-";
 }
 
@@ -86,18 +97,19 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: 20 };
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 };
     if (search.value) params.keyword = search.value;
     const res = await merchantBackendApi.listCustomers(params);
-    const data = (res as any).data ?? res;
+    // 兼容两种响应包装：{ data: {...} } 或直接返回 data
+    const data = (res as { data?: { list?: CustomerRow[]; data?: CustomerRow[]; total?: number } }).data ?? (res as { list?: CustomerRow[]; data?: CustomerRow[]; total?: number });
     list.value = data.list || data.data || [];
     total.value = data.total || 0;
-  } catch (e: any) {
+  } catch (e) {
     error.value = true;
   } finally { loading.value = false; }
 }
 
-function openDetail(row: any) { current.value = row; detailDialog.value = true; }
+function openDetail(row: CustomerRow) { current.value = row; detailDialog.value = true; }
 </script>
 
 <style scoped>

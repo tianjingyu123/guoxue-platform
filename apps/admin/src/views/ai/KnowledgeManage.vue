@@ -299,14 +299,27 @@ import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { circleApi, knowledgeApi } from "@/api";
 
-const circles = ref<any[]>([]);
+// 圈子选项
+interface CircleItem { id: string; name: string }
+// 知识库候选/已入库行
+interface KnowledgeRow {
+  id: string;
+  title?: string;
+  content?: string;
+  sourceType?: string;
+  targetType?: string;
+  sourceId?: string;
+  createdAt?: string;
+}
+
+const circles = ref<CircleItem[]>([]);
 const selectedCircle = ref("");
 const activeTab = ref("candidates");
 
-const candidates = ref<any[]>([]);
+const candidates = ref<KnowledgeRow[]>([]);
 const candidateLoading = ref(false);
 const candidateErr = ref(false);
-const knowledgeEntries = ref<any[]>([]);
+const knowledgeEntries = ref<KnowledgeRow[]>([]);
 const knowledgeLoading = ref(false);
 const knowledgeErr = ref(false);
 const syncing = ref(false);
@@ -316,7 +329,7 @@ const submitting = ref(false);
 const stats = reactive({ totalEntries: 0, pendingCandidates: 0, confirmedToday: 0, lastSync: "" });
 
 const selectedCircleName = computed(() => {
-  return circles.value.find((c: any) => c.id === selectedCircle.value)?.name || "";
+  return circles.value.find((c) => c.id === selectedCircle.value)?.name || "";
 });
 
 function fmtDate(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
@@ -327,7 +340,8 @@ async function loadCircles() {
   circlesErr.value = false;
   try {
     const { data } = await circleApi.list({ pageSize: 200 });
-    circles.value = (data as any)?.circles || (data as any)?.data || [];
+    const d = data as { circles?: CircleItem[]; data?: CircleItem[] };
+    circles.value = d?.circles || d?.data || [];
   } catch { circlesErr.value = true; }
 }
 
@@ -349,7 +363,7 @@ async function fetchCandidates() {
   candidateErr.value = false;
   try {
     const { data } = await knowledgeApi.getCandidates(selectedCircle.value);
-    const d = data as any;
+    const d = data as { candidates?: KnowledgeRow[]; data?: KnowledgeRow[]; total?: number };
     candidates.value = d?.candidates || d?.data || [];
     stats.pendingCandidates = d?.total || candidates.value.length;
   } catch { candidateErr.value = true; candidates.value = []; } finally { candidateLoading.value = false; }
@@ -360,13 +374,13 @@ async function fetchKnowledge() {
   knowledgeErr.value = false;
   try {
     const { data } = await knowledgeApi.getCandidates(selectedCircle.value, "CONFIRMED");
-    const d = data as any;
+    const d = data as { candidates?: KnowledgeRow[]; data?: KnowledgeRow[]; total?: number };
     knowledgeEntries.value = d?.candidates || d?.data || [];
     stats.totalEntries = d?.total || knowledgeEntries.value.length;
   } catch { knowledgeErr.value = true; knowledgeEntries.value = []; } finally { knowledgeLoading.value = false; }
 }
 
-async function confirmCandidate(row: any) {
+async function confirmCandidate(row: KnowledgeRow) {
   if (submitting.value) return;
   submitting.value = true;
   try {
@@ -377,7 +391,7 @@ async function confirmCandidate(row: any) {
   } catch { ElMessage.error("操作失败，请重试"); } finally { submitting.value = false; }
 }
 
-async function rejectCandidate(row: any) {
+async function rejectCandidate(row: KnowledgeRow) {
   if (submitting.value) return;
   submitting.value = true;
   try {
@@ -387,7 +401,7 @@ async function rejectCandidate(row: any) {
   } catch { ElMessage.error("操作失败，请重试"); } finally { submitting.value = false; }
 }
 
-async function removeEntry(row: any) {
+async function removeEntry(row: KnowledgeRow) {
   if (submitting.value) return;
   submitting.value = true;
   try {

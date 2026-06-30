@@ -187,11 +187,22 @@ import { ref, onMounted, computed } from "vue";
 import { commissionApi } from "@/api";
 import { ElMessage } from "element-plus";
 
-const configs = ref<any[]>([]);
+// 佣金配置行：依据表格列与编辑表单访问字段声明（含动态键索引以便 formatRate 取值）
+interface CommissionConfigRow {
+  configKey: string
+  configName?: string
+  rateA?: number | string
+  rateB?: number | string
+  rateC?: number | string
+  description?: string
+  [k: string]: unknown
+}
+
+const configs = ref<CommissionConfigRow[]>([]);
 const loading = ref(false);
 const error = ref(false);
 const dialogVisible = ref(false);
-const editRow = ref<any>(null);
+const editRow = ref<CommissionConfigRow | null>(null);
 const saving = ref(false);
 const form = ref({ rateA: 0, rateB: 0, rateC: 0, description: "" });
 
@@ -214,14 +225,14 @@ async function fetchConfigs() {
   }
 }
 
-function formatRate(row: any, field: string) {
+function formatRate(row: CommissionConfigRow, field: string) {
   const val = row[field];
   if (val == null) return "--";
   if (row.configKey === "withdrawal_min") return `¥${Number(val)}`;
   return `${(Number(val) * 100).toFixed(1)}%`;
 }
 
-function openEdit(row: any) {
+function openEdit(row: CommissionConfigRow) {
   editRow.value = row;
   form.value = {
     rateA: row.configKey === "withdrawal_min" ? Number(row.rateA) : Number(row.rateA) * 100,
@@ -236,7 +247,7 @@ async function save() {
   if (!editRow.value) return;
   saving.value = true;
   try {
-    const data: any = {};
+    const data: Record<string, unknown> = {};
     if (isWithdrawalMin.value) {
       data.rateA = form.value.rateA;
       data.description = form.value.description;

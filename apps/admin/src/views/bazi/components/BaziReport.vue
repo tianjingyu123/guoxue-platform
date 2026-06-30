@@ -127,7 +127,7 @@ const pillars = [
 
     <!-- 合冲刑害 -->
     <div
-      v-if="Object.values(fenXiTiShi).some((v: any) => v.length)"
+      v-if="Object.values(fenXiTiShi).some((v: string[]) => v.length)"
       class="report-section"
     >
       <h3>合冲刑害</h3>

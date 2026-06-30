@@ -279,11 +279,39 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { marketingApi } from '@/api'
 import ProductPicker from '@/components/ProductPicker.vue'
 
-const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1); const pages = ref<any[]>([])
+// 微页面下拉选项
+interface PageOption { id: string; name?: string }
+// axios 错误体
+interface ApiError { response?: { data?: { message?: string } } }
+// 拼团活动行：依据表格列与编辑表单访问字段声明
+interface GroupBuyRow {
+  id: string
+  name?: string
+  productId?: string
+  productTitle?: string
+  minMembers?: number
+  groupSize?: number
+  groupPrice?: number | string
+  expireMinutes?: number
+  durationHours?: number
+  scope?: string
+  scopePageId?: string
+  status?: string
+  createdAt?: string
+}
+// 参团记录行
+interface ParticipantRow {
+  userId?: string
+  nickname?: string
+  groupStatus?: string
+  createdAt?: string
+}
+
+const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<GroupBuyRow[]>([]); const total = ref(0); const page = ref(1); const pages = ref<PageOption[]>([])
 const vis = ref(false); const editingId = ref('')
 const form = reactive({ name: '', productId: '', minMembers: 2, groupPrice: 0, expireMinutes: 1440, scope: 'GLOBAL', scopePageId: '' })
 
-const participantsVis = ref(false); const participantsLoading = ref(false); const participants = ref<any[]>([])
+const participantsVis = ref(false); const participantsLoading = ref(false); const participants = ref<ParticipantRow[]>([])
 
 onMounted(() => { fetchList(); loadPages() })
 async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.pages || data.items || data.data || [] } catch { /* 忽略 */ } }
@@ -295,20 +323,20 @@ async function fetchList() {
   try { const { data } = await marketingApi.listGroupBuys({ page: page.value, pageSize: 20 }); list.value = data.items || data.groupBuys || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', productId: '', minMembers: 2, groupPrice: 0, expireMinutes: 1440, scope: 'GLOBAL', scopePageId: '' }); vis.value = true }
-function openEdit(row: any) { editingId.value = row.id; Object.assign(form, { name: row.name || '', productId: row.productId, minMembers: row.minMembers || row.groupSize || 2, groupPrice: Number(row.groupPrice), expireMinutes: row.expireMinutes || row.durationHours || 1440, scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '' }); vis.value = true }
+function openEdit(row: GroupBuyRow) { editingId.value = row.id; Object.assign(form, { name: row.name || '', productId: row.productId, minMembers: row.minMembers || row.groupSize || 2, groupPrice: Number(row.groupPrice), expireMinutes: row.expireMinutes || row.durationHours || 1440, scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '' }); vis.value = true }
 async function save() {
   if (!form.name) { ElMessage.warning('请输入活动名称'); return }
   saving.value = true
   try {
-    const payload: any = { ...form, scopePageId: form.scope === 'PAGE_ONLY' ? form.scopePageId : undefined }
+    const payload: Record<string, unknown> = { ...form, scopePageId: form.scope === 'PAGE_ONLY' ? form.scopePageId : undefined }
     if (editingId.value) { await marketingApi.updateGroupBuy(editingId.value, payload); ElMessage.success('已更新') }
     else { await marketingApi.createGroupBuy(payload); ElMessage.success('拼团活动创建成功，用户即可参与拼团') }
     vis.value = false; fetchList()
-  } catch (e: any) { ElMessage.error(e?.response?.data?.message || '操作失败') } finally { saving.value = false }
+  } catch (e) { ElMessage.error((e as ApiError)?.response?.data?.message || '操作失败') } finally { saving.value = false }
 }
 async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteGroupBuy(id); ElMessage.success('已删除'); fetchList() } catch { /* 用户取消 */ } }
 
-async function openParticipants(row: any) {
+async function openParticipants(row: GroupBuyRow) {
   participantsVis.value = true; participantsLoading.value = true
   try { const { data } = await marketingApi.getGroupBuyParticipants(row.id); participants.value = data.participants || data.data || [] } catch { participants.value = [] } finally { participantsLoading.value = false }
 }

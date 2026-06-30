@@ -210,7 +210,19 @@ import { coinApi, api } from "@/api";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { exportCSV } from "@/utils/export";
 
-const list = ref<any[]>([]);
+// 充值记录行（按列配置与模板访问字段定义的宽松本地类型）
+interface RechargeRow {
+  userId?: string | number
+  user?: { nickname?: string; phone?: string }
+  amount?: number
+  coins?: number
+  payMethod: string
+  status: string
+  remark?: string
+  createdAt: string
+}
+
+const list = ref<RechargeRow[]>([]);
 const loading = ref(false);
 const error = ref(false);
 const filterUserId = ref("");

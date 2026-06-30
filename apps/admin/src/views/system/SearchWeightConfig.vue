@@ -215,7 +215,16 @@ const ENTITY_TYPES = [
 const ENTITY_LABELS: Record<string, string> = {}
 ENTITY_TYPES.forEach(t => { ENTITY_LABELS[t.value] = t.label })
 
-const loading = ref(false); const loadError = ref(false); const list = ref<any[]>([]); const filterType = ref('')
+interface SearchWeightRow {
+  id: string
+  entityType: string
+  fieldName: string
+  weight: number
+  enabled: boolean
+  _saving?: boolean
+}
+
+const loading = ref(false); const loadError = ref(false); const list = ref<SearchWeightRow[]>([]); const filterType = ref('')
 const saving = ref(false); const seeding = ref(false)
 const addVis = ref(false)
 const addForm = reactive({ entityType: 'article', fieldName: 'all', weight: 1.0 })
@@ -227,11 +236,11 @@ async function fetchList() {
   loadError.value = false
   try {
     const { data } = await searchApi.getWeights(filterType.value || undefined)
-    list.value = (data || []).map((r: any) => ({ ...r, weight: Number(r.weight) }))
+    list.value = (data || []).map((r: SearchWeightRow) => ({ ...r, weight: Number(r.weight) }))
   } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
-async function saveWeight(row: any) {
+async function saveWeight(row: SearchWeightRow) {
   if (row._saving) return
   row._saving = true
   try {
@@ -240,7 +249,7 @@ async function saveWeight(row: any) {
   } catch { } finally { row._saving = false }
 }
 
-async function toggleWeight(row: any) {
+async function toggleWeight(row: SearchWeightRow) {
   await saveWeight(row)
 }
 

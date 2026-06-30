@@ -4,10 +4,20 @@ import { ElMessage } from 'element-plus'
 import { financeApi } from '@/api'
 import { exportCSV } from '@/utils/export'
 
+// 资金冻结记录行（列表元素为含 frozenAmount 的 Order 记录）
+interface FreezeRow {
+  id: string
+  userId?: string
+  frozenAmount?: number
+  payAmount?: number
+  amount?: number
+  updatedAt: string
+}
+
 const loading = ref(false)
 const saving = ref(false)
 const error = ref(false)
-const list = ref<any[]>([])
+const list = ref<FreezeRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 20
@@ -16,19 +26,19 @@ const freezeVisible = ref(false)
 const freezeForm = reactive({ userId: '', amount: null as number | null, orderId: '', reason: '' })
 
 const unfreezeVisible = ref(false)
-const unfreezeTarget = ref<any>(null)
+const unfreezeTarget = ref<FreezeRow | null>(null)
 const unfreezeReason = ref('')
 
 onMounted(() => fetchList())
 
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
-function formatMoney(v: any) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
+function formatMoney(v: number | string | null | undefined) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
 
 async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const params: any = { page: page.value, pageSize }
+    const params: Record<string, string | number> = { page: page.value, pageSize }
     // 后端 getFreezeRecords 返回 { items, total, ... }，列表元素为含 frozenAmount 的 Order 记录
     const { data } = await financeApi.listFreezes(params)
     list.value = data.items ?? []
@@ -54,7 +64,7 @@ async function submitFreeze() {
   if (!freezeForm.reason.trim()) { ElMessage.warning('请输入冻结原因'); return }
   saving.value = true
   try {
-    const payload: any = { amount: freezeForm.amount, reason: freezeForm.reason }
+    const payload: Record<string, string | number> = { amount: freezeForm.amount, reason: freezeForm.reason }
     if (freezeForm.userId.trim()) payload.userId = freezeForm.userId
     if (freezeForm.orderId.trim()) payload.orderId = freezeForm.orderId
     await financeApi.freezeFund(payload)
@@ -64,7 +74,7 @@ async function submitFreeze() {
   } catch { } finally { saving.value = false }
 }
 
-function openUnfreeze(row: any) {
+function openUnfreeze(row: FreezeRow) {
   unfreezeTarget.value = row
   unfreezeReason.value = ''
   unfreezeVisible.value = true

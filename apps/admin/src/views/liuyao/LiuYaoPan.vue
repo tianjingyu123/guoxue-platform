@@ -14,6 +14,7 @@ const form = reactive({
 })
 
 const loading = ref(false)
+// 排盘结果：来自 axios 响应 data 无类型来源，作为 prop 透传给 LiuYaoBoard，保留 any
 const result = ref<any>(null)
 const errorMsg = ref('')
 const inputCollapsed = ref(false)
@@ -38,8 +39,9 @@ async function doCalc() {
     })
     result.value = res.data
     inputCollapsed.value = true
-  } catch (e: any) {
-    errorMsg.value = e?.response?.data?.message || e?.message || '排盘失败'
+  } catch (e) {
+    const err = e as { response?: { data?: { message?: string } }; message?: string }
+    errorMsg.value = err?.response?.data?.message || err?.message || '排盘失败'
   } finally {
     loading.value = false
   }

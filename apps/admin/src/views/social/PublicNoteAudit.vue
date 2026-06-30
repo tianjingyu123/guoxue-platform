@@ -101,9 +101,25 @@ import DataTable from "@/components/DataTable.vue"
 import PageHeader from "@/components/PageHeader.vue"
 import { useTable } from "@/composables/useTable"
 
+// 公开笔记行（字段宽松 optional）
+interface NoteRow {
+  id: string
+  userName?: string
+  content?: string
+  courseName?: string
+  classicName?: string
+  status?: string
+  sensitiveWords?: string
+  createdAt?: string
+  isFeatured?: boolean
+  user?: { nickname?: string }
+  course?: { title?: string }
+  classic?: { title?: string }
+}
+
 const rejectVisible = ref(false)
 const rejectReason = ref("")
-const rejectingNote = ref<any>(null)
+const rejectingNote = ref<NoteRow | null>(null)
 const loadError = ref(false)
 const submitting = ref(false)
 
@@ -137,7 +153,7 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch } = use
   },
   defaultPageSize: 10,
   transformResponse: (data: any) => ({
-    items: (data.list ?? data.data ?? []).map((n: any) => ({
+    items: (data.list ?? data.data ?? []).map((n: NoteRow) => ({
       ...n, userName: n.user?.nickname ?? '未知', courseName: n.course?.title ?? '', classicName: n.classic?.title ?? '',
     })),
     total: data.total ?? 0,
@@ -150,22 +166,22 @@ function formatTime(d: string): string { return d ? d.slice(0, 16).replace("T", 
 function statusLabel(s: string): string { const m: Record<string, string> = { PENDING: "待审核", APPROVED: "已通过", REJECTED: "已拒绝" }; return m[s] ?? s }
 function statusColor(s: string): string { const m: Record<string, string> = { PENDING: "warning", APPROVED: "success", REJECTED: "danger" }; return m[s] ?? "" }
 
-async function approveNote(row: any) {
+async function approveNote(row: NoteRow) {
   if (submitting.value) return
   submitting.value = true
   try { await socialApi.approveNote(row.id); ElMessage.success("已通过"); fetchList() }
   catch { /* */ }
   finally { submitting.value = false }
 }
-function showRejectDialog(row: any) { rejectingNote.value = row; rejectReason.value = ""; rejectVisible.value = true }
+function showRejectDialog(row: NoteRow) { rejectingNote.value = row; rejectReason.value = ""; rejectVisible.value = true }
 async function confirmReject() {
   if (submitting.value) return
   submitting.value = true
-  try { await socialApi.rejectNote(rejectingNote.value.id, rejectReason.value); ElMessage.success("已拒绝"); rejectVisible.value = false; fetchList() }
+  try { await socialApi.rejectNote(rejectingNote.value!.id, rejectReason.value); ElMessage.success("已拒绝"); rejectVisible.value = false; fetchList() }
   catch { /* */ }
   finally { submitting.value = false }
 }
-async function featureNote(row: any) {
+async function featureNote(row: NoteRow) {
   if (submitting.value) return
   submitting.value = true
   try { await socialApi.featureNote(row.id); ElMessage.success(row.isFeatured ? "已取消推荐" : "已推荐"); fetchList() }

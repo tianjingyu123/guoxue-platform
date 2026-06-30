@@ -162,23 +162,43 @@ import { ElMessage } from "element-plus"
 import { aiPromptApi } from "@/api"
 import PageHeader from "@/components/PageHeader.vue"
 
+// 场景变量说明
+interface SceneVar { name: string; description?: string }
+// 场景配置（含 Prompt/模型等）
+interface SceneItem {
+  key: string
+  name: string
+  enabled: boolean
+  systemPrompt?: string
+  userPromptTemplate?: string
+  variables?: SceneVar[]
+  model?: string
+  temperature?: number
+}
+// 风格库条目
+interface StyleItem { id: string; name: string; prompt: string; example?: string }
+// 效果统计项
+interface StatItem { label: string; value: string | number }
+// 功能开关项
+interface ToggleItem { scene: string; enabled: boolean; label?: string; description?: string }
+
 const activeScene = ref("")
-const currentScene = ref<any>(null)
-const scenes = ref<any[]>([])
-const styles = ref<any[]>([])
-const sceneStats = ref<any[]>([])
-const toggles = ref<any[]>([])
+const currentScene = ref<SceneItem | null>(null)
+const scenes = ref<SceneItem[]>([])
+const styles = ref<StyleItem[]>([])
+const sceneStats = ref<StatItem[]>([])
+const toggles = ref<ToggleItem[]>([])
 const saving = ref(false)
 const loading = ref(false)
 const loadErr = ref(false)
 const styleDialogVisible = ref(false)
-const editingStyle = ref<any>(null)
+const editingStyle = ref<StyleItem | null>(null)
 const styleForm = reactive({ name: "", prompt: "", example: "" })
 
 const sceneForm = reactive({
   systemPrompt: "",
   userPromptTemplate: "",
-  variables: [] as any[],
+  variables: [] as SceneVar[],
   model: "claude-sonnet-4-6",
   temperature: 0.7,
 })
@@ -209,8 +229,9 @@ async function reload() {
 }
 
 async function fetchScenes() {
-  const res: any = await aiPromptApi.listScenes()
-  scenes.value = ((res?.data ?? res)?.scenes ?? []).map((s: any) => ({
+  const res = await aiPromptApi.listScenes()
+  const list = ((res?.data ?? res)?.scenes ?? []) as SceneItem[]
+  scenes.value = list.map((s) => ({
     ...s,
     name: sceneNameMap[s.key] ?? s.name ?? s.key,
   }))
@@ -222,7 +243,7 @@ async function fetchScenes() {
 
 async function onSceneChange(key: string) {
   try {
-    const res: any = await aiPromptApi.getScene(key)
+    const res = await aiPromptApi.getScene(key)
     const d = (res?.data ?? res) ?? {}
     currentScene.value = d
     sceneForm.systemPrompt = d.systemPrompt ?? ""
@@ -237,14 +258,14 @@ async function onSceneChange(key: string) {
 
 async function fetchStyles(scene: string) {
   try {
-    const res: any = await aiPromptApi.listStyles(scene)
-    styles.value = (res?.data ?? res)?.styles ?? (res?.data ?? res)?.list ?? []
+    const res = await aiPromptApi.listStyles(scene)
+    styles.value = ((res?.data ?? res)?.styles ?? (res?.data ?? res)?.list ?? []) as StyleItem[]
   } catch { /* */ }
 }
 
 async function fetchStats(scene?: string) {
   try {
-    const res: any = await aiPromptApi.getSceneStats(scene)
+    const res = await aiPromptApi.getSceneStats(scene)
     const d = (res?.data ?? res) ?? {}
     sceneStats.value = [
       { label: "总调用次数", value: d.totalCalls ?? 0 },
@@ -257,9 +278,9 @@ async function fetchStats(scene?: string) {
 
 async function fetchToggles() {
   try {
-    const res: any = await aiPromptApi.getToggles()
-    const list = (res?.data ?? res)?.toggles ?? (res?.data ?? res)?.list ?? []
-    toggles.value = list.map((t: any) => ({ ...t, label: sceneNameMap[t.scene] ?? t.label ?? t.scene }))
+    const res = await aiPromptApi.getToggles()
+    const list = ((res?.data ?? res)?.toggles ?? (res?.data ?? res)?.list ?? []) as ToggleItem[]
+    toggles.value = list.map((t) => ({ ...t, label: sceneNameMap[t.scene] ?? t.label ?? t.scene }))
   } catch {
     loadErr.value = true
   }
@@ -286,14 +307,14 @@ async function onToggleScene(val: boolean) {
   } catch { /* */ }
 }
 
-async function onToggleFeature(row: any) {
+async function onToggleFeature(row: ToggleItem) {
   try {
     await aiPromptApi.toggleFeature(row.scene, row.enabled)
     ElMessage.success(row.enabled ? "已启用" : "已停用")
   } catch { row.enabled = !row.enabled }
 }
 
-function showStyleDialog(row?: any) {
+function showStyleDialog(row?: StyleItem) {
   if (row) {
     editingStyle.value = row
     styleForm.name = row.name

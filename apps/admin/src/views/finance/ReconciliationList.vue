@@ -4,10 +4,23 @@ import { ElMessage } from 'element-plus'
 import { financeApi } from '@/api'
 import { exportCSV } from '@/utils/export'
 
+// 对账记录行（按列配置与模板访问字段定义的宽松本地类型）
+interface ReconRow {
+  id: string
+  source: string
+  billDate: string
+  totalAmount?: number
+  matchAmount?: number
+  diffCount?: number
+  status: string
+  createdAt: string
+  detail: { orderCount?: number; billEntryCount?: number; billStatus?: string }
+}
+
 const loading = ref(false)
 const saving = ref(false)
 const error = ref(false)
-const list = ref<any[]>([])
+const list = ref<ReconRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 20
@@ -17,12 +30,12 @@ const sourceFilter = ref('')
 const generateVisible = ref(false)
 const form = reactive({ period: '', source: 'WECHAT' })
 const detailVisible = ref(false)
-const detailData = ref<any>(null)
+const detailData = ref<ReconRow | null>(null)
 
 onMounted(() => fetchList())
 
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
-function formatMoney(v: any) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
+function formatMoney(v: number | string | null | undefined) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
 
 // 后端字段：status = PENDING / MATCHED / MISMATCH
 function statusTagType(status: string) {
@@ -43,7 +56,7 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const params: any = { page: page.value, pageSize }
+    const params: Record<string, string | number> = { page: page.value, pageSize }
     if (statusFilter.value) params.status = statusFilter.value
     if (sourceFilter.value) params.source = sourceFilter.value
     // 后端 getReconciliationList 返回 { records, total, page, pageSize }
@@ -75,7 +88,7 @@ async function doGenerate() {
   } catch { } finally { saving.value = false }
 }
 
-async function viewDetail(row: any) {
+async function viewDetail(row: ReconRow) {
   try {
     const { data } = await financeApi.getReconciliationDetail(row.id)
     detailData.value = data

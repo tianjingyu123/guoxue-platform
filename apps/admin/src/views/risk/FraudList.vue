@@ -3,17 +3,29 @@ import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { riskApi } from '@/api'
 
+// 刷单检测行（依据表格列/详情/证据访问字段声明）
+interface FraudRow {
+  id?: string
+  userId?: string
+  type?: string
+  confidence?: number
+  status?: string
+  createdAt?: string
+  stationId?: string
+  evidence: Record<string, any>
+}
+
 const loading = ref(false)
 const error = ref(false)
 const scanning = ref(false)
-const list = ref<any[]>([])
+const list = ref<FraudRow[]>([])
 const total = ref(0)
 const page = ref(1)
 
 const statusFilter = ref('')
 
 const detailDialogVisible = ref(false)
-const detailData = ref<any>(null)
+const detailData = ref<FraudRow | null>(null)
 
 // 后端 FraudDetection.type（扫描器生成 + schema 备注两套取值）
 const typeMap: Record<string, string> = {
@@ -43,21 +55,21 @@ async function triggerScan() {
   }
 }
 
-function formatDate(d: string) {
+function formatDate(d?: string) {
   return d ? new Date(d).toLocaleString() : '-'
 }
 
-function getStatusLabel(status: string): string {
+function getStatusLabel(status = ''): string {
   const map: Record<string, string> = { PENDING: '待确认', CONFIRMED: '已确认', DISMISSED: '已忽略' }
   return map[status] || status
 }
 
-function getTypeLabel(type: string): string {
+function getTypeLabel(type = ''): string {
   return typeMap[type] || type || '-'
 }
 
 // confidence 是 0-1 量纲，转为 0-100 的百分比展示（与 riskScore 的 0-100 量纲不同，勿混用）
-function confidencePct(c: any): number {
+function confidencePct(c: unknown): number {
   const n = Number(c)
   if (!Number.isFinite(n)) return 0
   return Math.round(Math.min(Math.max(n, 0), 1) * 100)
@@ -78,7 +90,7 @@ function maskId(id?: string): string {
 }
 
 // 从 evidence JSON 提炼可疑行为摘要（订单数/关联账号/退款率等均在 evidence 内）
-function evidenceSummary(row: any): string {
+function evidenceSummary(row: FraudRow): string {
   const e = row?.evidence || {}
   const parts: string[] = []
   if (e.deviceId) parts.push(`设备 ${maskId(e.deviceId)}`)
@@ -91,13 +103,13 @@ function evidenceSummary(row: any): string {
   return parts.join(' · ') || '-'
 }
 
-function getOrderCount(row: any): string {
+function getOrderCount(row: FraudRow): string {
   const c = row?.evidence?.orderCount
   return c != null ? String(c) : '-'
 }
 
 // 证据链中含原始 IP/设备ID，展示前掩码
-function sanitizedEvidence(row: any): Record<string, any> {
+function sanitizedEvidence(row: FraudRow): Record<string, any> {
   const e = { ...(row?.evidence || {}) }
   if (e.ip) e.ip = maskIp(e.ip)
   if (e.deviceId) e.deviceId = maskId(e.deviceId)
@@ -108,7 +120,7 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const params: Record<string, any> = { page: page.value, pageSize: 20 }
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 }
     if (statusFilter.value) params.status = statusFilter.value
     const { data } = await riskApi.listFraudDetections(params)
     list.value = data.items ?? (Array.isArray(data) ? data : [])
@@ -153,7 +165,7 @@ async function dismissFraud(id: string) {
   }
 }
 
-function showDetail(row: any) {
+function showDetail(row: FraudRow) {
   detailData.value = row
   detailDialogVisible.value = true
 }

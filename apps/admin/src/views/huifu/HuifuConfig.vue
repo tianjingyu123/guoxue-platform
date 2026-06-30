@@ -423,7 +423,12 @@ const loadError = ref(false);
 const splitStats = reactive({ todayCount: 0 });
 const refundStats = reactive({ pending: 0 });
 
-const configList = ref<any[]>([]);
+// 支付配置项 / 分账记录 / 退款记录（按列配置与模板访问字段定义的宽松本地类型）
+interface ConfigRow { key: string; value: string; description?: string }
+interface SplitRow { orderId?: string; amount?: number; receiverName?: string; status?: string; createdAt?: string }
+interface RefundRow { outTradeNo?: string; amount?: number; refundAmount?: number; reason?: string; status?: string; createdAt?: string }
+
+const configList = ref<ConfigRow[]>([]);
 const editingKey = ref("");
 const editValue = ref("");
 const configSaving = ref(false);
@@ -432,20 +437,20 @@ const splitVisible = ref(false);
 const splitSubmitting = ref(false);
 const splitLoading = ref(false);
 const splitForm = reactive({ orderId: "", amount: "", receiverId: "", receiverName: "" });
-const splitList = ref<any[]>([]);
+const splitList = ref<SplitRow[]>([]);
 const splitQuery = reactive({ orderId: "" });
 
 const refundVisible = ref(false);
 const refundSubmitting = ref(false);
 const refundLoading = ref(false);
 const refundForm = reactive({ outTradeNo: "", amount: "", reason: "" });
-const refundList = ref<any[]>([]);
+const refundList = ref<RefundRow[]>([]);
 
 const billDate = ref("");
 const downloading = ref(false);
 
-function fmtDate(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
-function maskValue(row: any) {
+function fmtDate(d?: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
+function maskValue(row: ConfigRow) {
   const v = row.value || "";
   if (row.key?.toLowerCase().includes("secret") || row.key?.toLowerCase().includes("key")) {
     return v.slice(0, 4) + "****" + v.slice(-4);
@@ -470,12 +475,12 @@ async function refreshAll() {
   } catch { loadError.value = true; } finally { loading.value = false; }
 }
 
-function startEdit(row: any) {
+function startEdit(row: ConfigRow) {
   editingKey.value = row.key;
   editValue.value = row.value;
 }
 
-async function saveConfig(row: any) {
+async function saveConfig(row: ConfigRow) {
   if (configSaving.value) return;
   configSaving.value = true;
   try {

@@ -533,16 +533,78 @@ import { ref, reactive, computed, onMounted, nextTick } from "vue";
 import { ElMessage } from "element-plus";
 import { contentGenerationApi, aiAdminApi } from "@/api";
 
+/** 品类健康度行（字段宽松 optional） */
+interface CategoryStatRow {
+  level1?: string;
+  level2?: string;
+  knowledgeCount?: number;
+  classicsCount?: number;
+  tutorialCount?: number;
+  totalCount?: number;
+  healthScore?: number;
+}
+/** 品类树节点 */
+interface CategoryNode {
+  label: string;
+  children?: { label: string }[];
+}
+/** Token 用量 */
+interface TokenUsage { promptTokens?: number; completionTokens?: number }
+/** 最近生成任务 */
+interface RecentTask {
+  categoryLevel1?: string;
+  categoryLevel2?: string;
+  types?: string[];
+  status?: string;
+  tokenUsage?: TokenUsage;
+  createdAt?: string;
+}
+/** 生成历史日志 */
+interface HistoryLog {
+  scene?: string;
+  modelName?: string;
+  prompt?: string;
+  query?: string;
+  response?: string;
+  content?: string;
+  messages?: { content?: string }[];
+  tokenUsage?: TokenUsage;
+  latencyMs?: number;
+  status?: string;
+  createdAt?: string;
+}
+/** 统计接口响应 */
+interface StatsResponse {
+  totalCategories?: number;
+  totalContent?: number;
+  emptyCategories?: number;
+  totalGeneratedToday?: number;
+  details?: CategoryStatRow[];
+  categoryStats?: CategoryStatRow[];
+}
+/** 品类树接口响应 */
+interface CategoriesResponse {
+  categories?: CategoryNode[];
+  tree?: CategoryNode[];
+  [key: string]: unknown;
+}
+/** 历史日志接口响应 */
+interface HistoryResponse {
+  list?: HistoryLog[];
+  data?: HistoryLog[];
+  total?: number;
+}
+
 const activeTab = ref("health");
 const healthKeyword = ref("");
 const showEmptyOnly = ref(false);
 
 const stats = reactive({ totalCategories: 0, totalContent: 0, emptyCategories: 0, totalGeneratedToday: 0 });
-const categoryStats = ref<any[]>([]);
-const categories = ref<any[]>([]);
+const categoryStats = ref<CategoryStatRow[]>([]);
+const categories = ref<CategoryNode[]>([]);
 const generating = ref(false);
 const autoFilling = ref(false);
-const recentTasks = ref<any[]>([]);
+const recentTasks = ref<RecentTask[]>([]);
 const statsLoading = ref(false);
 const loadErr = ref(false);
 
@@ -550,17 +612,17 @@ const genStats = reactive({ totalTasks: 0, successRate: 0 });
 const genForm = reactive({ level1: "", level2: "", types: ["knowledge", "classics", "tutorial"] as string[] });
 
 // 生成历史
-const historyLogs = ref<any[]>([]);
+const historyLogs = ref<HistoryLog[]>([]);
 const historyLoading = ref(false);
 const historyErr = ref(false);
-const historyFilter = reactive({ category: "", type: "", status: "", dateRange: null as any });
+const historyFilter = reactive({ category: "", type: "", status: "", dateRange: null as [Date, Date] | null });
 const historyPagination = reactive({ page: 1, total: 0 });
 
 const allCategoryNames = computed(() => {
   const names: string[] = [];
-  categories.value.forEach((c: any) => {
+  categories.value.forEach((c) => {
     names.push(c.label);
-    if (c.children) c.children.forEach((s: any) => names.push(s.label));
+    if (c.children) c.children.forEach((s) => names.push(s.label));
   });
   return [...new Set(names)].sort();
 });
@@ -569,20 +631,21 @@ const filteredCategoryStats = computed(() => {
   let list = categoryStats.value;
   if (healthKeyword.value) {
     const kw = healthKeyword.value.toLowerCase();
-    list = list.filter((r: any) =>
+    list = list.filter((r) =>
       (r.level1 || "").toLowerCase().includes(kw) ||
       (r.level2 || "").toLowerCase().includes(kw)
     );
   }
   if (showEmptyOnly.value) {
-    list = list.filter((r: any) => r.healthScore < 40);
+    // Number(undefined) -> NaN，与原 `undefined < 40` 同样为 false，保持行为不变
+    list = list.filter((r) => Number(r.healthScore) < 40);
   }
   return list;
 });
 
 const currentSubs = computed(() => {
-  const c = categories.value.find((c: any) => c.label === genForm.level1);
-  return c?.children?.map((s: any) => s.label) || [];
+  const c = categories.value.find((c) => c.label === genForm.level1);
+  return c?.children?.map((s) => s.label) || [];
 });
 
 function fmt(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
@@ -603,7 +666,7 @@ async function refreshStats() {
 
 async function loadStats() {
   const { data } = await contentGenerationApi.getStats();
-  const s = data as any;
+  const s = data as StatsResponse;
   if (s) {
     stats.totalCategories = s.totalCategories || 0;
     stats.totalContent = s.totalContent || 0;
@@ -615,7 +678,7 @@ async function loadStats() {
 
 async function loadCategories() {
   const { data } = await contentGenerationApi.getCategories();
-  const c = data as any;
+  const c = data as CategoriesResponse;
   if (c) categories.value = c.categories || c.tree || Object.entries(c).map(([k, v]) => ({ label: k, children: (v as string[]).map(s => ({ label: s })) }));
 }
 
@@ -623,23 +686,23 @@ async function fetchHistory() {
   historyLoading.value = true;
   historyErr.value = false;
   try {
-    const params: any = { page: historyPagination.page, pageSize: 20, scene: "content_generation" };
+    const params: Record<string, string | number> = { page: historyPagination.page, pageSize: 20, scene: "content_generation" };
     if (historyFilter.status) params.status = historyFilter.status;
     if (historyFilter.dateRange) {
       params.startDate = historyFilter.dateRange[0]?.toISOString();
       params.endDate = historyFilter.dateRange[1]?.toISOString();
     }
     const { data } = await aiAdminApi.getCallLogs(params);
-    const d = data as any;
+    const d = data as HistoryResponse;
     const list = d?.list || d?.data || [];
-    historyLogs.value = list.map((log: any) => ({
+    historyLogs.value = list.map((log) => ({
       ...log,
       prompt: log.query || log.prompt || log.messages?.[log.messages.length - 1]?.content,
       response: log.response || log.content,
     }));
     historyPagination.total = d?.total || list.length;
     genStats.totalTasks = historyPagination.total;
-    const successCount = list.filter((l: any) => l.status === "success").length;
+    const successCount = list.filter((l) => l.status === "success").length;
     genStats.successRate = list.length > 0 ? Math.round((successCount / list.length) * 100) : 0;
   } catch { historyErr.value = true; } finally { historyLoading.value = false; }
 }
@@ -677,18 +740,19 @@ async function autoFill() {
   } catch { /* ignore */ } finally { autoFilling.value = false; }
 }
 
-function generateFor(row: any) {
-  genForm.level1 = row.level1;
+function generateFor(row: CategoryStatRow) {
+  genForm.level1 = row.level1 || "";
   genForm.level2 = row.level2 || "";
   genForm.types = ["knowledge", "classics", "tutorial"];
   activeTab.value = "generate";
   nextTick(() => triggerGenerate());
 }
 
-function fillSpecific(row: any) {
-  genForm.level1 = row.level1;
+function fillSpecific(row: CategoryStatRow) {
+  genForm.level1 = row.level1 || "";
   genForm.level2 = row.level2 || "";
-  genForm.types = row.knowledgeCount < 3 ? ["knowledge"] : row.classicsCount < 3 ? ["classics"] : ["tutorial"];
+  // Number(undefined) -> NaN，NaN < 3 为 false，保持原 `undefined < 3` 行为
+  genForm.types = Number(row.knowledgeCount) < 3 ? ["knowledge"] : Number(row.classicsCount) < 3 ? ["classics"] : ["tutorial"];
   activeTab.value = "generate";
 }
 

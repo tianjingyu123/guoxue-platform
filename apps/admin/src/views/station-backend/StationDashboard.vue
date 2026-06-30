@@ -55,7 +55,14 @@ import { stationDashboardApi } from "@/api";
 
 const loading = ref(false);
 const loadError = ref(false);
-const dashboard = ref<any>({});
+/** 分站权益概览数据（字段宽松 optional） */
+interface DashboardData {
+  merchantCount?: number;
+  monthlyRevenue?: number;
+  activeUsers?: number;
+  apiCalls?: number;
+}
+const dashboard = ref<DashboardData>({});
 
 const cards = computed(() => [
   { label: "入驻商家", value: dashboard.value.merchantCount ?? "-", icon: UserFilled, bg: "#ecf5ff" },
@@ -69,7 +76,7 @@ async function load() {
   loadError.value = false;
   try {
     const res = await stationDashboardApi.overview();
-    dashboard.value = (res as any)?.data ?? res ?? {};
+    dashboard.value = res?.data ?? res ?? {};
   } catch {
     loadError.value = true;
   } finally { loading.value = false; }

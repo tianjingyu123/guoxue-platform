@@ -302,7 +302,18 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { instituteApi } from "@/api";
 
-const list = ref<any[]>([]);
+/** 研究院成员行（字段宽松 optional） */
+interface InstituteMemberRow {
+  id: string;
+  user?: { nickname?: string };
+  role: string;
+  status: string;
+  deposit?: number;
+  tasksRequired?: number;
+  tasksCompleted?: number;
+  joinedAt?: string;
+}
+const list = ref<InstituteMemberRow[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
 const acting = ref(false);
@@ -314,7 +325,7 @@ const total = ref(0);
 
 const dialogVisible = ref(false);
 const saving = ref(false);
-const editingRow = ref<any>(null);
+const editingRow = ref<InstituteMemberRow | null>(null);
 const editForm = reactive({ role: "TYPE_A", status: "ACTIVE", deposit: 0, tasksRequired: 3 });
 
 function roleLabel(r: string) {
@@ -343,7 +354,7 @@ async function fetchList() {
   loading.value = true;
   loadError.value = false;
   try {
-    const params: any = { page: page.value, pageSize };
+    const params: Record<string, string | number> = { page: page.value, pageSize };
     if (statusFilter.value) params.status = statusFilter.value;
     if (roleFilter.value) params.role = roleFilter.value;
     const { data } = await instituteApi.listMembers(params);
@@ -356,7 +367,7 @@ async function fetchList() {
   }
 }
 
-function openEdit(row: any) {
+function openEdit(row: InstituteMemberRow) {
   editingRow.value = row;
   editForm.role = row.role;
   editForm.status = row.status;
@@ -383,7 +394,7 @@ async function saveEdit() {
   }
 }
 
-async function handleUpdate(row: any, status: string) {
+async function handleUpdate(row: InstituteMemberRow, status: string) {
   if (acting.value) return;
   const label = status === "FROZEN" ? "冻结" : status === "ACTIVE" && row.status === "FROZEN" ? "解冻" : "设为已退出";
   await ElMessageBox.confirm(`确定${label}成员「${row.user?.nickname}」？`, "提示", { type: "warning" });

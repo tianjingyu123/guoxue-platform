@@ -73,8 +73,18 @@ import { operatorDashboardApi } from "@/api";
 
 const loading = ref(false);
 const loadError = ref(false);
-const dashboard = ref<any>({});
-const topStations = ref<any[]>([]);
+/** 分站收入行（字段宽松 optional） */
+interface StationRevenueRow { name?: string; revenue?: number }
+/** 运营商权益概览数据（字段宽松 optional） */
+interface OperatorDashboardData {
+  stationCount?: number;
+  totalRevenue?: number;
+  activeUsers?: number;
+  apiQuota?: number;
+  topStations?: StationRevenueRow[];
+}
+const dashboard = ref<OperatorDashboardData>({});
+const topStations = ref<StationRevenueRow[]>([]);
 
 const cards = computed(() => [
   { label: "分站总数", value: dashboard.value.stationCount ?? "-", icon: Monitor, bg: "#ecf5ff" },
@@ -88,8 +98,8 @@ async function load() {
   loadError.value = false;
   try {
     const res = await operatorDashboardApi.overview();
-    dashboard.value = (res as any)?.data ?? res ?? {};
-    topStations.value = (dashboard.value as any)?.topStations ?? [];
+    dashboard.value = res?.data ?? res ?? {};
+    topStations.value = dashboard.value?.topStations ?? [];
   } catch {
     loadError.value = true;
   } finally { loading.value = false; }

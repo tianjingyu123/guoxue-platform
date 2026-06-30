@@ -213,6 +213,12 @@ interface SensitiveWord {
   level?: string
 }
 
+// 敏感词检测结果
+interface CheckResult {
+  hasSensitive: boolean
+  hits: string[]
+}
+
 const words = ref<SensitiveWord[]>([])
 const loading = ref(false)
 const loadError = ref(false)
@@ -246,7 +252,7 @@ const addLevel = ref('MEDIUM')
 
 const checkDialog = ref(false)
 const checkText = ref('')
-const checkResult = ref<any>(null)
+const checkResult = ref<CheckResult | null>(null)
 
 function scopeLabel(v: string): string { return scopeOptions.find(s => s.value === v)?.label ?? v }
 function scopeTagType(v: string): string {
@@ -265,8 +271,8 @@ async function fetchList() {
   loadError.value = false
   try {
     const res = await sensitiveWordApi.list()
-    const raw: any[] = (res.data as any)?.words || []
-    words.value = raw.map((w: any) => typeof w === 'string' ? { word: w, scopes: [], level: 'MEDIUM' } : w)
+    const raw: (string | SensitiveWord)[] = res.data?.words || []
+    words.value = raw.map(w => typeof w === 'string' ? { word: w, scopes: [], level: 'MEDIUM' } : w)
   } catch { loadError.value = true; words.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
@@ -287,11 +293,11 @@ async function doAdd() {
       ElMessage.success(`已添加 ${lines.length} 个敏感词`)
     }
     addDialog.value = false; fetchList()
-  } catch (e: any) { }
+  } catch { }
   finally { saving.value = false }
 }
 
-async function del(row: any) {
+async function del(row: SensitiveWord) {
   try { await ElMessageBox.confirm(`确定删除"${row.word}"？`, '提示', { type: 'warning' }); await sensitiveWordApi.delete(row.word); ElMessage.success('已删除'); fetchList() } catch {}
 }
 

@@ -94,11 +94,11 @@ function showEditField(field: string) {
   editingFields[field] = true
 }
 
-function hideEditField(field: string, form: any, formKey: string) {
+function hideEditField(field: string, _form: Record<string, string>, _formKey: string) {
   editingFields[field] = false
 }
 
-function getDisplayValue(form: any, field: string): string {
+function getDisplayValue(form: Record<string, string>, field: string): string {
   if (editingFields[field]) return form[field]
   return maskValue(form[field])
 }
@@ -109,10 +109,10 @@ async function fetchAllConfigs() {
   try {
     const { data } = await systemApi.listConfigs()
     const items = data?.configs ?? data?.data ?? []
-    ;(Array.isArray(items) ? items : []).forEach((item: any) => {
+    ;(Array.isArray(items) ? items : []).forEach((item: { key: string; value: unknown }) => {
       const key = item.key
       const rawVal = typeof item.value === 'string' ? item.value : JSON.stringify(item.value)
-      let parsed: any
+      let parsed: Record<string, unknown>
       try { parsed = JSON.parse(rawVal) } catch { parsed = {} }
 
       if (key === 'third_party.wechat_pay') {
@@ -135,7 +135,7 @@ async function fetchAllConfigs() {
   } finally { loading.value = false }
 }
 
-function getCurrentForm(): any {
+function getCurrentForm(): Record<string, string> | null {
   switch (activeTab.value) {
     case 'wechat_pay': return wxPay
     case 'alipay': return alipay
@@ -153,7 +153,7 @@ async function saveConfig() {
   saving.value = true
   try {
     const configKey = serviceKeyMap[activeTab.value]
-    const payload: any = {}
+    const payload: Record<string, string> = {}
     Object.assign(payload, form)
     await systemApi.setConfig(configKey, { value: JSON.stringify(payload) })
     ElMessage.success('配置已保存')

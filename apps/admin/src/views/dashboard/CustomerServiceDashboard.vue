@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, type Component } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/api'
 import {
@@ -13,9 +13,10 @@ import ChartCard from '@/components/ChartCard.vue'
 
 interface AlertItem { text: string; count: number; level: 'critical' | 'warning' | 'info' }
 interface TrendInfo { pct: number }
-interface CardItem { label: string; value: number; icon: any; highlight?: boolean; trend?: TrendInfo | null; route?: string }
+interface CardItem { label: string; value: number; icon: Component; highlight?: boolean; trend?: TrendInfo | null; route?: string }
+// option 为 echarts 配置对象，结构复杂，保留 any（框架类型）
 interface ChartItem { title: string; option: any }
-interface QuickAction { label: string; path: string; icon: any; badge?: number }
+interface QuickAction { label: string; path: string; icon: Component; badge?: number }
 
 const username = ref('客服专员')
 const router = useRouter()

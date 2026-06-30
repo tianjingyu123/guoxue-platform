@@ -3,25 +3,40 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
+// 资金审批单行（按列配置与模板访问字段定义的宽松本地类型；payload 为 Json）
+interface ApprovalRow {
+  id: string
+  type: string
+  summary?: string
+  payload?: Record<string, any>
+  amount?: number
+  requestedBy?: string
+  status: string
+  createdAt: string
+  processedAt?: string
+  reviewedBy?: string
+  reviewNote?: string
+}
+
 const loading = ref(false)
 const saving = ref(false)
 const error = ref(false)
-const list = ref<any[]>([])
+const list = ref<ApprovalRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 20
 const statusFilter = ref('PENDING')
 
 const detailVisible = ref(false)
-const detailData = ref<any>(null)
+const detailData = ref<ApprovalRow | null>(null)
 
 const rejectVisible = ref(false)
 const rejectForm = reactive({ id: '', note: '' })
 
 onMounted(() => fetchList())
 
-function formatDate(d: string) { return d ? new Date(d).toLocaleString('zh-CN', { hour12: false }) : '-' }
-function formatMoney(v: any) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString('zh-CN', { hour12: false }) : '-' }
+function formatMoney(v: number | string | null | undefined) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
 
 const TYPE_LABELS: Record<string, string> = {
   DIVIDEND: '研究院分红',
@@ -45,7 +60,7 @@ function statusLabel(s: string) {
 }
 
 /** payload 摘要：取关键字段简短展示 */
-function payloadBrief(row: any): string {
+function payloadBrief(row: ApprovalRow): string {
   const p = row?.payload && typeof row.payload === 'object' ? row.payload : {}
   switch (row.type) {
     case 'DIVIDEND':
@@ -63,7 +78,7 @@ function payloadBrief(row: any): string {
   }
 }
 
-function prettyPayload(row: any): string {
+function prettyPayload(row: ApprovalRow): string {
   try { return JSON.stringify(row?.payload ?? {}, null, 2) } catch { return String(row?.payload ?? '') }
 }
 
@@ -71,7 +86,7 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const params: any = { page: page.value, pageSize }
+    const params: Record<string, string | number> = { page: page.value, pageSize }
     if (statusFilter.value) params.status = statusFilter.value
     const { data } = await api.get('/fund-approval/admin/pending', { params })
     list.value = data.items ?? []
@@ -82,9 +97,9 @@ async function fetchList() {
   } finally { loading.value = false }
 }
 
-function viewDetail(row: any) { detailData.value = row; detailVisible.value = true }
+function viewDetail(row: ApprovalRow) { detailData.value = row; detailVisible.value = true }
 
-async function approve(row: any) {
+async function approve(row: ApprovalRow) {
   if (saving.value) return
   try {
     await ElMessageBox.confirm(
@@ -101,7 +116,7 @@ async function approve(row: any) {
   } catch { /* 拦截器已提示 */ } finally { saving.value = false }
 }
 
-function openReject(row: any) {
+function openReject(row: ApprovalRow) {
   rejectForm.id = row.id
   rejectForm.note = ''
   rejectVisible.value = true

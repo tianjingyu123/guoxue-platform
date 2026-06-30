@@ -226,7 +226,18 @@ import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { abTestApi } from '@/api'
 
-const list = ref<any[]>([])
+/** A/B 实验行（字段宽松 optional，仅声明模板/脚本实际访问字段） */
+interface AbTestRow {
+  id: string
+  name?: string
+  scene?: string
+  controlGroup?: string
+  experimentGroup?: string
+  status?: string
+  createdAt?: string
+}
+
+const list = ref<AbTestRow[]>([])
 const loading = ref(false)
 const error = ref(false)
 const saving = ref(false)
@@ -236,7 +247,7 @@ const editingId = ref('')
 const form = ref({ name: '', scene: '', controlGroup: '', experimentGroup: '', trafficSplit: 50, description: '' })
 
 const metricsDialog = ref(false)
-const metricsData = ref<any>(null)
+const metricsData = ref<Record<string, unknown> | null>(null)
 
 const STATUS_MAP: Record<string, string> = { DRAFT: '草稿', RUNNING: '运行中', PAUSED: '已暂停', COMPLETED: '已完成' }
 function statusLabel(s: string) { return STATUS_MAP[s] || s }
@@ -248,7 +259,7 @@ onMounted(() => fetchList())
 async function fetchList() {
   loading.value = true
   error.value = false
-  try { const res = await abTestApi.list(); list.value = (res.data as any) || [] }
+  try { const res = await abTestApi.list(); list.value = (res.data as AbTestRow[]) || [] }
   catch { error.value = true; list.value = [] }
   finally { loading.value = false }
 }
@@ -263,7 +274,7 @@ async function save() {
     if (editingId.value) { await abTestApi.update(editingId.value, form.value); ElMessage.success('已更新') }
     else { await abTestApi.create(form.value); ElMessage.success('已创建') }
     dialogVisible.value = false; fetchList()
-  } catch (e: any) { }
+  } catch { }
   finally { saving.value = false }
 }
 
@@ -282,16 +293,16 @@ async function del(id: string) {
   try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await abTestApi.delete(id); ElMessage.success('已删除'); fetchList() } catch {}
 }
 
-async function viewMetrics(row: any) {
-  try { const res = await abTestApi.getMetrics(row.id); metricsData.value = res.data; metricsDialog.value = true } catch {}
+async function viewMetrics(row: AbTestRow) {
+  try { const res = await abTestApi.getMetrics(row.id); metricsData.value = res.data as Record<string, unknown>; metricsDialog.value = true } catch {}
 }
 
 async function fetchReport() {
-  try { const res = await abTestApi.getReport(); ElMessage.success(JSON.stringify(res.data)) } catch (e: any) { }
+  try { const res = await abTestApi.getReport(); ElMessage.success(JSON.stringify(res.data)) } catch { }
 }
 
 async function generateReport() {
-  try { await abTestApi.generateReport(); ElMessage.success('报告生成中') } catch (e: any) { }
+  try { await abTestApi.generateReport(); ElMessage.success('报告生成中') } catch { }
 }
 </script>
 

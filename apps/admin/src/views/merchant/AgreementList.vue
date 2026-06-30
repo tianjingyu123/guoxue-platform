@@ -150,7 +150,16 @@ import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { merchantApi } from '@/api'
 
-const list = ref<any[]>([])
+/** 协议版本行（字段宽松 optional） */
+interface AgreementRow {
+  id: string
+  version?: string
+  title?: string
+  content?: string
+  createdAt?: string
+}
+
+const list = ref<AgreementRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const loading = ref(false)
@@ -167,10 +176,10 @@ async function fetchList() {
   error.value = false
   try {
     const res = await merchantApi.getAgreements({ page: page.value, pageSize: 20 })
-    const data = res.data as any
+    const data = res.data as { list?: AgreementRow[]; total?: number }
     list.value = data.list || []
     total.value = data.total || 0
-  } catch (e: any) {
+  } catch (e) {
     error.value = true
   } finally { loading.value = false }
 }
@@ -185,10 +194,10 @@ function openCreate() {
   dialogVisible.value = true
 }
 
-function openEdit(row: any) {
+function openEdit(row: AgreementRow) {
   resetForm()
   editingId.value = row.id
-  form.value = { version: row.version, title: row.title, content: row.content }
+  form.value = { version: row.version || '', title: row.title || '', content: row.content || '' }
   dialogVisible.value = true
 }
 
@@ -208,7 +217,7 @@ async function save() {
     }
     dialogVisible.value = false
     fetchList()
-  } catch (e: any) {
+  } catch (e) {
   } finally { saving.value = false }
 }
 

@@ -212,9 +212,11 @@ const overview = reactive({
   totalStations: 0, activeStations: 0, silentStations: 0,
   quotaUsed: 0, quotaTotal: 0,
 })
-const ranking = ref<any[]>([])
+/** 站长业绩排行行（字段宽松 optional） */
+interface RankingRow { name?: string; totalEarning?: number; status?: string }
+const ranking = ref<RankingRow[]>([])
 
-function fmt(v: any) { return Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
+function fmt(v: number | undefined) { return Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
 
 async function refresh() {
   loading.value = true

@@ -440,6 +440,24 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { api } from "@/api";
 
+// 图像审核结果
+interface AuditResult {
+  imageUrl?: string;
+  safe?: boolean;
+  category?: string;
+  confidence?: number;
+  reason?: string;
+  model?: string;
+}
+// 媒体任务历史行
+interface MediaTask {
+  inputSummary?: string;
+  outputSummary?: string;
+  analysisContent?: string;
+  latency?: number;
+  createdAt?: string;
+}
+
 const activeTab = ref("image-audit");
 
 const stats = reactive({ totalTasks: 0, imageAuditCount: 0, ttsCount: 0, transcribeCount: 0 });
@@ -447,7 +465,7 @@ const stats = reactive({ totalTasks: 0, imageAuditCount: 0, ttsCount: 0, transcr
 // 图像审核
 const auditForm = reactive({ imageUrl: "", context: "" });
 const auditing = ref(false);
-const lastAuditResult = ref<any>(null);
+const lastAuditResult = ref<AuditResult | null>(null);
 
 // TTS
 const ttsForm = reactive({ text: "", voice: "zh-CN-XiaoxiaoNeural", speed: 1.0 });
@@ -458,9 +476,9 @@ const transcribeForm = reactive({ audioUrl: "", language: "zh-CN" });
 const transcribing = ref(false);
 
 // 历史日志
-const imageAuditLogs = ref<any[]>([]);
-const ttsLogs = ref<any[]>([]);
-const transcribeLogs = ref<any[]>([]);
+const imageAuditLogs = ref<MediaTask[]>([]);
+const ttsLogs = ref<MediaTask[]>([]);
+const transcribeLogs = ref<MediaTask[]>([]);
 const tasksLoading = ref(false);
 const loadErr = ref(false);
 
@@ -481,9 +499,9 @@ async function loadTasks() {
       api.get("/ai/media/tasks", { params: { type: "tts", pageSize: 20 } }),
       api.get("/ai/media/tasks", { params: { type: "transcribe", pageSize: 20 } }),
     ]);
-    imageAuditLogs.value = ((imageRes.data as any)?.list || []);
-    ttsLogs.value = ((ttsRes.data as any)?.list || []);
-    transcribeLogs.value = ((transRes.data as any)?.list || []);
+    imageAuditLogs.value = (imageRes.data as { list?: MediaTask[] })?.list || [];
+    ttsLogs.value = (ttsRes.data as { list?: MediaTask[] })?.list || [];
+    transcribeLogs.value = (transRes.data as { list?: MediaTask[] })?.list || [];
   } catch {
     loadErr.value = true;
   } finally { tasksLoading.value = false; }
@@ -497,10 +515,10 @@ async function loadTaskCounts() {
       api.get("/ai/media/tasks", { params: { type: "tts", pageSize: 1 } }),
       api.get("/ai/media/tasks", { params: { type: "transcribe", pageSize: 1 } }),
     ]);
-    stats.totalTasks = (allRes.data as any)?.total || 0;
-    stats.imageAuditCount = (imgRes.data as any)?.total || 0;
-    stats.ttsCount = (ttsRes.data as any)?.total || 0;
-    stats.transcribeCount = (transRes.data as any)?.total || 0;
+    stats.totalTasks = (allRes.data as { total?: number })?.total || 0;
+    stats.imageAuditCount = (imgRes.data as { total?: number })?.total || 0;
+    stats.ttsCount = (ttsRes.data as { total?: number })?.total || 0;
+    stats.transcribeCount = (transRes.data as { total?: number })?.total || 0;
   } catch { /* ignore */ }
 }
 

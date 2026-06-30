@@ -4,22 +4,37 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, financeApi } from '@/api'
 import { exportCSV } from '@/utils/export'
 
+// 发票申请行（按列配置与模板访问字段定义的宽松本地类型）
+interface InvoiceRow {
+  id: string
+  orderId?: string
+  userId?: string
+  amount?: number
+  type: string
+  title?: string
+  status: string
+  createdAt: string
+  invoiceUrl?: string
+  taxNo?: string
+  expressNo?: string
+}
+
 const loading = ref(false)
 const error = ref(false)
-const list = ref<any[]>([])
+const list = ref<InvoiceRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 20
 
 const statusFilter = ref('')
 const detailVisible = ref(false)
-const detailData = ref<any>(null)
+const detailData = ref<InvoiceRow | null>(null)
 const rejecting = ref(false)
 
 onMounted(() => fetchList())
 
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
-function formatMoney(v: any) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
+function formatMoney(v: number | string | null | undefined) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
 
 // 后端字段：status = PENDING / ISSUED / MAILED / REJECTED
 function statusTagType(status: string) {
@@ -38,7 +53,7 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const params: any = { page: page.value, pageSize }
+    const params: Record<string, string | number> = { page: page.value, pageSize }
     if (statusFilter.value) params.status = statusFilter.value
     // 后端 getInvoiceList 返回 { invoices, total, page, pageSize }，"invoices" 键不被拦截器解包
     const { data } = await financeApi.listInvoices(params)
@@ -50,9 +65,9 @@ async function fetchList() {
   } finally { loading.value = false }
 }
 
-function viewDetail(row: any) { detailData.value = row; detailVisible.value = true }
+function viewDetail(row: InvoiceRow) { detailData.value = row; detailVisible.value = true }
 
-async function doIssue(row: any) {
+async function doIssue(row: InvoiceRow) {
   try {
     await ElMessageBox.confirm(`确定开具发票（订单 ${row.orderId}）？`, '开票确认', { type: 'warning' })
     await financeApi.issueInvoice(row.id, row.invoiceUrl || '')
@@ -61,7 +76,7 @@ async function doIssue(row: any) {
   } catch { /* 取消 */ }
 }
 
-async function doReject(row: any) {
+async function doReject(row: InvoiceRow) {
   if (rejecting.value) return
   try {
     const { value } = await ElMessageBox.prompt('请输入驳回原因（可选）', '驳回开票申请', {
@@ -79,7 +94,7 @@ async function doReject(row: any) {
   } catch { /* 取消 */ } finally { rejecting.value = false }
 }
 
-async function doMail(row: any) {
+async function doMail(row: InvoiceRow) {
   try {
     const { value } = await ElMessageBox.prompt('请输入快递单号', '标记已邮寄', { type: 'info' })
     if (value) {

@@ -186,11 +186,21 @@ import { ref, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "@/api";
 
+/** 运费模板行（字段宽松 optional） */
+interface FreightRow {
+  id?: string;
+  name?: string;
+  type?: string;
+  defaultFee?: number | string;
+  conditionFree?: { threshold?: number | string }[];
+  isActive?: boolean;
+}
+
 const loading = ref(false);
 const error = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
-const templates = ref<any[]>([]);
+const templates = ref<FreightRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(20);
@@ -229,9 +239,10 @@ function openCreate() {
   dialogVisible.value = true;
 }
 
-function openEdit(row: any) {
+function openEdit(row: FreightRow) {
   isEdit.value = true;
-  form.value = { ...row, defaultFee: Number(row.defaultFee) };
+  // row 字段宽松 optional，按表单结构断言（运行时数据字段齐全）
+  form.value = { ...row, defaultFee: Number(row.defaultFee) } as typeof form.value;
   dialogVisible.value = true;
 }
 
@@ -256,14 +267,14 @@ async function handleSave() {
     }
     dialogVisible.value = false;
     fetchList();
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || "操作失败");
+  } catch (e) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message || "操作失败");
   } finally {
     saving.value = false;
   }
 }
 
-async function handleDelete(row: any) {
+async function handleDelete(row: FreightRow) {
   try {
     await ElMessageBox.confirm(`确定删除模板「${row.name}」吗？`, "删除确认", { type: "warning" });
     if (deleting.value) return;

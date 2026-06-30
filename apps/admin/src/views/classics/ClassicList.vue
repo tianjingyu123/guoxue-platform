@@ -410,13 +410,40 @@ import { classicApi } from "@/api";
 import ImageUpload from "@/components/ImageUpload.vue";
 import PageHeader from "@/components/PageHeader.vue";
 
-const books = ref<any[]>([]);
+/** 古籍行（字段宽松 optional） */
+interface BookRow {
+  id?: string;
+  title?: string;
+  author?: string;
+  dynasty?: string;
+  category?: string;
+  intro?: string;
+  cover?: string;
+  source?: string;
+  chapterCount?: number;
+  viewCount?: number;
+}
+/** 章节行（字段宽松 optional） */
+interface ChapterRow {
+  id?: string;
+  title?: string;
+  content?: string;
+  translation?: string;
+  annotation?: string;
+}
+/** 古籍统计面板数据 */
+interface ClassicStats {
+  totals?: { books?: number; chapters?: number; images?: number; commentaries?: number; annotations?: number };
+  byCategory?: { category: string; count: number }[];
+}
+
+const books = ref<BookRow[]>([]);
 const loading = ref(false);
 const dialogVisible = ref(false);
 const saving = ref(false);
-const editingBook = ref<any>({});
+const editingBook = ref<BookRow>({});
 const categoryFilter = ref("");
-const stats = ref<any>(null);
+const stats = ref<ClassicStats | null>(null);
 
 const form = reactive({ title: "", author: "", dynasty: "", category: "子", cover: "", source: "", intro: "" });
 
@@ -461,7 +488,7 @@ async function clearCache() {
 async function fetchBooks() {
   loading.value = true;
   try {
-    const params: any = { pageSize: 100 };
+    const params: Record<string, string | number> = { pageSize: 100 };
     if (categoryFilter.value) params.category = categoryFilter.value;
     const { data } = await classicApi.list(params);
     books.value = data.books || data || [];
@@ -472,7 +499,7 @@ async function fetchBooks() {
   }
 }
 
-function openEdit(row?: any) {
+function openEdit(row?: BookRow) {
   editingBook.value = row || {};
   if (row) {
     Object.assign(form, { title: row.title, author: row.author || "", dynasty: row.dynasty || "", category: row.category || "子", cover: row.cover || "", source: row.source || "", intro: row.intro || "" });
@@ -498,8 +525,8 @@ async function saveBook() {
     }
     dialogVisible.value = false;
     fetchBooks();
-  } catch (e: any) {
-    const msg = e.response?.data?.message;
+  } catch (e) {
+    const msg = (e as Error)?.message;
   } finally {
     saving.value = false;
   }
@@ -516,18 +543,18 @@ function delBook(id: string) {
 // ── 章节管理 ──
 const chapterVisible = ref(false);
 const chEditVisible = ref(false);
-const chapters = ref<any[]>([]);
+const chapters = ref<ChapterRow[]>([]);
 const currentBookId = ref("");
 const chForm = reactive({ id: "", title: "", content: "", translation: "", annotation: "" });
 
-async function openChapters(row: any) {
-  currentBookId.value = row.id;
-  const { data } = await classicApi.getChapters(row.id);
+async function openChapters(row: BookRow) {
+  currentBookId.value = row.id!;
+  const { data } = await classicApi.getChapters(row.id!);
   chapters.value = data.chapters || [];
   chapterVisible.value = true;
 }
 
-function editChapter(row?: any) {
+function editChapter(row?: ChapterRow) {
   if (row) {
     Object.assign(chForm, { id: row.id, title: row.title, content: row.content, translation: row.translation || "", annotation: row.annotation || "" });
   } else {
@@ -551,8 +578,8 @@ async function saveChapter() {
     chEditVisible.value = false;
     ElMessage.success("已保存");
     openChapters({ id: currentBookId.value });
-  } catch (e: any) {
-    const msg = e.response?.data?.message;
+  } catch (e) {
+    const msg = (e as Error)?.message;
   } finally {
     saving.value = false;
   }

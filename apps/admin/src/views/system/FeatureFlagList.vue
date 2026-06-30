@@ -3,10 +3,19 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
+interface FeatureFlagRow {
+  id?: string
+  key: string
+  name?: string
+  description?: string
+  enabled?: boolean
+  updatedAt?: string
+}
+
 const loading = ref(false)
 const saving = ref(false)
 const loadError = ref(false)
-const list = ref<any[]>([])
+const list = ref<FeatureFlagRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const vis = ref(false)
@@ -23,7 +32,7 @@ const BASE = '/admin/feature-flags'
 
 onMounted(() => fetchList())
 
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true
@@ -41,7 +50,7 @@ function openCreate() {
   vis.value = true
 }
 
-function openEdit(row: any) {
+function openEdit(row: FeatureFlagRow) {
   editingId.value = row.id || row.key
   form.key = row.key
   form.name = row.name || ''
@@ -66,7 +75,7 @@ async function save() {
   } catch { } finally { saving.value = false }
 }
 
-async function toggleEnabled(row: any) {
+async function toggleEnabled(row: FeatureFlagRow) {
   const oldVal = row.enabled
   row.enabled = !row.enabled
   try {

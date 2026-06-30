@@ -112,7 +112,7 @@
           >
             <span class="gong-name">{{ gong.name }}</span>
             <span class="gong-ganzhi">{{ gong.gan }}{{ gong.zhi }}</span>
-            <span class="gong-stars">{{ gong.stars?.map((s: any) => s.name).join(' ') || '空宫' }}</span>
+            <span class="gong-stars">{{ gong.stars?.map((s) => s.name).join(' ') || '空宫' }}</span>
           </div>
         </div>
       </div>
@@ -181,16 +181,35 @@ const columns: TableColumn[] = [
   { prop: "createdAt", label: "排盘时间", minWidth: 140, slot: "time" },
 ]
 
-const records = ref<any[]>([])
+// 排盘记录用户信息
+interface PaipanUser { nickname?: string; phone?: string }
+// 排盘记录行（列表项，字段宽松 optional）
+interface PaipanRow {
+  id: string
+  clientName?: string
+  clientBirth?: string
+  paipanType: string
+  user?: PaipanUser
+  createdAt?: string
+}
+// 紫微命盘星耀/宫位结构
+interface ZiweiStar { name?: string }
+interface ZiweiGong { name?: string; gan?: string; zhi?: string; stars?: ZiweiStar[] }
+// 排盘详情（含排盘结果，resultData 结构随类型而异）
+interface PaipanDetail extends PaipanRow {
+  resultData?: { gongWei?: ZiweiGong[]; [k: string]: unknown }
+}
+
+const records = ref<PaipanRow[]>([])
 const loading = ref(false)
 const error = ref(false)
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
-const filters = ref<Record<string, any>>({ type: "ALL", keyword: "" })
+const filters = ref<Record<string, string>>({ type: "ALL", keyword: "" })
 
 const showDetail = ref(false)
-const detail = ref<any>(null)
+const detail = ref<PaipanDetail | null>(null)
 
 onMounted(() => fetchRecords())
 
@@ -212,7 +231,7 @@ async function fetchRecords() {
   }
 }
 
-function handleSearch(f: Record<string, any>) {
+function handleSearch(f: Record<string, string>) {
   filters.value = { ...filters.value, keyword: f.keyword || "", type: f.type || "ALL" }
   page.value = 1
   fetchRecords()
@@ -224,7 +243,7 @@ function handleReset() {
   fetchRecords()
 }
 
-async function viewDetail(row: any) {
+async function viewDetail(row: PaipanRow) {
   try {
     // 管理员专用详情端点：不限记录所有者，覆盖全部排盘类型
     const { data } = await api.get(`/paipan/admin/records/${row.id}`)

@@ -4,10 +4,23 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { financeApi } from '@/api'
 import { exportCSV } from '@/utils/export'
 
+// 结算单行（按列配置与模板访问字段定义的宽松本地类型；detail 含嵌套汇总，置为必填以满足模板内裸访问）
+interface SettlementRow {
+  id: string
+  period?: string
+  userId?: string
+  amount?: number
+  status: string
+  createdAt: string
+  paidAt?: string
+  approvedBy?: string
+  detail: { summary: { totalRmbEarning?: number; totalCommission?: number } }
+}
+
 const loading = ref(false)
 const saving = ref(false)
 const error = ref(false)
-const list = ref<any[]>([])
+const list = ref<SettlementRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 20
@@ -16,12 +29,12 @@ const statusFilter = ref('')
 const generateVisible = ref(false)
 const form = reactive({ startDate: '', endDate: '' })
 const detailVisible = ref(false)
-const detailData = ref<any>(null)
+const detailData = ref<SettlementRow | null>(null)
 
 onMounted(() => fetchList())
 
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
-function formatMoney(v: any) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
+function formatMoney(v: number | string | null | undefined) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
 
 // 后端字段：status = PENDING / APPROVED / PAID / REJECTED
 function statusTagType(status: string) {
@@ -37,7 +50,7 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const params: any = { page: page.value, pageSize }
+    const params: Record<string, string | number> = { page: page.value, pageSize }
     if (statusFilter.value) params.status = statusFilter.value
     // 后端 getSettlementList 返回 { settlements, total, page, pageSize }，"settlements" 键不被拦截器解包
     const { data } = await financeApi.listSettlements(params)
@@ -49,7 +62,7 @@ async function fetchList() {
   } finally { loading.value = false }
 }
 
-function viewDetail(row: any) { detailData.value = row; detailVisible.value = true }
+function viewDetail(row: SettlementRow) { detailData.value = row; detailVisible.value = true }
 
 function openGenerate() {
   form.startDate = ''
@@ -70,7 +83,7 @@ async function doGenerate() {
   } catch { } finally { saving.value = false }
 }
 
-async function doApprove(row: any) {
+async function doApprove(row: SettlementRow) {
   try {
     await ElMessageBox.confirm(
       `确定审批通过 ${row.period} 结算单？\n金额：${formatMoney(row.amount)}`,
@@ -83,7 +96,7 @@ async function doApprove(row: any) {
   } catch { /* 取消 */ }
 }
 
-async function doPay(row: any) {
+async function doPay(row: SettlementRow) {
   try {
     await ElMessageBox.confirm(
       `确认已完成 ${row.period} 结算单的打款？\n金额：${formatMoney(row.amount)}`,

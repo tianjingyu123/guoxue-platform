@@ -498,7 +498,7 @@ const statusLabels: Record<string, { text: string; type: string }> = {
   FINISHED: { text: "已结束", type: "" },
 };
 
-const formRef = ref<any>(null);
+const formRef = ref<any>(null); // el-form 实例引用，保留 any
 const saving = ref(false);
 const uploading = ref(false);
 const statusChanging = ref(false);
@@ -534,7 +534,7 @@ const rules = {
 // 标签输入
 const tagInputVisible = ref(false);
 const tagInputValue = ref("");
-const tagInputRef = ref<any>(null);
+const tagInputRef = ref<any>(null); // el-input 实例引用，保留 any
 
 function showTagInput() { tagInputVisible.value = true; nextTick(() => tagInputRef.value?.focus?.()); }
 function addPrizeRow() {
@@ -606,6 +606,7 @@ async function save() {
   }
 }
 
+// options 为 Element Plus 上传请求参数（UploadRequestOptions），保留 any
 async function handleCoverUpload(options: any) {
   uploading.value = true;
   try {

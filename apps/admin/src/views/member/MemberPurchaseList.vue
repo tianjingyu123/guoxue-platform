@@ -84,7 +84,17 @@
 import { ref, onMounted } from 'vue'
 import { memberAdminApi } from '@/api'
 
-const loading = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+/** 会员购买记录行（字段宽松 optional） */
+interface MemberPurchaseRow {
+  id?: string
+  user?: { nickname?: string; phone?: string }
+  memberType?: string
+  amount?: number
+  expireAt?: string
+  paidAt?: string
+}
+
+const loading = ref(false); const list = ref<MemberPurchaseRow[]>([]); const total = ref(0); const page = ref(1)
 
 onMounted(() => fetchList())
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }

@@ -211,6 +211,34 @@ import { ElMessage } from "element-plus"
 import { achievementApi } from "@/api"
 import PageHeader from "@/components/PageHeader.vue"
 
+// 触发条件（可为 JSON 字符串或对象）
+type TriggerCondition = string | { type?: string; count?: number }
+// 成就类型行（字段宽松 optional）
+interface AchievementType {
+  id: string
+  name?: string
+  icon?: string
+  badgeUrl?: string
+  description?: string
+  category?: string
+  triggerCondition?: TriggerCondition
+  userCount?: number
+  shareRate?: number
+}
+// 用户成就行
+interface UserAchievement {
+  id: string
+  userName?: string
+  achievementName?: string
+  achievementIcon?: string
+  achievementDesc?: string
+  grantType?: string
+  createdAt?: string
+  isShared?: boolean
+  user?: { nickname?: string }
+  achievement?: { name?: string; icon?: string; description?: string }
+}
+
 const activeTab = ref("types")
 const typeLoading = ref(false)
 const uaLoading = ref(false)
@@ -221,11 +249,11 @@ const typeFilter = ref("")
 const typePage = ref(1)
 const typePageSize = ref(10)
 const typeTotal = ref(0)
-const types = ref<any[]>([])
+const types = ref<AchievementType[]>([])
 const uaPage = ref(1)
 const uaPageSize = ref(10)
 const uaTotal = ref(0)
-const userAchievements = ref<any[]>([])
+const userAchievements = ref<UserAchievement[]>([])
 
 const statsCards = ref([
   { label: "成就类型", value: 0, color: "#409eff" },
@@ -236,7 +264,7 @@ const statsCards = ref([
 
 // 类型编辑
 const typeDialogVisible = ref(false)
-const editingType = ref<any>(null)
+const editingType = ref<AchievementType | null>(null)
 const typeForm = reactive({ name: "", icon: "🏅", badgeUrl: "", description: "", category: "learning" })
 const triggerJsonStr = ref("")
 
@@ -248,7 +276,7 @@ function categoryLabel(c: string): string {
   const m: Record<string, string> = { learning: "学习", reading: "阅读", social: "社交", paipan: "排盘", creation: "创作", consumption: "消费" }
   return m[c] ?? c
 }
-function triggerDesc(tc: any): string {
+function triggerDesc(tc: TriggerCondition | null | undefined): string {
   if (!tc) return "无条件"
   const t = typeof tc === 'string' ? JSON.parse(tc) : tc
   const typeMap: Record<string, string> = { course_complete: "完成课程", classic_read: "读完古籍", paipan_complete: "完成排盘", follower_reach: "关注数达到", content_publish: "发布内容", order_complete: "完成订单" }
@@ -269,10 +297,10 @@ async function fetchTypes() {
   finally { typeLoading.value = false }
 }
 
-function showTypeDialog(row?: any) {
+function showTypeDialog(row?: AchievementType) {
   if (row) {
     editingType.value = row
-    typeForm.name = row.name; typeForm.icon = row.icon ?? "🏅"
+    typeForm.name = row.name ?? ""; typeForm.icon = row.icon ?? "🏅"
     typeForm.badgeUrl = row.badgeUrl ?? ""; typeForm.description = row.description ?? ""
     typeForm.category = row.category ?? "learning"
     triggerJsonStr.value = row.triggerCondition ? JSON.stringify(typeof row.triggerCondition === 'string' ? JSON.parse(row.triggerCondition) : row.triggerCondition, null, 2) : ""
@@ -313,7 +341,7 @@ async function fetchUserAchievements() {
   try {
     const res: any = await achievementApi.listUserAchievements({ page: uaPage.value, pageSize: uaPageSize.value })
     const d = res?.data ?? res
-    userAchievements.value = (d.list ?? d.data ?? []).map((a: any) => ({
+    userAchievements.value = (d.list ?? d.data ?? []).map((a: UserAchievement) => ({
       ...a,
       userName: a.user?.nickname ?? '未知',
       achievementName: a.achievement?.name ?? '未知',

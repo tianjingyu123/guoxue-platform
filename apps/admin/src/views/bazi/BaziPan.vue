@@ -23,6 +23,7 @@ const form = reactive({
   city: '',
 })
 
+// 排盘结果：来自 axios 响应 data 无类型来源，仅作为 prop 透传给排盘展示组件，保留 any
 const result = ref<any>(null)
 const mode = ref<'traditional' | 'report' | 'analysis'>('traditional')
 const loading = ref(false)

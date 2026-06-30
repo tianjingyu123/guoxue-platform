@@ -4,24 +4,40 @@ import { ElMessage } from 'element-plus'
 import { financeApi } from '@/api'
 import { exportCSV } from '@/utils/export'
 
+// 财务月报行（指标展平为一层后的宽松本地类型）
+interface ReportRow {
+  period?: string
+  revenue?: number
+  refund?: number
+  commissionExpense?: number
+  userEarningExpense?: number
+  netProfit?: number
+  revenueOrderCount?: number
+  refundOrderCount?: number
+  commissionCount?: number
+  userEarningCount?: number
+  generatedAt?: string
+  createdAt?: string
+}
+
 const loading = ref(false)
 const saving = ref(false)
 const error = ref(false)
-const list = ref<any[]>([])
+const list = ref<ReportRow[]>([])
 
 const month = ref('')
 
 const detailVisible = ref(false)
-const detailData = ref<any>(null)
+const detailData = ref<ReportRow | null>(null)
 
 onMounted(() => fetchList())
 
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
-function formatMoney(v: any) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
+function formatMoney(v: number | string | null | undefined) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
 
 // 已保存的 FinancialReport 记录指标存于 data(Json)；新生成(未保存)对象指标在顶层。
-// 统一展平为一层，便于表格/详情读取真实字段。
-function flattenReport(r: any) {
+// 统一展平为一层，便于表格/详情读取真实字段。（r 为原始接口对象，结构含嵌套 data，保留 any）
+function flattenReport(r: any): ReportRow {
   if (r && r.data && typeof r.data === 'object') {
     return { ...r, ...r.data }
   }
@@ -53,7 +69,7 @@ async function generateReport() {
   } catch { } finally { saving.value = false }
 }
 
-function viewDetail(row: any) { detailData.value = row; detailVisible.value = true }
+function viewDetail(row: ReportRow) { detailData.value = row; detailVisible.value = true }
 
 function handleExport() {
   exportCSV(`财务报表_${month.value || '全部'}`, [

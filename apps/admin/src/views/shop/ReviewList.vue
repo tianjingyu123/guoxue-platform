@@ -134,18 +134,43 @@ import { ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "@/api";
 
+/** 评价行（字段宽松 optional） */
+interface ReviewRow {
+  id?: string;
+  productId?: string;
+  product?: { title?: string };
+  rating?: number;
+  content?: string;
+  images?: string[];
+  usefulCount?: number;
+  uselessCount?: number;
+  upvotes?: number;
+  downvotes?: number;
+  isAbnormal?: boolean;
+  reply?: string;
+  status?: string;
+  createdAt?: string;
+}
+/** 异常评价行（字段宽松 optional） */
+interface AbnormalRow {
+  reviewId?: string;
+  content?: string;
+  abnormalType?: string;
+  score?: number;
+}
+
 const loading = ref(false);
 const error = ref(false);
 const submitting = ref(false);
 const acting = ref(false);
-const reviews = ref<any[]>([]);
+const reviews = ref<ReviewRow[]>([]);
 const productIdFilter = ref("");
 const ratingFilter = ref("");
 const replyVisible = ref(false);
 const replyContent = ref("");
 const replyReviewId = ref("");
 const abnormalVisible = ref(false);
-const abnormalList = ref<any[]>([]);
+const abnormalList = ref<AbnormalRow[]>([]);
 
 async function fetchList() {
   error.value = false;
@@ -155,26 +180,26 @@ async function fetchList() {
   }
   loading.value = true;
   try {
-    const params: any = { page: 1, pageSize: 50 };
+    const params: Record<string, string | number> = { page: 1, pageSize: 50 };
     if (ratingFilter.value) params.rating = Number(ratingFilter.value);
     const { data } = await api.get(`/shop/products/${productIdFilter.value}/reviews`, { params });
-    reviews.value = (data?.reviews || []).map((r: any) => ({
+    reviews.value = (data?.reviews || []).map((r: ReviewRow) => ({
       ...r,
       usefulCount: r.usefulCount ?? r.upvotes ?? 0,
       uselessCount: r.uselessCount ?? r.downvotes ?? 0,
       isAbnormal: r.isAbnormal ?? false,
     }));
-  } catch (e: any) {
+  } catch (e) {
     reviews.value = [];
     error.value = true;
-    ElMessage.error(e?.response?.data?.message || "查询失败");
+    ElMessage.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message || "查询失败");
   } finally {
     loading.value = false;
   }
 }
 
-function openReply(row: any) {
-  replyReviewId.value = row.id;
+function openReply(row: ReviewRow) {
+  replyReviewId.value = row.id ?? "";
   replyContent.value = row.reply || "";
   replyVisible.value = true;
 }
@@ -191,14 +216,14 @@ async function submitReply() {
     ElMessage.success("回复成功");
     replyVisible.value = false;
     fetchList();
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || "回复失败");
+  } catch (e) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message || "回复失败");
   } finally {
     submitting.value = false;
   }
 }
 
-async function toggleHide(row: any) {
+async function toggleHide(row: ReviewRow) {
   if (acting.value) return;
   acting.value = true;
   try {
@@ -209,7 +234,7 @@ async function toggleHide(row: any) {
   } catch { /* */ } finally { acting.value = false; }
 }
 
-async function handleDelete(row: any) {
+async function handleDelete(row: ReviewRow) {
   try {
     await ElMessageBox.confirm("确定删除该评价吗？", "删除确认", { type: "warning" });
     if (acting.value) return;

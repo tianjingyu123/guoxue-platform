@@ -345,7 +345,21 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
 const loading = ref(false); const error = ref(false); const saving = ref(false); const seeding = ref(false); const vectorizing = ref(false)
-const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+/** 古籍注解行（字段宽松 optional） */
+interface CommentaryRow {
+  id: string;
+  title?: string;
+  author?: string;
+  dynasty?: string;
+  school?: string;
+  type?: string;
+  bookId?: string;
+  chapterId?: string;
+  content?: string;
+  sourceUrl?: string;
+  createdAt?: string;
+}
+const list = ref<CommentaryRow[]>([]); const total = ref(0); const page = ref(1)
 const vis = ref(false); const editingId = ref('')
 const filter = reactive({ keyword: '', school: '', type: '', bookId: '' })
 const form = reactive({ title: '', bookId: '', chapterId: '', author: '', dynasty: '', school: '', type: '', content: '', sourceUrl: '' })
@@ -357,7 +371,7 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const params: any = { page: page.value, pageSize: 20 }
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 }
     if (filter.bookId) {
       const { data } = await api.get(`/classic/commentaries/book/${filter.bookId}`, { params })
       list.value = data.items || data.data || []
@@ -373,7 +387,7 @@ async function fetchList() {
 function search() { page.value = 1; fetchList() }
 
 function openCreate() { editingId.value = ''; Object.assign(form, { title: '', bookId: '', chapterId: '', author: '', dynasty: '', school: '', type: '', content: '', sourceUrl: '' }); vis.value = true }
-function openEdit(row: any) {
+function openEdit(row: CommentaryRow) {
   editingId.value = row.id
   Object.assign(form, { title: row.title || '', bookId: row.bookId || '', chapterId: row.chapterId || '', author: row.author || '', dynasty: row.dynasty || '', school: row.school || '', type: row.type || '', content: row.content || '', sourceUrl: row.sourceUrl || '' })
   vis.value = true
@@ -382,7 +396,7 @@ function openEdit(row: any) {
 async function save() {
   saving.value = true
   try {
-    const payload: any = { title: form.title, bookId: form.bookId, content: form.content, author: form.author || undefined, dynasty: form.dynasty || undefined, school: form.school || undefined, type: form.type || undefined, chapterId: form.chapterId || undefined, sourceUrl: form.sourceUrl || undefined }
+    const payload: Record<string, string | undefined> = { title: form.title, bookId: form.bookId, content: form.content, author: form.author || undefined, dynasty: form.dynasty || undefined, school: form.school || undefined, type: form.type || undefined, chapterId: form.chapterId || undefined, sourceUrl: form.sourceUrl || undefined }
     if (editingId.value) { await api.put(`/classic/commentaries/${editingId.value}`, payload) }
     else { await api.post('/classic/commentaries', payload) }
     ElMessage.success('已保存'); vis.value = false; fetchList()

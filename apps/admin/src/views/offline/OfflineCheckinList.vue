@@ -117,9 +117,20 @@
 import { ref, onMounted } from 'vue'
 import { api } from '@/api'
 
+/** 核销记录行（字段宽松 optional） */
+interface CheckinRow {
+  station?: { name?: string; city?: string }
+  courseTitle?: string
+  userNickname?: string
+  userPhone?: string
+  amount?: number
+  signedAt?: string
+  createdAt?: string
+}
+
 const loading = ref(false)
 const loadError = ref(false)
-const list = ref<any[]>([])
+const list = ref<CheckinRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const stationId = ref('')

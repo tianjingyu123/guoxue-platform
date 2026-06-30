@@ -337,7 +337,25 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { merchantBackendApi } from "@/api";
 
-const list = ref<any[]>([]);
+/** 订单商品明细行 */
+interface OrderItem { productTitle?: string; price?: number; quantity?: number }
+/** 订单行（字段宽松 optional） */
+interface OrderRow {
+  id: string;
+  orderNo?: string;
+  buyerName?: string;
+  totalAmount?: number;
+  receiverName?: string;
+  receiverPhone?: string;
+  receiverAddress?: string;
+  trackingNo?: string;
+  shipCompany?: string;
+  items?: OrderItem[];
+  status?: string;
+  createdAt?: string;
+}
+
+const list = ref<OrderRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
@@ -362,7 +380,7 @@ const STATUS = {
   REFUNDING: ["退款中", "danger"],
   REFUNDED: ["已退款", "info"],
   CANCELLED: ["已取消", "info"],
-} as any;
+} as Record<string, [string, string]>;
 
 function statusLabel(s: string) { return STATUS[s]?.[0] || s; }
 function statusType(s: string) { return STATUS[s]?.[1] || "info"; }
@@ -376,18 +394,19 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: 20 };
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 };
     if (filterStatus.value) params.status = filterStatus.value;
     const res = await merchantBackendApi.listOrders(params);
-    const data = (res as any).data ?? res;
+    // 兼容两种响应包装：{ data: {...} } 或直接返回 data
+    const data = (res as { data?: { list?: OrderRow[]; data?: OrderRow[]; total?: number } }).data ?? (res as { list?: OrderRow[]; data?: OrderRow[]; total?: number });
     list.value = data.list || data.data || [];
     total.value = data.total || 0;
-  } catch (e: any) {
+  } catch (e) {
     error.value = true;
   } finally { loading.value = false; }
 }
 
-function openShip(row: any) {
+function openShip(row: OrderRow) {
   shipOrderId.value = row.id;
   shipForm.company = "";
   shipForm.trackingNo = "";
@@ -405,7 +424,7 @@ async function doShip() {
   } catch { /* */ } finally { saving.value = false; }
 }
 
-async function doApproveRefund(row: any) {
+async function doApproveRefund(row: OrderRow) {
   try {
     await ElMessageBox.confirm("确定同意该退款申请？", "提示", { type: "warning" });
     await merchantBackendApi.approveRefund(row.id);
@@ -414,7 +433,7 @@ async function doApproveRefund(row: any) {
   } catch { /* */ }
 }
 
-function openRejectRefund(row: any) {
+function openRejectRefund(row: OrderRow) {
   rejectOrderId.value = row.id;
   rejectReason.value = "";
   rejectDialog.value = true;

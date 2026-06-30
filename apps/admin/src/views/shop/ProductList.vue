@@ -377,12 +377,33 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance } from 'element-plus'
 import { uploadApi, productApi } from '@/api'
 import ImageUpload from '@/components/ImageUpload.vue'
 import DataTable from '@/components/DataTable.vue'
 import PageHeader from "@/components/PageHeader.vue"
 
-const products = ref<any[]>([])
+/** 商品行（字段宽松 optional） */
+interface ProductRow {
+  id?: string
+  title?: string
+  price?: number | string
+  originalPrice?: number | string
+  stock?: number
+  salesCount?: number
+  status?: string
+  images?: string[]
+}
+/** SKU 行（字段宽松 optional） */
+interface SkuRow {
+  id?: string
+  specs?: Record<string, string | number>
+  price?: number | string
+  stock?: number
+  skuCode?: string
+}
+
+const products = ref<ProductRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const loading = ref(false)
@@ -397,18 +418,19 @@ const form = reactive({
   title: '', intro: '', detail: '', price: 0, originalPrice: 0, stock: 0,
   cover: '', category: '', images: [] as string[], status: 'ON_SALE' as string,
 })
-const dialogFormRef = ref<any>(null)
+const dialogFormRef = ref<FormInstance>()
 const dialogRules = {
   title: [{ required: true, message: '请输入商品标题', trigger: 'blur' }],
   price: [{ required: true, message: '请输入商品价格', trigger: 'blur' }],
 }
 const imgUrl = ref('')
 const detailEditorEl = ref<HTMLElement | null>(null)
+// 第三方 Quill 富文本实例，经全局 window.Quill 引入，无类型声明，保留 any
 let detailQuill: any = null
 
 const skuVisible = ref(false)
-const skuProduct = ref<any>(null)
-const skus = ref<any[]>([])
+const skuProduct = ref<ProductRow | null>(null)
+const skus = ref<SkuRow[]>([])
 const skuKey = ref('')
 const skuVal = ref('')
 const skuForm = reactive({ price: 0, stock: 0 })
@@ -427,7 +449,7 @@ onMounted(() => fetchList())
 
 function statusLabel(s: string) { return ({ ON_SALE: '在售', PENDING: '待审', OFF_SHELF: '下架' } as Record<string, string>)[s] || s }
 function statusType(s: string) { return ({ ON_SALE: 'success', PENDING: 'warning', OFF_SHELF: 'info' } as Record<string, string>)[s] || 'info' }
-function specsText(s: any) { if (!s) return '-'; return Object.entries(s).map(([k,v]) => `${k}:${v}`).join(' / ') }
+function specsText(s?: Record<string, string | number>) { if (!s) return '-'; return Object.entries(s).map(([k,v]) => `${k}:${v}`).join(' / ') }
 
 async function fetchList() {
   loading.value = true
@@ -444,7 +466,7 @@ async function fetchProduct(id: string) { const { data } = await productApi.deta
 
 function addImage() { const u = imgUrl.value.trim(); if (u && !form.images.includes(u)) { form.images.push(u); imgUrl.value = '' } }
 
-async function uploadImage(options: any) {
+async function uploadImage(options: { file: File }) {
   uploading.value = true
   try { const { data } = await uploadApi.image(options.file); if (data.url) form.images.push(data.url); ElMessage.success('上传成功') } catch { /* */ } finally { uploading.value = false }
 }
@@ -456,9 +478,9 @@ function resetForm() {
 
 function openCreate() { resetForm(); dialogVisible.value = true; nextTick(() => initEditor()) }
 
-async function openEdit(row: any) {
-  resetForm(); editingId.value = row.id
-  const p = await fetchProduct(row.id)
+async function openEdit(row: ProductRow) {
+  resetForm(); editingId.value = row.id ?? ''
+  const p = await fetchProduct(row.id ?? '')
   Object.assign(form, {
     title: p.title, intro: p.intro || '', detail: p.detail || '',
     price: Number(p.price) || 0, originalPrice: Number(p.originalPrice) || 0,
@@ -469,6 +491,7 @@ async function openEdit(row: any) {
 }
 
 function initEditor() {
+  // window.Quill 由全局脚本注入，无类型声明，保留 any
   const Q = (window as any).Quill
   if (!Q || !detailEditorEl.value) return
   if (detailQuill) { detailQuill.root.innerHTML = form.detail || ''; return }
@@ -491,12 +514,12 @@ async function saveProduct() {
   } catch { /* */ } finally { saving.value = false }
 }
 
-async function toggleStatus(row: any) {
+async function toggleStatus(row: ProductRow) {
   if (acting.value) return
   acting.value = true
   const newStatus = row.status === 'ON_SALE' ? 'OFF_SHELF' : 'ON_SALE'
   try {
-    await productApi.updateStatus(row.id, newStatus)
+    await productApi.updateStatus(row.id ?? '', newStatus)
     ElMessage.success(newStatus === 'ON_SALE' ? '已上架' : '已下架')
     fetchList()
   } finally { acting.value = false }
@@ -511,9 +534,10 @@ async function handleDelete(id: string) {
   } catch { /* */ } finally { acting.value = false }
 }
 
-async function openSkus(row: any) {
+async function openSkus(row: ProductRow | null) {
+  if (!row) return
   skuProduct.value = row
-  try { const { data } = await productApi.detail(row.id); skus.value = data.skus || [] } catch { skus.value = [] }
+  try { const { data } = await productApi.detail(row.id ?? ''); skus.value = data.skus || [] } catch { skus.value = [] }
   skuVisible.value = true
 }
 
@@ -522,7 +546,7 @@ async function addSkuAction() {
   if (acting.value) return
   acting.value = true
   try {
-    await productApi.addSku(skuProduct.value.id, {
+    await productApi.addSku(skuProduct.value.id ?? '', {
       name: skuKey.value.trim() + ':' + skuVal.value.trim(),
       price: skuForm.price, stock: skuForm.stock,
     })

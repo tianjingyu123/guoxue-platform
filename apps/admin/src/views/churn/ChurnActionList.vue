@@ -126,9 +126,21 @@ import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { churnApi } from "@/api";
 
+// 流失挽回动作记录行（按列配置与模板访问字段定义的宽松本地类型）
+interface ChurnActionRow {
+  userId?: string;
+  actionType: string;
+  status: string;
+  triggeredBy?: string;
+  result?: string;
+  errorLog?: string;
+  createdAt?: string;
+  executedAt?: string;
+}
+
 const loading = ref(false);
 const error = ref(false);
-const list = ref<any[]>([]);
+const list = ref<ChurnActionRow[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
@@ -159,7 +171,7 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: pageSize.value };
+    const params: { page?: number; pageSize?: number; status?: string } = { page: page.value, pageSize: pageSize.value };
     if (filterStatus.value) params.status = filterStatus.value;
     const res = await churnApi.getActions(params);
     // 后端返回 { actions, total, page, pageSize }（非标准分页键）

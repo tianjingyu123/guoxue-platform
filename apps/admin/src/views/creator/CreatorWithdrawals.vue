@@ -174,7 +174,21 @@ import PageHeader from "@/components/PageHeader.vue";
 
 type Action = "approve" | "reject" | "pay";
 
-const list = ref<any[]>([]);
+/** 提现申请行（id/amount/status 脚本中直接使用，必填；其余 optional） */
+interface WithdrawalRow {
+  id: string
+  amount: number
+  status: string
+  avatar?: string
+  nickname?: string
+  phone?: string
+  method?: string
+  account?: string
+  createdAt?: string
+  processedAt?: string
+}
+
+const list = ref<WithdrawalRow[]>([]);
 const loading = ref(false);
 const error = ref(false);
 const keyword = ref("");
@@ -227,7 +241,7 @@ async function fetchList() {
 
 const ACTION_LABEL: Record<Action, string> = { approve: "通过", reject: "拒绝", pay: "打款" };
 
-async function onReview(row: any, action: Action) {
+async function onReview(row: WithdrawalRow, action: Action) {
   if (acting.value) return; // 防重复
   const label = ACTION_LABEL[action];
   let note = "";

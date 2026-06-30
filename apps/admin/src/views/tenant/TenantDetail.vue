@@ -222,9 +222,34 @@ import { useRoute } from "vue-router";
 const route = useRoute();
 const tenantId = route.params.id as string;
 
+// 配额变更记录行
+interface QuotaRecord {
+  changeType?: string;
+  changeAmount?: number;
+  quotaBefore?: number;
+  quotaAfter?: number;
+  amountRmb?: number;
+  remark?: string;
+  createdAt?: string;
+}
+
+// API 调用日志行
+interface ApiLog {
+  apiType?: string;
+  endpoint?: string;
+  cost?: number;
+  tokensUsed?: number;
+  responseTime?: number;
+  status?: string;
+  ip?: string;
+  createdAt?: string;
+}
+
+// tenant 详情对象在模板中直接绑定（tenant?.plan 等同时作为 planTag/statusTag 入参），
+// 收敛为接口会触发多处「possibly undefined」连锁，保留 any 更稳妥
 const tenant = ref<any>(null);
-const usageList = ref<any[]>([]);
-const logList = ref<any[]>([]);
+const usageList = ref<QuotaRecord[]>([]);
+const logList = ref<ApiLog[]>([]);
 const loading = ref(false);
 const error = ref(false);
 
@@ -283,7 +308,7 @@ async function fetchLogs() {
   logLoading.value = true;
   try {
     // 后端 GET /admin/tenants/:id/logs 额外支持 status 查询参数（api 包装类型未声明，用 any 透传）
-    const params: any = { page: logPage.value, pageSize: logPageSize.value };
+    const params: { page: number; pageSize: number; status?: string } = { page: logPage.value, pageSize: logPageSize.value };
     if (logStatus.value) params.status = logStatus.value;
     const res = await tenantAdminApi.getLogs(tenantId, params);
     logList.value = res.data?.logs ?? [];

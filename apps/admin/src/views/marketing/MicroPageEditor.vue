@@ -1263,18 +1263,67 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { marketingApi } from '@/api'
 import ProductPicker from '@/components/ProductPicker.vue'
 
-const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+// axios 错误体
+interface ApiError { response?: { data?: { message?: string } } }
+// 微页面组件：config/audience 为任意 JSON 配置（无固定结构），值类型保留 any
+interface PageComponent {
+  id?: string
+  type: string
+  title?: string
+  config?: Record<string, any>
+  startTime?: string | null
+  endTime?: string | null
+  audience?: Record<string, any> | null
+  sortOrder?: number
+  _key?: string
+}
+// 微页面行：依据表格列与编辑/编辑器访问字段声明
+interface PageRow {
+  id: string
+  name?: string
+  title?: string
+  route?: string
+  path?: string
+  description?: string
+  status?: string
+  version?: number
+  createdAt?: string
+  components?: PageComponent[]
+  entryVisible?: boolean
+  entryConfig?: { title?: string; icon?: string; sort?: number } | null
+}
+// 活动/优惠券下拉选项（秒杀/拼团/优惠券复用）
+interface ActivityOption {
+  id: string
+  name?: string
+  productTitle?: string
+  groupSize?: number
+  minMembers?: number
+  threshold?: number | string
+  reduction?: number | string
+  items?: { flashPrice?: number | string }[]
+}
+// 版本历史行
+interface VersionRow {
+  id: string
+  version?: number
+  comment?: string
+  createdAt?: string
+  value?: { components?: PageComponent[] }
+}
+
+const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<PageRow[]>([]); const total = ref(0); const page = ref(1)
 const vis = ref(false); const editingId = ref('')
 const form = reactive({ name: '', route: '', description: '', entryVisible: false, entryTitle: '', entryIcon: '', entrySort: 0 })
 
 const compVis = ref(false); const compFormVis = ref(false); const compEditingId = ref(''); const compSaving = ref(false)
-const components = ref<any[]>([]); const currentPageId = ref('')
+const components = ref<PageComponent[]>([]); const currentPageId = ref('')
 const compForm = reactive({ type: 'CAROUSEL', title: '', configStr: '{}', activityIds: [] as string[], productIds: [] as string[], startTime: '' as string, endTime: '' as string, audienceStr: '', independentProductId: '', independentPrice: 9.9, independentStock: 100, independentLimit: 1 })
 
 // 活动选项（用于组件关联选择）
-const flashSaleOptions = ref<any[]>([])
-const groupBuyOptions = ref<any[]>([])
-const couponOptions = ref<any[]>([])
+const flashSaleOptions = ref<ActivityOption[]>([])
+const groupBuyOptions = ref<ActivityOption[]>([])
+const couponOptions = ref<ActivityOption[]>([])
 
 const compTitlePlaceholder = computed(() => {
   const m: Record<string, string> = { FLASHSALE: '如：限时秒杀', GROUPBUY: '如：超值拼团', COUPON: '如：领券中心', PRODUCT_LIST: '如：精选好物', CAROUSEL: '如：首页轮播', COUNTDOWN: '如：活动倒计时', IMAGE: '如：品牌宣传', TEXT: '如：活动说明', TABS: '如：热门分类', RECOMMEND: '如：为你推荐' }
@@ -1309,15 +1358,15 @@ function onCompTypeChange() {
   compForm.independentLimit = 1
 }
 
-const verVis = ref(false); const versions = ref<any[]>([])
-const prevVis = ref(false); const previewVer = ref<any>(null); const previewComponents = ref<any[]>([])
+const verVis = ref(false); const versions = ref<VersionRow[]>([])
+const prevVis = ref(false); const previewVer = ref<VersionRow | null>(null); const previewComponents = ref<PageComponent[]>([])
 
 // 页面预览
-const previewPageVis = ref(false); const previewPageTitle = ref(''); const previewPageComps = ref<any[]>([])
+const previewPageVis = ref(false); const previewPageTitle = ref(''); const previewPageComps = ref<PageComponent[]>([])
 
 // 可视化编辑器状态
 const veVis = ref(false); const veSaving = ref(false); const vePageTitle = ref('')
-const veComponents = ref<any[]>([]); const veSelectedIdx = ref<number | null>(null); const dragOver = ref(false)
+const veComponents = ref<PageComponent[]>([]); const veSelectedIdx = ref<number | null>(null); const dragOver = ref(false)
 const vePropForm = reactive({ type: 'CAROUSEL', title: '', configStr: '{}', activityIds: [] as string[], productIds: [] as string[], startTime: '' as string, endTime: '' as string, audienceStr: '', independentProductId: '', independentPrice: 9.9, independentStock: 100, independentLimit: 1 })
 
 const routePresets = [
@@ -1361,7 +1410,7 @@ async function fetchList() {
 }
 
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', route: '', description: '', entryVisible: false, entryTitle: '', entryIcon: '', entrySort: 0 }); vis.value = true }
-function openEdit(row: any) {
+function openEdit(row: PageRow) {
   editingId.value = row.id
   const ec = row.entryConfig || {}
   Object.assign(form, { name: row.name || row.title || '', route: row.route || row.path || '', description: row.description || '', entryVisible: row.entryVisible || false, entryTitle: ec.title || '', entryIcon: ec.icon || '', entrySort: ec.sort || 0 })
@@ -1373,7 +1422,7 @@ async function save() {
   if (!form.route) { ElMessage.warning('请输入路由路径（如 /promo），用户通过此路径访问页面'); return }
   saving.value = true
   try {
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       name: form.name, route: form.route, description: form.description,
       entryVisible: form.entryVisible,
       entryConfig: form.entryVisible ? { title: form.entryTitle, icon: form.entryIcon, sort: form.entrySort } : null,
@@ -1392,12 +1441,12 @@ async function save() {
         setTimeout(() => openVisualEditor({ id: newId, title: form.name }), 500)
       }
     }
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || '操作失败，请重试')
+  } catch (e) {
+    ElMessage.error((e as ApiError)?.response?.data?.message || '操作失败，请重试')
   } finally { saving.value = false }
 }
 
-async function doPublish(row: any) {
+async function doPublish(row: PageRow) {
   try { await marketingApi.publishPage(row.id); ElMessage.success('已发布'); fetchList() } catch { ElMessage.error('发布失败') }
 }
 
@@ -1406,7 +1455,7 @@ async function del(id: string) {
 }
 
 // ───────── 组件管理（列表模式） ─────────
-async function openComponents(row: any) {
+async function openComponents(row: PageRow) {
   currentPageId.value = row.id
   try { const { data } = await marketingApi.getPage(row.id); components.value = data.components || [] } catch { components.value = [] }
   compVis.value = true
@@ -1419,15 +1468,15 @@ function openCompCreate() {
   compFormVis.value = true
 }
 
-function formatDateTime(d: string) {
+function formatDateTime(d?: string | null) {
   if (!d) return ''
   const dt = new Date(d)
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`
 }
 
-function openCompEdit(row: any) {
-  compEditingId.value = row.id
+function openCompEdit(row: PageComponent) {
+  compEditingId.value = row.id ?? ''
   const cfg = row.config || {}
   Object.assign(compForm, {
     type: row.type, title: row.title || '',
@@ -1447,8 +1496,8 @@ function openCompEdit(row: any) {
 }
 
 async function saveComp() {
-  // 根据组件类型构建 config
-  let config: any = {}
+  // 根据组件类型构建 config（任意 JSON 配置）
+  let config: Record<string, unknown> = {}
   const t = compForm.type
   if (t === 'FLASHSALE') {
     config = { flashSaleIds: compForm.activityIds }
@@ -1467,7 +1516,7 @@ async function saveComp() {
   } else {
     try { config = JSON.parse(compForm.configStr || '{}') } catch { ElMessage.warning('配置JSON格式错误'); return }
   }
-  let audience: any = null
+  let audience: Record<string, unknown> | null = null
   if (compForm.audienceStr.trim()) {
     try { audience = JSON.parse(compForm.audienceStr) } catch { ElMessage.warning('定向人群JSON格式错误'); return }
   }
@@ -1509,17 +1558,17 @@ function moveComp(index: number, dir: number) {
 }
 
 async function doSort() {
-  const ids = components.value.map(c => c.id)
+  const ids = components.value.map(c => c.id).filter((id): id is string => !!id)
   try { await marketingApi.sortPageComponents(currentPageId.value, { componentIds: ids }); ElMessage.success('排序已保存') } catch { ElMessage.error('排序保存失败') }
 }
 
 // ───────── 可视化编辑器 ─────────
-async function openVisualEditor(row: any) {
+async function openVisualEditor(row: PageRow) {
   currentPageId.value = row.id
-  vePageTitle.value = row.title
+  vePageTitle.value = row.title ?? ''
   try {
     const { data } = await marketingApi.getPage(row.id)
-    veComponents.value = ((data.components || []) as any[]).map((c: any) => ({ ...c, _key: `comp_${veCompKey++}` }))
+    veComponents.value = ((data.components || []) as PageComponent[]).map((c: PageComponent) => ({ ...c, _key: `comp_${veCompKey++}` }))
   } catch { veComponents.value = [] }
   veSelectedIdx.value = null
   veVis.value = true
@@ -1652,7 +1701,7 @@ async function vePublish() {
 }
 
 // 渲染预览组件
-function veRenderComp(comp: any) {
+function veRenderComp(comp: PageComponent) {
   const type = comp.type
   if (type === 'CAROUSEL') return veCarouselComp
   if (type === 'COUNTDOWN') return veCountdownComp
@@ -1702,13 +1751,13 @@ const veGenericComp: any = {
 }
 
 // ───────── 版本管理 ─────────
-async function openVersions(row: any) {
+async function openVersions(row: PageRow) {
   currentPageId.value = row.id
   try { const { data } = await marketingApi.getPageVersions(row.id); versions.value = data || [] } catch { versions.value = [] }
   verVis.value = true
 }
 
-function previewVersion(row: any) {
+function previewVersion(row: VersionRow) {
   previewVer.value = row
   previewComponents.value = row.value?.components || []
   prevVis.value = true
@@ -1722,8 +1771,8 @@ async function doRollback(versionId: string) {
 }
 
 // ───────── 用户端预览 ─────────
-async function openPreview(row: any) {
-  previewPageTitle.value = row.title
+async function openPreview(row: PageRow) {
+  previewPageTitle.value = row.title ?? ''
   previewPageComps.value = []
   previewPageVis.value = true
   try {

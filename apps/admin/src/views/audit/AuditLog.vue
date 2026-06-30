@@ -143,7 +143,18 @@ import { ElMessage } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
 import { api, auditApi } from "@/api";
 
-const list = ref<any[]>([]);
+// 审计日志行（依据表格列实际访问字段声明）
+interface AuditEntry {
+  createdAt?: string;
+  action?: string;
+  targetType?: string;
+  targetId?: string;
+  detail?: string;
+  userId?: string;
+  ip?: string;
+}
+
+const list = ref<AuditEntry[]>([]);
 const loading = ref(false);
 const error = ref(false);
 const exporting = ref(false);
@@ -175,7 +186,7 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: pageSize.value };
+    const params: Record<string, string | number> = { page: page.value, pageSize: pageSize.value };
     if (filterAction.value) params.action = filterAction.value;
     if (dateRange.value?.length === 2) {
       params.startDate = dateRange.value[0];
@@ -198,7 +209,7 @@ async function exportLogs() {
   if (exporting.value) return;
   exporting.value = true;
   try {
-    const body: any = {};
+    const body: Record<string, string> = {};
     if (filterAction.value) body.action = filterAction.value;
     if (dateRange.value?.length === 2) {
       body.startDate = dateRange.value[0];

@@ -3,10 +3,24 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { riskApi } from '@/api'
 
+// 申诉记录行（依据表格列/详情实际访问字段声明）
+interface Appeal {
+  id?: string
+  userId?: string
+  type?: string
+  status?: string
+  reason?: string
+  createdAt?: string
+  reviewedBy?: string
+  reviewedAt?: string
+  reviewNote?: string
+  evidence: string[]
+}
+
 const loading = ref(false)
 const error = ref(false)
 const saving = ref(false)
-const list = ref<any[]>([])
+const list = ref<Appeal[]>([])
 const total = ref(0)
 const page = ref(1)
 
@@ -18,7 +32,7 @@ const rejectId = ref('')
 const rejectForm = reactive({ reason: '' })
 
 const detailDialogVisible = ref(false)
-const detailData = ref<any>(null)
+const detailData = ref<Appeal | null>(null)
 
 // 与后端 AppealRecord.type 对齐：USER_BAN/CONTENT_BLOCK/WITHDRAWAL_REJECT
 const appealTypeOptions = [
@@ -29,16 +43,16 @@ const appealTypeOptions = [
 
 onMounted(() => fetchList())
 
-function formatDate(d: string) {
+function formatDate(d?: string) {
   return d ? new Date(d).toLocaleString() : '-'
 }
 
-function getTypeLabel(type: string): string {
+function getTypeLabel(type = ''): string {
   const opt = appealTypeOptions.find(t => t.value === type)
   return opt ? opt.label : type
 }
 
-function getStatusLabel(status: string): string {
+function getStatusLabel(status = ''): string {
   const map: Record<string, string> = { PENDING: '待处理', APPROVED: '已通过', REJECTED: '已驳回' }
   return map[status] || status
 }
@@ -47,12 +61,12 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const params: Record<string, any> = { page: page.value, pageSize: 20 }
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 }
     if (statusFilter.value) params.status = statusFilter.value
     if (typeFilter.value) params.type = typeFilter.value
     // 后端 listAppeals 支持 status + type 过滤与分页
     const { data } = await riskApi.listAppeals(params)
-    const items: any[] = data.items ?? (Array.isArray(data) ? data : [])
+    const items: Appeal[] = data.items ?? (Array.isArray(data) ? data : [])
     list.value = items
     total.value = data.total ?? items.length
   } catch {
@@ -103,7 +117,7 @@ async function reject() {
   }
 }
 
-function showDetail(row: any) {
+function showDetail(row: Appeal) {
   detailData.value = row
   detailDialogVisible.value = true
 }

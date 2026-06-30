@@ -558,12 +558,24 @@ const loading = ref(false);
 const loadError = ref(false);
 const newSceneName = ref("");
 
+// 预算看板每个场景的用量信息（后端 /ai/scene-budgets 返回结构）
+interface SceneBudgetInfo {
+  used: number;
+  limit: number;
+  remaining: number;
+  percentage: number;
+}
+interface SceneBudgets {
+  scenes?: Record<string, SceneBudgetInfo>;
+}
+
 const config = reactive({
   default: { model: "deepseek-v4-flash", fallbackModel: "deepseek-v4-flash", temperature: 0.3, maxTokens: 2048, topP: 0.9, timeoutSec: 5 },
+  // 场景配置结构动态（主模型/备用/灰度/预算等可选字段），保留 any
   scenes: {} as Record<string, any>,
 });
 
-const sceneBudgets = ref<any>(null);
+const sceneBudgets = ref<SceneBudgets | null>(null);
 const editDialog = ref(false);
 const editTarget = ref<any>(null);
 
@@ -571,7 +583,7 @@ const sceneCount = computed(() => Object.keys(config.scenes).length);
 const defaultModel = computed(() => config.default.model);
 const cappedScenes = computed(() => {
   if (!sceneBudgets.value?.scenes) return 0;
-  return Object.values(sceneBudgets.value.scenes as Record<string, any>).filter((s: any) => s.percentage >= 100).length;
+  return Object.values(sceneBudgets.value.scenes).filter((s) => s.percentage >= 100).length;
 });
 
 const sceneList = computed(() => {
@@ -580,7 +592,7 @@ const sceneList = computed(() => {
 
 const budgetList = computed(() => {
   if (!sceneBudgets.value?.scenes) return [];
-  return Object.entries(sceneBudgets.value.scenes as Record<string, any>).map(([scene, info]: [string, any]) => ({
+  return Object.entries(sceneBudgets.value.scenes).map(([scene, info]) => ({
     scene, ...info,
   }));
 });

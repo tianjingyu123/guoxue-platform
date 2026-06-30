@@ -142,9 +142,20 @@
 import { ref, onMounted } from 'vue'
 import { api } from '@/api'
 
+/** 驿站商品行（字段宽松 optional） */
+interface ProductRow {
+  name?: string
+  station?: { name?: string; city?: string }
+  price?: number
+  stock?: number
+  isPlatform?: boolean
+  status?: string
+  createdAt?: string
+}
+
 const loading = ref(false)
 const loadError = ref(false)
-const list = ref<any[]>([])
+const list = ref<ProductRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const stationId = ref('')

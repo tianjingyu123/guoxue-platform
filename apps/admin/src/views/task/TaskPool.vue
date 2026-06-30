@@ -658,8 +658,36 @@ function formatDate(d: string | null | undefined) {
   return new Date(d).toLocaleString("zh-CN", { hour12: false });
 }
 
+/** 任务流转日志项（字段宽松 optional） */
+interface TransferLog {
+  id?: string;
+  fromType?: string;
+  fromId?: string;
+  toType?: string;
+  toId?: string;
+  reason?: string;
+  createdAt?: string;
+}
+/** 任务行（后端任务列表/详情项，字段宽松 optional） */
+interface TaskRow {
+  id: string;
+  title?: string;
+  type: string;
+  priority: string;
+  status: string;
+  executorType?: string;
+  executorId?: string;
+  createdAt?: string;
+  completedAt?: string;
+  description?: string;
+  result?: unknown;
+  errorLog?: string;
+  rollbackData?: unknown;
+  transferLogs?: TransferLog[];
+}
+
 // 列表
-const list = ref<any[]>([]);
+const list = ref<TaskRow[]>([]);
 const loading = ref(false);
 const error = ref(false);
 const submitting = ref(false);
@@ -679,8 +707,8 @@ async function fetchStats() {
     api.get("/tasks", { params: { page: 1, pageSize: 1, status: "NEEDS_REVIEW" } }),
   ]);
   stats.total = all?.total ?? 0;
-  stats.pending = (pending as any)?.count ?? 0;
-  stats.needsReview = (review as any)?.total ?? 0;
+  stats.pending = pending?.count ?? 0;
+  stats.needsReview = review?.total ?? 0;
   // inProgress count estimate from total minus known
   try {
     const { data: ip } = await api.get("/tasks", { params: { page: 1, pageSize: 1, status: "IN_PROGRESS" } });
@@ -692,7 +720,7 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: pageSize.value };
+    const params: Record<string, string | number> = { page: page.value, pageSize: pageSize.value };
     if (filters.status) params.status = filters.status;
     if (filters.type) params.type = filters.type;
     if (filters.priority) params.priority = filters.priority;
@@ -742,8 +770,8 @@ async function doCreate() {
 
 // 详情
 const showDetail = ref(false);
-const current = ref<any>(null);
-async function openDetail(row: any) {
+const current = ref<TaskRow | null>(null);
+async function openDetail(row: TaskRow) {
   try {
     const { data } = await api.get(`/tasks/${row.id}`);
     current.value = data;
@@ -752,7 +780,7 @@ async function openDetail(row: any) {
 }
 
 // 认领
-async function claimTask(row: any) {
+async function claimTask(row: TaskRow) {
   if (submitting.value) return;
   submitting.value = true;
   try {
@@ -766,9 +794,9 @@ async function claimTask(row: any) {
 // 转交
 const showTransferDialog = ref(false);
 const transferring = ref(false);
-const transferTarget = ref<any>(null);
+const transferTarget = ref<TaskRow | null>(null);
 const transferForm = reactive({ toType: "HUMAN", toId: "", reason: "" });
-function showTransfer(row: any) {
+function showTransfer(row: TaskRow) {
   transferTarget.value = row;
   transferForm.toType = "HUMAN";
   transferForm.toId = "";
@@ -788,7 +816,7 @@ async function doTransfer() {
 }
 
 // 完成
-async function completeTask(row: any) {
+async function completeTask(row: TaskRow) {
   if (submitting.value) return;
   submitting.value = true;
   try {
@@ -802,9 +830,9 @@ async function completeTask(row: any) {
 // 审批
 const showApproveDialog = ref(false);
 const approving = ref(false);
-const approveTarget = ref<any>(null);
+const approveTarget = ref<TaskRow | null>(null);
 const approveForm = reactive({ approved: true, remark: "" });
-function showApprove(row: any) {
+function showApprove(row: TaskRow) {
   approveTarget.value = row;
   approveForm.approved = true;
   approveForm.remark = "";
@@ -822,7 +850,7 @@ async function doApprove() {
 }
 
 // 强制收回
-async function forceReclaim(row: any) {
+async function forceReclaim(row: TaskRow) {
   if (submitting.value) return;
   submitting.value = true;
   try {
@@ -835,7 +863,7 @@ async function forceReclaim(row: any) {
 }
 
 // 回滚
-async function rollbackTask(row: any) {
+async function rollbackTask(row: TaskRow) {
   if (submitting.value) return;
   submitting.value = true;
   try {
@@ -847,7 +875,7 @@ async function rollbackTask(row: any) {
 }
 
 // 取消
-async function cancelTask(row: any) {
+async function cancelTask(row: TaskRow) {
   if (submitting.value) return;
   submitting.value = true;
   try {

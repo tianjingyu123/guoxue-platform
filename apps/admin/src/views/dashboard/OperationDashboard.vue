@@ -4,6 +4,7 @@
  * 用户增长 / 内容审核 / 活跃度监控
  */
 import { ref, onMounted } from "vue"
+import type { Component } from "vue"
 import { useRouter } from "vue-router"
 import { api } from "@/api"
 import * as echarts from "echarts"
@@ -18,7 +19,7 @@ const router = useRouter()
 const username = ref('')
 
 // ==================== 快捷操作（运营高频管理页）====================
-interface QuickAction { label: string; path: string; icon: any }
+interface QuickAction { label: string; path: string; icon: Component }
 const quickActions: QuickAction[] = [
   { label: "内容管理", path: "/contents", icon: Document },
   { label: "内容审核", path: "/contents/audit", icon: Edit },
@@ -41,17 +42,19 @@ const cardRoutes: Record<string, string> = {
   "本月新增用户": "/users",
 }
 
-function onCardClick(card: { label: string; value: number; icon: any }) {
+function onCardClick(card: { label: string; value: number; icon: Component }) {
   const route = cardRoutes[card.label]
   if (route) router.push(route)
 }
 
 // ==================== 报警信息 ====================
-const alerts = ref<any[]>([])
+/** 报警条目（字段宽松 optional） */
+interface AlertItem { text?: string; count?: number; level?: 'critical' | 'warning' | 'info' }
+const alerts = ref<AlertItem[]>([])
 
 // ==================== 统计卡片 ====================
 interface CardDelta { value: number; dir: "up" | "down" | "flat"; label: string }
-interface CardDef { label: string; value: number; icon: any; delta?: CardDelta }
+interface CardDef { label: string; value: number; icon: Component; delta?: CardDelta }
 const cards = ref<CardDef[]>([])
 
 // ==================== 加载状态 ====================
@@ -59,6 +62,7 @@ const loading = ref(true)
 const loadError = ref(false)
 
 // ==================== 用户增长趋势 (ECharts) ====================
+// userGrowthOption 为 ECharts option，类型为复杂联合，框架类型不匹配，保留 any
 const userGrowthOption = ref<any>({})
 const hasUserGrowth = ref(false)
 
@@ -97,6 +101,7 @@ function buildUserGrowthOption(dates: string[], values: number[]) {
       trigger: "axis", backgroundColor: "#fff",
       borderColor: "#F0F0F0", borderWidth: 1,
       textStyle: { color: "#1A1A1A", fontSize: 13 },
+      // params 为 ECharts tooltip 回调参数（复杂联合类型），保留 any
       formatter: (params: any) => {
         const p = params[0]
         return `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>
@@ -167,7 +172,7 @@ async function load() {
 
     // 报警
     const list = alertRes.data ?? []
-    alerts.value = list.slice(0, 3).map((a: any) => ({
+    alerts.value = list.slice(0, 3).map((a: AlertItem) => ({
       text: a.text, count: a.count, level: a.level ?? "warning",
     }))
   } catch {

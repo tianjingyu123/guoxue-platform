@@ -4,6 +4,7 @@
  * 全站核心指标 + 第三方服务健康监控 + 营收趋势
  */
 import { ref, onMounted, onBeforeUnmount } from "vue"
+import type { Component } from "vue"
 import { useRouter } from "vue-router"
 import { api } from "@/api"
 import GreetingHeader from "@/components/GreetingHeader.vue"
@@ -18,7 +19,7 @@ const router = useRouter()
 const username = ref("超级管理员")
 
 // ==================== 快捷操作（超管系统治理高频页）====================
-interface QuickAction { label: string; path: string; icon: any }
+interface QuickAction { label: string; path: string; icon: Component }
 const quickActions: QuickAction[] = [
   { label: "系统设置", path: "/system-settings", icon: Setting },
   { label: "角色权限", path: "/system/role-permission", icon: Lock },
@@ -47,11 +48,13 @@ function onCardClick(card: CardDef) {
 }
 
 // ==================== 报警信息 ====================
-const alerts = ref<any[]>([])
+/** 报警条目（字段宽松 optional） */
+interface AlertItem { text?: string; count?: number; level?: 'critical' | 'warning' | 'info' }
+const alerts = ref<AlertItem[]>([])
 
 // ==================== 统计卡片 ====================
 interface CardDelta { value: number; dir: "up" | "down" | "flat"; label: string }
-interface CardDef { label: string; value: number; icon: any; delta?: CardDelta }
+interface CardDef { label: string; value: number; icon: Component; delta?: CardDelta }
 const cards = ref<CardDef[]>([])
 
 /** 日环比：仅当昨日基准>0 时计算，否则 undefined（诚实留白） */
@@ -70,6 +73,7 @@ const loading = ref(true)
 const loadError = ref(false)
 
 // ==================== 营收趋势 (ECharts) ====================
+// revenueOption 为 ECharts option，类型为复杂联合，框架类型不匹配，保留 any
 const revenueOption = ref<any>({})
 const hasRevenue = ref(false)
 
@@ -108,6 +112,7 @@ function buildRevenueOption(dates: string[], values: number[]) {
       trigger: "axis", backgroundColor: "#fff",
       borderColor: "#F0F0F0", borderWidth: 1,
       textStyle: { color: "#1A1A1A", fontSize: 13 },
+      // params 为 ECharts tooltip 回调参数（复杂联合类型），保留 any
       formatter: (params: any) => {
         const p = params[0]
         return `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>
@@ -182,7 +187,7 @@ async function load() {
 
     // 报警取前 3 条
     const list = alertRes.data ?? []
-    alerts.value = list.slice(0, 3).map((a: any) => ({
+    alerts.value = list.slice(0, 3).map((a: AlertItem) => ({
       text: a.text, count: a.count, level: a.level ?? "warning",
     }))
   } catch {

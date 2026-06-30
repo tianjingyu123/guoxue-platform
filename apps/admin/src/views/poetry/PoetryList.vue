@@ -412,9 +412,45 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { poetryAdminApi } from "@/api";
 import PageHeader from "@/components/PageHeader.vue";
 
-const poems = ref<any[]>([]);
-const categories = ref<any[]>([]);
-const collections = ref<any[]>([]);
+/** 诗词行/表单字段（宽松 optional，按模板与脚本访问声明） */
+interface PoemRow {
+  id?: string;
+  title?: string;
+  author?: string;
+  dynasty?: string;
+  content?: string;
+  form?: string;
+  translation?: string;
+  appreciation?: string;
+  aiAppreciation?: string;
+  authorIntro?: string;
+  authorYears?: string;
+  authorTitle?: string;
+  categoryId?: string;
+  collectionId?: string;
+  cover?: string;
+  tags?: string[];
+  isRecommended?: boolean;
+  isToday?: boolean;
+  status?: string;
+  sortOrder?: number;
+}
+/** 编辑表单（字段均有默认值，故为必填） */
+interface PoemForm {
+  title: string; author: string; dynasty: string; content: string;
+  form: string; translation: string; appreciation: string; aiAppreciation: string;
+  authorIntro: string; authorYears: string; authorTitle: string;
+  categoryId: string; collectionId: string; cover: string;
+  isRecommended: boolean; isToday: boolean; status: string; sortOrder: number;
+}
+interface PoetryCategoryOption { id: string; name: string }
+interface PoetryCollectionOption { id: string; title: string }
+/** axios 错误对象（无类型来源，本地声明） */
+interface ApiError { response?: { data?: { message?: string } }; message?: string }
+
+const poems = ref<PoemRow[]>([]);
+const categories = ref<PoetryCategoryOption[]>([]);
+const collections = ref<PoetryCollectionOption[]>([]);
 const loading = ref(false);
 const error = ref("");
 const submitting = ref(false);
@@ -427,9 +463,9 @@ const filters = reactive({ keyword: "", status: "", categoryId: "", dynasty: "" 
 const dynastyOptions = ["先秦", "汉", "魏晋", "南北朝", "隋", "唐", "五代", "宋", "元", "明", "清", "近现代"];
 
 const dialogVisible = ref(false);
-const editing = ref<any>({});
+const editing = ref<PoemRow>({});
 const tagsText = ref("");
-const form = reactive<any>({
+const form = reactive<PoemForm>({
   title: "", author: "", dynasty: "", content: "",
   form: "", translation: "", appreciation: "", aiAppreciation: "",
   authorIntro: "", authorYears: "", authorTitle: "",
@@ -470,7 +506,7 @@ async function fetchPoems() {
   loading.value = true;
   error.value = "";
   try {
-    const params: any = { page: page.value, pageSize: pageSize.value };
+    const params: { page: number; pageSize: number; status?: string; categoryId?: string; dynasty?: string; keyword?: string } = { page: page.value, pageSize: pageSize.value };
     if (filters.keyword) params.keyword = filters.keyword;
     if (filters.status) params.status = filters.status;
     if (filters.categoryId) params.categoryId = filters.categoryId;
@@ -478,14 +514,14 @@ async function fetchPoems() {
     const { data } = await poetryAdminApi.listPoems(params);
     poems.value = data?.items || [];
     total.value = data?.total || 0;
-  } catch (e: any) {
-    error.value = e?.response?.data?.message || e?.message || "加载诗词列表失败";
+  } catch (e) {
+    error.value = (e as ApiError)?.response?.data?.message || (e as ApiError)?.message || "加载诗词列表失败";
   } finally {
     loading.value = false;
   }
 }
 
-function openEdit(row?: any) {
+function openEdit(row?: PoemRow) {
   editing.value = row || {};
   if (row) {
     Object.assign(form, {
@@ -520,7 +556,7 @@ async function savePoem() {
   }
   submitting.value = true;
   try {
-    const payload: any = { ...form };
+    const payload: Record<string, unknown> = { ...form };
     payload.tags = tagsText.value.split(/[,，]/).map((t) => t.trim()).filter(Boolean);
     if (!payload.categoryId) payload.categoryId = null;
     if (!payload.collectionId) payload.collectionId = null;
@@ -533,8 +569,8 @@ async function savePoem() {
     }
     dialogVisible.value = false;
     fetchPoems();
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || "保存失败");
+  } catch (e) {
+    ElMessage.error((e as ApiError)?.response?.data?.message || "保存失败");
   } finally {
     submitting.value = false;
   }
@@ -547,8 +583,8 @@ function delPoem(id: string) {
         await poetryAdminApi.deletePoem(id);
         ElMessage.success("已删除");
         fetchPoems();
-      } catch (e: any) {
-        ElMessage.error(e?.response?.data?.message || "删除失败");
+      } catch (e) {
+        ElMessage.error((e as ApiError)?.response?.data?.message || "删除失败");
       }
     })
     .catch(() => {});

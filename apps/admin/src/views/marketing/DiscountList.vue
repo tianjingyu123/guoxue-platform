@@ -337,17 +337,39 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { marketingApi, courseApi, circleApi } from '@/api'
 import ProductPicker from '@/components/ProductPicker.vue'
 
-const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1); const pages = ref<any[]>([])
+// 微页面下拉选项
+interface PageOption { id: string; name?: string }
+// axios 错误体
+interface ApiError { response?: { data?: { message?: string } } }
+// 课程/圈子远程搜索选项
+interface CourseOption { id: string; title?: string }
+interface CircleOption { id: string; name?: string }
+// 限时折扣行：依据表格列与编辑表单访问字段声明
+interface DiscountRow {
+  id: string
+  name?: string
+  discountPct?: number
+  productIds?: string[]
+  courseIds?: string[]
+  circleIds?: string[]
+  status?: string
+  startTime?: string
+  endTime?: string
+  scope?: string
+  scopePageId?: string
+}
+
+const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<DiscountRow[]>([]); const total = ref(0); const page = ref(1); const pages = ref<PageOption[]>([])
 const vis = ref(false); const editingId = ref('')
 const form = reactive<{ name: string; productIds: string[]; courseIds: string[]; circleIds: string[]; discountPct: number; status: string; startTime: string; endTime: string; scope: string; scopePageId: string }>({ name: '', productIds: [], courseIds: [], circleIds: [], discountPct: 85, status: 'DRAFT', startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
 
-const courseOptions = ref<any[]>([]); const courseSearchLoading = ref(false)
-const circleOptions = ref<any[]>([]); const circleSearchLoading = ref(false)
+const courseOptions = ref<CourseOption[]>([]); const courseSearchLoading = ref(false)
+const circleOptions = ref<CircleOption[]>([]); const circleSearchLoading = ref(false)
 
 onMounted(() => { fetchList(); loadPages() })
 async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.pages || data.items || data.data || [] } catch { /* 忽略 */ } }
-const activeCount = computed(() => list.value.filter((d: any) => d.status === 'ACTIVE').length)
-const inactiveCount = computed(() => list.value.filter((d: any) => d.status !== 'ACTIVE').length)
+const activeCount = computed(() => list.value.filter((d: DiscountRow) => d.status === 'ACTIVE').length)
+const inactiveCount = computed(() => list.value.filter((d: DiscountRow) => d.status !== 'ACTIVE').length)
 
 function statusType(s: string) {
   const m: Record<string, string> = { DRAFT: 'info', ACTIVE: 'success', ENDED: 'warning' }
@@ -373,7 +395,7 @@ async function fetchList() {
   try { const { data } = await marketingApi.listDiscounts({ page: page.value, pageSize: 20 }); list.value = data.items || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', productIds: [], courseIds: [], circleIds: [], discountPct: 85, status: 'DRAFT', startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' }); courseOptions.value = []; circleOptions.value = []; vis.value = true }
-function openEdit(row: any) {
+function openEdit(row: DiscountRow) {
   editingId.value = row.id
   Object.assign(form, {
     name: row.name,
@@ -393,7 +415,7 @@ function openEdit(row: any) {
 async function save() {
   saving.value = true
   try {
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       name: form.name,
       discountPct: form.discountPct,
       productIds: form.productIds.length ? form.productIds : undefined,
@@ -410,7 +432,7 @@ async function save() {
       await marketingApi.createDiscount(payload)
     }
     ElMessage.success(editingId.value ? '已更新' : '折扣活动创建成功'); vis.value = false; fetchList()
-  } catch (e: any) { ElMessage.error(e?.response?.data?.message || '操作失败') } finally { saving.value = false }
+  } catch (e) { ElMessage.error((e as ApiError)?.response?.data?.message || '操作失败') } finally { saving.value = false }
 }
 async function activate(id: string) { try { await marketingApi.updateDiscount(id, { status: 'ACTIVE' }); ElMessage.success('已启用'); fetchList() } catch { ElMessage.error('启用失败') } }
 async function deactivate(id: string) { try { await marketingApi.updateDiscount(id, { status: 'ENDED' }); ElMessage.success('已停用'); fetchList() } catch { ElMessage.error('操作失败') } }

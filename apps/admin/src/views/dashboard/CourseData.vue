@@ -5,6 +5,7 @@
  * Route meta: roles ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"]
  */
 import { ref } from 'vue'
+import type { Component } from 'vue'
 import { dashboardApi } from '@/api'
 import * as echarts from 'echarts'
 import ChartCard from '@/components/ChartCard.vue'
@@ -13,16 +14,27 @@ import { Reading, Goods, Money, Star, CircleCheckFilled, User } from '@element-p
 const loading = ref(false)
 const loadError = ref(false)
 const entityId = ref('')
-const data = ref<any>(null)
+/** 课程数据看板返回结构（字段宽松 optional，仅声明模板/脚本实际访问字段） */
+interface CourseStat {
+  title?: string
+  totalSales?: number
+  totalRevenue?: number
+  rating?: number
+  completionRate?: number
+  activeStudents?: number
+  chapters?: { name: string; completionCount: number }[]
+}
+const data = ref<CourseStat | null>(null)
 
 interface CardDef {
   label: string
   value: number | string
-  icon: any
+  icon: Component
   prefix?: string
   suffix?: string
 }
 const cards = ref<CardDef[]>([])
+// chartOption 为 ECharts option，类型为复杂联合，框架类型不匹配，保留 any
 const chartOption = ref<any>({})
 
 /** 构建章节完课漏斗图 option */
@@ -35,6 +47,7 @@ function buildFunnelOption(chapters: { name: string; completionCount: number }[]
       borderColor: '#F0F0F0',
       borderWidth: 1,
       textStyle: { color: '#1A1A1A', fontSize: 13 },
+      // params 为 ECharts tooltip 回调参数（复杂联合类型），保留 any
       formatter: (params: any) => {
         return `<div style="font-weight:600;margin-bottom:4px">${params.name}</div>
                 <div>完课人数：<span style="color:#FF6B6B;font-weight:600">${params.value}</span></div>`
@@ -57,6 +70,7 @@ function buildFunnelOption(chapters: { name: string; completionCount: number }[]
           color: '#fff',
           fontSize: 13,
           fontWeight: 600,
+          // params 为 ECharts label 回调参数，保留 any
           formatter: (params: any) => `${params.name}\n${params.value}人`,
         },
         labelLine: { show: false },
@@ -124,7 +138,7 @@ function exportCSV() {
   if (chartOption.value?.series?.[0]?.data?.length) {
     rows.push([])
     rows.push(['章节', '完课人数'])
-    chartOption.value.series[0].data.forEach((item: any) => {
+    chartOption.value.series[0].data.forEach((item: { name: string; value: number }) => {
       rows.push([item.name, String(item.value)])
     })
   }

@@ -197,7 +197,20 @@ import { bountyApi } from "@/api";
 const loading = ref(false);
 const error = ref(false);
 const closingId = ref<string | null>(null);
-const list = ref<any[]>([]);
+/** 赏金问题行（字段宽松 optional） */
+interface QuestionRow {
+  id: string;
+  title?: string;
+  category?: string;
+  bountyCoin?: number;
+  asker?: { nickname?: string };
+  askerId?: string;
+  answerer?: { nickname?: string };
+  answererId?: string;
+  status?: string;
+  createdAt?: string;
+}
+const list = ref<QuestionRow[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
@@ -223,7 +236,7 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: pageSize.value };
+    const params: Record<string, string | number> = { page: page.value, pageSize: pageSize.value };
     if (filterCategory.value) params.category = filterCategory.value;
     if (filterStatus.value) params.status = filterStatus.value;
     const res = await bountyApi.listQuestions(params);
@@ -242,7 +255,7 @@ function resetFilter() {
   fetchList();
 }
 
-async function handleClose(row: any) {
+async function handleClose(row: QuestionRow) {
   if (closingId.value) return;
   try {
     await ElMessageBox.confirm(`确定关闭问题"${row.title}"吗？`, "确认关闭", { type: "warning" });

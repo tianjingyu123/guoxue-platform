@@ -237,13 +237,32 @@
 import { ref, onMounted } from "vue";
 import { renewalApi } from "@/api";
 
+// 即将到期项 / 续费记录（按列配置与模板访问字段定义的宽松本地类型）
+interface ExpiringRow {
+  _type: string;
+  name?: string;
+  nickname?: string;
+  memberLevel?: string;
+  expireAt?: string;
+  daysLeft: number;
+}
+interface HistoryRow {
+  user?: { nickname?: string };
+  targetType: string;
+  amount?: number;
+  periodDays?: number;
+  prevExpireAt?: string;
+  newExpireAt?: string;
+  createdAt?: string;
+}
+
 const expiringLoading = ref(false);
 const expiringError = ref(false);
-const expiringData = ref<any[]>([]);
+const expiringData = ref<ExpiringRow[]>([]);
 
 const historyLoading = ref(false);
 const historyError = ref(false);
-const historyList = ref<any[]>([]);
+const historyList = ref<HistoryRow[]>([]);
 const typeFilter = ref("");
 const page = ref(1);
 const pageSize = 20;
@@ -264,7 +283,7 @@ async function fetchExpiring() {
   expiringError.value = false;
   try {
     const { data } = await renewalApi.getExpiringUsers();
-    const items: any[] = [];
+    const items: ExpiringRow[] = [];
     (data.expiringStations || []).forEach((s: any) => items.push({ _type: "STATION", name: s.name, expireAt: s.expireAt, daysLeft: calcDays(s.expireAt) }));
     (data.expiringInstituteMembers || []).forEach((m: any) => items.push({ _type: "INSTITUTE_MEMBER", name: m.institute?.name || m.id, expireAt: m.expireAt, daysLeft: calcDays(m.expireAt) }));
     (data.expiringVip || []).forEach((u: any) => items.push({ _type: "VIP", nickname: u.nickname, memberLevel: u.memberLevel, expireAt: u.memberExpire, daysLeft: calcDays(u.memberExpire) }));
@@ -284,7 +303,7 @@ async function fetchHistory() {
   historyLoading.value = true;
   historyError.value = false;
   try {
-    const params: any = { page: page.value, pageSize };
+    const params: Record<string, string | number> = { page: page.value, pageSize };
     if (typeFilter.value) params.type = typeFilter.value;
     const { data } = await renewalApi.getAdminHistory(params);
     historyList.value = data.records || [];

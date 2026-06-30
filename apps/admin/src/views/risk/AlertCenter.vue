@@ -3,10 +3,21 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { riskApi, api } from '@/api'
 
+// 风险预警行（依据表格列/处置逻辑实际访问字段声明）
+interface RiskAlert {
+  id?: string
+  level?: string
+  title?: string
+  targetType?: string
+  targetId?: string
+  status?: string
+  createdAt?: string
+}
+
 const loading = ref(false)
 const error = ref(false)
 const saving = ref(false)
-const list = ref<any[]>([])
+const list = ref<RiskAlert[]>([])
 const total = ref(0)
 const page = ref(1)
 
@@ -17,7 +28,7 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 const dialogVisible = ref(false)
 const editingId = ref('')
-const editingRow = ref<any>(null)
+const editingRow = ref<RiskAlert | null>(null)
 // 四种真实处置：handle(标记已处理) / dismiss(忽略) 走原端点；
 // ban_user(封禁目标用户) / escalate(升级为严重) 走 POST /risk-control/alerts/:id/action
 const processForm = reactive({ action: 'HANDLE', remark: '' })
@@ -67,12 +78,12 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const params: Record<string, any> = { page: page.value, pageSize: 20 }
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 }
     if (levelFilter.value) params.level = levelFilter.value
     if (statusFilter.value) params.status = statusFilter.value
     const { data } = await riskApi.listAlerts(params)
-    const items: any[] = data.items ?? (Array.isArray(data) ? data : [])
-    items.sort((a: any, b: any) => (levelOrder[a.level] ?? 99) - (levelOrder[b.level] ?? 99))
+    const items: RiskAlert[] = data.items ?? (Array.isArray(data) ? data : [])
+    items.sort((a: RiskAlert, b: RiskAlert) => (levelOrder[a.level!] ?? 99) - (levelOrder[b.level!] ?? 99))
     list.value = items
     total.value = data.total ?? items.length
   } catch {
@@ -102,8 +113,8 @@ function stopAutoRefresh() {
   }
 }
 
-function openProcess(row: any) {
-  editingId.value = row.id
+function openProcess(row: RiskAlert) {
+  editingId.value = row.id ?? ''
   editingRow.value = row
   processForm.action = 'HANDLE'
   processForm.remark = ''

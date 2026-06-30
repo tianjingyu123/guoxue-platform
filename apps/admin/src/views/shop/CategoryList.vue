@@ -171,11 +171,23 @@ import { ref, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "@/api";
 
+/** 商品分类行（树节点，字段宽松 optional） */
+interface CategoryRow {
+  id?: string;
+  name?: string;
+  parentId?: string;
+  icon?: string;
+  level?: number;
+  sortOrder?: number;
+  status?: string;
+  children?: CategoryRow[];
+}
+
 const loading = ref(false);
 const error = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
-const categories = ref<any[]>([]);
+const categories = ref<CategoryRow[]>([]);
 const dialogVisible = ref(false);
 const isEdit = ref(false);
 const parentName = ref("");
@@ -185,13 +197,13 @@ const form = ref({
 
 const treeData = computed(() => buildTree(categories.value));
 
-function buildTree(list: any[]): any[] {
-  const roots = list.filter((c) => !c.parentId).sort((a, b) => a.sortOrder - b.sortOrder);
+function buildTree(list: CategoryRow[]): CategoryRow[] {
+  const roots = list.filter((c) => !c.parentId).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   return roots.map((root) => ({
     ...root,
     children: list
       .filter((c) => c.parentId === root.id)
-      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
       .map((c) => ({ ...c, children: [] })),
   }));
 }
@@ -204,9 +216,9 @@ async function fetchList() {
   try {
     const { data } = await api.get("/shop/categories/tree");
     // 展平树
-    const flat: any[] = [];
+    const flat: CategoryRow[] = [];
     // eslint-disable-next-line no-inner-declarations
-    function walk(items: any[], level = 1) {
+    function walk(items: CategoryRow[], level = 1) {
       for (const item of items) {
         flat.push({ ...item, level });
         if (item.children?.length) walk(item.children, level + 1);
@@ -222,7 +234,7 @@ async function fetchList() {
   }
 }
 
-function openCreate(parent?: any) {
+function openCreate(parent?: CategoryRow) {
   isEdit.value = false;
   form.value = {
     id: "", name: "", parentId: parent?.id || "",
@@ -232,9 +244,10 @@ function openCreate(parent?: any) {
   dialogVisible.value = true;
 }
 
-function openEdit(row: any) {
+function openEdit(row: CategoryRow) {
   isEdit.value = true;
-  form.value = { ...row };
+  // row 字段宽松 optional，按表单结构断言（运行时数据字段齐全）
+  form.value = { ...row } as typeof form.value;
   dialogVisible.value = true;
 }
 
@@ -262,14 +275,14 @@ async function handleSave() {
     }
     dialogVisible.value = false;
     fetchList();
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || "操作失败");
+  } catch (e) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message || "操作失败");
   } finally {
     saving.value = false;
   }
 }
 
-async function handleDelete(row: any) {
+async function handleDelete(row: CategoryRow) {
   try {
     await ElMessageBox.confirm(`确定删除分类「${row.name}」吗？`, "删除确认", { type: "warning" });
     if (deleting.value) return;

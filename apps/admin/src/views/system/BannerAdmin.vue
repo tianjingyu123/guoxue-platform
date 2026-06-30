@@ -187,7 +187,7 @@ async function load() {
   loadError.value = false;
   try {
     const { data } = await systemApi.listConfigs();
-    const config = (data.configs || []).find((c: any) => c.configKey === "home_banners");
+    const config = (data.configs || []).find((c: { configKey: string; configValue: string }) => c.configKey === "home_banners");
     if (config) {
       // 解析失败属于配置数据损坏，必须报错而非静默回退假数据
       banners.value = JSON.parse(config.configValue);

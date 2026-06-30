@@ -328,6 +328,27 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { api } from "@/api";
 
+/** 运营周报 */
+interface WeeklyBrief { period?: string; newContent?: number; newUsers?: number; totalLikes?: number; totalViews?: number; generatedAt?: string }
+/** 首页推荐池 */
+interface HotPool { contentIds?: string[]; updatedAt?: string }
+/** 内容不足品类 */
+interface EmptyCategory { level1?: string; level2?: string; count?: number }
+/** 空板块告警 */
+interface EmptyAlerts { categories?: EmptyCategory[]; updatedAt?: string }
+/** 关联推荐项 */
+interface RelatedRec { title?: string; categoryLevel2?: string; viewCount?: number; likeCount?: number }
+/** 关联推荐结果 */
+interface RelatedResult { recommendations?: RelatedRec[]; total?: number }
+/** 个性化推荐内容项 */
+interface PersonalItem { id?: string; title?: string; likeCount?: number }
+/** 个性化推荐分类 */
+interface PersonalCategory { category?: string; items?: PersonalItem[] }
+/** 个性化推荐结果 */
+interface PersonalResult { interests?: string[]; results?: PersonalCategory[] }
+/** 系统配置项 */
+interface SystemConfigItem { configKey?: string; configValue?: string }
+
 function formatDate(d: string | null | undefined) {
   if (!d) return "-";
   return new Date(d).toLocaleString("zh-CN", { hour12: false });
@@ -344,22 +365,22 @@ const detecting = ref(false);
 const generating = ref(false);
 
 // 周报
-const weeklyBrief = ref<any>(null);
+const weeklyBrief = ref<WeeklyBrief | null>(null);
 
 // 推荐池
-const hotPool = ref<any>(null);
+const hotPool = ref<HotPool | null>(null);
 
 // 空板块
-const emptyAlerts = ref<any>(null);
+const emptyAlerts = ref<EmptyAlerts | null>(null);
 
 // 关联推荐
 const relateL1 = ref("");
 const relateL2 = ref("");
-const relatedResult = ref<any>(null);
+const relatedResult = ref<RelatedResult | null>(null);
 
 // 个性化推荐
 const personalUserId = ref("");
-const personalResult = ref<any>(null);
+const personalResult = ref<PersonalResult | null>(null);
 
 async function fetchOverview() {
   const { data } = await api.get("/operation-engine/overview");
@@ -369,7 +390,7 @@ async function fetchOverview() {
 async function loadConfig(key: string) {
   try {
     const { data } = await api.get("/system/configs");
-    const config = (data as any[])?.find((c: any) => c.configKey === key);
+    const config = (data as SystemConfigItem[])?.find((c) => c.configKey === key);
     if (config?.configValue) {
       try { return JSON.parse(config.configValue); } catch { return config.configValue; }
     }
@@ -396,7 +417,7 @@ async function rotateContent() {
   rotating.value = true;
   try {
     const { data } = await api.post("/operation-engine/rotate");
-    ElMessage.success((data as any)?.message || "首页内容轮换已完成");
+    ElMessage.success((data as { message?: string })?.message || "首页内容轮换已完成");
     await refresh();
   } finally { rotating.value = false; }
 }
@@ -405,7 +426,7 @@ async function detectEmpty() {
   detecting.value = true;
   try {
     const { data } = await api.post("/operation-engine/detect-empty");
-    ElMessage.success((data as any)?.message || "空板块检测已完成");
+    ElMessage.success((data as { message?: string })?.message || "空板块检测已完成");
     await refresh();
   } finally { detecting.value = false; }
 }

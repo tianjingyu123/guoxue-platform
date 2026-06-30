@@ -366,7 +366,7 @@ async function fetchList() {
   error.value = false;
   try {
     // 后端按 keyword 模糊匹配 name；状态空值不传
-    const params: any = { page: page.value, pageSize: pageSize.value };
+    const params: { page: number; pageSize: number; keyword?: string; status?: string } = { page: page.value, pageSize: pageSize.value };
     if (searchForm.name) params.keyword = searchForm.name;
     if (searchForm.status) params.status = searchForm.status;
     const res = await tenantAdminApi.list(params);

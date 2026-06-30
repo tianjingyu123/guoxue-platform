@@ -327,27 +327,37 @@ import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { api, contentGenerationApi, systemApi } from "@/api";
 
+// 品类健康度行（字段宽松 optional）
+interface StatRow {
+  key?: string;
+  level1: string;
+  level2: string;
+  published: number;
+  draft: number;
+  total: number;
+}
+
 const loading = ref(false);
 const error = ref(false);
 const search = ref("");
 const categoryTree = ref<Record<string, string[]>>({});
 const stats = reactive({ totalCategories: 0, emptyCategories: 0, lowContentCategories: 0 });
-const statRows = ref<any[]>([]);
+const statRows = ref<StatRow[]>([]);
 const autoFilling = ref(false);
 const genLoading = ref("");
 const showGenDialog = ref(false);
-const genTarget = ref<any>(null);
+const genTarget = ref<StatRow | null>(null);
 const genTypes = ref(["knowledge"]);
 
-const totalPublished = computed(() => statRows.value.reduce((s: number, r: any) => s + r.published, 0));
-const totalDraft = computed(() => statRows.value.reduce((s: number, r: any) => s + r.draft, 0));
+const totalPublished = computed(() => statRows.value.reduce((s: number, r: StatRow) => s + r.published, 0));
+const totalDraft = computed(() => statRows.value.reduce((s: number, r: StatRow) => s + r.draft, 0));
 const filteredStats = computed(() => {
   if (!search.value) return statRows.value;
   const q = search.value.toLowerCase();
-  return statRows.value.filter((r: any) => r.level1.includes(q) || r.level2.includes(q));
+  return statRows.value.filter((r: StatRow) => r.level1.includes(q) || r.level2.includes(q));
 });
 
-function rowKey(r: any) { return `${r.level1}/${r.level2}`; }
+function rowKey(r: StatRow) { return `${r.level1}/${r.level2}`; }
 
 onMounted(() => refresh());
 
@@ -361,8 +371,9 @@ async function refresh() {
     ]);
 
     // 尝试从配置中读取品类树
-    const configs = (treeRes.data as any)?.configs || [];
-    const catCfg = configs.find((c: any) => c.configKey === "category_tree");
+    // axios 响应 data 无类型来源
+    const configs: { configKey?: string; configValue?: string }[] = (treeRes.data as any)?.configs || [];
+    const catCfg = configs.find((c) => c.configKey === "category_tree");
     if (catCfg?.configValue) {
       try { categoryTree.value = JSON.parse(catCfg.configValue); } catch { /* fallback */ }
     }
@@ -386,7 +397,7 @@ async function refresh() {
   } finally { loading.value = false; }
 }
 
-function generateFor(row: any) {
+function generateFor(row: StatRow) {
   genTarget.value = row;
   genTypes.value = row.total === 0 ? ["knowledge", "classics", "tutorial"] : ["knowledge"];
   showGenDialog.value = true;
@@ -416,7 +427,7 @@ async function autoFillAll() {
   } finally { autoFilling.value = false; }
 }
 
-function viewContent(row: any) {
+function viewContent(row: StatRow) {
   window.open(`/contents?level1=${encodeURIComponent(row.level1)}&level2=${encodeURIComponent(row.level2)}`, "_blank");
 }
 

@@ -471,45 +471,79 @@ import { ref, reactive, onMounted } from 'vue'
 import { aiCollaborationApi } from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-const loading = ref(false); const loadErr = ref(false); const list = ref<any[]>([]); const total = ref(0)
+/** axios 错误结构（用于提取后端 message） */
+type ApiError = { response?: { data?: { message?: string } } }
+
+/** 协作提案行/详情（字段宽松 optional） */
+interface ProposalRow {
+  id: string
+  type?: string
+  title?: string
+  riskLevel?: string
+  confidence?: number
+  status?: string
+  proposedBy?: string
+  reviewedBy?: string
+  feedbackRating?: number
+  createdAt?: string
+  updatedAt?: string
+  description?: string
+  impactScope?: unknown
+  alternatives?: unknown
+  executionPlan?: unknown
+  rollbackPlan?: unknown
+  reviewNote?: string
+}
+/** 概览统计 */
+interface Overview {
+  pendingCount?: number
+  approvedCount?: number
+  executedCount?: number
+  rejectedCount?: number
+  rolledBackCount?: number
+  avgFeedbackRating?: number | string
+}
+
+const loading = ref(false); const loadErr = ref(false); const list = ref<ProposalRow[]>([]); const total = ref(0)
 const page = ref(1); const pageSize = 20
 const filterStatus = ref(''); const filterRisk = ref('')
-const overview = ref<any>({})
+const overview = ref<Overview>({})
 const pendingLoading = ref(false)
 
 // 审核
 const reviewVis = ref(false); const reviewAction = ref(''); const reviewLoading = ref(false)
-const currentItem = ref<any>(null)
+const currentItem = ref<ProposalRow | null>(null)
 const reviewForm = reactive({ reviewedBy: '', note: '' })
 
 // 详情
-const detailVis = ref(false); const detail = ref<any>(null)
+const detailVis = ref(false); const detail = ref<ProposalRow | null>(null)
 
 // 执行
 const execId = ref('')
 
 // 回滚
 const rollbackVis = ref(false); const rollbackReason = ref(''); const rollbackLoading = ref(false)
-const rollbackItem = ref<any>(null)
+const rollbackItem = ref<ProposalRow | null>(null)
 
 onMounted(() => { fetchList(); fetchOverview() })
 
-function riskLabel(r: string) { const m: Record<string,string> = { low:'低', medium:'中', high:'高' }; return m[r] || r }
-function riskTagType(r: string) { const m: Record<string,string> = { low:'success', medium:'warning', high:'danger' }; return m[r] || 'info' }
-function statusLabel(s: string) {
+// 入参放宽为可选（详情对象字段为 optional），逻辑与原先等价
+function riskLabel(r?: string) { const m: Record<string,string> = { low:'低', medium:'中', high:'高' }; return r ? (m[r] || r) : r }
+function riskTagType(r?: string) { const m: Record<string,string> = { low:'success', medium:'warning', high:'danger' }; return r ? (m[r] || 'info') : 'info' }
+function statusLabel(s?: string) {
   const m: Record<string,string> = { pending_review:'待审核', approved:'已批准', executed:'已执行', rejected:'已驳回', rolled_back:'已回滚' }
-  return m[s] || s
+  return s ? (m[s] || s) : s
 }
-function statusTagType(s: string) {
+function statusTagType(s?: string) {
   const m: Record<string,string> = { pending_review:'warning', approved:'success', executed:'primary', rejected:'danger', rolled_back:'info' }
-  return m[s] || 'info'
+  return s ? (m[s] || 'info') : 'info'
 }
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true; loadErr.value = false
   try {
-    const params: any = { limit: pageSize, offset: (page.value - 1) * pageSize }
+    const params: Record<string, string | number> = { limit: pageSize, offset: (page.value - 1) * pageSize }
     if (filterStatus.value) params.status = filterStatus.value
     if (filterRisk.value) params.riskLevel = filterRisk.value
     const res = await aiCollaborationApi.list(params)
@@ -537,13 +571,13 @@ async function fetchPending() {
   finally { pendingLoading.value = false }
 }
 
-function approve(item: any) {
+function approve(item: ProposalRow) {
   currentItem.value = item; reviewAction.value = 'approve'
   reviewForm.reviewedBy = ''; reviewForm.note = ''
   reviewVis.value = true
 }
 
-function reject(item: any) {
+function reject(item: ProposalRow) {
   currentItem.value = item; reviewAction.value = 'reject'
   reviewForm.reviewedBy = ''; reviewForm.note = ''
   reviewVis.value = true
@@ -562,14 +596,14 @@ async function confirmReview() {
     ElMessage.success(reviewAction.value === 'approve' ? '已批准' : '已驳回')
     reviewVis.value = false
     fetchList(); fetchOverview()
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || '操作失败')
+  } catch (e) {
+    ElMessage.error((e as ApiError)?.response?.data?.message || '操作失败')
   } finally {
     reviewLoading.value = false
   }
 }
 
-async function execute(item: any) {
+async function execute(item: ProposalRow) {
   try {
     await ElMessageBox.confirm(`确认执行提案「${item.title}」？`, '执行确认', { type: 'warning' })
   } catch { return }
@@ -578,14 +612,14 @@ async function execute(item: any) {
     await aiCollaborationApi.execute(item.id)
     ElMessage.success('执行成功')
     fetchList(); fetchOverview()
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || '执行失败')
+  } catch (e) {
+    ElMessage.error((e as ApiError)?.response?.data?.message || '执行失败')
   } finally {
     execId.value = ''
   }
 }
 
-function rollback(item: any) {
+function rollback(item: ProposalRow) {
   rollbackItem.value = item; rollbackReason.value = ''
   rollbackVis.value = true
 }
@@ -598,14 +632,14 @@ async function confirmRollback() {
     ElMessage.success('已回滚')
     rollbackVis.value = false
     fetchList(); fetchOverview()
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || '回滚失败')
+  } catch (e) {
+    ElMessage.error((e as ApiError)?.response?.data?.message || '回滚失败')
   } finally {
     rollbackLoading.value = false
   }
 }
 
-async function showDetail(item: any) {
+async function showDetail(item: ProposalRow) {
   detail.value = null; detailVis.value = true
   try {
     const res = await aiCollaborationApi.detail(item.id)

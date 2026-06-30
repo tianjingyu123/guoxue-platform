@@ -133,7 +133,17 @@ import { fortuneAdminApi } from "@/api";
 
 const loading = ref(false);
 const error = ref(false);
-const list = ref<any[]>([]);
+/** 运势推送历史行（字段宽松 optional） */
+interface FortuneHistoryRow {
+  userId?: string;
+  fortuneType?: string;
+  period?: string;
+  luckyDirection?: string;
+  luckyColor?: string;
+  sentStatus?: string;
+  createdAt?: string;
+}
+const list = ref<FortuneHistoryRow[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
@@ -158,7 +168,7 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: pageSize.value };
+    const params: Record<string, string | number> = { page: page.value, pageSize: pageSize.value };
     if (filterType.value) params.fortuneType = filterType.value;
     const res = await fortuneAdminApi.listHistory(params);
     list.value = res.data.items ?? res.data.records ?? [];

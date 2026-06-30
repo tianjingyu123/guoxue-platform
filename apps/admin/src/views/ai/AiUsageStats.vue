@@ -380,11 +380,63 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   "gpt-5": { input: 0.0025, output: 0.01 },
 };
 
+/** 场景维度成本行（字段宽松 optional） */
+interface SceneDimensionRow {
+  scene?: string;
+  calls?: number;
+  tokens?: number;
+  cost?: number;
+  avgLatency?: number;
+  successRate?: number;
+  costPercent?: number;
+}
+/** 调用日志行（tokenUsage 内字段必填，由 v-if 收窄保证存在） */
+interface CallLogRow {
+  scene?: string;
+  modelName: string;
+  tokenUsage?: { promptTokens: number; completionTokens: number };
+  latencyMs?: number;
+  status?: string;
+  createdAt?: string;
+}
+/** 异常告警行 */
+interface AlertRow {
+  type?: string;
+  title?: string;
+  level?: string;
+  createdAt?: string;
+}
+/** 趋势/场景分布点 */
+interface TrendPoint {
+  date?: string;
+  day?: string;
+  tokens?: number;
+  calls?: number;
+  scene?: string;
+  name?: string;
+}
+/** 调用统计接口响应 */
+interface CallStatsResponse {
+  totalCalls?: number;
+  todayCalls?: number;
+  todayTokens?: number;
+  successRate?: number;
+  sceneDistribution?: TrendPoint[];
+  estimatedCost?: number;
+  sceneBreakdown?: SceneDimensionRow[];
+  scenes?: string[];
+  models?: string[];
+}
+/** 调用日志接口响应 */
+interface LogsResponse { list?: CallLogRow[]; data?: CallLogRow[]; total?: number }
+/** 告警接口响应 */
+interface AlertsResponse { alerts?: AlertRow[]; data?: AlertRow[] }
+
 const stats = reactive({ totalCalls: 0, todayCalls: 0, todayTokens: 0, successRate: 0 });
-const logs = ref<any[]>([]);
+const logs = ref<CallLogRow[]>([]);
 const loading = ref(false);
 const loadErr = ref(false);
-const scenarioDistribution = ref<any[]>([]);
+const scenarioDistribution = ref<TrendPoint[]>([]);
 
 const sceneOptions = ref<string[]>([]);
 const modelOptions = ref<Array<{ label: string; value: string }>>([]);
@@ -393,21 +445,21 @@ const filters = reactive({
   scene: "",
   model: "",
   status: "",
-  dateRange: null as any,
+  dateRange: null as [Date, Date] | null,
 });
 
 const pagination = reactive({ page: 1, total: 0 });
 
-const alerts = ref<any[]>([]);
+const alerts = ref<AlertRow[]>([]);
 const trendChartRef = ref<HTMLElement | null>(null);
 const sceneChartRef = ref<HTMLElement | null>(null);
 let trendChart: echarts.ECharts | null = null;
 let sceneChart: echarts.ECharts | null = null;
 
 const estimatedCost = ref(0);
-const sceneBreakdown = ref<any[]>([]);
+const sceneBreakdown = ref<SceneDimensionRow[]>([]);
 const sceneDimensionSort = ref("cost");
-const sceneDimensionData = ref<any[]>([]);
+const sceneDimensionData = ref<SceneDimensionRow[]>([]);
 
 function fmt(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
 
@@ -433,7 +485,7 @@ async function refresh() {
 async function fetchStats() {
   try {
     const { data } = await aiAdminApi.getCallStats("week");
-    const d = data as any;
+    const d = data as CallStatsResponse;
     stats.totalCalls = d?.totalCalls || 0;
     stats.todayCalls = d?.todayCalls || 0;
     stats.todayTokens = d?.todayTokens || 0;
@@ -455,7 +507,7 @@ async function fetchStats() {
 async function fetchLogs() {
   loading.value = true;
   try {
-    const params: any = { page: pagination.page, pageSize: 20 };
+    const params: Record<string, string | number> = { page: pagination.page, pageSize: 20 };
     if (filters.scene) params.scene = filters.scene;
     if (filters.model) params.model = filters.model;
     if (filters.status) params.status = filters.status;
@@ -465,7 +517,7 @@ async function fetchLogs() {
     }
 
     const { data } = await aiAdminApi.getCallLogs(params);
-    const d = data as any;
+    const d = data as LogsResponse;
     logs.value = d?.list || d?.data || [];
     pagination.total = d?.total || logs.value.length;
 
@@ -478,7 +530,8 @@ async function fetchLogs() {
 async function fetchAlerts() {
   try {
     const { data } = await aiAdminApi.getAbnormalCalls();
-    alerts.value = (data as any)?.alerts || (data as any)?.data || [];
+    const d = data as AlertsResponse;
+    alerts.value = d?.alerts || d?.data || [];
   } catch { loadErr.value = true; }
 }
 
@@ -488,9 +541,9 @@ function renderCharts() {
     if (trendChart) trendChart.dispose();
     trendChart = echarts.init(trendChartRef.value);
 
-    const dates = scenarioDistribution.value.map((d: any) => d.date || d.day || "");
-    const tokens = scenarioDistribution.value.map((d: any) => d.tokens || 0);
-    const calls = scenarioDistribution.value.map((d: any) => d.calls || 0);
+    const dates = scenarioDistribution.value.map((d) => d.date || d.day || "");
+    const tokens = scenarioDistribution.value.map((d) => d.tokens || 0);
+    const calls = scenarioDistribution.value.map((d) => d.calls || 0);
 
     trendChart.setOption({
       tooltip: { trigger: "axis" },
@@ -513,7 +566,7 @@ function renderCharts() {
     if (sceneChart) sceneChart.dispose();
     sceneChart = echarts.init(sceneChartRef.value);
 
-    const pieData = scenarioDistribution.value.map((d: any) => ({
+    const pieData = scenarioDistribution.value.map((d) => ({
       name: d.scene || d.name || "其他",
       value: d.tokens || 0,
     }));
@@ -538,11 +591,12 @@ function renderSceneDimension() {
     return;
   }
   const totalCost = data.reduce((sum, d) => sum + (d.cost || 0), 0);
-  data.forEach((d: any) => {
-    d.costPercent = totalCost > 0 ? Math.round((d.cost / totalCost) * 100) : 0;
+  data.forEach((d) => {
+    // Number(undefined) -> NaN，与原 `d.cost / totalCost` 行为一致
+    d.costPercent = totalCost > 0 ? Math.round((Number(d.cost) / totalCost) * 100) : 0;
   });
-  const sortKey = sceneDimensionSort.value as string;
-  data.sort((a: any, b: any) => (b[sortKey] || 0) - (a[sortKey] || 0));
+  const sortKey = sceneDimensionSort.value as keyof SceneDimensionRow;
+  data.sort((a, b) => (Number(b[sortKey]) || 0) - (Number(a[sortKey]) || 0));
   sceneDimensionData.value = data;
 }
 
@@ -550,14 +604,14 @@ function exportCSV() {
   if (logs.value.length === 0) { ElMessage.warning("暂无数据可导出"); return; }
 
   const headers = ["场景", "模型", "PromptToken", "CompletionToken", "估算费用", "延迟ms", "状态", "时间"];
-  const rows = logs.value.map((r: any) => [
+  const rows = logs.value.map((r) => [
     r.scene || "", r.modelName || "",
     r.tokenUsage?.promptTokens || 0, r.tokenUsage?.completionTokens || 0,
     r.tokenUsage ? calcCost(r.modelName, r.tokenUsage).toFixed(4) : "0",
     r.latencyMs || "", r.status || "", r.createdAt || "",
   ]);
 
-  const csv = [headers.join(","), ...rows.map((r: any[]) => r.join(","))].join("\n");
+  const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
   const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

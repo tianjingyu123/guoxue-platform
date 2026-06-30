@@ -3,10 +3,23 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { systemApi } from '@/api'
 
+interface OperatorLevelRow {
+  _key: string
+  _id?: string
+  name?: string
+  commissionRate?: number
+  minSales?: number
+  benefits?: string
+  enabled?: boolean
+  sortOrder?: number
+  createdAt?: string
+  updatedAt?: string
+}
+
 const loading = ref(false)
 const saving = ref(false)
 const loadError = ref(false)
-const list = ref<any[]>([])
+const list = ref<OperatorLevelRow[]>([])
 const vis = ref(false)
 const editingId = ref('')
 
@@ -21,7 +34,7 @@ const form = reactive({
 
 onMounted(() => fetchList())
 
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 const sortedList = computed(() => {
   return [...list.value].sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
@@ -34,6 +47,7 @@ async function fetchList() {
     const { data } = await systemApi.listConfigs()
     const items: any[] = []
     const raw = data?.configs ?? data?.data ?? []
+    // item 为后端配置原始结构（value 为序列化 JSON），结构动态，保留 any
     ;(Array.isArray(raw) ? raw : []).forEach((item: any) => {
       if (item.key?.startsWith('operator.level.')) {
         const val = typeof item.value === 'string' ? JSON.parse(item.value) : item.value
@@ -50,7 +64,7 @@ function openCreate() {
   vis.value = true
 }
 
-function openEdit(row: any) {
+function openEdit(row: OperatorLevelRow) {
   editingId.value = row._key
   Object.assign(form, {
     name: row.name || '',
@@ -86,7 +100,7 @@ async function save() {
   } catch { } finally { saving.value = false }
 }
 
-async function toggleStatus(row: any) {
+async function toggleStatus(row: OperatorLevelRow) {
   row.enabled = !row.enabled
   try {
     const payload = {
@@ -104,7 +118,7 @@ async function toggleStatus(row: any) {
   }
 }
 
-async function del(row: any) {
+async function del(row: OperatorLevelRow) {
   try {
     await ElMessageBox.confirm(`确定删除等级「${row.name}」？`, '提示', { type: 'warning' })
     await systemApi.deleteConfig(row._key)

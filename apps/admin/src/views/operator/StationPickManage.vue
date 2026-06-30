@@ -138,8 +138,17 @@ import { ref, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
+/** 精选内容行（字段宽松 optional） */
+interface PickRow {
+  id?: string;
+  sortOrder?: number;
+  contentType?: string;
+  contentId?: string;
+  remark?: string;
+  createdAt?: string;
+}
 const loading = ref(false); const stationId = ref('')
-const picks = ref<any[]>([])
+const picks = ref<PickRow[]>([])
 
 const configVis = ref(false); const savingConfig = ref(false)
 const configForm = reactive({ stationZoneEnabled: false, positionsStr: '' })

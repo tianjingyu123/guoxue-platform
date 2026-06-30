@@ -120,7 +120,17 @@ const loading = ref(false);
 const error = ref(false);
 const pushingAll = ref(false);
 const togglingId = ref<string | null>(null);
-const list = ref<any[]>([]);
+/** 运势推送订阅配置行（字段宽松 optional） */
+interface FortuneConfigRow {
+  id: string;
+  userId?: string;
+  fortuneType?: string;
+  pushChannel?: string;
+  pushTime?: string;
+  isActive?: boolean;
+  createdAt?: string;
+}
+const list = ref<FortuneConfigRow[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
@@ -140,7 +150,7 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: pageSize.value };
+    const params: Record<string, string | number> = { page: page.value, pageSize: pageSize.value };
     if (filterType.value) params.fortuneType = filterType.value;
     const res = await fortuneAdminApi.listConfigs(params);
     list.value = res.data.items ?? res.data.records ?? [];
@@ -152,7 +162,7 @@ async function fetchList() {
   }
 }
 
-async function toggleActive(row: any) {
+async function toggleActive(row: FortuneConfigRow) {
   if (togglingId.value) return;
   togglingId.value = row.id;
   try {

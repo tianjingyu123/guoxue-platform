@@ -5,6 +5,7 @@
  * Route meta: roles ["SUPER_ADMIN", "OPERATION_ADMIN"]
  */
 import { ref } from 'vue'
+import type { Component } from 'vue'
 import { dashboardApi } from '@/api'
 import * as echarts from 'echarts'
 import ChartCard from '@/components/ChartCard.vue'
@@ -13,16 +14,27 @@ import { VideoCamera, View, TrendCharts, Coin, Money, Timer } from '@element-plu
 const loading = ref(false)
 const loadError = ref(false)
 const entityId = ref('')
-const data = ref<any>(null)
+/** 直播数据看板返回结构（字段宽松 optional，仅声明实际访问字段） */
+interface LiveStat {
+  title?: string
+  viewerCount?: number
+  peakOnline?: number
+  tipTotal?: number
+  revenue?: number
+  avgWatchDuration?: number
+  timeline?: { time: string; count: number }[]
+}
+const data = ref<LiveStat | null>(null)
 
 interface CardDef {
   label: string
   value: number | string
-  icon: any
+  icon: Component
   prefix?: string
   suffix?: string
 }
 const cards = ref<CardDef[]>([])
+// chartOption 为 ECharts option，类型为复杂联合，框架类型不匹配，保留 any
 const chartOption = ref<any>({})
 
 /** 构建观看人数趋势折线图 option */
@@ -76,6 +88,7 @@ function buildViewerTrendOption(timeline: { time: string; count: number }[]) {
       borderColor: '#F0F0F0',
       borderWidth: 1,
       textStyle: { color: '#1A1A1A', fontSize: 13 },
+      // params 为 ECharts tooltip 回调参数（复杂联合类型），保留 any
       formatter: (params: any) => {
         const p = params[0]
         return `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>

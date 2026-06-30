@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, type Component } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/api'
 import {
@@ -12,9 +12,12 @@ import AnomalyAlert from '@/components/AnomalyAlert.vue'
 import ChartCard from '@/components/ChartCard.vue'
 
 interface AlertItem { text: string; count: number; level: 'critical' | 'warning' | 'info' }
-interface CardItem { label: string; value: number; icon: any; highlight?: boolean; suffix?: string; route?: string }
+interface CardItem { label: string; value: number; icon: Component; highlight?: boolean; suffix?: string; route?: string }
+// option 为 echarts 配置对象，结构复杂，保留 any（框架类型）
 interface ChartItem { title: string; option: any }
-interface QuickAction { label: string; path: string; icon: any; badge?: number }
+interface QuickAction { label: string; path: string; icon: Component; badge?: number }
+/** 订单状态分布项 */
+interface OrderStat { name: string; count: number }
 
 const username = ref('商品审核员')
 const router = useRouter()
@@ -75,14 +78,14 @@ async function load() {
     ]
 
     // 柱状图 — 订单状态分布（真连后端，无数据则空态）
-    const orderStats = Array.isArray(st.orderStatusDistribution) ? st.orderStatusDistribution : []
+    const orderStats: OrderStat[] = Array.isArray(st.orderStatusDistribution) ? st.orderStatusDistribution : []
     charts.value = orderStats.length === 0 ? [] : [{
       title: '订单状态分布',
       option: {
         grid: { top: 30, right: 20, bottom: 30, left: 50 },
         xAxis: {
           type: 'category',
-          data: orderStats.map((d: any) => d.name),
+          data: orderStats.map((d) => d.name),
           axisLine: { lineStyle: { color: '#F0F0F0' } },
           axisTick: { show: false },
           axisLabel: { color: '#999', fontSize: 12 },
@@ -95,7 +98,7 @@ async function load() {
         },
         series: [{
           type: 'bar', barWidth: 32, borderRadius: [6, 6, 0, 0],
-          data: orderStats.map((d: any, i: number) => ({
+          data: orderStats.map((d, i) => ({
             value: d.count,
             itemStyle: {
               color: ['#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3', '#A8E6CF'][i % 5],
@@ -107,6 +110,7 @@ async function load() {
           trigger: 'axis', backgroundColor: '#fff',
           borderColor: '#F0F0F0', borderWidth: 1,
           textStyle: { color: '#1A1A1A', fontSize: 13 },
+          // echarts tooltip 回调参数类型复杂，保留 any（框架类型）
           formatter: (params: any) => {
             const p = params[0]
             return `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>

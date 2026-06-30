@@ -3,7 +3,16 @@ import { ref, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { notificationApi } from "@/api";
 
-const notifications = ref<any[]>([]);
+/** 通知行（字段宽松 optional） */
+interface NotificationRow {
+  id: string;
+  type?: string;
+  title?: string;
+  content?: string;
+  isRead?: boolean;
+  createdAt?: string;
+}
+const notifications = ref<NotificationRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
@@ -72,7 +81,7 @@ async function handleBatchSend() {
   }
 }
 
-async function handleDelete(row: any) {
+async function handleDelete(row: NotificationRow) {
   if (deleting.value) return;
   try {
     await ElMessageBox.confirm("确定删除该通知？", "提示", {

@@ -127,16 +127,29 @@ import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
 
 const route = useRoute();
-const data = ref<Record<string, any>>({});
+/** 平台综合大屏聚合数据（字段宽松 optional，仅声明模板实际访问字段） */
+interface PlatformScreen {
+  totalUsers?: number;
+  todayNewUsers?: number;
+  dailyActiveUsers?: number;
+  totalCourses?: number;
+  totalCircles?: number;
+  totalProducts?: number;
+  totalClassicBooks?: number;
+  totalArticles?: number;
+  totalGmv?: number;
+  updatedAt?: string;
+}
+const data = ref<PlatformScreen>({});
 const nowStr = ref(new Date().toLocaleString("zh-CN"));
 const loading = ref(true);
 const loadError = ref(false);
 const hasData = computed(() => Object.keys(data.value || {}).length > 0);
 
-let timer: any = null;
-let clockTimer: any = null;
+let timer: ReturnType<typeof setInterval> | undefined = undefined;
+let clockTimer: ReturnType<typeof setInterval> | undefined = undefined;
 
-function fmt(v: any) {
+function fmt(v: unknown) {
   return v != null ? Number(v).toLocaleString() : "0";
 }
 

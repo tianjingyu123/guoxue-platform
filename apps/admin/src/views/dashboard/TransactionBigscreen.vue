@@ -103,15 +103,24 @@ import { bigscreenApi } from "@/api";
 import * as echarts from "echarts";
 
 const route = useRoute();
-const data = ref<Record<string, any>>({});
+/** 交易大屏聚合数据（字段宽松 optional，仅声明模板/脚本实际访问字段） */
+interface TxnScreen {
+  todayOrders?: number;
+  todayRevenue?: number;
+  hourOrders?: number;
+  typeBreakdown?: { type: string; amount?: number }[];
+  recentOrders?: { id?: string; type: string; amount?: number; at: string }[];
+  updatedAt?: string;
+}
+const data = ref<TxnScreen>({});
 const nowStr = ref(new Date().toLocaleString("zh-CN"));
 const loading = ref(true);
 const loadError = ref(false);
 
 const pieChartRef = ref<HTMLDivElement>();
 let pieChart: echarts.ECharts | null = null;
-let timer: any = null;
-let clockTimer: any = null;
+let timer: ReturnType<typeof setInterval> | undefined = undefined;
+let clockTimer: ReturnType<typeof setInterval> | undefined = undefined;
 
 const TYPE_LABELS: Record<string, string> = {
   COURSE: "课程", PRODUCT: "商品", MEMBER: "会员", CIRCLE_JOIN: "入圈",
@@ -119,7 +128,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 function typeLabel(t: string) { return TYPE_LABELS[t] || t; }
-function fmt(v: any) { return v != null ? Number(v).toLocaleString() : "0"; }
+function fmt(v: unknown) { return v != null ? Number(v).toLocaleString() : "0"; }
 function fmtTime(t: string) { return t ? new Date(t).toLocaleTimeString("zh-CN") : "--"; }
 
 function renderPie() {
@@ -134,7 +143,7 @@ function renderPie() {
       center: ["50%", "55%"],
       itemStyle: { borderRadius: 4, borderColor: "transparent", borderWidth: 3 },
       label: { color: "#8892b0", fontSize: 12 },
-      data: bd.map((t: any) => ({ name: typeLabel(t.type), value: t.amount })),
+      data: bd.map((t) => ({ name: typeLabel(t.type), value: t.amount })),
     }],
   }, true);
 }

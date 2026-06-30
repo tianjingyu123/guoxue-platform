@@ -158,8 +158,25 @@ import DataTable from "@/components/DataTable.vue"
 import PageHeader from "@/components/PageHeader.vue"
 import { useTable } from "@/composables/useTable"
 
+/** 评论用户信息 */
+interface CommentUser { nickname?: string }
+/** 评论行（字段宽松 optional，仅声明模板/脚本实际访问字段） */
+interface CommentRow {
+  id: string
+  user?: CommentUser
+  userName?: string
+  content?: string
+  targetType?: string
+  targetId?: string
+  likeCount?: number
+  status?: string
+  createdAt?: string
+  parent?: { user?: CommentUser; content?: string }
+  replies?: CommentRow[]
+}
+
 const detailVisible = ref(false)
-const currentComment = ref<any>(null)
+const currentComment = ref<CommentRow | null>(null)
 
 const filterDefs = [
   { key: "targetType", label: "目标类型", type: "select" as const, options: [
@@ -186,8 +203,9 @@ const columns = [
 const { loading, tableData, pagination, filters, fetchList, handleSearch } = useTable({
   fetchApi: commentApi.list,
   defaultPageSize: 10,
+  // data 为后端原始响应（useTable 回调边界，保留 any）
   transformResponse: (data: any) => ({
-    items: (data.list ?? data.data ?? []).map((c: any) => ({
+    items: (data.list ?? data.data ?? []).map((c: CommentRow) => ({
       ...c,
       userName: c.user?.nickname ?? '未知',
     })),
@@ -195,37 +213,37 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch } = use
   }),
 })
 
-function onSearch(f: Record<string, any>) {
+function onSearch(f: Record<string, unknown>) {
   Object.assign(filters, f)
   handleSearch()
 }
 
 function onReset() {
-  Object.keys(filters).forEach(k => { (filters as any)[k] = undefined })
+  Object.keys(filters).forEach(k => { (filters as Record<string, unknown>)[k] = undefined })
   handleSearch()
 }
 
-function targetTypeLabel(type: string): string {
+function targetTypeLabel(type?: string): string {
   const map: Record<string, string> = { ARTICLE: "文章", POST: "帖子", COURSE: "课程", VIDEO: "视频", LIVESTREAM: "直播" }
-  return map[type] ?? type
+  return map[type ?? ""] ?? type ?? ""
 }
 
-function targetTypeColor(type: string): string {
+function targetTypeColor(type?: string): string {
   const map: Record<string, string> = { ARTICLE: "", POST: "success", COURSE: "warning", VIDEO: "danger", LIVESTREAM: "info" }
-  return map[type] ?? ""
+  return map[type ?? ""] ?? ""
 }
 
-function formatTime(dateStr: string): string {
+function formatTime(dateStr?: string): string {
   if (!dateStr) return ""
   return dateStr.slice(0, 16).replace("T", " ")
 }
 
-function showDetail(row: any) {
+function showDetail(row: CommentRow) {
   currentComment.value = row
   detailVisible.value = true
 }
 
-async function toggleHide(row: any) {
+async function toggleHide(row: CommentRow) {
   try {
     await commentApi.hide(row.id)
     ElMessage.success(row.status === "PUBLISHED" ? "已隐藏" : "已显示")

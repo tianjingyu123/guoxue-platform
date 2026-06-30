@@ -250,14 +250,31 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { merchantBackendApi } from "@/api";
 
-const list = ref<any[]>([]);
+/** 发货订单行（字段宽松 optional） */
+interface ShipOrderRow {
+  id: string;
+  amount?: number;
+  buyerName?: string;
+  receiverName?: string;
+  status?: string;
+  shipCompany?: string;
+  trackingNo?: string;
+  createdAt?: string;
+  tracks?: TrackItem[];
+}
+/** 物流轨迹项 */
+interface TrackItem { time?: string; status?: string }
+/** 物流轨迹数据 */
+interface TrackData { company?: string; trackingNo?: string; state?: string; tracks?: TrackItem[] }
+
+const list = ref<ShipOrderRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
 const error = ref(false);
 const saving = ref(false);
 const filterStatus = ref("PAID");
-const selected = ref<any[]>([]);
+const selected = ref<ShipOrderRow[]>([]);
 
 const couriers = ["顺丰速运", "中通快递", "圆通速递", "申通快递", "韵达快递", "EMS", "京东物流", "极兔速递", "德邦快递"];
 
@@ -266,14 +283,14 @@ const shipOrderId = ref("");
 const shipForm = reactive({ company: "", trackingNo: "" });
 
 const trackDialog = ref(false);
-const trackData = ref<any>(null);
+const trackData = ref<TrackData | null>(null);
 const trackLoading = ref(false);
 
 function formatDate(d: string) {
   return d ? new Date(d).toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-";
 }
 
-function handleSelection(rows: any[]) { selected.value = rows; }
+function handleSelection(rows: ShipOrderRow[]) { selected.value = rows; }
 
 onMounted(() => fetchList());
 
@@ -281,18 +298,19 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: 20 };
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 };
     if (filterStatus.value) params.status = filterStatus.value;
     const res = await merchantBackendApi.listOrders(params);
-    const data = (res as any).data ?? res;
+    // 兼容两种响应包装：{ data: {...} } 或直接返回 data
+    const data = (res as { data?: { list?: ShipOrderRow[]; data?: ShipOrderRow[]; total?: number } }).data ?? (res as { list?: ShipOrderRow[]; data?: ShipOrderRow[]; total?: number });
     list.value = data.list || data.data || [];
     total.value = data.total || 0;
-  } catch (e: any) {
+  } catch (e) {
     error.value = true;
   } finally { loading.value = false; }
 }
 
-function openShip(row: any) {
+function openShip(row: ShipOrderRow) {
   shipOrderId.value = row.id;
   shipForm.company = "";
   shipForm.trackingNo = "";
@@ -310,11 +328,12 @@ async function doShip() {
   } catch { /* */ } finally { saving.value = false; }
 }
 
-function openTrack(row: any) {
+function openTrack(row: ShipOrderRow) {
+  const stateMap: Record<string, string> = { SHIPPED: "运输中", DELIVERED: "已签收" };
   trackData.value = {
     company: row.shipCompany,
     trackingNo: row.trackingNo,
-    state: ({ SHIPPED: "运输中", DELIVERED: "已签收" } as any)[row.status] || "运输中",
+    state: (row.status && stateMap[row.status]) || "运输中",
     tracks: row.tracks || [],
   };
   trackDialog.value = true;

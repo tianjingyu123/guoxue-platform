@@ -317,10 +317,31 @@ const bigscreenTypes = [
   { label: "线下驿站大屏", value: "offline_map" },
 ];
 
+/** 大屏 Token 行（字段宽松 optional，依模板实际访问声明） */
+interface TokenRow {
+  id?: number | string;
+  type?: string;
+  token?: string;
+  status?: string;
+  validHours?: number;
+  validFrom?: string;
+  validTo?: string;
+  ipWhitelist?: string;
+}
+/** Token 访问日志行 */
+interface LogRow {
+  id?: number | string;
+  tokenId?: number | string;
+  ip?: string;
+  userAgent?: string;
+  duration?: number;
+  createdAt?: string;
+}
+
 const loading = ref(false);
 const loadError = ref(false);
-const tokens = ref<any[]>([]);
-const logs = ref<any[]>([]);
+const tokens = ref<TokenRow[]>([]);
+const logs = ref<LogRow[]>([]);
 const creating = ref(false);
 const showCreate = ref(false);
 
@@ -347,7 +368,7 @@ async function fetchTokens() {
   loading.value = true;
   try {
     const { data } = await bigscreenTokenApi.list();
-    tokens.value = (data as any[]) || [];
+    tokens.value = (data as TokenRow[]) || [];
     loadError.value = false;
   } catch {
     loadError.value = true;
@@ -363,7 +384,7 @@ async function load() {
 async function fetchLogs() {
   try {
     const { data } = await bigscreenTokenApi.logs({ pageSize: 50 });
-    logs.value = (data as any[]) || [];
+    logs.value = (data as LogRow[]) || [];
   } catch { /* ignore */ }
 }
 

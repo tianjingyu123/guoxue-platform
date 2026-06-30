@@ -223,10 +223,28 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { marketingApi } from '@/api'
 
-const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+// 活动行：依据表格列与编辑表单访问字段声明（宽松 optional）
+interface ActivityRow {
+  id: string
+  name?: string
+  type?: string
+  status?: string
+  description?: string
+  startTime?: string
+  endTime?: string
+}
+// 活动数据指标：依据数据弹窗访问字段声明
+interface ActivityMetrics {
+  impressions?: number
+  clicks?: number
+  conversions?: number
+  conversionRate?: number | string
+}
+
+const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<ActivityRow[]>([]); const total = ref(0); const page = ref(1)
 const vis = ref(false); const editingId = ref('')
 const form = reactive({ name: '', type: '', description: '', startTime: '', endTime: '' })
-const metricsVis = ref(false); const metrics = ref<any>(null)
+const metricsVis = ref(false); const metrics = ref<ActivityMetrics | null>(null)
 
 onMounted(() => fetchList())
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
@@ -236,12 +254,12 @@ async function fetchList() {
   try { const { data } = await marketingApi.listActivities({ page: page.value, pageSize: 20 }); list.value = data.activities || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', type: '', description: '', startTime: '', endTime: '' }); vis.value = true }
-function openEdit(row: any) { editingId.value = row.id; Object.assign(form, { name: row.name, type: row.type || '', description: row.description || '', startTime: row.startTime || '', endTime: row.endTime || '' }); vis.value = true }
+function openEdit(row: ActivityRow) { editingId.value = row.id; Object.assign(form, { name: row.name, type: row.type || '', description: row.description || '', startTime: row.startTime || '', endTime: row.endTime || '' }); vis.value = true }
 async function save() {
   saving.value = true
   try { if (editingId.value) { await marketingApi.updateActivity(editingId.value, form) } else { await marketingApi.createActivity(form) } ElMessage.success('已保存'); vis.value = false; fetchList() } catch { } finally { saving.value = false }
 }
-async function viewMetrics(row: any) {
+async function viewMetrics(row: ActivityRow) {
   try { const { data } = await marketingApi.getActivityMetrics(row.id); metrics.value = data; metricsVis.value = true } catch { }
 }
 async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteActivity(id); ElMessage.success('已删除'); fetchList() } catch {} }

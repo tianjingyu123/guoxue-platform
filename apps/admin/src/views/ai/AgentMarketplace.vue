@@ -393,6 +393,49 @@ import { botApi, api } from "@/api";
 
 const router = useRouter();
 
+// 智能体卡片数据结构（聚合自 bot/运营机器人/圈子助理三源，字段宽松）
+interface Agent {
+  id: string;
+  name: string;
+  category: string;
+  enabled: boolean;
+  successRate: number;
+  type?: string;
+  description?: string;
+  isFree?: boolean;
+  price?: number;
+  model?: string;
+  configurable?: boolean;
+  source?: string;
+  sourceId: string;
+  scene?: string;
+  frequency?: string;
+  callCount?: number;
+  todayCalls?: number;
+}
+
+// 调用日志展示行
+interface AgentLog {
+  userId?: string;
+  query?: string;
+  response?: string;
+  latencyMs?: number;
+  status?: string;
+  createdAt?: string;
+}
+
+// 后端调用日志原始结构（字段比展示行多）
+interface CallLogRaw {
+  userId?: string;
+  query?: string;
+  prompt?: string;
+  response?: string;
+  content?: string;
+  latencyMs?: number;
+  status?: string;
+  createdAt?: string;
+}
+
 const CAT_ICONS: Record<string, string> = { paipan: "🔮", customer_service: "💁", content: "📝", operation: "⚙️", knowledge: "📚", circle: "🔄" };
 const CAT_LABELS: Record<string, string> = { paipan: "排盘类", customer_service: "客服类", content: "内容类", operation: "运营类", knowledge: "知识类", circle: "圈子类" };
 const CATEGORY_ORDER = ["paipan", "customer_service", "content", "operation", "knowledge", "circle"];
@@ -404,14 +447,14 @@ const filterCategory = ref("");
 const searchKeyword = ref("");
 
 const stats = reactive({ totalAgents: 0, activeAgents: 0, totalCalls: 0, todayCalls: 0, errorCount: 0 });
-const agents = ref<any[]>([]);
+const agents = ref<Agent[]>([]);
 
 const detailVisible = ref(false);
-const detailAgent = ref<any>(null);
+const detailAgent = ref<Agent | null>(null);
 const logsVisible = ref(false);
-const agentLogs = ref<any[]>([]);
+const agentLogs = ref<AgentLog[]>([]);
 const logsLoading = ref(false);
-const currentLogAgent = ref<any>(null);
+const currentLogAgent = ref<Agent | null>(null);
 
 const categoryList = computed(() => {
   const cats = new Set(agents.value.map((a) => a.category));
@@ -449,7 +492,7 @@ async function refresh() {
 async function loadBots() {
   try {
     const { data } = await botApi.list({});
-    const bots = (Array.isArray(data) ? data : (data as any)?.data || []) as any[];
+    const bots = Array.isArray(data) ? data : data?.data || [];
     for (const bot of bots) {
       agents.value.push({
         id: `bot-${bot.id}`,
@@ -474,7 +517,7 @@ async function loadBots() {
 async function loadOpRobots() {
   try {
     const { data } = await api.get("/operation-robots");
-    const robots = (Array.isArray(data) ? data : (data as any)?.robots || []) as any[];
+    const robots = Array.isArray(data) ? data : data?.robots || [];
     for (const robot of robots) {
       agents.value.push({
         id: `opbot-${robot.role}`,
@@ -499,7 +542,7 @@ async function loadOpRobots() {
 async function loadCircleAssistants() {
   try {
     const { data } = await api.get("/ai/circle-assistants", { params: { pageSize: 50 } });
-    const assistants = (data as any)?.list || (data as any)?.data || [];
+    const assistants = data?.list || data?.data || [];
     for (const ca of assistants) {
       agents.value.push({
         id: `circle-${ca.id || ca.circleId}`,
@@ -523,7 +566,7 @@ async function loadCircleAssistants() {
 async function loadStats() {
   try {
     const { data } = await api.get("/ai/usage-stats", { params: { period: "week" } });
-    const d = data as any;
+    const d = data;
     stats.totalCalls = d?.totalCalls || 0;
     stats.todayCalls = d?.todayCalls || 0;
   } catch { /* ignore */ }
@@ -535,7 +578,7 @@ function goToBotManage() { router.push("/bots"); }
 
 function goToOpRobot() { router.push("/operation/robots"); }
 
-async function toggleAgent(agent: any, enabled: boolean) {
+async function toggleAgent(agent: Agent, enabled: boolean) {
   if (agentToggling.value === agent.id) return; // 防重复
   agentToggling.value = agent.id;
   try {
@@ -553,21 +596,21 @@ async function toggleAgent(agent: any, enabled: boolean) {
   }
 }
 
-function viewDetail(agent: any) {
+function viewDetail(agent: Agent) {
   detailAgent.value = agent;
   detailVisible.value = true;
 }
 
-async function viewLogs(agent: any) {
+async function viewLogs(agent: Agent) {
   currentLogAgent.value = agent;
   logsVisible.value = true;
   logsLoading.value = true;
   try {
-    const params: any = { page: 1, pageSize: 30, scene: agent.scene || agent.source || "bot" };
+    const params: Record<string, string | number> = { page: 1, pageSize: 30, scene: agent.scene || agent.source || "bot" };
     const { data } = await api.get("/ai/call-logs", { params });
-    const d = data as any;
-    const list = d?.list || d?.data || [];
-    agentLogs.value = list.map((log: any) => ({
+    const d = data;
+    const list = (d?.list || d?.data || []) as CallLogRaw[];
+    agentLogs.value = list.map((log) => ({
       userId: log.userId,
       query: log.query || log.prompt,
       response: log.response || log.content,
@@ -581,7 +624,7 @@ async function viewLogs(agent: any) {
   } finally { logsLoading.value = false; }
 }
 
-function configAgent(agent: any) {
+function configAgent(agent: Agent) {
   if (agent.source === "bot") {
     router.push("/bots");
   } else if (agent.source === "operation") {

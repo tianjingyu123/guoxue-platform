@@ -125,7 +125,28 @@ const dateRange = ref<[string, string] | null>(null)
 const userSortBy = ref("shareCount")
 const userLoading = ref(false)
 const error = ref(false)
-const userRank = ref<any[]>([])
+// 分享达人行（含 map 派生 userName）
+interface UserRankRow {
+  userName?: string
+  shareCount?: number
+  clickCount?: number
+  registerCount?: number
+  spreadLevel?: string
+  influence?: number
+  [k: string]: unknown
+}
+// 按场景统计行（shareCount/clickCount 等按数值参与计算，声明为 number）
+interface SceneStatRow {
+  scene?: string
+  sceneName?: string
+  shareCount: number
+  clickCount: number
+  registerCount: number
+  orderCount?: number
+  maxSpreadLevel?: number
+  [k: string]: unknown
+}
+const userRank = ref<UserRankRow[]>([])
 
 const overviewStats = ref([
   { label: "总分享次数", value: 0, color: "#409eff", trend: 0 },
@@ -136,7 +157,7 @@ const overviewStats = ref([
   { label: "最深传播", value: "0级", color: "#909399", trend: undefined },
 ])
 
-const sceneStats = ref<any[]>([])
+const sceneStats = ref<SceneStatRow[]>([])
 const funnelData = ref([
   { label: "分享", value: 0 },
   { label: "点击", value: 0 },
@@ -145,8 +166,8 @@ const funnelData = ref([
 ])
 const funnelColors = ["#409eff", "#67c23a", "#e6a23c", "#f56c6c"]
 
-function clickRate(r: any): string { return r.shareCount > 0 ? ((r.clickCount / r.shareCount) * 100).toFixed(1) : "0" }
-function registerRate(r: any): string { return r.clickCount > 0 ? ((r.registerCount / r.clickCount) * 100).toFixed(1) : "0" }
+function clickRate(r: SceneStatRow): string { return r.shareCount > 0 ? ((r.clickCount / r.shareCount) * 100).toFixed(1) : "0" }
+function registerRate(r: SceneStatRow): string { return r.clickCount > 0 ? ((r.registerCount / r.clickCount) * 100).toFixed(1) : "0" }
 function funnelRate(i: number): string {
   const prev = funnelData.value[i - 1]?.value ?? 1
   return prev > 0 ? ((funnelData.value[i].value / prev) * 100).toFixed(1) : "0"
@@ -156,7 +177,7 @@ function levelColor(l: string): string {
 }
 
 async function fetchAll() {
-  const params: any = {}
+  const params: Record<string, string> = {}
   if (dateRange.value) { params.startDate = dateRange.value[0]; params.endDate = dateRange.value[1] }
   error.value = false
   try {
@@ -175,8 +196,8 @@ async function fetchAll() {
     // 按场景
     const sc: any = await shareDataApi.byScene(params)
     const sl = (sc?.data ?? sc)?.list ?? (sc?.data ?? sc)?.scenes ?? []
-    sceneStats.value = sl.map((s: any) => ({
-      ...s, sceneName: sceneNameMap[s.scene] ?? s.scene ?? '未知'
+    sceneStats.value = sl.map((s: { scene?: string; [k: string]: unknown }) => ({
+      ...s, sceneName: sceneNameMap[s.scene ?? ''] ?? s.scene ?? '未知'
     }))
 
     // 漏斗
@@ -193,7 +214,7 @@ async function fetchUserRank() {
   userLoading.value = true
   try {
     const res: any = await shareDataApi.byUser({ page: 1, pageSize: 20, sortBy: userSortBy.value })
-    userRank.value = ((res?.data ?? res)?.list ?? []).map((u: any) => ({
+    userRank.value = ((res?.data ?? res)?.list ?? []).map((u: { user?: { nickname?: string }; [k: string]: unknown }) => ({
       ...u, userName: u.user?.nickname ?? '未知'
     }))
   } catch { /* */ }

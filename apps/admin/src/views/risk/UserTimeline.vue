@@ -4,16 +4,37 @@ import { ElMessage } from 'element-plus'
 import { riskApi } from '@/api'
 import { exportCSV } from '@/utils/export'
 
+// 用户行为日志行（依据时间线/导出实际访问字段声明）
+interface BehaviorLog {
+  id?: string
+  action?: string
+  targetType?: string
+  targetId?: string
+  meta?: Record<string, any>
+  ip?: string
+  deviceId?: string
+  createdAt?: string
+}
+
+// 用户基本信息（后端联表返回，手机号已脱敏）
+interface UserInfo {
+  id?: string
+  nickname?: string
+  phone?: string
+  status?: string
+  createdAt?: string
+}
+
 const loading = ref(false)
 const error = ref(false)
 // list 直接保存后端按条件分页返回的行为日志
-const list = ref<any[]>([])
+const list = ref<BehaviorLog[]>([])
 const total = ref(0)
 const page = ref(1)
 const searchUserId = ref('')
 const searched = ref(false)
 
-const userInfo = ref<any>(null)
+const userInfo = ref<UserInfo | null>(null)
 
 const dateRange = ref<[Date, Date] | null>(null)
 const actionType = ref('')
@@ -29,7 +50,7 @@ const actionTypeOptions = [
   { label: '登出', value: 'LOGOUT' },
 ]
 
-function formatDate(d: string) {
+function formatDate(d?: string) {
   return d ? new Date(d).toLocaleString() : '-'
 }
 
@@ -48,7 +69,7 @@ function maskId(id?: string): string {
 }
 
 // 行为描述：UserBehaviorLog 无 description 字段，由 targetType/targetId/meta 拼装
-function behaviorDesc(item: any): string {
+function behaviorDesc(item: BehaviorLog): string {
   const parts: string[] = []
   if (item.targetType) parts.push(`${item.targetType}${item.targetId ? '#' + item.targetId : ''}`)
   if (item.meta && Object.keys(item.meta).length) parts.push(JSON.stringify(item.meta))
@@ -76,7 +97,7 @@ async function fetchTimeline() {
   loading.value = true
   error.value = false
   try {
-    const params: Record<string, any> = { page: page.value, pageSize: 20 }
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 }
     if (actionType.value) params.action = actionType.value
     if (dateRange.value) {
       params.dateFrom = dateRange.value[0].toISOString()
@@ -109,7 +130,7 @@ function exportTimeline() {
       { label: 'IP', key: 'ip' },
       { label: '设备ID', key: 'deviceId' },
     ],
-    list.value.map((item: any) => ({
+    list.value.map((item: BehaviorLog) => ({
       createdAt: item.createdAt ? new Date(item.createdAt).toLocaleString() : '-',
       action: item.action || '-',
       desc: behaviorDesc(item),

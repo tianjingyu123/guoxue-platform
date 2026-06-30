@@ -240,7 +240,26 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { marketingApi } from '@/api'
 import ProductPicker from '@/components/ProductPicker.vue'
 
-const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1); const pages = ref<any[]>([])
+// 微页面下拉选项
+interface PageOption { id: string; name?: string }
+// axios 错误体
+interface ApiError { response?: { data?: { message?: string } } }
+// 秒杀商品明细
+interface FlashSaleItem { productId?: string; flashPrice?: number | string; product?: { title?: string } }
+// 秒杀活动行：依据表格列与编辑表单访问字段声明
+interface FlashSaleRow {
+  id: string
+  name?: string
+  items?: FlashSaleItem[]
+  limitPerUser?: number
+  startTime?: string
+  endTime?: string
+  scope?: string
+  scopePageId?: string
+  status?: string
+}
+
+const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<FlashSaleRow[]>([]); const total = ref(0); const page = ref(1); const pages = ref<PageOption[]>([])
 const vis = ref(false); const editingId = ref('')
 const form = reactive<{ name: string; productId: string; flashPrice: number; limitPerUser: number; startTime: string; endTime: string; scope: string; scopePageId: string }>({ name: '', productId: '', flashPrice: 0, limitPerUser: 1, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
 
@@ -254,21 +273,21 @@ async function fetchList() {
   try { const { data } = await marketingApi.listFlashSales({ page: page.value, pageSize: 20 }); list.value = data.items || data.flashSales || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', productId: '', flashPrice: 0, limitPerUser: 1, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' }); vis.value = true }
-function openEdit(row: any) { editingId.value = row.id; Object.assign(form, { name: row.name, productId: row.items?.[0]?.productId || '', flashPrice: Number(row.items?.[0]?.flashPrice) || 0, limitPerUser: row.limitPerUser || 1, startTime: row.startTime || '', endTime: row.endTime || '', scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '' }); vis.value = true }
+function openEdit(row: FlashSaleRow) { editingId.value = row.id; Object.assign(form, { name: row.name, productId: row.items?.[0]?.productId || '', flashPrice: Number(row.items?.[0]?.flashPrice) || 0, limitPerUser: row.limitPerUser || 1, startTime: row.startTime || '', endTime: row.endTime || '', scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '' }); vis.value = true }
 async function save() {
   if (!form.name) { ElMessage.warning('请输入活动名称'); return }
   saving.value = true
   try {
-    const payload: any = { name: form.name, productId: form.productId || undefined, flashPrice: form.flashPrice || undefined, limitPerUser: form.limitPerUser || undefined, scope: form.scope, scopePageId: form.scope === 'PAGE_ONLY' ? form.scopePageId : undefined }
+    const payload: Record<string, unknown> = { name: form.name, productId: form.productId || undefined, flashPrice: form.flashPrice || undefined, limitPerUser: form.limitPerUser || undefined, scope: form.scope, scopePageId: form.scope === 'PAGE_ONLY' ? form.scopePageId : undefined }
     if (form.startTime) payload.startTime = form.startTime
     if (form.endTime) payload.endTime = form.endTime
     if (editingId.value) { await marketingApi.updateFlashSale(editingId.value, payload); ElMessage.success('已更新') }
     else { await marketingApi.createFlashSale(payload); ElMessage.success('秒杀活动创建成功，请点击"开始"按钮启用以生效') }
     vis.value = false; fetchList()
-  } catch (e: any) { ElMessage.error(e?.response?.data?.message || '操作失败') } finally { saving.value = false }
+  } catch (e) { ElMessage.error((e as ApiError)?.response?.data?.message || '操作失败') } finally { saving.value = false }
 }
-async function startActivity(row: any) { try { await marketingApi.startFlashSale(row.id); ElMessage.success('秒杀活动已开始'); fetchList() } catch { ElMessage.error('启动失败') } }
-async function endActivity(row: any) { try { await marketingApi.endFlashSale(row.id); ElMessage.success('秒杀活动已结束'); fetchList() } catch { ElMessage.error('结束失败') } }
+async function startActivity(row: FlashSaleRow) { try { await marketingApi.startFlashSale(row.id); ElMessage.success('秒杀活动已开始'); fetchList() } catch { ElMessage.error('启动失败') } }
+async function endActivity(row: FlashSaleRow) { try { await marketingApi.endFlashSale(row.id); ElMessage.success('秒杀活动已结束'); fetchList() } catch { ElMessage.error('结束失败') } }
 async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteFlashSale(id); ElMessage.success('已删除'); fetchList() } catch { /* 用户取消 */ } }
 </script>
 

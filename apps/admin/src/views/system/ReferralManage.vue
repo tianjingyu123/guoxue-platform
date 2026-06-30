@@ -257,13 +257,24 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
-const loading = ref(false); const saving = ref(false); const loadError = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+// 推荐码临时配置行（字段依据列表列/详情/表单实际访问声明，宽松可选）
+interface ReferralConfig {
+  id?: string
+  stationId?: string
+  operatorId?: string
+  commissionRate?: number
+  validFrom?: string
+  validTo?: string
+  createdAt?: string
+}
+
+const loading = ref(false); const saving = ref(false); const loadError = ref(false); const list = ref<ReferralConfig[]>([]); const total = ref(0); const page = ref(1)
 const vis = ref(false); const editingId = ref(''); const tab = ref('all')
-const activeConfig = ref<any>(null)
+const activeConfig = ref<ReferralConfig | null>(null)
 const form = reactive({ stationId: '', operatorId: '', commissionRate: 10, validFrom: '', validTo: '' })
 
 onMounted(() => { fetchList(); fetchActive() })
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchActive() {
   try { const { data } = await api.get('/admin/referral/temp-configs/active'); activeConfig.value = data } catch { activeConfig.value = null }
@@ -278,8 +289,8 @@ async function fetchList() {
 
 function onTabChange() { page.value = 1; fetchList() }
 function openCreate() { editingId.value = ''; Object.assign(form, { stationId: '', operatorId: '', commissionRate: 10, validFrom: '', validTo: '' }); vis.value = true }
-function openEdit(row: any) {
-  editingId.value = row.id
+function openEdit(row: ReferralConfig) {
+  editingId.value = row.id ?? ''
   Object.assign(form, { stationId: row.stationId || '', operatorId: row.operatorId || '', commissionRate: row.commissionRate, validFrom: row.validFrom || '', validTo: row.validTo || '' })
   vis.value = true
 }

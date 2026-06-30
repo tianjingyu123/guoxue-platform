@@ -303,8 +303,24 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
+interface CoinTierRow {
+  _key: string
+  _id: string
+  name?: string
+  amount?: number
+  coins?: number
+  presentedCoins?: number
+}
+interface GiftRow {
+  id: string
+  name?: string
+  iconUrl?: string
+  price?: number
+  animationType?: string
+}
+
 const loading = ref(false); const loadError = ref(false); const saving = ref(false)
-const tierList = ref<any[]>([]); const giftList = ref<any[]>([]); const total = ref(0); const page = ref(1)
+const tierList = ref<CoinTierRow[]>([]); const giftList = ref<GiftRow[]>([]); const total = ref(0); const page = ref(1)
 const activeTab = ref('tiers')
 const vis = ref(false); const editingId = ref(''); const dialogTitle = ref('添加档位')
 const giftVis = ref(false); const giftEditingId = ref(''); const giftDialogTitle = ref('添加礼物')
@@ -324,7 +340,7 @@ async function fetchTiers() {
   try {
     const { data } = await api.get('/system/configs', { params: { keyPrefix: TIER_PREFIX } })
     const items = data?.configs ?? data?.data ?? []
-    tierList.value = items.map((item: any) => {
+    tierList.value = items.map((item: { key: string; id: string; value: string | Record<string, unknown> }) => {
       const val = typeof item.value === 'string' ? JSON.parse(item.value) : item.value
       return { ...val, _key: item.key, _id: item.id }
     })
@@ -347,7 +363,7 @@ function openCreateTier() {
   vis.value = true
 }
 
-function openEditTier(row: any) {
+function openEditTier(row: CoinTierRow) {
   editingId.value = row._key || row._id; dialogTitle.value = '编辑档位'
   Object.assign(form, { name: row.name, amount: row.amount, coins: row.coins, presentedCoins: row.presentedCoins || 0 })
   vis.value = true
@@ -366,7 +382,7 @@ async function saveTier() {
   } catch { } finally { saving.value = false }
 }
 
-async function delTier(row: any) {
+async function delTier(row: CoinTierRow) {
   try {
     await ElMessageBox.confirm('确定删除该档位？', '提示', { type: 'warning' })
     await api.delete(`/system/configs/${row._id}`)
@@ -380,7 +396,7 @@ function openCreateGift() {
   giftVis.value = true
 }
 
-function openEditGift(row: any) {
+function openEditGift(row: GiftRow) {
   giftEditingId.value = row.id; giftDialogTitle.value = '编辑礼物'
   Object.assign(giftForm, { name: row.name, iconUrl: row.iconUrl || '', price: row.price, animationType: row.animationType || '' })
   giftVis.value = true

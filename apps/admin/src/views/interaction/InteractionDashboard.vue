@@ -196,6 +196,15 @@ import { useRouter } from "vue-router";
 import { interactionApi } from "@/api";
 import * as echarts from "echarts";
 
+/** 互动统计分组（累计/今日/近7天） */
+interface StatsGroup { likes: number; comments: number; follows: number; collects: number; reports: number }
+/** 互动统计响应 */
+interface InteractionStatsResp { total?: StatsGroup; today?: StatsGroup; thisWeek?: StatsGroup }
+/** 互动趋势单点 */
+interface TrendPoint { date: string; likes: number; comments: number; follows: number; collects: number }
+/** 热门内容行 */
+interface TopContentRow { targetType?: string; targetId?: string; likeCount?: number }
+
 const router = useRouter();
 
 const stats = reactive({
@@ -204,8 +213,8 @@ const stats = reactive({
   thisWeek: { likes: 0, comments: 0, follows: 0, collects: 0 },
 });
 
-const topContent = ref<any[]>([]);
-const trendChart = ref(null);
+const topContent = ref<TopContentRow[]>([]);
+const trendChart = ref<HTMLElement | null>(null);
 const loading = ref(false);
 const loadError = ref(false);
 
@@ -226,17 +235,17 @@ async function refresh() {
       interactionApi.getAdminTopContent(10),
     ]);
 
-    const s = statsRes.data as any;
+    const s = statsRes.data as InteractionStatsResp;
     if (s) {
       stats.total = s.total || stats.total;
       stats.today = s.today || stats.today;
       stats.thisWeek = s.thisWeek || stats.thisWeek;
     }
 
-    const trends = trendsRes.data as any[];
+    const trends = trendsRes.data as TrendPoint[];
     if (trends && trendChart.value) renderTrendChart(trends);
 
-    const top = topRes.data as any[];
+    const top = topRes.data as TopContentRow[];
     if (top) topContent.value = top;
   } catch {
     loadError.value = true;
@@ -245,18 +254,18 @@ async function refresh() {
   }
 }
 
-function renderTrendChart(trends: any[]) {
+function renderTrendChart(trends: TrendPoint[]) {
   const chart = echarts.init(trendChart.value!);
   chart.setOption({
     tooltip: { trigger: "axis" },
     legend: { data: ["点赞", "评论", "关注", "收藏"], bottom: 0 },
-    xAxis: { type: "category", data: trends.map((t: any) => t.date.slice(5)) },
+    xAxis: { type: "category", data: trends.map((t) => t.date.slice(5)) },
     yAxis: { type: "value" },
     series: [
-      { name: "点赞", type: "line", smooth: true, data: trends.map((t: any) => t.likes), itemStyle: { color: "#409eff" } },
-      { name: "评论", type: "line", smooth: true, data: trends.map((t: any) => t.comments), itemStyle: { color: "#67c23a" } },
-      { name: "关注", type: "line", smooth: true, data: trends.map((t: any) => t.follows), itemStyle: { color: "#e6a23c" } },
-      { name: "收藏", type: "line", smooth: true, data: trends.map((t: any) => t.collects), itemStyle: { color: "#f56c6c" } },
+      { name: "点赞", type: "line", smooth: true, data: trends.map((t) => t.likes), itemStyle: { color: "#409eff" } },
+      { name: "评论", type: "line", smooth: true, data: trends.map((t) => t.comments), itemStyle: { color: "#67c23a" } },
+      { name: "关注", type: "line", smooth: true, data: trends.map((t) => t.follows), itemStyle: { color: "#e6a23c" } },
+      { name: "收藏", type: "line", smooth: true, data: trends.map((t) => t.collects), itemStyle: { color: "#f56c6c" } },
     ],
     grid: { left: 50, right: 20, top: 20, bottom: 40 },
   });

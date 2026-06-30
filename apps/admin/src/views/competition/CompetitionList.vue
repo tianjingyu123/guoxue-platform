@@ -7,6 +7,19 @@ import { exportCSV } from "@/utils/export";
 import DataTable from "@/components/DataTable.vue";
 import { useTable } from "@/composables/useTable";
 
+/** 赛事行（列表项，字段宽松 optional） */
+interface CompetitionRow {
+  id: string;
+  title?: string;
+  type?: string;
+  level?: string;
+  scoringModel?: string;
+  status?: string;
+  totalPrize?: number;
+  createdAt?: string;
+  _count?: { registrations?: number };
+}
+
 const router = useRouter();
 
 const typeLabels: Record<string, string> = {
@@ -42,7 +55,7 @@ const columns = [
 const error = ref(false);
 
 const { loading, tableData, pagination, filters, fetchList, handleSearch, handleReset } = useTable({
-  fetchApi: async (params: any) => {
+  fetchApi: async (params: Record<string, string | number>) => {
     error.value = false;
     try {
       return await competitionApi.list(params);
@@ -62,7 +75,7 @@ function onPageChange() {
   fetchList();
 }
 
-function formatDate(d: string) {
+function formatDate(d?: string) {
   if (!d) return "-";
   return new Date(d).toLocaleString("zh-CN");
 }
@@ -137,10 +150,10 @@ function exportData() {
       { label: "报名数", key: "regCount" }, { label: "奖金池", key: "totalPrize" },
       { label: "创建时间", key: "createdAt" },
     ],
-    tableData.value.map((c: any) => ({
+    tableData.value.map((c: CompetitionRow) => ({
       ...c,
-      typeLabel: typeLabels[c.type] || c.type,
-      statusLabel: statusLabels[c.status]?.text || c.status,
+      typeLabel: typeLabels[c.type ?? ""] || c.type,
+      statusLabel: statusLabels[c.status ?? ""]?.text || c.status,
       regCount: c._count?.registrations || 0,
       createdAt: formatDate(c.createdAt),
     })),

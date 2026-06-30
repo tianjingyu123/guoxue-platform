@@ -510,7 +510,39 @@ import { exportCSV } from "@/utils/export";
 
 const router = useRouter();
 
-const stations = ref<any[]>([]);
+/** 分站行（name/code/status 编辑时必有，故定为必填；其余 optional） */
+interface StationRow {
+  id: string
+  name: string
+  code: string
+  status: string
+  intro?: string
+  user?: { nickname?: string }
+  totalEarning?: number
+  createdAt: string
+  logo?: string
+  themeColor?: string
+  templateId?: string
+}
+/** 运营商行（字段宽松 optional） */
+interface OperatorRow {
+  user?: { nickname?: string }
+  level?: string
+  containQuota?: number
+  usedQuota?: number
+  status?: string
+  expireAt?: string
+  createdAt?: string
+}
+/** 分站模版行 */
+interface TemplateRow {
+  id: string
+  name?: string
+  desc?: string
+  preview?: { tabs?: string[]; modules?: string[] }
+}
+
+const stations = ref<StationRow[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
 const actioning = ref(false);
@@ -528,8 +560,8 @@ const form = reactive({ name: "", code: "", intro: "", status: "ACTIVE" });
 // 运营商
 const operatorDialogVisible = ref(false);
 const operatorsLoading = ref(false);
-const currentStation = ref<any>(null);
-const operators = ref<any[]>([]);
+const currentStation = ref<StationRow | null>(null);
+const operators = ref<OperatorRow[]>([]);
 const operatorPage = ref(1);
 const operatorPageSize = 20;
 const operatorTotal = ref(0);
@@ -556,7 +588,7 @@ const templateDialogVisible = ref(false);
 const templateLoading = ref(false);
 const templateSaving = ref(false);
 const templateStationId = ref("");
-const templates = ref<any[]>([]);
+const templates = ref<TemplateRow[]>([]);
 const templateForm = reactive({ templateId: "default", templateConfig: {} as Record<string, unknown> });
 
 onMounted(() => fetchList());
@@ -586,7 +618,7 @@ function openCreate() {
   dialogVisible.value = true;
 }
 
-function openEdit(row: any) {
+function openEdit(row: StationRow) {
   isEditing.value = true;
   editingId.value = row.id;
   form.name = row.name;
@@ -613,7 +645,7 @@ async function save() {
   }
 }
 
-async function toggleStatus(row: any, status: string) {
+async function toggleStatus(row: StationRow, status: string) {
   if (actioning.value) return;
   actioning.value = true;
   try {
@@ -664,13 +696,13 @@ function exportData() {
   );
 }
 
-function viewStationData(row: any) {
+function viewStationData(row: StationRow) {
   router.push({ name: "StationData", query: { stationId: row.id } });
 }
 
 // ── 品牌编辑 ──
 
-function openBrandEdit(row: any) {
+function openBrandEdit(row: StationRow) {
   brandEditingId.value = row.id;
   brandForm.name = row.name || "";
   brandForm.logo = row.logo || "";
@@ -681,7 +713,7 @@ function openBrandEdit(row: any) {
 async function saveBrand() {
   brandSaving.value = true;
   try {
-    const payload: Record<string, any> = {};
+    const payload: Record<string, string> = {};
     if (brandForm.name) payload.name = brandForm.name;
     if (brandForm.logo) payload.logo = brandForm.logo;
     if (brandForm.themeColor) payload.themeColor = brandForm.themeColor;
@@ -696,7 +728,7 @@ async function saveBrand() {
 
 // ── 模版选择 ──
 
-async function openTemplate(row: any) {
+async function openTemplate(row: StationRow) {
   templateStationId.value = row.id;
   templateForm.templateId = row.templateId || "default";
   templateForm.templateConfig = {};
@@ -729,7 +761,7 @@ async function saveTemplate() {
 
 // ── 运营商管理 ──
 
-async function toggleOperators(row: any) {
+async function toggleOperators(row: StationRow) {
   currentStation.value = row;
   operatorPage.value = 1;
   operatorDialogVisible.value = true;

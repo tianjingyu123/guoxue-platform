@@ -172,9 +172,21 @@
 import { ref, onMounted } from "vue";
 import { pricingApi } from "@/api";
 
+// 需求热度行（按列配置与模板访问字段定义的宽松本地类型）
+interface DemandRow {
+  targetType: string;
+  targetId?: string;
+  targetName?: string;
+  viewCount24h?: number;
+  purchaseCount24h?: number;
+  viewToPurchaseRate: number;
+  demandLevel: string;
+  updatedAt?: string;
+}
+
 const loading = ref(false);
 const error = ref(false);
-const list = ref<any[]>([]);
+const list = ref<DemandRow[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
@@ -200,7 +212,7 @@ async function fetchData() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: pageSize.value };
+    const params: { page?: number; pageSize?: number; targetType?: string; demandLevel?: string } = { page: page.value, pageSize: pageSize.value };
     if (filterType.value) params.targetType = filterType.value;
     if (filterLevel.value) params.demandLevel = filterLevel.value;
     const res = await pricingApi.getDemand(params);

@@ -435,7 +435,31 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { offlineApi } from "@/api";
 
-const venues = ref<any[]>([]);
+/** 驿站行（字段宽松 optional） */
+interface VenueRow {
+  id: string
+  name?: string
+  city?: string
+  address?: string
+  phone?: string
+  owner?: { nickname?: string }
+  depositAmount?: number
+  status?: string
+  createdAt?: string
+}
+/** 驿站课程行 */
+interface VenueCourseRow {
+  title?: string
+  type?: string
+  startTime?: string
+  endTime?: string
+  location?: string
+  price?: number
+  maxStudents?: number
+  status?: string
+}
+
+const venues = ref<VenueRow[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
 const auditing = ref(false);
@@ -455,8 +479,8 @@ const form = reactive({
 // 课程弹窗
 const coursesDialogVisible = ref(false);
 const coursesLoading = ref(false);
-const currentVenue = ref<any>(null);
-const courses = ref<any[]>([]);
+const currentVenue = ref<VenueRow | null>(null);
+const courses = ref<VenueCourseRow[]>([]);
 
 // 新建课程
 const courseCreateVisible = ref(false);
@@ -490,7 +514,7 @@ async function fetchList() {
   loading.value = true;
   loadError.value = false;
   try {
-    const params: any = { page: page.value, pageSize };
+    const params: Record<string, string | number> = { page: page.value, pageSize };
     if (filters.city) params.city = filters.city;
     if (filters.status) params.status = filters.status;
     const { data } = await offlineApi.list(params);
@@ -528,7 +552,7 @@ async function save() {
 
 // ── 审核 ──
 
-async function handleAudit(row: any, status: string) {
+async function handleAudit(row: VenueRow, status: string) {
   if (auditing.value) return;
   const label = status === "ACTIVE" ? "通过" : status === "DISABLED" ? "拒绝/禁用" : status;
   auditing.value = true;
@@ -545,7 +569,7 @@ async function handleAudit(row: any, status: string) {
 
 // ── 课程管理 ──
 
-async function viewCourses(row: any) {
+async function viewCourses(row: VenueRow) {
   currentVenue.value = row;
   coursesDialogVisible.value = true;
   coursesLoading.value = true;
@@ -578,7 +602,8 @@ async function saveCourse() {
   courseSaving.value = true;
   try {
     await offlineApi.createCourse({
-      stationId: currentVenue.value.id,
+      // 弹窗打开时 currentVenue 必有值，断言非空（纯类型）
+      stationId: currentVenue.value!.id,
       title: courseForm.title,
       cover: courseForm.cover || undefined,
       intro: courseForm.intro || undefined,
@@ -591,7 +616,7 @@ async function saveCourse() {
     ElMessage.success("课程已创建");
     courseCreateVisible.value = false;
     // 刷新课程列表
-    const { data } = await offlineApi.courses({ stationId: currentVenue.value.id });
+    const { data } = await offlineApi.courses({ stationId: currentVenue.value!.id });
     courses.value = Array.isArray(data) ? data : [];
   } finally {
     courseSaving.value = false;

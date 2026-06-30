@@ -308,7 +308,20 @@ import { merchantApi } from '@/api'
 
 const router = useRouter()
 
-const list = ref<any[]>([])
+/** 商家列表行（字段宽松 optional） */
+interface MerchantRow {
+  id: string
+  shopName?: string
+  contactName?: string
+  contactPhone?: string
+  status?: string
+  totalSales?: number
+  totalOrders?: number
+  rating?: number
+  createdAt?: string
+}
+
+const list = ref<MerchantRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const loading = ref(false)
@@ -352,21 +365,21 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const params: any = { page: page.value, pageSize: 20 }
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 }
     if (filterStatus.value) params.status = filterStatus.value
     if (keyword.value) params.keyword = keyword.value
     const res = await merchantApi.list(params)
-    const data = res.data as any
+    const data = res.data as { list?: MerchantRow[]; total?: number }
     list.value = data.list || []
     total.value = data.total || 0
-  } catch (e: any) {
+  } catch (e) {
     error.value = true
   } finally { loading.value = false }
 }
 
 function goDetail(id: string) { router.push(`/merchants/${id}`) }
 
-function openApprove(row: any) {
+function openApprove(row: MerchantRow) {
   approveId.value = row.id
   approveForm.value = { depositAmount: undefined, commissionRate: undefined, remark: '' }
   approveDialog.value = true
@@ -379,11 +392,11 @@ async function doApprove() {
     ElMessage.success('审核已通过')
     approveDialog.value = false
     fetchList()
-  } catch (e: any) {
+  } catch (e) {
   } finally { saving.value = false }
 }
 
-function openReject(row: any) {
+function openReject(row: MerchantRow) {
   rejectId.value = row.id
   rejectReason.value = ''
   rejectDialog.value = true
@@ -397,11 +410,11 @@ async function doReject() {
     ElMessage.success('已驳回')
     rejectDialog.value = false
     fetchList()
-  } catch (e: any) {
+  } catch (e) {
   } finally { saving.value = false }
 }
 
-async function changeStatus(row: any, status: string) {
+async function changeStatus(row: MerchantRow, status: string) {
   const label = status === 'SUSPENDED' ? '暂停' : status === 'ACTIVE' ? '恢复' : '关闭'
   try {
     await ElMessageBox.confirm(`确定${label}商家"${row.shopName}"吗？`, '提示', { type: 'warning' })

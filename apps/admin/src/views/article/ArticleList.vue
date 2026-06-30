@@ -385,16 +385,32 @@ import { articleApi, circleApi } from "@/api";
 import DataTable from "@/components/DataTable.vue";
 import SearchFilter from "@/components/SearchFilter.vue";
 
+/** 文章作者 */
+interface ArticleAuthor { nickname?: string }
+/** 文章所属圈子 */
+interface ArticleCircle { id?: string; name?: string }
+/** 文章推荐项 */
+interface ArticleRecommend { id?: string; recId?: string; itemId?: string; itemType?: string }
+/** 文章行/详情（title/circleId 用于回填表单，必填；其余宽松 optional） */
+interface ArticleRow {
+  id?: string; title: string; author?: ArticleAuthor; authorId?: string;
+  circle?: ArticleCircle; circleId: string; tag?: string; excerpt?: string;
+  body?: string; coverUrl?: string; status?: string; isPushHome?: boolean;
+  viewCount?: number; createdAt?: string; recommends?: ArticleRecommend[];
+}
+/** 圈子下拉项（id/name 用于映射筛选项，必填） */
+interface CircleOption { id: string; name: string }
+
 const loading = ref(false);
 const error = ref(false);
 const saving = ref(false);
-const list = ref<any[]>([]);
+const list = ref<ArticleRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(20);
-const circles = ref<any[]>([]);
+const circles = ref<CircleOption[]>([]);
 
-const searchParams = ref<Record<string, any>>({});
+const searchParams = ref<Record<string, string>>({});
 const stats = reactive({ total: 0, published: 0, pending: 0, pushHome: 0 });
 
 const editVisible = ref(false);
@@ -402,11 +418,11 @@ const editingId = ref<string | null>(null);
 const form = reactive({ title: "", circleId: "", tag: "", excerpt: "", body: "", coverUrl: "" });
 
 const detailVisible = ref(false);
-const detail = ref<any>(null);
+const detail = ref<ArticleRow | null>(null);
 
 const recommendVisible = ref(false);
-const recommendTarget = ref<any>(null);
-const recommendList = ref<any[]>([]);
+const recommendTarget = ref<ArticleRow | null>(null);
+const recommendList = ref<ArticleRecommend[]>([]);
 const recForm = reactive({ type: "COURSE", itemId: "" });
 
 const renderedBody = computed(() => detail.value?.body?.replace(/\n/g, "<br>") || "");
@@ -433,17 +449,18 @@ const columns = [
 ];
 
 function statusTag(s: string) { return ({ PUBLISHED: "success", DRAFT: "info", PENDING_AUDIT: "warning", REJECTED: "danger" } as Record<string, string>)[s] || "info"; }
-function statusText(s: string) { return ({ PUBLISHED: "已发布", DRAFT: "草稿", PENDING_AUDIT: "待审核", REJECTED: "已拒绝" } as Record<string, string>)[s] || s; }
-function fmtDate(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
+function statusText(s?: string) { return ({ PUBLISHED: "已发布", DRAFT: "草稿", PENDING_AUDIT: "待审核", REJECTED: "已拒绝" } as Record<string, string>)[s ?? ""] || s; }
+function fmtDate(d?: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
 
 onMounted(() => { fetchList(); fetchCircles(); fetchStats(); });
 
 async function fetchCircles() {
   try {
     const { data } = await circleApi.list({ page: 1, pageSize: 200 });
-    const clist = (data as any)?.circles || (data as any)?.data || [];
+    const d = data as { circles?: CircleOption[]; data?: CircleOption[] };
+    const clist = d?.circles || d?.data || [];
     circles.value = clist;
-    filterDefs[0].options = clist.map((c: any) => ({ label: c.name, value: c.id }));
+    filterDefs[0].options = clist.map((c) => ({ label: c.name, value: c.id }));
   } catch { /* */ }
 }
 
@@ -461,16 +478,17 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
+    // 透传动态搜索筛选（键不定），articleApi.list 期望具体形状，此处保留 any 不引发连锁
     const params: any = { page: page.value, pageSize: pageSize.value, ...searchParams.value };
     const { data } = await articleApi.list(params);
-    const d = data as any;
+    const d = data as { articles?: ArticleRow[]; data?: ArticleRow[]; total?: number; tags?: string[] };
     list.value = d?.articles || d?.data || [];
     total.value = d?.total || 0;
-    if (d?.tags) filterDefs[1].options = d.tags.map((t: string) => ({ label: t, value: t }));
+    if (d?.tags) filterDefs[1].options = d.tags.map((t) => ({ label: t, value: t }));
   } catch { error.value = true; list.value = []; total.value = 0; } finally { loading.value = false; }
 }
 
-function onSearch(f: Record<string, any>) {
+function onSearch(f: Record<string, string>) {
   searchParams.value = f;
   page.value = 1;
   fetchList();
@@ -489,8 +507,8 @@ function resetForm() {
 
 function showCreate() { resetForm(); editVisible.value = true; }
 
-function showEdit(row: any) {
-  editingId.value = row.id;
+function showEdit(row: ArticleRow) {
+  editingId.value = row.id!;
   form.title = row.title; form.circleId = row.circleId; form.tag = row.tag || "";
   form.excerpt = row.excerpt || ""; form.body = row.body || ""; form.coverUrl = row.coverUrl || "";
   editVisible.value = true;
@@ -506,36 +524,37 @@ async function submitForm() {
   } catch { /* */ } finally { saving.value = false; }
 }
 
-function showDetail(row: any) { detail.value = row; detailVisible.value = true; }
+function showDetail(row: ArticleRow) { detail.value = row; detailVisible.value = true; }
 
-async function auditArticle(row: any, status: string) {
-  try { await articleApi.audit(row.id, status); ElMessage.success(status === "PUBLISHED" ? "审核通过" : "已拒绝"); fetchList(); fetchStats(); } catch { /* */ }
+async function auditArticle(row: ArticleRow, status: string) {
+  try { await articleApi.audit(row.id!, status); ElMessage.success(status === "PUBLISHED" ? "审核通过" : "已拒绝"); fetchList(); fetchStats(); } catch { /* */ }
 }
 
-async function deleteArticle(row: any) {
+async function deleteArticle(row: ArticleRow) {
   await ElMessageBox.confirm("确定删除该文章？", "确认", { type: "warning" });
-  try { await articleApi.remove(row.id); ElMessage.success("已删除"); fetchList(); fetchStats(); } catch { /* */ }
+  try { await articleApi.remove(row.id!); ElMessage.success("已删除"); fetchList(); fetchStats(); } catch { /* */ }
 }
 
-async function showRecommend(row: any) {
+async function showRecommend(row: ArticleRow) {
   recommendTarget.value = row; recommendList.value = row.recommends || []; recommendVisible.value = true;
 }
 
 async function addRecommend() {
   if (!recommendTarget.value || !recForm.itemId) return;
   try {
-    await articleApi.addRecommend(recommendTarget.value.id, { itemId: recForm.itemId, itemType: recForm.type });
+    await articleApi.addRecommend(recommendTarget.value.id!, { itemId: recForm.itemId, itemType: recForm.type });
     ElMessage.success("推荐已添加");
     recForm.itemId = "";
     recommendList.value = [...recommendList.value, { itemId: recForm.itemId, itemType: recForm.type }];
   } catch { /* */ }
 }
 
-async function removeRecommend(row: any) {
+async function removeRecommend(row: ArticleRecommend) {
   try {
-    await articleApi.removeRecommend(recommendTarget.value.id, row.id || row.recId);
+    // recommendTarget 在打开推荐弹窗时已赋值，此处断言非空（仅类型）
+    await articleApi.removeRecommend(recommendTarget.value!.id!, (row.id || row.recId) as string);
     ElMessage.success("推荐已移除");
-    recommendList.value = recommendList.value.filter((r: any) => r.id !== row.id && r.recId !== row.recId);
+    recommendList.value = recommendList.value.filter((r) => r.id !== row.id && r.recId !== row.recId);
   } catch { /* */ }
 }
 

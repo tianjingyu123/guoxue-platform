@@ -219,27 +219,58 @@ import { certificationApi } from "@/api"
 import SearchFilter from "@/components/SearchFilter.vue"
 import PageHeader from "@/components/PageHeader.vue"
 
+// 认证类型行（字段宽松 optional）
+interface CertType {
+  id: string
+  name?: string
+  icon?: string
+  color?: string
+  description?: string
+  autoGrantRole?: string
+  userCount?: number
+}
+// 认证申请行
+interface CertApplication {
+  id: string
+  userName?: string
+  certTypeName?: string
+  reason?: string
+  status?: string
+  createdAt?: string
+  user?: { nickname?: string }
+  certType?: { name?: string }
+}
+// 已认证用户行
+interface CertUser {
+  userId?: string
+  user?: { id?: string; nickname?: string }
+  userName?: string
+  certCount?: number
+  createdAt?: string
+  certifications?: { typeId?: string; color?: string; icon?: string; name?: string }[]
+}
+
 const activeTab = ref("types")
 const pendingCount = ref(0)
 
 // 认证类型
-const certTypes = ref<any[]>([])
+const certTypes = ref<CertType[]>([])
 const typeLoading = ref(false)
 const typeError = ref(false)
 const submitting = ref(false)
 const typeDialogVisible = ref(false)
-const editingType = ref<any>(null)
+const editingType = ref<CertType | null>(null)
 const typeForm = reactive({ name: "", icon: "🏅", color: "#C41E1E", description: "", autoGrantRole: "" as string })
 
 // 认证申请
 const appLoading = ref(false)
 const appError = ref(false)
-const applications = ref<any[]>([])
+const applications = ref<CertApplication[]>([])
 const appPagination = reactive({ page: 1, pageSize: 10, total: 0 })
 const appFilters = reactive<Record<string, any>>({})
 const rejectVisible = ref(false)
 const rejectReason = ref("")
-const rejectingApp = ref<any>(null)
+const rejectingApp = ref<CertApplication | null>(null)
 
 const appFilterDefs: { key: string; label: string; type: 'input' | 'select' | 'date'; options: { label: string; value: string | number }[] }[] = [
   { key: "status", label: "状态", type: "select" as const, options: [
@@ -252,7 +283,7 @@ const appFilterDefs: { key: string; label: string; type: 'input' | 'select' | 'd
 // 已认证用户
 const userLoading = ref(false)
 const userError = ref(false)
-const certUsers = ref<any[]>([])
+const certUsers = ref<CertUser[]>([])
 const userPagination = reactive({ page: 1, pageSize: 10, total: 0 })
 const userFilters = reactive<Record<string, any>>({})
 
@@ -279,17 +310,17 @@ async function fetchCertTypes() {
     const res: any = await certificationApi.listTypes()
     certTypes.value = (res?.data ?? res)?.list ?? (res?.data ?? res)?.types ?? []
     // 更新筛选选项
-    const typeOpts = certTypes.value.map(t => ({ label: t.name, value: t.id }))
+    const typeOpts = certTypes.value.map(t => ({ label: t.name ?? "", value: t.id ?? "" }))
     appFilterDefs[1].options = [{ label: "全部", value: "" }, ...typeOpts]
     userFilterDefs[0].options = [{ label: "全部", value: "" }, ...typeOpts]
   } catch { typeError.value = true }
   finally { typeLoading.value = false }
 }
 
-function showTypeDialog(row?: any) {
+function showTypeDialog(row?: CertType) {
   if (row) {
     editingType.value = row
-    typeForm.name = row.name; typeForm.icon = row.icon ?? "🏅"
+    typeForm.name = row.name ?? ""; typeForm.icon = row.icon ?? "🏅"
     typeForm.color = row.color ?? "#C41E1E"; typeForm.description = row.description ?? ""
     typeForm.autoGrantRole = row.autoGrantRole ?? ""
   } else {
@@ -326,7 +357,7 @@ async function fetchApplications() {
     const params = { page: appPagination.page, pageSize: appPagination.pageSize, ...appFilters }
     const res: any = await certificationApi.listApplications(params)
     const d = res?.data ?? res
-    applications.value = (d.list ?? d.data ?? []).map((a: any) => ({
+    applications.value = (d.list ?? d.data ?? []).map((a: CertApplication) => ({
       ...a, userName: a.user?.nickname ?? '未知', certTypeName: a.certType?.name ?? '未知'
     }))
     appPagination.total = d.total ?? 0
@@ -338,7 +369,7 @@ async function fetchApplications() {
 function onAppSearch(f: Record<string, any>) { Object.assign(appFilters, f); appPagination.page = 1; fetchApplications() }
 function onAppReset() { Object.keys(appFilters).forEach(k => { appFilters[k] = undefined }); appPagination.page = 1; fetchApplications() }
 
-async function approveApp(row: any) {
+async function approveApp(row: CertApplication) {
   if (submitting.value) return
   submitting.value = true
   try { await certificationApi.approveApplication(row.id); ElMessage.success("已通过"); fetchApplications() }
@@ -346,7 +377,7 @@ async function approveApp(row: any) {
   finally { submitting.value = false }
 }
 
-function showRejectDialog(row: any) {
+function showRejectDialog(row: CertApplication) {
   rejectingApp.value = row; rejectReason.value = ""; rejectVisible.value = true
 }
 
@@ -354,7 +385,7 @@ async function confirmReject() {
   if (submitting.value) return
   submitting.value = true
   try {
-    await certificationApi.rejectApplication(rejectingApp.value.id, rejectReason.value)
+    await certificationApi.rejectApplication(rejectingApp.value!.id, rejectReason.value)
     ElMessage.success("已拒绝"); rejectVisible.value = false; fetchApplications()
   } catch { /* */ }
   finally { submitting.value = false }
@@ -368,7 +399,7 @@ async function fetchCertUsers() {
     const params = { page: userPagination.page, pageSize: userPagination.pageSize, ...userFilters }
     const res: any = await certificationApi.listCertifiedUsers(params)
     const d = res?.data ?? res
-    certUsers.value = (d.list ?? d.data ?? []).map((u: any) => ({
+    certUsers.value = (d.list ?? d.data ?? []).map((u: CertUser) => ({
       ...u, userName: u.user?.nickname ?? '未知', certCount: u.certifications?.length ?? 0
     }))
     userPagination.total = d.total ?? 0
@@ -379,9 +410,9 @@ async function fetchCertUsers() {
 function onUserSearch(f: Record<string, any>) { Object.assign(userFilters, f); userPagination.page = 1; fetchCertUsers() }
 function onUserReset() { Object.keys(userFilters).forEach(k => { userFilters[k] = undefined }); userPagination.page = 1; fetchCertUsers() }
 
-async function revokeUserCert(row: any) {
+async function revokeUserCert(row: CertUser) {
   try {
-    await certificationApi.revokeCertification(row.userId ?? row.user?.id, row.certifications?.[0]?.typeId)
+    await certificationApi.revokeCertification(row.userId ?? row.user?.id ?? "", row.certifications?.[0]?.typeId ?? "")
     ElMessage.success("已撤销"); fetchCertUsers()
   } catch { /* */ }
 }

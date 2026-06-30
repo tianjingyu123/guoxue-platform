@@ -3,10 +3,22 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { riskApi } from '@/api'
 
+// 风控规则行（依据表格列/编辑表单实际访问字段声明）
+interface RiskRule {
+  id?: string
+  name?: string
+  type?: string
+  action?: string
+  enabled?: boolean
+  conditions?: Record<string, any>
+  createdAt?: string
+  updatedAt?: string
+}
+
 const loading = ref(false)
 const error = ref(false)
 const saving = ref(false)
-const list = ref<any[]>([])
+const list = ref<RiskRule[]>([])
 const total = ref(0)
 const page = ref(1)
 const dialogVisible = ref(false)
@@ -60,7 +72,7 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const params: Record<string, any> = { page: page.value, pageSize: 20 }
+    const params: Record<string, string | number | boolean> = { page: page.value, pageSize: 20 }
     if (typeFilter.value) params.type = typeFilter.value
     if (statusFilter.value) params.enabled = statusFilter.value === 'true'
     const { data } = await riskApi.listRules(params)
@@ -82,8 +94,8 @@ function openCreate() {
   dialogVisible.value = true
 }
 
-function openEdit(row: any) {
-  editingId.value = row.id
+function openEdit(row: RiskRule) {
+  editingId.value = row.id ?? ''
   Object.assign(form, {
     name: row.name,
     type: row.type || 'FRAUD',
@@ -130,9 +142,9 @@ async function save() {
   }
 }
 
-async function toggleRule(row: any) {
+async function toggleRule(row: RiskRule) {
   try {
-    await riskApi.toggleRule(row.id, !row.enabled)
+    await riskApi.toggleRule(row.id!, !row.enabled)
     ElMessage.success(row.enabled ? '已禁用' : '已启用')
     fetchList()
   } catch {

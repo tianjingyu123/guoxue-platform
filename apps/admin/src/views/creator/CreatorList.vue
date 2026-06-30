@@ -243,7 +243,43 @@ import { exportCSV } from "@/utils/export";
 import DataTable from "@/components/DataTable.vue";
 import PageHeader from "@/components/PageHeader.vue";
 
-const list = ref<any[]>([]);
+/** 创作者行（userId 用于拉详情，必填；其余 optional） */
+interface CreatorRow {
+  userId: string
+  avatar?: string
+  nickname?: string
+  phone?: string
+  followers?: number
+  videoCount?: number
+  publishedCount?: number
+  totalViews?: number
+  totalLikes?: number
+  balance?: number
+  totalEarnings?: number
+  withdrawn?: number
+  joinedAt?: string
+}
+/** 创作者详情作品行 */
+interface CreatorVideo {
+  title?: string
+  views?: number
+  likes?: number
+  status?: string
+  publishTime?: string
+}
+/** 创作者详情对象 */
+interface CreatorDetail {
+  notFound?: boolean
+  profile: { avatar?: string; nickname?: string; phone?: string; joinedAt?: string; bio?: string }
+  overview: {
+    videoCount?: number; publishedCount?: number; followers?: number
+    totalViews?: number; totalLikes?: number; totalComments?: number
+    balance?: number; totalEarnings?: number; withdrawn?: number
+  }
+  videos: CreatorVideo[]
+}
+
+const list = ref<CreatorRow[]>([]);
 const loading = ref(false);
 const error = ref(false);
 const keyword = ref("");
@@ -293,10 +329,10 @@ async function fetchList() {
 const detailVisible = ref(false);
 const detailLoading = ref(false);
 const detailError = ref(false);
-const detail = ref<any>(null);
+const detail = ref<CreatorDetail | null>(null);
 const currentId = ref("");
 
-function openDetail(row: any) {
+function openDetail(row: CreatorRow) {
   currentId.value = row.userId;
   detailVisible.value = true;
   reloadDetail();
@@ -320,8 +356,9 @@ async function reloadDetail() {
   }
 }
 
-function formatNum(n: number) {
-  if (n >= 10000) return (n / 10000).toFixed(1) + "万";
+function formatNum(n?: number) {
+  // 参数放宽为可选，运行时空值按 0 处理（与原逻辑等价）
+  if ((n ?? 0) >= 10000) return ((n ?? 0) / 10000).toFixed(1) + "万";
   return String(n ?? 0);
 }
 

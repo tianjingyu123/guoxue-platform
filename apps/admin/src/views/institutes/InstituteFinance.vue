@@ -276,12 +276,31 @@ import { instituteApi } from "@/api";
 const loading = ref(false);
 const loadError = ref(false);
 const period = ref("");
-const finance = ref<any>({});
+/** 分红记录行（字段宽松 optional） */
+interface DividendRow {
+  user?: { nickname?: string };
+  type?: string;
+  amount?: number;
+  description?: string;
+  period?: string;
+  createdAt?: string;
+}
+/** 研究院财务概览数据 */
+interface FinanceData {
+  totalRevenue?: number;
+  instituteShare?: number;
+  totalDividends?: number;
+  remaining?: number;
+  dividends?: DividendRow[];
+}
+/** 成员下拉选项 */
+interface MemberOption { id?: string; userId?: string; user?: { nickname?: string } }
+const finance = ref<FinanceData>({});
 
 const showDividendDialog = ref(false);
 const savingDividend = ref(false);
 const dividendForm = ref({ userId: "", type: "MGMT_BONUS", amount: 0, period: "", description: "" });
-const memberOptions = ref<any[]>([]);
+const memberOptions = ref<MemberOption[]>([]);
 
 function dividendTypeLabel(t: string) {
   const m: Record<string,string> = { MGMT_BONUS: "管理层分红", TEACHER_AWARD: "优秀老师奖励", OPERATION: "运营费用" };

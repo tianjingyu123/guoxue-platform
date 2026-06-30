@@ -341,9 +341,21 @@ function sceneLabel(s: string) {
   return scenes.find(x => x.value === s)?.label || s;
 }
 
+// RAG 模板行/详情结构（列表行字段后端必返，故非可选）
+interface RagTemplate {
+  id: string;
+  templateName: string;
+  scene: string;
+  systemPrompt: string;
+  userPromptTemplate: string;
+  variables: string[];
+  status: string;
+  createdAt?: string;
+}
+
 const loading = ref(false);
 const loadErr = ref(false);
-const templates = ref<any[]>([]);
+const templates = ref<RagTemplate[]>([]);
 const filterScene = ref("");
 const filterStatus = ref("");
 
@@ -357,7 +369,7 @@ const editForm = reactive({
   userPromptTemplate: "", variables: [] as string[], status: "ACTIVE",
 });
 
-const previewTpl = ref<any>(null);
+const previewTpl = ref<RagTemplate | null>(null);
 const previewVars = ref<Record<string, string>>({});
 const previewResult = ref("");
 const previewing = ref(false);
@@ -370,11 +382,11 @@ async function fetchList() {
   loading.value = true;
   loadErr.value = false;
   try {
-    const params: any = {};
+    const params: Record<string, string> = {};
     if (filterScene.value) params.scene = filterScene.value;
     if (filterStatus.value) params.status = filterStatus.value;
     const { data } = await ragTemplateApi.list(params);
-    templates.value = (data as any[]) || [];
+    templates.value = (data as RagTemplate[]) || [];
   } catch {
     loadErr.value = true;
     templates.value = [];
@@ -394,7 +406,7 @@ function openCreate() {
   showEdit.value = true;
 }
 
-function openEdit(row: any) {
+function openEdit(row: RagTemplate) {
   editingId.value = row.id;
   editForm.scene = row.scene;
   editForm.templateName = row.templateName;
@@ -431,7 +443,7 @@ async function del(id: string) {
   } catch { /* cancel */ }
 }
 
-function openPreview(row: any) {
+function openPreview(row: RagTemplate) {
   previewTpl.value = row;
   previewVars.value = {};
   previewResult.value = "";
@@ -441,8 +453,9 @@ function openPreview(row: any) {
 async function doPreview() {
   previewing.value = true;
   try {
-    const { data } = await ragTemplateApi.preview(previewTpl.value.id, { variables: previewVars.value });
-    previewResult.value = (data as any)?.result || (data as any)?.content || JSON.stringify(data);
+    const { data } = await ragTemplateApi.preview(previewTpl.value!.id, { variables: previewVars.value });
+    const d = data as { result?: string; content?: string };
+    previewResult.value = d?.result || d?.content || JSON.stringify(data);
   } catch { /* ignore */ } finally {
     previewing.value = false;
   }

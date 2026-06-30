@@ -267,10 +267,26 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
+// 推荐位行（字段宽松 optional）
+interface RecRow {
+  id: string
+  title?: string
+  cover?: string
+  image?: string
+  targetType?: string
+  type?: string
+  targetId?: string
+  position?: string
+  weight: number
+  status?: string
+  startTime?: string
+  endTime?: string
+}
+
 const loading = ref(false)
 const error = ref(false)
 const saving = ref(false)
-const list = ref<any[]>([])
+const list = ref<RecRow[]>([])
 const total = ref(0)
 const page = ref(1)
 
@@ -312,7 +328,7 @@ function openCreate() {
   Object.assign(form, { targetType: 'ARTICLE', targetId: '', position: 'HOME_TOP', weight: 10, startTime: '', endTime: '' })
   dialogVisible.value = true
 }
-function openEdit(row: any) {
+function openEdit(row: RecRow) {
   editingId.value = row.id
   Object.assign(form, {
     targetType: row.targetType, targetId: row.targetId, position: row.position,
@@ -334,7 +350,7 @@ async function save() {
     fetchList()
   } catch { } finally { saving.value = false }
 }
-async function handleDelete(row: any) {
+async function handleDelete(row: RecRow) {
   try {
     await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' })
     await api.delete(`/admin/recommend/rules/${row.id}`)

@@ -3,10 +3,21 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
+// 全站公告行（依据列表列/编辑表单实际访问字段声明）
+interface SiteNotice {
+  id?: string
+  title: string
+  content: string
+  isActive?: boolean
+  startTime?: string
+  endTime?: string
+  createdAt?: string
+}
+
 const loading = ref(false)
 const saving = ref(false)
 const loadError = ref(false)
-const list = ref<any[]>([])
+const list = ref<SiteNotice[]>([])
 const vis = ref(false)
 const editingId = ref('')
 
@@ -37,8 +48,8 @@ function openCreate() {
   vis.value = true
 }
 
-function openEdit(row: any) {
-  editingId.value = row.id
+function openEdit(row: SiteNotice) {
+  editingId.value = row.id ?? ''
   form.title = row.title
   form.content = row.content
   form.isActive = row.isActive ?? true

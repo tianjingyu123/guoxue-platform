@@ -3,10 +3,21 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
+interface AppVersionRow {
+  id: string
+  platform: string
+  version: string
+  buildNumber?: string
+  changelog?: string
+  forceUpdate?: boolean
+  downloadUrl?: string
+  publishedAt?: string
+}
+
 const loading = ref(false)
 const loadError = ref(false)
 const saving = ref(false)
-const list = ref<any[]>([])
+const list = ref<AppVersionRow[]>([])
 const vis = ref(false)
 const editingId = ref('')
 const platformFilter = ref('')
@@ -28,7 +39,7 @@ async function fetchList() {
   loading.value = true
   loadError.value = false
   try {
-    const params: any = {}
+    const params: Record<string, string> = {}
     if (platformFilter.value) params.platform = platformFilter.value
     const { data } = await api.get(BASE, { params })
     list.value = data ?? []
@@ -45,7 +56,7 @@ function openCreate() {
   vis.value = true
 }
 
-function openEdit(row: any) {
+function openEdit(row: AppVersionRow) {
   editingId.value = row.id
   form.platform = row.platform
   form.version = row.version
@@ -80,7 +91,7 @@ async function del(id: string, version: string) {
   } catch { /* cancelled */ }
 }
 
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
 </script>
 
 <template>

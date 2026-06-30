@@ -210,7 +210,18 @@ import PageHeader from '@/components/PageHeader.vue'
 
 type ModerateActionType = 'takedown' | 'restore' | 'warn'
 
-const products = ref<any[]>([])
+/** 商品行（品控巡检，字段宽松 optional） */
+interface ProductRow {
+  id?: string
+  title?: string
+  price?: number | string
+  stock?: number
+  salesCount?: number
+  status?: string
+  images?: string[]
+}
+
+const products = ref<ProductRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
@@ -224,7 +235,7 @@ const categoryId = ref('')
 const categoryOptions = ref<{ id: string; label: string }[]>([])
 
 const dialogVisible = ref(false)
-const currentRow = ref<any>(null)
+const currentRow = ref<ProductRow | null>(null)
 const action = ref<ModerateActionType>('takedown')
 const reason = ref('')
 
@@ -307,7 +318,7 @@ function resetFilter() {
   fetchList()
 }
 
-function openModerate(row: any, act: ModerateActionType) {
+function openModerate(row: ProductRow, act: ModerateActionType) {
   currentRow.value = row
   action.value = act
   reason.value = ''

@@ -2,23 +2,45 @@
 import { ref, onMounted } from "vue";
 import { api as rawApi } from "@/api";
 
-const list = ref<any[]>([]);
+// 设备指纹行（依据表格列/详情实际访问字段声明）
+interface DeviceFp {
+  userId?: string;
+  deviceId?: string;
+  platform?: string;
+  browser?: string;
+  userAgent?: string;
+  ip?: string;
+  createdAt?: string;
+  firstSeenAt?: string;
+  updatedAt?: string;
+  lastSeenAt?: string;
+}
+
+// 用户设备详情聚合
+interface UserDevices {
+  userId?: string;
+  devices?: DeviceFp[];
+  totalDevices?: number;
+  suspiciousCount?: number;
+}
+
+const list = ref<DeviceFp[]>([]);
 const loading = ref(false);
 const searchUserId = ref("");
 const searchDeviceId = ref("");
 const detailVisible = ref(false);
-const detailData = ref<any>({});
+const detailData = ref<UserDevices>({});
 
 onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
   try {
-    const params: any = {};
+    const params: Record<string, string> = {};
     if (searchUserId.value) params.userId = searchUserId.value;
     if (searchDeviceId.value) params.deviceId = searchDeviceId.value;
     const { data } = await rawApi.get("/risk-control/device-fingerprints", { params });
-    list.value = (data as any)?.data ?? data ?? [];
+    list.value = data?.data ?? data ?? [];
   } finally {
     loading.value = false;
   }
@@ -36,7 +58,7 @@ function onSearch() {
   fetchList();
 }
 
-function formatTime(v: any) {
+function formatTime(v?: string) {
   if (!v) return "-";
   try { return new Date(v).toLocaleString(); } catch { return v; }
 }

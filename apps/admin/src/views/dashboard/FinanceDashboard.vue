@@ -3,7 +3,7 @@
  * FinanceDashboard.vue — 财务管理员面板
  * 营收概况 / 退款监控 / 月度营收柱状图
  */
-import { ref, onMounted } from "vue"
+import { ref, onMounted, type Component } from "vue"
 import { useRouter } from "vue-router"
 import { api } from "@/api"
 import * as echarts from "echarts"
@@ -18,7 +18,9 @@ const username = ref("财务管理员")
 const router = useRouter()
 
 // ==================== 快捷操作（财务高频管理页）====================
-interface QuickAction { label: string; path: string; icon: any }
+interface QuickAction { label: string; path: string; icon: Component }
+/** 报警项（传给 AnomalyAlert 组件） */
+interface AlertItem { text: string; count: number; level: 'critical' | 'warning' | 'info' }
 const quickActions: QuickAction[] = [
   { label: "退款审核", path: "/orders/refund", icon: RefreshLeft },
   { label: "提现审批", path: "/finance/withdrawals", icon: Download },
@@ -46,14 +48,15 @@ function onCardClick(card: CardDef) {
 }
 
 // ==================== 报警信息 ====================
-const alerts = ref<any[]>([])
+const alerts = ref<AlertItem[]>([])
 
 // ==================== 统计卡片 ====================
 interface CardDelta { value: number; dir: "up" | "down" | "flat"; label: string }
-interface CardDef { label: string; value: number; icon: any; format?: string; delta?: CardDelta }
+interface CardDef { label: string; value: number; icon: Component; format?: string; delta?: CardDelta }
 const cards = ref<CardDef[]>([])
 
 // ==================== 月度营收柱状图 (ECharts) ====================
+// echarts option 结构复杂，统一用 any（框架类型），不做精细收敛
 const monthRevenueOption = ref<any>({})
 const hasMonthRevenue = ref(false)
 
@@ -97,6 +100,7 @@ function buildMonthRevenueOption(months: string[], values: number[]) {
       trigger: "axis", backgroundColor: "#fff",
       borderColor: "#F0F0F0", borderWidth: 1,
       textStyle: { color: "#1A1A1A", fontSize: 13 },
+      // echarts tooltip 回调参数类型复杂，保留 any（框架类型）
       formatter: (params: any) => {
         const p = params[0]
         return `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>
@@ -168,7 +172,7 @@ async function load() {
     }
 
     // 报警：待提现 / 待审批
-    const alertList: any[] = []
+    const alertList: AlertItem[] = []
     if ((r.pendingWithdrawals ?? 0) > 0) {
       alertList.push({ text: "待提现", count: r.pendingWithdrawals, level: "warning" })
     }

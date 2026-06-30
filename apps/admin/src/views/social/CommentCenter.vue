@@ -150,8 +150,26 @@ import DataTable from "@/components/DataTable.vue"
 import PageHeader from "@/components/PageHeader.vue"
 import { useTable } from "@/composables/useTable"
 
+// 评论行（字段宽松 optional）
+interface CommentRow {
+  id: string
+  content?: string
+  bizType?: string
+  targetId?: string
+  status?: string
+  likeCount?: number
+  replyCount?: number
+  quotedText?: string
+  quoteSource?: string
+  createdAt?: string
+  updatedAt?: string
+  userName?: string
+  user?: { nickname?: string; certBadges?: string }
+  parent?: { content?: string; user?: { nickname?: string } }
+}
+
 const detailVisible = ref(false)
-const currentComment = ref<any>(null)
+const currentComment = ref<CommentRow | null>(null)
 const selectedIds = ref<string[]>([])
 const loadError = ref(false)
 const submitting = ref(false)
@@ -206,7 +224,7 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch } = use
   },
   defaultPageSize: 15,
   transformResponse: (data: any) => ({
-    items: (data.list ?? data.data ?? []).map((c: any) => ({
+    items: (data.list ?? data.data ?? []).map((c: CommentRow) => ({
       ...c,
       userName: c.user?.nickname ?? '未知',
     })),
@@ -217,25 +235,25 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch } = use
 function onSearch(f: Record<string, any>) { Object.assign(filters, f); handleSearch() }
 function onReset() { Object.keys(filters).forEach(k => { (filters as any)[k] = undefined }); handleSearch() }
 
-function onSelectionChange(rows: any[]) { selectedIds.value = rows.map(r => r.id) }
+function onSelectionChange(rows: CommentRow[]) { selectedIds.value = rows.map(r => r.id) }
 
-function bizTypeLabel(t: string): string {
+function bizTypeLabel(t?: string): string {
   const m: Record<string, string> = { CLASSIC: "古籍", COURSE: "课程", CIRCLE: "圈子", PRODUCT: "商品", ARTICLE: "文章", VIDEO: "视频", LIVESTREAM: "直播", EBOOK: "电子书" }
-  return m[t] ?? t
+  return m[t ?? ""] ?? t ?? ""
 }
-function bizTypeColor(t: string): string {
+function bizTypeColor(t?: string): string {
   const m: Record<string, string> = { CLASSIC: "", COURSE: "warning", CIRCLE: "success", PRODUCT: "danger", ARTICLE: "info", VIDEO: "", LIVESTREAM: "danger", EBOOK: "success" }
-  return m[t] ?? ""
+  return m[t ?? ""] ?? ""
 }
-function statusLabel(s: string): string {
+function statusLabel(s?: string): string {
   const m: Record<string, string> = { PUBLISHED: "已发布", FEATURED: "已精选", HIDDEN: "已隐藏", PENDING: "待审核" }
-  return m[s] ?? s
+  return m[s ?? ""] ?? s ?? ""
 }
-function formatTime(d: string): string { return d ? d.slice(0, 16).replace("T", " ") : "" }
+function formatTime(d?: string): string { return d ? d.slice(0, 16).replace("T", " ") : "" }
 
-function showDetail(row: any) { currentComment.value = row; detailVisible.value = true }
+function showDetail(row: CommentRow) { currentComment.value = row; detailVisible.value = true }
 
-async function toggleFeature(row: any) {
+async function toggleFeature(row: CommentRow) {
   if (submitting.value) return
   submitting.value = true
   try {
@@ -247,7 +265,7 @@ async function toggleFeature(row: any) {
   finally { submitting.value = false }
 }
 
-async function toggleHide(row: any) {
+async function toggleHide(row: CommentRow) {
   if (submitting.value) return
   submitting.value = true
   try {

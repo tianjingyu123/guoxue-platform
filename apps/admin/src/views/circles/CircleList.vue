@@ -209,12 +209,27 @@
 import { ref, reactive, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
+import type { FormInstance } from "element-plus";
 import { circleApi } from "@/api";
 import PageHeader from "@/components/PageHeader.vue";
 
 const router = useRouter();
 
-const list = ref<any[]>([]);
+/** 圈子行（后端圈子列表项，字段宽松 optional） */
+interface CircleRow {
+  id: string;
+  name?: string;
+  intro?: string;
+  cover?: string;
+  type?: string;
+  price?: number;
+  status?: string;
+  memberCount?: number;
+  postCount?: number;
+  tags?: string[];
+}
+
+const list = ref<CircleRow[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
 const acting = ref(false);
@@ -222,7 +237,7 @@ const dialogVisible = ref(false);
 const saving = ref(false);
 const editingId = ref("");
 const form = reactive({ name: "", cover: "", intro: "", type: "FREE", price: 0 });
-const dialogFormRef = ref<any>(null);
+const dialogFormRef = ref<FormInstance>();
 const dialogRules = {
   name: [{ required: true, message: "请输入圈子名称", trigger: "blur" }],
   type: [{ required: true, message: "请选择圈子类型", trigger: "change" }],
@@ -243,13 +258,13 @@ async function fetchList() {
   } finally { loading.value = false; }
 }
 
-function openEdit(row?: any) {
+function openEdit(row?: CircleRow) {
   if (row) {
     editingId.value = row.id;
-    form.name = row.name;
+    form.name = row.name || "";
     form.cover = row.cover || "";
     form.intro = row.intro || "";
-    form.type = row.type;
+    form.type = row.type || "FREE";
     form.price = row.price || 0;
     tagsStr.value = (row.tags || []).join(",");
   } else {
@@ -267,7 +282,7 @@ function openEdit(row?: any) {
 async function save() {
   saving.value = true;
   try {
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       ...form,
       tags: tagsStr.value.split(",").filter(Boolean),
     };
@@ -285,7 +300,7 @@ async function save() {
   } finally { saving.value = false; }
 }
 
-async function toggleStatus(row: any, status: string) {
+async function toggleStatus(row: CircleRow, status: string) {
   if (acting.value) return;
   acting.value = true;
   try {

@@ -1088,7 +1088,7 @@
           label="现有回答"
         >
           <div style="color:#666">
-            {{ answeringQa.answer }}
+            {{ answeringQa?.answer }}
           </div>
         </el-form-item>
         <el-form-item label="回答内容">
@@ -1212,6 +1212,41 @@ const isEdit = ref(!!route.params.id)
 const courseId = route.params.id as string
 const activeTab = ref("basic")
 
+// ─── 行/详情类型（字段宽松 optional，不复刻完整后端结构） ───
+/** 章节行 */
+interface ChapterRow {
+  id: string; title?: string; content?: string; mediaUrl?: string;
+  duration?: number; freeTrial?: boolean; sortOrder?: number;
+}
+/** 学员行 */
+interface StudentRow {
+  id?: string; userId?: string;
+  user?: { id?: string; nickname?: string; avatar?: string };
+  amount?: number; paidAt?: string;
+  progress?: { completedChapters?: number; totalProgress?: number };
+}
+/** 作业行 */
+interface WorkRow {
+  id: string; userId?: string; content?: string; score?: number; feedback?: string;
+  chapter?: { title?: string }; createdAt?: string;
+}
+/** 评价行 */
+interface ReviewRow {
+  id: string; rating?: number; content?: string; status?: string; reply?: string;
+  user?: { nickname?: string }; createdAt?: string;
+}
+/** 问答行 */
+interface QaRow {
+  id: string; question?: string; answer?: string; status?: string; tags?: string[];
+  user?: { nickname?: string }; userId?: string; chapter?: { title?: string }; createdAt?: string;
+}
+/** 课程统计 */
+interface CourseStats {
+  enrollmentCount?: number; completedCount?: number; avgRating?: number; totalWorks?: number;
+}
+/** 学员学习详情 */
+interface StudentDetailData { progresses?: unknown[]; works?: unknown[] }
+
 // ─── 基本信息表单 ───
 const form = reactive({
   title: '',
@@ -1228,7 +1263,7 @@ const form = reactive({
   circleId: '' as string,
   stationId: '' as string,
 })
-const mainFormRef = ref<any>(null)
+const mainFormRef = ref<any>(null) // el-form 实例引用，保留 any
 const mainRules = {
   title: [{ required: true, message: '请输入课程标题', trigger: 'blur' }],
   type: [{ required: true, message: '请选择课程类型', trigger: 'change' }],
@@ -1241,7 +1276,7 @@ const quickStatus = ref('')
 // 标签输入
 const tagInputVisible = ref(false)
 const tagInputValue = ref('')
-const tagInputRef = ref<any>(null)
+const tagInputRef = ref<any>(null) // el-input 实例引用，保留 any
 
 function showTagInput() { tagInputVisible.value = true; nextTick(() => tagInputRef.value?.focus?.()) }
 function addTag() {
@@ -1252,37 +1287,37 @@ function addTag() {
 }
 
 // ─── 章节管理 ───
-const chapters = ref<any[]>([])
+const chapters = ref<ChapterRow[]>([])
 const chapterForm = reactive({ title: '', content: '', mediaUrl: '', duration: undefined as number | undefined, freeTrial: false, sortOrder: 0 })
 const chapterDialog = ref(false)
-const editingChapter = ref<any>(null)
+const editingChapter = ref<ChapterRow | null>(null)
 const chapterEditorEl = ref<HTMLElement | null>(null)
-let chapterQuill: any = null
+let chapterQuill: any = null // Quill 富文本编辑器实例，保留 any
 
 // ─── 学员管理 ───
-const students = ref<any[]>([])
+const students = ref<StudentRow[]>([])
 const studentTotal = ref(0)
 const studentPage = ref(1)
 const studentPageSize = ref(20)
 const studentLoading = ref(false)
 
 // ─── 作业批改 ───
-const works = ref<any[]>([])
+const works = ref<WorkRow[]>([])
 const scoreDialog = ref(false)
-const scoringWork = ref<any>(null)
+const scoringWork = ref<WorkRow | null>(null)
 const scoreForm = reactive({ score: 80, feedback: '' })
 const aiScoreLoading = ref('')
 const aiBatchLoading = ref(false)
 
 // ─── 评价管理 ───
-const reviews = ref<any[]>([])
+const reviews = ref<ReviewRow[]>([])
 const reviewTotal = ref(0)
 const reviewPage = ref(1)
 const reviewPageSize = ref(20)
 const reviewLoading = ref(false)
 const reviewFilter = ref('')
 const replyDialog = ref(false)
-const replyingReview = ref<any>(null)
+const replyingReview = ref<ReviewRow | null>(null)
 const replyContent = ref('')
 
 // ─── 分类 ───
@@ -1326,7 +1361,7 @@ async function fetchCategories() {
 }
 
 // ─── 问答管理 ───
-const qas = ref<any[]>([])
+const qas = ref<QaRow[]>([])
 const qaTotal = ref(0)
 const qaPage = ref(1)
 const qaPageSize = ref(20)
@@ -1334,17 +1369,17 @@ const qaLoading = ref(false)
 const qaFilter = reactive({ status: '', tag: '' })
 const qaTags = ref<string[]>([])
 const qaAnswerDialog = ref(false)
-const answeringQa = ref<any>(null)
+const answeringQa = ref<QaRow | null>(null)
 const qaAnswerContent = ref('')
 const aiSuggestLoading = ref('')
 
 // ─── 数据统计 ───
-const stats = ref<any>(null)
+const stats = ref<CourseStats | null>(null)
 const statsLoading = ref(false)
 
 // ─── 学员详情 ───
 const studentDetailDialog = ref(false)
-const studentDetail = ref<any>(null)
+const studentDetail = ref<StudentDetailData | null>(null)
 const studentDetailLoading = ref(false)
 
 // ─── 初始化 ───
@@ -1399,6 +1434,7 @@ async function save() {
   }
 }
 
+// options 为 Element Plus 上传请求参数（UploadRequestOptions），保留 any
 async function handleCoverUpload(options: any) {
   uploading.value = true
   try {
@@ -1428,7 +1464,7 @@ async function loadChapters() {
   chapters.value = data
 }
 
-function openChapterDialog(ch?: any) {
+function openChapterDialog(ch?: ChapterRow) {
   if (ch) {
     editingChapter.value = ch
     Object.assign(chapterForm, { title: ch.title, content: ch.content || '', mediaUrl: ch.mediaUrl || '', duration: ch.duration, freeTrial: ch.freeTrial || false, sortOrder: ch.sortOrder || 0 })
@@ -1489,11 +1525,11 @@ async function fetchStudents() {
   } finally { studentLoading.value = false }
 }
 
-async function viewStudentDetail(row: any) {
+async function viewStudentDetail(row: StudentRow) {
   studentDetailDialog.value = true
   studentDetailLoading.value = true
   try {
-    const { data } = await courseApi.getStudentProgress(courseId, row.user?.id || row.userId)
+    const { data } = await courseApi.getStudentProgress(courseId, (row.user?.id || row.userId)!)
     studentDetail.value = data
   } finally { studentDetailLoading.value = false }
 }
@@ -1504,7 +1540,7 @@ async function fetchWorks() {
   works.value = Array.isArray(data) ? data : data.list || data.works || []
 }
 
-function openScoreDialog(work: any) {
+function openScoreDialog(work: WorkRow) {
   scoringWork.value = work
   scoreForm.score = work.score || 80
   scoreForm.feedback = work.feedback || ''
@@ -1512,13 +1548,13 @@ function openScoreDialog(work: any) {
 }
 
 async function submitScore() {
-  await courseApi.scoreWork(scoringWork.value.id, scoreForm.score, scoreForm.feedback)
+  await courseApi.scoreWork(scoringWork.value!.id, scoreForm.score, scoreForm.feedback)
   ElMessage.success('评分已提交')
   scoreDialog.value = false
   fetchWorks()
 }
 
-async function handleAiScore(work: any) {
+async function handleAiScore(work: WorkRow) {
   aiScoreLoading.value = work.id
   try {
     const { data } = await courseApi.aiScoreWork(work.id)
@@ -1547,20 +1583,20 @@ async function fetchReviews() {
   } finally { reviewLoading.value = false }
 }
 
-function openReplyDialog(review: any) {
+function openReplyDialog(review: ReviewRow) {
   replyingReview.value = review
   replyContent.value = review.reply || ''
   replyDialog.value = true
 }
 
 async function submitReply() {
-  await courseApi.replyReview(replyingReview.value.id, replyContent.value)
+  await courseApi.replyReview(replyingReview.value!.id, replyContent.value)
   ElMessage.success('回复成功')
   replyDialog.value = false
   fetchReviews()
 }
 
-async function toggleReview(review: any) {
+async function toggleReview(review: ReviewRow) {
   const newStatus = review.status === 'HIDDEN' ? 'PUBLISHED' : 'HIDDEN'
   await courseApi.toggleReview(review.id, newStatus)
   ElMessage.success(newStatus === 'HIDDEN' ? '已隐藏' : '已恢复')
@@ -1580,7 +1616,7 @@ async function fetchStats() {
 async function fetchQas() {
   qaLoading.value = true
   try {
-    const params: any = { page: qaPage.value, pageSize: qaPageSize.value }
+    const params: Record<string, string | number> = { page: qaPage.value, pageSize: qaPageSize.value }
     if (qaFilter.status) params.status = qaFilter.status
     if (qaFilter.tag) params.tag = qaFilter.tag
     const { data } = await courseApi.getQuestions(courseId, params)
@@ -1596,7 +1632,7 @@ async function fetchQaTags() {
   } catch { /* skip */ }
 }
 
-function openQaAnswerDialog(qa: any) {
+function openQaAnswerDialog(qa: QaRow) {
   answeringQa.value = qa
   qaAnswerContent.value = qa.answer || ''
   qaAnswerDialog.value = true
@@ -1604,19 +1640,19 @@ function openQaAnswerDialog(qa: any) {
 
 async function submitQaAnswer() {
   if (!qaAnswerContent.value.trim()) { ElMessage.warning('请输入回答内容'); return }
-  await courseApi.answerQuestion(answeringQa.value.id, qaAnswerContent.value)
+  await courseApi.answerQuestion(answeringQa.value!.id, qaAnswerContent.value)
   ElMessage.success('回答已提交')
   qaAnswerDialog.value = false
   fetchQas()
 }
 
-async function handleCloseQa(qa: any) {
+async function handleCloseQa(qa: QaRow) {
   await courseApi.closeQuestion(qa.id)
   ElMessage.success('问题已关闭')
   fetchQas()
 }
 
-async function handleAiSuggest(qa: any) {
+async function handleAiSuggest(qa: QaRow) {
   aiSuggestLoading.value = qa.id
   try {
     const { data } = await courseApi.aiSuggestAnswer(qa.id)

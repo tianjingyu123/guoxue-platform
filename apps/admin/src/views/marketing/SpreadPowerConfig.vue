@@ -148,9 +148,32 @@ const userPage = ref(1)
 const userPageSize = ref(10)
 const userTotal = ref(0)
 const userError = ref(false)
-const users = ref<any[]>([])
+// 传播力用户行（含 map 派生 userName）
+interface SpreadUserRow {
+  userName?: string
+  spreadLevel?: string
+  spreadLevelName?: string
+  shareCount?: number
+  clickCount?: number
+  registerCount?: number
+  influence?: number
+  trafficBoost?: number
+  [k: string]: unknown
+}
+const users = ref<SpreadUserRow[]>([])
 
-const levels = ref<any[]>([])
+// 传播力等级行（表格内可编辑）
+interface SpreadLevelRow {
+  level: string
+  // 以下字段为等级配置必填项（updateLevel 提交需要），源数据来自 any 接口故声明为必填不影响运行时
+  name: string
+  icon: string
+  minShares: number
+  minClicks: number
+  trafficBoost: number
+  description?: string
+}
+const levels = ref<SpreadLevelRow[]>([])
 const distCounts = ref<Record<string, number>>({})
 const powerStats = ref([
   { label: "传播力用户总数", value: 0 },
@@ -215,7 +238,7 @@ async function fetchUsers() {
       level: filterLevel.value || undefined,
     })
     const d = res?.data ?? res
-    users.value = (d.list ?? d.data ?? []).map((u: any) => ({
+    users.value = (d.list ?? d.data ?? []).map((u: { user?: { nickname?: string }; [k: string]: unknown }) => ({
       ...u, userName: u.user?.nickname ?? '未知',
     }))
     userTotal.value = d.total ?? 0

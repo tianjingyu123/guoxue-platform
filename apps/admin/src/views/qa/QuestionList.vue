@@ -280,7 +280,21 @@ import api, { questionApi } from "@/api";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
 
-const list = ref<any[]>([]);
+/** 付费问答行（字段宽松 optional） */
+interface QaQuestionRow {
+  id: string;
+  question?: string;
+  answer?: string;
+  asker?: { nickname?: string };
+  answerer?: { nickname?: string };
+  circle?: { name?: string };
+  priceCoin?: number;
+  peekPriceCoin?: number;
+  peekCount?: number;
+  status: string;
+  createdAt?: string;
+}
+const list = ref<QaQuestionRow[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
 const page = ref(1);
@@ -289,7 +303,7 @@ const total = ref(0);
 const filterStatus = ref("");
 const refunding = ref(false);
 const dialogVisible = ref(false);
-const detail = ref<any>(null);
+const detail = ref<QaQuestionRow | null>(null);
 
 onMounted(() => fetchList());
 
@@ -302,7 +316,7 @@ async function fetchList() {
   loading.value = true;
   loadError.value = false;
   try {
-    const params: any = { page: page.value, pageSize: pageSize.value };
+    const params: Record<string, string | number> = { page: page.value, pageSize: pageSize.value };
     if (filterStatus.value) params.status = filterStatus.value;
     const { data } = await questionApi.list(params);
     list.value = data?.questions || [];
@@ -316,7 +330,7 @@ async function fetchList() {
   }
 }
 
-async function showDetail(row: any) {
+async function showDetail(row: QaQuestionRow) {
   try {
     const { data } = await questionApi.detail(row.id);
     detail.value = data;
@@ -337,7 +351,7 @@ async function refundExpired() {
   }
 }
 
-async function handleRefundItem(row: any) {
+async function handleRefundItem(row: QaQuestionRow) {
   try {
     await ElMessageBox.confirm(
       `确认要退还该问题的提问费用（${row.priceCoin}币）给用户吗？此操作不可撤销。`,

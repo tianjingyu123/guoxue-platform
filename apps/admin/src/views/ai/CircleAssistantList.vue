@@ -341,15 +341,40 @@ import { ChatUI } from '@/components/ChatUI'
 import type { ChatUIConfig } from '@/components/ChatUI/types'
 import { aiAdminApi } from '@/api'
 
-const activeTab = ref('approvals')
-const loading = ref(false); const loadErr = ref(false); const acting = ref(false); const list = ref<any[]>([])
+/** 开通审批行（字段宽松 optional） */
+interface ApprovalRow {
+  circleId?: string
+  circleName?: string
+  applicantName?: string
+  status?: string
+  createdAt?: string
+}
+/** 知识库条目行 */
+interface KnowledgeRow {
+  id?: string
+  title?: string
+  content?: string
+  createdAt?: string
+}
+/** 使用数据 */
+interface UsageData {
+  circleId?: string
+  totalConversations?: number
+  totalMessages?: number
+  activeUsers?: number
+  avgSatisfaction?: number | string
+  lastCallAt?: string
+}
 
-const kLoading = ref(false); const kErr = ref(false); const kSaving = ref(false); const kList = ref<any[]>([])
+const activeTab = ref('approvals')
+const loading = ref(false); const loadErr = ref(false); const acting = ref(false); const list = ref<ApprovalRow[]>([])
+
+const kLoading = ref(false); const kErr = ref(false); const kSaving = ref(false); const kList = ref<KnowledgeRow[]>([])
 const kVis = ref(false); const kEditingId = ref('')
 const knowledgeCircleId = ref('')
 const kForm = reactive({ title: '', content: '' })
 
-const uLoading = ref(false); const uErr = ref(false); const usageCircleId = ref(''); const usageData = ref<any>(null)
+const uLoading = ref(false); const uErr = ref(false); const usageCircleId = ref(''); const usageData = ref<UsageData | null>(null)
 
 // 测试对话
 const testCircleId = ref('')
@@ -377,18 +402,18 @@ async function fetchApprovals() {
   try { const { data } = await aiAdminApi.listCircleAssistants(); list.value = data.approvals || data.data || [] } catch { loadErr.value = true; list.value = [] } finally { loading.value = false }
 }
 
-async function approveBot(row: any) {
+async function approveBot(row: ApprovalRow) {
   if (acting.value) return
   acting.value = true
-  try { await aiAdminApi.approveCircleAssistant(row.circleId); ElMessage.success('已通过'); fetchApprovals() } catch { } finally { acting.value = false }
+  try { await aiAdminApi.approveCircleAssistant(row.circleId!); ElMessage.success('已通过'); fetchApprovals() } catch { } finally { acting.value = false }
 }
 
-async function rejectBot(row: any) {
+async function rejectBot(row: ApprovalRow) {
   if (acting.value) return
   try {
     const { value } = await ElMessageBox.prompt('请输入驳回原因', '驳回申请', { type: 'warning', inputType: 'textarea' })
     acting.value = true
-    await aiAdminApi.rejectCircleAssistant(row.circleId, value)
+    await aiAdminApi.rejectCircleAssistant(row.circleId!, value)
     ElMessage.success('已驳回'); fetchApprovals()
   } catch {} finally { acting.value = false }
 }
@@ -400,7 +425,7 @@ async function fetchKnowledge() {
 }
 
 function openKnowledgeCreate() { kEditingId.value = ''; Object.assign(kForm, { title: '', content: '' }); kVis.value = true }
-function openKnowledgeEdit(row: any) { kEditingId.value = row.id; Object.assign(kForm, { title: row.title, content: row.content }); kVis.value = true }
+function openKnowledgeEdit(row: KnowledgeRow) { kEditingId.value = row.id ?? ''; Object.assign(kForm, { title: row.title, content: row.content }); kVis.value = true }
 
 async function saveKnowledge() {
   kSaving.value = true

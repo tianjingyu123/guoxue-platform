@@ -179,7 +179,17 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { instituteApi } from "@/api";
 
-const list = ref<any[]>([]);
+/** 任务模板行（字段宽松 optional） */
+interface TemplateRow {
+  id: string;
+  name?: string;
+  taskType?: string;
+  score?: number;
+  deadlineDays?: number;
+  depositThreshold?: number;
+  description?: string;
+}
+const list = ref<TemplateRow[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
 const deleting = ref(false);
@@ -206,7 +216,7 @@ function resetForm() {
 }
 
 function openCreate() { resetForm(); isEdit.value = false; dialogVisible.value = true; }
-function openEdit(row: any) {
+function openEdit(row: TemplateRow) {
   isEdit.value = true; editId.value = row.id;
   Object.assign(form, {
     name: row.name, taskType: row.taskType || "", score: row.score || 0,
@@ -231,7 +241,7 @@ async function save() {
   } finally { saving.value = false; }
 }
 
-async function handleDelete(row: any) {
+async function handleDelete(row: TemplateRow) {
   if (deleting.value) return;
   await ElMessageBox.confirm(`确定删除模板「${row.name}」？`, "提示", { type: "warning" });
   deleting.value = true;

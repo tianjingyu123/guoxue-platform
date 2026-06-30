@@ -163,14 +163,24 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { poetryAdminApi } from "@/api";
 import PageHeader from "@/components/PageHeader.vue";
 
-const categories = ref<any[]>([]);
+/** 分类行（宽松 optional，按模板访问声明） */
+interface CategoryRow {
+  id?: string; name?: string; icon?: string; intro?: string;
+  sortOrder?: number; poemCount?: number;
+}
+/** 编辑表单（字段均有默认值，故为必填） */
+interface CategoryForm { name: string; icon: string; intro: string; sortOrder: number }
+/** axios 错误对象（无类型来源，本地声明） */
+interface ApiError { response?: { data?: { message?: string } }; message?: string }
+
+const categories = ref<CategoryRow[]>([]);
 const loading = ref(false);
 const error = ref("");
 const submitting = ref(false);
 
 const dialogVisible = ref(false);
-const editing = ref<any>({});
-const form = reactive<any>({ name: "", icon: "", intro: "", sortOrder: 0 });
+const editing = ref<CategoryRow>({});
+const form = reactive<CategoryForm>({ name: "", icon: "", intro: "", sortOrder: 0 });
 
 onMounted(fetchCategories);
 
@@ -180,14 +190,14 @@ async function fetchCategories() {
   try {
     const { data } = await poetryAdminApi.listCategories();
     categories.value = data || [];
-  } catch (e: any) {
-    error.value = e?.response?.data?.message || e?.message || "加载分类失败";
+  } catch (e) {
+    error.value = (e as ApiError)?.response?.data?.message || (e as ApiError)?.message || "加载分类失败";
   } finally {
     loading.value = false;
   }
 }
 
-function openEdit(row?: any) {
+function openEdit(row?: CategoryRow) {
   editing.value = row || {};
   if (row) {
     Object.assign(form, {
@@ -218,8 +228,8 @@ async function saveCategory() {
     }
     dialogVisible.value = false;
     fetchCategories();
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || "保存失败");
+  } catch (e) {
+    ElMessage.error((e as ApiError)?.response?.data?.message || "保存失败");
   } finally {
     submitting.value = false;
   }
@@ -232,8 +242,8 @@ function delCategory(id: string) {
         await poetryAdminApi.deleteCategory(id);
         ElMessage.success("已删除");
         fetchCategories();
-      } catch (e: any) {
-        ElMessage.error(e?.response?.data?.message || "删除失败");
+      } catch (e) {
+        ElMessage.error((e as ApiError)?.response?.data?.message || "删除失败");
       }
     })
     .catch(() => {});

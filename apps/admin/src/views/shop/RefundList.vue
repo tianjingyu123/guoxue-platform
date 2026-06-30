@@ -282,11 +282,28 @@ import { orderApi, api } from "@/api";
 // 与本页标签完全对应，且平台侧仅 AfterSale 有「带原因拒绝退款」的真实端点
 // (PUT /shop/admin/after-sales/:id/process)。订单(Order)无平台级拒绝退款端点。
 
+/** 退款/售后申请行（字段宽松 optional） */
+interface RefundRow {
+  id?: string;
+  orderId?: string;
+  userId?: string;
+  user?: { nickname?: string };
+  type?: string;
+  amount?: number | string;
+  reason?: string;
+  status?: string;
+  logistics?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+/** 售后列表响应（解包后） */
+interface AfterSaleListResp { items?: RefundRow[]; total?: number }
+
 const loading = ref(false);
 const error = ref(false);
 const processing = ref(false);
 const activeTab = ref("PENDING");
-const list = ref<any[]>([]);
+const list = ref<RefundRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(20);
@@ -294,10 +311,10 @@ const pageSize = ref(20);
 const stats = reactive({ pending: 0, pendingAmount: 0, todayRefund: 0, totalProcessed: 0 });
 
 const approveVisible = ref(false);
-const approveTarget = ref<any>(null);
+const approveTarget = ref<RefundRow | null>(null);
 const rejectVisible = ref(false);
 const rejectReason = ref("");
-const pendingItem = ref<any>(null);
+const pendingItem = ref<RefundRow | null>(null);
 
 function fmt(v: number | string | undefined | null) {
   if (v === null || v === undefined) return "0.00";
@@ -318,8 +335,8 @@ async function fetchList() {
   try {
     const params = { page: page.value, pageSize: pageSize.value, status: activeTab.value };
     const { data } = await api.get("/shop/admin/after-sales", { params });
-    list.value = (data as any)?.items || [];
-    total.value = (data as any)?.total || 0;
+    list.value = (data as AfterSaleListResp)?.items || [];
+    total.value = (data as AfterSaleListResp)?.total || 0;
   } catch {
     list.value = [];
     total.value = 0;
@@ -332,33 +349,34 @@ async function fetchList() {
 async function fetchStats() {
   try {
     const pendingRes = await api.get("/shop/admin/after-sales", { params: { page: 1, pageSize: 100, status: "PENDING" } });
-    const pendingItems = (pendingRes.data as any)?.items || [];
-    stats.pending = (pendingRes.data as any)?.total ?? pendingItems.length;
-    stats.pendingAmount = pendingItems.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+    const pendingItems = (pendingRes.data as AfterSaleListResp)?.items || [];
+    stats.pending = (pendingRes.data as AfterSaleListResp)?.total ?? pendingItems.length;
+    stats.pendingAmount = pendingItems.reduce((s: number, r: RefundRow) => s + Number(r.amount || 0), 0);
 
     const approvedRes = await api.get("/shop/admin/after-sales", { params: { page: 1, pageSize: 100, status: "APPROVED" } });
-    const approvedItems = (approvedRes.data as any)?.items || [];
-    stats.totalProcessed = (approvedRes.data as any)?.total ?? approvedItems.length;
+    const approvedItems = (approvedRes.data as AfterSaleListResp)?.items || [];
+    stats.totalProcessed = (approvedRes.data as AfterSaleListResp)?.total ?? approvedItems.length;
 
     const todayStr = new Date().toISOString().slice(0, 10);
     stats.todayRefund = approvedItems
-      .filter((r: any) => String(r.updatedAt || r.createdAt || "").slice(0, 10) === todayStr)
-      .reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      .filter((r: RefundRow) => String(r.updatedAt || r.createdAt || "").slice(0, 10) === todayStr)
+      .reduce((s: number, r: RefundRow) => s + Number(r.amount || 0), 0);
   } catch { /* 统计失败不阻塞主流程 */ }
 }
 
-function showApproveConfirm(row: any) {
+function showApproveConfirm(row: RefundRow) {
   approveTarget.value = row;
   approveVisible.value = true;
 }
 
 async function confirmApprove() {
   if (!approveTarget.value || processing.value) return;
+  const target = approveTarget.value;
   processing.value = true;
   try {
     // 同意退款：先对订单执行真实退款（原路退回 + 冲正分佣），再将售后单标记为已通过。
-    await orderApi.refund(approveTarget.value.orderId);
-    await api.put(`/shop/admin/after-sales/${approveTarget.value.id}/process`, { action: "approve" });
+    await orderApi.refund(target.orderId ?? "");
+    await api.put(`/shop/admin/after-sales/${target.id}/process`, { action: "approve" });
     ElMessage.success("退款已同意，资金将原路退回");
     approveVisible.value = false;
     await fetchList();
@@ -368,7 +386,7 @@ async function confirmApprove() {
   } finally { processing.value = false; }
 }
 
-function showReject(row: any) {
+function showReject(row: RefundRow) {
   pendingItem.value = row;
   rejectReason.value = "";
   rejectVisible.value = true;
@@ -394,8 +412,8 @@ async function confirmReject() {
 function exportCSV() {
   const headers = ["订单号", "用户", "类型", "退款金额", "退款原因", "状态", "申请时间"];
   const rows = list.value.map((r) => [
-    r.orderId, r.user?.nickname || r.userId, typeLabel(r.type),
-    r.amount, r.reason || "-", activeTab.value, formatDate(r.createdAt),
+    r.orderId, r.user?.nickname || r.userId, typeLabel(r.type ?? ""),
+    r.amount, r.reason || "-", activeTab.value, formatDate(r.createdAt ?? ""),
   ]);
   const csv = [headers, ...rows].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
   const blob = new Blob(["﻿" + csv], { type: "text/csv" });

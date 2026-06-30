@@ -97,6 +97,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
+import type { UploadRequestOptions } from "element-plus";
 import { merchantBackendApi, uploadApi } from "@/api";
 
 const loading = ref(false);
@@ -114,23 +115,25 @@ async function fetchProfile() {
   error.value = false;
   try {
     const res = await merchantBackendApi.getProfile();
-    const data = (res as any).data ?? res;
+    type ProfileData = { shopName?: string; shopLogo?: string; shopIntro?: string };
+    const data = (res as { data?: ProfileData }).data ?? (res as ProfileData);
     form.shopName = data.shopName || "";
     form.shopLogo = data.shopLogo || "";
     form.shopIntro = data.shopIntro || "";
     logoUrl.value = form.shopLogo;
-  } catch (e: any) {
+  } catch (e) {
     error.value = true;
   } finally {
     loading.value = false;
   }
 }
 
-async function handleUpload(options: any) {
+async function handleUpload(options: UploadRequestOptions) {
   uploading.value = true;
   try {
     const res = await uploadApi.image(options.file);
-    const url = (res as any).data?.url ?? (res as any).url ?? "";
+    const ud = res as { data?: { url?: string }; url?: string };
+    const url = ud.data?.url ?? ud.url ?? "";
     form.shopLogo = url;
     logoUrl.value = url;
     ElMessage.success("上传成功");

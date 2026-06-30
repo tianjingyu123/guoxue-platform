@@ -896,14 +896,61 @@ import { merchantApi } from '@/api'
 const route = useRoute()
 const id = route.params.id as string
 
+/** 关联用户 */
+interface MerchantUser { nickname?: string; phone?: string }
+/** 商家详情（字段宽松 optional，仅覆盖模板/脚本访问字段） */
+interface MerchantInfo {
+  id?: string
+  shopName?: string
+  status?: string
+  contactName?: string
+  contactPhone?: string
+  categoryIds?: string[]
+  rating?: number
+  createdAt?: string
+  openedAt?: string
+  shopIntro?: string
+  rejectReason?: string
+  reviewedBy?: string
+  reviewedAt?: string
+  depositAmount?: number
+  commissionRate?: number
+  idCardFront?: string
+  idCardBack?: string
+  businessLicense?: string
+  brandAuth?: string
+  agreementUrl?: string
+  user?: MerchantUser
+  violations?: ViolationRow[]
+  depositRecords?: DepositRow[]
+}
+/** 经营数据统计 */
+interface MerchantStats { totalSales?: number; totalOrders?: number; violationCount?: number }
+/** 违规记录行 */
+interface ViolationRow { id: string; type?: string; title?: string; penalty?: number; status?: string; createdAt?: string }
+/** 保证金记录行 */
+interface DepositRow { type?: string; amount?: number; payMethod?: string; status?: string; remark?: string; createdAt?: string }
+/** 结算记录行 */
+interface SettlementRow {
+  id: string
+  periodStart?: string
+  periodEnd?: string
+  orderCount?: number
+  totalRevenue?: number
+  commission?: number
+  settlementAmount?: number
+  status?: string
+  paidAt?: string
+}
+
 const activeTab = ref('info')
 const loading = ref(false)
 const error = ref(false)
 const saving = ref(false)
-const merchant = ref<any>(null)
-const stats = ref<any>(null)
-const violations = ref<any[]>([])
-const deposits = ref<any[]>([])
+const merchant = ref<MerchantInfo | null>(null)
+const stats = ref<MerchantStats | null>(null)
+const violations = ref<ViolationRow[]>([])
+const deposits = ref<DepositRow[]>([])
 
 const approveDialog = ref(false)
 const rejectDialog = ref(false)
@@ -924,7 +971,7 @@ const adjustReason = ref('')
 const commissionDialog = ref(false)
 const commissionRate = ref(0.8)
 
-const settlements = ref<any[]>([])
+const settlements = ref<SettlementRow[]>([])
 const settleDialog = ref(false)
 const settleForm = ref({ periodStart: '', periodEnd: '' })
 
@@ -940,17 +987,17 @@ const STATUS_MAP: Record<string, string> = {
 const VIOLATION_TYPE: Record<string, string> = { MINOR: '轻微', MODERATE: '中等', SEVERE: '严重' }
 const DEPOSIT_TYPE: Record<string, string> = { PAYMENT: '缴纳', REFUND: '退还', DEDUCTION: '扣罚', TOPUP: '补缴' }
 
-function statusLabel(s: string) { return STATUS_MAP[s] || s }
-function statusTagType(s: string) {
+function statusLabel(s?: string) { return s ? (STATUS_MAP[s] || s) : '-' }
+function statusTagType(s?: string) {
   if (s === 'ACTIVE') return 'success'
-  if (['PENDING_REVIEW', 'DEPOSIT_PENDING', 'AGREEMENT_PENDING'].includes(s)) return 'warning'
+  if (s && ['PENDING_REVIEW', 'DEPOSIT_PENDING', 'AGREEMENT_PENDING'].includes(s)) return 'warning'
   if (s === 'REVIEW_FAILED' || s === 'CLOSED') return 'danger'
   return 'info'
 }
 function violationTypeLabel(t: string) { return VIOLATION_TYPE[t] || t }
 function violationTagType(t: string) { return t === 'SEVERE' ? 'danger' : t === 'MODERATE' ? 'warning' : 'info' }
 function depositTypeLabel(t: string) { return DEPOSIT_TYPE[t] || t }
-function formatDate(d: string) { return d ? new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-' }
+function formatDate(d?: string) { return d ? new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-' }
 
 onMounted(() => fetchDetail())
 
@@ -965,10 +1012,10 @@ async function fetchDetail() {
   error.value = false
   try {
     const res = await merchantApi.detail(id)
-    merchant.value = (res.data as any)
+    merchant.value = (res.data as MerchantInfo)
     violations.value = merchant.value?.violations || []
     deposits.value = merchant.value?.depositRecords || []
-  } catch (e: any) {
+  } catch (e) {
     error.value = true
   } finally { loading.value = false }
 }
@@ -976,7 +1023,7 @@ async function fetchDetail() {
 async function fetchStats() {
   try {
     const res = await merchantApi.stats(id)
-    stats.value = res.data as any
+    stats.value = res.data as MerchantStats
   } catch { /* ignore */ }
 }
 
@@ -992,7 +1039,7 @@ async function doApprove() {
     ElMessage.success('审核已通过')
     approveDialog.value = false
     fetchDetail()
-  } catch (e: any) { }
+  } catch (e) { }
   finally { saving.value = false }
 }
 function openReject() { rejectReason.value = ''; rejectDialog.value = true }
@@ -1004,7 +1051,7 @@ async function doReject() {
     ElMessage.success('已驳回')
     rejectDialog.value = false
     fetchDetail()
-  } catch (e: any) { }
+  } catch (e) { }
   finally { saving.value = false }
 }
 async function changeStatus(status: string) {
@@ -1026,11 +1073,12 @@ async function doCreateViolation() {
   if (!violationForm.value.title || !violationForm.value.description) { ElMessage.warning('请填写完整'); return }
   saving.value = true
   try {
+    // 保留 as any：violationForm 含 undefined 可选字段，与 api dto 结构存在差异
     await merchantApi.createViolation(id, violationForm.value as any)
     ElMessage.success('违规记录已创建')
     violationDialog.value = false
     fetchDetail()
-  } catch (e: any) { }
+  } catch (e) { }
   finally { saving.value = false }
 }
 
@@ -1041,7 +1089,7 @@ async function handleViolationAction(vid: string, status: string) {
     await merchantApi.handleViolation(id, vid, { status })
     ElMessage.success(status === 'CONFIRMED' ? '违规已确认' : '违规已驳回')
     fetchDetail()
-  } catch (e: any) { }
+  } catch (e) { }
   finally { saving.value = false }
 }
 
@@ -1049,7 +1097,7 @@ async function handleViolationAction(vid: string, status: string) {
 async function fetchSettlements() {
   try {
     const res = await merchantApi.getSettlements(id)
-    settlements.value = (res.data as any)?.list || []
+    settlements.value = (res.data as { list?: SettlementRow[] })?.list || []
   } catch { /* ignore */ }
 }
 
@@ -1067,7 +1115,7 @@ async function doGenerateSettlement() {
     ElMessage.success('结算单已生成')
     settleDialog.value = false
     fetchSettlements()
-  } catch (e: any) { }
+  } catch (e) { }
   finally { saving.value = false }
 }
 
@@ -1089,7 +1137,7 @@ async function doPaySettlement() {
     ElMessage.success('已标记为已支付')
     paySettleDialog.value = false
     fetchSettlements()
-  } catch (e: any) { }
+  } catch (e) { }
   finally { saving.value = false }
 }
 
@@ -1111,7 +1159,7 @@ async function doRefund() {
     ElMessage.success('保证金已退还')
     refundDialog.value = false
     fetchDetail()
-  } catch (e: any) { }
+  } catch (e) { }
   finally { saving.value = false }
 }
 function openAdjust() { adjustAmount.value = 0; adjustReason.value = ''; adjustDialog.value = true }
@@ -1123,7 +1171,7 @@ async function doAdjust() {
     ElMessage.success('保证金已调整')
     adjustDialog.value = false
     fetchDetail()
-  } catch (e: any) { }
+  } catch (e) { }
   finally { saving.value = false }
 }
 
@@ -1139,7 +1187,7 @@ async function doSetCommission() {
     ElMessage.success('分佣比例已更新')
     commissionDialog.value = false
     fetchDetail()
-  } catch (e: any) { }
+  } catch (e) { }
   finally { saving.value = false }
 }
 </script>

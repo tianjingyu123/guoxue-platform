@@ -3,25 +3,35 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { auditApi } from '@/api'
 
+interface OperationLogRow {
+  operatorId?: string
+  action: string
+  targetType?: string
+  targetId?: string
+  ip?: string
+  detail?: unknown
+  createdAt?: string
+}
+
 const loading = ref(false)
 const loadError = ref(false)
-const list = ref<any[]>([])
+const list = ref<OperationLogRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const detailVis = ref(false)
-const detailRow = ref<any>(null)
+const detailRow = ref<OperationLogRow | null>(null)
 const filters = reactive({ operatorId: '', action: '', keyword: '' })
 const dateRange = ref<string[]>([])
 
 onMounted(() => fetchList())
 
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true
   loadError.value = false
   try {
-    const params: any = { page: page.value, pageSize: 20 }
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 }
     if (filters.operatorId) params.operatorId = filters.operatorId
     if (filters.action) params.action = filters.action
     if (filters.keyword) params.keyword = filters.keyword
@@ -44,7 +54,7 @@ function resetFilters() {
   fetchList()
 }
 
-function viewDetail(row: any) {
+function viewDetail(row: OperationLogRow) {
   detailRow.value = row
   detailVis.value = true
 }

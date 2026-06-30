@@ -10,7 +10,7 @@ onMounted(async () => {
     const cached = localStorage.getItem('user_roles')
     const roles: string[] = cached ? JSON.parse(cached) : []
 
-    let mod: any = null
+    let mod: { default: Component } | null = null
     if (roles.includes('SUPER_ADMIN')) {
       mod = await import('@/views/dashboard/SuperAdminDashboard.vue')
     } else if (roles.includes('OPERATION_ADMIN')) {
@@ -28,8 +28,8 @@ onMounted(async () => {
     if (mod) {
       dashComp.value = mod.default
     }
-  } catch (e: any) {
-    error.value = e.message || String(e)
+  } catch (e) {
+    error.value = (e as Error)?.message || String(e)
   } finally {
     loading.value = false
   }

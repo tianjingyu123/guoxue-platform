@@ -203,7 +203,22 @@ const previewVisible = ref(false)
 const previewUrl = ref("")
 const editingId = ref<string | null>(null)
 const editingTemplateId = ref<string>("")
-const versions = ref<any[]>([])
+// 海报模板元素（可视化坐标元素）
+interface PosterElement { type: string; label: string; x: number; y: number }
+// 海报模板行：依据表格列与编辑/预览访问字段声明
+interface PosterTemplateRow {
+  id: string
+  name?: string
+  scene?: string
+  backgroundImage?: string
+  elements?: PosterElement[]
+  status?: string
+  versionCount?: number
+  updatedAt?: string
+}
+// 版本历史行
+interface PosterVersionRow { id: string; updatedAt?: string; updatedBy?: string }
+const versions = ref<PosterVersionRow[]>([])
 
 const brandConfig = reactive({
   primaryColor: "#C41E1E",
@@ -232,7 +247,7 @@ function sceneLabel(v: string): string {
 }
 
 const editForm = reactive({
-  name: "", scene: "", backgroundImage: "", elements: [] as any[], status: "DRAFT" as string,
+  name: "", scene: "", backgroundImage: "", elements: [] as PosterElement[], status: "DRAFT" as string,
 })
 
 function resetEditForm() {
@@ -248,11 +263,12 @@ const filterDefs = [
   ]},
 ]
 
-const columns: any[] = []
+const columns: unknown[] = []
 
 const { loading, tableData, pagination, filters, fetchList, handleSearch } = useTable({
   fetchApi: posterApi.listTemplates,
   defaultPageSize: 10,
+  // data 为 useTable 透传的后端原始响应（无类型来源），保留 any 作边界
   transformResponse: (data: any) => ({ items: data.list ?? data.data ?? [], total: data.total ?? 0 }),
 })
 
@@ -279,10 +295,10 @@ async function saveBrand() {
   finally { brandSaving.value = false }
 }
 
-function showEditDialog(row?: any) {
+function showEditDialog(row?: PosterTemplateRow) {
   if (row) {
     editingId.value = row.id
-    editForm.name = row.name; editForm.scene = row.scene
+    editForm.name = row.name ?? ""; editForm.scene = row.scene ?? ""
     editForm.backgroundImage = row.backgroundImage ?? ""
     editForm.elements = row.elements ? [...row.elements] : []
     editForm.status = row.status ?? "DRAFT"
@@ -309,7 +325,7 @@ async function deleteTemplate(id: string) {
   try { await posterApi.delete(id); ElMessage.success("删除成功"); fetchList() } catch { /* */ }
 }
 
-async function previewPoster(row: any) {
+async function previewPoster(row: PosterTemplateRow) {
   previewVisible.value = true; previewUrl.value = ""
   try {
     const res: any = await posterApi.preview(row.id)
@@ -317,7 +333,7 @@ async function previewPoster(row: any) {
   } catch { /* */ }
 }
 
-async function showVersions(row: any) {
+async function showVersions(row: PosterTemplateRow) {
   editingTemplateId.value = row.id
   try {
     const res: any = await posterApi.listVersions(row.id)

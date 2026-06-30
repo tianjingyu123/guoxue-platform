@@ -291,13 +291,31 @@ import { contentApi, courseApi, auditApi, contentGenerationApi } from '@/api'
 
 const AI_TAGS = ['基础知识库', '经典精华库', '玩法教程库', 'AI生成', 'AI互动'];
 
+// 审核内容行（含文章/课程，字段宽松 optional）
+interface ContentRow {
+  id: string
+  type?: string
+  tags?: string[]
+  title?: string
+  name?: string
+  categoryLevel1?: string
+  status?: string
+  content?: string
+  intro?: string
+  detail?: string
+  createdAt?: string
+  updatedAt?: string
+  author?: { nickname?: string }
+  user?: { nickname?: string }
+}
+
 const loading = ref(false)
 const error = ref(false)
 const activeTab = ref('PENDING')
-const list = ref<any[]>([])
+const list = ref<ContentRow[]>([])
 const total = ref(0)
 const page = ref(1)
-const selected = ref<any[]>([])
+const selected = ref<ContentRow[]>([])
 const filterCategory = ref('')
 const filterAiOnly = ref(false)
 const categories = ref<string[]>([])
@@ -305,12 +323,12 @@ const stats = reactive({ pending: 0, aiGenerated: 0, approvedToday: 0, rejectedT
 
 const rejectVisible = ref(false)
 const rejectReason = ref('')
-const pendingItem = ref<any>(null)
+const pendingItem = ref<ContentRow | null>(null)
 
 const drawerVisible = ref(false)
-const currentItem = ref<any>(null)
+const currentItem = ref<ContentRow | null>(null)
 
-function isAiContent(row: any): boolean {
+function isAiContent(row: ContentRow): boolean {
   const tags: string[] = row.tags || [];
   const title: string = row.title || '';
   return tags.some((t) => AI_TAGS.some((at) => t.includes(at))) ||
@@ -338,11 +356,11 @@ function typeTag(t: string) {
   const map: Record<string, string> = { ARTICLE: '', POEM: 'success', CLASSIC: 'warning', COURSE: 'danger', VIDEO: 'info', POST: '' }
   return map[t] || ''
 }
-function formatDate(d: string) {
+function formatDate(d?: string) {
   return d ? new Date(d).toLocaleString() : '-'
 }
 
-function handleSelection(rows: any[]) { selected.value = rows }
+function handleSelection(rows: ContentRow[]) { selected.value = rows }
 
 async function fetchList() {
   loading.value = true
@@ -355,9 +373,9 @@ async function fetchList() {
       activeTab.value === 'AI_GENERATED' ? Promise.resolve({ data: { courses: [], total: 0 } }) :
         courseApi.list({ page: page.value, pageSize: 10, status }).catch(() => ({ data: { courses: [], total: 0 } })),
     ])
-    let items = [
-      ...(contents.data.contents || contents.data.data || []).map((c: any) => ({ ...c, type: c.type || 'ARTICLE' })),
-      ...((courses.data?.courses || []).map((c: any) => ({ ...c, type: 'COURSE', title: c.title || c.name, content: c.intro }))),
+    let items: ContentRow[] = [
+      ...(contents.data.contents || contents.data.data || []).map((c: ContentRow) => ({ ...c, type: c.type || 'ARTICLE' })),
+      ...((courses.data?.courses || []).map((c: ContentRow) => ({ ...c, type: 'COURSE', title: c.title || c.name, content: c.intro }))),
     ];
 
     // AI生成筛选
@@ -367,21 +385,21 @@ async function fetchList() {
 
     // 品类筛选
     if (filterCategory.value) {
-      items = items.filter((c: any) => c.categoryLevel1 === filterCategory.value);
+      items = items.filter((c: ContentRow) => c.categoryLevel1 === filterCategory.value);
     }
 
     // 统计
-    stats.pending = items.filter((c: any) => c.status === 'PENDING').length;
+    stats.pending = items.filter((c: ContentRow) => c.status === 'PENDING').length;
     stats.aiGenerated = items.filter(isAiContent).length;
-    stats.approvedToday = items.filter((c: any) => {
+    stats.approvedToday = items.filter((c: ContentRow) => {
       if (c.status !== 'APPROVED' && c.status !== 'PUBLISHED') return false;
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      return new Date(c.updatedAt || c.createdAt) >= today;
+      return new Date(c.updatedAt || c.createdAt || '') >= today;
     }).length;
-    stats.rejectedToday = items.filter((c: any) => {
+    stats.rejectedToday = items.filter((c: ContentRow) => {
       if (c.status !== 'REJECTED') return false;
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      return new Date(c.updatedAt || c.createdAt) >= today;
+      return new Date(c.updatedAt || c.createdAt || '') >= today;
     }).length;
 
     list.value = items;
@@ -393,7 +411,7 @@ async function fetchList() {
   } finally { loading.value = false }
 }
 
-function approveOne(row: any) {
+function approveOne(row: ContentRow) {
   ElMessageBox.confirm('确定通过该内容？', '审核', { type: 'success' }).then(async () => {
     if (row.type === 'COURSE') {
       await courseApi.audit(row.id, 'APPROVED')
@@ -405,7 +423,7 @@ function approveOne(row: any) {
   }).catch(() => {})
 }
 
-function rejectOne(row: any) {
+function rejectOne(row: ContentRow) {
   pendingItem.value = row
   rejectReason.value = ''
   rejectVisible.value = true
@@ -446,7 +464,7 @@ function batchReject() {
   rejectVisible.value = true
 }
 
-function preview(row: any) {
+function preview(row: ContentRow) {
   currentItem.value = row
   drawerVisible.value = true
 }

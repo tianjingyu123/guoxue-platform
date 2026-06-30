@@ -246,11 +246,25 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { importApi, classicApi } from '@/api'
 
+// 接口错误结构（axios 错误响应）
+interface ApiError {
+  response?: { data?: { message?: string } }
+  message?: string
+}
+// CSV 导入结果
+interface ImportResult {
+  total?: number
+  success?: number
+  failed?: number
+  errors?: Array<{ row?: number; message?: string }>
+}
+
 const importType = ref('article')
 const file = ref<File | null>(null)
 const importing = ref(false)
-const importResult = ref<any>(null)
+const importResult = ref<ImportResult | null>(null)
 
+// uploadFile 为 Element Plus 上传文件对象，结构由框架定义，保留 any
 function onFileChange(uploadFile: any) { file.value = uploadFile.raw }
 
 async function doImport() {
@@ -260,8 +274,9 @@ async function doImport() {
     const res = await importApi.importCsv(importType.value, file.value)
     importResult.value = res.data
     ElMessage.success('导入完成')
-  } catch (e: any) {
-    ElMessage.error('导入失败: ' + (e.response?.data?.message || e.message))
+  } catch (e) {
+    const err = e as ApiError
+    ElMessage.error('导入失败: ' + (err.response?.data?.message || err.message))
   } finally { importing.value = false }
 }
 
@@ -270,8 +285,20 @@ const daizhigeMax = ref(100)
 const daizhigeCategory = ref('')
 const statsLoading = ref(false)
 const importingDaizhige = ref(false)
-const daizhigeStatsResult = ref<any>(null)
-const daizhigeResult = ref<any>(null)
+// 殆知阁统计结果
+interface DaizhigeStats {
+  total?: number
+  totalChapters?: number
+  byCategory?: Record<string, number>
+}
+// 殆知阁导入结果
+interface DaizhigeResult {
+  created?: number
+  skipped?: number
+  errors?: number
+}
+const daizhigeStatsResult = ref<DaizhigeStats | null>(null)
+const daizhigeResult = ref<DaizhigeResult | null>(null)
 
 async function daizhigeStats() {
   statsLoading.value = true
@@ -279,8 +306,9 @@ async function daizhigeStats() {
     const res = await classicApi.daizhigeStats()
     daizhigeStatsResult.value = res.data
     ElMessage.success('统计加载完成')
-  } catch (e: any) {
-    ElMessage.error('加载失败: ' + (e.response?.data?.message || e.message))
+  } catch (e) {
+    const err = e as ApiError
+    ElMessage.error('加载失败: ' + (err.response?.data?.message || err.message))
   } finally {
     statsLoading.value = false
   }
@@ -293,8 +321,9 @@ async function daizhigeImport() {
     const res = await classicApi.daizhigeImport({ max: daizhigeMax.value, category: daizhigeCategory.value || undefined })
     daizhigeResult.value = res.data
     ElMessage.success(`导入完成: 新建 ${res.data.created}, 跳过 ${res.data.skipped}`)
-  } catch (e: any) {
-    ElMessage.error('导入失败: ' + (e.response?.data?.message || e.message))
+  } catch (e) {
+    const err = e as ApiError
+    ElMessage.error('导入失败: ' + (err.response?.data?.message || err.message))
   } finally {
     importingDaizhige.value = false
   }

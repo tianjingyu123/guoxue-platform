@@ -413,29 +413,61 @@ import { sanitize } from "@/utils/sanitize";
 import { contentApi, api } from "@/api";
 import * as echarts from "echarts";
 
+// 待评估/预览内容行
+interface ContentRow {
+  id: string;
+  title?: string;
+  categoryLevel1?: string;
+  categoryLevel2?: string;
+  body: string;
+  content: string;
+  tags?: string[];
+  status?: string;
+  qualityScore?: number;
+  _score?: number;
+}
+// 反馈记录行
+interface FeedbackRow {
+  title?: string;
+  score?: number;
+  feedback?: string;
+  reviewer?: string;
+  createdAt?: string;
+}
+// 质量趋势点
+interface TrendItem { date: string; avgOverall: number; count: number }
+// 反馈来源调用日志
+interface FeedbackLog {
+  userAccepted?: boolean | null;
+  inputSummary?: string;
+  outputSummary?: string;
+  userId?: string;
+  createdAt?: string;
+}
+
 const activeTab = ref("pending");
 const loading = ref(false);
 
 const stats = reactive({ totalAiContent: 0, publishedCount: 0, draftCount: 0, acceptanceRate: 0, rejectedCount: 0 });
 // 真实质量评分统计（来自 GET /ai/quality/stats，四维 0-100 分）
 const qualityStats = reactive({ avgOverall: 0, avgAccuracy: 0, avgCompleteness: 0, avgReadability: 0, avgProfessionalism: 0, total: 0 });
-const pendingList = ref<any[]>([]);
-const feedbackList = ref<any[]>([]);
+const pendingList = ref<ContentRow[]>([]);
+const feedbackList = ref<FeedbackRow[]>([]);
 const categories = ref<string[]>([]);
 const filter = reactive({ category: "", type: "" });
 const pagination = reactive({ page: 1, total: 0 });
 
 const rateVisible = ref(false);
-const ratingTarget = ref<any>(null);
+const ratingTarget = ref<ContentRow | null>(null);
 const rateForm = reactive({ score: 3, accuracy: 3, fluency: 3, richness: 3, feedback: "" });
 
 const previewVisible = ref(false);
-const previewTarget = ref<any>(null);
+const previewTarget = ref<ContentRow | null>(null);
 
 const qualityDimRef = ref<HTMLElement | null>(null);
 const trendRef = ref<HTMLElement | null>(null);
 // 近30天质量评分时序（来自 GET /ai/quality/trend）
-const trend = reactive<{ items: Array<{ date: string; avgOverall: number; count: number }>; total: number }>({ items: [], total: 0 });
+const trend = reactive<{ items: TrendItem[]; total: number }>({ items: [], total: 0 });
 
 const AI_TAGS = ["基础知识库", "经典精华库", "玩法教程库", "AI生成", "AI互动"];
 
@@ -447,7 +479,7 @@ const avgQualityScore = computed(() => {
 
 function fmt(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
 
-function getAiTags(row: any): string[] {
+function getAiTags(row: ContentRow): string[] {
   const tags: string[] = row.tags || [];
   return tags.filter((t: string) => AI_TAGS.some((at) => t.includes(at)));
 }
@@ -468,7 +500,7 @@ async function loadQualityStats() {
 async function loadTrend() {
   try {
     const { data } = await api.get("/ai/quality/trend", { params: { days: 30 } });
-    const d = data as any;
+    const d = data as { items?: TrendItem[]; total?: number };
     trend.items = Array.isArray(d?.items) ? d.items : [];
     trend.total = d?.total || 0;
   } catch { /* ignore */ }
@@ -483,22 +515,22 @@ async function fetchPending() {
       status: "DRAFT",
       keyword: filter.category || undefined,
     });
-    const d = data as any;
-    const items = (d?.contents || d?.data || []).filter((c: any) => {
+    const d = data as { contents?: ContentRow[]; data?: ContentRow[]; total?: number };
+    const items = (d?.contents || d?.data || []).filter((c) => {
       const tags: string[] = c.tags || [];
       const isAi = tags.some((t: string) => AI_TAGS.some((at) => t.includes(at)));
       if (!isAi) return false;
       if (filter.type && !tags.some((t) => t.includes(filter.type))) return false;
       return true;
     });
-    pendingList.value = items.map((c: any) => ({ ...c, _score: c.qualityScore || 0 }));
+    pendingList.value = items.map((c) => ({ ...c, _score: c.qualityScore || 0 }));
     pagination.total = d?.total || items.length;
 
     stats.totalAiContent = items.length;
-    stats.draftCount = items.filter((c: any) => c.status === "DRAFT").length;
-    stats.publishedCount = items.filter((c: any) => c.status === "PUBLISHED" || c.status === "APPROVED").length;
-    stats.rejectedCount = items.filter((c: any) => c.status === "REJECTED").length;
-    const accepted = items.filter((c: any) => c.status === "PUBLISHED" || c.status === "APPROVED").length;
+    stats.draftCount = items.filter((c) => c.status === "DRAFT").length;
+    stats.publishedCount = items.filter((c) => c.status === "PUBLISHED" || c.status === "APPROVED").length;
+    stats.rejectedCount = items.filter((c) => c.status === "REJECTED").length;
+    const accepted = items.filter((c) => c.status === "PUBLISHED" || c.status === "APPROVED").length;
     stats.acceptanceRate = items.length > 0 ? Math.round((accepted / items.length) * 100) : 0;
   } catch { /* ignore */ } finally { loading.value = false; }
 }
@@ -508,10 +540,10 @@ async function loadFeedback() {
     const { data } = await api.get("/ai/call-logs", {
       params: { scene: "content_generation", pageSize: 50 },
     });
-    const d = data as any;
+    const d = data as { list?: FeedbackLog[]; data?: FeedbackLog[] };
     feedbackList.value = (d?.list || d?.data || [])
-      .filter((l: any) => l.userAccepted !== null)
-      .map((l: any) => ({
+      .filter((l) => l.userAccepted !== null)
+      .map((l) => ({
         title: l.inputSummary || "AI生成内容",
         score: l.userAccepted ? 4 : 2,
         feedback: l.outputSummary?.substring(0, 200) || "",
@@ -529,7 +561,7 @@ async function loadCategories() {
   } catch { /* ignore */ }
 }
 
-function approveContent(row: any) {
+function approveContent(row: ContentRow) {
   ElMessageBox.confirm(`确定采纳「${row.title}」并发布？`, "确认", { type: "success" }).then(async () => {
     await contentApi.update(row.id, { status: "APPROVED" });
     ElMessage.success("已采纳并发布");
@@ -537,7 +569,7 @@ function approveContent(row: any) {
   }).catch(() => {});
 }
 
-function rateContent(row: any) {
+function rateContent(row: ContentRow) {
   ratingTarget.value = row;
   rateForm.score = row._score || 3;
   rateForm.accuracy = 3;
@@ -562,12 +594,12 @@ function submitRating() {
   rateVisible.value = false;
 }
 
-function previewContent(row: any) {
+function previewContent(row: ContentRow) {
   previewTarget.value = row;
   previewVisible.value = true;
 }
 
-function rejectContent(row: any) {
+function rejectContent(row: ContentRow) {
   ElMessageBox.prompt("请输入驳回原因", "驳回AI内容", { type: "warning" }).then(async ({ value }) => {
     await contentApi.update(row.id, { status: "REJECTED", auditReason: value });
     ElMessage.success("已驳回");
@@ -620,7 +652,7 @@ function renderTrend() {
     }
     const chart = echarts.init(trendRef.value);
     chart.setOption({
-      tooltip: { trigger: "axis", valueFormatter: (v: any) => (v == null ? "无数据" : `${v}分`) },
+      tooltip: { trigger: "axis", valueFormatter: (v: number | null) => (v == null ? "无数据" : `${v}分`) },
       grid: { left: 45, right: 20, top: 20, bottom: 40 },
       xAxis: { type: "category", data: days, axisLabel: { interval: 4, rotate: 0 } },
       yAxis: { type: "value", min: 0, max: 100, name: "评分" },

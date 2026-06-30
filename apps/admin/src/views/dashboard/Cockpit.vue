@@ -216,7 +216,7 @@
               <span>今日退款：</span>
               <b>{{ alertData.refundStats.todayRefunds }} 笔</b>
               <span style="margin-left:8px">退款率：</span>
-              <b :style="{ color: parseFloat(alertData.refundStats.refundRate) > 10 ? '#f56c6c' : '#67c23a' }">
+              <b :style="{ color: parseFloat(alertData.refundStats.refundRate || '') > 10 ? '#f56c6c' : '#67c23a' }">
                 {{ alertData.refundStats.refundRate }}
               </b>
             </div>
@@ -381,7 +381,9 @@ const overview = ref<Overview>({
   totalUsers: 0, onlineUsers: 0, totalCommissionPaid: 0, monthCommissionPaid: 0, estimatedNetProfit: 0,
 });
 
-const kpiCards = ref<any[]>([]);
+/** 核心指标卡片 */
+interface KpiCard { label: string; value: string; color: string; sub?: string }
+const kpiCards = ref<KpiCard[]>([]);
 
 function buildKpiCards() {
   const o = overview.value;
@@ -405,7 +407,9 @@ let userGrowthChart: echarts.ECharts | null = null;
 let businessChart: echarts.ECharts | null = null;
 
 // ─── 收入构成 ───
-const revenueComposition = ref<any[]>([]);
+/** 收入构成项 */
+interface RevenueItem { label?: string; type?: string; amount?: number }
+const revenueComposition = ref<RevenueItem[]>([]);
 
 function renderRevenueChart() {
   if (!revenueChartRef.value) return;
@@ -422,13 +426,15 @@ function renderRevenueChart() {
       itemStyle: { borderRadius: 4, borderColor: "#fff", borderWidth: 2 },
       label: { show: false },
       emphasis: { label: { show: true, fontSize: 14 } },
-      data: comp.map((c: any) => ({ name: c.label || c.type, value: c.amount })),
+      data: comp.map((c) => ({ name: c.label || c.type, value: c.amount })),
     }],
   }, true);
 }
 
 // ─── 用户增长 ───
-const userGrowthTrends = ref<any[]>([]);
+/** 用户增长与获客成本趋势项 */
+interface UserGrowthItem { date: string; newUsers?: number; acquisitionCost?: number }
+const userGrowthTrends = ref<UserGrowthItem[]>([]);
 
 function renderUserGrowthChart() {
   if (!userGrowthChartRef.value) return;
@@ -438,20 +444,22 @@ function renderUserGrowthChart() {
     tooltip: { trigger: "axis" },
     legend: { data: ["新增用户", "获客成本"] },
     grid: { left: 60, right: 60, bottom: 30, top: 20 },
-    xAxis: { type: "category", data: data.map((d: any) => d.date.slice(5)), axisLabel: { rotate: 45, fontSize: 10 } },
+    xAxis: { type: "category", data: data.map((d) => d.date.slice(5)), axisLabel: { rotate: 45, fontSize: 10 } },
     yAxis: [
       { type: "value", name: "用户数" },
       { type: "value", name: "¥", axisLabel: { formatter: "¥{value}" } },
     ],
     series: [
-      { name: "新增用户", type: "bar", data: data.map((d: any) => d.newUsers), itemStyle: { color: "#409eff" } },
-      { name: "获客成本", type: "line", yAxisIndex: 1, data: data.map((d: any) => d.acquisitionCost), itemStyle: { color: "#f56c6c" } },
+      { name: "新增用户", type: "bar", data: data.map((d) => d.newUsers), itemStyle: { color: "#409eff" } },
+      { name: "获客成本", type: "line", yAxisIndex: 1, data: data.map((d) => d.acquisitionCost), itemStyle: { color: "#f56c6c" } },
     ],
   }, true);
 }
 
 // ─── 业务趋势 ───
-const businessTrends = ref<any[]>([]);
+/** 业务线收入趋势项（按业务类型动态键 + date） */
+interface BusinessTrendItem { date: string; [key: string]: number | string }
+const businessTrends = ref<BusinessTrendItem[]>([]);
 
 function renderBusinessTrendChart() {
   if (!businessTrendRef.value) return;
@@ -470,13 +478,13 @@ function renderBusinessTrendChart() {
   };
 
   const allTypes = new Set<string>();
-  data.forEach((d: any) => Object.keys(d).forEach(k => { if (k !== "date") allTypes.add(k); }));
+  data.forEach((d) => Object.keys(d).forEach(k => { if (k !== "date") allTypes.add(k); }));
 
   businessChart.setOption({
     tooltip: { trigger: "axis" },
     legend: { data: Array.from(allTypes).map(t => typeLabels[t] || t), type: "scroll", bottom: 0 },
     grid: { left: 60, right: 20, top: 10, bottom: 40 },
-    xAxis: { type: "category", data: data.map((d: any) => d.date.slice(5)), axisLabel: { fontSize: 10 } },
+    xAxis: { type: "category", data: data.map((d) => d.date.slice(5)), axisLabel: { fontSize: 10 } },
     yAxis: { type: "value", axisLabel: { formatter: "¥{value}" } },
     series: Array.from(allTypes).map(t => ({
       name: typeLabels[t] || t,
@@ -484,14 +492,22 @@ function renderBusinessTrendChart() {
       stack: "total",
       areaStyle: {},
       emphasis: { focus: "series" },
-      data: data.map((d: any) => d[t] || 0),
+      data: data.map((d) => d[t] || 0),
       itemStyle: { color: typeColors[t] || "#999" },
     })),
   }, true);
 }
 
 // ─── 预警 ───
-const alertData = ref<any>({ systemAlerts: [], riskAlerts: [], refundStats: {} });
+/** 系统告警项 */
+interface SystemAlert { type?: string; message?: string; level?: string }
+/** 风控告警项 */
+interface RiskAlert { id?: string | number; type?: string; title?: string; level?: string }
+/** 退款统计 */
+interface RefundStats { todayRefunds?: number; refundRate?: string }
+/** 预警数据聚合 */
+interface AlertData { systemAlerts?: SystemAlert[]; riskAlerts?: RiskAlert[]; refundStats?: RefundStats }
+const alertData = ref<AlertData>({ systemAlerts: [], riskAlerts: [], refundStats: {} });
 const alertSummary = ref({ hasRisk: false, count: 0 });
 
 function processAlerts() {
@@ -504,10 +520,25 @@ function processAlerts() {
 }
 
 // ─── 排行榜 ───
-const rankingData = ref<any>({});
+/** 热门课程 */
+interface CourseRank { id?: string | number; title?: string; studentCount?: number }
+/** 活跃圈子 */
+interface CircleRank { id?: string | number; name?: string; memberCount?: number }
+/** 推广达人 */
+interface PromoterRank { stationId?: string | number; name?: string; monthEarned?: number | string }
+/** 新入驻分站 */
+interface StationRank { id?: string | number; name?: string; createdAt?: string }
+/** 排行榜聚合数据 */
+interface RankingData {
+  topCourses?: CourseRank[];
+  topCircles?: CircleRank[];
+  topPromoters?: PromoterRank[];
+  topNewStations?: StationRank[];
+}
+const rankingData = ref<RankingData>({});
 
 // ─── 工具函数 ───
-function formatDate(d: string) {
+function formatDate(d?: string) {
   if (!d) return "-";
   return new Date(d).toLocaleDateString("zh-CN");
 }
@@ -529,9 +560,9 @@ async function refreshAll() {
     overview.value = ov.data as Overview;
     buildKpiCards();
 
-    revenueComposition.value = (rc.data as any)?.composition || [];
-    userGrowthTrends.value = (ug.data as any)?.trends || [];
-    businessTrends.value = (bt.data as any)?.trends || [];
+    revenueComposition.value = rc.data?.composition || [];
+    userGrowthTrends.value = ug.data?.trends || [];
+    businessTrends.value = bt.data?.trends || [];
     alertData.value = al.data || {};
     processAlerts();
     rankingData.value = rk.data || {};

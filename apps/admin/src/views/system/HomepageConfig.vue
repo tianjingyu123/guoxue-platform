@@ -400,13 +400,23 @@ const availableModuleGroups = [
   ]},
 ];
 
+// 首页模块项结构
+interface HomeModule {
+  key: string;
+  type: string;
+  enabled: boolean;
+  description?: string;
+  config?: Record<string, unknown>;
+  condition?: string;
+}
+
 const saving = ref(false);
 const showPreview = ref(false);
 const loading = ref(true);
 const loadError = ref(false);
 
 // 首页模块
-const modules = ref<any[]>([]);
+const modules = ref<HomeModule[]>([]);
 
 // 发现页
 const discoveryCategories = ref<string[]>([]);
@@ -423,10 +433,11 @@ const newTag = ref("");
 
 // 编辑
 const editDialog = ref(false);
+// 编辑态对象含动态 configJson 字段且在模板内多处裸绑定（v-if 守卫），保留 any 避免连锁报错
 const editTarget = ref<any>(null);
 const editIndex = ref(-1);
 
-const enabledModules = computed(() => modules.value.filter((m: any) => m.enabled));
+const enabledModules = computed(() => modules.value.filter((m) => m.enabled));
 
 onMounted(() => refresh());
 
@@ -439,7 +450,7 @@ async function refresh() {
     const configs = (configsData as any)?.configs || [];
 
     const findCfg = (key: string) => {
-      const c = configs.find((c: any) => c.configKey === key);
+      const c = configs.find((c: { configKey: string; configValue: string }) => c.configKey === key);
       if (c?.configValue) {
         try { return JSON.parse(c.configValue); } catch { return c.configValue; }
       }
@@ -531,7 +542,7 @@ function addModule() {
   editDialog.value = true;
 }
 
-function editModule(element: any, index: number) {
+function editModule(element: HomeModule, index: number) {
   editTarget.value = {
     ...element,
     configJson: element.config ? JSON.stringify(element.config, null, 2) : "{}",
@@ -541,7 +552,7 @@ function editModule(element: any, index: number) {
 }
 
 function confirmEdit() {
-  const item: any = {
+  const item: HomeModule = {
     key: editTarget.value.key || `${editTarget.value.type}_${Date.now()}`,
     type: editTarget.value.type,
     enabled: editTarget.value.enabled !== false,

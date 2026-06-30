@@ -500,7 +500,34 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
 import { botApi, circleApi } from "@/api";
 
-const list = ref<any[]>([]);
+/** Bot 列表行（核心标识字段必填，其余宽松 optional） */
+interface BotRow {
+  id: string;
+  name: string;
+  type: string;
+  botId: string;
+  apiKey: string;
+  isFree: boolean;
+  avatar?: string;
+  intro?: string;
+  dailyLimit?: number;
+  price?: number;
+  monthlyPrice?: number;
+  sortOrder?: number;
+}
+/** Bot 知识库条目 */
+interface BotKnowledge { id: string; title?: string; content?: string; sourceType?: string }
+/** Bot 绑定的圈子 */
+interface BotCircleBind { circle?: { name?: string }; knowledgeBaseId?: string }
+/** Bot 详情（含绑定圈子与知识库） */
+interface BotDetail extends BotRow {
+  circleBots?: BotCircleBind[];
+  knowledgeBases?: BotKnowledge[];
+}
+/** 圈子下拉项 */
+interface CircleItem { id: string; name?: string }
+
+const list = ref<BotRow[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
 const typeFilter = ref("");
@@ -526,7 +553,7 @@ const form = reactive({
 
 // ---- 详情对话框 ----
 const detailDialogVisible = ref(false);
-const detailData = ref<any>(null);
+const detailData = ref<BotDetail | null>(null);
 const knowledgeForm = reactive({ title: "", content: "", sourceType: "", sourceId: "" });
 const addingKnowledge = ref(false);
 
@@ -534,7 +561,7 @@ const addingKnowledge = ref(false);
 const bindDialogVisible = ref(false);
 const bindBotId = ref("");
 const bindForm = reactive({ circleId: "" });
-const circleList = ref<any[]>([]);
+const circleList = ref<CircleItem[]>([]);
 const binding = ref(false);
 
 onMounted(() => fetchList());
@@ -549,7 +576,7 @@ async function fetchList() {
   loading.value = true;
   loadError.value = false;
   try {
-    const params: any = {};
+    const params: Record<string, string> = {};
     if (typeFilter.value) params.type = typeFilter.value;
     const { data } = await botApi.list(params);
     list.value = Array.isArray(data) ? data : [];
@@ -582,7 +609,7 @@ function openCreate() {
   formDialogVisible.value = true;
 }
 
-function openEdit(row: any) {
+function openEdit(row: BotRow) {
   isEditing.value = true;
   editingId.value = row.id;
   form.name = row.name;
@@ -621,7 +648,7 @@ async function saveForm() {
   }
 }
 
-async function handleDelete(row: any) {
+async function handleDelete(row: BotRow) {
   await ElMessageBox.confirm(`确定删除 Bot「${row.name}」？此操作不可恢复。`, "确认", {
     type: "warning",
     confirmButtonText: "删除",
@@ -632,7 +659,7 @@ async function handleDelete(row: any) {
   fetchList();
 }
 
-async function openDetail(row: any) {
+async function openDetail(row: BotRow) {
   detailDialogVisible.value = true;
   try {
     const { data } = await botApi.detail(row.id);
@@ -678,7 +705,7 @@ async function handleDeleteKnowledge(knowledgeId: string) {
   }
 }
 
-async function openBindCircle(row: any) {
+async function openBindCircle(row: BotRow) {
   bindBotId.value = row.id;
   bindForm.circleId = "";
   try {

@@ -371,14 +371,38 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { marketingApi } from '@/api'
 
-const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1); const pages = ref<any[]>([])
+// 微页面下拉选项
+interface PageOption { id: string; name?: string }
+// 优惠券模板行：依据表格列与编辑表单访问字段声明
+interface CouponRow {
+  id: string
+  name?: string
+  type?: string
+  faceValue?: number | string
+  threshold?: number | string
+  claimedCount?: number
+  totalCount?: number
+  startTime?: string
+  endTime?: string
+  scope?: string
+  scopePageId?: string
+}
+// 发放记录行
+interface CouponRecordRow {
+  userId?: string
+  userName?: string
+  status?: string
+  createdAt?: string
+}
+
+const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<CouponRow[]>([]); const total = ref(0); const page = ref(1); const pages = ref<PageOption[]>([])
 const vis = ref(false); const editingId = ref('')
 const form = reactive({ name: '', type: 'FIXED', faceValue: 10, threshold: 100, totalCount: 0, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
 
-const grantVis = ref(false); const granting = ref(false); const grantTarget = ref<any>(null)
+const grantVis = ref(false); const granting = ref(false); const grantTarget = ref<CouponRow | null>(null)
 const grantMode = ref('single'); const grantUserId = ref(''); const grantUserIds = ref('')
 
-const recordsVis = ref(false); const records = ref<any[]>([]); const recordsLoading = ref(false)
+const recordsVis = ref(false); const records = ref<CouponRecordRow[]>([]); const recordsLoading = ref(false)
 const recordStatusMap: Record<string, string> = { USED: '已使用', UNUSED: '未使用', EXPIRED: '已过期' }
 
 function typeLabel(t: string) {
@@ -397,7 +421,7 @@ async function fetchList() {
 
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', type: 'FIXED', faceValue: 10, threshold: 100, totalCount: 0, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' }); vis.value = true }
 
-function openEdit(row: any) {
+function openEdit(row: CouponRow) {
   editingId.value = row.id
   Object.assign(form, {
     name: row.name, type: row.type,
@@ -429,12 +453,13 @@ async function save() {
 
 async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteCoupon(id); ElMessage.success('已删除'); fetchList() } catch {} }
 
-function openGrant(row: any) { grantTarget.value = row; grantMode.value = 'single'; grantUserId.value = ''; grantUserIds.value = ''; grantVis.value = true }
+function openGrant(row: CouponRow) { grantTarget.value = row; grantMode.value = 'single'; grantUserId.value = ''; grantUserIds.value = ''; grantVis.value = true }
 
 async function doGrant() {
   granting.value = true
   try {
-    const templateId = grantTarget.value.id
+    // 发放弹窗仅经 openGrant 打开，此时 grantTarget 必有值
+    const templateId = grantTarget.value!.id
     if (grantMode.value === 'single') {
       await marketingApi.grantCoupon(templateId, { userId: grantUserId.value })
     } else {
@@ -445,7 +470,7 @@ async function doGrant() {
   } catch { } finally { granting.value = false }
 }
 
-async function openRecords(row: any) {
+async function openRecords(row: CouponRow) {
   recordsVis.value = true; recordsLoading.value = true
   try { const { data } = await marketingApi.getCouponRecords(row.id); records.value = data.records || data.data || [] } catch { records.value = [] } finally { recordsLoading.value = false }
 }

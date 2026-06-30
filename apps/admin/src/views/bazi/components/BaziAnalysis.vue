@@ -105,7 +105,7 @@ const xiongShen = shenSha.filter((s: { type: string }) => s.type === 'xiong')
 
     <!-- 合冲刑害 -->
     <section
-      v-if="Object.values(fenXiTiShi).some((v: any) => v.length)"
+      v-if="Object.values(fenXiTiShi).some((v: string[]) => v.length)"
       class="analysis-section"
     >
       <h3>合冲刑害</h3>

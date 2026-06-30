@@ -4,6 +4,7 @@
  * 按分站 ID 查询推广分站的营收与运营指标
  */
 import { ref, onMounted } from "vue"
+import type { Component } from "vue"
 import { useRoute } from "vue-router"
 import { api } from "@/api"
 import * as echarts from "echarts"
@@ -19,7 +20,19 @@ const route = useRoute()
 const entityId = ref("")
 const loading = ref(false)
 const loadError = ref(false)
-const data = ref<any>(null)
+/** 分站数据看板返回结构（字段宽松 optional，仅声明实际访问字段） */
+interface StationStat {
+  stationName?: string
+  totalRevenue?: number
+  monthRevenue?: number
+  promoters?: number
+  clicks?: number
+  conversionRate?: string | number
+  orders?: number
+  commissionTotal?: number
+  revenueTimeline?: { date?: string; revenue?: number }[]
+}
+const data = ref<StationStat | null>(null)
 
 // 支持从分站管理页面跳转过来时自动查询
 onMounted(() => {
@@ -31,10 +44,11 @@ onMounted(() => {
 })
 
 // ==================== 统计卡片 ====================
-interface CardDef { label: string; value: string | number; icon: any }
+interface CardDef { label: string; value: string | number; icon: Component }
 const cards = ref<CardDef[]>([])
 
 // ==================== ECharts 选项 ====================
+// chartOption 为 ECharts option，类型为复杂联合，框架类型不匹配，保留 any
 const chartOption = ref<any>({})
 
 /** 构建营收趋势折线图 */
@@ -72,6 +86,7 @@ function buildRevenueOption(dates: string[], values: number[]) {
       trigger: "axis", backgroundColor: "#fff",
       borderColor: "#F0F0F0", borderWidth: 1,
       textStyle: { color: "#1A1A1A", fontSize: 13 },
+      // params 为 ECharts tooltip 回调参数（复杂联合类型），保留 any
       formatter: (params: any) => {
         const p = params[0]
         return `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>
@@ -154,8 +169,8 @@ async function fetchData() {
     // 优先使用 revenueTimeline 绘制折线图
     const timeline = d.revenueTimeline ?? []
     if (Array.isArray(timeline) && timeline.length > 0) {
-      const dates = timeline.map((t: any) => t.date ?? "")
-      const values = timeline.map((t: any) => t.revenue ?? 0)
+      const dates = timeline.map((t: { date?: string; revenue?: number }) => t.date ?? "")
+      const values = timeline.map((t: { date?: string; revenue?: number }) => t.revenue ?? 0)
       if (dates.length && values.length) {
         chartOption.value = buildRevenueOption(dates, values)
       }

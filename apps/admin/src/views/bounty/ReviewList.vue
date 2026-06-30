@@ -117,7 +117,17 @@ import { bountyApi } from "@/api";
 const loading = ref(false);
 const error = ref(false);
 const processingId = ref<string | null>(null);
-const list = ref<any[]>([]);
+/** 赏金审核行（字段宽松 optional） */
+interface ReviewRow {
+  id: string;
+  questionId?: string;
+  questionTitle?: string;
+  reviewerId?: string;
+  status?: string;
+  reason?: string;
+  createdAt?: string;
+}
+const list = ref<ReviewRow[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
@@ -146,7 +156,7 @@ async function fetchList() {
   }
 }
 
-async function handleApprove(row: any) {
+async function handleApprove(row: ReviewRow) {
   if (processingId.value) return;
   try {
     await ElMessageBox.confirm("确定通过此审核吗？", "确认通过", { type: "info" });
@@ -161,7 +171,7 @@ async function handleApprove(row: any) {
   }
 }
 
-async function handleReject(row: any) {
+async function handleReject(row: ReviewRow) {
   if (processingId.value) return;
   try {
     const { value } = await ElMessageBox.prompt("请输入拒绝原因", "拒绝审核", {

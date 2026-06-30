@@ -3,11 +3,22 @@ import { ref, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { systemApi } from "@/api";
 
-const jobs = ref<any[]>([]);
+interface CronJob {
+  name: string;
+  schedule?: string;
+  cron?: string;
+  status?: string;
+  lastRun?: string;
+  lastRunAt?: string;
+  nextRun?: string;
+  nextRunAt?: string;
+}
+
+const jobs = ref<CronJob[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
 const triggering = ref(false);
-const status = ref<any>({});
+const status = ref<Record<string, unknown>>({});
 
 onMounted(() => fetchStatus());
 
@@ -40,14 +51,14 @@ async function triggerJob(jobName: string) {
   }
 }
 
-function getStatusTag(s: string) {
+function getStatusTag(s?: string) {
   if (s === "running" || s === "active") return "success";
   if (s === "idle" || s === "pending") return "info";
   if (s === "error" || s === "failed") return "danger";
   return "info";
 }
 
-function formatLastRun(v: any) {
+function formatLastRun(v?: string) {
   if (!v) return "-";
   try { return new Date(v).toLocaleString(); } catch { return v; }
 }

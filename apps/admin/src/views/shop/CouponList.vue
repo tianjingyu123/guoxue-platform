@@ -334,7 +334,24 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { shopApi } from '@/api'
 import { exportCSV } from '@/utils/export'
 
-const coupons = ref<any[]>([])
+/** 优惠券行（字段宽松 optional） */
+interface CouponRow {
+  id?: string
+  name?: string
+  type?: string
+  value?: number | string
+  discountRate?: number | string
+  discountAmount?: number | string
+  minAmount?: number | string
+  scope?: string
+  totalCount?: number
+  usedCount?: number
+  status?: string
+  validStart?: string
+  validEnd?: string
+}
+
+const coupons = ref<CouponRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const loading = ref(false)
@@ -381,7 +398,7 @@ function exportData() {
     ],
     coupons.value.map((c) => ({
       ...c,
-      typeLabel: typeLabel(c.type),
+      typeLabel: typeLabel(c.type ?? ''),
       valueStr: c.type === 'DISCOUNT' ? `${(Number(c.discountRate) * 100).toFixed(0)}%折扣` : `减¥${Number(c.discountAmount || c.value).toFixed(2)}`,
       minAmount: c.minAmount ? `¥${Number(c.minAmount).toFixed(0)}` : "无门槛",
       totalCount: c.totalCount === -1 ? "不限" : c.totalCount,
@@ -411,9 +428,9 @@ function openCreate() {
   dialogVisible.value = true
 }
 
-function openEdit(row: any) {
+function openEdit(row: CouponRow) {
   resetForm()
-  editingId.value = row.id
+  editingId.value = row.id ?? ''
   Object.assign(form, {
     name: row.name || '',
     type: row.type,
@@ -457,28 +474,28 @@ async function saveCoupon() {
     }
     dialogVisible.value = false
     fetchList()
-  } catch (e: any) {
+  } catch {
   } finally { saving.value = false }
 }
 
-async function toggleStatus(row: any) {
+async function toggleStatus(row: CouponRow) {
   if (toggling.value) return
   toggling.value = true
   const newStatus = row.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE'
   try {
-    await shopApi.updateCouponStatus(row.id, newStatus)
+    await shopApi.updateCouponStatus(row.id ?? '', newStatus)
     ElMessage.success(newStatus === 'ACTIVE' ? '已启用' : '已禁用')
     fetchList()
-  } catch (e: any) {
+  } catch {
   } finally { toggling.value = false }
 }
 
-async function handleDelete(row: any) {
+async function handleDelete(row: CouponRow) {
   try {
     await ElMessageBox.confirm('确定删除此优惠券？', '提示', { type: 'warning' })
     if (deleting.value) return
     deleting.value = true
-    await shopApi.deleteCoupon(row.id)
+    await shopApi.deleteCoupon(row.id ?? '')
     ElMessage.success('已删除')
     fetchList()
   } catch { /* 取消 */ } finally { deleting.value = false }

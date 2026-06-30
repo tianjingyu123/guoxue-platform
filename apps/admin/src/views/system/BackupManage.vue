@@ -126,12 +126,20 @@ import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '@/api'
 
+interface BackupItem {
+  fileName?: string
+  filePath?: string
+  size?: number
+  status?: string
+  createdAt?: string
+}
+
 const loading = ref(false); const loadError = ref(false); const backingUp = ref(false); const uploading = ref(false)
-const list = ref<any[]>([]); const latest = ref<any>(null)
+const list = ref<BackupItem[]>([]); const latest = ref<BackupItem | null>(null)
 
 onMounted(() => { fetchList(); fetchLatest() })
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
-function formatSize(bytes: number) {
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
+function formatSize(bytes?: number) {
   if (!bytes && bytes !== 0) return '-'
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'

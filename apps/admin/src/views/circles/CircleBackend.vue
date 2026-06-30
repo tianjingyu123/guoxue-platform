@@ -261,19 +261,48 @@ import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { circleBackendApi } from "@/api";
 
+/** 圈子行（后端圈子列表项，字段宽松 optional） */
+interface CircleRow {
+  id: string;
+  name?: string;
+  type?: string;
+  status?: string;
+  createdAt?: string;
+  _count?: { members?: number };
+}
+/** 圈子概览统计 */
+interface OverviewData {
+  memberCount?: number;
+  activeMembers?: number;
+  monthNewMembers?: number;
+}
+/** 嘉宾分账行 */
+interface GuestRow {
+  userId: string;
+  user?: { nickname?: string; avatar?: string };
+  shareRate?: number;
+  totalEarned?: number;
+}
+/** 收益概览 */
+interface RevenueData {
+  totalAmount?: number;
+  totalGuestPayouts?: number;
+  ownerRevenue?: number;
+}
+
 const loading = ref(false);
 const loadError = ref(false);
 const savingRate = ref(false);
-const circleList = ref<any[]>([]);
+const circleList = ref<CircleRow[]>([]);
 const page = ref(1);
 const pageSize = 20;
 const circleTotal = ref(0);
 
-const selectedCircle = ref<any>(null);
-const overview = ref<any>({});
+const selectedCircle = ref<CircleRow | null>(null);
+const overview = ref<OverviewData>({});
 const guestLoading = ref(false);
-const guestList = ref<any[]>([]);
-const revenue = ref<any>({});
+const guestList = ref<GuestRow[]>([]);
+const revenue = ref<RevenueData>({});
 const revenuePeriod = ref("");
 
 onMounted(() => fetchCircles());
@@ -288,7 +317,7 @@ async function fetchCircles() {
   } catch { loadError.value = true; } finally { loading.value = false; }
 }
 
-async function selectCircle(row: any) {
+async function selectCircle(row: CircleRow) {
   selectedCircle.value = row;
   overview.value = {};
   guestList.value = [];

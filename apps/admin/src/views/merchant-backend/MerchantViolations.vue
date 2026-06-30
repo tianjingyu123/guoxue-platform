@@ -152,7 +152,19 @@ import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { merchantBackendApi } from "@/api";
 
-const list = ref<any[]>([]);
+/** 违规记录行（字段宽松 optional） */
+interface ViolationRow {
+  id: string;
+  violationType?: string;
+  severity?: string;
+  title?: string;
+  penalty?: string;
+  status?: string;
+  description?: string;
+  createdAt?: string;
+}
+
+const list = ref<ViolationRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
@@ -176,15 +188,16 @@ async function fetchList() {
   error.value = false;
   try {
     const res = await merchantBackendApi.listViolations({ page: page.value, pageSize: 20 });
-    const data = (res as any).data ?? res;
+    // 兼容两种响应包装：{ data: {...} } 或直接返回 data
+    const data = (res as { data?: { list?: ViolationRow[]; data?: ViolationRow[]; total?: number } }).data ?? (res as { list?: ViolationRow[]; data?: ViolationRow[]; total?: number });
     list.value = data.list || data.data || [];
     total.value = data.total || 0;
-  } catch (e: any) {
+  } catch (e) {
     error.value = true;
   } finally { loading.value = false; }
 }
 
-function openAppeal(row: any) {
+function openAppeal(row: ViolationRow) {
   appealId.value = row.id;
   appealContent.value = "";
   appealDialog.value = true;

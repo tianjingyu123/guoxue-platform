@@ -1071,6 +1071,30 @@ const router = useRouter();
 const competitionId = route.params.id as string;
 const activeTab = ref("basic");
 
+// ─── 行类型（字段宽松 optional，不复刻完整后端结构） ───
+/** 赛程行 */
+interface RoundRow {
+  id: string; title?: string; roundType?: string; sortOrder?: number;
+  startAt?: string; endAt?: string; duration?: number;
+  passCount?: number; passPercent?: number; description?: string;
+}
+/** 题目行 */
+interface QuestionRow {
+  id: string; stem?: string; type?: string; score?: number; difficulty?: number;
+  roundId?: string; sortOrder?: number; isPublished?: boolean;
+  analysis?: string; source?: string; tags?: string[]; options?: unknown; answer?: unknown;
+}
+/** 报名行 */
+interface RegistrationRow {
+  id: string; status?: string; paidFee?: number; inviterId?: string;
+  user?: { id?: string; nickname?: string; avatar?: string }; createdAt?: string;
+}
+/** 排名行 */
+interface RankingRow {
+  id: string; rank?: number; score?: number; status?: string; certificateUrl?: string;
+  user?: { nickname?: string; avatar?: string }; userId?: string; updatedAt?: string;
+}
+
 // ─── 类型标签 ───
 const typeLabels: Record<string, string> = {
   BAZI_PREDICT: "八字预测赛", LIUYAO: "六爻断卦赛", QIMEN_DUNJIA: "奇门遁甲赛",
@@ -1093,7 +1117,7 @@ const statusLabels: Record<string, { text: string; type: string }> = {
 const loading = ref(false);
 const error = ref(false);
 const statusChanging = ref(false);
-const detail = ref<any>(null);
+const detail = ref<any>(null); // 详情对象，模板大量按 detail?.type 索引标签表，保留 any
 
 function formatDate(d: string) {
   if (!d) return "-";
@@ -1127,10 +1151,10 @@ async function changeStatus(action: string) {
 }
 
 // ─── 赛程管理 ───
-const rounds = ref<any[]>([]);
+const rounds = ref<RoundRow[]>([]);
 const roundDialog = ref(false);
 const savingRound = ref(false);
-const editingRound = ref<any>(null);
+const editingRound = ref<RoundRow | null>(null);
 const roundForm = reactive({
   title: "", roundType: "PRELIMINARY", sortOrder: 0,
   startAt: "", endAt: "", duration: undefined as number | undefined,
@@ -1147,7 +1171,7 @@ async function fetchRounds() {
   }
 }
 
-function openRoundDialog(row?: any) {
+function openRoundDialog(row?: RoundRow) {
   if (row) {
     editingRound.value = row;
     Object.assign(roundForm, {
@@ -1196,7 +1220,7 @@ async function handleDeleteRound(roundId: string) {
 }
 
 // ─── 题库管理 ───
-const questions = ref<any[]>([]);
+const questions = ref<QuestionRow[]>([]);
 const questionLoading = ref(false);
 const questionTotal = ref(0);
 const questionPage = ref(1);
@@ -1204,7 +1228,7 @@ const questionPageSize = ref(50);
 const questionFilter = reactive({ roundId: "" });
 const questionDialog = ref(false);
 const savingQuestion = ref(false);
-const editingQuestion = ref<any>(null);
+const editingQuestion = ref<QuestionRow | null>(null);
 const optionsJson = ref("");
 const answerJson = ref("");
 const questionForm = reactive({
@@ -1216,7 +1240,7 @@ const questionForm = reactive({
 async function fetchQuestions() {
   questionLoading.value = true;
   try {
-    const params: any = { page: questionPage.value, pageSize: questionPageSize.value };
+    const params: Record<string, string | number> = { page: questionPage.value, pageSize: questionPageSize.value };
     if (questionFilter.roundId) params.roundId = questionFilter.roundId;
     const { data } = await competitionApi.listQuestions(competitionId, params);
     const list = data?.data || data || [];
@@ -1225,7 +1249,7 @@ async function fetchQuestions() {
   } finally { questionLoading.value = false }
 }
 
-function openQuestionDialog(row?: any) {
+function openQuestionDialog(row?: QuestionRow) {
   if (row) {
     editingQuestion.value = row;
     Object.assign(questionForm, {
@@ -1248,6 +1272,7 @@ function openQuestionDialog(row?: any) {
 }
 
 async function saveQuestion() {
+  // options/answer 为用户输入的动态 JSON，结构不定，保留 any
   let options: any = undefined;
   let answer: any = undefined;
   try {
@@ -1296,7 +1321,7 @@ async function handleDeleteQuestion(questionId: string) {
 }
 
 // ─── 报名管理 ───
-const registrations = ref<any[]>([]);
+const registrations = ref<RegistrationRow[]>([]);
 const regLoading = ref(false);
 const regTotal = ref(0);
 const regPage = ref(1);
@@ -1306,7 +1331,7 @@ const regFilter = reactive({ status: "" });
 async function fetchRegistrations() {
   regLoading.value = true;
   try {
-    const params: any = { page: regPage.value, pageSize: regPageSize.value };
+    const params: Record<string, string | number> = { page: regPage.value, pageSize: regPageSize.value };
     if (regFilter.status) params.status = regFilter.status;
     const { data } = await competitionApi.listRegistrations(competitionId, params);
     registrations.value = data.data || [];
@@ -1323,7 +1348,7 @@ async function handleRegAction(regId: string, status: string) {
 }
 
 // ─── 排名管理 ───
-const rankings = ref<any[]>([]);
+const rankings = ref<RankingRow[]>([]);
 const rankLoading = ref(false);
 const calcingRank = ref(false);
 const rankTotal = ref(0);
@@ -1334,7 +1359,7 @@ const rankFilter = reactive({ roundId: "" });
 async function fetchRankings() {
   rankLoading.value = true;
   try {
-    const params: any = { page: rankPage.value, pageSize: rankPageSize.value };
+    const params: Record<string, string | number> = { page: rankPage.value, pageSize: rankPageSize.value };
     if (rankFilter.roundId) params.roundId = rankFilter.roundId;
     const { data } = await competitionApi.getRankings(competitionId, params);
     const list = data?.data || data || [];
@@ -1391,6 +1416,7 @@ function parseCSVLine(line: string): string[] {
 async function doBatchImport() {
   batchImporting.value = true;
   try {
+    // questions/q 为用户导入的动态题目数据，字段随导入格式而定，保留 any
     let questions: any[];
     if (batchFormat.value === "json") {
       questions = JSON.parse(batchContent.value);
@@ -1418,8 +1444,8 @@ async function doBatchImport() {
     ElMessage.success(`成功导入 ${questions.length} 道题目`);
     batchDialog.value = false;
     fetchQuestions();
-  } catch (e: any) {
-    ElMessage.error(e.message || "导入失败，请检查数据格式");
+  } catch (e) {
+    ElMessage.error((e as Error)?.message || "导入失败，请检查数据格式");
   } finally {
     batchImporting.value = false;
   }
@@ -1429,7 +1455,7 @@ async function doBatchImport() {
 const certDialog = ref(false);
 const certHtml = ref("");
 
-async function viewCert(row: any) {
+async function viewCert(row: RankingRow) {
   certDialog.value = true;
   certHtml.value = "";
   try {

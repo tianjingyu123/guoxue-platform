@@ -180,7 +180,17 @@ const EVENT_OPTIONS = [
 const EVENT_MAP = Object.fromEntries(EVENT_OPTIONS.map(e => [e.value, e.label]))
 function eventLabel(v: string) { return EVENT_MAP[v] || v }
 
-const list = ref<any[]>([])
+interface WebhookRow {
+  id: string
+  event: string
+  url?: string
+  description?: string
+  isActive?: boolean
+  lastSentAt?: string
+  lastStatus?: string
+}
+
+const list = ref<WebhookRow[]>([])
 const loading = ref(false)
 const loadError = ref(false)
 const saving = ref(false)
@@ -211,7 +221,7 @@ async function doRegister() {
   finally { saving.value = false }
 }
 
-async function toggle(row: any) {
+async function toggle(row: WebhookRow) {
   if (togglingId.value) return
   togglingId.value = row.id
   try { await webhookApi.toggle(row.id, !row.isActive); ElMessage.success(row.isActive ? '已禁用' : '已启用'); fetchList() }

@@ -153,13 +153,24 @@ const pageLoading = ref(false)
 const pageError = ref(false)
 const saving = ref(false)
 
-// 落地页模板
-const pages = ref<any[]>([])
+// 落地页模板行：依据表格列与编辑/预览访问字段声明
+interface LandingPageRow {
+  id: string
+  name?: string
+  scene?: string
+  content?: string
+  status?: string
+  previewUrl?: string
+  pvCount?: number
+  downloadRate?: number
+  updatedAt?: string
+}
+const pages = ref<LandingPageRow[]>([])
 const pagePage = ref(1)
 const pagePageSize = ref(10)
 const pageTotal = ref(0)
 const pageDialogVisible = ref(false)
-const editingPage = ref<any>(null)
+const editingPage = ref<LandingPageRow | null>(null)
 const pageForm = reactive({ name: "", scene: "", content: "", status: "DRAFT" })
 
 // 预览
@@ -200,10 +211,10 @@ async function fetchPages() {
   finally { pageLoading.value = false }
 }
 
-function showPageDialog(row?: any) {
+function showPageDialog(row?: LandingPageRow) {
   if (row) {
     editingPage.value = row
-    pageForm.name = row.name; pageForm.scene = row.scene
+    pageForm.name = row.name ?? ""; pageForm.scene = row.scene ?? ""
     pageForm.content = row.content ?? ""; pageForm.status = row.status ?? "DRAFT"
   } else {
     editingPage.value = null
@@ -227,7 +238,7 @@ async function deletePage(id: string) {
   try { await marketingApi.deletePage(id); ElMessage.success("已删除"); fetchPages() } catch { /* */ }
 }
 
-function previewPage(row: any) {
+function previewPage(row: LandingPageRow) {
   previewSrc.value = row.previewUrl ?? row.content ?? ""
   previewVisible.value = true
 }

@@ -159,7 +159,15 @@ import { systemApi } from "@/api";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
 
-const configs = ref<any[]>([]);
+// 系统配置行（依据列表列/编辑表单实际访问字段声明）
+interface SysConfig {
+  configKey: string;
+  configValue: string;
+  description?: string;
+  updatedAt?: string;
+}
+
+const configs = ref<SysConfig[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
 const dialogVisible = ref(false);
@@ -200,7 +208,7 @@ function openAdd() {
   dialogVisible.value = true;
 }
 
-function openEdit(row: any) {
+function openEdit(row: SysConfig) {
   isEdit.value = true;
   form.value = {
     configKey: row.configKey,
@@ -226,7 +234,7 @@ async function save() {
   }
 }
 
-async function remove(row: any) {
+async function remove(row: SysConfig) {
   try {
     await ElMessageBox.confirm(`确定删除配置 "${row.configKey}"？`, "确认删除", {
       type: "warning",

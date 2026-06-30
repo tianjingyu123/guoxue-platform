@@ -152,7 +152,17 @@ const recordPage = ref(1)
 const recordPageSize = ref(10)
 const recordTotal = ref(0)
 const recordError = ref(false)
-const records = ref<any[]>([])
+// 邀请记录行（含 map 派生的展示名）
+interface InviteRecordRow {
+  inviterName?: string
+  inviteeName?: string
+  inviterRewardDesc?: string
+  inviteeRewardDesc?: string
+  status?: string
+  createdAt?: string
+  [k: string]: unknown
+}
+const records = ref<InviteRecordRow[]>([])
 
 const config = reactive({
   inviterReward: { memberDays: 7, coins: 100, couponId: "" as string },
@@ -162,7 +172,7 @@ const config = reactive({
   totalLimit: 1000,
 })
 
-const couponOptions = ref<any[]>([])
+const couponOptions = ref<{ id: string; name?: string }[]>([])
 const inviteStats = ref([
   { label: "总邀请人数", value: 0 },
   { label: "成功转化", value: 0 },
@@ -211,7 +221,7 @@ async function fetchRecords() {
       userId: recordSearch.value || undefined,
     })
     const d = res?.data ?? res
-    records.value = (d.list ?? d.data ?? []).map((r: any) => ({
+    records.value = (d.list ?? d.data ?? []).map((r: { inviter?: { nickname?: string }; invitee?: { nickname?: string }; [k: string]: unknown }) => ({
       ...r,
       inviterName: r.inviter?.nickname ?? '未知',
       inviteeName: r.invitee?.nickname ?? '未知',

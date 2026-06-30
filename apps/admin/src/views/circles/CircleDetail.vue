@@ -2068,8 +2068,81 @@ const memberRoles = [
 ];
 const memberRoleLabel = (r: string) => memberRoles.find(x => x.value === r)?.label || r;
 
-const detail = ref<any>(null);
-const dashData = ref<any>({});
+// ─── 本地行/详情类型（字段宽松 optional，仅声明模板/脚本实际访问的字段）───
+/** 圈子详情 */
+interface CircleDetailData {
+  id?: string; name?: string; type?: string; status?: string;
+  price?: number; depositAmount?: number; intro?: string; cover?: string;
+  ownerId?: string; owner?: { nickname?: string }; tags?: string[];
+  categoryLevel1?: string; categoryLevel2?: string; stationId?: string; createdAt?: string;
+  memberCount?: number; postCount?: number; articleCount?: number; courseCount?: number;
+  allowForward?: boolean;
+}
+/** 仪表盘聚合统计 */
+interface DashData {
+  articleCount?: number; courseCount?: number; totalRevenue?: number; questionCount?: number;
+  liveCount?: number; recentMembers?: number; churnCount?: number;
+  pendingQuestions?: number; knowledgeCandidates?: number;
+}
+/** 成员行 */
+interface MemberRow {
+  userId: string; user?: { nickname?: string }; role?: string; expireAt?: string;
+  questionPriceCoin?: number; callPricePerMinuteCoin?: number; joinedAt?: string;
+}
+/** 帖子行 */
+interface PostRow {
+  id: string; title?: string; content?: string; user?: { nickname?: string };
+  type?: string; status?: string; isEssence?: boolean; isTop?: boolean;
+  likeCount?: number; commentCount?: number; createdAt?: string;
+}
+/** 文章行 */
+interface ArticleRow {
+  id: string; title?: string; user?: { nickname?: string }; auditStatus?: string;
+  isPushHome?: boolean; viewCount?: number; likeCount?: number; createdAt?: string;
+}
+/** 课程行 */
+interface CourseRow {
+  id: string; title?: string; type?: string; price?: number;
+  studentCount?: number; auditStatus?: string; createdAt?: string;
+}
+/** 付费问答行 */
+interface QuestionRow {
+  id: string; questionTitle?: string; question?: string; asker?: { nickname?: string };
+  askerId?: string; answerer?: { nickname?: string }; priceCoin?: number;
+  peekPriceCoin?: number; peekCount?: number; status?: string; createdAt?: string;
+}
+/** 直播行 */
+interface LiveRow {
+  id: string; title?: string; host?: { nickname?: string }; liveType?: string;
+  status?: string; viewCount?: number; createdAt?: string;
+}
+/** 达人行 */
+interface ExpertRow {
+  userId: string; user?: { nickname?: string }; role?: string;
+  questionPriceCoin?: number; questionTimeoutHours?: number;
+  callPricePerMinuteCoin?: number; callAvailableHours?: unknown[];
+}
+/** 收益行 */
+interface RevenueRow {
+  type?: string; sourceId?: string; amount?: number; platformFee?: number;
+  ownerShare?: number; splitRate?: number; settled?: boolean; createdAt?: string;
+}
+/** 知识库行 */
+interface KnowledgeRow {
+  id: string; title?: string; content?: string; sourceType?: string;
+  qualityScore?: number; similarityScore?: number; createdAt?: string;
+}
+/** 排行榜成员行 */
+interface LeaderboardRow { userId?: string; nickname?: string; postCount?: number; contributionScore?: number; }
+/** 热门内容行 */
+interface HotContentRow { id?: string; title?: string; likeCount?: number; commentCount?: number; hotScore?: number; }
+/** 成员分组 */
+interface MemberGroup { id: string; name?: string; color?: string; _count?: { members?: number }; }
+/** 分组目标用户 */
+interface GroupTargetUser { id?: string; userId?: string; nickname?: string; }
+
+const detail = ref<CircleDetailData | null>(null);
+const dashData = ref<DashData>({});
 const activeTab = ref("overview");
 
 const typeTagType = computed(() => detail.value?.type === "FREE" ? "success" : detail.value?.type === "YEARLY" ? "" : "warning");
@@ -2078,42 +2151,42 @@ const statusTagType = computed(() => detail.value?.status === "ACTIVE" ? "succes
 const statusLabel = computed(() => detail.value?.status === "ACTIVE" ? "正常" : detail.value?.status === "DISABLED" ? "已封禁" : detail.value?.status === "PENDING" ? "待审核" : detail.value?.status);
 
 // 成员
-const members = ref<any[]>([]); const memberLoading = ref(false); const memberPage = ref(1); const memberTotal = ref(0);
+const members = ref<MemberRow[]>([]); const memberLoading = ref(false); const memberPage = ref(1); const memberTotal = ref(0);
 const memberSearch = ref(""); const memberRoleFilter = ref(""); const memberExpireFilter = ref("");
 
 // 帖子
-const posts = ref<any[]>([]); const postLoading = ref(false); const postPage = ref(1); const postTotal = ref(0);
+const posts = ref<PostRow[]>([]); const postLoading = ref(false); const postPage = ref(1); const postTotal = ref(0);
 const postFilter = ref(""); const postKeyword = ref("");
 
 // 文章
-const articles = ref<any[]>([]); const articleLoading = ref(false); const articlePage = ref(1); const articleTotal = ref(0);
+const articles = ref<ArticleRow[]>([]); const articleLoading = ref(false); const articlePage = ref(1); const articleTotal = ref(0);
 const articleAuditFilter = ref("");
 
 // 课程
-const courses = ref<any[]>([]); const courseLoading = ref(false); const coursePage = ref(1); const courseTotal = ref(0);
+const courses = ref<CourseRow[]>([]); const courseLoading = ref(false); const coursePage = ref(1); const courseTotal = ref(0);
 const courseTypeFilter = ref(""); const courseAuditFilter = ref("");
 
 // 问答
-const questions = ref<any[]>([]); const questionLoading = ref(false); const questionPage = ref(1); const questionTotal = ref(0);
+const questions = ref<QuestionRow[]>([]); const questionLoading = ref(false); const questionPage = ref(1); const questionTotal = ref(0);
 const questionFilter = ref("");
 
 // 直播
-const lives = ref<any[]>([]); const liveLoading = ref(false); const livePage = ref(1); const liveTotal = ref(0);
+const lives = ref<LiveRow[]>([]); const liveLoading = ref(false); const livePage = ref(1); const liveTotal = ref(0);
 const liveStatusFilter = ref("");
 
 // 达人
-const experts = ref<any[]>([]); const expertLoading = ref(false);
+const experts = ref<ExpertRow[]>([]); const expertLoading = ref(false);
 
 // 收益
-const revenues = ref<any[]>([]); const revenueLoading = ref(false); const revenuePage = ref(1); const revenueTotal = ref(0);
+const revenues = ref<RevenueRow[]>([]); const revenueLoading = ref(false); const revenuePage = ref(1); const revenueTotal = ref(0);
 const revenueTypeFilter = ref("");
 
 // 知识库
-const knowledgeItems = ref<any[]>([]); const knowledgeCandidates = ref<any[]>([]); const knowledgeLoading = ref(false);
+const knowledgeItems = ref<KnowledgeRow[]>([]); const knowledgeCandidates = ref<KnowledgeRow[]>([]); const knowledgeLoading = ref(false);
 const knowledgeSubTab = ref("indexed");
 
 // 排行
-const leaderboard = ref<any[]>([]); const hotContent = ref<any[]>([]);
+const leaderboard = ref<LeaderboardRow[]>([]); const hotContent = ref<HotContentRow[]>([]);
 
 // 设置
 const saving = ref(false);
@@ -2124,7 +2197,7 @@ const editVisible = ref(false);
 const editForm = reactive({ name: "", cover: "", intro: "", type: "FREE", price: 0, depositAmount: 0 });
 
 // 分组
-const groupVisible = ref(false); const groupTargetUser = ref<any>(null); const groupSelected = ref<string[]>([]); const memberGroups = ref<any[]>([]);
+const groupVisible = ref(false); const groupTargetUser = ref<GroupTargetUser | null>(null); const groupSelected = ref<string[]>([]); const memberGroups = ref<MemberGroup[]>([]);
 
 // 添加成员
 const addMemberVisible = ref(false);
@@ -2144,7 +2217,7 @@ const rankingError = ref(false);
 // 通用行级写操作防重复
 const acting = ref(false);
 
-function fmtDate(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
+function fmtDate(d?: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
 function postTypeColor(t: string) { return { TEXT: "", IMAGE: "success", VIDEO: "danger", FILE: "warning", LINK: "info" }[t] || ""; }
 function postTypeLabel(t: string) { return { TEXT: "图文", IMAGE: "图片", VIDEO: "视频", FILE: "文件", LINK: "链接" }[t] || t; }
 function questionStatusColor(s: string) { return { PENDING: "warning", ANSWERED: "success", REJECTED: "danger", REFUNDED: "info", EXPIRED: "info", CLOSED: "" }[s] || ""; }
@@ -2156,14 +2229,15 @@ onMounted(() => { refreshDetail(); fetchOverview(); });
 async function refreshDetail() {
   try {
     const { data } = await circleApi.detail(circleId);
-    detail.value = data as any;
+    detail.value = data;
+    // data 即 axios 响应原始负载（无类型来源），直接引用以避免 ref.value 的 null 收窄问题，运行时与 detail.value 等价
     Object.assign(settingsForm, {
-      name: detail.value.name || "", cover: detail.value.cover || "", intro: detail.value.intro || "",
-      type: detail.value.type || "FREE", price: Number(detail.value.price) || 0,
-      depositAmount: Number(detail.value.depositAmount) || 0,
-      categoryLevel1: detail.value.categoryLevel1 || "", categoryLevel2: detail.value.categoryLevel2 || "",
-      tagsStr: (detail.value.tags || []).join(","), announcement: "",
-      allowForward: detail.value.allowForward !== false,
+      name: data.name || "", cover: data.cover || "", intro: data.intro || "",
+      type: data.type || "FREE", price: Number(data.price) || 0,
+      depositAmount: Number(data.depositAmount) || 0,
+      categoryLevel1: data.categoryLevel1 || "", categoryLevel2: data.categoryLevel2 || "",
+      tagsStr: (data.tags || []).join(","), announcement: "",
+      allowForward: data.allowForward !== false,
     });
   } catch { /* ignore */ }
 }
@@ -2192,13 +2266,13 @@ async function fetchMembers() {
     const { data } = await circleApi.detail(circleId);
     // 通过members端点获取
     const res = await api.get(`/circles/${circleId}/members`, { params: { page: memberPage.value, pageSize: 20 } });
-    const d = res.data as any;
+    const d = res.data;
     members.value = d?.members || d?.data || [];
     memberTotal.value = d?.total || 0;
   } catch { members.value = []; memberError.value = true; } finally { memberLoading.value = false; }
 }
 
-async function changeRole(row: any, role: string) {
+async function changeRole(row: MemberRow, role: string) {
   if (row.role === "OWNER" && role !== "OWNER") return ElMessage.warning("不能降级圈主");
   if (acting.value) return; acting.value = true;
   try {
@@ -2207,19 +2281,19 @@ async function changeRole(row: any, role: string) {
   } catch { /* ignore */ } finally { acting.value = false; }
 }
 
-async function removeMember(row: any) {
+async function removeMember(row: MemberRow) {
   await ElMessageBox.confirm("确定移除该成员？", "确认", { type: "warning" });
   if (acting.value) return; acting.value = true;
   try { await circleApi.removeMember(circleId, row.userId); ElMessage.success("已移除"); fetchMembers(); } catch { /* ignore */ } finally { acting.value = false; }
 }
 
-async function showMemberGroups(row: any) {
+async function showMemberGroups(row: MemberRow) {
   groupTargetUser.value = row.user || row;
   try {
     const res = await api.get(`/circles/${circleId}/member-groups`);
-    memberGroups.value = (res.data as any)?.data || res.data || [];
+    memberGroups.value = res.data?.data || res.data || [];
     const memberRes = await api.get(`/circles/${circleId}/member-groups/user/${row.userId}`);
-    groupSelected.value = ((memberRes.data as any)?.groups || []).map((g: any) => g.id);
+    groupSelected.value = (memberRes.data?.groups || []).map((g: { id: string }) => g.id);
   } catch { memberGroups.value = []; }
   groupVisible.value = true;
 }
@@ -2245,22 +2319,22 @@ async function addMember() {
 async function fetchPosts() {
   postLoading.value = true; postError.value = false;
   try {
-    const params: any = { page: postPage.value, pageSize: 20 };
+    const params: Record<string, string | number> = { page: postPage.value, pageSize: 20 };
     if (postFilter.value === "essence") params.isEssence = "true";
     if (postFilter.value === "top") params.isEssence = "top";
     const { data } = await circleApi.getPosts(circleId, params);
-    const d = data as any; posts.value = d?.posts || d?.data || []; postTotal.value = d?.total || 0;
+    const d = data; posts.value = d?.posts || d?.data || []; postTotal.value = d?.total || 0;
   } catch { posts.value = []; postError.value = true; } finally { postLoading.value = false; }
 }
-async function toggleEssence(row: any) {
+async function toggleEssence(row: PostRow) {
   if (acting.value) return; acting.value = true;
   try { await circleApi.toggleEssence(circleId, row.id); row.isEssence = !row.isEssence; ElMessage.success(row.isEssence ? "已设为精华" : "已取消精华"); } catch { /* ignore */ } finally { acting.value = false; }
 }
-async function toggleTop(row: any) {
+async function toggleTop(row: PostRow) {
   if (acting.value) return; acting.value = true;
   try { await circleApi.toggleTop(circleId, row.id); row.isTop = !row.isTop; ElMessage.success(row.isTop ? "已设为置顶" : "已取消置顶"); } catch { /* ignore */ } finally { acting.value = false; }
 }
-async function deletePost(row: any) {
+async function deletePost(row: PostRow) {
   await ElMessageBox.confirm("确定删除该帖子？", "确认", { type: "warning" });
   if (acting.value) return; acting.value = true;
   try { await circleApi.deletePost(circleId, row.id); ElMessage.success("已删除"); fetchPosts(); } catch { /* ignore */ } finally { acting.value = false; }
@@ -2270,17 +2344,17 @@ async function deletePost(row: any) {
 async function fetchArticles() {
   articleLoading.value = true; articleError.value = false;
   try {
-    const params: any = { page: articlePage.value, pageSize: 20, circleId };
+    const params: Record<string, string | number> = { page: articlePage.value, pageSize: 20, circleId };
     if (articleAuditFilter.value) params.status = articleAuditFilter.value;
     const { data } = await articleApi.list(params);
-    const d = data as any; articles.value = d?.articles || d?.data || []; articleTotal.value = d?.total || 0;
+    const d = data; articles.value = d?.articles || d?.data || []; articleTotal.value = d?.total || 0;
   } catch { articles.value = []; articleError.value = true; } finally { articleLoading.value = false; }
 }
-async function auditArticle(row: any, status: string) {
+async function auditArticle(row: ArticleRow, status: string) {
   if (acting.value) return; acting.value = true;
   try { await articleApi.audit(row.id, status); row.auditStatus = status; ElMessage.success(status === "APPROVED" ? "已通过" : "已拒绝"); } catch { /* ignore */ } finally { acting.value = false; }
 }
-async function deleteArticle(row: any) {
+async function deleteArticle(row: ArticleRow) {
   await ElMessageBox.confirm("确定删除该文章？", "确认", { type: "warning" });
   if (acting.value) return; acting.value = true;
   try { await articleApi.remove(row.id); ElMessage.success("已删除"); fetchArticles(); } catch { /* ignore */ } finally { acting.value = false; }
@@ -2291,10 +2365,10 @@ async function fetchCourses() {
   courseLoading.value = true; courseError.value = false;
   try {
     const res = await api.get("/courses", { params: { page: coursePage.value, pageSize: 20, circleId } });
-    const d = res.data as any; courses.value = d?.courses || d?.data || []; courseTotal.value = d?.total || 0;
+    const d = res.data; courses.value = d?.courses || d?.data || []; courseTotal.value = d?.total || 0;
   } catch { courses.value = []; courseError.value = true; } finally { courseLoading.value = false; }
 }
-async function deleteCourse(row: any) {
+async function deleteCourse(row: CourseRow) {
   await ElMessageBox.confirm("确定删除该课程？", "确认", { type: "warning" });
   if (acting.value) return; acting.value = true;
   try { await api.delete(`/courses/${row.id}`); ElMessage.success("已删除"); fetchCourses(); } catch { /* ignore */ } finally { acting.value = false; }
@@ -2304,14 +2378,14 @@ async function deleteCourse(row: any) {
 async function fetchQuestions() {
   questionLoading.value = true; questionError.value = false;
   try {
-    const params: any = { page: questionPage.value, pageSize: 20, circleId };
+    const params: Record<string, string | number> = { page: questionPage.value, pageSize: 20, circleId };
     if (questionFilter.value) params.status = questionFilter.value;
     const res = await api.get("/question", { params });
-    const d = res.data as any; questions.value = d?.questions || d?.data || []; questionTotal.value = d?.total || 0;
+    const d = res.data; questions.value = d?.questions || d?.data || []; questionTotal.value = d?.total || 0;
   } catch { questions.value = []; questionError.value = true; } finally { questionLoading.value = false; }
 }
 // 单条退款：调用 POST /question/:id/refund（仅 PENDING 可退，退还提问者灵石并流转 REFUNDED）
-async function refundQuestion(row: any) {
+async function refundQuestion(row: QuestionRow) {
   try {
     await ElMessageBox.confirm(
       `确定为该提问退款 ${row.priceCoin} 币给提问者「${row.asker?.nickname || row.askerId}」？退款后状态变为「已退款」。`,
@@ -2338,13 +2412,13 @@ async function refundQuestion(row: any) {
 async function fetchLives() {
   liveLoading.value = true; liveError.value = false;
   try {
-    const params: any = { page: livePage.value, pageSize: 20, circleId };
+    const params: Record<string, string | number> = { page: livePage.value, pageSize: 20, circleId };
     if (liveStatusFilter.value) params.status = liveStatusFilter.value;
     const res = await api.get("/live/rooms", { params });
-    const d = res.data as any; lives.value = d?.lives || d?.data || []; liveTotal.value = d?.total || 0;
+    const d = res.data; lives.value = d?.lives || d?.data || []; liveTotal.value = d?.total || 0;
   } catch { lives.value = []; liveError.value = true; } finally { liveLoading.value = false; }
 }
-async function deleteLive(row: any) {
+async function deleteLive(row: LiveRow) {
   await ElMessageBox.confirm("确定删除该直播？", "确认", { type: "warning" });
   if (acting.value) return; acting.value = true;
   try { await api.delete(`/live/rooms/${row.id}`); ElMessage.success("已删除"); fetchLives(); } catch { /* ignore */ } finally { acting.value = false; }
@@ -2355,12 +2429,13 @@ async function fetchExperts() {
   expertLoading.value = true; expertError.value = false;
   try {
     const { data } = await circleApi.listExperts(circleId);
-    experts.value = (data as any)?.experts || (data as any)?.data || [];
+    experts.value = data?.experts || data?.data || [];
   } catch { experts.value = []; expertError.value = true; } finally { expertLoading.value = false; }
 }
-async function updateExpertPrice(row: any, field: string, value: number) {
+async function updateExpertPrice(row: ExpertRow, field: string, value: number) {
   if (acting.value) return; acting.value = true;
   try {
+    // setExpertConfig 类型未声明 questionTimeoutHours，as any 绕过超集字段校验
     await circleApi.setExpertConfig(circleId, {
       userId: row.userId,
       questionPriceCoin: field === "question" ? value : row.questionPriceCoin,
@@ -2374,10 +2449,10 @@ async function updateExpertPrice(row: any, field: string, value: number) {
 async function fetchRevenue() {
   revenueLoading.value = true; revenueError.value = false;
   try {
-    const params: any = { page: revenuePage.value, pageSize: 20, circleId };
+    const params: Record<string, string | number> = { page: revenuePage.value, pageSize: 20, circleId };
     if (revenueTypeFilter.value) params.type = revenueTypeFilter.value;
     const res = await api.get(`/commission/circle-revenue/${circleId}/records`, { params });
-    const d = res.data as any; revenues.value = d?.records || d?.data || []; revenueTotal.value = d?.total || 0;
+    const d = res.data; revenues.value = d?.records || d?.data || []; revenueTotal.value = d?.total || 0;
   } catch { revenues.value = []; revenueError.value = true; } finally { revenueLoading.value = false; }
 }
 
@@ -2389,8 +2464,8 @@ async function fetchKnowledge() {
       api.get(`/circles/${circleId}/knowledge`),
       api.get(`/circles/${circleId}/knowledge/candidates`),
     ]);
-    knowledgeItems.value = (itemsRes.data as any)?.items || (itemsRes.data as any)?.data || [];
-    knowledgeCandidates.value = (candRes.data as any)?.candidates || (candRes.data as any)?.data || [];
+    knowledgeItems.value = itemsRes.data?.items || itemsRes.data?.data || [];
+    knowledgeCandidates.value = candRes.data?.candidates || candRes.data?.data || [];
   } catch { knowledgeItems.value = []; knowledgeCandidates.value = []; knowledgeError.value = true; } finally { knowledgeLoading.value = false; }
 }
 async function fetchKnowledgeCandidates() { fetchKnowledge(); }
@@ -2398,11 +2473,11 @@ async function syncCircleKnowledge() {
   if (acting.value) return; acting.value = true;
   try { await knowledgeApi.syncCircle(circleId); ElMessage.success("同步已触发，稍后查看结果"); } catch { /* ignore */ } finally { acting.value = false; }
 }
-async function confirmKnowledge(row: any) {
+async function confirmKnowledge(row: KnowledgeRow) {
   if (acting.value) return; acting.value = true;
   try { await knowledgeApi.confirmCandidate(row.id); ElMessage.success("已入库"); fetchKnowledge(); } catch { /* ignore */ } finally { acting.value = false; }
 }
-async function rejectKnowledge(row: any) {
+async function rejectKnowledge(row: KnowledgeRow) {
   if (acting.value) return; acting.value = true;
   try { await knowledgeApi.rejectCandidate(row.id); ElMessage.success("已拒绝"); fetchKnowledge(); } catch { /* ignore */ } finally { acting.value = false; }
 }
@@ -2415,8 +2490,8 @@ async function fetchRanking() {
       circleApi.getLeaderboard(circleId, { page: 1, pageSize: 20 }),
       circleApi.getHotContent(circleId, 10),
     ]);
-    leaderboard.value = (lbRes.data as any)?.items || (lbRes.data as any)?.data || [];
-    hotContent.value = (hotRes.data as any)?.data || [];
+    leaderboard.value = lbRes.data?.items || lbRes.data?.data || [];
+    hotContent.value = hotRes.data?.data || [];
   } catch { leaderboard.value = []; hotContent.value = []; rankingError.value = true; }
 }
 
@@ -2426,7 +2501,7 @@ function getAdminUserId(): string {
   return auth.user?.id || ''
 }
 
-async function addPostToKnowledge(row: any) {
+async function addPostToKnowledge(row: PostRow) {
   if (acting.value) return; acting.value = true;
   try {
     await knowledgeApi.addToKnowledge({
@@ -2439,7 +2514,7 @@ async function addPostToKnowledge(row: any) {
   } catch { ElMessage.error('添加失败') } finally { acting.value = false; }
 }
 
-async function addArticleToKnowledge(row: any) {
+async function addArticleToKnowledge(row: ArticleRow) {
   if (acting.value) return; acting.value = true;
   try {
     await knowledgeApi.addToKnowledge({
@@ -2452,7 +2527,7 @@ async function addArticleToKnowledge(row: any) {
   } catch { ElMessage.error('添加失败') } finally { acting.value = false; }
 }
 
-async function addCourseToKnowledge(row: any) {
+async function addCourseToKnowledge(row: CourseRow) {
   if (acting.value) return; acting.value = true;
   try {
     await knowledgeApi.addToKnowledge({
@@ -2504,11 +2579,11 @@ async function saveEdit() {
 async function disableCircle() {
   await ElMessageBox.confirm("确定封禁该圈子？封禁后用户无法访问", "确认", { type: "warning" });
   if (acting.value) return; acting.value = true;
-  try { await circleApi.update(circleId, { status: "DISABLED" } as any); ElMessage.success("已封禁"); refreshDetail(); } catch { /* ignore */ } finally { acting.value = false; }
+  try { await circleApi.update(circleId, { status: "DISABLED" }); ElMessage.success("已封禁"); refreshDetail(); } catch { /* ignore */ } finally { acting.value = false; }
 }
 async function enableCircle() {
   if (acting.value) return; acting.value = true;
-  try { await circleApi.update(circleId, { status: "ACTIVE" } as any); ElMessage.success("已解封"); refreshDetail(); } catch { /* ignore */ } finally { acting.value = false; }
+  try { await circleApi.update(circleId, { status: "ACTIVE" }); ElMessage.success("已解封"); refreshDetail(); } catch { /* ignore */ } finally { acting.value = false; }
 }
 </script>
 

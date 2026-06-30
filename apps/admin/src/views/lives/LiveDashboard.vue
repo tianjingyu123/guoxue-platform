@@ -301,6 +301,24 @@ import { ElMessage } from "element-plus";
 import { liveDashboardApi } from "@/api";
 import * as echarts from "echarts";
 
+/** 概览指标（宽松 optional） */
+interface LiveOverview {
+  liveStatus?: string; onlineCount?: number; totalViews?: number;
+  newFans?: number; giftAmount?: number; gmv?: number; orderCount?: number;
+}
+/** 实时趋势点 */
+interface TrendPoint { minute?: string; online?: number; gmv?: number; comments?: number; likes?: number }
+/** 商品转化行 */
+interface ProductRow { name?: string; price?: number; clicks?: number; orders?: number; revenue?: number }
+/** 打赏排行项 */
+interface GiftRankItem { userId?: string; userName?: string; nickname?: string; totalCoin?: number }
+/** 观众画像 */
+interface AudienceData { gender?: string; age?: string; region?: string; interests?: string }
+/** 主播表现 */
+interface HostStats { totalDuration?: string; productCount?: number; coverage?: string; avgStayDuration?: string }
+/** 对比单元格 */
+interface CompareCell { current?: string | number; previous?: string | number; diff?: string | number }
+
 const route = useRoute();
 const roomId = computed(() => route.params.id as string);
 
@@ -308,7 +326,7 @@ const loading = ref(false);
 const activeTab = ref("trends");
 
 // 概览
-const overview = ref<Record<string, any>>({});
+const overview = ref<LiveOverview>({});
 
 const kpiCards = computed(() => {
   const o = overview.value;
@@ -325,7 +343,7 @@ const kpiCards = computed(() => {
 // 趋势图
 const trendsChartRef = ref<HTMLDivElement>();
 let trendsChart: echarts.ECharts | null = null;
-const trendsData = ref<any[]>([]);
+const trendsData = ref<TrendPoint[]>([]);
 
 function renderTrendsChart() {
   if (!trendsChartRef.value) return;
@@ -333,11 +351,11 @@ function renderTrendsChart() {
 
   const t = trendsData.value;
   const times = t.length > 0
-    ? t.map((d: any) => d.minute?.slice(11, 16) || '')
+    ? t.map((d) => d.minute?.slice(11, 16) || '')
     : ['--'];
-  const onlineData = t.length > 0 ? t.map((d: any) => d.online || 0) : [overview.value.onlineCount || 0];
-  const gmvData = t.length > 0 ? t.map((d: any) => (d.gmv || 0)) : [0];
-  const commentData = t.length > 0 ? t.map((d: any) => (d.comments || 0) + (d.likes || 0)) : [0];
+  const onlineData = t.length > 0 ? t.map((d) => d.online || 0) : [overview.value.onlineCount || 0];
+  const gmvData = t.length > 0 ? t.map((d) => (d.gmv || 0)) : [0];
+  const commentData = t.length > 0 ? t.map((d) => (d.comments || 0) + (d.likes || 0)) : [0];
 
   trendsChart.setOption({
     tooltip: { trigger: "axis" },
@@ -357,19 +375,19 @@ function renderTrendsChart() {
 }
 
 // 商品
-const productData = ref<any[]>([]);
+const productData = ref<ProductRow[]>([]);
 
 // 互动
 const interChartRef = ref<HTMLDivElement>();
 let interChart: echarts.ECharts | null = null;
-const giftRanking = ref<any[]>([]);
+const giftRanking = ref<GiftRankItem[]>([]);
 
 function renderInterChart() {
   if (!interChartRef.value) return;
   if (!interChart) interChart = echarts.init(interChartRef.value);
 
   // 从打赏排行提取词云
-  const words = (giftRanking.value || []).map((g: any) => ({
+  const words = (giftRanking.value || []).map((g) => ({
     name: g.nickname || g.userId,
     value: g.totalCoin || 0,
   }));
@@ -392,15 +410,15 @@ function renderInterChart() {
 }
 
 // 观众
-const audienceData = ref<any>(null);
+const audienceData = ref<AudienceData | null>(null);
 
 // 主播
-const hostData = ref<any>(null);
+const hostData = ref<HostStats | null>(null);
 
 // 复盘
 const showReport = ref(false);
-const reportData = ref<any>(null);
-const compareData = ref<any>(null);
+const reportData = ref<Record<string, unknown> | null>(null);
+const compareData = ref<Record<string, CompareCell> | null>(null);
 
 const reportItems = computed(() => {
   if (!reportData.value) return [];
@@ -411,7 +429,7 @@ const reportItems = computed(() => {
 
 const compareRows = computed(() => {
   if (!compareData.value) return [];
-  return Object.entries(compareData.value).map(([k, v]: [string, any]) => ({
+  return Object.entries(compareData.value).map(([k, v]) => ({
     label: k, current: v?.current ?? "-", previous: v?.previous ?? "-", diff: v?.diff ?? "-",
   }));
 });
@@ -428,11 +446,11 @@ async function refreshAll() {
       liveDashboardApi.hostStats(roomId.value),
     ]);
     overview.value = ov.data || {};
-    const td: any = tp.data || {};
+    const td = (tp.data || {}) as { trends?: TrendPoint[] };
     trendsData.value = td.trends || [];
-    productData.value = (pd.data as any[]) || [];
+    productData.value = (pd.data as ProductRow[]) || [];
     audienceData.value = ad.data || null;
-    const interData: any = ip.data || {};
+    const interData = (ip.data || {}) as { topGifters?: GiftRankItem[]; gifts?: GiftRankItem[] };
     giftRanking.value = interData.topGifters || interData.gifts || [];
     hostData.value = hs.data || null;
 
@@ -475,6 +493,7 @@ function exportReport(format: "pdf" | "excel") {
   }).catch(() => {});
 }
 
+// setInterval 句柄：初值 null 与 clearInterval 入参类型冲突，保留 any 不改运行时
 let timer: any = null;
 
 function handleResize() {

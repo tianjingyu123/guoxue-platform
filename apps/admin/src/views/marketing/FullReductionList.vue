@@ -235,7 +235,26 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { marketingApi } from '@/api'
 import ProductPicker from '@/components/ProductPicker.vue'
 
-const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1); const pages = ref<any[]>([])
+// 微页面下拉选项
+interface PageOption { id: string; name?: string }
+// axios 错误体（用于读取后端 message）
+interface ApiError { response?: { data?: { message?: string } } }
+// 满减送行：依据表格列与编辑表单访问字段声明
+interface FullReductionRow {
+  id: string
+  name?: string
+  threshold?: number | string
+  reduction?: number | string
+  giftProductId?: string
+  productIds?: string[]
+  startTime?: string
+  endTime?: string
+  scope?: string
+  scopePageId?: string
+  status?: string
+}
+
+const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<FullReductionRow[]>([]); const total = ref(0); const page = ref(1); const pages = ref<PageOption[]>([])
 const vis = ref(false); const editingId = ref('')
 const form = reactive<{ name: string; threshold: number; reduction: number; giftProductId: string; productIds: string[]; startTime: string; endTime: string; scope: string; scopePageId: string }>({ name: '', threshold: 100, reduction: 10, giftProductId: '', productIds: [], startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
 
@@ -263,7 +282,7 @@ function openCreate() {
   vis.value = true
 }
 
-function openEdit(row: any) {
+function openEdit(row: FullReductionRow) {
   editingId.value = row.id
   Object.assign(form, {
     name: row.name, threshold: Number(row.threshold), reduction: Number(row.reduction),
@@ -278,7 +297,7 @@ function openEdit(row: any) {
 async function save() {
   saving.value = true
   try {
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       name: form.name, threshold: form.threshold, reduction: form.reduction,
       giftProductId: form.giftProductId || undefined,
       productIds: form.productIds.length ? form.productIds : undefined,
@@ -289,7 +308,7 @@ async function save() {
     if (editingId.value) { await marketingApi.updateFullReduction(editingId.value, payload) }
     else { await marketingApi.createFullReduction(payload) }
     ElMessage.success(editingId.value ? '已更新' : '满减活动创建成功'); vis.value = false; fetchList()
-  } catch (e: any) { ElMessage.error(e?.response?.data?.message || '操作失败') } finally { saving.value = false }
+  } catch (e) { ElMessage.error((e as ApiError)?.response?.data?.message || '操作失败') } finally { saving.value = false }
 }
 
 async function del(id: string) {

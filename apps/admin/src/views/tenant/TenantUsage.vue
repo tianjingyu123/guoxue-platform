@@ -161,7 +161,9 @@ async function fetchData() {
     const data = res.data || {};
     totalCalls.value = data.calls ?? 0;
     const byType = Array.isArray(data.byType) ? data.byType : [];
-    list.value = byType.map((r: any) => ({
+    // 后端聚合结构：_count 可能是数字或 { _all }，_sum 含 cost/tokensUsed
+    interface ByTypeRow { apiType: string; _count?: number | { _all?: number }; _sum?: { cost?: number; tokensUsed?: number } }
+    list.value = byType.map((r: ByTypeRow) => ({
       apiType: r.apiType,
       count: typeof r._count === "number" ? r._count : (r._count?._all ?? 0),
       cost: r._sum?.cost ?? 0,

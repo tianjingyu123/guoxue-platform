@@ -236,9 +236,28 @@ const error = ref(false)
 const saving = ref(false)
 const showConfigDialog = ref(false)
 const selectedCircle = ref('')
-const circles = ref<any[]>([])
-const experts = ref<any[]>([])
-const members = ref<any[]>([])
+/** 圈子行（字段宽松 optional） */
+interface CircleRow { id: string; name?: string }
+/** 达人可连麦时段 */
+interface CallHour { day?: string; start?: string; end?: string }
+/** 达人行（圈子成员 + 价格配置，字段宽松 optional） */
+interface ExpertRow {
+  userId: string;
+  role?: string;
+  questionPriceCoin?: number;
+  callPricePerMinuteCoin?: number;
+  callAvailableHours?: CallHour[];
+  user?: { avatar?: string; nickname?: string };
+}
+/** 圈子成员行（字段宽松 optional） */
+interface MemberRow {
+  userId?: string;
+  role: string;
+  user?: { nickname?: string };
+}
+const circles = ref<CircleRow[]>([])
+const experts = ref<ExpertRow[]>([])
+const members = ref<MemberRow[]>([])
 
 const configForm = reactive({ userId: '', questionPriceCoin: 0, callPricePerMinuteCoin: 0 })
 const configRules = {}
@@ -269,7 +288,7 @@ async function loadMembers() {
   try {
     const res = await circleApi.detail(selectedCircle.value)
     members.value = (res.data?.members || []).filter(
-      (m: any) => ['OWNER', 'PARTNER', 'GUEST'].includes(m.role)
+      (m: MemberRow) => ['OWNER', 'PARTNER', 'GUEST'].includes(m.role)
     )
   } catch { members.value = [] }
 }
@@ -280,7 +299,7 @@ function resetConfigForm() {
   configForm.callPricePerMinuteCoin = 0
 }
 
-function openConfig(row: any) {
+function openConfig(row: ExpertRow) {
   configForm.userId = row.userId
   configForm.questionPriceCoin = row.questionPriceCoin || 0
   configForm.callPricePerMinuteCoin = row.callPricePerMinuteCoin || 0

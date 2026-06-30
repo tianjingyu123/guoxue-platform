@@ -108,17 +108,28 @@ import { bigscreenApi } from "@/api";
 import * as echarts from "echarts";
 
 const route = useRoute();
-const data = ref<Record<string, any>>({});
+/** 线下驿站大屏聚合数据（字段宽松 optional，仅声明模板/脚本实际访问字段） */
+interface OfflineScreen {
+  totalStations?: number;
+  totalCourses?: number;
+  totalStudents?: number;
+  totalRevenue?: number;
+  totalOrders?: number;
+  cityDistribution?: { city?: string; count?: number }[];
+  stations?: { id?: string; name?: string; city?: string; address?: string }[];
+  updatedAt?: string;
+}
+const data = ref<OfflineScreen>({});
 const nowStr = ref(new Date().toLocaleString("zh-CN"));
 const loading = ref(true);
 const loadError = ref(false);
 
 const cityChartRef = ref<HTMLDivElement>();
 let cityChart: echarts.ECharts | null = null;
-let timer: any = null;
-let clockTimer: any = null;
+let timer: ReturnType<typeof setInterval> | undefined = undefined;
+let clockTimer: ReturnType<typeof setInterval> | undefined = undefined;
 
-function fmt(v: any) { return v != null ? Number(v).toLocaleString() : "0"; }
+function fmt(v: unknown) { return v != null ? Number(v).toLocaleString() : "0"; }
 
 function renderCityChart() {
   if (!cityChartRef.value) return;
@@ -128,10 +139,10 @@ function renderCityChart() {
     tooltip: { trigger: "axis" },
     grid: { left: 100, right: 40, top: 10, bottom: 20 },
     xAxis: { type: "value", axisLabel: { color: "#8892b0" } },
-    yAxis: { type: "category", data: cd.map((c: any) => c.city).reverse(), axisLabel: { color: "#8892b0", fontSize: 12 } },
+    yAxis: { type: "category", data: cd.map((c) => c.city).reverse(), axisLabel: { color: "#8892b0", fontSize: 12 } },
     series: [{
       type: "bar",
-      data: cd.map((c: any) => c.count).reverse(),
+      data: cd.map((c) => c.count).reverse(),
       itemStyle: { color: "#3fb950", borderRadius: [0, 4, 4, 0] },
       label: { show: true, position: "right", color: "#8892b0" },
     }],

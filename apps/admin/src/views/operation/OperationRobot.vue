@@ -215,7 +215,7 @@ async function toggleBot(bot: Bot, enabled: boolean) {
   toggling.value = bot.role;
   try {
     const { data } = await api.post(`/operation-robots/${bot.role}/toggle`, { enabled });
-    ElMessage.success(`「${bot.name}」已${(data as any)?.enabled ? "开启" : "关闭"}`);
+    ElMessage.success(`「${bot.name}」已${(data as { enabled?: boolean })?.enabled ? "开启" : "关闭"}`);
   } catch {
     // 回滚开关
     bot.enabled = !enabled;
@@ -228,7 +228,7 @@ async function doInit() {
   initializing.value = true;
   try {
     const { data } = await api.post("/operation-robots/init");
-    ElMessage.success((data as any)?.message || "机器人系统已初始化");
+    ElMessage.success((data as { message?: string })?.message || "机器人系统已初始化");
     await fetchStatus();
   } finally {
     initializing.value = false;

@@ -177,8 +177,27 @@
 import { ref, onMounted } from "vue";
 import { merchantBackendApi } from "@/api";
 
-const overview = ref<any>({});
-const list = ref<any[]>([]);
+/** 收入概览（字段宽松 optional） */
+interface RevenueOverview {
+  totalRevenue?: number;
+  pendingSettlement?: number;
+  settledAmount?: number;
+  commissionRate?: number;
+}
+/** 结算记录行（字段宽松 optional） */
+interface SettlementRow {
+  periodStart?: string;
+  periodEnd?: string;
+  orderCount?: number;
+  totalRevenue?: number;
+  commission?: number;
+  settlementAmount?: number;
+  status?: string;
+  paidAt?: string;
+}
+
+const overview = ref<RevenueOverview>({});
+const list = ref<SettlementRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
@@ -201,8 +220,8 @@ async function fetchOverview() {
   loadingOverview.value = true;
   try {
     const res = await merchantBackendApi.getRevenue();
-    overview.value = (res as any).data ?? res;
-  } catch (e: any) {
+    overview.value = (res as { data?: RevenueOverview }).data ?? (res as RevenueOverview);
+  } catch (e) {
     error.value = true;
   } finally { loadingOverview.value = false; }
 }
@@ -211,10 +230,11 @@ async function fetchSettlements() {
   loading.value = true;
   try {
     const res = await merchantBackendApi.listSettlements({ page: page.value, pageSize: 20 });
-    const data = (res as any).data ?? res;
+    // 兼容两种响应包装：{ data: {...} } 或直接返回 data
+    const data = (res as { data?: { list?: SettlementRow[]; data?: SettlementRow[]; total?: number } }).data ?? (res as { list?: SettlementRow[]; data?: SettlementRow[]; total?: number });
     list.value = data.list || data.data || [];
     total.value = data.total || 0;
-  } catch (e: any) {
+  } catch (e) {
     error.value = true;
   } finally { loading.value = false; }
 }

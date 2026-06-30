@@ -3,7 +3,20 @@ import { ref, onMounted } from "vue";
 import { api as rawApi } from "@/api";
 import PageHeader from "@/components/PageHeader.vue";
 
-const list = ref<any[]>([]);
+// 虚拟币交易流水行（按列配置与模板访问字段定义的宽松本地类型）
+interface TransactionRow {
+  userId?: string;
+  user?: { nickname?: string };
+  type: string;
+  amount?: number;
+  balanceAfter?: number;
+  scene?: string;
+  description?: string;
+  remark?: string;
+  createdAt: string;
+}
+
+const list = ref<TransactionRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(20);
@@ -24,7 +37,7 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: pageSize.value };
+    const params: Record<string, string | number> = { page: page.value, pageSize: pageSize.value };
     if (searchUserId.value) params.userId = searchUserId.value;
     if (filterType.value) params.type = filterType.value;
     const { data } = await rawApi.get("/coin/admin/transactions", { params });
@@ -45,13 +58,13 @@ function onSearch() {
   fetchList();
 }
 
-function formatCurrency(v: number) {
+function formatCurrency(v: number | null | undefined) {
   if (v === undefined || v === null) return "-";
   const sign = v >= 0 ? "+" : "";
   return `${sign}${v}`;
 }
 
-function formatTime(v: any) {
+function formatTime(v: string | undefined) {
   if (!v) return "-";
   try { return new Date(v).toLocaleString(); } catch { return v; }
 }

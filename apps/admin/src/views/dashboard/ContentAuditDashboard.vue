@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, type Component } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/api'
 import {
@@ -13,9 +13,12 @@ import ChartCard from '@/components/ChartCard.vue'
 
 interface AlertItem { text: string; count: number; level: 'critical' | 'warning' | 'info' }
 interface CardDelta { value: number; dir: 'up' | 'down' | 'flat'; label: string }
-interface CardItem { label: string; value: number; icon: any; highlight?: boolean; suffix?: string; route?: string; delta?: CardDelta }
+interface CardItem { label: string; value: number; icon: Component; highlight?: boolean; suffix?: string; route?: string; delta?: CardDelta }
+// option 为 echarts 配置对象，结构复杂，保留 any（框架类型）
 interface ChartItem { title: string; option: any }
-interface QuickAction { label: string; path: string; icon: any; badge?: number }
+interface QuickAction { label: string; path: string; icon: Component; badge?: number }
+/** 内容类型分布项 */
+interface ContentDist { name: string; count: number }
 
 /** 日环比：仅当昨日基准>0 时计算，否则返回 undefined（诚实留白） */
 function makeDelta(todayVal: number, yesterdayVal: number, label = '环比昨日'): CardDelta | undefined {
@@ -97,8 +100,8 @@ async function load() {
     ]
 
     // 环形图 — 内容类型分布
-    const distribution = (ch.contentDistribution ?? []).filter((d: any) => d.count > 0)
-    const total = distribution.reduce((s: number, d: any) => s + d.count, 0)
+    const distribution = ((ch.contentDistribution ?? []) as ContentDist[]).filter((d) => d.count > 0)
+    const total = distribution.reduce((s, d) => s + d.count, 0)
     const palette = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3', '#A8E6CF']
     charts.value = distribution.length ? [{
       title: '内容类型分布',
@@ -107,6 +110,7 @@ async function load() {
           trigger: 'item', backgroundColor: '#fff',
           borderColor: '#F0F0F0', borderWidth: 1,
           textStyle: { color: '#1A1A1A', fontSize: 13 },
+          // echarts tooltip 回调参数类型复杂，保留 any（框架类型）
           formatter: (p: any) => `${p.name}：${p.value}（${p.percent}%）`,
         },
         legend: {
@@ -114,7 +118,7 @@ async function load() {
           itemWidth: 12, itemHeight: 12, itemGap: 16,
           textStyle: { color: '#666', fontSize: 13 },
           formatter: (name: string) => {
-            const item = distribution.find((d: any) => d.name === name)
+            const item = distribution.find((d) => d.name === name)
             const pct = item ? ((item.count / total) * 100).toFixed(1) : '0'
             return `${name}  ${pct}%`
           },
@@ -123,7 +127,7 @@ async function load() {
           type: 'pie', radius: ['40%', '70%'], center: ['38%', '50%'],
           avoidLabelOverlap: false, label: { show: false }, labelLine: { show: false },
           itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 3 },
-          data: distribution.map((d: any, i: number) => ({
+          data: distribution.map((d, i) => ({
             name: d.name, value: d.count,
             itemStyle: { color: palette[i % palette.length] },
           })),

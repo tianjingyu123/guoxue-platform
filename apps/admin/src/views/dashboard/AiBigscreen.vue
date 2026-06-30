@@ -96,8 +96,24 @@ import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
 import * as echarts from "echarts";
 
+/** 场景调用分布项 */
+interface SceneItem { scene?: string; count?: number }
+/** 模型使用分布项 */
+interface ModelItem { model?: string; count?: number }
+/** AI 能力大屏数据（字段宽松 optional，依模板/脚本实际访问声明） */
+interface AiCapabilityData {
+  totalApiCalls?: number;
+  todayApiCalls?: number;
+  monthApiCalls?: number;
+  botConversations?: number;
+  knowledgeBaseSize?: number;
+  sceneDistribution?: SceneItem[];
+  modelDistribution?: ModelItem[];
+  updatedAt?: string;
+}
+
 const route = useRoute();
-const data = ref<Record<string, any>>({});
+const data = ref<AiCapabilityData>({});
 const nowStr = ref(new Date().toLocaleString("zh-CN"));
 const loading = ref(true);
 const loadError = ref(false);
@@ -106,27 +122,27 @@ const sceneChartRef = ref<HTMLDivElement>();
 const modelChartRef = ref<HTMLDivElement>();
 let sceneChart: echarts.ECharts | null = null;
 let modelChart: echarts.ECharts | null = null;
-let timer: any = null;
-let clockTimer: any = null;
+let timer: ReturnType<typeof setInterval> | undefined = undefined;
+let clockTimer: ReturnType<typeof setInterval> | undefined = undefined;
 
-function fmt(v: any) { return v != null ? Number(v).toLocaleString() : "0"; }
+function fmt(v: number | string | null | undefined) { return v != null ? Number(v).toLocaleString() : "0"; }
 
 function renderCharts() {
   if (sceneChartRef.value) {
     if (!sceneChart) sceneChart = echarts.init(sceneChartRef.value);
-    const sd = data.value.sceneDistribution || [];
+    const sd: SceneItem[] = data.value.sceneDistribution || [];
     sceneChart.setOption({
       tooltip: { trigger: "axis" },
       grid: { left: 120, right: 30, top: 10, bottom: 20 },
       xAxis: { type: "value" },
-      yAxis: { type: "category", data: sd.map((s: any) => s.scene).reverse(), axisLabel: { color: "#8892b0", fontSize: 11 } },
-      series: [{ type: "bar", data: sd.map((s: any) => s.count).reverse(), itemStyle: { color: "#58a6ff", borderRadius: [0, 4, 4, 0] }, label: { show: true, position: "right", color: "#8892b0" } }],
+      yAxis: { type: "category", data: sd.map((s) => s.scene).reverse(), axisLabel: { color: "#8892b0", fontSize: 11 } },
+      series: [{ type: "bar", data: sd.map((s) => s.count).reverse(), itemStyle: { color: "#58a6ff", borderRadius: [0, 4, 4, 0] }, label: { show: true, position: "right", color: "#8892b0" } }],
     }, true);
   }
 
   if (modelChartRef.value) {
     if (!modelChart) modelChart = echarts.init(modelChartRef.value);
-    const md = data.value.modelDistribution || [];
+    const md: ModelItem[] = data.value.modelDistribution || [];
     modelChart.setOption({
       tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
       series: [{
@@ -135,7 +151,7 @@ function renderCharts() {
         center: ["50%", "55%"],
         itemStyle: { borderRadius: 4, borderColor: "transparent", borderWidth: 3 },
         label: { color: "#8892b0", fontSize: 12 },
-        data: md.map((m: any) => ({ name: m.model, value: m.count })),
+        data: md.map((m) => ({ name: m.model, value: m.count })),
       }],
     }, true);
   }

@@ -450,36 +450,53 @@ import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { imApi } from "@/api";
 
+/** 在线状态查询结果 */
+interface ImStateResult { userId?: string; state?: string; platform?: string; lastActiveTime?: string }
+/** 群成员（userId 为 api 入参，必填） */
+interface ImMember { userId: string; joinTime?: string }
+/** IM 群组（groupId/name 用于拼接与 api 入参，必填） */
+interface ImGroup {
+  groupId: string; name: string; id?: string; type?: string;
+  memberCount?: number; createdAt?: string; members?: ImMember[];
+}
+/** IM 消息（宽松 optional，按模板访问声明） */
+interface ImMessage {
+  senderNickname?: string; fromUserId?: string; senderId?: string;
+  text?: string; content?: string; msgType?: string;
+  createdAt?: string; sendTime?: string; isRevoked?: boolean;
+  msgKey?: string; id?: string;
+}
+
 const activeTab = ref("state");
 const imStatus = reactive({ connected: false });
 const imStats = reactive({ onlineUsers: 0, totalGroups: 0, todayMessages: 0, activeConversations: 0 });
 
 const stateQuery = reactive({ userIds: "" });
-const stateResults = ref<any[]>([]);
+const stateResults = ref<ImStateResult[]>([]);
 
-const groups = ref<any[]>([]);
+const groups = ref<ImGroup[]>([]);
 const groupSearch = ref("");
 
 const msgQuery = reactive({ groupId: "" });
-const msgList = ref<any[]>([]);
+const msgList = ref<ImMessage[]>([]);
 
 const groupVisible = ref(false);
 const groupSaving = ref(false);
 const groupForm = reactive({ groupId: "", name: "", type: "CIRCLE", ownerId: "" });
 
 const memberVisible = ref(false);
-const memberList = ref<any[]>([]);
-const currentGroup = ref<any>(null);
+const memberList = ref<ImMember[]>([]);
+const currentGroup = ref<ImGroup | null>(null);
 const addMemberId = ref("");
 
 const msgSendVisible = ref(false);
-const msgTargetGroup = ref<any>(null);
+const msgTargetGroup = ref<ImGroup | null>(null);
 const msgText = ref("");
 
 const filteredGroups = computed(() => {
   if (!groupSearch.value) return groups.value;
   const kw = groupSearch.value.toLowerCase();
-  return groups.value.filter((g: any) => (g.groupId + g.name).toLowerCase().includes(kw));
+  return groups.value.filter((g) => (g.groupId + g.name).toLowerCase().includes(kw));
 });
 
 function fmtDate(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
@@ -496,9 +513,9 @@ async function queryStates() {
   if (!stateQuery.userIds.trim()) { ElMessage.warning("请输入用户ID"); return; }
   try {
     const { data } = await imApi.queryAccountState(stateQuery.userIds);
-    const result = data as any;
+    const result = data as { results?: ImStateResult[]; data?: ImStateResult[] };
     stateResults.value = result?.results || result?.data || [];
-    imStats.onlineUsers = stateResults.value.filter((r: any) => r.state === "Online").length;
+    imStats.onlineUsers = stateResults.value.filter((r) => r.state === "Online").length;
   } catch { stateResults.value = []; }
 }
 
@@ -514,7 +531,7 @@ async function createGroup() {
   } catch { /* ignore */ } finally { groupSaving.value = false; }
 }
 
-async function showGroupMembers(row: any) {
+async function showGroupMembers(row: ImGroup) {
   currentGroup.value = row;
   memberList.value = row.members || [];
   memberVisible.value = true;
@@ -530,25 +547,27 @@ async function addMember() {
   } catch { /* ignore */ }
 }
 
-async function removeMember(row: any) {
+async function removeMember(row: ImMember) {
   try {
-    await imApi.deleteGroupMembers(currentGroup.value.groupId, [row.userId]);
+    // currentGroup 在打开成员弹窗时已赋值，此处断言非空（仅类型，无运行时影响）
+    await imApi.deleteGroupMembers(currentGroup.value!.groupId, [row.userId]);
     ElMessage.success("成员已移除");
-    memberList.value = memberList.value.filter((m: any) => m.userId !== row.userId);
+    memberList.value = memberList.value.filter((m) => m.userId !== row.userId);
   } catch { /* ignore */ }
 }
 
-async function destroyGroup(row: any) {
+async function destroyGroup(row: ImGroup) {
   await ElMessageBox.confirm(`确定解散群组「${row.name}」？此操作不可恢复`, "警告", { type: "warning" });
   try {
     await imApi.destroyGroup(row.groupId);
     ElMessage.success("群组已解散");
-    groups.value = groups.value.filter((g: any) => g.groupId !== row.groupId);
+    groups.value = groups.value.filter((g) => g.groupId !== row.groupId);
   } catch { /* ignore */ }
 }
 
-function showGroupHistory(row: any) {
-  msgQuery.groupId = row.groupId || row.id;
+function showGroupHistory(row: ImGroup) {
+  // groupId 必有值，回退 id 仅为兜底；断言为 string（仅类型）
+  msgQuery.groupId = (row.groupId || row.id) as string;
   activeTab.value = "messages";
   fetchGroupHistory();
 }
@@ -557,11 +576,12 @@ async function fetchGroupHistory() {
   if (!msgQuery.groupId) { ElMessage.warning("请输入群组ID"); return; }
   try {
     const { data } = await imApi.getGroupHistory(msgQuery.groupId, 1, 100);
-    msgList.value = (data as any)?.messages || (data as any)?.data || [];
+    const d = data as { messages?: ImMessage[]; data?: ImMessage[] };
+    msgList.value = d?.messages || d?.data || [];
   } catch { msgList.value = []; }
 }
 
-function sendGroupMsg(row: any) {
+function sendGroupMsg(row: ImGroup) {
   msgTargetGroup.value = row;
   msgText.value = "";
   msgSendVisible.value = true;
@@ -576,9 +596,10 @@ async function sendMsg() {
   } catch { /* ignore */ }
 }
 
-async function withdrawMsg(row: any) {
+async function withdrawMsg(row: ImMessage) {
   try {
-    await imApi.withdrawMsg(row.fromUserId || row.senderId, row.msgKey || row.id);
+    // 发送者/消息 key 字段名因来源而异，回退取值后断言为 string（仅类型）
+    await imApi.withdrawMsg((row.fromUserId || row.senderId) as string, (row.msgKey || row.id) as string);
     ElMessage.success("消息已撤回");
     row.isRevoked = true;
   } catch { /* ignore */ }

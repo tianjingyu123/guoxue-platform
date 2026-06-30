@@ -150,7 +150,19 @@
 import { ref, onMounted } from "vue";
 import { teacherRequestApi } from "@/api";
 
-const list = ref<any[]>([]);
+/** 驿站-老师双选申请行（字段宽松 optional） */
+interface TeacherRequestRow {
+  station?: { name?: string; city?: string }
+  courseTitle?: string
+  courseIntro?: string
+  proposedFee?: number
+  proposeDate?: string
+  initiator?: string
+  status?: string
+  createdAt?: string
+}
+
+const list = ref<TeacherRequestRow[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
 const statusFilter = ref("");
@@ -170,7 +182,7 @@ async function fetchList() {
   loading.value = true;
   loadError.value = false;
   try {
-    const params: any = { page: page.value, pageSize };
+    const params: Record<string, string | number> = { page: page.value, pageSize };
     if (statusFilter.value) params.status = statusFilter.value;
     const { data } = await teacherRequestApi.adminList(params);
     list.value = data.data || [];

@@ -185,10 +185,26 @@
 import { ref, onMounted } from 'vue'
 import { aiAdminApi } from '@/api'
 
+/** 调用监控行/详情（字段宽松 optional，基于模板与脚本实际访问声明） */
+interface CallLogRow {
+  id?: string
+  apiType?: string
+  modelName?: string
+  tokenUsed?: number
+  totalTokens?: number
+  cost?: number
+  status?: string
+  durationMs?: number
+  createdAt?: string
+  requestParams?: unknown
+  response?: unknown
+  errorMessage?: string
+}
+
 const loading = ref(false); const loadErr = ref(false)
-const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+const list = ref<CallLogRow[]>([]); const total = ref(0); const page = ref(1)
 const statusFilter = ref('')
-const detailVis = ref(false); const detail = ref<any>({})
+const detailVis = ref(false); const detail = ref<CallLogRow>({})
 
 onMounted(() => fetchList())
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
@@ -196,13 +212,13 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 async function fetchList() {
   loading.value = true; loadErr.value = false
   try {
-    const params: any = { page: page.value, pageSize: 20 }
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 }
     if (statusFilter.value) params.status = statusFilter.value
     const { data } = await aiAdminApi.getCallLogs(params)
     list.value = data.list || data.data || []; total.value = data.total || 0
   } catch { loadErr.value = true; list.value = [] } finally { loading.value = false }
 }
 
-function viewDetail(row: any) { detail.value = row; detailVis.value = true }
+function viewDetail(row: CallLogRow) { detail.value = row; detailVis.value = true }
 </script>
 <style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>

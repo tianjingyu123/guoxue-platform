@@ -213,6 +213,7 @@ import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { contentApi, uploadApi } from '@/api'
 import { ElMessage } from 'element-plus'
+import type { UploadRequestOptions } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
@@ -236,6 +237,7 @@ const form = reactive({
 const coverUrl = ref('')
 const tagInput = ref('')
 const editorEl = ref<HTMLElement | null>(null)
+// Quill 编辑器实例：经 CDN 动态加载，无类型声明，保留 any
 let quill: any = null
 
 onMounted(async () => {
@@ -269,6 +271,7 @@ function initQuill() {
   const script = document.createElement('script')
   script.src = 'https://cdn.quilljs.com/1.3.7/quill.min.js'
   script.onload = () => {
+    // window.Quill 由 CDN 脚本注入，无类型声明，保留 any
     const Q = (window as any).Quill
     if (!Q) return
     quill = new Q(editorEl.value, {
@@ -307,14 +310,14 @@ function addTag() {
   tagInput.value = ''
 }
 
-async function handleCoverUpload(options: any) {
+async function handleCoverUpload(options: UploadRequestOptions) {
   uploading.value = true
   try {
     const { data } = await uploadApi.image(options.file)
     form.cover = data.url
     coverUrl.value = data.url
     ElMessage.success('封面上传成功')
-  } catch (e: any) {
+  } catch {
   } finally {
     uploading.value = false
   }
@@ -334,7 +337,7 @@ async function handleSave(status?: string) {
   try {
     const payload = {
       ...form,
-      type: form.type as any,
+      type: form.type,
       tags: form.tags || [],
     }
     if (status) payload.status = status
@@ -346,7 +349,7 @@ async function handleSave(status?: string) {
     }
     ElMessage.success('保存成功')
     router.push('/contents')
-  } catch (e: any) {
+  } catch {
   } finally {
     saving.value = false
   }

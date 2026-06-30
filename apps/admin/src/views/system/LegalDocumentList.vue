@@ -3,10 +3,21 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
+// 法律文件版本行（依据列表列/编辑表单实际访问字段声明）
+interface LegalDoc {
+  id?: string
+  type: string
+  version: string
+  title: string
+  content?: string
+  status: string
+  publishedAt: string
+}
+
 const loading = ref(false)
 const saving = ref(false)
 const loadError = ref(false)
-const list = ref<any[]>([])
+const list = ref<LegalDoc[]>([])
 const vis = ref(false)
 const editingId = ref('')
 const typeFilter = ref('')
@@ -39,8 +50,8 @@ async function fetchList() {
     } else {
       // 查询所有类型
       const types = ['agreement', 'privacy', 'community']
-      const results = await Promise.all(types.map(t => api.get(`${BASE}/${t}/versions`).then(r => (r.data ?? []).map((d: any) => ({ ...d, type: t }))).catch(() => [])))
-      list.value = results.flat().sort((a: any, b: any) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+      const results = await Promise.all(types.map(t => api.get(`${BASE}/${t}/versions`).then(r => (r.data ?? []).map((d: LegalDoc) => ({ ...d, type: t }))).catch(() => [] as LegalDoc[])))
+      list.value = results.flat().sort((a: LegalDoc, b: LegalDoc) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     }
   } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
@@ -51,8 +62,8 @@ function openCreate() {
   vis.value = true
 }
 
-function openEdit(row: any) {
-  editingId.value = row.id
+function openEdit(row: LegalDoc) {
+  editingId.value = row.id ?? ''
   form.type = row.type
   form.version = row.version
   form.title = row.title
@@ -90,7 +101,7 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 const filteredList = computed(() => {
   if (!typeFilter.value) return list.value
-  return list.value.filter((r: any) => r.type === typeFilter.value)
+  return list.value.filter((r: LegalDoc) => r.type === typeFilter.value)
 })
 </script>
 

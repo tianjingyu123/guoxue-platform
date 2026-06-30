@@ -166,26 +166,38 @@ import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { aiAdminApi } from '@/api'
 
+/** 对话日志行/详情（字段宽松 optional） */
+interface ChatLogRow {
+  id?: string
+  botId?: string
+  conversationId?: string
+  userId?: string
+  userMessage?: string
+  botReply?: string
+  tokenUsed?: number
+  createdAt?: string
+}
+
 const loading = ref(false); const loadErr = ref(false); const deleting = ref(false)
-const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+const list = ref<ChatLogRow[]>([]); const total = ref(0); const page = ref(1)
 const keyword = ref('')
-const detailVis = ref(false); const detail = ref<any>({})
+const detailVis = ref(false); const detail = ref<ChatLogRow>({})
 
 onMounted(() => fetchList())
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true; loadErr.value = false
   try {
-    const params: any = { page: page.value, pageSize: 20 }
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 }
     if (keyword.value) params.keyword = keyword.value
     const { data } = await aiAdminApi.listChatLogs(params)
     list.value = data.list || data.data || []; total.value = data.total || 0
   } catch { loadErr.value = true; list.value = [] } finally { loading.value = false }
 }
 
-async function viewDetail(row: any) {
-  try { const { data } = await aiAdminApi.getChatLogDetail(row.id); detail.value = data; detailVis.value = true } catch { detail.value = row; detailVis.value = true }
+async function viewDetail(row: ChatLogRow) {
+  try { const { data } = await aiAdminApi.getChatLogDetail(row.id!); detail.value = data; detailVis.value = true } catch { detail.value = row; detailVis.value = true }
 }
 
 async function del(id: string) {

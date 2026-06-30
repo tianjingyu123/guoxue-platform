@@ -65,9 +65,18 @@ import { ref, computed, onMounted } from "vue";
 import { ShoppingCart, Money, Goods, Warning, Star } from "@element-plus/icons-vue";
 import { merchantBackendApi } from "@/api";
 
+/** 数据概览（字段宽松 optional） */
+interface DashboardData {
+  todayOrders?: number;
+  todayRevenue?: number;
+  totalProducts?: number;
+  pendingRefunds?: number;
+  shopRating?: number;
+}
+
 const loading = ref(false);
 const error = ref(false);
-const dashboard = ref<any>({});
+const dashboard = ref<DashboardData>({});
 const shopName = ref("");
 
 const cards = computed(() => [
@@ -83,8 +92,8 @@ async function loadDashboard() {
   error.value = false;
   try {
     const res = await merchantBackendApi.getDashboard();
-    dashboard.value = (res as any).data ?? res;
-  } catch (e: any) {
+    dashboard.value = (res as { data?: DashboardData }).data ?? (res as DashboardData);
+  } catch (e) {
     error.value = true;
   } finally {
     loading.value = false;
@@ -92,7 +101,8 @@ async function loadDashboard() {
   // 获取店铺名
   try {
     const p = await merchantBackendApi.getProfile();
-    shopName.value = (p as any).data?.shopName ?? (p as any).shopName ?? "";
+    const pd = p as { data?: { shopName?: string }; shopName?: string };
+    shopName.value = pd.data?.shopName ?? pd.shopName ?? "";
   } catch { /* */ }
 }
 

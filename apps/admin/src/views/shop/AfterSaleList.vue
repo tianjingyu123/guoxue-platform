@@ -198,10 +198,21 @@ import { ref, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "@/api";
 
+/** 售后申请行（字段宽松 optional，仅覆盖模板/脚本实际访问字段） */
+interface AfterSaleRow {
+  id?: string;
+  orderId?: string;
+  type?: string;
+  reason?: string;
+  amount?: number | string;
+  status?: string;
+  createdAt?: string;
+}
+
 const loading = ref(false);
 const error = ref(false);
 const processing = ref(false);
-const items = ref<any[]>([]);
+const items = ref<AfterSaleRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(20);
@@ -255,8 +266,8 @@ async function fetchList() {
   }
 }
 
-function handleProcess(row: any, action: string) {
-  processId.value = row.id;
+function handleProcess(row: AfterSaleRow, action: string) {
+  processId.value = row.id ?? "";
   dialogAction.value = action;
   processRemark.value = "";
   dialogVisible.value = true;
@@ -277,8 +288,8 @@ async function confirmProcess() {
     ElMessage.success(dialogAction.value === "approve" ? "已同意售后" : "已拒绝售后");
     dialogVisible.value = false;
     fetchList();
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || "操作失败");
+  } catch (e) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message || "操作失败");
   } finally {
     processing.value = false;
   }

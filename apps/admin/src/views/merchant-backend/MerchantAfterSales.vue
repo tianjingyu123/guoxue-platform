@@ -86,7 +86,19 @@ import { ref, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { merchantBackendApi } from "@/api";
 
-const list = ref<any[]>([]);
+/** 售后单行（字段宽松 optional） */
+interface AfterSalesRow {
+  id: string;
+  orderId?: string;
+  buyerName?: string;
+  type?: string;
+  amount?: number;
+  status?: string;
+  reason?: string;
+  createdAt?: string;
+}
+
+const list = ref<AfterSalesRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
@@ -94,7 +106,7 @@ const error = ref(false);
 const filterStatus = ref("");
 const filterType = ref("");
 const detailDialog = ref(false);
-const current = ref<any>(null);
+const current = ref<AfterSalesRow | null>(null);
 const submitting = ref(false);
 
 function formatDate(d: string) {
@@ -107,21 +119,22 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: 20 };
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 };
     if (filterStatus.value) params.status = filterStatus.value;
     if (filterType.value) params.type = filterType.value;
     const res = await merchantBackendApi.listAfterSales(params);
-    const data = (res as any).data ?? res;
+    // 兼容两种响应包装：{ data: {...} } 或直接返回 data
+    const data = (res as { data?: { list?: AfterSalesRow[]; data?: AfterSalesRow[]; total?: number } }).data ?? (res as { list?: AfterSalesRow[]; data?: AfterSalesRow[]; total?: number });
     list.value = data.list || data.data || [];
     total.value = data.total || 0;
-  } catch (e: any) {
+  } catch (e) {
     error.value = true;
   } finally { loading.value = false; }
 }
 
-function openDetail(row: any) { current.value = row; detailDialog.value = true; }
+function openDetail(row: AfterSalesRow) { current.value = row; detailDialog.value = true; }
 
-async function handleAction(row: any, action: "approve" | "reject") {
+async function handleAction(row: AfterSalesRow, action: "approve" | "reject") {
   if (submitting.value) return; // 防重复提交
   const label = action === "approve" ? "同意" : "拒绝";
   let remark = "";
@@ -144,8 +157,8 @@ async function handleAction(row: any, action: "approve" | "reject") {
     await merchantBackendApi.processAfterSale(row.id, { action, remark });
     ElMessage.success(`${label}成功`);
     fetchList();
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || `${label}失败，请重试`);
+  } catch (e) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message || `${label}失败，请重试`);
   } finally {
     submitting.value = false;
   }

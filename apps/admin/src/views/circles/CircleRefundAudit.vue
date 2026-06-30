@@ -178,12 +178,28 @@ import { ref, onMounted } from "vue";
 import { api } from "@/api";
 import { ElMessage, ElMessageBox } from "element-plus";
 
-const list = ref<any[]>([]);
+/** 退款申请行（圈主已通过、待平台终审，字段宽松 optional） */
+interface RefundRow {
+  id: string;
+  userNickname?: string;
+  userId?: string;
+  circleName?: string;
+  paidAmount?: number;
+  usedDays?: number;
+  refundBase?: number;
+  feeAmount?: number;
+  actualRefund?: number;
+  reason?: string;
+  ownerReviewedAt?: string;
+  createdAt?: string;
+}
+
+const list = ref<RefundRow[]>([]);
 const loading = ref(false);
 const error = ref(false);
 const submitting = ref(false);
 
-function money(v: any) {
+function money(v: number | string | null | undefined) {
   return Number(v ?? 0).toFixed(2);
 }
 function fmtTime(t?: string) {
@@ -205,7 +221,7 @@ async function fetchList() {
   }
 }
 
-async function approve(row: any) {
+async function approve(row: RefundRow) {
   if (submitting.value) return;
   try {
     await ElMessageBox.confirm(
@@ -225,7 +241,7 @@ async function approve(row: any) {
   }
 }
 
-async function reject(row: any) {
+async function reject(row: RefundRow) {
   if (submitting.value) return;
   try {
     const { value: rejectReason } = await ElMessageBox.prompt(

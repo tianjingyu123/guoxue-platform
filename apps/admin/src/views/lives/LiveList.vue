@@ -242,38 +242,49 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import type { FormInstance } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
 import { liveApi } from "@/api";
 
-const list = ref<any[]>([]);
+/** 直播主播信息 */
+interface LiveHost { id?: string; nickname?: string }
+/** 直播间行/详情（宽松 optional，按模板访问声明） */
+interface LiveRow {
+  id: string; title?: string; cover?: string; coverUrl?: string; replayUrl?: string;
+  hostUserId?: string; host?: LiveHost; status?: string; viewCount?: number;
+  chargeType?: string; chargePrice?: number; createdAt?: string;
+  startedAt?: string; endedAt?: string;
+}
+
+const list = ref<LiveRow[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
 const statusFilter = ref("");
 const detailVisible = ref(false);
-const detail = ref<any>(null);
+const detail = ref<LiveRow | null>(null);
 
 // 创建/编辑
 const dialogVisible = ref(false);
 const saving = ref(false);
 const editingId = ref("");
 const form = reactive({ title: "", cover: "", hostUserId: "", chargeType: "FREE", chargePrice: 0 });
-const dialogFormRef = ref<any>(null);
+const dialogFormRef = ref<FormInstance>();
 const dialogRules = {
   title: [{ required: true, message: "请输入直播标题", trigger: "blur" }],
 };
 
 onMounted(() => fetchList());
 
-function statusLabel(s: string) {
+function statusLabel(s?: string) {
   const m: Record<string, string> = { PENDING: "待开播", LIVING: "直播中", ENDED: "已结束", REPLAY: "回放" };
-  return m[s] || s;
+  return m[s ?? ""] || s;
 }
 
 async function fetchList() {
   loading.value = true;
   loadError.value = false;
   try {
-    const params: any = { pageSize: 100 };
+    const params: Record<string, string | number> = { pageSize: 100 };
     if (statusFilter.value) params.status = statusFilter.value;
     const { data } = await liveApi.rooms(params);
     list.value = data.rooms || data || [];
@@ -283,7 +294,7 @@ async function fetchList() {
   } finally { loading.value = false; }
 }
 
-function openEdit(row?: any) {
+function openEdit(row?: LiveRow) {
   if (row) {
     editingId.value = row.id;
     form.title = row.title || "";
@@ -305,7 +316,7 @@ function openEdit(row?: any) {
 async function saveRoom() {
   saving.value = true;
   try {
-    const payload: Record<string, any> = { title: form.title };
+    const payload: Record<string, string | number> = { title: form.title };
     if (form.cover) payload.cover = form.cover;
     if (form.hostUserId) payload.hostUserId = form.hostUserId;
     if (form.chargeType) payload.chargeType = form.chargeType;
@@ -326,7 +337,7 @@ async function saveRoom() {
   }
 }
 
-async function viewDetail(row: any) {
+async function viewDetail(row: LiveRow) {
   try {
     const { data } = await liveApi.detail(row.id);
     detail.value = data;
@@ -334,7 +345,7 @@ async function viewDetail(row: any) {
   } catch { /* */ }
 }
 
-function endRoom(row: any) {
+function endRoom(row: LiveRow) {
   ElMessageBox.confirm("确定结束该直播？", "警告", { type: "warning" }).then(async () => {
     await liveApi.endRoom(row.id);
     ElMessage.success("直播已结束");

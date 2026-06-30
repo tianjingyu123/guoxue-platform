@@ -171,23 +171,47 @@ const savingDaily = ref(false)
 const dailyLoading = ref(false)
 const dailyError = ref(false)
 
+// 节气行（字段宽松 optional）
+interface SolarTerm {
+  id: string
+  name?: string
+  pushDate?: string
+  pushTime?: string
+  title?: string
+  content?: string
+  imageUrl?: string
+  enabled?: boolean
+}
+// 每日一首行
+interface DailyVerse {
+  id: string
+  title: string
+  author?: string
+  content: string
+  imageUrl?: string
+  publishDate?: string
+  status?: string
+  viewCount?: number
+  shareCount?: number
+}
+
 // 节气
-const solarTerms = ref<any[]>([])
+const solarTerms = ref<SolarTerm[]>([])
 
 // 每日一首
 const dailyFilter = ref("")
 const dailyPage = ref(1)
 const dailyPageSize = ref(10)
 const dailyTotal = ref(0)
-const dailyVerses = ref<any[]>([])
+const dailyVerses = ref<DailyVerse[]>([])
 const dailyDialogVisible = ref(false)
-const editingDaily = ref<any>(null)
+const editingDaily = ref<DailyVerse | null>(null)
 const dailyForm = reactive({ title: "", author: "", content: "", imageUrl: "", publishDate: "", status: "PENDING" })
 
 async function fetchSolarTerms() {
   try {
     const res: any = await ritualContentApi.listSolarTerms()
-    solarTerms.value = ((res?.data ?? res)?.list ?? []).map((t: any) => ({
+    solarTerms.value = ((res?.data ?? res)?.list ?? []).map((t: SolarTerm) => ({
       ...t, pushDate: t.pushDate ?? "", pushTime: t.pushTime ?? "08:00", enabled: t.enabled ?? true,
     }))
   } catch { ElMessage.error("节气配置加载失败") }
@@ -225,7 +249,7 @@ async function fetchDaily() {
   finally { dailyLoading.value = false }
 }
 
-function showDailyDialog(row?: any) {
+function showDailyDialog(row?: DailyVerse) {
   if (row) {
     editingDaily.value = row
     dailyForm.title = row.title; dailyForm.author = row.author ?? ""

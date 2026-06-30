@@ -350,6 +350,35 @@ import { api, aiAdminApi, searchApi } from "@/api";
 
 const activeTab = ref("analytics");
 
+/** AI 搜索调用日志行（前端映射后字段，宽松 optional） */
+interface AiLogRow {
+  userId?: string;
+  query?: string;
+  response?: string;
+  tokenUsage?: { promptTokens?: number; completionTokens?: number };
+  latencyMs?: number;
+  status?: string;
+  createdAt?: string;
+}
+/** 后端原始日志结构（映射前，含多种可能字段） */
+interface RawAiLog {
+  userId?: string;
+  query?: string;
+  prompt?: string;
+  content?: string;
+  response?: string;
+  messages?: { content?: string }[];
+  tokenUsage?: { promptTokens?: number; completionTokens?: number };
+  latencyMs?: number;
+  status?: string;
+  createdAt?: string;
+}
+/** 零结果关键词行 */
+interface ZeroResultRow {
+  keyword: string;
+  count?: number;
+}
+
 const stats = reactive({
   totalSearches: 0, todaySearches: 0, aiSearchCount: 0,
   avgAiLatency: 0, zeroResultRate: 0, aiCoverageRate: 0,
@@ -358,13 +387,13 @@ const stats = reactive({
 });
 
 // AI搜索监控
-const aiLogs = ref<any[]>([]);
+const aiLogs = ref<AiLogRow[]>([]);
 const aiLoading = ref(false);
-const aiFilter = reactive({ keyword: "", status: "", dateRange: null as any });
+const aiFilter = reactive({ keyword: "", status: "", dateRange: null as [Date, Date] | null });
 const aiPagination = reactive({ page: 1, total: 0 });
 
 // AI效果分析
-const zeroResultKeywords = ref<any[]>([]);
+const zeroResultKeywords = ref<ZeroResultRow[]>([]);
 
 // 搜索量趋势（近7天，真实聚合）
 const trendChartRef = ref<HTMLElement | null>(null);
@@ -393,7 +422,8 @@ async function refresh() {
 async function fetchTrend() {
   try {
     const { data } = await api.get("/search/admin/trend", { params: { days: 7 } });
-    const series: { date: string; total: number }[] = (data as any)?.series || [];
+    const series: { date: string; total: number }[] =
+      (data as { series?: { date: string; total: number }[] })?.series || [];
     const hasData = series.some((s) => s.total > 0);
     trendHasData.value = hasData;
     if (!hasData) {
@@ -440,7 +470,7 @@ async function fetchStats() {
 async function fetchAiLogs() {
   aiLoading.value = true;
   try {
-    const params: any = { page: aiPagination.page, pageSize: 20, scene: "smart_search" };
+    const params: Record<string, string | number> = { page: aiPagination.page, pageSize: 20, scene: "smart_search" };
     if (aiFilter.keyword) params.keyword = aiFilter.keyword;
     if (aiFilter.status) params.status = aiFilter.status;
     if (aiFilter.dateRange) {
@@ -448,9 +478,9 @@ async function fetchAiLogs() {
       params.endDate = aiFilter.dateRange[1]?.toISOString();
     }
     const { data } = await aiAdminApi.getCallLogs(params);
-    const d = data as any;
+    const d = data as { list?: RawAiLog[]; data?: RawAiLog[]; total?: number };
     const list = d?.list || d?.data || [];
-    aiLogs.value = list.map((log: any) => ({
+    aiLogs.value = list.map((log) => ({
       userId: log.userId,
       query: log.query || log.prompt || log.messages?.[log.messages.length - 1]?.content,
       response: log.response || log.content,
@@ -463,9 +493,9 @@ async function fetchAiLogs() {
 
     // 统计AI搜索
     stats.aiSearchCount = aiPagination.total;
-    const latencies = aiLogs.value.filter((l: any) => l.latencyMs).map((l: any) => l.latencyMs);
+    const latencies = aiLogs.value.map((l) => l.latencyMs).filter((v): v is number => !!v);
     if (latencies.length > 0) {
-      stats.avgAiLatency = Math.round(latencies.reduce((a: number, b: number) => a + b, 0) / latencies.length);
+      stats.avgAiLatency = Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length);
     }
   } catch { /* ignore */ } finally { aiLoading.value = false; }
 }
@@ -473,15 +503,16 @@ async function fetchAiLogs() {
 async function fetchZeroResults() {
   try {
     const { data } = await api.get("/search/zero-results");
-    zeroResultKeywords.value = (data as any)?.keywords || (data as any)?.data || [];
+    const d = data as { keywords?: ZeroResultRow[]; data?: ZeroResultRow[] };
+    zeroResultKeywords.value = d?.keywords || d?.data || [];
   } catch { /* ignore */ }
 }
 
-function triggerAiFill(row: any) {
+function triggerAiFill(row: ZeroResultRow) {
   ElMessage.info(`已触发"${row.keyword}"相关内容生成，请到AI内容生成页面查看进度`);
 }
 
-function addToKnowledge(row: any) {
+function addToKnowledge(row: ZeroResultRow) {
   ElMessage.info(`已将"${row.keyword}"添加到知识库候选词，运营可在知识库管理中补充内容`);
 }
 </script>

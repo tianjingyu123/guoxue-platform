@@ -268,7 +268,22 @@ import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { recommendRuleApi } from '@/api'
 
-const list = ref<any[]>([])
+/** 推荐规则行（字段宽松 optional，仅声明模板/脚本实际访问字段） */
+interface RuleRow {
+  id: string
+  scene?: string
+  ruleType?: string
+  targetType?: string
+  targetId?: string
+  ruleValue?: number
+  position?: number
+  priority?: number
+  startAt?: string
+  endAt?: string
+  remark?: string
+}
+
+const list = ref<RuleRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const loading = ref(false)
@@ -277,7 +292,7 @@ const saving = ref(false)
 
 const dialogVisible = ref(false)
 const editingId = ref('')
-const form = ref({ scene: '', ruleType: 'PIN', targetType: 'COURSE', targetId: '', ruleValue: undefined as number | undefined, position: undefined as number | undefined, priority: 0, startAt: null as any, endAt: null as any, remark: '' })
+const form = ref({ scene: '', ruleType: 'PIN', targetType: 'COURSE', targetId: '', ruleValue: undefined as number | undefined, position: undefined as number | undefined, priority: 0, startAt: null as Date | string | null, endAt: null as Date | string | null, remark: '' })
 
 const RULE_TYPE: Record<string, string> = { PIN: '固定', BOOST: '加权', MUTE: '降权', BAN: '屏蔽', INSERT: '强插' }
 function ruleTypeLabel(t: string) { return RULE_TYPE[t] || t }
@@ -290,7 +305,7 @@ async function fetchList() {
   error.value = false
   try {
     const res = await recommendRuleApi.list({ page: page.value, pageSize: 20 })
-    const data = res.data as any
+    const data = res.data as { list?: RuleRow[]; items?: RuleRow[]; total?: number }
     list.value = data.list || data.items || []
     total.value = data.total || 0
   } catch {
@@ -306,7 +321,7 @@ function resetForm() {
 }
 
 function openCreate() { resetForm(); dialogVisible.value = true }
-function openEdit(row: any) { resetForm(); editingId.value = row.id; Object.assign(form.value, { scene: row.scene, ruleType: row.ruleType, targetType: row.targetType, targetId: row.targetId, ruleValue: row.ruleValue, position: row.position, priority: row.priority || 0, startAt: row.startAt, endAt: row.endAt, remark: row.remark }); dialogVisible.value = true }
+function openEdit(row: RuleRow) { resetForm(); editingId.value = row.id; Object.assign(form.value, { scene: row.scene, ruleType: row.ruleType, targetType: row.targetType, targetId: row.targetId, ruleValue: row.ruleValue, position: row.position, priority: row.priority || 0, startAt: row.startAt, endAt: row.endAt, remark: row.remark }); dialogVisible.value = true }
 
 async function save() {
   if (!form.value.scene || !form.value.targetId) { ElMessage.warning('请填写场景和目标ID'); return }
@@ -316,7 +331,7 @@ async function save() {
     if (editingId.value) { await recommendRuleApi.update(editingId.value, payload); ElMessage.success('已更新') }
     else { await recommendRuleApi.create(payload); ElMessage.success('已创建') }
     dialogVisible.value = false; fetchList()
-  } catch (e: any) { }
+  } catch { }
   finally { saving.value = false }
 }
 

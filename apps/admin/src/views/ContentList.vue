@@ -158,14 +158,27 @@ import SearchFilter from '@/components/SearchFilter.vue'
 
 const typeLabels: Record<string, string> = { ARTICLE: '文章', POEM: '诗词', CLASSIC: '经典' }
 
-const list = ref<any[]>([])
+/** 内容列表行（后端内容项，字段宽松 optional） */
+interface ContentRow {
+  id: string
+  title?: string
+  type: string
+  author?: string
+  dynasty?: string
+  tags?: string[]
+  viewCount?: number
+  status?: string
+  cover?: string
+}
+
+const list = ref<ContentRow[]>([])
 const loading = ref(false)
 const error = ref(false)
 const page = ref(1)
 const total = ref(0)
 const pageSize = 12
 const selectedIds = ref<string[]>([])
-const searchParams = ref<Record<string, any>>({})
+const searchParams = ref<Record<string, string>>({})
 
 const filterDefs = [
   { key: "type", label: "内容类型", type: "select" as const, options: [
@@ -189,7 +202,7 @@ const columns = [
 
 onMounted(() => fetchList())
 
-function onSearch(f: Record<string, any>) {
+function onSearch(f: Record<string, string>) {
   searchParams.value = f
   page.value = 1
   fetchList()
@@ -201,7 +214,7 @@ function onReset() {
   fetchList()
 }
 
-function onSelectionChange(rows: any[]) {
+function onSelectionChange(rows: ContentRow[]) {
   selectedIds.value = rows.map(r => r.id)
 }
 
@@ -213,7 +226,7 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const params: any = { page: page.value, pageSize, ...searchParams.value }
+    const params: Record<string, string | number> = { page: page.value, pageSize, ...searchParams.value }
     const { data } = await contentApi.list(params)
     list.value = data.data
     total.value = data.total

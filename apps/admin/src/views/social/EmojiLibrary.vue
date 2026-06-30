@@ -141,8 +141,17 @@ const submitting = ref(false)
 const emojiPage = ref(1)
 const emojiPageSize = ref(30)
 const emojiTotal = ref(0)
-const emojis = ref<any[]>([])
-const selectedEmoji = ref<any>(null)
+// 表情行（字段宽松 optional）
+interface EmojiItem {
+  id: string
+  icon?: string
+  name?: string
+  category?: string
+  usageCount?: number
+  sortOrder?: number
+}
+const emojis = ref<EmojiItem[]>([])
+const selectedEmoji = ref<EmojiItem | null>(null)
 const categories = ref<string[]>(["自然", "器物", "符号", "节气", "书法", "服饰", "建筑"])
 
 const dialogVisible = ref(false)
@@ -155,10 +164,10 @@ const stats = ref([
   { label: "今日使用", value: 0 },
   { label: "活跃用户", value: 0 },
 ])
-const hotEmojis = ref<any[]>([])
+const hotEmojis = ref<EmojiItem[]>([])
 
 watch(selectedEmoji, (val) => {
-  if (val) { editForm.name = val.name; editForm.category = val.category; editForm.sortOrder = val.sortOrder ?? 0 }
+  if (val) { editForm.name = val.name ?? ""; editForm.category = val.category ?? ""; editForm.sortOrder = val.sortOrder ?? 0 }
 })
 
 async function fetchEmojis() {

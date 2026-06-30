@@ -3,7 +3,7 @@
  * CircleData.vue — 圈子数据看板
  * 按圈子 ID 查询该圈子的详细运营指标与增长趋势
  */
-import { ref } from "vue"
+import { ref, type Component } from "vue"
 import { api } from "@/api"
 import * as echarts from "echarts"
 import ChartCard from "@/components/ChartCard.vue"
@@ -12,17 +12,34 @@ import {
   Plus, ChatLineRound, StarFilled, Avatar,
 } from "@element-plus/icons-vue"
 
+// ==================== 类型 ====================
+/** 成员增长时间序列项 */
+interface TimelineItem { date?: string; count?: number }
+/** 圈子详情（字段宽松 optional，依模板/脚本实际访问声明） */
+interface CircleDetail {
+  circleName?: string
+  memberCount?: number
+  postCount?: number
+  activity?: number
+  todayNewMembers?: number
+  todayInteractions?: number
+  elitePostCount?: number
+  expertCount?: number
+  memberTimeline?: TimelineItem[]
+}
+
 // ==================== 状态 ====================
 const entityId = ref("")
 const loading = ref(false)
 const loadError = ref(false)
-const data = ref<any>(null)
+const data = ref<CircleDetail | null>(null)
 
 // ==================== 统计卡片 ====================
-interface CardDef { label: string; value: string | number; icon: any }
+interface CardDef { label: string; value: string | number; icon: Component }
 const cards = ref<CardDef[]>([])
 
 // ==================== ECharts 选项 ====================
+// echarts option 结构复杂，统一用 any（框架类型），不做精细收敛
 const chartOption = ref<any>({})
 
 /** 构建成员增长趋势折线图 */
@@ -60,6 +77,7 @@ function buildTrendOption(dates: string[], values: number[]) {
       trigger: "axis", backgroundColor: "#fff",
       borderColor: "#F0F0F0", borderWidth: 1,
       textStyle: { color: "#1A1A1A", fontSize: 13 },
+      // echarts tooltip 回调参数类型复杂，保留 any（框架类型）
       formatter: (params: any) => {
         const p = params[0]
         return `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>
@@ -141,10 +159,10 @@ async function fetchData() {
     ]
 
     // 优先使用 memberTimeline 绘制折线图
-    const timeline = d.memberTimeline ?? []
+    const timeline: TimelineItem[] = d.memberTimeline ?? []
     if (Array.isArray(timeline) && timeline.length > 0) {
-      const dates = timeline.map((t: any) => t.date ?? "")
-      const values = timeline.map((t: any) => t.count ?? 0)
+      const dates = timeline.map((t) => t.date ?? "")
+      const values = timeline.map((t) => t.count ?? 0)
       if (dates.length && values.length) {
         chartOption.value = buildTrendOption(dates, values)
       }

@@ -4,10 +4,24 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { financeApi } from '@/api'
 import { exportCSV } from '@/utils/export'
 
+// 提现申请行（按列配置与模板访问字段定义的宽松本地类型）
+interface WithdrawalRow {
+  id: string
+  userId?: string
+  amount?: number
+  payMethod: string
+  status: string
+  createdAt: string
+  // 收款账户信息为 Json，结构不固定，保留宽松类型
+  accountInfo?: Record<string, any>
+  reviewedBy?: string
+  reviewNote?: string
+}
+
 const loading = ref(false)
 const saving = ref(false)
 const error = ref(false)
-const list = ref<any[]>([])
+const list = ref<WithdrawalRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 20
@@ -18,14 +32,14 @@ const rejectVisible = ref(false)
 const rejectForm = reactive({ id: '', reason: '' })
 
 const detailVisible = ref(false)
-const detailData = ref<any>(null)
+const detailData = ref<WithdrawalRow | null>(null)
 
 onMounted(() => fetchList())
 
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
-function formatMoney(v: any) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
+function formatMoney(v: number | string | null | undefined) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
 
-function maskAccountNo(no: any) {
+function maskAccountNo(no: unknown) {
   const s = no != null ? String(no) : ''
   if (!s) return '-'
   if (s.length <= 4) return s
@@ -33,13 +47,13 @@ function maskAccountNo(no: any) {
 }
 
 // 收款账户信息存于 accountInfo(Json)，结构不固定，做容错读取
-function acct(row: any): Record<string, any> {
+function acct(row: WithdrawalRow | null | undefined): Record<string, any> {
   const a = row?.accountInfo
   return a && typeof a === 'object' ? a : {}
 }
-function bankName(row: any) { const a = acct(row); return a.bankName || a.bank || '' }
-function accountNo(row: any) { const a = acct(row); return a.cardNo || a.account || a.bankCard || a.alipayAccount || a.no || '' }
-function accountName(row: any) { const a = acct(row); return a.name || a.accountName || a.realName || '' }
+function bankName(row: WithdrawalRow | null | undefined) { const a = acct(row); return a.bankName || a.bank || '' }
+function accountNo(row: WithdrawalRow | null | undefined) { const a = acct(row); return a.cardNo || a.account || a.bankCard || a.alipayAccount || a.no || '' }
+function accountName(row: WithdrawalRow | null | undefined) { const a = acct(row); return a.name || a.accountName || a.realName || '' }
 
 // 后端字段：payMethod = WECHAT / ALIPAY / BANK
 function payMethodLabel(m: string) {
@@ -61,7 +75,7 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const params: any = { page: page.value, pageSize }
+    const params: Record<string, string | number> = { page: page.value, pageSize }
     if (statusFilter.value) params.status = statusFilter.value
     // 后端 getWithdrawalList 返回 { withdrawals, ... }，"withdrawals" 是拦截器分页候选键
     // → 被统一解包为 { items, total, page, pageSize }，故取 data.items
@@ -74,9 +88,9 @@ async function fetchList() {
   } finally { loading.value = false }
 }
 
-function viewDetail(row: any) { detailData.value = row; detailVisible.value = true }
+function viewDetail(row: WithdrawalRow) { detailData.value = row; detailVisible.value = true }
 
-async function approve(row: any) {
+async function approve(row: WithdrawalRow) {
   try {
     await ElMessageBox.confirm(
       `确定批准用户 ${row.userId} 的提现申请？\n金额：${formatMoney(row.amount)}`,
@@ -89,7 +103,7 @@ async function approve(row: any) {
   } catch { /* 取消 */ }
 }
 
-function openReject(row: any) {
+function openReject(row: WithdrawalRow) {
   rejectForm.id = row.id
   rejectForm.reason = ''
   rejectVisible.value = true
@@ -107,7 +121,7 @@ async function reject() {
   } catch { } finally { saving.value = false }
 }
 
-async function markPaid(row: any) {
+async function markPaid(row: WithdrawalRow) {
   try {
     await ElMessageBox.confirm(
       `确认已向用户 ${row.userId} 打款 ${formatMoney(row.amount)}？`,

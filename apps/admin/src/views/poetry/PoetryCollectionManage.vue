@@ -271,7 +271,21 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { poetryAdminApi } from "@/api";
 import PageHeader from "@/components/PageHeader.vue";
 
-const collections = ref<any[]>([]);
+/** 合集行（宽松 optional，按模板访问声明） */
+interface CollectionRow {
+  id?: string; title?: string; author?: string; dynasty?: string;
+  excerpt?: string; category?: string; cover?: string;
+  status?: string; sortOrder?: number; poemCount?: number;
+}
+/** 编辑表单（字段均有默认值，故为必填） */
+interface CollectionForm {
+  title: string; author: string; dynasty: string; excerpt: string;
+  category: string; cover: string; status: string; sortOrder: number;
+}
+/** axios 错误对象（无类型来源，本地声明） */
+interface ApiError { response?: { data?: { message?: string } }; message?: string }
+
+const collections = ref<CollectionRow[]>([]);
 const loading = ref(false);
 const error = ref("");
 const submitting = ref(false);
@@ -282,8 +296,8 @@ const total = ref(0);
 const statusFilter = ref("");
 
 const dialogVisible = ref(false);
-const editing = ref<any>({});
-const form = reactive<any>({
+const editing = ref<CollectionRow>({});
+const form = reactive<CollectionForm>({
   title: "", author: "", dynasty: "", excerpt: "",
   category: "", cover: "", status: "DRAFT", sortOrder: 0,
 });
@@ -306,19 +320,19 @@ async function fetchCollections() {
   loading.value = true;
   error.value = "";
   try {
-    const params: any = { page: page.value, pageSize: pageSize.value };
+    const params: { page: number; pageSize: number; status?: string } = { page: page.value, pageSize: pageSize.value };
     if (statusFilter.value) params.status = statusFilter.value;
     const { data } = await poetryAdminApi.listCollections(params);
     collections.value = data?.items || [];
     total.value = data?.total || 0;
-  } catch (e: any) {
-    error.value = e?.response?.data?.message || e?.message || "加载合集失败";
+  } catch (e) {
+    error.value = (e as ApiError)?.response?.data?.message || (e as ApiError)?.message || "加载合集失败";
   } finally {
     loading.value = false;
   }
 }
 
-function openEdit(row?: any) {
+function openEdit(row?: CollectionRow) {
   editing.value = row || {};
   if (row) {
     Object.assign(form, {
@@ -353,8 +367,8 @@ async function saveCollection() {
     }
     dialogVisible.value = false;
     fetchCollections();
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || "保存失败");
+  } catch (e) {
+    ElMessage.error((e as ApiError)?.response?.data?.message || "保存失败");
   } finally {
     submitting.value = false;
   }
@@ -367,8 +381,8 @@ function delCollection(id: string) {
         await poetryAdminApi.deleteCollection(id);
         ElMessage.success("已删除");
         fetchCollections();
-      } catch (e: any) {
-        ElMessage.error(e?.response?.data?.message || "删除失败");
+      } catch (e) {
+        ElMessage.error((e as ApiError)?.response?.data?.message || "删除失败");
       }
     })
     .catch(() => {});

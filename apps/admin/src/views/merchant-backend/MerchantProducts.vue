@@ -321,9 +321,25 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import type { FormInstance, InputInstance } from "element-plus";
 import { merchantBackendApi } from "@/api";
 
-const list = ref<any[]>([]);
+/** 商品行（字段宽松 optional） */
+interface ProductRow {
+  id: string;
+  title?: string;
+  intro?: string;
+  detail?: string;
+  images?: string[];
+  price?: number;
+  stock?: number;
+  status?: string;
+  categoryId?: string;
+  tags?: string[];
+  createdAt?: string;
+}
+
+const list = ref<ProductRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
@@ -335,7 +351,7 @@ const dialogVisible = ref(false);
 const editingId = ref("");
 const imageUrl = ref("");
 
-const formRef = ref<any>(null);
+const formRef = ref<FormInstance | null>(null);
 const form = reactive({
   title: "", intro: "", detail: "",
   images: [] as string[], price: 0, stock: 0,
@@ -351,7 +367,7 @@ const rules = {
 
 const tagInputVisible = ref(false);
 const tagInputValue = ref("");
-const tagInputRef = ref<any>(null);
+const tagInputRef = ref<InputInstance | null>(null);
 
 function formatDate(d: string) {
   return d ? new Date(d).toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-";
@@ -382,13 +398,14 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: 20 };
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 };
     if (filterStatus.value) params.status = filterStatus.value;
     const res = await merchantBackendApi.listProducts(params);
-    const data = (res as any).data ?? res;
+    // 兼容两种响应包装：{ data: {...} } 或直接返回 data
+    const data = (res as { data?: { list?: ProductRow[]; data?: ProductRow[]; total?: number } }).data ?? (res as { list?: ProductRow[]; data?: ProductRow[]; total?: number });
     list.value = data.list || data.data || [];
     total.value = data.total || 0;
-  } catch (e: any) {
+  } catch (e) {
     error.value = true;
   } finally { loading.value = false; }
 }
@@ -398,7 +415,7 @@ function openCreate() {
   dialogVisible.value = true;
 }
 
-function openEdit(row: any) {
+function openEdit(row: ProductRow) {
   resetForm();
   editingId.value = row.id;
   form.title = row.title || "";
@@ -428,7 +445,7 @@ async function save() {
   } catch { /* */ } finally { saving.value = false; }
 }
 
-async function toggleStatus(row: any, action: string) {
+async function toggleStatus(row: ProductRow, action: string) {
   try {
     if (action === "list") {
       await merchantBackendApi.listProduct(row.id);
@@ -441,7 +458,7 @@ async function toggleStatus(row: any, action: string) {
   } catch { /* */ }
 }
 
-async function handleDelete(row: any) {
+async function handleDelete(row: ProductRow) {
   try {
     await ElMessageBox.confirm(`确定删除商品"${row.title}"？此操作不可恢复。`, "警告", { type: "error", confirmButtonClass: "el-button--danger" });
     await merchantBackendApi.deleteProduct(row.id);

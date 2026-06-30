@@ -204,9 +204,27 @@ import { ref, reactive, onMounted } from 'vue'
 import { orderApi } from '@/api'
 import { exportCSV } from '@/utils/export'
 
+/** 支付流水行（字段宽松 optional） */
+interface PaymentRow {
+  orderNo?: string
+  userId?: string
+  user?: { nickname?: string; phone?: string }
+  type?: string
+  orderType?: string
+  amount?: number | string
+  totalAmount?: number | string
+  payMethod?: string
+  paymentMethod?: string
+  status?: string
+  paidAt?: string
+  createdAt?: string
+}
+/** 订单列表响应（解包后） */
+interface OrderListResp { orders?: PaymentRow[]; data?: PaymentRow[]; total: number }
+
 const loading = ref(false)
 const error = ref(false)
-const list = ref<any[]>([])
+const list = ref<PaymentRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const filters = reactive({ orderNo: '', userId: '', status: '', dateRange: [] as string[] })
@@ -238,10 +256,10 @@ async function fetchStats() {
       orderApi.list({ page: 1, pageSize: 1, status: 'PAID', startDate: monthStart, endDate: today }),
       orderApi.list({ page: 1, pageSize: 1, status: 'PAID' }),
     ])
-    const td = (todayRes.data as any) || {}
-    const yd = (yesterdayRes.data as any) || {}
-    const mo = (monthRes.data as any) || {}
-    const al = (allRes.data as any) || {}
+    const td = (todayRes.data || {}) as OrderListResp
+    const yd = (yesterdayRes.data || {}) as OrderListResp
+    const mo = (monthRes.data || {}) as OrderListResp
+    const al = (allRes.data || {}) as OrderListResp
     stats.todayCount = td.total || 0
     stats.yesterdayCount = yd.total || 0
     stats.monthCount = mo.total || 0
@@ -250,23 +268,23 @@ async function fetchStats() {
     // 金额汇总
     if (td.total > 0) {
       const items = await orderApi.list({ page: 1, pageSize: Math.min(td.total, 500), status: 'PAID', startDate: today, endDate: today })
-      const data = (items.data as any)
-      stats.todayAmount = (data?.orders || data?.data || []).reduce((s: number, r: any) => s + Number(r.amount || r.totalAmount || 0), 0)
+      const data = items.data as OrderListResp
+      stats.todayAmount = (data?.orders || data?.data || []).reduce((s: number, r: PaymentRow) => s + Number(r.amount || r.totalAmount || 0), 0)
     }
     if (yd.total > 0) {
       const items = await orderApi.list({ page: 1, pageSize: Math.min(yd.total, 500), status: 'PAID', startDate: yesterday, endDate: yesterday })
-      const data = (items.data as any)
-      stats.yesterdayAmount = (data?.orders || data?.data || []).reduce((s: number, r: any) => s + Number(r.amount || r.totalAmount || 0), 0)
+      const data = items.data as OrderListResp
+      stats.yesterdayAmount = (data?.orders || data?.data || []).reduce((s: number, r: PaymentRow) => s + Number(r.amount || r.totalAmount || 0), 0)
     }
     if (mo.total > 0) {
       const items = await orderApi.list({ page: 1, pageSize: Math.min(mo.total, 2000), status: 'PAID', startDate: monthStart, endDate: today })
-      const data = (items.data as any)
-      stats.monthAmount = (data?.orders || data?.data || []).reduce((s: number, r: any) => s + Number(r.amount || r.totalAmount || 0), 0)
+      const data = items.data as OrderListResp
+      stats.monthAmount = (data?.orders || data?.data || []).reduce((s: number, r: PaymentRow) => s + Number(r.amount || r.totalAmount || 0), 0)
     }
     if (al.total > 0) {
       const items = await orderApi.list({ page: 1, pageSize: Math.min(al.total, 5000), status: 'PAID' })
-      const data = (items.data as any)
-      stats.totalAmount = (data?.orders || data?.data || []).reduce((s: number, r: any) => s + Number(r.amount || r.totalAmount || 0), 0)
+      const data = items.data as OrderListResp
+      stats.totalAmount = (data?.orders || data?.data || []).reduce((s: number, r: PaymentRow) => s + Number(r.amount || r.totalAmount || 0), 0)
     }
   } catch { /* ignore */ }
 }
@@ -275,7 +293,7 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const params: any = { page: page.value, pageSize: 20 }
+    const params: { page: number; pageSize: number; orderNo?: string; userId?: string; status?: string; startDate?: string; endDate?: string } = { page: page.value, pageSize: 20 }
     if (filters.orderNo) params.orderNo = filters.orderNo
     if (filters.userId) params.userId = filters.userId
     if (filters.status) params.status = filters.status
@@ -305,9 +323,9 @@ function handleExport() {
   ], list.value.map(item => ({
     ...item,
     userName: item.user?.nickname || item.userId,
-    typeLabel: typeLabel(item.type || item.orderType),
+    typeLabel: typeLabel(item.type || item.orderType || ''),
     amount: `¥${Number(item.amount || item.totalAmount).toFixed(2)}`,
-    paidAt: formatDate(item.paidAt || item.createdAt),
+    paidAt: formatDate(item.paidAt || item.createdAt || ''),
   })))
 }
 </script>

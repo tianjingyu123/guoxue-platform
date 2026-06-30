@@ -257,7 +257,20 @@ import { coinApi, api } from "@/api";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { exportCSV } from "@/utils/export";
 
-const list = ref<any[]>([]);
+// 礼物行（按列配置与模板访问字段定义的宽松本地类型）
+interface GiftRow {
+  id: string
+  name?: string
+  icon?: string
+  priceCoin?: number
+  price?: number
+  level: string
+  sortOrder?: number
+  sort?: number
+  status?: string
+}
+
+const list = ref<GiftRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(20);
@@ -326,7 +339,7 @@ function openCreate() {
   dialogVisible.value = true;
 }
 
-function openEdit(row: any) {
+function openEdit(row: GiftRow) {
   resetForm();
   editingId.value = row.id;
   Object.assign(form, {
@@ -368,7 +381,7 @@ async function saveGift() {
   }
 }
 
-async function handleDeleteGift(row: any) {
+async function handleDeleteGift(row: GiftRow) {
   try {
     await ElMessageBox.confirm(`确定删除礼物「${row.name}」？`, "提示", {
       confirmButtonText: "确定",
@@ -385,7 +398,7 @@ async function handleDeleteGift(row: any) {
 
 // 启用/停用：调 PUT /coin/gifts/:id 更新 status（后端已支持 status 字段，
 // admin 列表返回全部礼物含停用项；C 端送礼面板走 /live/gifts 仅返回 ACTIVE，不受影响）
-async function toggleStatus(row: any, active: boolean) {
+async function toggleStatus(row: GiftRow, active: boolean) {
   if (togglingId.value) return;
   togglingId.value = row.id;
   const nextStatus = active ? "ACTIVE" : "INACTIVE";

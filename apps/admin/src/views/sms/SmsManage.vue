@@ -169,9 +169,18 @@
 import { ref, reactive, onMounted } from "vue";
 import { smsApi } from "@/api";
 
+// 短信发送日志行（按列配置与模板访问字段定义的宽松本地类型）
+interface SmsLogRow {
+  phone?: string;
+  scene: string;
+  status?: string;
+  errorMsg?: string;
+  createdAt: string;
+}
+
 const loading = ref(false);
 const loadError = ref(false);
-const logs = ref<any[]>([]);
+const logs = ref<SmsLogRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(20);
@@ -196,7 +205,7 @@ onMounted(() => refresh());
 async function refresh() {
   try {
     const statsRes = await smsApi.getAdminStats();
-    const s = statsRes.data as any;
+    const s = statsRes.data as Record<string, any>;
     if (s) {
       stats.total = s.total || 0;
       stats.today = s.today || { total: 0, success: 0, fail: 0 };
@@ -213,7 +222,7 @@ async function fetchLogs() {
   loadError.value = false;
   try {
     const { data } = await smsApi.getAdminLogs({ page: page.value, pageSize: pageSize.value, status: filterStatus.value || undefined });
-    const d = data as any;
+    const d = data as Record<string, any>;
     logs.value = d?.logs || d?.data || [];
     total.value = d?.total || 0;
   } catch { logs.value = []; loadError.value = true; } finally { loading.value = false; }

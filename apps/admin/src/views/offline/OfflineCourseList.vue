@@ -148,7 +148,24 @@ import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
-const loading = ref(false); const loadError = ref(false); const submitting = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1); const tab = ref('pending')
+/** 线下课程行（字段宽松 optional） */
+interface CourseRow {
+  id: string
+  title?: string
+  stationId?: string
+  teacher?: { name?: string }
+  teacherId?: string
+  price?: number
+  registeredCount?: number
+  maxStudents?: number
+  startTime?: string
+  endTime?: string
+  location?: string
+  createdAt?: string
+  isRecommended?: boolean
+}
+
+const loading = ref(false); const loadError = ref(false); const submitting = ref(false); const list = ref<CourseRow[]>([]); const total = ref(0); const page = ref(1); const tab = ref('pending')
 
 onMounted(() => fetchList())
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
@@ -173,7 +190,7 @@ async function auditCourse(id: string, auditStatus: string) {
   catch { ElMessage.error('操作失败') } finally { submitting.value = false }
 }
 
-async function rejectCourse(row: any) {
+async function rejectCourse(row: CourseRow) {
   try {
     const { value } = await ElMessageBox.prompt('请输入驳回原因', '驳回课程', { confirmButtonText: '确认', cancelButtonText: '取消' })
     if (!value) return
@@ -183,7 +200,7 @@ async function rejectCourse(row: any) {
   } catch (e) { if (e !== 'cancel') ElMessage.error('操作失败') } finally { submitting.value = false }
 }
 
-async function toggleRecommend(row: any) {
+async function toggleRecommend(row: CourseRow) {
   try {
     await ElMessageBox.confirm(`确定${row.isRecommended ? '取消推荐' : '推荐'}此课程？`, '提示', { type: 'info' })
     if (submitting.value) return

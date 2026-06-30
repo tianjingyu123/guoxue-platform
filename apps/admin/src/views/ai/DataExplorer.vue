@@ -139,6 +139,8 @@ import { aiDataExplorerApi } from '@/api'
 import { ElMessage } from 'element-plus'
 
 const chatRef = ref<InstanceType<typeof ChatUI>>()
+// 保留 any：模板 v-else 分支内对可空字段做算术比较（rowCount > 0）并绑定 el-table :data，
+// 收敛为具体类型会触发多处 possibly-null/undefined 报错，且无法在不改模板结构下消除
 const currentResult = ref<any>(null)
 const resultCollapse = ref<string[]>(['sql'])
 const loading = ref(false)
@@ -175,8 +177,9 @@ const chatConfig: ChatUIConfig = {
 }
 
 const dataColumns = computed(() => {
-  if (!currentResult.value?.data?.length) return []
-  return Object.keys(currentResult.value.data[0])
+  const rows = currentResult.value?.data
+  if (!rows?.length) return []
+  return Object.keys(rows[0])
 })
 
 function chartLabel(type: string) {
@@ -209,8 +212,9 @@ async function quickAsk(q: string) {
         createdAt: new Date(),
       })
     }
-  } catch (e: any) {
-    const errMsg = e?.response?.data?.message || e.message || '查询失败'
+  } catch (e) {
+    const err = e as { response?: { data?: { message?: string } }; message?: string }
+    const errMsg = err?.response?.data?.message || err?.message || '查询失败'
     queryErr.value = true; queryErrMsg.value = errMsg
     chatRef.value?.addMessage({
       id: `err-${Date.now()}`, role: 'assistant',
@@ -242,8 +246,9 @@ async function onUserMessage(msg: ChatMessage) {
         createdAt: new Date(),
       })
     }
-  } catch (e: any) {
-    const errMsg = e?.response?.data?.message || e.message || '查询失败'
+  } catch (e) {
+    const err = e as { response?: { data?: { message?: string } }; message?: string }
+    const errMsg = err?.response?.data?.message || err?.message || '查询失败'
     queryErr.value = true; queryErrMsg.value = errMsg
     chatRef.value?.addMessage({
       id: `err-${Date.now()}`, role: 'assistant',
@@ -260,10 +265,11 @@ function onAiResponse(msg: ChatMessage) {
 }
 
 function exportCsv() {
-  if (!currentResult.value?.data?.length) return
+  const data = currentResult.value?.data
+  if (!data?.length) return
   const cols = dataColumns.value
   const header = cols.join(',')
-  const rows = currentResult.value.data.map((r: any) =>
+  const rows = data.map((r: Record<string, unknown>) =>
     cols.map((c: string) => {
       const v = r[c]
       if (v === null || v === undefined) return ''

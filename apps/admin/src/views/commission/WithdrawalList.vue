@@ -131,7 +131,21 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { exportCSV } from "@/utils/export";
 import DataTable from "@/components/DataTable.vue";
 
-const list = ref<any[]>([]);
+// 提现申请行：依据表格列、行操作与导出访问字段声明
+interface WithdrawalRow {
+  id: string
+  userId?: string
+  user?: { nickname?: string; phone?: string }
+  station?: { name?: string }
+  amount: number | string
+  alipayAccount?: string
+  bankName?: string
+  bankAccount?: string
+  status?: string
+  createdAt?: string
+}
+
+const list = ref<WithdrawalRow[]>([]);
 const loading = ref(false);
 const error = ref(false);
 const submitting = ref(false);
@@ -177,7 +191,7 @@ async function fetchList() {
   }
 }
 
-async function audit(row: any, status: string) {
+async function audit(row: WithdrawalRow, status: string) {
   if (submitting.value) return;
   const isReject = status === "REJECTED";
   const title = isReject ? "确认拒绝" : "确认通过";
@@ -200,7 +214,7 @@ async function audit(row: any, status: string) {
 // 后端 auditWithdrawal 仅允许从 PENDING 发起状态变更（status !== "PENDING" 即抛错），
 // 故打款按钮挂在待审核(PENDING)记录上，一步完成「审核通过并打款」。
 // 注：已通过(APPROVED)记录 -> PAID 暂不被后端支持，如需「审核→打款」两步流转需后端放宽 auditWithdrawal 的状态守卫。
-async function markPaid(row: any) {
+async function markPaid(row: WithdrawalRow) {
   if (submitting.value) return;
   try {
     await ElMessageBox.confirm(
@@ -221,7 +235,8 @@ function statusType(s: string) {
   return ({ PENDING: "warning", APPROVED: "success", PAID: "", REJECTED: "danger" } as Record<string, string>)[s] || "";
 }
 
-function statusLabel(s: string) {
+function statusLabel(s?: string) {
+  if (!s) return "--";
   return ({ PENDING: "待审核", APPROVED: "已通过", PAID: "已打款", REJECTED: "已拒绝" } as Record<string, string>)[s] || s;
 }
 

@@ -9,6 +9,26 @@ import SearchFilter from "@/components/SearchFilter.vue";
 import { useTable } from "@/composables/useTable";
 import PageHeader from "@/components/PageHeader.vue";
 
+/** 课程行（列表项，字段宽松 optional，不复刻完整后端结构） */
+interface CourseRow {
+  id: string;
+  title?: string;
+  cover?: string;
+  type?: string;
+  category?: string;
+  price?: number;
+  originalPrice?: number;
+  validity?: string;
+  validityDays?: number;
+  studentCount?: number;
+  auditStatus?: string;
+  author?: string;
+  categoryLevel1?: string;
+  categoryLevel2?: string;
+  user?: { nickname?: string };
+  _count?: { chapters?: number };
+}
+
 const router = useRouter();
 const selectedIds = ref<string[]>([]);
 
@@ -46,10 +66,10 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch, handle
   fetchApi: courseApi.list,
   defaultPageSize: 20,
   transformResponse: (data: any) => ({
-    items: (data.courses || []).map((c: any) => ({
+    items: (data.courses || []).map((c: CourseRow) => ({
       ...c,
       category: [c.categoryLevel1, c.categoryLevel2].filter(Boolean).join("/") || "-",
-      validity: c.validityDays > 0 ? c.validityDays + "天" : "永久",
+      validity: (c.validityDays ?? 0) > 0 ? c.validityDays + "天" : "永久",
       author: c.user?.nickname || "-",
     })),
     total: data.total,
@@ -58,17 +78,17 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch, handle
 
 const hasSelection = computed(() => selectedIds.value.length > 0);
 
-function onSearch(f: Record<string, any>) {
+function onSearch(f: Record<string, string | undefined>) {
   Object.assign(filters, f)
   handleSearch()
 }
 
 function onReset() {
-  Object.keys(filters).forEach(k => { (filters as any)[k] = undefined })
+  Object.keys(filters).forEach(k => { filters[k] = undefined })
   handleReset()
 }
 
-function onSelectionChange(rows: any[]) {
+function onSelectionChange(rows: CourseRow[]) {
   selectedIds.value = rows.map((r) => r.id);
 }
 
@@ -120,11 +140,11 @@ function exportData() {
       { label: "分类", key: "category" }, { label: "作者", key: "authorName" },
       { label: "审核状态", key: "auditLabel" },
     ],
-    tableData.value.map((c: any) => ({
+    tableData.value.map((c: CourseRow) => ({
       ...c,
-      typeLabel: typeLabels[c.type] || c.type,
+      typeLabel: typeLabels[c.type ?? ""] || c.type,
       authorName: c.user?.nickname || "-",
-      auditLabel: auditLabels[c.auditStatus]?.text || c.auditStatus,
+      auditLabel: auditLabels[c.auditStatus ?? ""]?.text || c.auditStatus,
     })),
   );
 }

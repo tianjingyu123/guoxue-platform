@@ -6,7 +6,29 @@ import { exportCSV } from "@/utils/export";
 import DataTable from "@/components/DataTable.vue";
 import PageHeader from "@/components/PageHeader.vue";
 
-const orders = ref<any[]>([]);
+/** 订单商品明细行（字段宽松 optional） */
+interface OrderItemRow { name?: string; price?: number; quantity?: number }
+/** 订单收货地址 */
+interface OrderAddress {
+  contactName?: string; contactPhone?: string;
+  province?: string; city?: string; district?: string; address?: string; zipCode?: string;
+}
+/** 订单行（字段宽松 optional，仅覆盖模板/脚本实际访问字段） */
+interface OrderRow {
+  id?: string;
+  user?: { nickname?: string };
+  type?: string;
+  targetId?: string;
+  amount?: number | string;
+  coinAmount?: number;
+  status?: string;
+  createdAt?: string;
+  paidAt?: string;
+  address?: OrderAddress;
+  items?: OrderItemRow[];
+}
+
+const orders = ref<OrderRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(20);
@@ -25,6 +47,8 @@ const logisticsForm = reactive({
 });
 
 const detailVisible = ref(false);
+// 详情对象在弹窗模板内多处裸访问字段（typeLabels[detailRow.type]/new Date(detailRow.createdAt) 等），
+// 收敛为 OrderRow 会引发多处 possibly-undefined/索引报错，故保留 any。
 const detailRow = ref<any>(null);
 
 const statusLabels: Record<string, string> = {
@@ -61,7 +85,7 @@ async function fetchList() {
   } finally { loading.value = false; }
 }
 
-function showDetail(row: any) { detailRow.value = row; detailVisible.value = true; }
+function showDetail(row: OrderRow) { detailRow.value = row; detailVisible.value = true; }
 
 async function handlePay(orderId: string) {
   try {
@@ -115,17 +139,17 @@ async function handleComplete(orderId: string) {
   } catch { /* */ } finally { acting.value = false; }
 }
 
-async function openLogistics(row: any) {
-  logisticsOrderId.value = row.id;
+async function openLogistics(row: OrderRow) {
+  logisticsOrderId.value = row.id ?? "";
   try {
-    const { data } = await orderApi.getLogistics(row.id);
+    const { data } = await orderApi.getLogistics(row.id ?? "");
     const init: Record<string, string> = {
       company: "", logisticsNo: "", contactName: "", contactPhone: "",
       province: "", city: "", district: "", address: "", zipCode: "", remark: "",
     };
     if (data.logistics) {
       Object.keys(init).forEach(k => {
-        (logisticsForm as any)[k] = data.logistics[k] || "";
+        (logisticsForm as Record<string, string>)[k] = data.logistics[k] || "";
       });
     } else {
       Object.assign(logisticsForm, init);
@@ -140,7 +164,7 @@ async function saveLogistics() {
   if (savingLogistics.value) return;
   savingLogistics.value = true;
   try {
-    const payload: any = {};
+    const payload: Record<string, string> = {};
     Object.entries(logisticsForm).forEach(([k, v]) => { if (v) payload[k] = v; });
     await orderApi.updateLogistics(logisticsOrderId.value, payload);
     ElMessage.success("物流信息已保存");
@@ -160,9 +184,9 @@ function exportData() {
     orders.value.map((o) => ({
       ...o,
       userName: o.user?.nickname || "-",
-      typeLabel: typeLabels[o.type] || o.type,
-      statusLabel: statusLabels[o.status] || o.status,
-      createdAt: new Date(o.createdAt).toLocaleString(),
+      typeLabel: typeLabels[o.type ?? ""] || o.type,
+      statusLabel: statusLabels[o.status ?? ""] || o.status,
+      createdAt: new Date(o.createdAt ?? "").toLocaleString(),
     })),
   );
 }

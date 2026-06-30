@@ -3,14 +3,25 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
+interface ConfigVersionRow {
+  id?: string
+  versionId?: string
+  configKey?: string
+  version?: number | string
+  configValue?: string | object
+  updatedAt?: string
+  createdAt?: string
+  updatedBy?: string
+}
+
 const loading = ref(false)
 const loadError = ref(false)
 const rollingBack = ref(false)
-const list = ref<any[]>([])
+const list = ref<ConfigVersionRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const detailVis = ref(false)
-const detailRow = ref<any>(null)
+const detailRow = ref<ConfigVersionRow | null>(null)
 const detailValue = ref('')
 const filters = reactive({ configKey: '' })
 
@@ -18,9 +29,9 @@ const BASE = '/system/config-versions'
 
 onMounted(() => fetchList())
 
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
 
-function truncate(val: any, maxLen = 60): string {
+function truncate(val: unknown, maxLen = 60): string {
   if (val == null) return '-'
   const str = typeof val === 'string' ? val : JSON.stringify(val)
   return str.length > maxLen ? str.substring(0, maxLen) + '...' : str
@@ -30,7 +41,7 @@ async function fetchList() {
   loading.value = true
   loadError.value = false
   try {
-    const params: any = { page: page.value, pageSize: 20 }
+    const params: Record<string, string | number> = { page: page.value, pageSize: 20 }
     if (filters.configKey) params.configKey = filters.configKey
     const { data } = await api.get(BASE, { params })
     list.value = data?.items ?? data?.data ?? data?.versions ?? []
@@ -48,7 +59,7 @@ function resetFilters() {
   fetchList()
 }
 
-async function viewDetail(row: any) {
+async function viewDetail(row: ConfigVersionRow) {
   detailRow.value = row
   try {
     const { data } = await api.get(`${BASE}/${row.id || row.versionId}`)
@@ -62,7 +73,7 @@ async function viewDetail(row: any) {
   detailVis.value = true
 }
 
-async function rollback(row: any) {
+async function rollback(row: ConfigVersionRow) {
   if (rollingBack.value) return
   try {
     await ElMessageBox.confirm(

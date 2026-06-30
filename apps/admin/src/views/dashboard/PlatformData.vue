@@ -5,6 +5,7 @@
  * Route meta: roles ALL_ADMIN
  */
 import { ref, onMounted } from 'vue'
+import type { Component } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/api'
 import * as echarts from 'echarts'
@@ -14,17 +15,31 @@ import { User, Document, Goods, Money, Plus, Coin, ChatDotRound, View } from '@e
 const router = useRouter()
 const loading = ref(true)
 const loadError = ref(false)
-const data = ref<any>(null)
+/** 平台总数据聚合（仅作真值判断，明细字段在脚本内按需访问） */
+interface PlatformAgg {
+  stats?: Record<string, number>
+  trends?: Record<string, unknown>
+  charts?: Record<string, unknown>
+}
+const data = ref<PlatformAgg | null>(null)
 
 interface CardDef {
   label: string
   value: number
-  icon: any
+  icon: Component
   prefix?: string
 }
+/** TOP 内容行（字段宽松 optional） */
+interface ArticleRow {
+  title?: string
+  pageViews?: number
+  likes?: number
+  comments?: number
+}
 const cards = ref<CardDef[]>([])
+// chartOption 为 ECharts option，类型为复杂联合，框架类型不匹配，保留 any
 const chartOption = ref<any>({})
-const topArticles = ref<any[]>([])
+const topArticles = ref<ArticleRow[]>([])
 
 const cardRoutes: Record<string, string> = {
   '总用户数': '/users',
@@ -90,6 +105,7 @@ function buildGrowthOption(dates: string[], values: number[]) {
       borderColor: '#F0F0F0',
       borderWidth: 1,
       textStyle: { color: '#1A1A1A', fontSize: 13 },
+      // params 为 ECharts tooltip 回调参数（复杂联合类型），保留 any
       formatter: (params: any) => {
         const p = params[0]
         return `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>
@@ -150,7 +166,7 @@ function exportCSV() {
   if (topArticles.value.length) {
     rows.push([])
     rows.push(['排名', '标题', '浏览量', '点赞', '评论'])
-    topArticles.value.forEach((a: any, i: number) => {
+    topArticles.value.forEach((a: ArticleRow, i: number) => {
       rows.push([String(i + 1), a.title ?? '', String(a.pageViews ?? 0), String(a.likes ?? 0), String(a.comments ?? 0)])
     })
   }

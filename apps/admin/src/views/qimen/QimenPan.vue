@@ -38,8 +38,9 @@ async function doCalc() {
       },
     })
     result.value = res.data
-  } catch (e: any) {
-    errorMsg.value = e?.response?.data?.message || '排盘失败'
+  } catch (e) {
+    const err = e as { response?: { data?: { message?: string } } }
+    errorMsg.value = err?.response?.data?.message || '排盘失败'
   } finally {
     loading.value = false
   }

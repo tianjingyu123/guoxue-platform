@@ -186,10 +186,20 @@ import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { churnApi } from "@/api";
 
+// 流失预测行（按列配置与模板访问字段定义的宽松本地类型）
+interface ChurnRow {
+  userId?: string;
+  activityScore?: number;
+  riskLevel: string;
+  daysSinceActive?: number;
+  churnFactors?: string;
+  predictedAt?: string;
+}
+
 const loading = ref(false);
 const error = ref(false);
 const scoring = ref(false);
-const list = ref<any[]>([]);
+const list = ref<ChurnRow[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
@@ -210,7 +220,7 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize: pageSize.value };
+    const params: { riskLevel?: string; page?: number; pageSize?: number } = { page: page.value, pageSize: pageSize.value };
     if (filterRiskLevel.value) params.riskLevel = filterRiskLevel.value;
     const res = await churnApi.getPredictions(params);
     // 后端返回 { predictions, total, page, pageSize }（非标准分页键，拦截器不解包）
