@@ -376,8 +376,24 @@ import { exportCSV } from "@/utils/export";
 import DataTable from "@/components/DataTable.vue";
 import PageHeader from "@/components/PageHeader.vue";
 
+/** 用户角色项 */
+interface RoleItem { roleType: string }
+/** 用户行（后端用户列表项，字段宽松 optional） */
+interface UserRow {
+  id: string;
+  nickname?: string;
+  phone?: string;
+  roles?: RoleItem[];
+  memberLevel?: string;
+  coinBalance?: number;
+  orderCount?: number;
+  status?: string;
+  lastActiveAt?: string;
+  createdAt?: string;
+}
+
 const router = useRouter();
-const list = ref<any[]>([]);
+const list = ref<UserRow[]>([]);
 const loading = ref(false);
 const keyword = ref("");
 const roleFilter = ref("");
@@ -389,10 +405,10 @@ const pageSize = 20;
 const total = ref(0);
 
 const roleVisible = ref(false);
-const roleUser = ref<any>(null);
-const roleUserRoles = ref<any[]>([]);
+const roleUser = ref<UserRow | null>(null);
+const roleUserRoles = ref<RoleItem[]>([]);
 const newRole = ref("");
-const selectedRows = ref<any[]>([]);
+const selectedRows = ref<UserRow[]>([]);
 const submitting = ref(false);
 
 // 隐私脱敏：手机号保留前3后4
@@ -444,9 +460,9 @@ function memberTagType(l: string) {
   return { MONTHLY: "warning", YEARLY: "", LIFETIME: "danger" }[l] || "";
 }
 
-function onSelectionChange(rows: any[]) { selectedRows.value = rows; }
+function onSelectionChange(rows: UserRow[]) { selectedRows.value = rows; }
 
-function goDetail(row: any) {
+function goDetail(row: UserRow) {
   router.push(`/users/${row.id}`);
 }
 
@@ -471,7 +487,7 @@ function formatRelative(t: string) {
 async function fetchList() {
   loading.value = true;
   try {
-    const params: any = { page: page.value, pageSize };
+    const params: Record<string, string | number> = { page: page.value, pageSize };
     if (keyword.value) params.keyword = keyword.value;
     if (roleFilter.value) params.roleType = roleFilter.value;
     if (memberLevelFilter.value) params.memberLevel = memberLevelFilter.value;
@@ -496,7 +512,7 @@ function resetFilters() {
   fetchList();
 }
 
-function openRoles(row: any) {
+function openRoles(row: UserRow) {
   roleUser.value = row; roleUserRoles.value = [...(row.roles || [])]; newRole.value = ""; roleVisible.value = true;
 }
 
@@ -528,7 +544,7 @@ async function removeRole(userId: string, roleType: string) {
   } catch { /* */ } finally { submitting.value = false; }
 }
 
-async function handleBan(row: any) {
+async function handleBan(row: UserRow) {
   if (submitting.value) return;
   try {
     await ElMessageBox.prompt("请输入封禁原因", "封禁用户", { type: "warning" });
@@ -538,7 +554,7 @@ async function handleBan(row: any) {
   } catch { /* */ } finally { submitting.value = false; }
 }
 
-async function handleUnban(row: any) {
+async function handleUnban(row: UserRow) {
   if (submitting.value) return;
   try {
     await ElMessageBox.confirm("确定解封该用户？", "提示", { type: "info" });
@@ -581,7 +597,7 @@ function exportData() {
     list.value.map((u) => ({
       ...u,
       phone: maskPhone(u.phone),
-      rolesStr: (u.roles || []).map((r: any) => r.roleType).join(" "),
+      rolesStr: (u.roles || []).map((r) => r.roleType).join(" "),
       createdAt: u.createdAt?.slice(0, 16).replace("T", " "),
       lastActiveAt: u.lastActiveAt?.slice(0, 16).replace("T", " "),
       status: u.status === "ACTIVE" ? "正常" : u.status === "BANNED" ? "封禁" : "禁用",
