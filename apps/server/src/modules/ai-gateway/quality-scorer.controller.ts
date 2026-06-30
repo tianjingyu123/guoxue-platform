@@ -57,4 +57,13 @@ export class QualityScorerController {
   async getStats(@Query("scene") scene?: string) {
     return this.scorer.getStats(scene);
   }
+
+  @Get("trend")
+  @ApiOperation({ summary: "近30天质量评分时序（按日综合评分均值/条数聚合）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiQuery({ name: "scene", required: false })
+  @ApiQuery({ name: "days", required: false, type: Number })
+  async getTrend(@Query("scene") scene?: string, @Query("days") days?: string) {
+    return this.scorer.getTrend(scene, days ? parseInt(days) : 30);
+  }
 }

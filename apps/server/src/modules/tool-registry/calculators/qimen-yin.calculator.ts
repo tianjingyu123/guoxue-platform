@@ -20,6 +20,24 @@ const BA_SHEN = ["值符","螣蛇","太阴","六合","白虎","玄武","九地",
 // 地盘干基序
 const DI_PAN_GAN = ["戊","己","庚","辛","壬","癸","丁","丙","乙"];
 
+// ── 十二长生 + 九宫纳支（与阳盘同源，《三命通会·十二长生》）──
+const GONG_ZHI: Record<number, string> = { 0:"子",1:"申",2:"卯",3:"辰",4:"辰",5:"戌",6:"酉",7:"丑",8:"午" };
+const CHANG_SHENG_ZHI: Record<string, string> = {
+  "甲":"亥","乙":"午","丙":"寅","丁":"酉","戊":"寅","己":"酉","庚":"巳","辛":"子","壬":"申","癸":"卯",
+};
+const CHANG_SHENG_SEQ = ["长生","沐浴","冠带","临官","帝旺","衰","病","死","墓","绝","胎","养"];
+/** 天干在某地支的十二长生（地势） */
+function calcDiShi(gan: string, zhi: string): string {
+  const csZhi = CHANG_SHENG_ZHI[gan];
+  if (!csZhi) return "";
+  const csIdx = DI_ZHI.indexOf(csZhi);
+  const zhiIdx = DI_ZHI.indexOf(zhi);
+  if (csIdx < 0 || zhiIdx < 0) return "";
+  const isYinGan = "乙丁己辛癸".includes(gan);
+  const offset = isYinGan ? (csIdx - zhiIdx + 12) % 12 : (zhiIdx - csIdx + 12) % 12;
+  return CHANG_SHENG_SEQ[offset] ?? "";
+}
+
 // 月支定局表（阴盘简化算法）
 const ZHI_TO_JU: Record<string, number> = {
   "子":1, "丑":5, "寅":7, "卯":9, "辰":3, "巳":5,
@@ -169,6 +187,13 @@ export function calculateQimenYin(input: Record<string, unknown>): QimenResult {
     shenArr.push(BA_SHEN[(i - zhiFuShenOffset + 8) % 8]);
   }
 
+  // 地盘神：值符起旬首宫（未随时干转动前的原始八神位），与天盘八神构成地盘/天盘对应（同阳盘约定）
+  const dipanZhiFuOffset = xunShouGongIdx === 4 ? 1 : nonZhongIdx.indexOf(xunShouGongIdx);
+  const dipanShenArr: string[] = [];
+  for (let i = 0; i < 8; i++) {
+    dipanShenArr.push(BA_SHEN[(i - dipanZhiFuOffset + 8) % 8]);
+  }
+
   // ── 第9步：构建九宫 ──
   const gongs: QimenGong[] = [];
 
@@ -198,6 +223,9 @@ export function calculateQimenYin(input: Record<string, unknown>): QimenResult {
         diPan: diPan[4], tianPan: tianPan[4],
         star: starArr[4], men: menArr[4],
         shen: shenArr[0], yinGan: yinGanArr[4],
+        anGan: yinGanArr[4],
+        dipanShen: dipanShenArr[0],
+        changsheng: { tian: calcDiShi(tianPan[4], GONG_ZHI[4]), di: calcDiShi(diPan[4], GONG_ZHI[4]), an: calcDiShi(yinGanArr[4], GONG_ZHI[4]) },
         isRuMu: false, isJiXing: false, isMenPo: false,
         kongWang: false, maXing: false, shenSha: [],
       });
@@ -221,6 +249,9 @@ export function calculateQimenYin(input: Record<string, unknown>): QimenResult {
       men: menArr[gi],
       shen: shenArr[shenIdx % 8],
       yinGan: yinGanArr[gi],
+      anGan: yinGanArr[gi],
+      dipanShen: dipanShenArr[shenIdx % 8],
+      changsheng: { tian: calcDiShi(tianPan[gi], GONG_ZHI[gi]), di: calcDiShi(diPan[gi], GONG_ZHI[gi]), an: calcDiShi(yinGanArr[gi], GONG_ZHI[gi]) },
       isRuMu,
       isJiXing: false,
       isMenPo: false,

@@ -82,7 +82,9 @@ export class MarketplaceService {
       })),
     ];
 
-    const total = botsTotal; // 简化：total 只计 Coze bots
+    // total 计入两类来源（修复：原先只计 Coze bots，导致分页总数偏少）
+    const circleBotsTotal = await this.prisma.circleBot.count({ where: { status: "ACTIVE" } });
+    const total = botsTotal + circleBotsTotal;
 
     return { items: agents, total };
   }

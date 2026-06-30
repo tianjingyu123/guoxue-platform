@@ -152,6 +152,38 @@ export class BaziRecordQueryDto {
   pageSize?: number;
 }
 
+/** 管理员排盘记录查询参数（覆盖全部排盘类型） */
+export class AdminRecordQueryDto {
+  @ApiPropertyOptional({ description: "页码", default: 1, minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ description: "每页数量", default: 20, minimum: 1, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number;
+
+  @ApiPropertyOptional({
+    description: "排盘类型（ALL=全部）",
+    enum: ["ALL", "BAZI", "ZIWEI", "QIMEN", "YANGPAN", "LIUYAO", "DALIUREN"],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(["ALL", "BAZI", "ZIWEI", "QIMEN", "YANGPAN", "LIUYAO", "DALIUREN"])
+  type?: string;
+
+  @ApiPropertyOptional({ description: "搜索关键词（姓名/事项）" })
+  @IsOptional()
+  @IsString()
+  keyword?: string;
+}
+
 /** AI 分析请求参数 */
 export class AnalyzeDto {
   @ApiProperty({ description: "排盘记录ID" })

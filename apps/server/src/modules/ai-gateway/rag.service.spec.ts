@@ -4,7 +4,6 @@ import { VectorService } from "./vector.service";
 import { AiGatewayService } from "./ai-gateway.service";
 import { KnowledgeQualityService } from "./knowledge-quality.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { BusinessException } from "../../common/business.exception";
 
 describe("RagService", () => {
   let svc: RagService;
@@ -64,25 +63,32 @@ describe("RagService", () => {
 
       expect(result.answer).toContain("学而时习之");
       expect(result.sources).toHaveLength(2);
-      expect(result.sources[0].sourceType).toBe("article");
+      // searchFederated 按来源层级重标 sourceType：圈子本地命中统一标 "circle"
+      expect(result.sources[0].sourceType).toBe("circle");
       expect(vector.embed).toHaveBeenCalledWith(["什么是学而时习之"]);
       expect(vector.searchCircleKnowledge).toHaveBeenCalledWith(
         expect.any(Array), "c1", 5,
       );
     });
 
-    it("知识库为空时返回提示", async () => {
+    it("知识库为空时走通用大模型兜底（第三级）", async () => {
       vector.searchCircleKnowledge.mockResolvedValue([]);
+      vector.searchGlobalKnowledge.mockResolvedValue([]);
 
       const result = await svc.askCircle("问题", "c1");
-      expect(result.answer).toContain("暂无相关内容");
+      // 三级兜底：本地+全局均无命中 → 通用大模型作答，sources 为空
       expect(result.sources).toHaveLength(0);
+      expect(result.answer).toBeTruthy();
+      expect(gateway.chat).toHaveBeenCalled();
     });
 
-    it("Embedding 失败时抛出异常", async () => {
+    it("Embedding 失败时降级为通用兜底（不抛异常）", async () => {
       vector.embed.mockResolvedValue([]);
 
-      await expect(svc.askCircle("问题", "c1")).rejects.toThrow(BusinessException);
+      // searchFederated 内 queryVec 为空即返回 []，askCircle 以 .catch 兜底，优雅降级而非抛错
+      const result = await svc.askCircle("问题", "c1");
+      expect(result.sources).toHaveLength(0);
+      expect(result.answer).toBeTruthy();
     });
 
     it("使用数据库 Prompt 模板", async () => {
@@ -115,14 +121,20 @@ describe("RagService", () => {
       expect(chunks).toEqual(["根据", "知识库", "..."]);
     });
 
-    it("知识库为空时流式返回提示", async () => {
+    it("知识库为空时流式走通用大模型兜底", async () => {
       vector.searchCircleKnowledge.mockResolvedValue([]);
+      vector.searchGlobalKnowledge.mockResolvedValue([]);
+      gateway.chatStream = jest.fn(async function* () {
+        yield "通用";
+        yield "兜底";
+      });
 
       const chunks: string[] = [];
       for await (const c of svc.askCircleStream("提问", "c1")) {
         chunks.push(c);
       }
-      expect(chunks[0]).toContain("暂无相关内容");
+      // 空库时仍流式调用大模型兜底输出
+      expect(chunks.join("")).toContain("兜底");
     });
   });
 

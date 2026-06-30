@@ -73,32 +73,25 @@ export class RagService {
     userId?: string,
     history?: AiMessage[],
   ): Promise<RagAskResult> {
-    // 1. 向量化问题
-    const [queryVec] = await this.vector.embed([question]);
-    if (!queryVec) throw new BusinessException(ErrorCode.BAD_REQUEST, "Embedding 失败");
-
-    // 2. 向量检索
-    const chunks = await this.vector.searchCircleKnowledge(queryVec, circleId, 5);
-
-    if (chunks.length === 0) {
-      return { answer: "知识库中暂无相关内容，请添加更多知识后再提问。", sources: [] };
-    }
-
-    // 3. 构建上下文
-    const contextText = chunks
-      .map((c, i) => `[参考${i + 1}] ${c.content}`)
-      .join("\n\n");
+    // 1. 三级兜底检索：圈子专属知识（优先）+ 全局通用知识库（searchFederated 本地不降权、全局降权 0.3）
+    const chunks = await this.searchFederated(question, circleId, 5).catch(() => [] as KnowledgeChunk[]);
 
     const systemPrompt = await this.getSystemPrompt("circle_assistant", { circleId });
+    const messages: AiMessage[] = [{ role: "system", content: systemPrompt }];
 
-    const messages: AiMessage[] = [
-      { role: "system", content: systemPrompt },
-      { role: "system", content: `知识库内容：\n${contextText}` },
-      ...(history || []),
-      { role: "user", content: question },
-    ];
+    if (chunks.length > 0) {
+      // 2a. 命中知识库 → RAG 回答（圈子内容优先，来源标注）
+      const contextText = chunks
+        .map((c, i) => `[参考${i + 1}][${c.sourceType === "global" ? "通用" : "圈子"}] ${c.content}`)
+        .join("\n\n");
+      messages.push({ role: "system", content: `以下是知识库检索到的内容，请优先依据标注为「圈子」的内容作答，通用内容仅作补充：\n${contextText}` });
+    } else {
+      // 2b. 知识库无命中 → 通用大模型兜底（基于国学通识，第三级）
+      messages.push({ role: "system", content: "知识库暂无直接相关内容。请你作为本圈子的国学助手，基于通用国学常识简明作答，并在结尾用一句话友好说明：本回答来自通用知识，圈子专属内容仍在完善中。" });
+    }
+    messages.push(...(history || []), { role: "user", content: question });
 
-    // 4. 调用 AI 生成回答
+    // 3. 调用 AI 生成回答
     const result = await this.gateway.chat({
       scene: "circle_assistant",
       userId,
@@ -116,26 +109,21 @@ export class RagService {
     userId?: string,
     history?: AiMessage[],
   ): AsyncIterable<string> {
-    const [queryVec] = await this.vector.embed([question]);
-    if (!queryVec) throw new BusinessException(ErrorCode.BAD_REQUEST, "Embedding 失败");
-
-    const chunks = await this.vector.searchCircleKnowledge(queryVec, circleId, 5);
-
-    if (chunks.length === 0) {
-      yield "知识库中暂无相关内容，请添加更多知识后再提问。";
-      return;
-    }
-
-    const contextText = chunks.map((c, i) => `[参考${i + 1}] ${c.content}`).join("\n\n");
+    // 三级兜底检索：圈子专属（优先）+ 全局通用知识库
+    const chunks = await this.searchFederated(question, circleId, 5).catch(() => [] as KnowledgeChunk[]);
 
     const systemPrompt = await this.getSystemPrompt("circle_assistant", { circleId });
+    const messages: AiMessage[] = [{ role: "system", content: systemPrompt }];
 
-    const messages: AiMessage[] = [
-      { role: "system", content: systemPrompt },
-      { role: "system", content: `知识库内容：\n${contextText}` },
-      ...(history || []),
-      { role: "user", content: question },
-    ];
+    if (chunks.length > 0) {
+      const contextText = chunks
+        .map((c, i) => `[参考${i + 1}][${c.sourceType === "global" ? "通用" : "圈子"}] ${c.content}`)
+        .join("\n\n");
+      messages.push({ role: "system", content: `以下是知识库检索到的内容，请优先依据标注为「圈子」的内容作答，通用内容仅作补充：\n${contextText}` });
+    } else {
+      messages.push({ role: "system", content: "知识库暂无直接相关内容。请你作为本圈子的国学助手，基于通用国学常识简明作答，并在结尾用一句话友好说明：本回答来自通用知识，圈子专属内容仍在完善中。" });
+    }
+    messages.push(...(history || []), { role: "user", content: question });
 
     const req: GatewayChatRequest = {
       scene: "circle_assistant",

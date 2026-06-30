@@ -9,7 +9,7 @@ describe("MarketplaceController", () => {
 
   const mockPrisma = {
     botConfig: { findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
-    circleBot: { findMany: jest.fn() },
+    circleBot: { findMany: jest.fn(), count: jest.fn() },
   } as any;
 
   beforeAll(async () => {

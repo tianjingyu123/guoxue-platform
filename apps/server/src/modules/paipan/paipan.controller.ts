@@ -17,7 +17,7 @@ import type { ZiweiResult } from "@guoxue/ziwei-engine";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
-import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, DaLiuRenInputDto, AnalyzeDto, AnalysisQueryDto, GroupListQueryDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto, HehunDto } from "./paipan.dto";
+import { BaziInputDto, BaziRecordQueryDto, AdminRecordQueryDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, DaLiuRenInputDto, AnalyzeDto, AnalysisQueryDto, GroupListQueryDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto, HehunDto } from "./paipan.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -519,21 +519,35 @@ export class PaipanController {
 
   // ────────── 管理员端点 ──────────
 
-  /** 管理员查看所有排盘记录 */
+  /** 管理员查看所有排盘记录（覆盖八字/紫微/奇门/阳盘/六爻/大六壬全部类型） */
   @Get("admin/records")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "管理员查看所有排盘记录" })
+  @ApiOperation({ summary: "管理员查看所有排盘记录（全类型）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "成功返回排盘记录列表" })
   @ApiResponse({ status: 401, description: "未认证" })
   @ApiResponse({ status: 403, description: "无权限（需管理员）" })
-  ziweiAdminRecords(@Query() q: BaziRecordQueryDto & { type?: string; keyword?: string }) {
+  adminRecords(@Query() q: AdminRecordQueryDto) {
     return this.paipan.getAllRecords({
       page: q.page || 1,
       pageSize: q.pageSize || 20,
       type: q.type,
       keyword: q.keyword,
     });
+  }
+
+  /** 管理员查看单条排盘记录详情（不限所有者，覆盖全部类型） */
+  @Get("admin/records/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理员查看单条排盘记录详情（全类型）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "成功返回排盘记录详情" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权限（需管理员）" })
+  @ApiResponse({ status: 404, description: "记录不存在" })
+  adminRecordDetail(@Param("id") id: string) {
+    return this.paipan.getRecordByIdForAdmin(id);
   }
 }

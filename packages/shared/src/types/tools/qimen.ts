@@ -99,6 +99,12 @@ export interface QimenGong {
   shen: string;
   /** 隐干（阴盘特有） */
   yinGan?: string;
+  /** 安干/暗干（人元，阳盘命理奇门特有） */
+  anGan?: string;
+  /** 地盘神（阳盘命理奇门：值符起旬首宫阳顺阴逆的原始八神位） */
+  dipanShen?: string;
+  /** 天盘干、地盘干、安干在本宫地支的十二长生（阳盘命理奇门/时家奇门） */
+  changsheng?: { tian: string; di: string; an: string };
   /** 入墓 */
   isRuMu: boolean;
   /** 击刑 */

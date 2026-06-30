@@ -83,12 +83,15 @@ export class VectorService {
   private embeddingApiChecked = false;
 
   constructor(private readonly prisma: PrismaService) {
-    this.embeddingApiKey = process.env.DEEPSEEK_API_KEY || "";
-    this.embeddingBaseUrl = process.env.EMBEDDING_BASE_URL || "https://api.deepseek.com/v1";
-    this.embeddingModel = process.env.EMBEDDING_MODEL || "deepseek-embedding";
+    // Embedding 独立配置：优先 EMBEDDING_API_KEY，回退 DASHSCOPE（阿里百炼有真实 embedding），
+    // 再回退 DEEPSEEK（注意 DeepSeek 无 embedding 端点，仅作最后兜底→会降级字符哈希）。
+    this.embeddingApiKey =
+      process.env.EMBEDDING_API_KEY || process.env.DASHSCOPE_API_KEY || process.env.DEEPSEEK_API_KEY || "";
+    this.embeddingBaseUrl = process.env.EMBEDDING_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1";
+    this.embeddingModel = process.env.EMBEDDING_MODEL || "text-embedding-v2";
     this.dimension = parseInt(process.env.EMBEDDING_DIMENSION || "1536", 10);
     if (!this.embeddingApiKey) {
-      this.logger.warn("DEEPSEEK_API_KEY 未配置，使用本地字符哈希向量");
+      this.logger.warn("未配置 embedding API Key（EMBEDDING_API_KEY/DASHSCOPE_API_KEY），使用本地字符哈希向量");
     }
   }
 

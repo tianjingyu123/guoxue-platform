@@ -136,7 +136,7 @@ describe("PaipanController", () => {
 
   it("GET /paipan/admin/records — 管理员查看所有记录", async () => {
     const q: any = { page: 1, pageSize: 20, type: "bazi" };
-    const result: any = await ctrl.ziweiAdminRecords(q);
+    const result: any = await ctrl.adminRecords(q);
     expect(result).toHaveLength(1);
   });
 });

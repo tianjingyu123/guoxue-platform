@@ -46,6 +46,39 @@ const GANZHI_60_INDEX = build60JiaZiIndex();
 // 地盘干基序（坎1宫起）
 const DI_PAN_GAN_BASE = ["戊","己","庚","辛","壬","癸","丁","丙","乙"];
 
+// ── 阳盘命理奇门：安干(暗干/人元)、地盘神、十二长生 ──
+// 出处：暗干飞宫法见知乎《奇门遁甲暗干的排法》方法3「时干找值使排暗干法」、
+//       方法2「八门携带暗干法」；十二长生见《三命通会·十二长生》《渊海子平·论生旺》。
+
+// 六仪三奇飞布序（戊起，与地盘干同序），暗干飞宫即沿此序阳顺阴逆排布
+const AN_GAN_ORDER = ["戊","己","庚","辛","壬","癸","丁","丙","乙"];
+
+// 八门地盘本宫（元旦盘固定位）：休坎1 死坤2 伤震3 杜巽4 开乾6 惊兑7 生艮8 景离9
+const MEN_HOME_GONG: Record<string, number> = {
+  "休": 0, "死": 1, "伤": 2, "杜": 3, "开": 5, "惊": 6, "生": 7, "景": 8,
+};
+
+// 九宫纳支（洛书后天八卦定位，宫位多支者取本气支，用于十二长生取地势）
+const GONG_ZHI: Record<number, string> = { 0:"子",1:"申",2:"卯",3:"辰",4:"辰",5:"戌",6:"酉",7:"丑",8:"午" };
+
+// 十干长生地支（甲长生在亥…），阳干顺行阴干逆行
+const CHANG_SHENG_ZHI: Record<string, string> = {
+  "甲":"亥","乙":"午","丙":"寅","丁":"酉","戊":"寅","己":"酉","庚":"巳","辛":"子","壬":"申","癸":"卯",
+};
+const CHANG_SHENG_SEQ = ["长生","沐浴","冠带","临官","帝旺","衰","病","死","墓","绝","胎","养"];
+
+/** 计算天干在某地支的十二长生（地势）。出处：《三命通会·十二长生》 */
+function calcDiShi(gan: string, zhi: string): string {
+  const csZhi = CHANG_SHENG_ZHI[gan];
+  if (!csZhi) return "";
+  const csIdx = DI_ZHI.indexOf(csZhi);
+  const zhiIdx = DI_ZHI.indexOf(zhi);
+  if (csIdx < 0 || zhiIdx < 0) return "";
+  const isYinGan = "乙丁己辛癸".includes(gan);
+  const offset = isYinGan ? (csIdx - zhiIdx + 12) % 12 : (zhiIdx - csIdx + 12) % 12;
+  return CHANG_SHENG_SEQ[offset] ?? "";
+}
+
 /** 根据公历日期+时间获取节气信息（Meeus天文算法，完整24节气，含精确时分比较） */
 function getJieQi(year: number, month: number, day: number, hour: number): { name: string; dun: string; ju: [number, number, number] } {
   const fullOrder = [
@@ -270,6 +303,38 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
     shenArr.push(shenBase[(i - zhiFuShenOffset + 8) % 8]);
   }
 
+  // ── 第7B步：排安干（暗干/人元）──
+  // 出处：知乎《奇门遁甲暗干的排法》。两种起法对应前端「值使门起」「门地盘起」：
+  //  · 值使门起(zhishi/方法3)：时干(甲用旬首仪)加值使门落宫，沿「戊己庚辛壬癸丁丙乙」阳顺阴逆飞布；
+  //    伏吟(值使门落宫地盘干==时干)则时干入中5宫再飞布。
+  //  · 门地盘起(dipan/方法2 八门含干)：某宫暗干=该宫天盘八门在元旦盘本宫的地盘奇仪。
+  const anGanMethod = (input.anganMethod as string) ?? (input.anGanMethod as string) ?? "zhishi";
+  const useDipanAnGan = anGanMethod === "dipan" || anGanMethod === "men-dipan-qi";
+  const anGanArr: string[] = new Array(9).fill("");
+  if (useDipanAnGan) {
+    for (let i = 0; i < 9; i++) {
+      const homeGong = MEN_HOME_GONG[menArr[i]];
+      anGanArr[i] = homeGong !== undefined ? diPan[homeGong] : diPan[i];
+    }
+  } else {
+    const anGanSeed = shiGan === "甲" ? xunShouYi : shiGan;
+    const fuYin = diPan[zhiShiMenLuoGong] === anGanSeed;
+    const startGong = fuYin ? 4 : zhiShiMenLuoGong;
+    const s0 = AN_GAN_ORDER.indexOf(anGanSeed);
+    for (let i = 0; i < 9; i++) {
+      const step = isYangDun ? (i - startGong + 9) % 9 : (startGong - i + 9) % 9;
+      anGanArr[i] = s0 >= 0 ? AN_GAN_ORDER[(s0 + step) % 9] : "";
+    }
+  }
+
+  // ── 第7C步：排地盘神（值符起旬首宫·阳顺阴逆，未随时干转动前的原始八神位）──
+  // 与天盘八神(值符落宫)构成 地盘/天盘 对应，同地盘干vs天盘干同构。
+  const dipanZhiFuOffset = xunShouGongIdx === 4 ? 1 : nonZhongIdx.indexOf(xunShouGongIdx);
+  const dipanShenArr: string[] = [];
+  for (let i = 0; i < 8; i++) {
+    dipanShenArr.push(shenBase[(i - dipanZhiFuOffset + 8) % 8]);
+  }
+
   // ── 第8步：构建九宫 ──
   const gongs: QimenGong[] = [];
 
@@ -302,6 +367,9 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
         star: starArr[4],
         men: BA_MEN[4],
         shen: shenArr[0],
+        anGan: anGanArr[4],
+        dipanShen: dipanShenArr[0],
+        changsheng: { tian: calcDiShi(tianPan[4], GONG_ZHI[4]), di: calcDiShi(diPan[4], GONG_ZHI[4]), an: calcDiShi(anGanArr[4], GONG_ZHI[4]) },
         isRuMu: false, isJiXing: false, isMenPo: false,
         kongWang: false, maXing: false,
       });
@@ -319,6 +387,8 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
     const tg = tianPan[gi];
     const isRuMu = ganRuMuGong[tg] === gi;
 
+    const anGan = anGanArr[gi];
+
     gongs.push({
       index: gongIdx,
       name: gongName,
@@ -328,6 +398,9 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
       star: starArr[gi],
       men: menArr[gi],
       shen,
+      anGan,
+      dipanShen: dipanShenArr[nonZhongIdx.indexOf(gi)],
+      changsheng: { tian: calcDiShi(tianPan[gi], GONG_ZHI[gi]), di: calcDiShi(diPan[gi], GONG_ZHI[gi]), an: calcDiShi(anGan, GONG_ZHI[gi]) },
       isRuMu,
       isJiXing: false,
       isMenPo: false,

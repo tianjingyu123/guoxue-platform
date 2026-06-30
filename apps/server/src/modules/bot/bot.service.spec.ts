@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { BotService } from "./bot.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CozeService } from "./coze.service";
+import { RecommendationService } from "./recommendation.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -30,6 +31,7 @@ const mockPrisma = {
 };
 
 const mockCoze = {};
+const mockReco = { build: jest.fn().mockResolvedValue({ content: "", recommendation: null }) };
 
 describe("BotService", () => {
   let svc: BotService;
@@ -40,6 +42,7 @@ describe("BotService", () => {
         BotService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CozeService, useValue: mockCoze },
+        { provide: RecommendationService, useValue: mockReco },
       ],
     }).compile();
     svc = mod.get(BotService);

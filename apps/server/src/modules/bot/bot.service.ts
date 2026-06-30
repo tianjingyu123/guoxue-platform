@@ -8,6 +8,8 @@ import { CreateBotDto, UpdateBotDto, BindBotToCircleDto, AddKnowledgeDto, ChatDt
 import { encrypt, decrypt } from "../../common/crypto.util";
 import { Cacheable } from "../../common/cache.decorator";
 import { safePagination } from "../../common/pagination";
+import { RISK_DISCLAIMER } from "../../common/ai-disclaimer";
+import { RecommendationService } from "./recommendation.service";
 
 @Injectable()
 export class BotService {
@@ -16,6 +18,7 @@ export class BotService {
   constructor(
     private prisma: PrismaService,
     private coze: CozeService,
+    private reco: RecommendationService,
   ) {}
 
   // ───────── Bot配置 CRUD ─────────
@@ -204,18 +207,23 @@ export class BotService {
       conversationId: dto.conversationId,
     });
 
+    // 软性导流：解析 Coze 协议意图(优先)/平台兜底 → 匹配真实课程/圈子 → 征求同意推荐
+    // content 已剥离协议标记，落库与展示均用净文本
+    const { content: cleanContent, recommendation } = await this.reco.build(result.content as string, dto.query);
+
     await this.prisma.botChatLog.create({
       data: {
         userId,
         botConfigId,
         query: dto.query,
-        response: result.content as string,
+        response: cleanContent,
         conversationId: result.conversationId,
         chatId: result.chatId,
       },
     });
 
-    return result;
+    // 合规：AI 输出统一附带风险免责声明（前端在气泡下方展示）
+    return { ...result, content: cleanContent, disclaimer: RISK_DISCLAIMER, recommendation };
   }
 
   /** 流式对话（返回 Observable，控制器处理为SSE） */
@@ -241,6 +249,78 @@ export class BotService {
       { role: "user", content: l.query, time: l.createdAt },
       { role: "assistant", content: l.response, time: l.createdAt },
     ]).sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+  }
+
+  /**
+   * 我的会话列表 —— 基于 BotChatLog 按 conversationId 聚合（不引入额外会话表）。
+   * 每个会话取最新一条作摘要，统计消息轮数，并补齐对应智能体信息。
+   */
+  async getMyConversations(userId: string, page = 1, pageSize = 20) {
+    // 取该用户近期日志（按时间倒序），在内存按 conversationId 归并
+    const logs = await this.prisma.botChatLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    });
+
+    type Conv = {
+      conversationId: string;
+      botConfigId: string;
+      lastQuery: string;
+      lastResponse: string;
+      lastTime: Date;
+      messageCount: number;
+    };
+    const map = new Map<string, Conv>();
+    for (const l of logs) {
+      const key = l.conversationId || l.id;
+      const existing = map.get(key);
+      if (!existing) {
+        // 首次遇到即最新一条（已按 createdAt desc）
+        map.set(key, {
+          conversationId: key,
+          botConfigId: l.botConfigId,
+          lastQuery: l.query,
+          lastResponse: l.response,
+          lastTime: l.createdAt,
+          messageCount: 1,
+        });
+      } else {
+        existing.messageCount += 1;
+      }
+    }
+
+    const all = [...map.values()].sort((a, b) => b.lastTime.getTime() - a.lastTime.getTime());
+    const total = all.length;
+    const { skip, pageSize: ps } = safePagination(page, pageSize);
+    const pageItems = all.slice(skip, skip + ps);
+
+    // 补齐智能体信息
+    const botIds = [...new Set(pageItems.map((c) => c.botConfigId))];
+    const bots = botIds.length
+      ? await this.prisma.botConfig.findMany({
+          where: { id: { in: botIds } },
+          select: { id: true, name: true, avatar: true, type: true },
+        })
+      : [];
+    const botMap = new Map(bots.map((b) => [b.id, b]));
+
+    const items = pageItems.map((c) => {
+      const bot = botMap.get(c.botConfigId);
+      return {
+        conversationId: c.conversationId,
+        botConfigId: c.botConfigId,
+        botName: bot?.name ?? "智能体",
+        botAvatar: bot?.avatar ?? "",
+        botType: bot?.type ?? "",
+        lastQuery: c.lastQuery,
+        lastMessage: c.lastResponse,
+        lastTime: c.lastTime,
+        messageCount: c.messageCount,
+      };
+    });
+
+    return { items, total, page, pageSize: ps };
   }
 
   /** 获取用户今日对话次数 */

@@ -106,10 +106,8 @@ function wuXingKe(ke: string, beiKe: string): boolean {
 
 /** 使用 Meeus 天文算法获取当前中气和对应月将 */
 function getJieQiInfo(dateStr: string): { name: string; yueJiangIdx: number } {
-  const d = new Date(dateStr + "T12:00:00+08:00");
-  const year = d.getFullYear();
-  const month = d.getMonth() + 1;
-  const day = d.getDate();
+  // 直接从 YYYY-MM-DD 解析，避免 new Date() 受运行环境时区影响导致日期偏移
+  const [year, month, day] = dateStr.slice(0, 10).split("-").map(Number);
 
   const allJieQi = calcAllJieQi(year);
   const birthValue = month * 100 + day;
@@ -142,8 +140,9 @@ function getJieQiInfo(dateStr: string): { name: string; yueJiangIdx: number } {
 
 /** 日干支（bazi-engine 纯数学算法） */
 function dayGanZhi(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00+08:00");
-  const rz = calcRiZhu(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  // 直接从 YYYY-MM-DD 解析日期，避免 new Date() 受运行环境时区影响导致日柱偏移一天
+  const [y, m, dd] = dateStr.slice(0, 10).split("-").map(Number);
+  const rz = calcRiZhu(y, m, dd);
   return rz.gan + rz.zhi;
 }
 

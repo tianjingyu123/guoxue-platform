@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
-import { QualityScoreRecord } from "@prisma/client";
+import { QualityScoreRecord, Prisma } from "@prisma/client";
 import { AiGatewayService } from "./ai-gateway.service";
 
 /** 四维评分结果 */
@@ -145,6 +145,41 @@ export class QualityScorerService {
       avgProfessionalism: this.round(result._avg.professionalism),
       total: result._count.overall,
     };
+  }
+
+  /**
+   * 近 N 天质量评分时序（按日聚合）
+   *
+   * 数据源 QualityScoreRecord 仅含四维评分，无"采纳/驳回"维度，
+   * 因此趋势返回的是【每日综合评分均值 + 评分条数】，绝不杜撰采纳率。
+   * 缺数据的日期不返回，由前端补全完整坐标轴（空值断点）。
+   */
+  async getTrend(scene?: string, days = 30): Promise<{
+    items: Array<{ date: string; avgOverall: number; count: number }>;
+    total: number;
+  }> {
+    const span = Math.min(Math.max(days, 1), 90);
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    since.setDate(since.getDate() - (span - 1));
+
+    const rows = await this.prisma.$queryRaw<Array<{ day: Date; avgOverall: number | null; cnt: bigint }>>`
+      SELECT date_trunc('day', "createdAt") AS day,
+             AVG("overall")                AS "avgOverall",
+             COUNT(*)                       AS cnt
+      FROM "QualityScoreRecord"
+      WHERE "createdAt" >= ${since}
+      ${scene ? Prisma.sql`AND "scene" = ${scene}` : Prisma.empty}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `;
+
+    const items = rows.map((r) => ({
+      date: r.day.toISOString().slice(0, 10),
+      avgOverall: this.round(r.avgOverall),
+      count: Number(r.cnt),
+    }));
+    return { items, total: items.reduce((s, i) => s + i.count, 0) };
   }
 
   /** 持久化评分结果 */

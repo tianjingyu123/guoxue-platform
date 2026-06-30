@@ -118,7 +118,7 @@ export class CapabilityRegistryService {
       model: c.model,
       inputSchema: c.inputSchema as Record<string, unknown>,
       outputSchema: c.outputSchema as Record<string, unknown>,
-      costPerCall: c.costPerCall,
+      costPerCall: Number(c.costPerCall),
     }));
   }
 
@@ -154,7 +154,7 @@ export class CapabilityRegistryService {
       model: c.model,
       inputSchema: c.inputSchema as Record<string, unknown>,
       outputSchema: c.outputSchema as Record<string, unknown>,
-      costPerCall: c.costPerCall,
+      costPerCall: Number(c.costPerCall),
     };
   }
 

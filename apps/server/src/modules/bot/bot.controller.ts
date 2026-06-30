@@ -117,6 +117,22 @@ export class BotController {
     return this.svc.getFeedCards(+limit);
   }
 
+  @Get("my-conversations")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的会话列表（按 conversationId 聚合历史对话）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  myConversations(
+    @Req() req: Request,
+    @Query("page") page = "1",
+    @Query("pageSize") pageSize = "20",
+  ) {
+    return this.svc.getMyConversations(req.user.id, Number(page), Number(pageSize));
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "获取智能体详情" })
   @ApiResponse({ status: 200, description: "成功" })
