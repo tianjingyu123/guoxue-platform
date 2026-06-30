@@ -964,6 +964,7 @@ model Order {
   type             OrderType
   targetId         String // 购买目标ID（课程ID/商品ID等）
   skuId            String?
+  quantity         Int         @default(1) // 购买数量（取消订单按此恢复库存，避免多件订单只回 1 件）
   amount           Decimal     @db.Decimal(10, 2)
   payAmount        Decimal?    @db.Decimal(10, 2) // 实付金额
   originalAmount   Decimal?    @db.Decimal(10, 2) // 原始标价

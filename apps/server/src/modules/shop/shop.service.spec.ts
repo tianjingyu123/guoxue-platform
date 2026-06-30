@@ -325,6 +325,15 @@ describe("ShopService", () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", userId: "u1", status: "PAID" })
       await expect(svc.cancelOrder("o1", "u1")).rejects.toThrow(BusinessException)
     })
+
+    it("取消多件订单按 quantity 恢复库存（修复只回 1 件的 bug）", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", userId: "u1", status: "PENDING", type: "PRODUCT", skuId: "sku1", quantity: 3 })
+      await svc.cancelOrder("o1", "u1")
+      // 旧逻辑硬编码 increment:1，多件订单库存丢失；修复后按下单数量恢复
+      expect(mockPrisma.productSku.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { stock: { increment: 3 } } }),
+      )
+    })
   })
 
   describe("refundOrder", () => {

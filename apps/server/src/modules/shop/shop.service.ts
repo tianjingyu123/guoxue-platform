@@ -459,6 +459,7 @@ export class ShopService {
           type: dto.type as any,
           targetId: dto.targetId,
           skuId: dto.skuId,
+          quantity: qty,
           amount: actualAmount,
           couponId: dto.couponId,
           promotionType,
@@ -1385,12 +1386,12 @@ export class ShopService {
           if (order.skuId) {
             await tx.productSku.updateMany({
               where: { id: order.skuId },
-              data: { stock: { increment: 1 } },
+              data: { stock: { increment: order.quantity } },
             });
           } else if (order.targetId) {
             await tx.product.updateMany({
               where: { id: order.targetId },
-              data: { stock: { increment: 1 } },
+              data: { stock: { increment: order.quantity } },
             });
           }
         }
